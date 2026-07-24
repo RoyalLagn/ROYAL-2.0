@@ -16,9 +16,10 @@ const PINK = "#E91E63";
 type LocationSelectorProps = {
   dark: boolean;
   compact?: boolean;
+  filterChip?: boolean;
 };
 
-export default function LocationSelector({ dark, compact = false }: LocationSelectorProps) {
+export default function LocationSelector({ dark, compact = false, filterChip = false }: LocationSelectorProps) {
   const { location, setLocation } = useCustomerLocation();
   const city = location.split(",")[0];
   const [visible, setVisible] = useState(false);
@@ -60,14 +61,16 @@ export default function LocationSelector({ dark, compact = false }: LocationSele
         onPress={() => setVisible(true)}
         style={({ pressed, hovered }) => [
           styles.trigger,
+          { backgroundColor: colors.surface, borderColor: colors.border },
           compact && styles.triggerCompact,
+          filterChip && [styles.triggerFilter, { backgroundColor: colors.surface, borderColor: colors.border }],
           hovered && Platform.OS === "web" && { backgroundColor: dark ? "#2A2428" : "#FFF1F6" },
           pressed && styles.pressed,
         ]}
       >
         <MapPin size={compact ? 14 : 15} color={PINK} />
-        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.triggerText, { color: colors.text }]}>
-          {city}
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.triggerText, filterChip && styles.triggerFilterText, { color: colors.text }]}>
+          {filterChip ? "Location" : city}
         </Text>
         <ChevronDown size={13} color={colors.muted} />
       </Pressable>
@@ -157,9 +160,11 @@ export default function LocationSelector({ dark, compact = false }: LocationSele
 const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   pressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
-  trigger: { minWidth: 0, minHeight: 42, flexDirection: "row", alignItems: "center", gap: 5 },
+  trigger: { minWidth: 0, maxWidth: 190, minHeight: 42, borderWidth: 1, borderRadius: 14, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 5 },
   triggerCompact: { maxWidth: 190, paddingHorizontal: 9, borderRadius: 13 },
+  triggerFilter: { minHeight: 42, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12 },
   triggerText: { flexShrink: 1, minWidth: 0, fontSize: 11, fontWeight: "700" },
+  triggerFilterText: { fontSize: 11 },
   backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(27,14,21,.48)" },
   backdropMobile: { padding: 0, justifyContent: "flex-end" },
   sheet: { width: "100%", maxWidth: 480, borderWidth: 1, borderRadius: 24, padding: 20 },

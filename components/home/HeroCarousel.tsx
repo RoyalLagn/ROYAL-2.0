@@ -181,15 +181,14 @@ export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps
               style={[
                 StyleSheet.absoluteFillObject,
                 styles.image,
-                Platform.OS === "web" ? ({ objectFit: "cover", objectPosition: "center" } as never) : null,
               ]}
             />
             <LinearGradient
-              colors={["rgba(18,8,14,.84)", "rgba(20,9,15,.54)", "rgba(17,8,13,.06)"]}
-              locations={[0, 0.52, 1]}
+              colors={["rgba(255,251,249,.98)", "rgba(255,244,241,.78)", "rgba(255,244,241,.04)"]}
+              locations={[0, 0.48, 0.82]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
-              style={StyleSheet.absoluteFillObject}
+              style={[StyleSheet.absoluteFillObject, styles.overlay]}
             />
             <View style={[styles.copy, desktop && styles.copyDesktop]}>
               <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
@@ -244,32 +243,34 @@ export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps
           />
         ))}
       </View>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  shell: { aspectRatio: 16 / 8.7, borderRadius: 22, overflow: "hidden", position: "relative", backgroundColor: "#2A1720" },
+  shell: { aspectRatio: 16 / 8.7, borderRadius: 22, overflow: "hidden", position: "relative", backgroundColor: "#FFF5F2" },
   shellDesktop: { aspectRatio: 16 / 6.4, borderRadius: 26 },
   slide: { height: "100%", position: "relative", overflow: "hidden" },
-  image: { width: "100%", height: "100%" },
-  copy: { position: "absolute", left: 0, top: 0, bottom: 0, width: "72%", paddingHorizontal: 18, justifyContent: "center" },
+  image: { width: "100%", height: "100%", zIndex: 0 },
+  overlay: { zIndex: 1 },
+  copy: { position: "absolute", zIndex: 2, left: 0, top: 0, bottom: 0, width: "76%", paddingHorizontal: 18, justifyContent: "center" },
   copyDesktop: { width: "56%", paddingHorizontal: 54 },
-  eyebrow: { color: "rgba(255,255,255,.84)", fontSize: 7, lineHeight: 10, fontWeight: "900", letterSpacing: 1.05, marginBottom: 6 },
-  title: { color: "#FFFFFF", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 21, lineHeight: 24, fontWeight: "700" },
+  eyebrow: { color: "#9A4E69", fontSize: 7, lineHeight: 10, fontWeight: "900", letterSpacing: 1.05, marginBottom: 6 },
+  title: { color: "#172132", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 21, lineHeight: 24, fontWeight: "700" },
   titleDesktop: { fontSize: 39, lineHeight: 43 },
-  highlight: { color: "#FF4D8D", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 22, lineHeight: 25, fontWeight: "700", fontStyle: "italic" },
+  highlight: { color: PINK, fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 22, lineHeight: 25, fontWeight: "700", fontStyle: "italic" },
   highlightDesktop: { fontSize: 41, lineHeight: 46 },
-  description: { maxWidth: 290, color: "rgba(255,255,255,.90)", fontSize: 10, lineHeight: 14, marginTop: 6 },
+  description: { maxWidth: 290, color: "#3F4149", fontSize: 10, lineHeight: 14, marginTop: 6 },
   descriptionDesktop: { maxWidth: 470, fontSize: 13, lineHeight: 19, marginTop: 10 },
   cta: { minHeight: 38, alignSelf: "flex-start", marginTop: 11, paddingHorizontal: 14, borderRadius: 999, backgroundColor: PINK, flexDirection: "row", alignItems: "center", gap: 4, shadowColor: "#3D0D20", shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
   ctaHover: { transform: [{ translateY: -1 }], backgroundColor: "#D81758" },
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   ctaText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
-  indicators: { position: "absolute", left: 0, right: 0, bottom: 9, flexDirection: "row", justifyContent: "center", gap: 5 },
-  indicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,.58)" },
+  indicators: { position: "absolute", zIndex: 4, left: 0, right: 0, bottom: 9, flexDirection: "row", justifyContent: "center", gap: 5 },
+  indicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(233,30,99,.28)" },
   indicatorActive: { width: 20, backgroundColor: PINK },
-  arrow: { position: "absolute", top: "50%", width: 38, height: 38, marginTop: -19, borderRadius: 19, backgroundColor: "rgba(25,12,18,.50)", alignItems: "center", justifyContent: "center" },
+  arrow: { position: "absolute", zIndex: 4, top: "50%", width: 38, height: 38, marginTop: -19, borderRadius: 19, backgroundColor: "rgba(25,12,18,.50)", alignItems: "center", justifyContent: "center" },
   arrowLeft: { left: 14 },
   arrowRight: { right: 14 },
 });
