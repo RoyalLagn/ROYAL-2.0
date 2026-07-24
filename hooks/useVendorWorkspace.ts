@@ -80,7 +80,7 @@ export function useVendorWorkspace() {
       const [albums, media, availability, enquiries, notifications, reviews, services, subscription] = await Promise.all([
         supabase.from("vendor_portfolio_albums").select("*").eq("vendor_id", vendor.id).order("display_order"),
         supabase.from("vendor_portfolio_media").select("*").eq("vendor_id", vendor.id).order("display_order"),
-        supabase.from("vendor_availability").select("*").eq("vendor_id", vendor.id).gte("available_date", today).order("available_date").limit(12),
+        supabase.from("vendor_availability").select("*").eq("vendor_id", vendor.id).gte("date", today).order("date").limit(12),
         supabase.from("vendor_enquiries").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("vendor_notifications").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("reviews").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),

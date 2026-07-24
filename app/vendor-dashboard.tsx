@@ -127,7 +127,7 @@ export default function VendorDashboard() {
             </Pressable>
             <Pressable onPress={() => router.push("/VendorCalendar")} style={[styles.summaryCard, desktop && styles.summaryDesktop, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.sectionHeading}><View><Text style={[styles.sectionTitle, { color: colors.text }]}>Availability</Text><Text style={[styles.sectionSubtitle, { color: colors.muted }]}>{data.availability.length} upcoming dates set</Text></View><CalendarDays size={21} color={colors.pink} /></View>
-              <Text style={[styles.summaryHint, { color: colors.muted }]}>{data.availability[0]?.available_date ? `Next update: ${data.availability[0].available_date}` : "Set dates so customers know when you are available."}</Text>
+              <Text style={[styles.summaryHint, { color: colors.muted }]}>{data.availability[0]?.date ? `Next update: ${data.availability[0].date}` : "Set dates so customers know when you are available."}</Text>
             </Pressable>
           </View>
 

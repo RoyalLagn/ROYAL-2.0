@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyhole } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -12,6 +12,7 @@ const statuses = [
   { id: "tentative", label: "Tentative", icon: Clock3 },
   { id: "blocked", label: "Blocked", icon: LockKeyhole },
 ] as const;
+type AvailabilityStatus = (typeof statuses)[number]["id"];
 const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 export default function VendorCalendar() {
@@ -20,6 +21,8 @@ export default function VendorCalendar() {
   const { data, refresh } = useVendorWorkspace();
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [selected, setSelected] = useState(() => iso(new Date()));
+  const [savedStatuses, setSavedStatuses] = useState<Record<string, AvailabilityStatus>>({});
+  const [savingStatus, setSavingStatus] = useState<AvailabilityStatus | null>(null);
   const days = useMemo(() => {
     const result: (Date | null)[] = Array(month.getDay()).fill(null);
     const count = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
@@ -27,11 +30,71 @@ export default function VendorCalendar() {
     while (result.length % 7) result.push(null);
     return result;
   }, [month]);
-  const dateStatus = (date: string) => data.availability.find((item) => item.available_date === date)?.status;
-  const update = async (status: string) => {
+  useEffect(() => {
+    setSavedStatuses((current) => {
+      const next = { ...current };
+      data.availability.forEach((item) => {
+        if (item.date) next[item.date] = item.status;
+      });
+      return next;
+    });
+  }, [data.availability]);
+
+  useEffect(() => {
+    if (!data.vendor?.id) return;
+    const firstDay = iso(month);
+    const lastDay = iso(new Date(month.getFullYear(), month.getMonth() + 1, 0));
+    let active = true;
+    supabase
+      .from("vendor_availability")
+      .select("date,status")
+      .eq("vendor_id", data.vendor.id)
+      .gte("date", firstDay)
+      .lte("date", lastDay)
+      .then(({ data: rows, error }) => {
+        if (!active) return;
+        if (error) {
+          Alert.alert("Availability not loaded", error.message);
+          return;
+        }
+        setSavedStatuses((current) => {
+          const next = { ...current };
+          Object.keys(next).forEach((date) => {
+            if (date >= firstDay && date <= lastDay) delete next[date];
+          });
+          rows?.forEach((row) => { next[row.date] = row.status as AvailabilityStatus; });
+          return next;
+        });
+      });
+    return () => { active = false; };
+  }, [data.vendor?.id, month]);
+
+  const dateStatus = (date: string) => savedStatuses[date];
+  const update = async (status: AvailabilityStatus) => {
     if (!data.vendor?.id) return Alert.alert("Vendor profile required", "Connect a vendor profile before changing availability.");
-    const { error } = await supabase.from("vendor_availability").upsert({ vendor_id: data.vendor.id, available_date: selected, status }, { onConflict: "vendor_id,available_date" });
-    if (error) Alert.alert("Availability not saved", error.message); else refresh();
+    if (savingStatus) return;
+    const previousStatus = savedStatuses[selected];
+    setSavedStatuses((current) => ({ ...current, [selected]: status }));
+    setSavingStatus(status);
+    const { error } = await supabase
+      .from("vendor_availability")
+      .upsert(
+        { vendor_id: data.vendor.id, date: selected, status },
+        { onConflict: "vendor_id,date" },
+      );
+    setSavingStatus(null);
+    if (error) {
+      setSavedStatuses((current) => {
+        const next = { ...current };
+        if (previousStatus) next[selected] = previousStatus;
+        else delete next[selected];
+        return next;
+      });
+      Alert.alert("Availability not saved", error.message);
+      return;
+    }
+    void refresh();
+    Alert.alert("Availability saved", `${selected} is now ${status}.`);
   };
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
@@ -57,8 +120,8 @@ export default function VendorCalendar() {
         <Text style={[styles.subtitle, { color: colors.muted }]}>Choose how this date appears in your vendor schedule.</Text>
         <View style={styles.statusGrid}>{statuses.map(({ id, label, icon: Icon }) => {
           const active = dateStatus(selected) === id;
-          return <Pressable key={id} onPress={() => update(id)} style={[styles.status, { borderColor: active ? colors.pink : colors.border, backgroundColor: active ? colors.surfaceSoft : colors.background }]}>
-            <Icon size={19} color={active ? colors.pink : colors.muted} /><Text style={{ color: active ? colors.pink : colors.text, fontSize: 11, fontWeight: "700" }}>{label}</Text>
+          return <Pressable key={id} disabled={savingStatus !== null} onPress={() => update(id)} style={[styles.status, { borderColor: active ? colors.pink : colors.border, backgroundColor: active ? colors.surfaceSoft : colors.background }]}>
+            {savingStatus === id ? <ActivityIndicator size="small" color={colors.pink} /> : <Icon size={19} color={active ? colors.pink : colors.muted} />}<Text style={{ color: active ? colors.pink : colors.text, fontSize: 11, fontWeight: "700" }}>{label}</Text>
           </Pressable>;
         })}</View>
       </View>

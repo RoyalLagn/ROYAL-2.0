@@ -182,6 +182,41 @@ export type Database = {
           },
         ];
       };
+      vendor_availability: {
+        Row: {
+          created_at: string;
+          date: string;
+          id: string;
+          status: Database["public"]["Enums"]["vendor_availability_status"];
+          updated_at: string;
+          vendor_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          date: string;
+          id?: string;
+          status?: Database["public"]["Enums"]["vendor_availability_status"];
+          updated_at?: string;
+          vendor_id: string;
+        };
+        Update: {
+          created_at?: string;
+          date?: string;
+          id?: string;
+          status?: Database["public"]["Enums"]["vendor_availability_status"];
+          updated_at?: string;
+          vendor_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vendor_availability_vendor_id_fkey";
+            columns: ["vendor_id"];
+            isOneToOne: false;
+            referencedRelation: "vendors";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       vendor_services: {
         Row: {
           created_at: string;
@@ -313,6 +348,7 @@ export type Database = {
     Enums: {
       app_role: "public_user" | "vendor" | "admin";
       subscription_status: "pending" | "active" | "expired" | "cancelled";
+      vendor_availability_status: "available" | "tentative" | "blocked";
     };
     CompositeTypes: Record<string, never>;
   };
