@@ -1,19 +1,13 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
   ScrollView,
-  TextInput,
-  TouchableOpacity,
-  Image,
   StyleSheet,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  Search,
-  ChevronLeft,
-  Heart,
-  ChevronRight,
   Building2,
   UtensilsCrossed,
   Camera,
@@ -27,22 +21,16 @@ import {
   BookOpen,
   Mail,
   Music,
-  Filter,
 } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 import { useRouter } from "expo-router";
+import CategoryCard, { type CategoryCardItem } from "@/components/categories/CategoryCard";
+import CategoryFilterModal from "@/components/categories/CategoryFilterModal";
+import CategoryPageHeader from "@/components/categories/CategoryPageHeader";
+import CategorySearchBar from "@/components/categories/CategorySearchBar";
+import HomeReveal from "@/components/home/HomeReveal";
 
-type Category = {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ElementType;
-  iconColor: string;
-  iconBg: string;
-  image: string;
-};
-
-const CATEGORIES: Category[] = [
+const CATEGORIES: CategoryCardItem[] = [
   {
     id: "1",
     name: "Venues",
@@ -176,126 +164,106 @@ export default function CategoriesScreen() {
   const isDark = colorScheme === "dark";
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const { width } = useWindowDimensions();
+  const twoColumns = width >= 900;
+  const compactCards = width < 600;
+  const contentWidth = Math.min(width - (width >= 1100 ? 48 : 32), 1180);
+  const cardWidth = twoColumns ? (contentWidth - 14) / 2 : contentWidth;
 
-  const bg      = isDark ? "#141414" : "#FAFAFA";
-  const card    = isDark ? "#1E1E1E" : "#FFFFFF";
+  const bg      = isDark ? "#141214" : "#FFFAFC";
   const text    = isDark ? "#F5F0F3" : "#141414";
   const muted   = isDark ? "#AAA0A5" : "#787178";
-  const inputBg = isDark ? "#252525" : "#F4F4F4";
   const border  = isDark ? "#2A2A2A" : "#F0E8F2";
 
-  const filtered = query.trim()
-    ? CATEGORIES.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()))
-    : CATEGORIES;
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return CATEGORIES.filter((category) => {
+      const matchesSearch = !normalizedQuery
+        || category.name.toLowerCase().includes(normalizedQuery)
+        || category.description.toLowerCase().includes(normalizedQuery);
+      const matchesCategory = !selectedCategory || category.id === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [query, selectedCategory]);
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
-
-      {/* ── Header ── */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => router.back()}>
-          <ChevronLeft size={24} color={text} />
-        </TouchableOpacity>
-        <Text style={[s.headerTitle, { color: text }]}>All Categories</Text>
-        <TouchableOpacity style={s.headerBtn} onPress={() => router.push("/(tabs)/favorites")}>
-          <Heart size={22} color={text} />
-        </TouchableOpacity>
-      </View>
-
-      {/* ── Search bar ── */}
-      <View style={s.searchPad}>
-        <View style={[s.searchBar, { backgroundColor: inputBg }]}>
-          <Search size={17} color={muted} style={{ marginRight: 8 }} />
-          <TextInput
-            style={[s.searchInput, { color: text }]}
-            placeholder="Search categories..."
-            placeholderTextColor={muted}
-            value={query}
-            onChangeText={setQuery}
+      <View style={[s.topContent, { width: contentWidth }]}>
+        <HomeReveal direction="down">
+          <CategoryPageHeader
+            dark={isDark}
+            onBack={() => router.back()}
+            onFavorites={() => router.push("/(tabs)/favorites")}
           />
-        </View>
-        <TouchableOpacity style={s.filterBtn} onPress={() => setQuery("")}>
-          <Filter size={18} color="#FFFFFF" />
-        </TouchableOpacity>
+        </HomeReveal>
+        <HomeReveal delay={45}>
+          <CategorySearchBar
+            dark={isDark}
+            query={query}
+            activeFilterCount={selectedCategory ? 1 : 0}
+            onChangeQuery={setQuery}
+            onOpenFilters={() => setFiltersVisible(true)}
+          />
+        </HomeReveal>
       </View>
 
       {/* ── List ── */}
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.list, { paddingBottom: 24 }]}
+        keyboardShouldPersistTaps="handled"
+        style={s.scroll}
+        contentContainerStyle={[s.list, { width: contentWidth, paddingBottom: 28 }]}
       >
-        {filtered.map((cat) => {
-          const Icon = cat.icon;
-          const catIconBg = isDark ? cat.iconColor + "22" : cat.iconBg;
-          return (
-            <TouchableOpacity
-              key={cat.id}
-              style={[s.row, { backgroundColor: card, borderColor: border }]}
-              onPress={() =>
-                router.push({
-                  pathname: "/VendorsListing",
-                  params: { category: cat.name },
-                })
-              }
-              activeOpacity={0.82}
-            >
-              {/* Icon + text */}
-              <View style={s.rowLeft}>
-                <View style={[s.iconCircle, { backgroundColor: catIconBg }]}>
-                  <Icon size={26} color={cat.iconColor} />
-                </View>
-                <View style={s.rowText}>
-                  <Text style={[s.catName, { color: text }]}>{cat.name}</Text>
-                  <Text style={[s.catDesc, { color: muted }]}>{cat.description}</Text>
-                </View>
-              </View>
+        <View style={s.grid}>
+          {filtered.map((category, index) => (
+            <HomeReveal key={category.id} delay={Math.min(index * 32, 224)} style={{ width: cardWidth }}>
+              <CategoryCard
+                category={category}
+                dark={isDark}
+                compact={compactCards}
+                onPress={() =>
+                  router.push({
+                    pathname: "/VendorsListing",
+                    params: { category: category.name },
+                  })
+                }
+              />
+            </HomeReveal>
+          ))}
+        </View>
 
-              {/* Image + chevron */}
-              <View style={s.rowRight}>
-                <Image
-                  source={{ uri: cat.image }}
-                  style={s.catImg}
-                  resizeMode="cover"
-                />
-                <View style={s.chevronCircle}>
-                  <ChevronRight size={15} color="#141414" />
-                </View>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+        {!filtered.length ? (
+          <View style={[s.empty, { borderColor: border }]}>
+            <Text style={[s.emptyTitle, { color: text }]}>No categories found</Text>
+            <Text style={[s.emptyText, { color: muted }]}>Try another keyword or reset the selected filter.</Text>
+          </View>
+        ) : null}
       </ScrollView>
+
+      <CategoryFilterModal
+        visible={filtersVisible}
+        dark={isDark}
+        categories={CATEGORIES}
+        selected={selectedCategory}
+        onClose={() => setFiltersVisible(false)}
+        onApply={(category) => {
+          setSelectedCategory(category);
+          setFiltersVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  root:          { flex: 1 },
-
-  /* Header */
-  header:        { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 10 },
-  headerBtn:     { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-  headerTitle:   { fontSize: 18, fontWeight: "700" },
-
-  /* Search */
-  searchPad:     { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, marginBottom: 14, gap: 10 },
-  searchBar:     { flex: 1, flexDirection: "row", alignItems: "center", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
-  searchInput:   { flex: 1, fontSize: 13 },
-  filterBtn:     { width: 44, height: 44, borderRadius: 12, backgroundColor: "#E91E63", alignItems: "center", justifyContent: "center" },
-
-  /* List */
-  list:          { paddingHorizontal: 16, gap: 10 },
-
-  /* Row card */
-  row:           { flexDirection: "row", alignItems: "center", borderRadius: 16, borderWidth: 1, overflow: "hidden", minHeight: 88 },
-  rowLeft:       { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 14, gap: 12 },
-  iconCircle:    { width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  rowText:       { flex: 1 },
-  catName:       { fontSize: 15, fontWeight: "700", marginBottom: 3 },
-  catDesc:       { fontSize: 12, lineHeight: 17 },
-
-  /* Image */
-  rowRight:      { position: "relative", width: 110 },
-  catImg:        { width: 110, height: 88 },
-  chevronCircle: { position: "absolute", right: 10, top: "50%", marginTop: -16, width: 32, height: 32, borderRadius: 16, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.14, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 3 },
+  root: { flex: 1 },
+  topContent: { alignSelf: "center", paddingBottom: 15 },
+  scroll: { flex: 1 },
+  list: { alignSelf: "center" },
+  grid: { width: "100%", flexDirection: "row", flexWrap: "wrap", gap: 14 },
+  empty: { marginTop: 12, borderWidth: 1, borderStyle: "dashed", borderRadius: 20, paddingVertical: 34, paddingHorizontal: 20, alignItems: "center" },
+  emptyTitle: { fontFamily: "serif", fontSize: 20, fontWeight: "700", marginBottom: 5 },
+  emptyText: { maxWidth: 330, textAlign: "center", fontSize: 11, lineHeight: 17 },
 });

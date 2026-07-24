@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronRight, Search as SearchIcon, X } from "lucide-react-native";
 import { categoryProfiles, vendorsByCategory } from "@/data/vendorData";
+import { TEMP_AVAILABLE_VENDOR_IDS } from "@/data/homeAvailability";
 
 const GLOBAL_PAGES = [
   { label: "Categories", detail: "Browse every wedding service", keywords: "categories services vendors browse", route: "/(tabs)/Categories" as const },
@@ -40,6 +41,7 @@ export default function SearchScreen() {
     budget?: string;
     category?: string;
     nearby?: string;
+    availability?: string;
     sort?: string;
   }>();
   const initialQuery = Array.isArray(params.query) ? params.query[0] : params.query ?? "";
@@ -57,6 +59,7 @@ export default function SearchScreen() {
   const maximumBudget = Number(Array.isArray(params.budget) ? params.budget[0] : params.budget) || 0;
   const selectedCategory = Array.isArray(params.category) ? params.category[0] : params.category ?? "";
   const nearbyOnly = (Array.isArray(params.nearby) ? params.nearby[0] : params.nearby) === "true";
+  const availabilityOnly = (Array.isArray(params.availability) ? params.availability[0] : params.availability) === "true";
   const sort = Array.isArray(params.sort) ? params.sort[0] : params.sort ?? "recommended";
 
   const vendors = useMemo(
@@ -81,6 +84,7 @@ export default function SearchScreen() {
         && (!selectedCategory || vendor.category === selectedCategory)
         && (!minimumRating || vendor.rating >= minimumRating)
         && (!maximumBudget || parsePrice(vendor.startingPrice) <= maximumBudget)
+        && (!availabilityOnly || TEMP_AVAILABLE_VENDOR_IDS.has(vendor.id))
         && (!nearbyOnly || vendor.location.toLowerCase().includes(selectedLocation.toLowerCase()));
     });
 
@@ -91,7 +95,7 @@ export default function SearchScreen() {
       const bLocal = selectedLocation && b.location.toLowerCase().includes(selectedLocation.toLowerCase()) ? 1 : 0;
       return bLocal - aLocal || b.rating - a.rating || b.reviews - a.reviews;
     });
-  }, [maximumBudget, minimumRating, nearbyOnly, query, selectedCategory, selectedLocation, sort, vendors]);
+  }, [availabilityOnly, maximumBudget, minimumRating, nearbyOnly, query, selectedCategory, selectedLocation, sort, vendors]);
 
   const pageResults = useMemo(() => {
     if (!query.trim()) return { fixedPages: [], categoryPages: [] };
@@ -104,7 +108,7 @@ export default function SearchScreen() {
   }, [query]);
 
   const submit = () => setQuery(draftQuery.trim());
-  const activeFilterCount = [minimumRating > 0, maximumBudget > 0, Boolean(selectedCategory), nearbyOnly, sort !== "recommended"].filter(Boolean).length;
+  const activeFilterCount = [minimumRating > 0, maximumBudget > 0, Boolean(selectedCategory), availabilityOnly, nearbyOnly, sort !== "recommended"].filter(Boolean).length;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>

@@ -42,8 +42,10 @@ import HomeReveal from "@/components/home/HomeReveal";
 import LocationSelector from "@/components/home/LocationSelector";
 import HomeFilterModal, { DEFAULT_HOME_FILTERS, type HomeFilters } from "@/components/home/HomeFilterModal";
 import { useCustomerLocation } from "@/context/LocationContext";
+import { TEMP_AVAILABLE_VENDOR_IDS } from "@/data/homeAvailability";
 
 const PINK = "#E91E63";
+const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
 
 const categories = [
   { id: "1",  name: "Venues",         icon: Building2,       color: "#F97316", bg: "#FFF3EA" },
@@ -71,6 +73,14 @@ const popularVendors = [
   { id:"pw1", name:"Love Stories Studio",      category:"Pre Wedding Shoot",rating:4.9,startingPrice:"₹20k",location:"Lonavala",image:"https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=400&auto=format&fit=crop&q=80" },
 ];
 
+function parseCompactPrice(value: string) {
+  const normalized = value.replace(/[₹,\s]/g, "").toLowerCase();
+  const amount = Number.parseFloat(normalized) || 0;
+  if (normalized.includes("l")) return amount * 100000;
+  if (normalized.includes("k")) return amount * 1000;
+  return amount;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { colorScheme } = useColorScheme();
@@ -83,8 +93,11 @@ export default function HomeScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const isDesktop = screenWidth >= 1100;
   const featureWidth = Math.min(screenWidth - (isDesktop ? 48 : 40), 1280);
-  const heroCardWidth = screenWidth - 32;
-  const listBannerHeight = Math.min(Math.round(heroCardWidth * (887 / 1774)), 220);
+  const categoryColumns = isDesktop ? 10 : 5;
+  const categoryItemWidth = featureWidth / categoryColumns;
+  const categoryIconSize = isDesktop ? 76 : screenWidth >= 600 ? 72 : 58;
+  const vendorCardWidth = isDesktop ? 360 : Math.min(280, Math.max(250, screenWidth * 0.72));
+  const listBannerHeight = Math.min(Math.round(featureWidth * (887 / 1774)), 220);
 
   const bg     = isDark ? "#141414" : "#FFFFFF";
   const card   = isDark ? "#1E1E1E" : "#FFFFFF";
@@ -93,12 +106,13 @@ export default function HomeScreen() {
   const border = isDark ? "#2A2A2A" : "#E5E7EB";
 
   const catNameForNav = (name: string) => name.replace(/\n/g, " ");
-  const searchParams = (value: HomeFilters = filters) => ({
-    query: searchText.trim(),
+  const searchParams = (value: HomeFilters = filters, query = searchText) => ({
+    query: query.trim(),
     location: city,
     rating: value.minimumRating ? String(value.minimumRating) : undefined,
     budget: value.maximumBudget ? String(value.maximumBudget) : undefined,
     category: value.category || undefined,
+    availability: value.availabilityOnly ? "true" : undefined,
     nearby: value.nearbyOnly ? "true" : undefined,
     sort: value.sort,
   });
@@ -112,13 +126,25 @@ export default function HomeScreen() {
     filters.minimumRating > 0,
     filters.maximumBudget > 0,
     Boolean(filters.category),
+    filters.availabilityOnly,
     filters.nearbyOnly,
     filters.sort !== "recommended",
   ].filter(Boolean).length;
-  const nearbyVendors = useMemo(
-    () => [...popularVendors].sort((a, b) => Number(b.location.includes(city)) - Number(a.location.includes(city))),
-    [city],
-  );
+  const nearbyVendors = useMemo(() => {
+    return popularVendors
+      .filter((vendor) =>
+        (!filters.minimumRating || vendor.rating >= filters.minimumRating)
+        && (!filters.maximumBudget || parseCompactPrice(vendor.startingPrice) <= filters.maximumBudget)
+        && (!filters.category || vendor.category === filters.category)
+        && (!filters.availabilityOnly || TEMP_AVAILABLE_VENDOR_IDS.has(vendor.id))
+        && (!filters.nearbyOnly || vendor.location.toLowerCase().includes(city.toLowerCase()))
+      )
+      .sort((a, b) => {
+        if (filters.sort === "rating") return b.rating - a.rating;
+        if (filters.sort === "price") return parseCompactPrice(a.startingPrice) - parseCompactPrice(b.startingPrice);
+        return Number(b.location.includes(city)) - Number(a.location.includes(city)) || b.rating - a.rating;
+      });
+  }, [city, filters]);
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
@@ -153,17 +179,8 @@ export default function HomeScreen() {
           </HomeReveal>
         ) : null}
 
-        {/* ── Main heading ── */}
-        <HomeReveal delay={45} style={[s.headingPad, { width: featureWidth }]}>
-          <Text style={[s.mainHeading, isDesktop && s.mainHeadingDesktop, { color: text }]}>
-            {"Find your "}
-            <Text style={s.headingPink}>perfect</Text>
-            {"\nwedding team"}
-          </Text>
-        </HomeReveal>
-
-        {/* ── Search and Filters ── */}
-        <HomeReveal delay={85} style={[s.searchPad, { width: featureWidth }]}>
+        {/* ── Global search ── */}
+        <HomeReveal delay={45} style={[s.searchPad, { width: featureWidth }]}>
           <View style={[s.searchBar, { backgroundColor: isDark ? "#252525" : "#F9FAFB", borderColor: border }]}>
             <TextInput
               accessibilityLabel="Search vendors, categories and services"
@@ -181,28 +198,28 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ) : null}
             <TouchableOpacity accessibilityRole="button" accessibilityLabel="Submit global search" onPress={submitSearch} style={s.searchSubmit} activeOpacity={0.78}>
-              <Search size={17} color="#FFFFFF" />
+              <Search size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Open filters"
-            style={s.filterBtn}
+            style={[s.filterBtn, { backgroundColor: card }]}
             onPress={() => setFiltersVisible(true)}
-            activeOpacity={0.75}
+            activeOpacity={0.76}
           >
             <SlidersHorizontal size={16} color={PINK} />
-            <Text style={s.filterTxt}>Filters{activeFilterCount ? ` ${activeFilterCount}` : ""}</Text>
+            <Text style={s.filterTxt}>Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}</Text>
           </TouchableOpacity>
         </HomeReveal>
 
         {/* ── Hero carousel ── */}
-        <HomeReveal delay={120} style={[s.heroPad, { width: featureWidth }]}>
+        <HomeReveal delay={85} style={[s.heroPad, { width: featureWidth }]}>
           <HeroCarousel width={featureWidth} city={city} desktop={isDesktop} />
         </HomeReveal>
 
         {/* ── Top Categories ── */}
-        <View style={s.section}>
+        <View style={[s.section, { width: featureWidth }]}>
           <View style={s.sectionHead}>
             <Text style={[s.sectionTitle, { color: text }]}>Top Categories</Text>
             <TouchableOpacity
@@ -222,7 +239,7 @@ export default function HomeScreen() {
               return (
                 <TouchableOpacity
                   key={cat.id}
-                  style={s.catItem}
+                  style={[s.catItem, { width: categoryItemWidth }]}
                   onPress={() =>
                     cat.id === "15"
                       ? router.push("/(tabs)/Categories")
@@ -233,8 +250,8 @@ export default function HomeScreen() {
                   }
                   activeOpacity={0.7}
                 >
-                  <View style={[s.catIconWrap, { backgroundColor: catBg, borderColor: catBorder }]}>
-                    <Icon size={24} color={cat.color} />
+                  <View style={[s.catIconWrap, { width: categoryIconSize, height: categoryIconSize, backgroundColor: catBg, borderColor: catBorder }]}>
+                    <Icon size={Math.round(categoryIconSize * 0.42)} color={cat.color} strokeWidth={1.8} />
                   </View>
                   <Text style={[s.catLabel, { color: isDark ? "#DDD0D8" : "#374151" }]} numberOfLines={2}>
                     {cat.name}
@@ -245,10 +262,36 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* ── Trending searches ── */}
+        <View style={[s.trendingSection, { width: featureWidth, borderTopColor: border }]}>
+          <Text style={[s.sectionTitle, { color: text }]}>Trending Searches</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.trendingRow}>
+            {TRENDING_SEARCHES.map((term) => (
+              <TouchableOpacity
+                key={term}
+                accessibilityRole="button"
+                accessibilityLabel={`Search for ${term}`}
+                style={[s.trendingChip, { backgroundColor: card, borderColor: border }]}
+                onPress={() => router.push({ pathname: "/Search", params: searchParams(filters, term) })}
+                activeOpacity={0.76}
+              >
+                <Search size={15} color={PINK} />
+                <Text style={[s.trendingText, { color: text }]}>{term}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {/* ── Popular Near You ── */}
-        <View style={s.popularSection}>
-          <View style={[s.sectionHead, { paddingHorizontal: 16 }]}>
-            <Text style={[s.sectionTitle, { color: text }]}>Popular Near You</Text>
+        <View style={[s.popularSection, { width: featureWidth }]}>
+          <View style={s.sectionHead}>
+            <View style={s.popularTitleRow}>
+              <Text style={[s.sectionTitle, { color: text }]}>Popular Near You</Text>
+              <View style={[s.nearBadge, { backgroundColor: isDark ? "#351D28" : "#FFF1F6", borderColor: isDark ? "#5B2940" : "#F7C7D9" }]}>
+                <MapPin size={11} color={PINK} />
+                <Text style={s.nearBadgeText}>Near {city}</Text>
+              </View>
+            </View>
             <TouchableOpacity
               style={s.viewAllRow}
               onPress={() => router.push("/(tabs)/Categories")}
@@ -267,69 +310,67 @@ export default function HomeScreen() {
               const isFav = isFavorite(v.id);
               const vendorResult = getVendorById(v.id);
               return (
-                <TouchableOpacity
-                  key={v.id}
-                  style={[s.vendorCard, { backgroundColor: card }]}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/VendorsProfile",
-                      params: { vendorId: v.id, category: v.category },
-                    })
-                  }
-                  activeOpacity={0.88}
-                >
-                  {/* Image */}
-                  <View style={s.vendorImgWrap}>
-                    <Image source={{ uri: v.image }} style={s.vendorImg} resizeMode="cover" />
-
-                    {/* Heart */}
-                    <TouchableOpacity
-                      style={[s.heartBtn, isFav && s.heartBtnActive]}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        if (vendorResult) {
-                          toggleFavorite({ ...vendorResult.vendor, category: vendorResult.category });
-                        }
-                      }}
-                    >
-                      <Heart size={12} color="#FFF" fill={isFav ? "#FFF" : "transparent"} />
-                    </TouchableOpacity>
-
-                    {/* Bottom overlays */}
-                    <View style={s.imgBottomRow}>
-                      <View style={s.ratingBadge}>
-                        <Star size={10} color="#FACC15" fill="#FACC15" />
-                        <Text style={s.ratingBadgeTxt}>{v.rating}</Text>
-                      </View>
-                      <View style={s.verifiedBadge}>
-                        <BadgeCheck size={10} color="#FFF" />
-                        <Text style={s.verifiedTxt}>Verified</Text>
+                <View key={v.id} style={[s.vendorCard, { width: vendorCardWidth, backgroundColor: card, borderColor: border }]}>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${v.name}`}
+                    style={s.vendorMain}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/VendorsProfile",
+                        params: { vendorId: v.id, category: v.category },
+                      })
+                    }
+                    activeOpacity={0.88}
+                  >
+                    <View style={[s.vendorImgWrap, { height: Math.round(vendorCardWidth * 0.55) }]}>
+                      <Image source={{ uri: v.image }} style={s.vendorImg} resizeMode="cover" />
+                      <View style={s.imgBottomRow}>
+                        <View style={s.ratingBadge}>
+                          <Star size={11} color="#FACC15" fill="#FACC15" />
+                          <Text style={s.ratingBadgeTxt}>{v.rating}</Text>
+                        </View>
+                        <View style={s.verifiedBadge}>
+                          <BadgeCheck size={11} color="#FFF" />
+                          <Text style={s.verifiedTxt}>Verified</Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
-
-                  {/* Info */}
-                  <View style={s.vendorInfo}>
-                    <Text style={[s.vendorName, { color: text }]} numberOfLines={1}>{v.name}</Text>
-                    <Text style={[s.vendorCat, { color: muted }]} numberOfLines={1}>{v.category}</Text>
-                    <View style={s.vendorMeta}>
-                      <MapPin size={10} color={muted} />
-                      <Text style={[s.vendorLoc, { color: muted }]}>{v.location}</Text>
-                      <Text style={[s.vendorPrice, { color: text }]}>{v.startingPrice} onwards</Text>
+                    <View style={s.vendorInfo}>
+                      <Text style={[s.vendorName, { color: text }]} numberOfLines={1}>{v.name}</Text>
+                      <Text style={[s.vendorCat, { color: muted }]} numberOfLines={1}>{v.category}</Text>
+                      <View style={s.vendorMeta}>
+                        <MapPin size={11} color={muted} />
+                        <Text style={[s.vendorLoc, { color: muted }]}>{v.location}</Text>
+                        <Text style={[s.vendorPrice, { color: text }]}>{v.startingPrice} onwards</Text>
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={isFav ? `Remove ${v.name} from favorites` : `Add ${v.name} to favorites`}
+                    style={[s.heartBtn, isFav && s.heartBtnActive]}
+                    onPress={() => {
+                      if (vendorResult) toggleFavorite({ ...vendorResult.vendor, category: vendorResult.category });
+                    }}
+                  >
+                    <Heart size={17} color={isFav ? "#FFF" : "#3A3035"} fill={isFav ? "#FFF" : "transparent"} />
+                  </TouchableOpacity>
+                </View>
               );
             })}
           </ScrollView>
+          {!nearbyVendors.length ? (
+            <Text style={[s.emptyVendors, { color: muted }]}>No vendors match these filters. Try clearing one filter.</Text>
+          ) : null}
         </View>
 
         {/* ── List Your Business ── */}
-        <View style={s.listBanner}>
+        <View style={[s.listBanner, { width: featureWidth }]}>
           <Image
             source={require("../../assets/list-business-bg.png")}
-            style={{ width: heroCardWidth, height: listBannerHeight }}
-            resizeMode="stretch"
+            style={{ width: "100%", height: listBannerHeight }}
+            resizeMode="cover"
           />
           <LinearGradient
             colors={isDark
@@ -384,57 +425,62 @@ const s = StyleSheet.create({
   badge:           { position: "absolute", top: 2, right: 1, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: PINK, borderWidth: 2, borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
   badgeTxt:        { color: "#FFF", fontSize: 8, fontWeight: "800" },
 
-  /* Main heading */
-  headingPad:      { alignSelf: "center", paddingTop: 7, paddingBottom: 12 },
-  mainHeading:     { fontFamily: "System", fontSize: 25, fontWeight: "900", lineHeight: 30, letterSpacing: -0.75 },
-  mainHeadingDesktop: { fontSize: 34, lineHeight: 40, letterSpacing: -1 },
-  headingPink:     { color: PINK },
-
-  /* Search */
-  searchPad:       { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 14 },
-  searchBar:       { flex: 1, minWidth: 0, height: 54, flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 18, borderWidth: 1, paddingHorizontal: 14, shadowColor: "#8F526B", shadowOpacity: 0.04, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
-  searchInput:     { flex: 1, minWidth: 0, fontFamily: "System", fontSize: 12, paddingVertical: 0, outlineStyle: "none" } as never,
+  /* Search and filters */
+  searchPad:       { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 9, marginTop: 8, marginBottom: 14 },
+  searchBar:       { flex: 1, minWidth: 0, height: 58, flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 18, borderWidth: 1, paddingLeft: 17, paddingRight: 7, shadowColor: "#8F526B", shadowOpacity: 0.07, shadowRadius: 14, shadowOffset: { width: 0, height: 5 } },
+  searchInput:     { flex: 1, minWidth: 0, fontFamily: "System", fontSize: 13, paddingVertical: 0, outlineStyle: "none" } as never,
   clearSearch:     { width: 28, height: 40, alignItems: "center", justifyContent: "center" },
-  searchSubmit:    { width: 40, height: 40, borderRadius: 13, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
-  filterBtn:       { height: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1.5, borderColor: PINK, backgroundColor: "rgba(233,30,99,.035)" },
+  searchSubmit:    { width: 46, height: 46, borderRadius: 16, backgroundColor: PINK, alignItems: "center", justifyContent: "center", shadowColor: PINK, shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  filterBtn:       { height: 58, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 13, borderRadius: 18, borderWidth: 1.5, borderColor: PINK },
   filterTxt:       { color: PINK, fontFamily: "System", fontSize: 12, fontWeight: "800" },
 
   /* Hero */
-  heroPad:         { alignSelf: "center", marginBottom: 18 },
+  heroPad:         { alignSelf: "center", marginBottom: 22 },
 
   /* Categories */
-  section:         { paddingHorizontal: 16, marginBottom: 8 },
+  section:         { alignSelf: "center", marginBottom: 10 },
   sectionHead:     { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
-  sectionTitle:    { fontSize: 17, fontWeight: "700" },
+  sectionTitle:    { fontFamily: "serif", fontSize: 22, lineHeight: 29, fontWeight: "700", letterSpacing: -0.35 },
   viewAllRow:      { flexDirection: "row", alignItems: "center", gap: 1 },
   viewAll:         { color: PINK, fontSize: 13, fontWeight: "600" },
   catGrid:         { flexDirection: "row", flexWrap: "wrap" },
-  catItem:         { width: "20%", alignItems: "center", marginBottom: 18 },
-  catIconWrap:     { width: 52, height: 52, borderRadius: 14, alignItems: "center", justifyContent: "center", marginBottom: 6, borderWidth: 1 },
-  catLabel:        { fontSize: 10, textAlign: "center", lineHeight: 14, fontWeight: "500" },
+  catItem:         { alignItems: "center", marginBottom: 19, paddingHorizontal: 2 },
+  catIconWrap:     { borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 7, borderWidth: 1 },
+  catLabel:        { fontSize: 10.5, textAlign: "center", lineHeight: 14, fontWeight: "500" },
+
+  /* Trending */
+  trendingSection:{ alignSelf: "center", borderTopWidth: 1, paddingTop: 14, marginBottom: 23 },
+  trendingRow:     { gap: 10, paddingTop: 9, paddingRight: 2 },
+  trendingChip:    { minHeight: 43, minWidth: 190, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 9, shadowColor: "#7F5065", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  trendingText:    { fontSize: 11, fontWeight: "600" },
 
   /* Popular Near You */
-  popularSection:  { marginBottom: 20 },
-  vendorScroll:    { paddingHorizontal: 16, gap: 12 },
-  vendorCard:      { width: 148, borderRadius: 14, overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4 },
-  vendorImgWrap:   { position: "relative" },
-  vendorImg:       { width: "100%", height: 120 },
-  heartBtn:        { position: "absolute", top: 7, right: 7, width: 26, height: 26, borderRadius: 13, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" },
+  popularSection:  { alignSelf: "center", marginBottom: 23 },
+  popularTitleRow: { minWidth: 0, flexShrink: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  nearBadge:       { minHeight: 26, maxWidth: 120, borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 3 },
+  nearBadgeText:   { flexShrink: 1, color: PINK, fontSize: 9, fontWeight: "700" },
+  vendorScroll:    { gap: 14, paddingHorizontal: 2, paddingBottom: 12 },
+  vendorCard:      { borderWidth: 1, borderRadius: 18, overflow: "hidden", shadowColor: "#55303F", shadowOpacity: 0.11, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
+  vendorMain:      { flex: 1 },
+  vendorImgWrap:   { position: "relative", overflow: "hidden" },
+  vendorImg:       { width: "100%", height: "100%" },
+  heartBtn:        { position: "absolute", top: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,.94)", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 2 } },
   heartBtnActive:  { backgroundColor: PINK },
-  imgBottomRow:    { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", padding: 7 },
-  ratingBadge:     { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 20 },
-  ratingBadgeTxt:  { color: "#FFF", fontSize: 10, fontWeight: "700" },
-  verifiedBadge:   { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: PINK, paddingHorizontal: 5, paddingVertical: 3, borderRadius: 20 },
-  verifiedTxt:     { color: "#FFF", fontSize: 9, fontWeight: "700" },
-  vendorInfo:      { padding: 8 },
-  vendorName:      { fontSize: 12, fontWeight: "700", marginBottom: 1 },
-  vendorCat:       { fontSize: 10, marginBottom: 5 },
+  imgBottomRow:    { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", padding: 9 },
+  ratingBadge:     { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(27,25,27,.72)", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 20 },
+  ratingBadgeTxt:  { color: "#FFF", fontSize: 11, fontWeight: "800" },
+  verifiedBadge:   { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: PINK, paddingHorizontal: 7, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.9)" },
+  verifiedTxt:     { color: "#FFF", fontSize: 9, fontWeight: "800" },
+  vendorInfo:      { paddingHorizontal: 13, paddingVertical: 12 },
+  vendorName:      { fontFamily: "serif", fontSize: 16, fontWeight: "700", marginBottom: 2 },
+  vendorCat:       { fontSize: 10.5, marginBottom: 7 },
   vendorMeta:      { flexDirection: "row", alignItems: "center", gap: 3 },
-  vendorLoc:       { fontSize: 9, flex: 1 },
-  vendorPrice:     { fontSize: 9, fontWeight: "600", color: PINK },
+  vendorLoc:       { fontSize: 10, flex: 1 },
+  vendorPrice:     { fontSize: 10, fontWeight: "700", color: PINK },
+  emptyVendors:    { paddingVertical: 20, textAlign: "center", fontSize: 11 },
 
   /* List Your Business */
-  listBanner:      { marginHorizontal: 16, borderRadius: 20, overflow: "hidden", marginBottom: 20 },
+  listBanner:      { alignSelf: "center", borderRadius: 20, overflow: "hidden", marginBottom: 20 },
   listBannerImg:   { width: "100%" },
   listOverlay:     { justifyContent: "center" },
   listLeft:        { width: "55%", paddingLeft: 18, paddingVertical: 18 },
