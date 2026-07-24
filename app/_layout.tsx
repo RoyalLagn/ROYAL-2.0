@@ -7,6 +7,7 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { FavoritesProvider } from '@/context/FavoritesContext';
 import VendorBottomNav from '@/components/vendor/VendorBottomNav';
+import { LocationProvider } from '@/context/LocationContext';
 
 export const unstable_settings = {
   initialRouteName: "DashboardCenter",
@@ -48,17 +49,19 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <FavoritesProvider>
-        <ThemeProvider>
-          <SafeAreaProvider>
-            <StatusBar style="auto" />
-            <View className="bg-background" style={styles.app}>
-              <View style={styles.stack}>
-                <Stack screenOptions={{ headerShown: false }} />
+        <LocationProvider>
+          <ThemeProvider>
+            <SafeAreaProvider>
+              <StatusBar style="auto" />
+              <View className="bg-background" style={styles.app}>
+                <View style={styles.stack}>
+                  <Stack screenOptions={{ headerShown: false }} />
+                </View>
+                <VendorBottomNav />
               </View>
-              <VendorBottomNav />
-            </View>
-          </SafeAreaProvider>
-        </ThemeProvider>
+            </SafeAreaProvider>
+          </ThemeProvider>
+        </LocationProvider>
       </FavoritesProvider>
     </ErrorBoundary>
   );

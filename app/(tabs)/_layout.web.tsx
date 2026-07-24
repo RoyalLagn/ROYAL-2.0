@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  Alert,
   Platform,
   Pressable,
   Text,
@@ -9,6 +10,7 @@ import {
 } from "react-native";
 import { Tabs, usePathname, useRouter } from "expo-router";
 import {
+  Bell,
   Grid3X3,
   Heart,
   Home,
@@ -18,6 +20,8 @@ import {
 import { cssInterop, useColorScheme } from "nativewind";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileTabBar } from "@/components/MobileTabBar";
+import LocationSelector from "@/components/home/LocationSelector";
+import HomeReveal from "@/components/home/HomeReveal";
 
 cssInterop(Home, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3, { className: { target: "style", nativeStyleToProp: { color: true } } });
@@ -58,7 +62,7 @@ export default function TabsWebLayout() {
   const { width } = useWindowDimensions();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
-  const isDesktop = width >= 900;
+  const isDesktop = width >= 1100;
   const [searchQuery, setSearchQuery] = useState("");
 
   const submitSearch = () => {
@@ -73,7 +77,8 @@ export default function TabsWebLayout() {
   return (
     <View className="flex-1 bg-background">
       {isDesktop ? (
-        <View
+        <HomeReveal
+          direction="down"
           className="w-full bg-card/95 border-b border-border/80"
           style={Platform.OS === "web"
             ? ({
@@ -115,21 +120,35 @@ export default function TabsWebLayout() {
               />
             </View>
 
-            <View className="flex-1 max-w-[430px] h-11 rounded-full bg-muted border border-border/80 flex-row items-center px-4 mr-auto focus-within:border-primary/50 transition-colors duration-200">
+            <View className="flex-1 max-w-[330px] h-11 rounded-full bg-muted border border-border/80 flex-row items-center px-4 mr-auto focus-within:border-primary/50 transition-colors duration-200">
               <Search size={17} className="text-muted-foreground mr-2.5" />
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 onSubmitEditing={submitSearch}
-                placeholder="Search vendors, categories..."
+                placeholder="Search vendors, categories, services..."
                 placeholderTextColor={isDark ? "#8D878A" : "#8B7D83"}
                 className="flex-1 text-foreground text-sm outline-none"
                 returnKeyType="search"
-                accessibilityLabel="Search vendors and categories"
+                accessibilityLabel="Search vendors, categories and services"
               />
             </View>
 
-            <View className="flex-row items-center ml-5 gap-1">
+            <View className="flex-row items-center ml-3 gap-1">
+              <LocationSelector dark={isDark} compact />
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Notifications, 1 unread"
+                onPress={() => Alert.alert("Notifications", "You have 1 new notification.")}
+                className="relative w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <Bell size={19} className="text-foreground/75" />
+                <View className="absolute top-1.5 right-1.5 min-w-[15px] h-[15px] rounded-full bg-primary border-2 border-card items-center justify-center">
+                  <Text className="text-white text-[7px] font-bold">1</Text>
+                </View>
+              </Pressable>
+
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel="Favorites"
@@ -167,7 +186,7 @@ export default function TabsWebLayout() {
               <ThemeToggle />
             </View>
           </View>
-        </View>
+        </HomeReveal>
       ) : null}
 
       <Tabs

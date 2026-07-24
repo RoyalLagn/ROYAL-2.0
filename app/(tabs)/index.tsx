@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -31,11 +31,17 @@ import {
   Star,
   SlidersHorizontal,
   BadgeCheck,
+  X,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useFavorites } from "@/context/FavoritesContext";
 import { getVendorById } from "@/data/vendorData";
+import HeroCarousel from "@/components/home/HeroCarousel";
+import HomeReveal from "@/components/home/HomeReveal";
+import LocationSelector from "@/components/home/LocationSelector";
+import HomeFilterModal, { DEFAULT_HOME_FILTERS, type HomeFilters } from "@/components/home/HomeFilterModal";
+import { useCustomerLocation } from "@/context/LocationContext";
 
 const PINK = "#E91E63";
 
@@ -70,10 +76,14 @@ export default function HomeScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const [searchText, setSearchText] = useState("");
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [filters, setFilters] = useState<HomeFilters>(DEFAULT_HOME_FILTERS);
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { city } = useCustomerLocation();
   const { width: screenWidth } = useWindowDimensions();
+  const isDesktop = screenWidth >= 1100;
+  const featureWidth = Math.min(screenWidth - (isDesktop ? 48 : 40), 1280);
   const heroCardWidth = screenWidth - 32;
-  const heroHeight = Math.min(Math.round(heroCardWidth * (897 / 1754)), 240);
   const listBannerHeight = Math.min(Math.round(heroCardWidth * (887 / 1774)), 220);
 
   const bg     = isDark ? "#141414" : "#FFFFFF";
@@ -83,103 +93,113 @@ export default function HomeScreen() {
   const border = isDark ? "#2A2A2A" : "#E5E7EB";
 
   const catNameForNav = (name: string) => name.replace(/\n/g, " ");
-  const submitSearch = () =>
-    router.push({ pathname: "/Search", params: { query: searchText.trim() } });
+  const searchParams = (value: HomeFilters = filters) => ({
+    query: searchText.trim(),
+    location: city,
+    rating: value.minimumRating ? String(value.minimumRating) : undefined,
+    budget: value.maximumBudget ? String(value.maximumBudget) : undefined,
+    category: value.category || undefined,
+    nearby: value.nearbyOnly ? "true" : undefined,
+    sort: value.sort,
+  });
+  const submitSearch = () => router.push({ pathname: "/Search", params: searchParams() });
+  const applyFilters = (value: HomeFilters) => {
+    setFilters(value);
+    setFiltersVisible(false);
+    router.push({ pathname: "/Search", params: searchParams(value) });
+  };
+  const activeFilterCount = [
+    filters.minimumRating > 0,
+    filters.maximumBudget > 0,
+    Boolean(filters.category),
+    filters.nearbyOnly,
+    filters.sort !== "recommended",
+  ].filter(Boolean).length;
+  const nearbyVendors = useMemo(
+    () => [...popularVendors].sort((a, b) => Number(b.location.includes(city)) - Number(a.location.includes(city))),
+    [city],
+  );
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
 
-        {/* ── Header ── */}
-        <View style={s.header}>
-          <TouchableOpacity style={s.locRow} onPress={() => Alert.alert("Location", "Current location: Pune, Maharashtra")}>
-            <MapPin size={13} color={PINK} />
-            <Text style={[s.locText, { color: muted }]}>Pune, Maharashtra</Text>
-          </TouchableOpacity>
+        {/* ── Compact mobile header ── */}
+        {!isDesktop ? (
+          <HomeReveal direction="down" style={[s.header, { width: featureWidth }]}>
+            <View style={s.headerSide}>
+              <LocationSelector dark={isDark} />
+            </View>
 
-          <View style={s.logoWrap}>
-            <Text style={s.logoText}>
-              <Text style={s.logoPink}>Royal</Text>
-              <Text style={[s.logoBlack, { color: text }]}>Lagn</Text>
-            </Text>
-          </View>
+            <View pointerEvents="none" style={s.logoWrap}>
+              <Text style={s.logoText}>
+                <Text style={s.logoPink}>Royal</Text>
+                <Text style={[s.logoBlack, { color: text }]}>Lagn</Text>
+              </Text>
+            </View>
 
-          <TouchableOpacity style={s.bellWrap} onPress={() => Alert.alert("Notifications", "You have 1 new notification.")}>
-            <Bell size={22} color={text} />
-            <View style={s.badge}><Text style={s.badgeTxt}>1</Text></View>
-          </TouchableOpacity>
-        </View>
+            <View style={[s.headerSide, s.headerRight]}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Notifications, 1 unread"
+                style={s.bellWrap}
+                onPress={() => Alert.alert("Notifications", "You have 1 new notification.")}
+                activeOpacity={0.7}
+              >
+                <Bell size={20} color={text} />
+                <View style={s.badge}><Text style={s.badgeTxt}>1</Text></View>
+              </TouchableOpacity>
+            </View>
+          </HomeReveal>
+        ) : null}
 
-        {/* ── Greeting ── */}
-        <View style={s.greetPad}>
-          <Text style={[s.greetSub, { color: muted }]}>Good Morning, Hrushikesh 👋</Text>
-          <Text style={[s.greetTitle, { color: text }]}>
+        {/* ── Main heading ── */}
+        <HomeReveal delay={45} style={[s.headingPad, { width: featureWidth }]}>
+          <Text style={[s.mainHeading, isDesktop && s.mainHeadingDesktop, { color: text }]}>
             {"Find your "}
-            <Text style={s.greetPink}>perfect</Text>
+            <Text style={s.headingPink}>perfect</Text>
             {"\nwedding team"}
           </Text>
-        </View>
+        </HomeReveal>
 
-        {/* ── Search bar ── */}
-        <View style={s.searchPad}>
+        {/* ── Search and Filters ── */}
+        <HomeReveal delay={85} style={[s.searchPad, { width: featureWidth }]}>
           <View style={[s.searchBar, { backgroundColor: isDark ? "#252525" : "#F9FAFB", borderColor: border }]}>
-            <Search size={16} color={muted} />
             <TextInput
+              accessibilityLabel="Search vendors, categories and services"
               style={[s.searchInput, { color: text }]}
-              placeholder="Search vendors, categories..."
+              placeholder="Search vendors, categories, services…"
               placeholderTextColor={muted}
               value={searchText}
               onChangeText={setSearchText}
               returnKeyType="search"
               onSubmitEditing={submitSearch}
             />
+            {searchText ? (
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setSearchText("")} style={s.clearSearch}>
+                <X size={16} color={muted} />
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Submit global search" onPress={submitSearch} style={s.searchSubmit} activeOpacity={0.78}>
+              <Search size={17} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Open filters"
             style={s.filterBtn}
-            onPress={() => router.push({ pathname: "/Search", params: { query: searchText.trim() } })}
+            onPress={() => setFiltersVisible(true)}
+            activeOpacity={0.75}
           >
-            <SlidersHorizontal size={14} color={PINK} />
-            <Text style={s.filterTxt}>Filters</Text>
+            <SlidersHorizontal size={16} color={PINK} />
+            <Text style={s.filterTxt}>Filters{activeFilterCount ? ` ${activeFilterCount}` : ""}</Text>
           </TouchableOpacity>
-        </View>
+        </HomeReveal>
 
-        {/* ── Hero Banner ── */}
-        <View style={s.heroPad}>
-          <View style={s.heroCard}>
-            <Image
-              source={require("../../assets/hero-banner.png")}
-              style={[s.heroCardImg, { height: heroHeight }]}
-              resizeMode="cover"
-            />
-            <LinearGradient
-              colors={["rgba(0,0,0,0.82)", "rgba(0,0,0,0.50)", "rgba(0,0,0,0.0)"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={[StyleSheet.absoluteFill, s.heroOverlay]}
-            >
-              <View style={s.heroTextArea}>
-                <Text style={s.heroTitle}>Plan Your</Text>
-                <Text style={s.heroPinkTitle}>Dream Wedding</Text>
-                <Text style={s.heroSub}>
-                  Everything from venue to{"\n"}photography, we make it{"\n"}effortless for you.
-                </Text>
-                <TouchableOpacity
-                  style={s.exploreBtn}
-                  onPress={() => router.push("/(tabs)/Categories")}
-                >
-                  <Text style={s.exploreTxt}>Explore Vendors</Text>
-                  <ChevronRight size={14} color="#FFF" />
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-          <View style={s.dotsRow}>
-            <View style={[s.dot, s.dotActive]} />
-            <View style={s.dot} />
-            <View style={s.dot} />
-            <View style={s.dot} />
-          </View>
-        </View>
+        {/* ── Hero carousel ── */}
+        <HomeReveal delay={120} style={[s.heroPad, { width: featureWidth }]}>
+          <HeroCarousel width={featureWidth} city={city} desktop={isDesktop} />
+        </HomeReveal>
 
         {/* ── Top Categories ── */}
         <View style={s.section}>
@@ -243,7 +263,7 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={s.vendorScroll}
           >
-            {popularVendors.map((v) => {
+            {nearbyVendors.map((v) => {
               const isFav = isFavorite(v.id);
               const vendorResult = getVendorById(v.id);
               return (
@@ -336,6 +356,14 @@ export default function HomeScreen() {
         </View>
 
       </ScrollView>
+      <HomeFilterModal
+        visible={filtersVisible}
+        dark={isDark}
+        value={filters}
+        city={city}
+        onClose={() => setFiltersVisible(false)}
+        onApply={applyFilters}
+      />
     </SafeAreaView>
   );
 }
@@ -345,44 +373,34 @@ const s = StyleSheet.create({
   scroll:          { paddingBottom: 24 },
 
   /* Header */
-  header:          { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingTop: 6, paddingBottom: 4 },
-  locRow:          { flexDirection: "row", alignItems: "center", gap: 4, flex: 1 },
-  locText:         { fontSize: 12, fontWeight: "500" },
+  header:          { minHeight: 56, alignSelf: "center", flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  headerSide:      { flex: 1, minWidth: 0, justifyContent: "center" },
+  headerRight:     { alignItems: "flex-end" },
   logoWrap:        { flex: 1, alignItems: "center" },
-  logoText:        { fontSize: 22, fontWeight: "900", letterSpacing: -0.5 },
+  logoText:        { fontFamily: "System", fontSize: 22, fontWeight: "900", letterSpacing: -0.6 },
   logoPink:        { color: PINK },
   logoBlack:       {},
-  bellWrap:        { flex: 1, alignItems: "flex-end", position: "relative" },
-  badge:           { position: "absolute", top: -3, right: -3, minWidth: 15, height: 15, borderRadius: 8, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
+  bellWrap:        { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", position: "relative" },
+  badge:           { position: "absolute", top: 2, right: 1, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: PINK, borderWidth: 2, borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
   badgeTxt:        { color: "#FFF", fontSize: 8, fontWeight: "800" },
 
-  /* Greeting */
-  greetPad:        { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 },
-  greetSub:        { fontSize: 12, fontWeight: "500", marginBottom: 2 },
-  greetTitle:      { fontSize: 20, fontWeight: "800", lineHeight: 26 },
-  greetPink:       { color: PINK, fontStyle: "italic" },
+  /* Main heading */
+  headingPad:      { alignSelf: "center", paddingTop: 7, paddingBottom: 12 },
+  mainHeading:     { fontFamily: "System", fontSize: 25, fontWeight: "900", lineHeight: 30, letterSpacing: -0.75 },
+  mainHeadingDesktop: { fontSize: 34, lineHeight: 40, letterSpacing: -1 },
+  headingPink:     { color: PINK },
 
   /* Search */
-  searchPad:       { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
-  searchBar:       { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 50, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10 },
-  searchInput:     { flex: 1, fontSize: 13, paddingVertical: 0 },
-  filterBtn:       { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 50, borderWidth: 1.5, borderColor: PINK },
-  filterTxt:       { color: PINK, fontSize: 13, fontWeight: "600" },
+  searchPad:       { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 9, marginBottom: 14 },
+  searchBar:       { flex: 1, minWidth: 0, height: 54, flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 18, borderWidth: 1, paddingHorizontal: 14, shadowColor: "#8F526B", shadowOpacity: 0.04, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  searchInput:     { flex: 1, minWidth: 0, fontFamily: "System", fontSize: 12, paddingVertical: 0, outlineStyle: "none" } as never,
+  clearSearch:     { width: 28, height: 40, alignItems: "center", justifyContent: "center" },
+  searchSubmit:    { width: 40, height: 40, borderRadius: 13, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
+  filterBtn:       { height: 54, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1.5, borderColor: PINK, backgroundColor: "rgba(233,30,99,.035)" },
+  filterTxt:       { color: PINK, fontFamily: "System", fontSize: 12, fontWeight: "800" },
 
   /* Hero */
-  heroPad:         { paddingHorizontal: 16, marginBottom: 10 },
-  heroCard:        { borderRadius: 20, overflow: "hidden" },
-  heroCardImg:     { width: "100%" },
-  heroOverlay:     { flexDirection: "row", alignItems: "flex-end" },
-  heroTextArea:    { width: "60%", padding: 16, paddingBottom: 18 },
-  heroTitle:       { color: "#FFFFFF", fontSize: 20, fontWeight: "800" },
-  heroPinkTitle:   { color: PINK, fontSize: 20, fontWeight: "800", marginBottom: 5 },
-  heroSub:         { color: "rgba(255,255,255,0.90)", fontSize: 11, lineHeight: 16, marginBottom: 12 },
-  exploreBtn:      { flexDirection: "row", alignItems: "center", backgroundColor: PINK, alignSelf: "flex-start", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 50, gap: 4 },
-  exploreTxt:      { color: "#FFF", fontSize: 13, fontWeight: "700" },
-  dotsRow:         { flexDirection: "row", gap: 5, marginTop: 10, justifyContent: "center" },
-  dot:             { width: 7, height: 7, borderRadius: 4, backgroundColor: "#F9A8D4" },
-  dotActive:       { backgroundColor: PINK, width: 20, borderRadius: 4 },
+  heroPad:         { alignSelf: "center", marginBottom: 18 },
 
   /* Categories */
   section:         { paddingHorizontal: 16, marginBottom: 8 },
