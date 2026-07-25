@@ -33,3 +33,14 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME = "hp6vu8o9"
+EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET = "royallagn_uploads"
+EXPO_PUBLIC_SUPABASE_URL = "https://fymdrjcinqvmjthdwrtd.supabase.co"
