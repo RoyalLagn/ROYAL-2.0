@@ -4,7 +4,6 @@ import {
   Platform,
   Pressable,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -14,7 +13,6 @@ import {
   Grid3X3,
   Heart,
   Home,
-  Search,
   User,
 } from "lucide-react-native";
 import { cssInterop, useColorScheme } from "nativewind";
@@ -22,6 +20,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import LocationSelector from "@/components/home/LocationSelector";
 import HomeReveal from "@/components/home/HomeReveal";
+import CompactSearchBar from "@/components/listing/CompactSearchBar";
 
 cssInterop(Home, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3, { className: { target: "style", nativeStyleToProp: { color: true } } });
@@ -120,19 +119,15 @@ export default function TabsWebLayout() {
               />
             </View>
 
-            <View className="flex-1 max-w-[330px] h-11 rounded-full bg-muted border border-border/80 flex-row items-center px-4 mr-auto focus-within:border-primary/50 transition-colors duration-200">
-              <Search size={17} className="text-muted-foreground mr-2.5" />
-              <TextInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                onSubmitEditing={submitSearch}
-                placeholder="Search vendors, categories, services..."
-                placeholderTextColor={isDark ? "#8D878A" : "#8B7D83"}
-                className="flex-1 text-foreground text-sm outline-none"
-                returnKeyType="search"
-                accessibilityLabel="Search vendors, categories and services"
-              />
-            </View>
+            <CompactSearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmit={submitSearch}
+              placeholder="Search vendors, categories, services..."
+              dark={isDark}
+              accessibilityLabel="Search vendors, categories and services"
+              style={{ flex: 1, maxWidth: 330, marginRight: "auto" }}
+            />
 
             <View className="flex-row items-center ml-3 gap-1">
               <LocationSelector dark={isDark} compact />

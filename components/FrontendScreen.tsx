@@ -32,6 +32,7 @@ import {
 import { useColorScheme } from "nativewind";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import VendorHeader from "@/components/vendor/VendorHeader";
+import CompactSearchBar from "@/components/listing/CompactSearchBar";
 
 export type FrontendScreenMode =
   | "form"
@@ -235,12 +236,13 @@ export default function FrontendScreen({
           {(mode === "list" || mode === "reports") && (
             <>
               <View className="flex-row gap-3">
-                <TextInput
-                  className="flex-1 h-12 bg-card border border-border rounded-xl px-4 text-foreground focus:border-primary/50 focus:outline-none"
+                <CompactSearchBar
                   placeholder={`Search ${title.toLowerCase()}...`}
-                  placeholderTextColor={isDark ? "#8D878A" : "#8B7D83"}
                   value={query}
+                  dark={isDark}
+                  accessibilityLabel={`Search ${title.toLowerCase()}`}
                   onChangeText={setQuery}
+                  style={{ flex: 1 }}
                 />
                 <Pressable
                   accessibilityRole="button"

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  TextInput,
   Image,
   TouchableOpacity,
   StyleSheet,
@@ -31,11 +30,11 @@ import {
   Star,
   SlidersHorizontal,
   BadgeCheck,
-  X,
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useFavorites } from "@/context/FavoritesContext";
+import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import { getVendorById } from "@/data/vendorData";
 import HeroCarousel from "@/components/home/HeroCarousel";
 import HomeReveal from "@/components/home/HomeReveal";
@@ -43,6 +42,7 @@ import LocationSelector from "@/components/home/LocationSelector";
 import HomeFilterModal, { DEFAULT_HOME_FILTERS, type HomeFilters } from "@/components/home/HomeFilterModal";
 import { useCustomerLocation } from "@/context/LocationContext";
 import { TEMP_AVAILABLE_VENDOR_IDS } from "@/data/homeAvailability";
+import CompactSearchBar from "@/components/listing/CompactSearchBar";
 
 const PINK = "#E91E63";
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
@@ -89,6 +89,7 @@ export default function HomeScreen() {
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [filters, setFilters] = useState<HomeFilters>(DEFAULT_HOME_FILTERS);
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { getRating } = useReviewRatings();
   const { city } = useCustomerLocation();
   const { width: screenWidth } = useWindowDimensions();
   const isDesktop = screenWidth >= 1100;
@@ -132,6 +133,10 @@ export default function HomeScreen() {
   ].filter(Boolean).length;
   const nearbyVendors = useMemo(() => {
     return popularVendors
+      .map((vendor) => {
+        const current = getRating(vendor.id, vendor.rating, 0);
+        return { ...vendor, rating: current.rating, reviews: current.reviews };
+      })
       .filter((vendor) =>
         (!filters.minimumRating || vendor.rating >= filters.minimumRating)
         && (!filters.maximumBudget || parseCompactPrice(vendor.startingPrice) <= filters.maximumBudget)
@@ -144,7 +149,7 @@ export default function HomeScreen() {
         if (filters.sort === "price") return parseCompactPrice(a.startingPrice) - parseCompactPrice(b.startingPrice);
         return Number(b.location.includes(city)) - Number(a.location.includes(city)) || b.rating - a.rating;
       });
-  }, [city, filters]);
+  }, [city, filters, getRating]);
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
@@ -181,26 +186,15 @@ export default function HomeScreen() {
 
         {/* ── Global search ── */}
         <HomeReveal delay={45} style={[s.searchPad, { width: featureWidth }]}>
-          <View style={[s.searchBar, { backgroundColor: isDark ? "#252525" : "#F9FAFB", borderColor: border }]}>
-            <TextInput
-              accessibilityLabel="Search vendors, categories and services"
-              style={[s.searchInput, { color: text }]}
-              placeholder="Search vendors, categories, services…"
-              placeholderTextColor={muted}
-              value={searchText}
-              onChangeText={setSearchText}
-              returnKeyType="search"
-              onSubmitEditing={submitSearch}
-            />
-            {searchText ? (
-              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setSearchText("")} style={s.clearSearch}>
-                <X size={16} color={muted} />
-              </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel="Submit global search" onPress={submitSearch} style={s.searchSubmit} activeOpacity={0.78}>
-              <Search size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
+          <CompactSearchBar
+            accessibilityLabel="Search vendors, categories and services"
+            value={searchText}
+            onChangeText={setSearchText}
+            onSubmit={submitSearch}
+            placeholder="Search vendors, categories, services…"
+            dark={isDark}
+            style={s.searchBar}
+          />
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Open filters"
@@ -427,10 +421,7 @@ const s = StyleSheet.create({
 
   /* Search and filters */
   searchPad:       { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 9, marginTop: 8, marginBottom: 14 },
-  searchBar:       { flex: 1, minWidth: 0, height: 58, flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 18, borderWidth: 1, paddingLeft: 17, paddingRight: 7, shadowColor: "#8F526B", shadowOpacity: 0.07, shadowRadius: 14, shadowOffset: { width: 0, height: 5 } },
-  searchInput:     { flex: 1, minWidth: 0, fontFamily: "System", fontSize: 13, paddingVertical: 0, outlineStyle: "none" } as never,
-  clearSearch:     { width: 28, height: 40, alignItems: "center", justifyContent: "center" },
-  searchSubmit:    { width: 46, height: 46, borderRadius: 16, backgroundColor: PINK, alignItems: "center", justifyContent: "center", shadowColor: PINK, shadowOpacity: 0.18, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  searchBar:       { flex: 1 },
   filterBtn:       { height: 58, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 13, borderRadius: 18, borderWidth: 1.5, borderColor: PINK },
   filterTxt:       { color: PINK, fontFamily: "System", fontSize: 12, fontWeight: "800" },
 

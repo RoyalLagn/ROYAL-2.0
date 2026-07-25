@@ -5,17 +5,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  TextInput,
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { useRouter } from "expo-router";
 import AdminFooter from "@/components/AdminFooter";
+import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import {
   Menu,
   Bell,
-  Search,
   SlidersHorizontal,
   Grid2x2,
   Building2,
@@ -224,16 +223,14 @@ export default function VendorsAdminListing() {
         {/* Search Bar */}
         <View className="px-6 mb-6">
           <View className="flex-row items-center gap-3">
-            <View className="flex-1 flex-row items-center bg-card border border-border rounded-xl px-4 py-3">
-              <Search size={20} className="text-muted-foreground mr-3" />
-              <TextInput
-                placeholder="Search vendors..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                className="flex-1 text-foreground text-sm"
-                placeholderTextColor={isDark ? "#A8A29E" : "#78716C"}
-              />
-            </View>
+            <CompactSearchBar
+              value={searchQuery}
+              placeholder="Search vendors..."
+              dark={isDark}
+              accessibilityLabel="Search vendors"
+              onChangeText={setSearchQuery}
+              style={{ flex: 1 }}
+            />
             <TouchableOpacity className="w-12 h-12 bg-card border border-border rounded-xl items-center justify-center" onPress={() => { setSearchQuery(""); setSelectedCategory("all"); }}>
               <SlidersHorizontal size={20} className="text-primary" />
             </TouchableOpacity>

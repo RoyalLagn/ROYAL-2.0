@@ -30,6 +30,7 @@ export type PickImageOptions = {
 };
 
 export type PortfolioAsset = ImagePicker.ImagePickerAsset;
+export type ReviewPhotoAsset = ImagePicker.ImagePickerAsset;
 export type CloudinaryUpload = {
   secureUrl: string;
   publicId: string;
@@ -322,4 +323,170 @@ export async function deleteUnstoredPortfolioAsset(
     body: { vendorId, publicId, resourceType },
   });
   if (error) throw new CloudinaryError(error.message || "Unable to clean up uploaded media.", "UPLOAD_ERROR");
+}
+
+type SignedReviewUpload = {
+  signature: string;
+  timestamp: number;
+  folder: string;
+  apiKey: string;
+  cloudName: string;
+  public_id: string;
+  overwrite: string;
+  unique_filename: string;
+};
+
+export async function pickReviewPhotos(selectionLimit = 4): Promise<ReviewPhotoAsset[]> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    throw new CloudinaryError(
+      "Photo library permission is required.",
+      "PERMISSION_DENIED"
+    );
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ["images"],
+    allowsMultipleSelection: true,
+    selectionLimit: Math.max(1, Math.min(selectionLimit, 6)),
+    quality: 0.82,
+  });
+  if (result.canceled) return [];
+  for (const asset of result.assets) {
+    if (asset.fileSize && asset.fileSize > 8 * 1024 * 1024) {
+      throw new CloudinaryError(
+        `${asset.fileName || "Review photo"} must be under 8 MB.`,
+        "PICKER_ERROR"
+      );
+    }
+  }
+  return result.assets;
+}
+
+export async function uploadReviewPhoto(
+  asset: ReviewPhotoAsset,
+  onProgress?: (value: number) => void
+): Promise<CloudinaryUpload> {
+  let fileSize = asset.fileSize;
+  if (!fileSize) {
+    try {
+      fileSize = (await fetch(asset.uri).then((response) => response.blob())).size;
+    } catch (error) {
+      throw new CloudinaryError(
+        "Unable to read the selected review photo.",
+        "PICKER_ERROR",
+        error
+      );
+    }
+  }
+  const mimeType = asset.mimeType || "image/jpeg";
+  const { data, error } =
+    await supabase.functions.invoke<SignedReviewUpload>("review-photo-sign", {
+      body: { mimeType, fileSize },
+    });
+  if (error || !data?.signature) {
+    throw new CloudinaryError(
+      error?.message || "Unable to authorize review photo upload.",
+      "UPLOAD_ERROR"
+    );
+  }
+  const body = new FormData();
+  if (Platform.OS === "web") {
+    const blob = await fetch(asset.uri).then((response) => response.blob());
+    body.append(
+      "file",
+      new File([blob], asset.fileName || `review-${Date.now()}.jpg`, {
+        type: mimeType || blob.type,
+      })
+    );
+  } else {
+    body.append("file", {
+      uri: asset.uri,
+      name: asset.fileName || `review-${Date.now()}.jpg`,
+      type: mimeType,
+    } as any);
+  }
+  body.append("api_key", data.apiKey);
+  body.append("timestamp", String(data.timestamp));
+  body.append("folder", data.folder);
+  body.append("public_id", data.public_id);
+  body.append("overwrite", data.overwrite);
+  body.append("unique_filename", data.unique_filename);
+  body.append("signature", data.signature);
+
+  const payload: any = await new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open(
+      "POST",
+      `https://api.cloudinary.com/v1_1/${data.cloudName}/image/upload`
+    );
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(event.loaded / event.total);
+    };
+    request.onerror = () =>
+      reject(
+        new CloudinaryError(
+          "Network error during review photo upload.",
+          "NETWORK_ERROR"
+        )
+      );
+    request.onload = () => {
+      try {
+        const result = JSON.parse(request.responseText);
+        if (request.status < 200 || request.status >= 300) {
+          throw new Error(result.error?.message || "Upload failed");
+        }
+        resolve(result);
+      } catch (caught) {
+        reject(
+          new CloudinaryError(
+            caught instanceof Error ? caught.message : "Upload failed.",
+            "UPLOAD_ERROR",
+            caught
+          )
+        );
+      }
+    };
+    request.send(body);
+  });
+  return {
+    secureUrl: payload.secure_url,
+    publicId: payload.public_id,
+    resourceType: "image",
+    format: payload.format,
+    width: payload.width,
+    height: payload.height,
+    bytes: payload.bytes,
+    thumbnailUrl: thumbnailFor(data.cloudName, payload.public_id, "image"),
+  };
+}
+
+export async function deleteReviewPhoto(
+  publicId: string,
+  reviewId?: string
+): Promise<void> {
+  const { error } = await supabase.functions.invoke("review-photo-delete", {
+    body: { publicId, reviewId },
+  });
+  if (error) {
+    throw new CloudinaryError(
+      error.message || "Unable to delete review photo.",
+      "UPLOAD_ERROR"
+    );
+  }
+}
+
+export function reviewPhotoPublicId(url: string): string | null {
+  try {
+    const pathname = new URL(url).pathname;
+    const uploadIndex = pathname.indexOf("/image/upload/");
+    if (uploadIndex < 0) return null;
+    const afterUpload = pathname.slice(uploadIndex + "/image/upload/".length);
+    const segments = afterUpload.split("/");
+    const versionIndex = segments.findIndex((part) => /^v\d+$/.test(part));
+    const assetSegments = versionIndex >= 0 ? segments.slice(versionIndex + 1) : segments;
+    const publicId = decodeURIComponent(assetSegments.join("/")).replace(/\.[^.]+$/, "");
+    return publicId.startsWith("royallagn/reviews/") ? publicId : null;
+  } catch {
+    return null;
+  }
 }

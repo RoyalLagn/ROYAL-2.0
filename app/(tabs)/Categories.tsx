@@ -29,6 +29,11 @@ import CategoryFilterModal from "@/components/categories/CategoryFilterModal";
 import CategoryPageHeader from "@/components/categories/CategoryPageHeader";
 import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import HomeReveal from "@/components/home/HomeReveal";
+import categoryImageUrls from "@/data/categoryImages.cloudinary.json";
+
+function cloudinaryCardImage(url: string) {
+  return url.replace("/image/upload/", "/image/upload/f_auto,q_auto,w_720/");
+}
 
 const CATEGORIES: CategoryCardItem[] = [
   {
@@ -38,7 +43,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: Building2,
     iconColor: "#F97316",
     iconBg: "#FFF3EA",
-    image: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["venues.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/venues.png"),
   },
   {
     id: "2",
@@ -47,7 +53,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: UtensilsCrossed,
     iconColor: "#EC4899",
     iconBg: "#FFF0F7",
-    image: "https://images.unsplash.com/photo-1559339352-11d035aa65de?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["caterers.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/caterers.png"),
   },
   {
     id: "3",
@@ -56,7 +63,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: Camera,
     iconColor: "#3B82F6",
     iconBg: "#EFF6FF",
-    image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["photographer.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/photographer.png"),
   },
   {
     id: "4",
@@ -65,7 +73,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: Palette,
     iconColor: "#22C55E",
     iconBg: "#F0FDF4",
-    image: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["decoraters.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/decoraters.png"),
   },
   {
     id: "5",
@@ -74,7 +83,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: Sparkles,
     iconColor: "#EF4444",
     iconBg: "#FFF1F1",
-    image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["makeup.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/makeup.png"),
   },
   {
     id: "6",
@@ -83,7 +93,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: Hand,
     iconColor: "#F97316",
     iconBg: "#FFF3EA",
-    image: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["mehendi artist.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/mehendi-artist.png"),
   },
   {
     id: "7",
@@ -92,7 +103,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: Headphones,
     iconColor: "#8B5CF6",
     iconBg: "#F5F3FF",
-    image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["DJ.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/DJ.png"),
   },
   {
     id: "8",
@@ -101,7 +113,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: Shirt,
     iconColor: "#EC4899",
     iconBg: "#FFF0F7",
-    image: "https://images.unsplash.com/photo-1594552072238-b8f02c8f5c22?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["bridal wear.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/bridal-wear.png"),
   },
   {
     id: "9",
@@ -110,7 +123,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: User,
     iconColor: "#3B82F6",
     iconBg: "#EFF6FF",
-    image: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["groom wear.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/groom-wear.png"),
   },
   {
     id: "10",
@@ -119,7 +133,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: Gem,
     iconColor: "#F59E0B",
     iconBg: "#FFFBEA",
-    image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["jewelwry & accessories.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/jewellery-accessories.png"),
   },
   {
     id: "11",
@@ -128,7 +143,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: BookOpen,
     iconColor: "#F97316",
     iconBg: "#FFF3EA",
-    image: "https://images.unsplash.com/photo-1601128533718-374ffcca299b?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["pandits.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/pandits.png"),
   },
   {
     id: "12",
@@ -137,7 +153,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: Mail,
     iconColor: "#8B5CF6",
     iconBg: "#F5F3FF",
-    image: "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["invite&cards.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/invites-cards.png"),
   },
   {
     id: "13",
@@ -146,7 +163,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: Camera,
     iconColor: "#3B82F6",
     iconBg: "#EFF6FF",
-    image: "https://images.unsplash.com/photo-1606216794074-735e91aa2c92?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["pre-wedding shoot.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/pre-wedding-shoot.png"),
   },
   {
     id: "14",
@@ -155,7 +173,8 @@ const CATEGORIES: CategoryCardItem[] = [
     icon: Music,
     iconColor: "#EC4899",
     iconBg: "#FFF0F7",
-    image: "https://images.unsplash.com/photo-1504609813442-a8924e83f76e?w=400&auto=format&fit=crop&q=70",
+    image: cloudinaryCardImage(categoryImageUrls["dance.png"]),
+    fallbackImage: require("../../assets/images/category-fallback/dance.png"),
   },
 ];
 
@@ -202,7 +221,6 @@ export default function CategoriesScreen() {
           <CategorySearchBar
             dark={isDark}
             query={query}
-            activeFilterCount={selectedCategory ? 1 : 0}
             onChangeQuery={setQuery}
             onOpenFilters={() => setFiltersVisible(true)}
           />

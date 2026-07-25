@@ -5,11 +5,11 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
-import { Check, ChevronDown, MapPin, Search, X } from "lucide-react-native";
+import { Check, ChevronDown, MapPin, X } from "lucide-react-native";
 import { SUPPORTED_LOCATIONS, useCustomerLocation } from "@/context/LocationContext";
+import CompactSearchBar from "@/components/listing/CompactSearchBar";
 
 const PINK = "#E91E63";
 
@@ -96,22 +96,13 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
               </Pressable>
             </View>
 
-            <View style={[styles.search, { backgroundColor: colors.background, borderColor: colors.border }]}>
-              <Search size={17} color={colors.muted} />
-              <TextInput
-                accessibilityLabel="Search city or area"
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search city or area"
-                placeholderTextColor={colors.muted}
-                style={[styles.searchInput, { color: colors.text }]}
-              />
-              {query ? (
-                <Pressable accessibilityRole="button" accessibilityLabel="Clear location search" onPress={() => setQuery("")} hitSlop={8}>
-                  <X size={16} color={colors.muted} />
-                </Pressable>
-              ) : null}
-            </View>
+            <CompactSearchBar
+              accessibilityLabel="Search city or area"
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search city or area"
+              dark={dark}
+            />
 
             <Text style={[styles.groupLabel, { color: colors.muted }]}>SUGGESTED LOCATIONS</Text>
             <View style={styles.options}>
@@ -173,8 +164,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 19, lineHeight: 25, fontWeight: "800", letterSpacing: -0.3 },
   subtitle: { fontSize: 10, lineHeight: 15, marginTop: 3 },
   closeButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
-  search: { minHeight: 50, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 9 },
-  searchInput: { flex: 1, minWidth: 0, paddingVertical: 11, fontSize: 13, outlineStyle: "none" } as never,
   groupLabel: { fontSize: 8, fontWeight: "900", letterSpacing: 1.1, marginTop: 18, marginBottom: 9 },
   options: { gap: 8 },
   option: { minHeight: 54, borderWidth: 1, borderRadius: 15, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 10 },

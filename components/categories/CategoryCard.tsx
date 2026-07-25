@@ -1,5 +1,13 @@
-import React from "react";
-import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import {
+  Image,
+  type ImageURISource,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 export type CategoryCardItem = {
   id: string;
@@ -9,6 +17,7 @@ export type CategoryCardItem = {
   iconColor: string;
   iconBg: string;
   image: string;
+  fallbackImage: number | ImageURISource;
 };
 
 type CategoryCardProps = {
@@ -20,6 +29,7 @@ type CategoryCardProps = {
 
 export default function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
   const Icon = category.icon;
+  const [imageFailed, setImageFailed] = useState(false);
   const text = dark ? "#F8F2F5" : "#17111D";
   const muted = dark ? "#B5A9AF" : "#776A79";
   const surface = dark ? "#201D1F" : "#FFFFFF";
@@ -62,9 +72,13 @@ export default function CategoryCard({ category, dark, compact, onPress }: Categ
       <View style={[styles.imageWrap, compact && styles.imageWrapCompact]}>
         <Image
           accessibilityLabel={`${category.name} category`}
-          source={{ uri: category.image }}
+          source={imageFailed ? category.fallbackImage : { uri: category.image }}
+          defaultSource={category.fallbackImage}
           resizeMode="cover"
           style={styles.image}
+          onError={() => {
+            if (!imageFailed) setImageFailed(true);
+          }}
         />
       </View>
     </Pressable>
@@ -99,7 +113,7 @@ const styles = StyleSheet.create({
   nameCompact: { fontSize: 17, lineHeight: 21, marginBottom: 3 },
   description: { fontSize: 12, lineHeight: 18, fontWeight: "400" },
   descriptionCompact: { fontSize: 10.5, lineHeight: 15 },
-  imageWrap: { width: "34%", maxWidth: 190, minWidth: 132, margin: 4, marginLeft: 0, borderRadius: 18, overflow: "hidden", backgroundColor: "#F8E9EE" },
-  imageWrapCompact: { width: "33%", minWidth: 104, maxWidth: 128, borderRadius: 17 },
+  imageWrap: { width: 132, margin: 4, marginLeft: 0, borderRadius: 18, overflow: "hidden", backgroundColor: "#F8E9EE" },
+  imageWrapCompact: { width: 106, borderRadius: 17 },
   image: { width: "100%", height: "100%" },
 });

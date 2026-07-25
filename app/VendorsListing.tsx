@@ -1,80 +1,189 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
-} from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  ChevronLeft,
-  Heart,
-  Search,
-  MapPin,
-  Star,
-  ChevronDown,
-  ArrowUpDown,
-  Filter,
-} from "lucide-react-native";
 import { useColorScheme } from "nativewind";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import CategoryFilterChips from "@/components/listing/CategoryFilterChips";
+import CategoryListingHeader from "@/components/listing/CategoryListingHeader";
+import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import ListingFilterModal, {
+  type ListingFilters,
+} from "@/components/listing/ListingFilterModal";
+import ResultsSummary from "@/components/listing/ResultsSummary";
+import VendorListingCard from "@/components/listing/VendorListingCard";
+import HomeReveal from "@/components/home/HomeReveal";
+import { useCustomerLocation } from "@/context/LocationContext";
 import { useFavorites } from "@/context/FavoritesContext";
-import { vendorsByCategory, VendorItem } from "@/data/vendorData";
+import { vendorsByCategory, type VendorItem } from "@/data/vendorData";
+import { useReviewRatings } from "@/context/ReviewRatingsContext";
 
 function getFallbackVendors(category: string): VendorItem[] {
-  return Array.from({ length: 10 }, (_, i) => ({
-    id: `f${i + 1}`,
-    name: `${category} Expert ${i + 1}`,
-    rating: parseFloat((4.9 - i * 0.07).toFixed(1)),
-    reviews: 120 - i * 10,
-    priceLevel: i % 3 === 0 ? "₹ ₹ ₹" : i % 2 === 0 ? "₹" : "₹ ₹",
-    location: ["Pune", "Mumbai", "Lonavala", "Nashik"][i % 4],
-    tags: ["Premium", "Traditional", "Modern"].slice(0, (i % 3) + 1),
-    startingPrice: `₹${(15 - i) * 1000}`,
-    image: `https://images.unsplash.com/photo-1606800052052-a08af7148866?w=400&auto=format&fit=crop&q=70`,
-    isTopRated: i === 0,
+  return Array.from({ length: 10 }, (_, index) => ({
+    id: `f${index + 1}`,
+    name: `${category} Expert ${index + 1}`,
+    rating: Number((4.9 - index * 0.07).toFixed(1)),
+    reviews: 120 - index * 10,
+    priceLevel: index % 3 === 0 ? "₹ ₹ ₹" : index % 2 === 0 ? "₹" : "₹ ₹",
+    location: ["Pune", "Mumbai", "Lonavala", "Nashik"][index % 4],
+    tags: ["Premium", "Traditional", "Modern"].slice(0, (index % 3) + 1),
+    startingPrice: `₹${(15 - index) * 1000}`,
+    image: "https://images.unsplash.com/photo-1606800052052-a08af7148866?w=900&auto=format&fit=crop&q=78",
+    isTopRated: index === 0,
   }));
 }
 
-const FILTER_CHIPS = [
-  { label: "Sort",   icon: ArrowUpDown, hasDropdown: false },
-  { label: "Price",  icon: null,        hasDropdown: true  },
-  { label: "Rating", icon: Star,        hasDropdown: true  },
-  { label: "Budget", icon: null,        hasDropdown: true  },
-];
+function parsePrice(value: string) {
+  const normalized = value.replace(/[₹,\s]/g, "").toLowerCase();
+  const amount = Number.parseFloat(normalized) || 0;
+  if (normalized.includes("l")) return amount * 100000;
+  if (normalized.includes("k")) return amount * 1000;
+  return amount;
+}
+
+function getPriceOptions(category: string) {
+  if (category === "Caterers") {
+    return [
+      { label: "Any price", value: 0 },
+      { label: "Under ₹750/plate", value: 750 },
+      { label: "Under ₹1,000/plate", value: 1000 },
+      { label: "Under ₹1,500/plate", value: 1500 },
+    ];
+  }
+  if (category === "Venues") {
+    return [
+      { label: "Any price", value: 0 },
+      { label: "Under ₹1L", value: 100000 },
+      { label: "Under ₹2L", value: 200000 },
+      { label: "Under ₹3L", value: 300000 },
+    ];
+  }
+  return [
+    { label: "Any price", value: 0 },
+    { label: "Under ₹15k", value: 15000 },
+    { label: "Under ₹30k", value: 30000 },
+    { label: "Under ₹50k", value: 50000 },
+    { label: "Under ₹1L", value: 100000 },
+  ];
+}
+
+const DEFAULT_FILTERS: ListingFilters = {
+  sort: "popular",
+  maximumPrice: 0,
+  minimumRating: 0,
+};
+
+const CATEGORY_ALIASES: Record<string, string> = {
+  "pre-wedding shoot": "Pre Wedding Shoot",
+  "pre wedding shoots": "Pre Wedding Shoot",
+  "music and dance": "Music & Dance",
+  "invites and cards": "Invites & Cards",
+  "dj": "DJs",
+};
+
+function resolveCategory(value?: string) {
+  if (!value) return "Photographers";
+  const exact = Object.keys(vendorsByCategory).find(
+    (category) => category.toLowerCase() === value.trim().toLowerCase(),
+  );
+  return exact ?? CATEGORY_ALIASES[value.trim().toLowerCase()] ?? value.trim();
+}
+
+const CATEGORY_FALLBACKS: Record<string, number> = {
+  Venues: require("../assets/images/category-fallback/venues.png"),
+  Caterers: require("../assets/images/category-fallback/caterers.png"),
+  Photographers: require("../assets/images/category-fallback/photographer.png"),
+  Decorators: require("../assets/images/category-fallback/decoraters.png"),
+  "Makeup Artists": require("../assets/images/category-fallback/makeup.png"),
+  "Mehndi Artists": require("../assets/images/category-fallback/mehendi-artist.png"),
+  DJs: require("../assets/images/category-fallback/DJ.png"),
+  "Bridal Wear": require("../assets/images/category-fallback/bridal-wear.png"),
+  "Groom Wear": require("../assets/images/category-fallback/groom-wear.png"),
+  "Jewellery & Accessories": require("../assets/images/category-fallback/jewellery-accessories.png"),
+  Pandits: require("../assets/images/category-fallback/pandits.png"),
+  "Invites & Cards": require("../assets/images/category-fallback/invites-cards.png"),
+  "Pre Wedding Shoot": require("../assets/images/category-fallback/pre-wedding-shoot.png"),
+  "Music & Dance": require("../assets/images/category-fallback/dance.png"),
+};
 
 export default function VendorsListingScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
-  const { category, query: initialQuery } = useLocalSearchParams<{ category?: string; query?: string }>();
-
-  const [query, setQuery] = useState(Array.isArray(initialQuery) ? initialQuery[0] : initialQuery ?? "");
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const { city } = useCustomerLocation();
+  const { width } = useWindowDimensions();
+  const params = useLocalSearchParams<{ category?: string; query?: string }>();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { getRating } = useReviewRatings();
 
-  const displayCat = (Array.isArray(category) ? category[0] : category) || "Photographers";
-  const vendors: VendorItem[] = vendorsByCategory[displayCat] ?? getFallbackVendors(displayCat);
+  const categoryParam = Array.isArray(params.category) ? params.category[0] : params.category;
+  const displayCategory = resolveCategory(categoryParam);
+  const initialQuery = Array.isArray(params.query) ? params.query[0] : params.query ?? "";
+  const [query, setQuery] = useState(initialQuery);
+  const [filters, setFilters] = useState<ListingFilters>(DEFAULT_FILTERS);
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [filterSection, setFilterSection] = useState<"sort" | "price" | "rating" | "filters">("filters");
 
-  const filtered = query.trim()
-    ? vendors.filter((v) => v.name.toLowerCase().includes(query.toLowerCase()))
-    : vendors;
+  const compact = width < 600;
+  const contentWidth = Math.min(width - (width >= 1100 ? 48 : 32), 980);
+  const background = isDark ? "#141214" : "#FFFAFC";
+  const text = isDark ? "#F8F2F5" : "#231A20";
+  const muted = isDark ? "#AAA0A5" : "#786D73";
+  const border = isDark ? "#3D3036" : "#F1D9E1";
+  const locationSubtitle = city;
 
-  const bg      = isDark ? "#141414" : "#FAFAFA";
-  const card    = isDark ? "#1E1E1E" : "#FFFFFF";
-  const text    = isDark ? "#F5F0F3" : "#141414";
-  const muted   = isDark ? "#AAA0A5" : "#787178";
-  const inputBg = isDark ? "#252525" : "#F4F4F4";
-  const border  = isDark ? "#2A2A2A" : "#EEE4F0";
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
 
-  const handleToggleFav = (vendor: VendorItem) => {
+  const vendors = useMemo(
+    () => vendorsByCategory[displayCategory] ?? getFallbackVendors(displayCategory),
+    [displayCategory],
+  );
+
+  const filteredVendors = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const ratedVendors = vendors.map((vendor) => {
+      const current = getRating(vendor.id, vendor.rating, vendor.reviews);
+      return { ...vendor, rating: current.rating, reviews: current.reviews };
+    });
+    const matching = ratedVendors.filter((vendor) => {
+      const searchable = `${vendor.name} ${vendor.location} ${vendor.tags.join(" ")}`.toLowerCase();
+      return (!normalizedQuery || searchable.includes(normalizedQuery))
+        && (!filters.minimumRating || vendor.rating >= filters.minimumRating)
+        && (!filters.maximumPrice || parsePrice(vendor.startingPrice) <= filters.maximumPrice);
+    });
+
+    return [...matching].sort((a, b) => {
+      if (filters.sort === "rating") return b.rating - a.rating || b.reviews - a.reviews;
+      if (filters.sort === "price") return parsePrice(a.startingPrice) - parsePrice(b.startingPrice);
+      return Number(Boolean(b.isTopRated)) - Number(Boolean(a.isTopRated))
+        || b.reviews - a.reviews
+        || b.rating - a.rating;
+    });
+  }, [filters, getRating, query, vendors]);
+
+  const activeFilterCount = [
+    filters.sort !== "popular",
+    filters.maximumPrice > 0,
+    filters.minimumRating > 0,
+  ].filter(Boolean).length;
+
+  const openFilters = (section: "sort" | "price" | "rating" | "filters") => {
+    setFilterSection(section);
+    setFiltersVisible(true);
+  };
+
+  const sortLabel = filters.sort === "rating"
+    ? "Highest rated"
+    : filters.sort === "price"
+      ? "Lowest price"
+      : "Popular";
+
+  const toggleVendorFavorite = (vendor: VendorItem) => {
     toggleFavorite({
       id: vendor.id,
       name: vendor.name,
-      category: displayCat,
+      category: displayCategory,
       rating: vendor.rating,
       reviews: vendor.reviews,
       priceLevel: vendor.priceLevel,
@@ -86,215 +195,111 @@ export default function VendorsListingScreen() {
   };
 
   return (
-    <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
+    <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "left", "right"]}>
+      <View style={[styles.top, { width: contentWidth }]}>
+        <HomeReveal direction="down">
+          <CategoryListingHeader
+            category={displayCategory}
+            location={locationSubtitle}
+            dark={isDark}
+            onBack={() => router.back()}
+            onFavorites={() => router.push("/(tabs)/favorites")}
+            onFilters={() => openFilters("filters")}
+          />
+        </HomeReveal>
 
-      {/* ── Header ── */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-          <ChevronLeft size={24} color={text} />
-        </TouchableOpacity>
-        <View style={s.headerCenter}>
-          <Text style={[s.headerTitle, { color: text }]}>{displayCat}</Text>
-          <View style={s.locationRow}>
-            <MapPin size={12} color="#E91E63" />
-            <Text style={s.locationTxt}>Pune, Lonavala</Text>
-          </View>
-        </View>
-        <View style={s.headerRight}>
-          <TouchableOpacity onPress={() => router.push("/(tabs)/favorites")}>
-            <Heart size={22} color={text} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setActiveFilter(activeFilter ? null : "Rating")}>
-            <Filter size={22} color="#E91E63" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* ── Search bar ── */}
-      <View style={s.searchPad}>
-        <View style={[s.searchBar, { backgroundColor: inputBg }]}>
-          <Search size={17} color={muted} style={{ marginRight: 8 }} />
-          <TextInput
-            style={[s.searchInput, { color: text }]}
-            placeholder={`Search ${displayCat.toLowerCase()}...`}
-            placeholderTextColor={muted}
+        <HomeReveal delay={35}>
+          <CompactSearchBar
+            accessibilityLabel={`Search ${displayCategory.toLowerCase()}`}
             value={query}
             onChangeText={setQuery}
+            placeholder={`Search ${displayCategory.toLowerCase()}…`}
+            dark={isDark}
+            style={styles.search}
           />
-        </View>
+        </HomeReveal>
+
+        <HomeReveal delay={70} style={styles.chips}>
+          <CategoryFilterChips
+            dark={isDark}
+            active={{
+              sort: filters.sort !== "popular",
+              price: filters.maximumPrice > 0,
+              rating: filters.minimumRating > 0,
+              filters: activeFilterCount > 0,
+            }}
+            onPress={openFilters}
+          />
+        </HomeReveal>
+
+        <HomeReveal delay={95}>
+          <ResultsSummary
+            count={filteredVendors.length}
+            category={displayCategory}
+            sortLabel={sortLabel}
+            dark={isDark}
+            onSort={() => openFilters("sort")}
+          />
+        </HomeReveal>
       </View>
 
-      {/* ── Filter chips ── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.filtersRow}
-        style={s.filterScroll}
-      >
-        {FILTER_CHIPS.map((chip) => {
-          const Icon = chip.icon;
-          const active = activeFilter === chip.label;
-          return (
-            <TouchableOpacity
-              key={chip.label}
-              style={[
-                s.chip,
-                {
-                  backgroundColor: active ? "#E91E63" : card,
-                  borderColor: active ? "#E91E63" : border,
-                },
-              ]}
-              onPress={() => setActiveFilter(active ? null : chip.label)}
-            >
-              {Icon && (
-                <Icon
-                  size={14}
-                  color={active ? "#FFF" : chip.label === "Rating" ? "#EAB308" : "#E91E63"}
-                  style={{ marginRight: 5 }}
-                />
-              )}
-              <Text style={[s.chipTxt, { color: active ? "#FFF" : text }]}>{chip.label}</Text>
-              {chip.hasDropdown && (
-                <ChevronDown size={13} color={active ? "#FFF" : muted} style={{ marginLeft: 3 }} />
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      {/* ── Results count ── */}
-      <View style={s.resultsRow}>
-        <Text style={[s.resultsCount, { color: text }]}>
-          {vendors.length * 12}+ {displayCat} Found
-        </Text>
-        <TouchableOpacity style={s.popularRow} onPress={() => setActiveFilter(activeFilter === "Sort" ? null : "Sort")}>
-          <Text style={s.popularTxt}>Popular</Text>
-          <ChevronDown size={14} color="#E91E63" />
-        </TouchableOpacity>
-      </View>
-
-      {/* ── Vendor list ── */}
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[s.list, { paddingBottom: 24 }]}
+        keyboardShouldPersistTaps="handled"
+        style={styles.scroll}
+        contentContainerStyle={[styles.list, { width: contentWidth, paddingBottom: 34 }]}
       >
-        {filtered.map((vendor) => {
-          const isFav = isFavorite(vendor.id);
-          return (
-            <TouchableOpacity
-              key={vendor.id}
-              style={[s.card, { backgroundColor: card, borderColor: border }]}
-              onPress={() =>
+        {filteredVendors.map((vendor, index) => (
+          <HomeReveal key={vendor.id} delay={Math.min(index * 30, 210)}>
+            <VendorListingCard
+              vendor={vendor}
+              dark={isDark}
+              compact={compact}
+              favorite={isFavorite(vendor.id)}
+              fallbackImage={CATEGORY_FALLBACKS[displayCategory] ?? CATEGORY_FALLBACKS.Venues}
+              onOpen={() =>
                 router.push({
                   pathname: "/VendorsProfile",
-                  params: { vendorId: vendor.id, category: displayCat },
+                  params: { vendorId: vendor.id, category: displayCategory },
                 })
               }
-              activeOpacity={0.85}
-            >
-              {/* Image */}
-              <View style={s.imgWrap}>
-                <Image source={{ uri: vendor.image }} style={s.img} resizeMode="cover" />
-                {vendor.isTopRated && (
-                  <View style={s.topRatedBadge}>
-                    <Text style={s.topRatedTxt}>Top Rated</Text>
-                  </View>
-                )}
-              </View>
+              onToggleFavorite={() => toggleVendorFavorite(vendor)}
+            />
+          </HomeReveal>
+        ))}
 
-              {/* Content */}
-              <View style={s.cardBody}>
-                <View style={s.nameRow}>
-                  <Text style={[s.vendorName, { color: text }]} numberOfLines={2}>
-                    {vendor.name}
-                  </Text>
-                  <TouchableOpacity onPress={() => handleToggleFav(vendor)} style={s.heartBtn}>
-                    <Heart
-                      size={18}
-                      color={isFav ? "#E91E63" : muted}
-                      fill={isFav ? "#E91E63" : "transparent"}
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={s.ratingRow}>
-                  <Star size={13} color="#EAB308" fill="#EAB308" />
-                  <Text style={[s.ratingVal, { color: text }]}> {vendor.rating}</Text>
-                  <Text style={[s.ratingCount, { color: muted }]}> ({vendor.reviews})</Text>
-                </View>
-
-                <View style={s.metaRow}>
-                  <Text style={[s.priceLevel, { color: text }]}>{vendor.priceLevel}</Text>
-                  <Text style={[s.sep, { color: muted }]}> • </Text>
-                  <Text style={[s.locationTxt2, { color: muted }]} numberOfLines={1}>
-                    {vendor.location}
-                  </Text>
-                </View>
-
-                <Text style={[s.tags, { color: muted }]} numberOfLines={1}>
-                  {vendor.tags.join(" • ")}
-                </Text>
-
-                <View style={[s.priceBadge, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
-                  <Text style={s.priceBadgeTxt}>Starts from {vendor.startingPrice}</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+        {!filteredVendors.length ? (
+          <View style={[styles.empty, { borderColor: border }]}>
+            <Text style={[styles.emptyTitle, { color: text }]}>No matching {displayCategory.toLowerCase()}</Text>
+            <Text style={[styles.emptyText, { color: muted }]}>Try another keyword or reset the price and rating filters.</Text>
+          </View>
+        ) : null}
       </ScrollView>
+
+      <ListingFilterModal
+        visible={filtersVisible}
+        dark={isDark}
+        value={filters}
+        priceOptions={getPriceOptions(displayCategory)}
+        initialSection={filterSection}
+        onClose={() => setFiltersVisible(false)}
+        onApply={(nextFilters) => {
+          setFilters(nextFilters);
+          setFiltersVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
 
-const s = StyleSheet.create({
-  root:           { flex: 1 },
-
-  header:         { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10 },
-  backBtn:        { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
-  headerCenter:   { flex: 1, alignItems: "center" },
-  headerTitle:    { fontSize: 18, fontWeight: "700", marginBottom: 2 },
-  locationRow:    { flexDirection: "row", alignItems: "center", gap: 3 },
-  locationTxt:    { fontSize: 12, color: "#E91E63", fontWeight: "500" },
-  headerRight:    { flexDirection: "row", gap: 14, alignItems: "center" },
-
-  searchPad:      { paddingHorizontal: 16, marginBottom: 10 },
-  searchBar:      { flexDirection: "row", alignItems: "center", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
-  searchInput:    { flex: 1, fontSize: 13 },
-
-  filterScroll:   { marginBottom: 10 },
-  filtersRow:     { paddingHorizontal: 16, gap: 8 },
-  chip:           { flexDirection: "row", alignItems: "center", borderRadius: 50, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 8 },
-  chipTxt:        { fontSize: 13, fontWeight: "500" },
-
-  resultsRow:     { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, marginBottom: 10 },
-  resultsCount:   { fontSize: 13, fontWeight: "600" },
-  popularRow:     { flexDirection: "row", alignItems: "center", gap: 2 },
-  popularTxt:     { color: "#E91E63", fontSize: 13, fontWeight: "600" },
-
-  list:           { paddingHorizontal: 16 },
-
-  card:           { flexDirection: "row", borderBottomWidth: 1, paddingVertical: 14, gap: 12 },
-  imgWrap:        { position: "relative", width: 115, height: 130, borderRadius: 10, overflow: "hidden", flexShrink: 0 },
-  img:            { width: "100%", height: "100%" },
-  topRatedBadge:  { position: "absolute", top: 8, left: 0, backgroundColor: "#E91E63", paddingHorizontal: 8, paddingVertical: 4, borderTopRightRadius: 8, borderBottomRightRadius: 8 },
-  topRatedTxt:    { color: "#FFF", fontSize: 10, fontWeight: "700" },
-
-  cardBody:       { flex: 1, justifyContent: "space-between" },
-  nameRow:        { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 4 },
-  vendorName:     { fontSize: 15, fontWeight: "700", flex: 1, marginRight: 6, lineHeight: 20 },
-  heartBtn:       { padding: 2 },
-
-  ratingRow:      { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  ratingVal:      { fontSize: 13, fontWeight: "600" },
-  ratingCount:    { fontSize: 12 },
-
-  metaRow:        { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  priceLevel:     { fontSize: 13, fontWeight: "600" },
-  sep:            { fontSize: 13 },
-  locationTxt2:   { fontSize: 12, flex: 1 },
-
-  tags:           { fontSize: 12, marginBottom: 8 },
-  priceBadge:     { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50 },
-  priceBadgeTxt:  { color: "#E91E63", fontSize: 12, fontWeight: "600" },
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  top: { alignSelf: "center", paddingBottom: 8 },
+  search: { width: "100%" },
+  chips: { marginTop: 10, marginBottom: 4 },
+  scroll: { flex: 1 },
+  list: { alignSelf: "center", gap: 12, paddingTop: 4 },
+  empty: { minHeight: 190, marginTop: 4, borderWidth: 1, borderStyle: "dashed", borderRadius: 22, paddingHorizontal: 24, alignItems: "center", justifyContent: "center" },
+  emptyTitle: { fontFamily: "serif", fontSize: 20, lineHeight: 25, fontWeight: "700", textAlign: "center" },
+  emptyText: { maxWidth: 340, marginTop: 6, fontSize: 11, lineHeight: 17, textAlign: "center" },
 });

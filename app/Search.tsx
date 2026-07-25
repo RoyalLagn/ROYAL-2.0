@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, ChevronRight, Search as SearchIcon, X } from "lucide-react-native";
+import { ArrowLeft, ChevronRight, Search as SearchIcon } from "lucide-react-native";
 import { categoryProfiles, vendorsByCategory } from "@/data/vendorData";
 import { TEMP_AVAILABLE_VENDOR_IDS } from "@/data/homeAvailability";
+import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import { useColorScheme } from "nativewind";
+import { useReviewRatings } from "@/context/ReviewRatingsContext";
 
 const GLOBAL_PAGES = [
   { label: "Categories", detail: "Browse every wedding service", keywords: "categories services vendors browse", route: "/(tabs)/Categories" as const },
@@ -34,6 +37,9 @@ function matchesKeyword(haystack: string, keyword: string) {
 
 export default function SearchScreen() {
   const router = useRouter();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const { getRating } = useReviewRatings();
   const params = useLocalSearchParams<{
     query?: string;
     location?: string;
@@ -71,7 +77,11 @@ export default function SearchScreen() {
   );
 
   const results = useMemo(() => {
-    const filtered = vendors.filter((vendor) => {
+    const ratedVendors = vendors.map((vendor) => {
+      const current = getRating(vendor.id, vendor.rating, vendor.reviews);
+      return { ...vendor, rating: current.rating, reviews: current.reviews };
+    });
+    const filtered = ratedVendors.filter((vendor) => {
       const services = categoryProfiles[vendor.category]?.services ?? [];
       const searchable = [
         vendor.name,
@@ -95,7 +105,7 @@ export default function SearchScreen() {
       const bLocal = selectedLocation && b.location.toLowerCase().includes(selectedLocation.toLowerCase()) ? 1 : 0;
       return bLocal - aLocal || b.rating - a.rating || b.reviews - a.reviews;
     });
-  }, [availabilityOnly, maximumBudget, minimumRating, nearbyOnly, query, selectedCategory, selectedLocation, sort, vendors]);
+  }, [availabilityOnly, getRating, maximumBudget, minimumRating, nearbyOnly, query, selectedCategory, selectedLocation, sort, vendors]);
 
   const pageResults = useMemo(() => {
     if (!query.trim()) return { fixedPages: [], categoryPages: [] };
@@ -122,25 +132,19 @@ export default function SearchScreen() {
         </View>
       </View>
 
-      <View className="mx-4 mt-4 flex-row items-center bg-card border border-border rounded-2xl pl-4 pr-1.5 min-h-[54px]">
-        <TextInput
+      <View className="mx-4 mt-4">
+        <CompactSearchBar
           accessibilityLabel="Global keyword search"
-          className="flex-1 py-3 text-foreground outline-none"
-          placeholder="Search vendors, categories, services…"
-          placeholderTextColor="#A8A29E"
           value={draftQuery}
-          onChangeText={setDraftQuery}
-          returnKeyType="search"
-          onSubmitEditing={submit}
+          onChangeText={(value) => {
+            setDraftQuery(value);
+            if (!value) setQuery("");
+          }}
+          onSubmit={submit}
+          placeholder="Search vendors, categories, services…"
+          dark={isDark}
+          style={{ width: "100%" }}
         />
-        {draftQuery ? (
-          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => { setDraftQuery(""); setQuery(""); }} className="w-9 h-10 items-center justify-center">
-            <X size={17} className="text-muted-foreground" />
-          </TouchableOpacity>
-        ) : null}
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Submit global search" onPress={submit} className="w-11 h-11 rounded-xl bg-primary items-center justify-center">
-          <SearchIcon size={18} color="#FFFFFF" />
-        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 12 }}>

@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { FavoritesProvider } from '@/context/FavoritesContext';
 import VendorBottomNav from '@/components/vendor/VendorBottomNav';
 import { LocationProvider } from '@/context/LocationContext';
+import { ReviewRatingsProvider } from '@/context/ReviewRatingsContext';
 
 export const unstable_settings = {
   initialRouteName: "DashboardCenter",
@@ -49,7 +50,8 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <FavoritesProvider>
-        <LocationProvider>
+        <ReviewRatingsProvider>
+          <LocationProvider>
           <ThemeProvider>
             <SafeAreaProvider>
               <StatusBar style="auto" />
@@ -61,7 +63,8 @@ export default function RootLayout() {
               </View>
             </SafeAreaProvider>
           </ThemeProvider>
-        </LocationProvider>
+          </LocationProvider>
+        </ReviewRatingsProvider>
       </FavoritesProvider>
     </ErrorBoundary>
   );
