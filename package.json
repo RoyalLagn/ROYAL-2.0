@@ -29,6 +29,7 @@
     "expo-status-bar": "~3.0.9",
     "expo-system-ui": "~6.0.9",
     "expo-video": "~3.0.16",
+    "expo-web-browser": "~15.0.11",
     "gsap": "^3.15.0",
     "lucide-react-native": "0.510.0",
     "nativewind": "4.2.1",

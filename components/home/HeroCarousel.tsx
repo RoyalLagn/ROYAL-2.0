@@ -89,6 +89,7 @@ export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps
   const activeIndexRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const slides = useMemo(() => [...HERO_SLIDES, HERO_SLIDES[0]], []);
+  const narrow = !desktop && width < 340;
 
   const finishInteractionLater = useCallback(() => {
     if (interactionTimer.current) clearTimeout(interactionTimer.current);
@@ -190,11 +191,11 @@ export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps
               end={{ x: 1, y: 0.5 }}
               style={[StyleSheet.absoluteFillObject, styles.overlay]}
             />
-            <View style={[styles.copy, desktop && styles.copyDesktop]}>
-              <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
-              <Text style={[styles.title, desktop && styles.titleDesktop]}>{slide.title}</Text>
-              <Text numberOfLines={2} style={[styles.highlight, desktop && styles.highlightDesktop]}>{slide.highlightedText}</Text>
-              <Text numberOfLines={2} style={[styles.description, desktop && styles.descriptionDesktop]}>
+            <View style={[styles.copy, narrow && styles.copyNarrow, desktop && styles.copyDesktop]}>
+              <Text numberOfLines={1} style={[styles.eyebrow, narrow && styles.eyebrowNarrow]}>{slide.eyebrow}</Text>
+              <Text style={[styles.title, narrow && styles.titleNarrow, desktop && styles.titleDesktop]}>{slide.title}</Text>
+              <Text numberOfLines={2} style={[styles.highlight, narrow && styles.highlightNarrow, desktop && styles.highlightDesktop]}>{slide.highlightedText}</Text>
+              <Text numberOfLines={2} style={[styles.description, narrow && styles.descriptionNarrow, desktop && styles.descriptionDesktop]}>
                 {slide.description.replace("{{city}}", city)}
               </Text>
               <Pressable
@@ -203,11 +204,12 @@ export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps
                 onPress={() => openSlide(slide)}
                 style={({ pressed, hovered }) => [
                   styles.cta,
+                  narrow && styles.ctaNarrow,
                   hovered && Platform.OS === "web" && styles.ctaHover,
                   pressed && styles.ctaPressed,
                 ]}
               >
-                <Text style={styles.ctaText}>{slide.ctaLabel}</Text>
+                <Text style={[styles.ctaText, narrow && styles.ctaTextNarrow]}>{slide.ctaLabel}</Text>
                 <ChevronRight size={15} color="#FFFFFF" />
               </Pressable>
             </View>
@@ -255,18 +257,25 @@ const styles = StyleSheet.create({
   image: { width: "100%", height: "100%", zIndex: 0 },
   overlay: { zIndex: 1 },
   copy: { position: "absolute", zIndex: 2, left: 0, top: 0, bottom: 0, width: "76%", paddingHorizontal: 18, justifyContent: "center" },
+  copyNarrow: { width: "78%", paddingHorizontal: 13 },
   copyDesktop: { width: "56%", paddingHorizontal: 54 },
   eyebrow: { color: "#9A4E69", fontSize: 7, lineHeight: 10, fontWeight: "900", letterSpacing: 1.05, marginBottom: 6 },
+  eyebrowNarrow: { fontSize: 6, lineHeight: 8, letterSpacing: 0.75, marginBottom: 3 },
   title: { color: "#172132", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 21, lineHeight: 24, fontWeight: "700" },
+  titleNarrow: { fontSize: 17, lineHeight: 19 },
   titleDesktop: { fontSize: 39, lineHeight: 43 },
   highlight: { color: PINK, fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 22, lineHeight: 25, fontWeight: "700", fontStyle: "italic" },
+  highlightNarrow: { fontSize: 18, lineHeight: 20 },
   highlightDesktop: { fontSize: 41, lineHeight: 46 },
   description: { maxWidth: 290, color: "#3F4149", fontSize: 10, lineHeight: 14, marginTop: 6 },
+  descriptionNarrow: { fontSize: 8, lineHeight: 11, marginTop: 3 },
   descriptionDesktop: { maxWidth: 470, fontSize: 13, lineHeight: 19, marginTop: 10 },
   cta: { minHeight: 38, alignSelf: "flex-start", marginTop: 11, paddingHorizontal: 14, borderRadius: 999, backgroundColor: PINK, flexDirection: "row", alignItems: "center", gap: 4, shadowColor: "#3D0D20", shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
+  ctaNarrow: { minHeight: 32, marginTop: 6, paddingHorizontal: 11 },
   ctaHover: { transform: [{ translateY: -1 }], backgroundColor: "#D81758" },
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   ctaText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
+  ctaTextNarrow: { fontSize: 9 },
   indicators: { position: "absolute", zIndex: 4, left: 0, right: 0, bottom: 9, flexDirection: "row", justifyContent: "center", gap: 5 },
   indicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(233,30,99,.28)" },
   indicatorActive: { width: 20, backgroundColor: PINK },

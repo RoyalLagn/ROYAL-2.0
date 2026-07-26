@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -30,12 +30,16 @@ import CategoryPageHeader from "@/components/categories/CategoryPageHeader";
 import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import HomeReveal from "@/components/home/HomeReveal";
 import categoryImageUrls from "@/data/categoryImages.cloudinary.json";
+import {
+  getPublicMarketplaceCategories,
+  subscribeToPublicVendorChanges,
+} from "@/services/publicVendorListings";
 
 function cloudinaryCardImage(url: string) {
   return url.replace("/image/upload/", "/image/upload/f_auto,q_auto,w_720/");
 }
 
-const CATEGORIES: CategoryCardItem[] = [
+const CATEGORY_PRESENTATION: CategoryCardItem[] = [
   {
     id: "1",
     name: "Venues",
@@ -185,6 +189,7 @@ export default function CategoriesScreen() {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
+  const [categories, setCategories] = useState<CategoryCardItem[]>([]);
   const { width } = useWindowDimensions();
   const twoColumns = width >= 900;
   const compactCards = width < 600;
@@ -196,16 +201,48 @@ export default function CategoriesScreen() {
   const muted   = isDark ? "#AAA0A5" : "#787178";
   const border  = isDark ? "#2A2A2A" : "#F0E8F2";
 
+  useEffect(() => {
+    let active = true;
+    const load = () => {
+      getPublicMarketplaceCategories()
+        .then((liveCategories) => {
+          if (!active) return;
+          setCategories(liveCategories.map((category) => {
+            const presentation = CATEGORY_PRESENTATION.find(
+              (item) => item.name.toLowerCase() === category.name.toLowerCase(),
+            ) ?? CATEGORY_PRESENTATION[0];
+            return {
+              ...presentation,
+              id: category.id,
+              name: category.name,
+              description: presentation.name === category.name
+                ? presentation.description
+                : "Wedding services and trusted professionals",
+            };
+          }));
+        })
+        .catch(() => {
+          if (active) setCategories([]);
+        });
+    };
+    load();
+    const unsubscribe = subscribeToPublicVendorChanges(load);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return CATEGORIES.filter((category) => {
+    return categories.filter((category) => {
       const matchesSearch = !normalizedQuery
         || category.name.toLowerCase().includes(normalizedQuery)
         || category.description.toLowerCase().includes(normalizedQuery);
       const matchesCategory = !selectedCategory || category.id === selectedCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [query, selectedCategory]);
+  }, [categories, query, selectedCategory]);
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
@@ -263,7 +300,7 @@ export default function CategoriesScreen() {
       <CategoryFilterModal
         visible={filtersVisible}
         dark={isDark}
-        categories={CATEGORIES}
+        categories={categories}
         selected={selectedCategory}
         onClose={() => setFiltersVisible(false)}
         onApply={(category) => {

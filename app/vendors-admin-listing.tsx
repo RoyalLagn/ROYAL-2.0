@@ -1,417 +1,259 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Alert,
+  Alert, Modal, Pressable, ScrollView,
+  Text, TextInput, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useColorScheme } from "nativewind";
 import { useRouter } from "expo-router";
+import { Download, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
-import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
+import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
+import { useAdminVendors } from "@/hooks/useAdminVendors";
+import { VendorStatisticsGrid } from "@/components/admin/vendors/VendorStatisticsGrid";
+import { VendorFilterBar } from "@/components/admin/vendors/VendorFilterBar";
+import { VendorCard } from "@/components/admin/vendors/VendorCard";
 import {
-  Menu,
-  Bell,
-  SlidersHorizontal,
-  Grid2x2,
-  Building2,
-  UtensilsCrossed,
-  Camera,
-  Sparkles,
-  Palette,
-  Music,
-  Shirt,
-  MoreHorizontal,
-  ChevronLeft,
-  ChevronRight,
-  ShieldAlert,
-  MoreVertical,
-} from "lucide-react-native";
+  VendorActionDialog,
+  type ManagementOperation,
+} from "@/components/admin/vendors/VendorActionDialog";
+import { AdminVendorService } from "@/services/adminVendorService";
+import type { AdminVendorRecord, VendorAction, VendorSort } from "@/types/adminVendors";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { PaginationBar } from "@/components/admin/ui/PaginationBar";
+import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
+import { ActionProgress } from "@/components/admin/ui/ActionProgress";
+import { UndoToast } from "@/components/admin/ui/UndoToast";
+import { AdminPreferences, type SavedVendorFilter } from "@/services/adminPreferences";
 
-type Category = {
-  id: string;
-  name: string;
-  icon: React.ElementType;
-  count: number;
-  color: string;
-};
-
-type Vendor = {
-  id: string;
-  name: string;
-  category: string;
-  email: string;
-  phone: string;
-  avatar: string;
-  status: "Active" | "Pending" | "Suspended";
-};
-
-const categories: Category[] = [
-  {
-    id: "all",
-    name: "All Categories",
-    icon: Grid2x2,
-    count: 1248,
-    color: "#E91E63",
-  },
-  {
-    id: "venues",
-    name: "Venues",
-    icon: Building2,
-    count: 132,
-    color: "#F59E0B",
-  },
-  {
-    id: "caterers",
-    name: "Caterers",
-    icon: UtensilsCrossed,
-    count: 156,
-    color: "#EF4444",
-  },
-  {
-    id: "photographers",
-    name: "Photographers",
-    icon: Camera,
-    count: 198,
-    color: "#8B5CF6",
-  },
-  {
-    id: "decorators",
-    name: "Decorators",
-    icon: Sparkles,
-    count: 142,
-    color: "#10B981",
-  },
-  {
-    id: "makeup",
-    name: "Makeup Artists",
-    icon: Palette,
-    count: 115,
-    color: "#EC4899",
-  },
-  { id: "djs", name: "DJs", icon: Music, count: 89, color: "#F97316" },
-  {
-    id: "bridal",
-    name: "Bridal Wear",
-    icon: Shirt,
-    count: 101,
-    color: "#E91E63",
-  },
+const sorts: { value: VendorSort; label: string }[] = [
+  { value: "newest", label: "Newest" },
+  { value: "oldest", label: "Oldest" },
+  { value: "business_az", label: "Business A–Z" },
+  { value: "business_za", label: "Business Z–A" },
+  { value: "category", label: "Category" },
+  { value: "registration_date", label: "Registration Date" },
+  { value: "recently_updated", label: "Recently Updated" },
 ];
-
-const vendors: Vendor[] = [
-  {
-    id: "1",
-    name: "Magic Moments Photography",
-    category: "Photographers",
-    email: "magicmoments@gmail.com",
-    phone: "+91 98765 43210",
-    avatar:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=100&h=100&fit=crop",
-    status: "Active",
-  },
-  {
-    id: "2",
-    name: "Dream Decorators",
-    category: "Decorators",
-    email: "dreamdecor@gmail.com",
-    phone: "+91 91234 56789",
-    avatar:
-      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=100&h=100&fit=crop",
-    status: "Active",
-  },
-  {
-    id: "3",
-    name: "Royal Caterers",
-    category: "Caterers",
-    email: "royalcaterers@gmail.com",
-    phone: "+91 99887 76655",
-    avatar:
-      "https://images.unsplash.com/photo-1555244162-803279f50793?w=100&h=100&fit=crop",
-    status: "Active",
-  },
-  {
-    id: "4",
-    name: "Beat Masters DJs",
-    category: "DJs",
-    email: "beatmasters@gmail.com",
-    phone: "+91 88776 65544",
-    avatar:
-      "https://images.unsplash.com/photo-1571266028243-3716f02d2d2e?w=100&h=100&fit=crop",
-    status: "Pending",
-  },
-  {
-    id: "5",
-    name: "Elegant Bridal Wear",
-    category: "Bridal Wear",
-    email: "elegantbridal@gmail.com",
-    phone: "+91 91766 44332",
-    avatar:
-      "https://images.unsplash.com/photo-1594552072238-b8f02c75527c?w=100&h=100&fit=crop",
-    status: "Active",
-  },
-  {
-    id: "6",
-    name: "Glam Touch Makeup",
-    category: "Makeup Artists",
-    email: "glamtouch@gmail.com",
-    phone: "+91 91000 11122",
-    avatar:
-      "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=100&h=100&fit=crop",
-    status: "Suspended",
-  },
-];
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "Active":
-      return { bg: "#DCFCE7", text: "#166534" };
-    case "Pending":
-      return { bg: "#FEF3C7", text: "#92400E" };
-    case "Suspended":
-      return { bg: "#FEE2E2", text: "#991B1B" };
-    default:
-      return { bg: "#F3F4F6", text: "#374151" };
-  }
-};
 
 export default function VendorsAdminListing() {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === "dark";
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const filteredVendors = vendors.filter((vendor) => {
-    const matchesSearch = vendor.name.toLowerCase().includes(searchQuery.trim().toLowerCase());
-    const selected = categories.find((category) => category.id === selectedCategory);
-    return matchesSearch && (selectedCategory === "all" || vendor.category === selected?.name);
-  });
+  const vendors = useAdminVendors();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [actionRecord, setActionRecord] = useState<AdminVendorRecord | null>(null);
+  const [operation, setOperation] = useState<ManagementOperation | null>(null);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [progress, setProgress] = useState<{ completed: number; total: number; label: string } | null>(null);
+  const [undo, setUndo] = useState<{ records: AdminVendorRecord[]; action: VendorAction; message: string } | null>(null);
+  const [savedFilters, setSavedFilters] = useState<SavedVendorFilter[]>([]);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [presetName, setPresetName] = useState("");
+  const pageCount = Math.max(1, Math.ceil(vendors.total / vendors.filters.pageSize));
+  useEffect(() => { void AdminPreferences.listVendorFilters().then(setSavedFilters); }, []);
+  useEffect(() => {
+    if (!undo) return;
+    const timer = setTimeout(() => setUndo(null), 7000);
+    return () => clearTimeout(timer);
+  }, [undo]);
+
+  const beginAction = (next: ManagementOperation, record?: AdminVendorRecord) => {
+    if (record) setActionRecord(record);
+    setOperation(next);
+    setActionMenuOpen(false);
+  };
+  const targets = actionRecord ? [actionRecord] : vendors.selectedRows;
+
+  const confirmAction = async (reason?: string) => {
+    const selected = targets;
+    const currentOperation = operation;
+    if (!currentOperation) return;
+    const rollback = vendors.optimisticPatch(
+      selected.map((record) => record.record_id),
+      optimisticValues(currentOperation),
+    );
+    setOperation(null);
+    setProgress({ completed: 0, total: selected.length, label: `${currentOperation.replace("_", " ")} vendors` });
+    try {
+      for (let index = 0; index < selected.length; index += 1) {
+        const record = selected[index];
+        if (currentOperation === "approve" || currentOperation === "reject") {
+          await AdminVendorService.review(
+            record,
+            currentOperation === "approve" ? "approved" : "rejected",
+            reason,
+          );
+        } else {
+          await AdminVendorService.action(record, currentOperation as VendorAction, reason);
+        }
+        setProgress({ completed: index + 1, total: selected.length, label: `${currentOperation.replace("_", " ")} vendors` });
+      }
+      setActionRecord(null);
+      vendors.clearSelected();
+      const reverse = reverseAction(currentOperation);
+      if (reverse) setUndo({ records: selected, action: reverse, message: `${selected.length} vendor${selected.length === 1 ? "" : "s"} updated` });
+      await vendors.refresh();
+      Alert.alert("Vendor management", `${selected.length} vendor${selected.length === 1 ? "" : "s"} updated.`);
+    } catch (error) {
+      rollback();
+      Alert.alert("Action failed", error instanceof Error ? error.message : "Unable to update vendor.");
+    } finally {
+      setProgress(null);
+    }
+  };
+
+  const undoAction = async () => {
+    if (!undo) return;
+    const current = undo;
+    setUndo(null);
+    setProgress({ completed: 0, total: current.records.length, label: "Undoing changes" });
+    try {
+      for (let index = 0; index < current.records.length; index += 1) {
+        await AdminVendorService.action(current.records[index], current.action);
+        setProgress({ completed: index + 1, total: current.records.length, label: "Undoing changes" });
+      }
+      await vendors.refresh();
+    } catch (error) {
+      Alert.alert("Undo failed", error instanceof Error ? error.message : "Unable to undo this action.");
+    } finally {
+      setProgress(null);
+    }
+  };
 
   return (
-    <SafeAreaView
-      className="flex-1 bg-background"
-      edges={["top", "left", "right"]}
-    >
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-6 py-4">
-          <TouchableOpacity className="p-2 -ml-2" onPress={() => router.push("/admin-dash-logout")}>
-            <Menu size={24} className="text-foreground" />
-          </TouchableOpacity>
-          <Text className="text-xl font-bold text-primary">RoyalLagn</Text>
-          <TouchableOpacity className="p-2 -mr-2 relative" onPress={() => router.push("/AdminSettings")}>
-            <Bell size={24} className="text-foreground" />
-            <View className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-          </TouchableOpacity>
-        </View>
+    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled" stickyHeaderIndices={[2]}>
+        <ResponsiveContainer>
+          <AdminPageHeader title="Vendor Management" subtitle="Live vendor operations workspace" action={<Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={() => void AdminVendorService.exportCsv(vendors.rows)}><Download size={20} className="text-primary" /></Pressable>} />
+        </ResponsiveContainer>
 
-        {/* Title Section */}
-        <View className="px-6 mb-4">
-          <Text className="text-2xl font-bold text-foreground">Vendors</Text>
-          <Text className="text-muted-foreground text-sm">
-            Manage and monitor all registered vendors
-          </Text>
-        </View>
+        <ResponsiveContainer>
+          {vendors.statistics ? <ResponsiveSection><VendorStatisticsGrid data={vendors.statistics} /></ResponsiveSection> : null}
+        </ResponsiveContainer>
+        <ResponsiveContainer className="bg-background pt-1">
+          {vendors.statistics ? <View className="flex-row gap-2 mb-2">
+            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-foreground font-bold">{vendors.statistics.total}</Text><Text className="text-muted-foreground text-[10px]">Total</Text></View>
+            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-amber-500 font-bold">{vendors.statistics.pending}</Text><Text className="text-muted-foreground text-[10px]">Pending</Text></View>
+            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-red-500 font-bold">{vendors.statistics.suspended}</Text><Text className="text-muted-foreground text-[10px]">Suspended</Text></View>
+          </View> : null}
+          <ResponsiveSection>
+            <VendorFilterBar filters={vendors.filters} categories={vendors.categories} onChange={vendors.updateFilters} onMore={() => setFiltersOpen(true)} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
+              {savedFilters.map((preset) => <Pressable key={preset.id} className="min-h-11 px-4 rounded-full bg-card border border-border items-center justify-center" onPress={() => vendors.updateFilters(preset.filters)}><Text className="text-foreground text-xs font-semibold">{preset.name}</Text></Pressable>)}
+              <Pressable className="min-h-11 px-4 rounded-full bg-primary/10 items-center justify-center" onPress={() => setSaveOpen(true)}><Text className="text-primary text-xs font-semibold">+ Save filter</Text></Pressable>
+            </ScrollView>
+          </ResponsiveSection>
+          {progress ? <ResponsiveSection><ActionProgress {...progress} /></ResponsiveSection> : null}
 
-        {/* Search Bar */}
-        <View className="px-6 mb-6">
-          <View className="flex-row items-center gap-3">
-            <CompactSearchBar
-              value={searchQuery}
-              placeholder="Search vendors..."
-              dark={isDark}
-              accessibilityLabel="Search vendors"
-              onChangeText={setSearchQuery}
-              style={{ flex: 1 }}
-            />
-            <TouchableOpacity className="w-12 h-12 bg-card border border-border rounded-xl items-center justify-center" onPress={() => { setSearchQuery(""); setSelectedCategory("all"); }}>
-              <SlidersHorizontal size={20} className="text-primary" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Categories */}
-        <View className="px-6 mb-6">
-          <Text className="text-foreground font-semibold text-base mb-4">
-            Categories
-          </Text>
-          <View className="flex-row flex-wrap gap-3">
-            {categories.map((category) => {
-              const Icon = category.icon;
-              return (
-                <TouchableOpacity
-                  key={category.id}
-                  className="items-center"
-                  style={{ width: "22%" }}
-                  onPress={() => setSelectedCategory(category.id)}
-                >
-                  <View
-                    className="w-14 h-14 rounded-2xl items-center justify-center mb-2"
-                    style={{ backgroundColor: `${category.color}15` }}
-                  >
-                    <Icon size={24} color={category.color} />
-                  </View>
-                  <Text className="text-foreground text-xs font-medium text-center">
-                    {category.name}
-                  </Text>
-                  <Text className="text-muted-foreground text-xs mt-0.5">
-                    {category.count}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-            <TouchableOpacity className="items-center" style={{ width: "22%" }} onPress={() => router.push("/AdminCategories")}>
-              <View
-                className="w-14 h-14 rounded-2xl items-center justify-center mb-2"
-                style={{ backgroundColor: isDark ? "#2A2A2A" : "#F5F5F4" }}
-              >
-                <MoreHorizontal
-                  size={24}
-                  color={isDark ? "#A8A29E" : "#78716C"}
-                />
+          {vendors.selected.size ? (
+            <ResponsiveSection>
+              <View className="bg-card border border-primary/30 rounded-2xl p-3">
+                <Text className="text-foreground font-semibold">{vendors.selected.size} selected</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
+                  {(["approve", "reject", "suspend", "activate", "archive", "restore"] as ManagementOperation[]).map((action) => (
+                    <Pressable key={action} className="min-h-11 px-4 rounded-full bg-primary/10 items-center justify-center" onPress={() => beginAction(action)}>
+                      <Text className="text-primary text-xs font-semibold capitalize">{action}</Text>
+                    </Pressable>
+                  ))}
+                  <Pressable className="min-h-11 px-4 rounded-full bg-primary items-center justify-center" onPress={() => void AdminVendorService.exportCsv(vendors.selectedRows)}>
+                    <Text className="text-white text-xs font-semibold">Export</Text>
+                  </Pressable>
+                </ScrollView>
               </View>
-              <Text className="text-foreground text-xs font-medium text-center">
-                View All
-              </Text>
-            </TouchableOpacity>
+            </ResponsiveSection>
+          ) : null}
+        </ResponsiveContainer>
+
+        <ResponsiveContainer>
+          <View className="flex-row justify-between items-center mb-3">
+            <Text className="text-foreground font-bold">{vendors.total.toLocaleString()} vendors</Text>
+            <Pressable className="min-h-11 px-3 items-center justify-center" onPress={() => void AdminVendorService.exportFiltered(vendors.filters)}>
+              <Text className="text-primary text-xs font-semibold">Export filtered</Text>
+            </Pressable>
           </View>
-        </View>
 
-        {/* All Vendors Section */}
-        <View className="px-6 mb-6">
-          <Text className="text-foreground font-semibold text-base mb-4">
-            All Vendors ({vendors.length.toLocaleString()})
-          </Text>
-
-          <View className="gap-3">
-            {filteredVendors.map((vendor) => {
-              const statusColors = getStatusColor(vendor.status);
-              return (
-                <View
-                  key={vendor.id}
-                  className="bg-card rounded-2xl p-4 border border-border flex-row items-center"
-                >
-                  <Image
-                    source={{ uri: vendor.avatar }}
-                    className="w-14 h-14 rounded-full"
+          {vendors.loading ? <AdminLoadingState label="Loading live vendors…" />
+            : vendors.error ? <AdminErrorState message={vendors.error} onRetry={() => void vendors.refresh()} />
+              : !vendors.rows.length ? <AdminEmptyState title="No vendors found" message="Adjust the search or filters to find matching vendor records." />
+                : <View className="gap-3">{vendors.rows.map((item) => (
+                  <VendorCard
+                    key={item.record_id}
+                    item={item}
+                    selected={vendors.selected.has(item.record_id)}
+                    onSelect={() => vendors.toggle(item.record_id)}
+                    onView={() => router.push({ pathname: "/AdminVendorDetails", params: { id: item.record_id } })}
+                    onActions={() => { setActionRecord(item); setActionMenuOpen(true); }}
+                    health={item.vendor_id ? vendors.health[item.vendor_id] : undefined}
                   />
-                  <View className="flex-1 ml-3">
-                    <View className="flex-row items-center justify-between">
-                      <Text className="text-foreground font-semibold text-sm">
-                        {vendor.name}
-                      </Text>
-                      <View className="flex-row items-center gap-2">
-                        <View
-                          className="px-2 py-1 rounded-full"
-                          style={{ backgroundColor: statusColors.bg }}
-                        >
-                          <Text
-                            className="text-xs font-medium"
-                            style={{ color: statusColors.text }}
-                          >
-                            {vendor.status}
-                          </Text>
-                        </View>
-                        <TouchableOpacity className="p-1" onPress={() => Alert.alert("Vendor Actions", `Manage ${vendor.name}`)}>
-                          <MoreVertical
-                            size={16}
-                            className="text-muted-foreground"
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                    <Text className="text-muted-foreground text-xs mt-0.5">
-                      {vendor.category}
-                    </Text>
-                    <Text className="text-muted-foreground text-xs mt-0.5">
-                      {vendor.email}
-                    </Text>
-                    <Text className="text-foreground text-xs mt-0.5">
-                      {vendor.phone}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </View>
+                ))}</View>}
 
-        {/* Pagination */}
-        <View className="px-6 mb-6">
-          <View className="flex-row items-center justify-center gap-2">
-            <TouchableOpacity
-              disabled={currentPage === 1}
-              className="w-8 h-8 rounded-lg bg-card border border-border items-center justify-center opacity-50"
-              onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
-            >
-              <ChevronLeft size={16} className="text-foreground" />
-            </TouchableOpacity>
-
-            {[1, 2, 3].map((page) => (
-              <TouchableOpacity
-                key={page}
-                onPress={() => setCurrentPage(page)}
-                className={`w-8 h-8 rounded-lg items-center justify-center ${
-                  currentPage === page
-                    ? "bg-primary"
-                    : "bg-card border border-border"
-                }`}
-              >
-                <Text
-                  className={`text-sm font-medium ${
-                    currentPage === page ? "text-white" : "text-foreground"
-                  }`}
-                >
-                  {page}
-                </Text>
-              </TouchableOpacity>
-            ))}
-
-            <Text className="text-muted-foreground text-sm">...</Text>
-
-            <TouchableOpacity className="w-8 h-8 rounded-lg bg-card border border-border items-center justify-center" onPress={() => setCurrentPage(42)}>
-              <Text className="text-foreground text-sm font-medium">42</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity className="w-8 h-8 rounded-lg bg-card border border-border items-center justify-center" onPress={() => setCurrentPage((page) => Math.min(42, page + 1))}>
-              <ChevronRight size={16} className="text-foreground" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Suspended Vendors Banner */}
-        <View className="px-6 mb-6">
-          <View className="bg-card rounded-2xl p-4 border border-border flex-row items-center justify-between">
-            <View className="flex-row items-center flex-1">
-              <View className="w-10 h-10 rounded-full bg-destructive/10 items-center justify-center mr-3">
-                <ShieldAlert size={20} color="#DC2626" />
-              </View>
-              <View>
-                <Text className="text-foreground font-semibold text-sm">
-                  Suspended Vendors
-                </Text>
-                <Text className="text-muted-foreground text-xs">
-                  You have 6 suspended vendors.
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity className="bg-secondary px-4 py-2 rounded-full" onPress={() => { setSelectedCategory("all"); setSearchQuery("Glam Touch Makeup"); }}>
-              <Text className="text-secondary-foreground text-sm font-medium">
-                View List
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          <PaginationBar page={vendors.filters.page} pages={pageCount} onPage={(page) => vendors.updateFilters({ page })} />
+        </ResponsiveContainer>
       </ScrollView>
 
+      <FilterModal
+        visible={filtersOpen}
+        city={city}
+        state={state}
+        setCity={setCity}
+        setState={setState}
+        onClose={() => setFiltersOpen(false)}
+        onApply={(values) => { vendors.updateFilters(values); setFiltersOpen(false); }}
+        categories={vendors.categories}
+        filters={vendors.filters}
+      />
+      <ActionMenu visible={actionMenuOpen} record={actionRecord} onClose={() => setActionMenuOpen(false)} onView={() => { setActionMenuOpen(false); if (actionRecord) router.push({ pathname: "/AdminVendorDetails", params: { id: actionRecord.record_id } }); }} onAction={beginAction} />
+      <VendorActionDialog visible={Boolean(operation)} operation={operation} records={targets} onCancel={() => { setOperation(null); setActionRecord(null); }} onConfirm={confirmAction} />
+      <SaveFilterModal visible={saveOpen} name={presetName} setName={setPresetName} onClose={() => setSaveOpen(false)} onSave={async () => { if (!presetName.trim()) return; setSavedFilters(await AdminPreferences.saveVendorFilter(presetName, vendors.filters)); setPresetName(""); setSaveOpen(false); }} />
+      {undo ? <UndoToast message={undo.message} onUndo={() => void undoAction()} /> : null}
       <AdminFooter activeTab="vendors" />
     </SafeAreaView>
   );
+}
+
+function ActionMenu({ visible, record, onClose, onView, onAction }: { visible: boolean; record: AdminVendorRecord | null; onClose: () => void; onView: () => void; onAction: (action: ManagementOperation) => void }) {
+  if (!record) return null;
+  const actions: ManagementOperation[] = record.vendor_id
+    ? ["suspend", "activate", record.is_verified ? "unverify" : "verify", "archive", "restore", "soft_delete"]
+    : ["approve", "reject"];
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><Pressable className="flex-1 bg-black/60 justify-end" onPress={onClose}><View className="bg-card border-t border-border rounded-t-3xl p-5"><Text className="text-foreground text-lg font-bold mb-3" numberOfLines={1}>{record.business_name}</Text><Pressable className="min-h-11 justify-center border-b border-border" onPress={onView}><Text className="text-primary font-semibold">View profile</Text></Pressable>{actions.map((action) => <Pressable key={action} className="min-h-11 justify-center border-b border-border" onPress={() => onAction(action)}><Text className={`font-semibold capitalize ${action === "archive" || action === "soft_delete" ? "text-red-500" : "text-foreground"}`}>{action.replace("_", " ")}</Text></Pressable>)}</View></Pressable></Modal>;
+}
+
+function FilterModal({ visible, onClose, onApply, categories, filters, city, state, setCity, setState }: any) {
+  const [categoryId, setCategoryId] = useState<string | null>(filters.categoryId);
+  const [verification, setVerification] = useState(filters.verification);
+  const [plan, setPlan] = useState(filters.plan);
+  const [sort, setSort] = useState<VendorSort>(filters.sort);
+  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View className="flex-1 bg-black/60 justify-end"><View className="bg-card rounded-t-3xl p-5 max-h-[88%]"><View className="flex-row justify-between items-center mb-4"><Text className="text-foreground text-xl font-bold">Filters & Sorting</Text><Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={onClose}><X size={21} className="text-foreground" /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>
+    <Label text="Verification" /><ChoiceRow items={["all", "verified", "unverified"]} value={verification} onChange={setVerification} />
+    <Label text="Plan" /><ChoiceRow items={["all", "premium", "free"]} value={plan} onChange={setPlan} />
+    <Label text="Category" /><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}><Choice value={categoryId === null} label="All" onPress={() => setCategoryId(null)} />{categories.map((category: any) => <Choice key={category.id} value={categoryId === category.id} label={category.name} onPress={() => setCategoryId(category.id)} />)}</ScrollView>
+    <Label text="City" /><TextInput className="h-12 bg-background border border-border rounded-xl px-4 text-foreground" value={city} onChangeText={setCity} placeholder="Any city" placeholderTextColor="#8A8589" />
+    <Label text="State" /><TextInput className="h-12 bg-background border border-border rounded-xl px-4 text-foreground" value={state} onChangeText={setState} placeholder="Any state" placeholderTextColor="#8A8589" />
+    <Label text="Sort" /><ChoiceRow items={sorts.map((item) => item.value)} labels={Object.fromEntries(sorts.map((item) => [item.value, item.label]))} value={sort} onChange={setSort} />
+    <Pressable className="bg-primary min-h-12 rounded-2xl items-center justify-center mt-6" onPress={() => onApply({ verification, plan, categoryId, city: city.trim() || null, state: state.trim() || null, sort })}><Text className="text-white font-bold">Apply Filters</Text></Pressable>
+  </ScrollView></View></View></Modal>;
+}
+function Label({ text }: { text: string }) { return <Text className="text-foreground font-semibold mt-4 mb-2">{text}</Text>; }
+function ChoiceRow({ items, labels = {}, value, onChange }: any) { return <View className="flex-row flex-wrap gap-2">{items.map((item: string) => <Choice key={item} value={value === item} label={labels[item] || item} onPress={() => onChange(item)} />)}</View>; }
+function Choice({ value, label, onPress }: { value: boolean; label: string; onPress: () => void }) { return <Pressable className={`min-h-11 px-4 rounded-full items-center justify-center border ${value ? "bg-primary border-primary" : "bg-background border-border"}`} onPress={onPress}><Text className={`text-xs font-semibold capitalize ${value ? "text-white" : "text-foreground"}`}>{label}</Text></Pressable>; }
+function optimisticValues(action: ManagementOperation): Partial<AdminVendorRecord> {
+  if (action === "approve") return { application_status: "approved", is_verified: true };
+  if (action === "reject") return { application_status: "rejected" };
+  if (action === "suspend") return { management_status: "suspended" };
+  if (action === "activate" || action === "restore") return { management_status: "active" };
+  if (action === "archive" || action === "soft_delete") return { management_status: "archived" };
+  if (action === "verify") return { is_verified: true };
+  if (action === "unverify") return { is_verified: false };
+  return {};
+}
+function reverseAction(action: ManagementOperation): VendorAction | null {
+  if (action === "suspend") return "activate";
+  if (action === "archive" || action === "soft_delete") return "restore";
+  if (action === "restore") return "archive";
+  return null;
+}
+function SaveFilterModal({ visible, name, setName, onClose, onSave }: { visible: boolean; name: string; setName: (value: string) => void; onClose: () => void; onSave: () => Promise<void> }) {
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View className="flex-1 bg-black/60 items-center justify-center px-5"><View className="bg-card border border-border rounded-3xl p-5 w-full max-w-lg"><Text className="text-foreground text-xl font-bold">Save Filter Preset</Text><TextInput className="h-12 bg-background border border-border rounded-xl px-4 text-foreground mt-4" placeholder="Preset name" placeholderTextColor="#8A8589" value={name} onChangeText={setName} /><View className="flex-row gap-3 mt-4"><Pressable className="flex-1 min-h-11 border border-border rounded-xl items-center justify-center" onPress={onClose}><Text className="text-foreground font-semibold">Cancel</Text></Pressable><Pressable className="flex-1 min-h-11 bg-primary rounded-xl items-center justify-center" onPress={() => void onSave()}><Text className="text-white font-semibold">Save</Text></Pressable></View></View></View></Modal>;
 }

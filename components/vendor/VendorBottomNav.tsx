@@ -1,11 +1,13 @@
 import React, { useEffect } from "react";
-import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { BackHandler, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { usePathname, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { CalendarDays, Images, LayoutDashboard, MessageSquareText, UserRound } from "lucide-react-native";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "./VendorTheme";
+import { supabase } from "@/services/supabase";
+import { resolveVendorDestination } from "@/services/vendorAuth";
 
 export const VENDOR_TAB_BASE_HEIGHT = 66;
 
@@ -61,6 +63,38 @@ export default function VendorBottomNav() {
   const normalizedPath = pathname.toLowerCase();
   const isVendorPage = vendorWorkspaceRoutes.some((route) => normalizedPath.startsWith(route));
   const shouldShow = Platform.OS !== "web" || width < 768;
+
+  useEffect(() => {
+    if (!isVendorPage) return;
+    let active = true;
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!active) return;
+      if (!data.user) {
+        router.replace("/DashboardCenter");
+        return;
+      }
+      try {
+        const destination = await resolveVendorDestination(data.user);
+        if (active && destination.pathname !== "/vendor-dashboard") {
+          router.replace(destination as never);
+        }
+      } catch {
+        if (active) router.replace("/DashboardCenter");
+      }
+    });
+    return () => { active = false; };
+  }, [isVendorPage, router]);
+
+  useEffect(() => {
+    if (!isVendorPage) return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      router.dismissAll();
+      router.replace("/(tabs)");
+      return true;
+    });
+    return () => subscription.remove();
+  }, [isVendorPage, router]);
+
   if (!shouldShow || !isVendorPage) return null;
 
   const activeRoute = normalizedPath.startsWith("/vendoreditprofile") || normalizedPath.startsWith("/vendorservices")

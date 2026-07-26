@@ -159,7 +159,7 @@ export default function ConnectedVendorReviews({
     const { data } = await supabase.auth.getUser();
     if (!data.user) {
       const loginRoute = {
-        pathname: "/Login" as const,
+        pathname: "/DashboardCenter" as const,
         params: { returnTo: `/VendorsProfile?vendorId=${encodeURIComponent(vendorKey)}` },
       };
       if (Platform.OS === "web") {

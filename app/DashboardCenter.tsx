@@ -1,17 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Href, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { User, Building2, Shield, ArrowRight } from "lucide-react-native";
+import { AuthBackButton } from "@/components/auth/AuthBackButton";
+import {
+  resolveSelectedRole,
+  type AuthenticationRole,
+} from "@/services/authNavigation";
 
 type LoginOption = {
-  id: string;
+  id: AuthenticationRole;
   title: string;
   description: string;
   icon: React.ElementType;
   color: string;
-  route: Href;
 };
 
 const loginOptions: LoginOption[] = [
@@ -21,7 +25,6 @@ const loginOptions: LoginOption[] = [
     description: "Browse vendors, explore categories, and plan your wedding",
     icon: User,
     color: "#E91E63",
-    route: "/Login" as Href,
   },
   {
     id: "vendor",
@@ -29,7 +32,6 @@ const loginOptions: LoginOption[] = [
     description: "Manage your business, profile, and services",
     icon: Building2,
     color: "#F59E0B",
-    route: "/VendorLogin" as Href,
   },
   {
     id: "admin",
@@ -37,17 +39,30 @@ const loginOptions: LoginOption[] = [
     description: "Platform administration and analytics",
     icon: Shield,
     color: "#3B82F6",
-    route: "/AdminLogin" as Href,
   },
 ];
 
 export default function DashboardCenter() {
   const router = useRouter();
+  const [resolvingRole, setResolvingRole] = useState<AuthenticationRole | null>(null);
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
 
+  const selectRole = async (role: AuthenticationRole) => {
+    if (resolvingRole) return;
+    setResolvingRole(role);
+    try {
+      const destination = await resolveSelectedRole(role);
+      router.dismissAll();
+      router.replace(destination as never);
+    } finally {
+      setResolvingRole(null);
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+      <AuthBackButton fallbackRoute="/(tabs)" />
       <View className="flex-1 px-6 justify-center">
         <View className="items-center mb-12">
           <Text className="text-primary font-bold text-4xl mb-2">
@@ -72,7 +87,8 @@ export default function DashboardCenter() {
                   shadowRadius: 8,
                   elevation: 3,
                 }}
-                onPress={() => router.push(option.route)}
+                onPress={() => void selectRole(option.id)}
+                disabled={Boolean(resolvingRole)}
               >
                 <View
                   className="w-16 h-16 rounded-2xl items-center justify-center mr-4"
@@ -83,7 +99,7 @@ export default function DashboardCenter() {
 
                 <View className="flex-1">
                   <Text className="text-foreground font-bold text-lg mb-1">
-                    {option.title}
+                    {resolvingRole === option.id ? "Checking session…" : option.title}
                   </Text>
                   <Text
                     className="text-muted-foreground text-sm leading-tight"

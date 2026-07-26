@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { usePathname, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeIn, SlideInLeft } from "react-native-reanimated";
@@ -8,7 +8,7 @@ import {
   LogOut, MessageSquareText, Settings, UserRound, Wrench, X,
 } from "lucide-react-native";
 import { useAppTheme } from "@/components/ThemeProvider";
-import { supabase } from "@/services/supabase";
+import { useVendorLogout } from "@/hooks/useVendorLogout";
 import { vendorTheme } from "./VendorTheme";
 
 const menu = [
@@ -30,20 +30,30 @@ export default function VendorDrawer({ visible, onClose }: { visible: boolean; o
   const insets = useSafeAreaInsets();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const performVendorLogout = useVendorLogout();
 
   const navigate = (route: string) => {
     onClose();
     router.push(route as any);
   };
-  const logout = () => Alert.alert("Leave Vendor workspace?", "You can return through the shared role-selection screen.", [
-    { text: "Cancel", style: "cancel" },
-    { text: "Logout", style: "destructive", onPress: async () => {
-      await supabase.auth.signOut().catch(() => undefined);
+  const executeLogout = async () => {
+    try {
       onClose();
-      router.dismissAll();
-      router.replace("/DashboardCenter");
-    }},
-  ]);
+      await performVendorLogout();
+    } catch {
+      Alert.alert("Logout failed", "Unable to leave the Vendor workspace. Please try again.");
+    }
+  };
+  const logout = () => {
+    if (Platform.OS === "web") {
+      void executeLogout();
+      return;
+    }
+    Alert.alert("Leave Vendor workspace?", "You can return through the shared role-selection screen.", [
+    { text: "Cancel", style: "cancel" },
+    { text: "Logout", style: "destructive", onPress: () => void executeLogout() },
+    ]);
+  };
 
   return <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
     <Animated.View entering={FadeIn.duration(180)} style={styles.backdrop}>

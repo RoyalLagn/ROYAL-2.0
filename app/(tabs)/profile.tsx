@@ -42,6 +42,7 @@ import {
   pickAndUploadImage,
 } from "@/services/cloudinary";
 import { useAppTheme } from "@/components/ThemeProvider";
+import { usePublicAuth } from "@/context/PublicAuthContext";
 
 type AccountOptionProps = {
   icon: React.ElementType;
@@ -178,29 +179,37 @@ function SectionHeading({ eyebrow, title, description }: SectionHeadingProps) {
   );
 }
 
-const user = {
-  name: "Priya Sharma",
-  email: "priya.sharma@email.com",
-  phone: "+91 98765 43210",
-  location: "Pune, Maharashtra",
-  avatar:
-    "https://images.unsplash.com/photo-1573496358961-3c82861ab8f4?w=400&auto=format&fit=crop&q=60",
-};
-
 export default function ProfileScreen() {
   const router = useRouter();
+  const { profile, loading: authLoading, isPublicAuthenticated, signOut } = usePublicAuth();
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
   const isDesktop = width >= 900;
   const pagePadding = width >= 768 ? 32 : 20;
-  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(user.avatar);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(profile?.profile_image ?? null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isPhotoViewerVisible, setIsPhotoViewerVisible] = useState(false);
   const [isConfirmingPhotoRemoval, setIsConfirmingPhotoRemoval] = useState(false);
   const entryProgress = useSharedValue(0);
   const avatarScale = useSharedValue(0.96);
   const editIconOpacity = useSharedValue(0);
+  const user = {
+    name: profile?.full_name || "RoyalLagn User",
+    email: profile?.email || "",
+    phone: profile?.phone || "Not provided",
+    location: "Not provided",
+  };
+
+  useEffect(() => {
+    if (!authLoading && !isPublicAuthenticated) {
+      router.replace("/DashboardCenter");
+    }
+  }, [authLoading, isPublicAuthenticated, router]);
+
+  useEffect(() => {
+    setProfileImageUrl(profile?.profile_image ?? null);
+  }, [profile?.profile_image]);
 
   useEffect(() => {
     const easeOut = Easing.out(Easing.cubic);
@@ -282,6 +291,15 @@ export default function ProfileScreen() {
   const closePhotoViewer = () => {
     setIsConfirmingPhotoRemoval(false);
     setIsPhotoViewerVisible(false);
+  };
+
+  const logout = async () => {
+    try {
+      await signOut();
+      router.replace("/(tabs)");
+    } catch {
+      Alert.alert("Logout failed", "Unable to log out right now. Please try again.");
+    }
   };
 
   const accountOptions = [
@@ -488,7 +506,7 @@ export default function ProfileScreen() {
                 {hero}
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => router.replace("/DashboardCenter")}
+                  onPress={logout}
                   className="self-start h-11 px-5 rounded-full border border-destructive/35 bg-destructive/5 flex-row items-center justify-center hover:bg-destructive/10 hover:-translate-y-px active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30 transition-all duration-200 ease-out"
                   style={mobilePressedScale}
                 >
@@ -570,7 +588,7 @@ export default function ProfileScreen() {
 
               <Pressable
                 accessibilityRole="button"
-                onPress={() => router.replace("/DashboardCenter")}
+                onPress={logout}
                 className="self-center h-11 px-6 rounded-full border border-destructive/35 bg-destructive/5 flex-row items-center justify-center active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
                 style={mobilePressedScale}
               >

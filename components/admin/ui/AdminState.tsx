@@ -1,0 +1,5 @@
+import React from "react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
+export function AdminLoadingState({ label = "Loading…" }: { label?: string }) { return <View className="py-16 items-center"><ActivityIndicator color="#E91E63" /><Text className="text-muted-foreground text-sm mt-3">{label}</Text></View>; }
+export function AdminErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) { return <View className="bg-card border border-red-400 rounded-2xl p-5"><Text className="text-red-500">{message}</Text>{onRetry ? <Pressable className="min-h-11 mt-3 justify-center" onPress={onRetry}><Text className="text-primary font-semibold">Try again</Text></Pressable> : null}</View>; }
+export function AdminEmptyState({ title, message }: { title: string; message: string }) { return <View className="bg-card border border-border rounded-3xl p-8 items-center"><Text className="text-foreground text-lg font-bold">{title}</Text><Text className="text-muted-foreground text-sm text-center mt-2">{message}</Text></View>; }

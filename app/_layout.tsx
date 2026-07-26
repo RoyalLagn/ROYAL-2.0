@@ -9,9 +9,15 @@ import { FavoritesProvider } from '@/context/FavoritesContext';
 import VendorBottomNav from '@/components/vendor/VendorBottomNav';
 import { LocationProvider } from '@/context/LocationContext';
 import { ReviewRatingsProvider } from '@/context/ReviewRatingsContext';
+import { PublicAuthProvider } from '@/context/PublicAuthContext';
+import { VendorSessionProvider } from '@/context/VendorSessionContext';
+import { NotificationProvider } from '@/context/NotificationContext';
+import { AdminAuthProvider } from '@/context/AdminAuthContext';
+import { AdminRouteGuard } from '@/components/auth/AdminRouteGuard';
+import { ResponsiveLayoutProvider } from '@/context/ResponsiveLayoutContext';
 
 export const unstable_settings = {
-  initialRouteName: "DashboardCenter",
+  initialRouteName: "(tabs)",
 };
 
 // Error Boundary Component
@@ -49,23 +55,35 @@ function ErrorBoundary({ children }: { children: React.ReactNode }) {
 export default function RootLayout() {
   return (
     <ErrorBoundary>
-      <FavoritesProvider>
-        <ReviewRatingsProvider>
-          <LocationProvider>
-          <ThemeProvider>
-            <SafeAreaProvider>
-              <StatusBar style="auto" />
-              <View className="bg-background" style={styles.app}>
-                <View style={styles.stack}>
-                  <Stack screenOptions={{ headerShown: false }} />
-                </View>
-                <VendorBottomNav />
-              </View>
-            </SafeAreaProvider>
-          </ThemeProvider>
-          </LocationProvider>
-        </ReviewRatingsProvider>
-      </FavoritesProvider>
+      <PublicAuthProvider>
+        <AdminAuthProvider>
+        <NotificationProvider>
+          <VendorSessionProvider>
+            <FavoritesProvider>
+              <ReviewRatingsProvider>
+                <LocationProvider>
+                <ThemeProvider>
+                  <SafeAreaProvider>
+                    <ResponsiveLayoutProvider>
+                    <StatusBar style="auto" />
+                    <View className="bg-background" style={styles.app}>
+                      <View style={styles.stack}>
+                        <AdminRouteGuard>
+                          <Stack screenOptions={{ headerShown: false }} />
+                        </AdminRouteGuard>
+                      </View>
+                      <VendorBottomNav />
+                    </View>
+                    </ResponsiveLayoutProvider>
+                  </SafeAreaProvider>
+                </ThemeProvider>
+                </LocationProvider>
+              </ReviewRatingsProvider>
+            </FavoritesProvider>
+          </VendorSessionProvider>
+        </NotificationProvider>
+        </AdminAuthProvider>
+      </PublicAuthProvider>
     </ErrorBoundary>
   );
 }

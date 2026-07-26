@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/services/supabase";
+import { useVendorSession } from "@/context/VendorSessionContext";
 
 export type CompletionState = "complete" | "partial" | "missing" | "attention";
 export type CompletionItem = {
@@ -54,6 +55,7 @@ export function calculateVendorCompletion(data: VendorWorkspace) {
 }
 
 export function useVendorWorkspace() {
+  const { isPreviewMode, workspaceEpoch } = useVendorSession();
   const [data, setData] = useState<VendorWorkspace>(emptyWorkspace);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +65,11 @@ export function useVendorWorkspace() {
     setLoading(true);
     setError(null);
     setPortfolioError(null);
+    if (isPreviewMode) {
+      setData(emptyWorkspace);
+      setLoading(false);
+      return;
+    }
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -116,7 +123,7 @@ export function useVendorWorkspace() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isPreviewMode, workspaceEpoch]);
 
   useEffect(() => { refresh(); }, [refresh]);
   const completion = useMemo(() => calculateVendorCompletion(data), [data]);

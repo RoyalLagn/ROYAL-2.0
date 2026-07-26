@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Crown, Heart, MapPin, Star } from "lucide-react-native";
-import type { VendorItem } from "@/data/vendorData";
+import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 
 const PINK = "#E91E63";
 
 type VendorListingCardProps = {
-  vendor: VendorItem;
+  vendor: PublicVendorListing;
   dark: boolean;
   compact: boolean;
   favorite: boolean;

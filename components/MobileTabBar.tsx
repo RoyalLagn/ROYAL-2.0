@@ -9,6 +9,7 @@ import {
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/ThemeProvider";
+import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
 
 export function MobileTabBar({
   state,
@@ -16,6 +17,7 @@ export function MobileTabBar({
   navigation,
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const openAuthenticationGateway = useAuthenticationGateway();
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
   const activeColor = isDark ? "#EC4899" : "#E91E63";
@@ -43,6 +45,11 @@ export function MobileTabBar({
             : options.title ?? route.name;
 
           const onPress = () => {
+            if (route.name === "profile") {
+              void openAuthenticationGateway();
+              return;
+            }
+
             const event = navigation.emit({
               type: "tabPress",
               target: route.key,

@@ -9,16 +9,54 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Lock, Mail } from "lucide-react-native";
+import { Mail } from "lucide-react-native";
+import { AuthBackButton } from "@/components/auth/AuthBackButton";
+import { PasswordField } from "@/components/auth/PasswordField";
+import { useAdminAuth } from "@/context/AdminAuthContext";
+import {
+  getAdminAuthError,
+  loginAdmin,
+} from "@/services/adminAuth";
+import { validateEmail } from "@/utils/authValidation";
 
 export default function AdminLoginScreen() {
   const router = useRouter();
+  const { isAdminAuthenticated, loading: restoring, refreshAdmin } = useAdminAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const handleLogin = () => router.replace("/admin-dashboard");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  React.useEffect(() => {
+    if (!restoring && isAdminAuthenticated) {
+      router.dismissAll();
+      router.replace("/admin-dashboard");
+    }
+  }, [isAdminAuthenticated, restoring, router]);
+
+  const handleLogin = async () => {
+    if (loading) return;
+    if (!validateEmail(email) || !password) {
+      setError("Invalid email or password.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const identity = await loginAdmin(email, password);
+      await refreshAdmin(identity.session);
+      router.dismissAll();
+      router.replace("/admin-dashboard");
+    } catch (caught) {
+      setError(getAdminAuthError(caught, "Unable to sign in."));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+      <AuthBackButton fallbackRoute="/DashboardCenter" />
       <KeyboardAvoidingView
         className="flex-1 justify-center px-6"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -45,24 +83,27 @@ export default function AdminLoginScreen() {
               returnKeyType="next"
             />
           </View>
-          <View className="flex-row items-center bg-card border border-border rounded-2xl px-4">
-            <Lock size={20} className="text-muted-foreground" />
-            <TextInput
-              className="flex-1 text-foreground py-4 ml-3"
-              placeholder="Password"
-              placeholderTextColor="#A8A29E"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              onSubmitEditing={handleLogin}
-              returnKeyType="done"
-            />
-          </View>
+          <PasswordField
+            value={password}
+            onChangeText={(value) => { setPassword(value); setError(""); }}
+            placeholder="Password"
+            onSubmitEditing={() => void handleLogin()}
+          />
           <Pressable
-            className="bg-primary rounded-2xl py-4 items-center active:opacity-90"
-            onPress={handleLogin}
+            className="self-end py-1 active:opacity-70"
+            onPress={() => router.push("/AdminForgotPassword")}
           >
-            <Text className="text-primary-foreground font-semibold text-base">Login</Text>
+            <Text className="text-primary text-sm font-semibold">Forgot Password?</Text>
+          </Pressable>
+          {error ? <Text className="text-red-500 text-sm text-center">{error}</Text> : null}
+          <Pressable
+            className={`rounded-2xl py-4 items-center ${loading || restoring ? "bg-primary/45" : "bg-primary active:opacity-90"}`}
+            onPress={() => void handleLogin()}
+            disabled={loading || restoring}
+          >
+            <Text className="text-primary-foreground font-semibold text-base">
+              {loading || restoring ? "Verifying…" : "Login"}
+            </Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>

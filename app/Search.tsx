@@ -3,11 +3,14 @@ import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronRight, Search as SearchIcon } from "lucide-react-native";
-import { categoryProfiles, vendorsByCategory } from "@/data/vendorData";
-import { TEMP_AVAILABLE_VENDOR_IDS } from "@/data/homeAvailability";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import { useColorScheme } from "nativewind";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
+import {
+  getApprovedPublicVendors,
+  subscribeToPublicVendorChanges,
+  type PublicVendorListing,
+} from "@/services/publicVendorListings";
 
 const GLOBAL_PAGES = [
   { label: "Categories", detail: "Browse every wedding service", keywords: "categories services vendors browse", route: "/(tabs)/Categories" as const },
@@ -19,14 +22,6 @@ const GLOBAL_PAGES = [
   { label: "Terms & Conditions", detail: "Review application terms", keywords: "terms conditions legal policy", route: "/Terms" as const },
   { label: "Become a Vendor", detail: "List your wedding business", keywords: "become vendor register business list", route: "/BecomeVendor" as const },
 ];
-
-function parsePrice(value: string) {
-  const normalized = value.replace(/[₹,\s]/g, "").toLowerCase();
-  const amount = Number.parseFloat(normalized) || 0;
-  if (normalized.includes("l")) return amount * 100000;
-  if (normalized.includes("k")) return amount * 1000;
-  return amount;
-}
 
 function matchesKeyword(haystack: string, keyword: string) {
   const tokens = keyword.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -53,12 +48,32 @@ export default function SearchScreen() {
   const initialQuery = Array.isArray(params.query) ? params.query[0] : params.query ?? "";
   const [draftQuery, setDraftQuery] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
+  const [vendors, setVendors] = useState<PublicVendorListing[]>([]);
 
   useEffect(() => {
     const nextQuery = Array.isArray(params.query) ? params.query[0] : params.query ?? "";
     setDraftQuery(nextQuery);
     setQuery(nextQuery);
   }, [params.query]);
+
+  useEffect(() => {
+    let active = true;
+    const load = () => {
+      getApprovedPublicVendors()
+        .then((items) => {
+          if (active) setVendors(items);
+        })
+        .catch(() => {
+          if (active) setVendors([]);
+        });
+    };
+    load();
+    const unsubscribe = subscribeToPublicVendorChanges(load);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
 
   const selectedLocation = Array.isArray(params.location) ? params.location[0] : params.location ?? "";
   const minimumRating = Number(Array.isArray(params.rating) ? params.rating[0] : params.rating) || 0;
@@ -68,39 +83,37 @@ export default function SearchScreen() {
   const availabilityOnly = (Array.isArray(params.availability) ? params.availability[0] : params.availability) === "true";
   const sort = Array.isArray(params.sort) ? params.sort[0] : params.sort ?? "recommended";
 
-  const vendors = useMemo(
-    () =>
-      Object.entries(vendorsByCategory).flatMap(([category, list]) =>
-        list.map((vendor) => ({ ...vendor, category }))
-      ),
-    [],
-  );
-
   const results = useMemo(() => {
     const ratedVendors = vendors.map((vendor) => {
       const current = getRating(vendor.id, vendor.rating, vendor.reviews);
       return { ...vendor, rating: current.rating, reviews: current.reviews };
     });
     const filtered = ratedVendors.filter((vendor) => {
-      const services = categoryProfiles[vendor.category]?.services ?? [];
       const searchable = [
         vendor.name,
         vendor.category,
         vendor.location,
         vendor.tags.join(" "),
-        services.join(" "),
+        vendor.services.join(" "),
+        vendor.description,
       ].join(" ");
       return matchesKeyword(searchable, query)
         && (!selectedCategory || vendor.category === selectedCategory)
         && (!minimumRating || vendor.rating >= minimumRating)
-        && (!maximumBudget || parsePrice(vendor.startingPrice) <= maximumBudget)
-        && (!availabilityOnly || TEMP_AVAILABLE_VENDOR_IDS.has(vendor.id))
+        && (!maximumBudget || (
+          vendor.startingPriceValue > 0
+          && vendor.startingPriceValue <= maximumBudget
+        ))
+        && (!availabilityOnly || vendor.isAvailable)
         && (!nearbyOnly || vendor.location.toLowerCase().includes(selectedLocation.toLowerCase()));
     });
 
     return [...filtered].sort((a, b) => {
       if (sort === "rating") return b.rating - a.rating || b.reviews - a.reviews;
-      if (sort === "price") return parsePrice(a.startingPrice) - parsePrice(b.startingPrice);
+      if (sort === "price") {
+        return (a.startingPriceValue || Number.MAX_SAFE_INTEGER)
+          - (b.startingPriceValue || Number.MAX_SAFE_INTEGER);
+      }
       const aLocal = selectedLocation && a.location.toLowerCase().includes(selectedLocation.toLowerCase()) ? 1 : 0;
       const bLocal = selectedLocation && b.location.toLowerCase().includes(selectedLocation.toLowerCase()) ? 1 : 0;
       return bLocal - aLocal || b.rating - a.rating || b.reviews - a.reviews;
@@ -110,12 +123,12 @@ export default function SearchScreen() {
   const pageResults = useMemo(() => {
     if (!query.trim()) return { fixedPages: [], categoryPages: [] };
     const fixedPages = GLOBAL_PAGES.filter((page) => matchesKeyword(`${page.label} ${page.detail} ${page.keywords}`, query));
-    const categoryPages = Object.keys(vendorsByCategory)
+    const categoryPages = [...new Set(vendors.map((vendor) => vendor.category))]
       .filter((category) => matchesKeyword(`${category} wedding vendors services`, query))
       .slice(0, 5)
       .map((category) => ({ label: category, detail: `Browse ${category.toLowerCase()}`, category }));
     return { fixedPages, categoryPages };
-  }, [query]);
+  }, [query, vendors]);
 
   const submit = () => setQuery(draftQuery.trim());
   const activeFilterCount = [minimumRating > 0, maximumBudget > 0, Boolean(selectedCategory), availabilityOnly, nearbyOnly, sort !== "recommended"].filter(Boolean).length;

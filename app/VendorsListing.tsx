@@ -14,31 +14,13 @@ import VendorListingCard from "@/components/listing/VendorListingCard";
 import HomeReveal from "@/components/home/HomeReveal";
 import { useCustomerLocation } from "@/context/LocationContext";
 import { useFavorites } from "@/context/FavoritesContext";
-import { vendorsByCategory, type VendorItem } from "@/data/vendorData";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
-
-function getFallbackVendors(category: string): VendorItem[] {
-  return Array.from({ length: 10 }, (_, index) => ({
-    id: `f${index + 1}`,
-    name: `${category} Expert ${index + 1}`,
-    rating: Number((4.9 - index * 0.07).toFixed(1)),
-    reviews: 120 - index * 10,
-    priceLevel: index % 3 === 0 ? "₹ ₹ ₹" : index % 2 === 0 ? "₹" : "₹ ₹",
-    location: ["Pune", "Mumbai", "Lonavala", "Nashik"][index % 4],
-    tags: ["Premium", "Traditional", "Modern"].slice(0, (index % 3) + 1),
-    startingPrice: `₹${(15 - index) * 1000}`,
-    image: "https://images.unsplash.com/photo-1606800052052-a08af7148866?w=900&auto=format&fit=crop&q=78",
-    isTopRated: index === 0,
-  }));
-}
-
-function parsePrice(value: string) {
-  const normalized = value.replace(/[₹,\s]/g, "").toLowerCase();
-  const amount = Number.parseFloat(normalized) || 0;
-  if (normalized.includes("l")) return amount * 100000;
-  if (normalized.includes("k")) return amount * 1000;
-  return amount;
-}
+import {
+  getApprovedPublicVendors,
+  normalizeMarketplaceCategoryName,
+  subscribeToPublicVendorChanges,
+  type PublicVendorListing,
+} from "@/services/publicVendorListings";
 
 function getPriceOptions(category: string) {
   if (category === "Caterers") {
@@ -82,10 +64,8 @@ const CATEGORY_ALIASES: Record<string, string> = {
 
 function resolveCategory(value?: string) {
   if (!value) return "Photographers";
-  const exact = Object.keys(vendorsByCategory).find(
-    (category) => category.toLowerCase() === value.trim().toLowerCase(),
-  );
-  return exact ?? CATEGORY_ALIASES[value.trim().toLowerCase()] ?? value.trim();
+  const aliased = CATEGORY_ALIASES[value.trim().toLowerCase()] ?? value.trim();
+  return normalizeMarketplaceCategoryName(aliased);
 }
 
 const CATEGORY_FALLBACKS: Record<string, number> = {
@@ -122,6 +102,7 @@ export default function VendorsListingScreen() {
   const [filters, setFilters] = useState<ListingFilters>(DEFAULT_FILTERS);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [filterSection, setFilterSection] = useState<"sort" | "price" | "rating" | "filters">("filters");
+  const [approvedVendors, setApprovedVendors] = useState<PublicVendorListing[]>([]);
 
   const compact = width < 600;
   const contentWidth = Math.min(width - (width >= 1100 ? 48 : 32), 980);
@@ -135,9 +116,29 @@ export default function VendorsListingScreen() {
     setQuery(initialQuery);
   }, [initialQuery]);
 
+  useEffect(() => {
+    let active = true;
+    const load = () => {
+      getApprovedPublicVendors()
+        .then((items) => {
+          if (active) setApprovedVendors(items);
+        })
+        .catch(() => {
+          if (active) setApprovedVendors([]);
+        });
+    };
+    load();
+    const unsubscribe = subscribeToPublicVendorChanges(load);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
   const vendors = useMemo(
-    () => vendorsByCategory[displayCategory] ?? getFallbackVendors(displayCategory),
-    [displayCategory],
+    () => approvedVendors
+      .filter((vendor) => vendor.category.toLowerCase() === displayCategory.toLowerCase()),
+    [approvedVendors, displayCategory],
   );
 
   const filteredVendors = useMemo(() => {
@@ -147,15 +148,28 @@ export default function VendorsListingScreen() {
       return { ...vendor, rating: current.rating, reviews: current.reviews };
     });
     const matching = ratedVendors.filter((vendor) => {
-      const searchable = `${vendor.name} ${vendor.location} ${vendor.tags.join(" ")}`.toLowerCase();
+      const searchable = [
+        vendor.name,
+        vendor.category,
+        vendor.location,
+        vendor.tags.join(" "),
+        vendor.services.join(" "),
+        vendor.description,
+      ].join(" ").toLowerCase();
       return (!normalizedQuery || searchable.includes(normalizedQuery))
         && (!filters.minimumRating || vendor.rating >= filters.minimumRating)
-        && (!filters.maximumPrice || parsePrice(vendor.startingPrice) <= filters.maximumPrice);
+        && (!filters.maximumPrice || (
+          vendor.startingPriceValue > 0
+          && vendor.startingPriceValue <= filters.maximumPrice
+        ));
     });
 
     return [...matching].sort((a, b) => {
       if (filters.sort === "rating") return b.rating - a.rating || b.reviews - a.reviews;
-      if (filters.sort === "price") return parsePrice(a.startingPrice) - parsePrice(b.startingPrice);
+      if (filters.sort === "price") {
+        return (a.startingPriceValue || Number.MAX_SAFE_INTEGER)
+          - (b.startingPriceValue || Number.MAX_SAFE_INTEGER);
+      }
       return Number(Boolean(b.isTopRated)) - Number(Boolean(a.isTopRated))
         || b.reviews - a.reviews
         || b.rating - a.rating;
@@ -179,7 +193,7 @@ export default function VendorsListingScreen() {
       ? "Lowest price"
       : "Popular";
 
-  const toggleVendorFavorite = (vendor: VendorItem) => {
+  const toggleVendorFavorite = (vendor: PublicVendorListing) => {
     toggleFavorite({
       id: vendor.id,
       name: vendor.name,

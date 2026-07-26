@@ -5,6 +5,7 @@ import { Href, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { LogOut, Shield, ChevronRight, ClipboardList } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
+import { useAdminAuth } from "@/context/AdminAuthContext";
 
 type MenuItem = {
   id: string;
@@ -17,9 +18,15 @@ type MenuItem = {
 
 export default function AdminDashLogout() {
   const router = useRouter();
+  const { identity, signOut } = useAdminAuth();
   useColorScheme();
-  const performLogout = () => {
-    router.replace("/DashboardCenter");
+  const performLogout = async () => {
+    try {
+      await signOut();
+    } finally {
+      router.dismissAll();
+      router.replace("/DashboardCenter");
+    }
   };
 
   const menuItems: MenuItem[] = [
@@ -78,10 +85,10 @@ export default function AdminDashLogout() {
           />
           <View className="ml-4 flex-1">
             <Text className="text-foreground font-bold text-lg">
-              Admin User
+              {identity?.profile.full_name || "Administrator"}
             </Text>
             <Text className="text-muted-foreground text-sm">
-              Platform Administrator
+              {identity?.profile.role === "super_admin" ? "Super Administrator" : "Platform Administrator"}
             </Text>
           </View>
           <ChevronRight size={20} className="text-muted-foreground" />
@@ -134,7 +141,7 @@ export default function AdminDashLogout() {
       <View className="px-6 mt-8">
         <TouchableOpacity
           className="bg-destructive rounded-2xl p-4 flex-row items-center justify-center"
-          onPress={performLogout}
+          onPress={() => void performLogout()}
         >
           <LogOut size={20} color="#FFFFFF" />
           <Text className="text-white font-semibold text-base ml-2">

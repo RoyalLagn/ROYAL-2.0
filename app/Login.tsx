@@ -1,110 +1,127 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Lock, Mail } from "lucide-react-native";
-import { supabase } from "@/services/supabase";
+import { Mail, Phone, User } from "lucide-react-native";
+import { AuthBackButton } from "@/components/auth/AuthBackButton";
+import { PasswordField } from "@/components/auth/PasswordField";
+import { usePublicAuth } from "@/context/PublicAuthContext";
+import {
+  getPublicAuthError,
+  loginPublicUser,
+  sendSignupOtp,
+} from "@/services/publicAuth";
+import {
+  validateEmail,
+  validateFullName,
+  validatePhone,
+} from "@/utils/authValidation";
+
+type AuthTab = "login" | "signup";
+
+function Input({
+  icon: Icon,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType,
+}: {
+  icon: React.ElementType;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  keyboardType?: "email-address" | "phone-pad";
+}) {
+  return (
+    <View className="flex-row items-center bg-card border border-border rounded-2xl px-4">
+      <Icon size={20} className="text-muted-foreground" />
+      <TextInput
+        className="flex-1 text-foreground py-4 ml-3"
+        placeholder={placeholder}
+        placeholderTextColor="#A8A29E"
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType={keyboardType}
+        value={value}
+        onChangeText={onChangeText}
+      />
+    </View>
+  );
+}
 
 export default function LoginScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ returnTo?: string }>();
+  const params = useLocalSearchParams<{ reset?: string }>();
+  const { refreshProfile, isPublicAuthenticated, loading: authLoading } = usePublicAuth();
+  const [tab, setTab] = useState<AuthTab>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const finishCustomerLogin = async (userId: string, userEmail: string) => {
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role,is_active")
-      .eq("id", userId)
-      .maybeSingle();
-    if (profileError) throw profileError;
-    if (!profile) {
-      const fallbackName = fullName.trim() || userEmail.split("@")[0] || "RoyalLagn Customer";
-      const { error: insertError } = await supabase.from("profiles").insert({
-        id: userId,
-        email: userEmail,
-        full_name: fallbackName,
-        role: "public_user",
-        is_active: true,
-      });
-      if (insertError) throw insertError;
-    } else if (profile.role !== "public_user" || !profile.is_active) {
-      throw new Error("Use an active Customer account to write reviews.");
-    }
-    const returnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
-    router.replace((returnTo || "/(tabs)") as never);
+  const signupValid = useMemo(
+    () => validateFullName(fullName) && validatePhone(phone) && validateEmail(email),
+    [email, fullName, phone]
+  );
+
+  useEffect(() => {
+    if (!authLoading && isPublicAuthenticated) router.replace("/(tabs)/profile");
+  }, [authLoading, isPublicAuthenticated, router]);
+
+  const changeTab = (nextTab: AuthTab) => {
+    setTab(nextTab);
+    setError("");
   };
 
-  const handleLogin = async () => {
-    if (!email.trim() || !password) {
-      setError("Enter your customer email and password.");
+  const login = async () => {
+    if (!validateEmail(email)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    if (!password) {
+      setError("Password is required.");
       return;
     }
     setLoading(true);
     setError("");
-    const normalizedEmail = email.trim().toLowerCase();
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password,
-    });
-    if (signInError || !data.user) {
-      setError(signInError?.message || "Unable to sign in.");
-      setLoading(false);
-      return;
-    }
     try {
-      await finishCustomerLogin(data.user.id, data.user.email || normalizedEmail);
+      await loginPublicUser(email, password);
+      await refreshProfile();
+      router.replace("/(tabs)/profile");
     } catch (caught) {
-      await supabase.auth.signOut();
-      setError(caught instanceof Error ? caught.message : "Unable to connect this customer account.");
+      setError(getPublicAuthError(caught, "Unable to log in. Please try again."));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateAccount = async () => {
-    if (!fullName.trim()) {
-      setError("Enter your name.");
-      return;
-    }
-    if (!email.trim() || password.length < 6) {
-      setError("Enter a valid email and a password of at least 6 characters.");
-      return;
-    }
+  const sendOtp = async () => {
+    if (!signupValid) return;
     setLoading(true);
     setError("");
-    const normalizedEmail = email.trim().toLowerCase();
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: normalizedEmail,
-      password,
-      options: { data: { full_name: fullName.trim(), role: "public_user" } },
-    });
-    if (signUpError || !data.user) {
-      setError(signUpError?.message || "Unable to create your account.");
-      setLoading(false);
-      return;
-    }
-    if (!data.session) {
-      setError("Check your email and confirm your account, then return here to sign in.");
-      setCreating(false);
-      setLoading(false);
-      return;
-    }
     try {
-      await finishCustomerLogin(data.user.id, data.user.email || normalizedEmail);
+      const normalizedEmail = await sendSignupOtp({ email, fullName, phone });
+      router.replace({
+        pathname: "/OtpVerification",
+        params: {
+          email: normalizedEmail,
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          purpose: "signup",
+        },
+      });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to finish account setup.");
+      setError(getPublicAuthError(caught, "Unable to send the code. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -112,82 +129,115 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+      <AuthBackButton fallbackRoute="/DashboardCenter" />
       <KeyboardAvoidingView
-        className="flex-1 justify-center px-6"
+        className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View className="items-center mb-10">
-          <Text className="text-primary font-bold text-4xl mb-2">
-            Royal<Text className="text-foreground">Lagn</Text>
-          </Text>
-          <Text className="text-muted-foreground text-base">{creating ? "Create your customer account" : "Sign in to continue"}</Text>
-        </View>
+        <ScrollView
+          contentContainerClassName="flex-grow justify-center px-6 py-12"
+          keyboardShouldPersistTaps="handled"
+        >
+          <View className="items-center mb-7">
+            <Text className="text-primary font-bold text-4xl mb-2">
+              Royal<Text className="text-foreground">Lagn</Text>
+            </Text>
+            <Text className="text-muted-foreground text-base">Welcome to your celebration journey</Text>
+          </View>
 
-        <View className="gap-4">
-          {creating ? (
-            <View className="flex-row items-center bg-card border border-border rounded-2xl px-4">
-              <TextInput
-                className="flex-1 text-foreground py-4"
-                placeholder="Your full name"
-                placeholderTextColor="#A8A29E"
-                value={fullName}
-                onChangeText={setFullName}
-                autoCapitalize="words"
-              />
-            </View>
-          ) : null}
-          <View className="flex-row items-center bg-card border border-border rounded-2xl px-4">
-            <Mail size={20} className="text-muted-foreground" />
-            <TextInput
-              className="flex-1 text-foreground py-4 ml-3"
-              placeholder="Email address"
-              placeholderTextColor="#A8A29E"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
+          <View className="flex-row bg-muted rounded-2xl p-1 mb-5">
+            {(["login", "signup"] as const).map((item) => (
+              <Pressable
+                key={item}
+                className={`flex-1 rounded-xl py-3 items-center ${tab === item ? "bg-card" : ""}`}
+                onPress={() => changeTab(item)}
+                disabled={loading}
+              >
+                <Text className={tab === item ? "text-primary font-bold" : "text-muted-foreground font-semibold"}>
+                  {item === "login" ? "Login" : "Sign Up"}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View className="gap-4">
+            {params.reset === "success" ? (
+              <View className="bg-green-500/10 border border-green-500/25 rounded-xl px-4 py-3">
+                <Text className="text-green-600 text-sm text-center">
+                  Password updated successfully. Log in with your new password.
+                </Text>
+              </View>
+            ) : null}
+            {tab === "signup" ? (
+              <>
+                <Input
+                  icon={User}
+                  value={fullName}
+                  onChangeText={(value) => { setFullName(value); setError(""); }}
+                  placeholder="Full Name *"
+                />
+                <Input
+                  icon={Phone}
+                  value={phone}
+                  onChangeText={(value) => { setPhone(value.replace(/\D/g, "")); setError(""); }}
+                  placeholder="Phone Number *"
+                  keyboardType="phone-pad"
+                />
+              </>
+            ) : null}
+            <Input
+              icon={Mail}
               value={email}
-              onChangeText={setEmail}
-              returnKeyType="next"
+              onChangeText={(value) => { setEmail(value); setError(""); }}
+              placeholder="Email Address *"
+              keyboardType="email-address"
             />
-          </View>
+            {tab === "login" ? (
+              <>
+                <PasswordField
+                  value={password}
+                  onChangeText={(value) => { setPassword(value); setError(""); }}
+                  placeholder="Password"
+                  onSubmitEditing={login}
+                />
+                <Pressable
+                  className="self-end active:opacity-70"
+                  onPress={() => router.replace("/ForgotPassword")}
+                  disabled={loading}
+                >
+                  <Text className="text-primary font-semibold text-sm">Forgot Password?</Text>
+                </Pressable>
+              </>
+            ) : null}
 
-          <View className="flex-row items-center bg-card border border-border rounded-2xl px-4">
-            <Lock size={20} className="text-muted-foreground" />
-            <TextInput
-              className="flex-1 text-foreground py-4 ml-3"
-              placeholder="Password"
-              placeholderTextColor="#A8A29E"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              onSubmitEditing={handleLogin}
-              returnKeyType="done"
-            />
-          </View>
+            {error ? <Text className="text-red-500 text-sm text-center">{error}</Text> : null}
 
-          <Pressable
-            className="bg-primary rounded-2xl py-4 items-center active:opacity-90"
-            onPress={creating ? handleCreateAccount : handleLogin}
-            disabled={loading}
-          >
-            <Text className="text-primary-foreground font-semibold text-base">
-              {loading ? "Please wait…" : creating ? "Create Customer Account" : "Login"}
-            </Text>
-          </Pressable>
-          <Pressable
-            className="border border-primary rounded-2xl py-4 items-center active:opacity-80"
-            onPress={() => {
-              setCreating((current) => !current);
-              setError("");
-            }}
-            disabled={loading}
-          >
-            <Text className="text-primary font-semibold text-base">
-              {creating ? "I already have an account" : "Create Customer Account"}
-            </Text>
-          </Pressable>
-          {error ? <Text className="text-red-500 text-sm text-center">{error}</Text> : null}
-        </View>
+            <Pressable
+              className={`rounded-2xl py-4 items-center ${
+                loading || (tab === "signup" && !signupValid) ? "bg-primary/45" : "bg-primary active:opacity-90"
+              }`}
+              onPress={tab === "login" ? login : sendOtp}
+              disabled={loading || (tab === "signup" && !signupValid)}
+            >
+              <Text className="text-primary-foreground font-semibold text-base">
+                {loading
+                  ? tab === "login" ? "Logging in…" : "Sending OTP…"
+                  : tab === "login" ? "Login" : "Send Email OTP"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              className="items-center py-2 active:opacity-70"
+              onPress={() => changeTab(tab === "login" ? "signup" : "login")}
+              disabled={loading}
+            >
+              <Text className="text-muted-foreground text-sm">
+                {tab === "login" ? "New to RoyalLagn? " : "Already have an account? "}
+                <Text className="text-primary font-bold">{tab === "login" ? "Sign Up" : "Login"}</Text>
+              </Text>
+            </Pressable>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

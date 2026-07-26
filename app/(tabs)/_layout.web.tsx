@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Alert,
   Platform,
   Pressable,
   Text,
@@ -21,6 +20,8 @@ import { MobileTabBar } from "@/components/MobileTabBar";
 import LocationSelector from "@/components/home/LocationSelector";
 import HomeReveal from "@/components/home/HomeReveal";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
+import { useNotifications } from "@/context/NotificationContext";
 
 cssInterop(Home, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3, { className: { target: "style", nativeStyleToProp: { color: true } } });
@@ -63,6 +64,8 @@ export default function TabsWebLayout() {
   const isDark = colorScheme === "dark";
   const isDesktop = width >= 1100;
   const [searchQuery, setSearchQuery] = useState("");
+  const openAuthenticationGateway = useAuthenticationGateway();
+  const { unreadCount } = useNotifications();
 
   const submitSearch = () => {
     router.push({ pathname: "/Search", params: { query: searchQuery.trim() } });
@@ -134,14 +137,18 @@ export default function TabsWebLayout() {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Notifications, 1 unread"
-                onPress={() => Alert.alert("Notifications", "You have 1 new notification.")}
+                accessibilityLabel={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
+                onPress={() => router.push("/Notifications")}
                 className="relative w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <Bell size={19} className="text-foreground/75" />
-                <View className="absolute top-1.5 right-1.5 min-w-[15px] h-[15px] rounded-full bg-primary border-2 border-card items-center justify-center">
-                  <Text className="text-white text-[7px] font-bold">1</Text>
-                </View>
+                {unreadCount > 0 ? (
+                  <View className="absolute top-1.5 right-1.5 min-w-[15px] h-[15px] rounded-full bg-primary border-2 border-card items-center justify-center px-0.5">
+                    <Text className="text-white text-[7px] font-bold">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </Text>
+                  </View>
+                ) : null}
               </Pressable>
 
               <Pressable
@@ -166,7 +173,7 @@ export default function TabsWebLayout() {
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel="Profile"
-                onPress={() => router.push("/(tabs)/profile")}
+                onPress={() => void openAuthenticationGateway()}
                 className="h-12 min-w-[68px] px-2 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 <User size={20} className={isActive("/(tabs)/profile") ? "text-primary" : "text-foreground/75"} />

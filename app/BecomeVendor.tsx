@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView,
+  ActivityIndicator, Alert, BackHandler, Image, Modal, Pressable, ScrollView,
   Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -38,11 +38,41 @@ export default function BecomeVendor() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) {
+        router.replace("/DashboardCenter");
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name,email,phone,role")
+        .eq("id", data.user.id)
+        .maybeSingle();
+      if (!profile || profile.role !== "vendor") {
+        router.replace("/DashboardCenter");
+        return;
+      }
+      setForm((current) => ({
+        ...current,
+        full_name: profile.full_name || current.full_name,
+        email: profile.email || data.user?.email || current.email,
+        phone: profile.phone || current.phone,
+      }));
+    });
     supabase.from("categories").select("id,name").order("name").then(({ data, error }) => {
       if (error) Alert.alert("Unable to load categories", error.message);
       else setCategories(data ?? []);
     });
-  }, []);
+  }, [router]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      router.dismissAll();
+      router.replace("/(tabs)");
+      return true;
+    });
+    return () => subscription.remove();
+  }, [router]);
 
   const selectedCategory = categories.find((item) => item.id === form.category_id);
   const isComplete = useMemo(
@@ -77,8 +107,31 @@ export default function BecomeVendor() {
     if (!Number.isInteger(experience) || experience < 0) return Alert.alert("Invalid experience", "Enter a valid number of years.");
 
     setSubmitting(true);
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) {
+      setSubmitting(false);
+      router.replace("/DashboardCenter");
+      return;
+    }
+    const { data: existing, error: existingError } = await supabase
+      .from("vendor_applications")
+      .select("id,status")
+      .eq("profile_id", authData.user.id)
+      .in("status", ["pending", "approved"])
+      .limit(1);
+    if (existingError) {
+      setSubmitting(false);
+      return Alert.alert("Submission failed", existingError.message);
+    }
+    if (existing?.length) {
+      setSubmitting(false);
+      return router.replace(existing[0].status === "approved"
+        ? "/vendor-dashboard"
+        : { pathname: "/VendorAuthStatus", params: { status: "pending" } });
+    }
     const { error } = await supabase.from("vendor_applications").insert({
       ...form,
+      profile_id: authData.user.id,
       email: form.email.trim().toLowerCase(),
       experience,
       instagram: form.instagram.trim() || null,
@@ -88,7 +141,10 @@ export default function BecomeVendor() {
     });
     setSubmitting(false);
     if (error) Alert.alert("Submission failed", error.message);
-    else setSuccess(true);
+    else {
+      setSuccess(true);
+      router.replace({ pathname: "/VendorAuthStatus", params: { status: "pending" } });
+    }
   };
 
   if (success) return (
@@ -103,7 +159,15 @@ export default function BecomeVendor() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <View className="flex-row items-center px-5 py-4 border-b border-border">
-        <TouchableOpacity className="w-10 h-10 rounded-full bg-card border border-border items-center justify-center" onPress={() => router.back()}><ArrowLeft size={20} className="text-foreground" /></TouchableOpacity>
+        <TouchableOpacity
+          className="w-10 h-10 rounded-full bg-card border border-border items-center justify-center"
+          onPress={() => {
+            router.dismissAll();
+            router.replace("/(tabs)");
+          }}
+        >
+          <ArrowLeft size={20} className="text-foreground" />
+        </TouchableOpacity>
         <View className="ml-4"><Text className="text-foreground text-xl font-bold">Become a Vendor</Text><Text className="text-muted-foreground text-xs">Grow your business with RoyalLagn</Text></View>
       </View>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 50 }} keyboardShouldPersistTaps="handled">

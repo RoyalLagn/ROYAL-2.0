@@ -27,7 +27,16 @@ export default function VendorApplicationDetails() {
     const { error } = await supabase.rpc("review_vendor_application", { target_application_id: id, decision, reason: decision === "rejected" ? reason.trim() : null });
     setWorking(false);
     if (error) Alert.alert(`${decision === "approved" ? "Approval" : "Rejection"} failed`, error.message);
-    else { setRejectOpen(false); Alert.alert(decision === "approved" ? "Vendor approved" : "Application rejected", decision === "approved" ? "The verified vendor is now available in the marketplace." : "The rejection reason was saved.", [{ text: "Done", onPress: () => router.replace("/VendorApplications") }]); }
+    else {
+      setRejectOpen(false);
+      router.replace("/VendorApplications");
+      Alert.alert(
+        decision === "approved" ? "Vendor approved" : "Application rejected",
+        decision === "approved"
+          ? "The verified vendor is now available in the marketplace."
+          : "The rejection reason was saved.",
+      );
+    }
   };
   if (loading || !item) return <SafeAreaView className="flex-1 bg-background items-center justify-center"><ActivityIndicator color="#EC4899" /></SafeAreaView>;
   const rows = [

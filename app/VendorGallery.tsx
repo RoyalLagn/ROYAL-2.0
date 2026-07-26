@@ -330,7 +330,7 @@ export default function VendorGallery() {
       {!loading && !data.vendor && <View style={[styles.setupNotice, { backgroundColor: colors.surfaceSoft, borderColor: colors.border }]}>
         <Text style={[styles.setupTitle, { color: colors.text }]}>Vendor profile connection required</Text>
         <Text style={[styles.setupBody, { color: colors.muted }]}>Preview mode can display the gallery, but saving and uploading requires your Vendor account so every album stays private to its owner.</Text>
-        <Pressable onPress={() => router.push("/VendorLogin")} style={[styles.connectButton, { backgroundColor: colors.pink }]}><Text style={styles.primaryText}>Connect Vendor Account</Text></Pressable>
+        <Pressable onPress={() => router.replace("/DashboardCenter")} style={[styles.connectButton, { backgroundColor: colors.pink }]}><Text style={styles.primaryText}>Connect Vendor Account</Text></Pressable>
       </View>}
       {loading && !data.albums.length ? <View style={styles.skeletonGrid}>
         {[0, 1, 2].map((item) => <View key={item} style={[styles.skeletonCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>

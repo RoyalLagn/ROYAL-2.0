@@ -1,0 +1,202 @@
+import type { User } from "@supabase/supabase-js";
+import { supabase } from "@/services/supabase";
+import {
+  validateEmail,
+  validateFullName,
+  validatePassword,
+  validatePhone,
+} from "@/utils/authValidation";
+import { clearRecoverySession } from "@/services/authRecoverySession";
+
+export type PublicProfile = {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  profile_image: string | null;
+  role: "public_user";
+  created_at: string;
+  updated_at: string;
+};
+
+export type SignupDetails = {
+  email: string;
+  fullName: string;
+  phone: string;
+};
+
+export type OtpPurpose = "signup" | "recovery";
+
+const PROFILE_COLUMNS =
+  "id,email,full_name,phone,profile_image,role,created_at,updated_at";
+
+export const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+async function getOwnProfile(userId: string) {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data as PublicProfile | null;
+}
+
+export async function loginPublicUser(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: normalizeEmail(email),
+    password,
+  });
+  if (error) throw error;
+  if (!data.session || !data.user) throw new Error("Unable to restore your session.");
+
+  try {
+    const profile = await getOwnProfile(data.user.id);
+    if (!profile || profile.role !== "public_user") {
+      throw new Error("This account is not a Public User account.");
+    }
+    return { session: data.session, profile };
+  } catch (profileError) {
+    await supabase.auth.signOut();
+    throw profileError;
+  }
+}
+
+export async function sendSignupOtp(details: SignupDetails) {
+  const email = normalizeEmail(details.email);
+  if (!validateFullName(details.fullName) || !validatePhone(details.phone) || !validateEmail(email)) {
+    throw new Error("Enter a valid full name, phone number, and email address.");
+  }
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: true,
+      data: {
+        role: "public_user",
+        full_name: details.fullName.trim(),
+        phone: details.phone.trim(),
+        registration_pending: true,
+      },
+    },
+  });
+  if (error) throw error;
+  return email;
+}
+
+export async function sendRecoveryOtp(email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  const { error } = await supabase.auth.signInWithOtp({
+    email: normalizedEmail,
+    options: { shouldCreateUser: false },
+  });
+  if (error) throw error;
+  return normalizedEmail;
+}
+
+export async function verifyPublicEmailOtp(email: string, token: string) {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: normalizeEmail(email),
+    token,
+    type: "email",
+  });
+  if (error) throw error;
+  if (!data.user || !data.session) {
+    throw new Error("OTP verification did not create a session. Please request a new code.");
+  }
+  return data;
+}
+
+export async function completePublicSignup(details: SignupDetails, password: string) {
+  if (
+    !validateFullName(details.fullName)
+    || !validatePhone(details.phone)
+    || !validateEmail(details.email)
+    || !validatePassword(password)
+  ) {
+    throw new Error("Your registration details are incomplete or invalid.");
+  }
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) throw userError ?? new Error("Your verification session expired.");
+  if (normalizeEmail(userData.user.email || "") !== normalizeEmail(details.email)) {
+    await supabase.auth.signOut();
+    throw new Error("The verified email does not match this registration.");
+  }
+
+  const existing = await getOwnProfile(userData.user.id);
+  if (existing) {
+    await supabase.auth.signOut();
+    throw new Error("An account already exists for this email. Please log in instead.");
+  }
+
+  const { data, error } = await supabase.auth.updateUser({
+    password,
+    data: {
+      role: "public_user",
+      full_name: details.fullName.trim(),
+      phone: details.phone.trim(),
+      registration_pending: false,
+    },
+  });
+  if (error || !data.user) throw error ?? new Error("Unable to create your account.");
+
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .insert({
+      id: data.user.id,
+      email: normalizeEmail(details.email),
+      full_name: details.fullName.trim(),
+      phone: details.phone.trim(),
+      role: "public_user",
+    })
+    .select(PROFILE_COLUMNS)
+    .single();
+  if (profileError) throw profileError;
+  return profile as PublicProfile;
+}
+
+export async function updateRecoveredPassword(password: string) {
+  if (!validatePassword(password)) throw new Error("Your new password does not meet the requirements.");
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData.user) throw userError ?? new Error("Your recovery session expired.");
+  const profile = await getOwnProfile(userData.user.id);
+  if (!profile || profile.role !== "public_user") {
+    await supabase.auth.signOut({ scope: "local" });
+    clearRecoverySession();
+    throw new Error("This account is not a Public User account.");
+  }
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+  const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+  if (signOutError) throw signOutError;
+  clearRecoverySession();
+}
+
+export async function ensurePublicProfile(user: User): Promise<PublicProfile> {
+  const profile = await getOwnProfile(user.id);
+  if (!profile || profile.role !== "public_user") {
+    throw new Error("This account is not a Public User account.");
+  }
+  return profile;
+}
+
+export function getPublicAuthError(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : "";
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("invalid login")) return "Incorrect email or password.";
+  if (normalized.includes("email not confirmed")) return "Verify your email before logging in.";
+  if (normalized.includes("expired")) return "This code has expired. Request a new one.";
+  if (normalized.includes("invalid") && (normalized.includes("token") || normalized.includes("otp"))) {
+    return "The verification code is invalid. Check the code and try again.";
+  }
+  if (normalized.includes("network") || normalized.includes("fetch")) {
+    return "Network error. Check your connection and try again.";
+  }
+  if (normalized.includes("rate") || normalized.includes("seconds")) {
+    return "Please wait before requesting another code.";
+  }
+  if (normalized.includes("user not found") || normalized.includes("signups not allowed")) {
+    return "No public account was found for this email.";
+  }
+  return message || fallback;
+}
