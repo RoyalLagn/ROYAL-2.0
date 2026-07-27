@@ -1,6 +1,8 @@
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { BadgeCheck, Crown, Heart, MapPin, Share2, Star } from "lucide-react-native";
+import { BadgeCheck, Crown, MapPin, Share2, Star } from "lucide-react-native";
+import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
+import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 
 const PINK = "#E91E63";
 
@@ -13,7 +15,7 @@ export type VendorInfoPanelProps = {
   verified?: boolean;
   topRated?: boolean;
   favorite?: boolean;
-  onToggleFavorite?: () => void;
+  onToggleFavorite?: (source: FavoriteSourceRef) => void;
   onShare?: () => void;
   dark?: boolean;
   children?: React.ReactNode;
@@ -36,21 +38,23 @@ export default function VendorInfoPanel({
   const { width } = useWindowDimensions();
   const compact = width < 440;
   const colors = {
-    surface: dark ? "#1E1C1D" : "#FFFFFF",
-    text: dark ? "#F8F1F4" : "#21171C",
-    muted: dark ? "#B9AEB3" : "#71676D",
+    surface: dark ? "#141922" : "#FFFFFF",
+    text: dark ? "#FFF8FB" : "#1B1418",
+    muted: dark ? "#C8BCC2" : "#62575D",
     badge: dark ? "#35262C" : "#FFF5F7",
     badgeBorder: dark ? "#553642" : "#F4D8E1",
-    actionSurface: dark ? "#262123" : "#FFFFFF",
-    actionBorder: dark ? "#64404D" : "#EEC8D4",
+    actionSurface: dark ? "#202632" : "#FFF9FB",
+    actionBorder: dark ? "#5B3443" : "#EBC4D1",
+    specialtySurface: dark ? "#25202A" : "#FFF1F6",
+    specialtyBorder: dark ? "#4C3540" : "#F0CFDA",
   };
   const hasActions = Boolean(onToggleFavorite || onShare);
 
   return (
     <View style={[styles.panel, { backgroundColor: colors.surface }]}>
-      <View style={[styles.headingRow, compact && styles.headingRowCompact]}>
+      <View style={styles.headingRow}>
         <View style={styles.nameLine}>
-          <Text style={[styles.name, { color: colors.text }]}>{name}</Text>
+          <Text style={[styles.name, compact && styles.nameCompact, { color: colors.text }]}>{name}</Text>
           {verified ? (
             <BadgeCheck
               accessibilityLabel="Verified vendor"
@@ -62,7 +66,7 @@ export default function VendorInfoPanel({
           ) : null}
         </View>
         {topRated || hasActions ? (
-          <View style={[styles.headingActions, compact && styles.headingActionsCompact]}>
+          <View style={styles.headingActions}>
             {topRated ? (
               <View style={[styles.topRated, { backgroundColor: colors.badge, borderColor: colors.badgeBorder }]}>
                 <Crown size={15} color="#C78439" strokeWidth={1.8} />
@@ -70,20 +74,18 @@ export default function VendorInfoPanel({
               </View>
             ) : null}
             {onToggleFavorite ? (
-              <Pressable
-                accessibilityRole="button"
+              <FavoriteHeartButton
+                favorite={favorite}
                 accessibilityLabel={favorite ? "Remove vendor from favorites" : "Add vendor to favorites"}
-                accessibilityState={{ selected: favorite }}
                 hitSlop={8}
-                onPress={onToggleFavorite}
-                style={({ pressed }) => [
+                onToggle={onToggleFavorite}
+                style={[
                   styles.actionButton,
                   { backgroundColor: colors.actionSurface, borderColor: colors.actionBorder },
-                  pressed && styles.actionButtonPressed,
                 ]}
-              >
-                <Heart size={18} color={PINK} fill={favorite ? PINK : "transparent"} strokeWidth={1.9} />
-              </Pressable>
+                pressedStyle={styles.actionButtonPressed}
+                size={18}
+              />
             ) : null}
             {onShare ? (
               <Pressable
@@ -114,9 +116,24 @@ export default function VendorInfoPanel({
       </View>
 
       {specialties.length ? (
-        <Text style={[styles.specialties, { color: colors.muted }]}>
-          {specialties.join("  •  ")}
-        </Text>
+        <View style={styles.specialties}>
+          {specialties.slice(0, 4).map((specialty, index) => (
+            <View
+              key={`${specialty}-${index}`}
+              style={[
+                styles.specialtyChip,
+                {
+                  backgroundColor: colors.specialtySurface,
+                  borderColor: colors.specialtyBorder,
+                },
+              ]}
+            >
+              <Text numberOfLines={1} style={[styles.specialtyText, { color: colors.muted }]}>
+                {specialty}
+              </Text>
+            </View>
+          ))}
+        </View>
       ) : null}
       {children}
     </View>
@@ -136,31 +153,33 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     position: "relative",
     zIndex: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(178,113,138,.18)",
   },
   headingRow: {
     width: "100%",
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 8,
   },
-  headingRowCompact: { flexDirection: "column", gap: 5 },
   nameLine: {
     flex: 1,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     gap: 7,
   },
   name: {
     flexShrink: 1,
     fontFamily: serif,
-    fontSize: 27,
-    lineHeight: 34,
+    fontSize: 26,
+    lineHeight: 32,
     fontWeight: "700",
-    letterSpacing: -0.45,
+    letterSpacing: -0.35,
   },
+  nameCompact: { fontSize: 22, lineHeight: 27 },
   topRated: {
     flexShrink: 0,
     minHeight: 37,
@@ -184,14 +203,10 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     gap: 8,
   },
-  headingActionsCompact: {
-    alignSelf: "flex-end",
-    flexWrap: "wrap",
-  },
   actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -201,7 +216,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }],
   },
   metaRow: {
-    marginTop: 10,
+    marginTop: 9,
     minHeight: 25,
     flexDirection: "row",
     alignItems: "center",
@@ -209,9 +224,11 @@ const styles = StyleSheet.create({
     columnGap: 6,
     rowGap: 4,
   },
-  rating: { fontSize: 15, fontWeight: "700" },
-  metaText: { fontSize: 14 },
+  rating: { fontSize: 14, fontWeight: "800" },
+  metaText: { fontSize: 13 },
   separator: { fontSize: 14, paddingHorizontal: 1 },
-  location: { minWidth: 0, flexShrink: 1, fontSize: 14, lineHeight: 19 },
-  specialties: { marginTop: 6, fontSize: 14, lineHeight: 21 },
+  location: { minWidth: 0, flexShrink: 1, fontSize: 13, lineHeight: 18 },
+  specialties: { marginTop: 10, flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  specialtyChip: { maxWidth: "48%", minHeight: 28, borderRadius: 999, borderWidth: 1, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" },
+  specialtyText: { maxWidth: "100%", fontSize: 11, lineHeight: 15, fontWeight: "700" },
 });

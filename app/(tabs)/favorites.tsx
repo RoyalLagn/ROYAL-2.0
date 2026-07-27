@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Heart, Star, MapPin, Grid2x2, List } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useFavorites, FavoriteVendor } from "@/context/FavoritesContext";
 
 const { width: W } = Dimensions.get("window");
@@ -21,7 +21,7 @@ export default function FavoritesScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
-  const { favorites, removeFavorite } = useFavorites();
+  const { favorites, markFavoritesViewed, removeFavorite } = useFavorites();
 
   const [selectedCat, setSelectedCat] = useState("All");
   const [gridView, setGridView] = useState(true);
@@ -32,6 +32,12 @@ export default function FavoritesScreen() {
   const text  = isDark ? "#F5F0F3" : "#141414";
   const muted = isDark ? "#AAA0A5" : "#787178";
   const border= isDark ? "#2A2A2A" : "#EEE4F0";
+
+  useFocusEffect(
+    useCallback(() => {
+      markFavoritesViewed();
+    }, [markFavoritesViewed]),
+  );
 
   const activeCats = ["All", ...Array.from(new Set(favorites.map((v) => v.category)))];
   const displayed = selectedCat === "All"

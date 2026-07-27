@@ -75,7 +75,10 @@ export default function LoginScreen() {
   );
 
   useEffect(() => {
-    if (!authLoading && isPublicAuthenticated) router.replace("/(tabs)/profile");
+    if (!authLoading && isPublicAuthenticated) {
+      router.dismissAll();
+      router.replace("/(tabs)");
+    }
   }, [authLoading, isPublicAuthenticated, router]);
 
   const changeTab = (nextTab: AuthTab) => {
@@ -97,7 +100,8 @@ export default function LoginScreen() {
     try {
       await loginPublicUser(email, password);
       await refreshProfile();
-      router.replace("/(tabs)/profile");
+      router.dismissAll();
+      router.replace("/(tabs)");
     } catch (caught) {
       setError(getPublicAuthError(caught, "Unable to log in. Please try again."));
     } finally {

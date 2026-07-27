@@ -1,16 +1,15 @@
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { ChevronLeft, Crown, Heart } from "lucide-react-native";
+import { ChevronLeft, Crown } from "lucide-react-native";
 
 const PINK = "#E91E63";
 
 type CategoryPageHeaderProps = {
   dark: boolean;
   onBack: () => void;
-  onFavorites: () => void;
 };
 
-export default function CategoryPageHeader({ dark, onBack, onFavorites }: CategoryPageHeaderProps) {
+export default function CategoryPageHeader({ dark, onBack }: CategoryPageHeaderProps) {
   const text = dark ? "#F8F2F5" : "#15111E";
   const hover = dark ? "#2A2226" : "#FFF2F7";
 
@@ -38,18 +37,7 @@ export default function CategoryPageHeader({ dark, onBack, onFavorites }: Catego
         </View>
       </View>
 
-      <Pressable
-        accessibilityRole="link"
-        accessibilityLabel="Open favorites"
-        onPress={onFavorites}
-        style={({ pressed, hovered }) => [
-          styles.action,
-          hovered && Platform.OS === "web" && { backgroundColor: hover },
-          pressed && styles.pressed,
-        ]}
-      >
-        <Heart size={24} color={PINK} strokeWidth={2} />
-      </Pressable>
+      <View style={styles.action} />
     </View>
   );
 }

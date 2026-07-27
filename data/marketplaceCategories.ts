@@ -44,7 +44,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#FFF3EA",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["venues.png"]),
     fallbackImage: require("../assets/images/category-fallback/venues.png"),
-    homeImage: require("../assets/images/category-icons-v3/venues.png"),
+    homeImage: require("../assets/images/category-icons/venue.png"),
   },
   {
     slug: "caterers",
@@ -56,7 +56,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#FFF0F7",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["caterers.png"]),
     fallbackImage: require("../assets/images/category-fallback/caterers.png"),
-    homeImage: require("../assets/images/category-icons-v3/caterers.png"),
+    homeImage: require("../assets/images/category-icons/caterer.png"),
   },
   {
     slug: "photographers",
@@ -68,7 +68,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#EFF6FF",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["photographer.png"]),
     fallbackImage: require("../assets/images/category-fallback/photographer.png"),
-    homeImage: require("../assets/images/category-icons-v3/photographers.png"),
+    homeImage: require("../assets/images/category-icons/photographer.png"),
   },
   {
     slug: "decorators",
@@ -80,7 +80,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#F0FDF4",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["decoraters.png"]),
     fallbackImage: require("../assets/images/category-fallback/decoraters.png"),
-    homeImage: require("../assets/images/category-icons-v3/decorators.png"),
+    homeImage: require("../assets/images/category-icons/decorater.png"),
   },
   {
     slug: "makeup-artists",
@@ -92,7 +92,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#FFF1F1",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["makeup.png"]),
     fallbackImage: require("../assets/images/category-fallback/makeup.png"),
-    homeImage: require("../assets/images/category-icons-v3/makeup-artists.png"),
+    homeImage: require("../assets/images/category-icons/makeup.png"),
   },
   {
     slug: "mehndi-artists",
@@ -104,7 +104,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#FFF3EA",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["mehendi artist.png"]),
     fallbackImage: require("../assets/images/category-fallback/mehendi-artist.png"),
-    homeImage: require("../assets/images/category-icons-v3/mehndi-artists.png"),
+    homeImage: require("../assets/images/category-icons/mehendi.png"),
   },
   {
     slug: "djs",
@@ -116,7 +116,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#F5F3FF",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["DJ.png"]),
     fallbackImage: require("../assets/images/category-fallback/DJ.png"),
-    homeImage: require("../assets/images/category-icons-v3/djs.png"),
+    homeImage: require("../assets/images/category-icons/DJ.png"),
   },
   {
     slug: "bridal-wear",
@@ -128,7 +128,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#FFF0F7",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["bridal wear.png"]),
     fallbackImage: require("../assets/images/category-fallback/bridal-wear.png"),
-    homeImage: require("../assets/images/category-icons-v3/bridal-wear.png"),
+    homeImage: require("../assets/images/category-icons/bride-outfit.png"),
   },
   {
     slug: "groom-wear",
@@ -140,7 +140,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#EFF6FF",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["groom wear.png"]),
     fallbackImage: require("../assets/images/category-fallback/groom-wear.png"),
-    homeImage: require("../assets/images/category-icons-v3/groom-wear.png"),
+    homeImage: require("../assets/images/category-icons/groom-outfit.png"),
   },
   {
     slug: "jewellery-accessories",
@@ -152,7 +152,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#FFFBEA",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["jewelwry & accessories.png"]),
     fallbackImage: require("../assets/images/category-fallback/jewellery-accessories.png"),
-    homeImage: require("../assets/images/category-icons-v3/jewellery-accessories.png"),
+    homeImage: require("../assets/images/category-icons/jewellwry.png"),
   },
   {
     slug: "pandits",
@@ -164,7 +164,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#FFF3EA",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["pandits.png"]),
     fallbackImage: require("../assets/images/category-fallback/pandits.png"),
-    homeImage: require("../assets/images/category-icons-v3/pandits.png"),
+    homeImage: require("../assets/images/category-icons/pandit.png"),
   },
   {
     slug: "invites-cards",
@@ -176,7 +176,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#F5F3FF",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["invite&cards.png"]),
     fallbackImage: require("../assets/images/category-fallback/invites-cards.png"),
-    homeImage: require("../assets/images/category-icons-v3/invites-cards.png"),
+    homeImage: require("../assets/images/category-icons/invitation cards.png"),
   },
   {
     slug: "pre-wedding-shoot",
@@ -188,7 +188,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#EFF6FF",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["pre-wedding shoot.png"]),
     fallbackImage: require("../assets/images/category-fallback/pre-wedding-shoot.png"),
-    homeImage: require("../assets/images/category-icons-v3/pre-wedding-shoot.png"),
+    homeImage: require("../assets/images/category-icons/pre wedding.png"),
   },
   {
     slug: "music-dance",
@@ -200,7 +200,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     iconBg: "#FFF0F7",
     cloudinaryImage: cloudinaryCardImage(categoryImageUrls["dance.png"]),
     fallbackImage: require("../assets/images/category-fallback/dance.png"),
-    homeImage: require("../assets/images/category-icons-v3/dance-choreography.png"),
+    homeImage: require("../assets/images/category-icons/dance.png"),
   },
 ] as const;
 

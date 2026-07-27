@@ -1,9 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronRight, Search as SearchIcon } from "lucide-react-native";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
 import { useColorScheme } from "nativewind";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import {
@@ -34,6 +43,7 @@ export default function SearchScreen() {
   const router = useRouter();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
+  const { width } = useWindowDimensions();
   const { getRating } = useReviewRatings();
   const params = useLocalSearchParams<{
     query?: string;
@@ -132,22 +142,29 @@ export default function SearchScreen() {
 
   const submit = () => setQuery(draftQuery.trim());
   const activeFilterCount = [minimumRating > 0, maximumBudget > 0, Boolean(selectedCategory), availabilityOnly, nearbyOnly, sort !== "recommended"].filter(Boolean).length;
+  const horizontalInset = width < 380 ? 14 : width < 600 ? 16 : 24;
+  const contentWidth = Math.min(width - horizontalInset * 2, 980);
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace("/(tabs)");
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-      <View className="flex-row items-center px-4 py-3 border-b border-border">
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" className="w-10 h-10 rounded-full bg-muted items-center justify-center" onPress={() => router.back()}>
+      <View style={[styles.searchHeader, { width: contentWidth }]}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          className="w-10 h-10 rounded-full bg-muted items-center justify-center"
+          onPress={goBack}
+        >
           <ArrowLeft size={20} className="text-foreground" />
         </TouchableOpacity>
-        <View className="ml-3 flex-1">
-          <Text className="text-xl font-bold text-foreground">Global Search</Text>
-          <Text className="text-2xs text-muted-foreground">Vendors, categories, services and pages</Text>
-        </View>
-      </View>
-
-      <View className="mx-4 mt-4">
         <CompactSearchBar
-          accessibilityLabel="Global keyword search"
+          accessibilityLabel="Search vendors, categories and services"
           value={draftQuery}
           onChangeText={(value) => {
             setDraftQuery(value);
@@ -156,11 +173,16 @@ export default function SearchScreen() {
           onSubmit={submit}
           placeholder="Search vendors, categories, services…"
           dark={isDark}
-          style={{ width: "100%" }}
+          style={styles.search}
         />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40, gap: 12 }}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.results, { width: contentWidth }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View className="flex-row items-center justify-between">
           <Text className="text-sm text-muted-foreground">{results.length} vendor results</Text>
           {activeFilterCount ? <Text className="text-primary text-xs font-semibold">{activeFilterCount} filters active</Text> : null}
@@ -213,6 +235,31 @@ export default function SearchScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      <StandaloneMobileTabBar activeRoute="index" />
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  searchHeader: {
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingTop: 10,
+    paddingBottom: 10,
+  },
+  search: {
+    flex: 1,
+    minWidth: 0,
+    height: 46,
+  },
+  scroll: { flex: 1 },
+  results: {
+    alignSelf: "center",
+    paddingTop: 6,
+    paddingBottom: 28,
+    gap: 12,
+  },
+});

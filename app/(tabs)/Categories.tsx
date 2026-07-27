@@ -94,14 +94,21 @@ export default function CategoriesScreen() {
     });
   }, [categories, query, selectedCategory]);
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace("/(tabs)");
+  };
+
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
       <View style={[s.topContent, { width: contentWidth }]}>
         <HomeReveal direction="down">
           <CategoryPageHeader
             dark={isDark}
-            onBack={() => router.back()}
-            onFavorites={() => router.push("/(tabs)/favorites")}
+            onBack={goBack}
           />
         </HomeReveal>
         <HomeReveal delay={45}>

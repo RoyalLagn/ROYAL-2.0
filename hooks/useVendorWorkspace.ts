@@ -14,6 +14,7 @@ export type VendorWorkspace = {
   vendor: any | null;
   albums: any[];
   media: any[];
+  heroMedia: any[];
   availability: any[];
   enquiries: any[];
   notifications: any[];
@@ -23,7 +24,7 @@ export type VendorWorkspace = {
 };
 
 const emptyWorkspace: VendorWorkspace = {
-  vendor: null, albums: [], media: [], availability: [], enquiries: [],
+  vendor: null, albums: [], media: [], heroMedia: [], availability: [], enquiries: [],
   notifications: [], reviews: [], services: [], subscription: null,
 };
 
@@ -84,9 +85,10 @@ export function useVendorWorkspace() {
         return;
       }
       const today = new Date().toISOString().slice(0, 10);
-      const [albums, media, availability, enquiries, notifications, reviews, services, subscription] = await Promise.all([
+      const [albums, media, heroMedia, availability, enquiries, notifications, reviews, services, subscription] = await Promise.all([
         supabase.from("vendor_portfolio_albums").select("*").eq("vendor_id", vendor.id).order("display_order"),
         supabase.from("vendor_portfolio_media").select("*").eq("vendor_id", vendor.id).order("display_order"),
+        supabase.from("vendor_portfolio_hero_media").select("*").eq("vendor_id", vendor.id).order("display_order"),
         supabase.from("vendor_availability").select("*").eq("vendor_id", vendor.id).gte("date", today).order("date").limit(12),
         supabase.from("vendor_enquiries").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("vendor_notifications").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),
@@ -99,7 +101,7 @@ export function useVendorWorkspace() {
       // new migration instead of failing the whole workspace.
       const failed = [reviews, services, subscription].find((result) => result.error);
       if (failed?.error) throw failed.error;
-      const portfolioFailure = albums.error ?? media.error;
+      const portfolioFailure = albums.error ?? media.error ?? heroMedia.error;
       if (portfolioFailure) {
         setPortfolioError(
           /does not exist|schema cache|PGRST205|42P01/i.test(portfolioFailure.message)
@@ -111,6 +113,7 @@ export function useVendorWorkspace() {
         vendor,
         albums: albums.data ?? [],
         media: media.data ?? [],
+        heroMedia: heroMedia.data ?? [],
         availability: availability.data ?? [],
         enquiries: enquiries.data ?? [],
         notifications: notifications.data ?? [],

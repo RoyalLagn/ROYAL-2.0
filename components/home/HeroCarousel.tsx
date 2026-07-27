@@ -23,7 +23,6 @@ type HeroSlide = {
   eyebrow: string;
   title: string;
   highlightedText: string;
-  description: string;
   ctaLabel: string;
   route: "/(tabs)/Categories" | "/VendorsListing";
   category?: string;
@@ -36,7 +35,6 @@ const HERO_SLIDES: HeroSlide[] = [
     eyebrow: "YOUR WEDDING, BEAUTIFULLY PLANNED",
     title: "Plan Your",
     highlightedText: "Dream Wedding",
-    description: "Everything from venues to photography, made effortless.",
     ctaLabel: "Explore Vendors",
     route: "/(tabs)/Categories",
   },
@@ -46,7 +44,6 @@ const HERO_SLIDES: HeroSlide[] = [
     eyebrow: "CELEBRATE SOMEWHERE EXTRAORDINARY",
     title: "Discover",
     highlightedText: "Picture-Perfect Venues",
-    description: "Find beautiful wedding spaces near {{city}}.",
     ctaLabel: "View Venues",
     route: "/VendorsListing",
     category: "Venues",
@@ -57,7 +54,6 @@ const HERO_SLIDES: HeroSlide[] = [
     eyebrow: "STORIES WORTH REMEMBERING",
     title: "Capture Every",
     highlightedText: "Beautiful Moment",
-    description: "Explore trusted photographers for your special day.",
     ctaLabel: "Find Photographers",
     route: "/VendorsListing",
     category: "Photographers",
@@ -68,7 +64,6 @@ const HERO_SLIDES: HeroSlide[] = [
     eyebrow: "MAKE THE CELEBRATION YOURS",
     title: "Celebrate in",
     highlightedText: "Your Own Style",
-    description: "Discover decorators, caterers and wedding specialists.",
     ctaLabel: "Browse Services",
     route: "/(tabs)/Categories",
   },
@@ -76,11 +71,10 @@ const HERO_SLIDES: HeroSlide[] = [
 
 type HeroCarouselProps = {
   width: number;
-  city: string;
   desktop: boolean;
 };
 
-export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps) {
+export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
   const heroHeight = desktop
     ? Math.min(320, Math.max(280, Math.round(width * 0.245)))
     : Math.min(210, Math.max(185, Math.round(width * 0.54)));
@@ -194,11 +188,8 @@ export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps
             />
             <View style={[styles.copy, narrow && styles.copyNarrow, desktop && styles.copyDesktop]}>
               <Text numberOfLines={1} style={[styles.eyebrow, narrow && styles.eyebrowNarrow]}>{slide.eyebrow}</Text>
-              <Text numberOfLines={2} style={[styles.title, narrow && styles.titleNarrow, desktop && styles.titleDesktop]}>{slide.title}</Text>
-              <Text numberOfLines={2} style={[styles.highlight, narrow && styles.highlightNarrow, desktop && styles.highlightDesktop]}>{slide.highlightedText}</Text>
-              <Text numberOfLines={3} style={[styles.description, narrow && styles.descriptionNarrow, desktop && styles.descriptionDesktop]}>
-                {slide.description.replace("{{city}}", city)}
-              </Text>
+              <Text numberOfLines={1} style={[styles.title, narrow && styles.titleNarrow, desktop && styles.titleDesktop]}>{slide.title}</Text>
+              <Text numberOfLines={1} style={[styles.highlight, narrow && styles.highlightNarrow, desktop && styles.highlightDesktop]}>{slide.highlightedText}</Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`${slide.ctaLabel}: ${slide.highlightedText}`}
@@ -259,19 +250,16 @@ const styles = StyleSheet.create({
   copy: { position: "absolute", left: 0, top: 0, bottom: 0, width: "69%", paddingHorizontal: 20, justifyContent: "center" },
   copyNarrow: { width: "72%", paddingHorizontal: 14 },
   copyDesktop: { width: "50%", paddingHorizontal: 42 },
-  eyebrow: { color: "#F5D7E2", fontSize: 7.5, lineHeight: 10, fontWeight: "900", letterSpacing: 1.05, marginBottom: 6 },
-  eyebrowNarrow: { fontSize: 6, lineHeight: 8, letterSpacing: 0.75, marginBottom: 3 },
+  eyebrow: { color: "#F5D7E2", fontSize: 7.5, lineHeight: 10, fontWeight: "900", letterSpacing: 1.05, marginBottom: 8 },
+  eyebrowNarrow: { fontSize: 6, lineHeight: 8, letterSpacing: 0.75, marginBottom: 6 },
   title: { color: "#FFFFFF", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 19, lineHeight: 22, fontWeight: "700" },
   titleNarrow: { fontSize: 16, lineHeight: 18 },
   titleDesktop: { fontSize: 28, lineHeight: 32 },
   highlight: { color: "#FF2A73", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 20, lineHeight: 23, fontWeight: "700" },
   highlightNarrow: { fontSize: 17, lineHeight: 19 },
   highlightDesktop: { fontSize: 30, lineHeight: 34 },
-  description: { maxWidth: 310, color: "#FFFFFF", fontSize: 9.5, lineHeight: 13, marginTop: 5 },
-  descriptionNarrow: { fontSize: 8.5, lineHeight: 11, marginTop: 3 },
-  descriptionDesktop: { maxWidth: 420, fontSize: 11.5, lineHeight: 17, marginTop: 6 },
-  cta: { minHeight: 31, alignSelf: "flex-start", marginTop: 7, paddingHorizontal: 11, borderRadius: 999, backgroundColor: PINK, flexDirection: "row", alignItems: "center", gap: 3, shadowColor: "#3D0D20", shadowOpacity: 0.16, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
-  ctaNarrow: { minHeight: 28, marginTop: 5, paddingHorizontal: 9 },
+  cta: { minHeight: 29, alignSelf: "flex-start", marginTop: 10, paddingHorizontal: 10, borderRadius: 999, backgroundColor: PINK, flexDirection: "row", alignItems: "center", gap: 3, shadowColor: "#3D0D20", shadowOpacity: 0.16, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
+  ctaNarrow: { minHeight: 27, marginTop: 8, paddingHorizontal: 8 },
   ctaHover: { transform: [{ translateY: -1 }], backgroundColor: "#D81758" },
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   ctaText: { color: "#FFFFFF", fontSize: 9.5, fontWeight: "800" },

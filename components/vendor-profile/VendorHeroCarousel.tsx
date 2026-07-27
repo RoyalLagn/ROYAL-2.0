@@ -22,10 +22,13 @@ export type VendorHeroCarouselProps = {
   vendorName: string;
   fallbackImage?: CarouselImage;
   onBack: () => void;
+  onOpen?: (index: number) => void;
+  focalPoints?: { x: number; y: number }[];
+  paused?: boolean;
   intervalMs?: number;
 };
 
-const DEFAULT_INTERVAL = 4500;
+const DEFAULT_INTERVAL = 3500;
 const MANUAL_PAUSE_MS = 6500;
 
 function remoteUri(source?: CarouselImage) {
@@ -37,6 +40,9 @@ export default function VendorHeroCarousel({
   vendorName,
   fallbackImage,
   onBack,
+  onOpen,
+  focalPoints = [],
+  paused = false,
   intervalMs = DEFAULT_INTERVAL,
 }: VendorHeroCarouselProps) {
   const insets = useSafeAreaInsets();
@@ -111,10 +117,10 @@ export default function VendorHeroCarousel({
   useEffect(() => {
     if (sources.length < 2 || reducedMotion) return;
     const timer = setInterval(() => {
-      if (!pausedRef.current) showIndex(indexRef.current + 1);
-    }, Math.max(4000, Math.min(5000, intervalMs)));
+      if (!paused && !pausedRef.current) showIndex(indexRef.current + 1);
+    }, Math.max(3000, Math.min(5000, intervalMs)));
     return () => clearInterval(timer);
-  }, [intervalMs, reducedMotion, showIndex, sources.length]);
+  }, [intervalMs, paused, reducedMotion, showIndex, sources.length]);
 
   useEffect(() => () => {
     if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
@@ -142,9 +148,9 @@ export default function VendorHeroCarousel({
   return (
     <Pressable
       onPress={(event) => {
-        if (Platform.OS !== "web" || sources.length < 2) return;
-        const pageX = event.nativeEvent.pageX;
-        manuallyShow(indexRef.current + (pageX >= width / 2 ? 1 : -1));
+        event.stopPropagation();
+        pauseTemporarily();
+        onOpen?.(indexRef.current);
       }}
       onHoverIn={() => {
         if (Platform.OS === "web") {
@@ -162,10 +168,15 @@ export default function VendorHeroCarousel({
         <Animated.Image
           source={currentSource}
           defaultSource={fallbackImage}
-          resizeMode="cover"
+          resizeMode="contain"
           accessibilityLabel={`${vendorName} gallery image ${index + 1}`}
           onError={() => setFailed((current) => new Set(current).add(index))}
-          style={[styles.image, { opacity }]}
+          style={[
+            styles.image,
+            {
+              opacity,
+            } as any,
+          ]}
         />
       ) : null}
 
@@ -195,6 +206,11 @@ export default function VendorHeroCarousel({
         </View>
       ) : null}
 
+      {sources.length > 1 ? <>
+        <View style={styles.dots}>
+          {sources.map((_source, dotIndex) => <View key={dotIndex} style={[styles.dot, dotIndex === index && styles.dotActive]} />)}
+        </View>
+      </> : null}
     </Pressable>
   );
 }
@@ -206,7 +222,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
-    backgroundColor: "#E8DCE1",
+    backgroundColor: "#050505",
   },
   image: { width: "100%", height: "100%" },
   topControls: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 18 },
@@ -233,4 +249,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(28,20,23,.66)",
   },
   counterText: { color: "#FFFFFF", fontSize: 12, lineHeight: 16, fontWeight: "700" },
+  dots: { position: "absolute", bottom: 13, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 5 },
+  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,.5)" },
+  dotActive: { width: 16, backgroundColor: "#FFF" },
 });

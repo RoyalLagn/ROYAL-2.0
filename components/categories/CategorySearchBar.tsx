@@ -9,6 +9,8 @@ type CategorySearchBarProps = {
   dark: boolean;
   query: string;
   activeFilterCount?: number;
+  accessibilityLabel?: string;
+  placeholder?: string;
   onChangeQuery: (value: string) => void;
   onOpenFilters: () => void;
 };
@@ -17,6 +19,8 @@ export default function CategorySearchBar({
   dark,
   query,
   activeFilterCount = 0,
+  accessibilityLabel = "Search categories",
+  placeholder = "Search categories…",
   onChangeQuery,
   onOpenFilters,
 }: CategorySearchBarProps) {
@@ -25,10 +29,10 @@ export default function CategorySearchBar({
   return (
     <View style={styles.row}>
       <CompactSearchBar
-        accessibilityLabel="Search categories"
+        accessibilityLabel={accessibilityLabel}
         value={query}
         onChangeText={onChangeQuery}
-        placeholder="Search categories…"
+        placeholder={placeholder}
         dark={dark}
         style={styles.search}
       />

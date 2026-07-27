@@ -25,11 +25,17 @@ Deno.serve(async (request) => {
     const { mediaId, vendorId, publicId, resourceType } = await request.json();
     let media: { id?: string; public_id: string; resource_type: "image" | "video"; vendor_id: string } | null = null;
     if (mediaId) {
-      // The owner-only media RLS policy is the authorization boundary here.
       const { data } = await supabase.from("vendor_portfolio_media")
         .select("id,public_id,resource_type,vendor_id")
         .eq("id", mediaId).maybeSingle();
       media = data as typeof media;
+      if (media) {
+        const [{ data: ownedVendor }, { data: profile }] = await Promise.all([
+          supabase.from("vendors").select("id").eq("id", media.vendor_id).eq("profile_id", user.id).maybeSingle(),
+          supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+        ]);
+        if (!ownedVendor && profile?.role !== "admin") media = null;
+      }
     } else if (vendorId && publicId) {
       const { data: vendor } = await supabase.from("vendors")
         .select("id").eq("id", vendorId).eq("profile_id", user.id).maybeSingle();

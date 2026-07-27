@@ -1,6 +1,6 @@
 import React from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text } from "react-native";
-import { ArrowUpDown, ChevronDown, SlidersHorizontal, Star, Tag } from "lucide-react-native";
+import { ArrowUpDown, ChevronDown, Star, Tag } from "lucide-react-native";
 
 const PINK = "#E91E63";
 
@@ -10,16 +10,14 @@ type CategoryFilterChipsProps = {
     sort: boolean;
     price: boolean;
     rating: boolean;
-    filters: boolean;
   };
-  onPress: (section: "sort" | "price" | "rating" | "filters") => void;
+  onPress: (section: "sort" | "price" | "rating") => void;
 };
 
 const CHIPS = [
   { key: "sort" as const, label: "Sort", icon: ArrowUpDown, dropdown: false },
   { key: "price" as const, label: "Price", icon: Tag, dropdown: true },
   { key: "rating" as const, label: "Rating", icon: Star, dropdown: true },
-  { key: "filters" as const, label: "Filters", icon: SlidersHorizontal, dropdown: false },
 ];
 
 export default function CategoryFilterChips({ dark, active, onPress }: CategoryFilterChipsProps) {

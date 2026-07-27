@@ -62,7 +62,7 @@ export default function VendorQuickActions({
   whatsAppDisabled = false,
   enquireDisabled = false,
 }: VendorQuickActionsProps) {
-  const labelColor = dark ? "#D5C9CE" : "#5F555A";
+  const labelColor = dark ? "#E4DADF" : "#4F454A";
 
   return (
     <View style={styles.row}>
@@ -74,7 +74,7 @@ export default function VendorQuickActions({
         disabled={callDisabled}
         onPress={onCall}
         labelColor={labelColor}
-        icon={<Phone size={24} color="#D93D70" strokeWidth={1.9} />}
+        icon={<Phone size={21} color="#D93D70" strokeWidth={1.9} />}
       />
       <ActionItem
         label="WhatsApp"
@@ -84,7 +84,7 @@ export default function VendorQuickActions({
         disabled={whatsAppDisabled}
         onPress={onWhatsApp}
         labelColor={labelColor}
-        icon={<MessageCircle size={26} color="#25A84A" strokeWidth={1.9} />}
+        icon={<MessageCircle size={22} color="#25A84A" strokeWidth={1.9} />}
       />
       <ActionItem
         label="Enquire"
@@ -94,7 +94,7 @@ export default function VendorQuickActions({
         disabled={enquireDisabled}
         onPress={onEnquire}
         labelColor={labelColor}
-        icon={<CalendarDays size={24} color="#815AD9" strokeWidth={1.9} />}
+        icon={<CalendarDays size={21} color="#815AD9" strokeWidth={1.9} />}
       />
     </View>
   );
@@ -106,25 +106,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-around",
-    paddingTop: 24,
-    paddingBottom: 22,
+    paddingTop: 20,
+    paddingBottom: 16,
   },
   action: {
     width: "30%",
     maxWidth: 130,
     minWidth: 78,
     alignItems: "center",
-    gap: 8,
+    gap: 7,
   },
   circle: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
-  label: { fontSize: 13, fontWeight: "500", textAlign: "center" },
+  label: { fontSize: 12, lineHeight: 16, fontWeight: "700", textAlign: "center" },
   actionHovered: { transform: [{ translateY: -1 }] },
   actionPressed: { transform: [{ scale: 0.98 }], opacity: 0.88 },
   disabled: { opacity: 0.45 },

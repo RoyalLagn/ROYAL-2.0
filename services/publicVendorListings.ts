@@ -3,6 +3,12 @@ import {
   listReviewSummaries,
   type ReviewSummary,
 } from "@/services/reviews";
+import {
+  portfolioMediaUrl,
+  stableHeroSelection,
+  type PublicPortfolioAlbum,
+  type VendorPortfolioMedia,
+} from "@/services/vendorPortfolio";
 
 export type PublicVendorListing = {
   id: string;
@@ -27,6 +33,8 @@ export type PublicVendorListing = {
   instagram: string;
   facebook: string;
   portfolioImages: string[];
+  portfolioAlbums: PublicPortfolioAlbum[];
+  heroMedia: VendorPortfolioMedia[];
 };
 
 export type PublicMarketplaceCategory = {
@@ -56,13 +64,50 @@ const PUBLIC_VENDOR_DETAIL_SELECT = `
   website,
   instagram,
   facebook,
-  vendor_portfolio_media(
-    secure_url,
-    thumbnail_url,
-    resource_type,
+  vendor_portfolio_albums(
+    id,
+    vendor_id,
+    title,
+    description,
     display_order,
-    is_cover,
-    upload_status
+    is_visible,
+    media_count,
+    cover_media_id,
+    created_at,
+    updated_at,
+    media:vendor_portfolio_media!vendor_portfolio_media_album_id_fkey(
+      id,
+      vendor_id,
+      album_id,
+      secure_url,
+      optimized_url,
+      hero_url,
+      fullscreen_url,
+      public_id,
+      resource_type,
+      format,
+      width,
+      height,
+      aspect_ratio,
+      duration,
+      bytes,
+      original_size_bytes,
+      optimized_size_bytes,
+      thumbnail_url,
+      video_poster_url,
+      focal_point_x,
+      focal_point_y,
+      display_order,
+      is_cover,
+      upload_status,
+      processing_status,
+      created_at,
+      updated_at
+    )
+  ),
+  vendor_portfolio_hero_media(
+    media_id,
+    display_order
   )
 `;
 
@@ -118,16 +163,36 @@ function normalizeVendor(
     (availability: any) =>
       availability.status === "available" && availability.date >= today,
   );
-  const portfolioImages = (row.vendor_portfolio_media ?? [])
-    .filter((media: any) => media.upload_status === "completed")
-    .sort((a: any, b: any) =>
-      Number(Boolean(b.is_cover)) - Number(Boolean(a.is_cover))
-      || Number(a.display_order ?? 0) - Number(b.display_order ?? 0),
-    )
-    .map((media: any) =>
-      media.resource_type === "video" ? media.thumbnail_url : media.secure_url,
-    )
-    .filter((url: unknown): url is string => typeof url === "string" && Boolean(url));
+  const portfolioAlbums: PublicPortfolioAlbum[] = (row.vendor_portfolio_albums ?? [])
+    .filter((album: any) => album.is_visible)
+    .sort((a: any, b: any) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0))
+    .map((album: any) => {
+      const media = (album.media ?? [])
+        .filter((item: any) =>
+          item.upload_status === "completed"
+          && (item.processing_status ?? "ready") === "ready",
+        )
+        .sort((a: any, b: any) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0)) as VendorPortfolioMedia[];
+      const cover = media.find((item) => item.id === album.cover_media_id)
+        ?? media.find((item) => item.is_cover)
+        ?? media[0]
+        ?? null;
+      return {
+        ...album,
+        media,
+        media_count: media.length,
+        cover,
+        hasVideo: media.some((item) => item.resource_type === "video"),
+      };
+    })
+    .filter((album: PublicPortfolioAlbum) => album.media.length > 0);
+  const selectedHeroIds = (row.vendor_portfolio_hero_media ?? [])
+    .sort((a: any, b: any) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0))
+    .map((selection: any) => selection.media_id);
+  const heroMedia = stableHeroSelection(portfolioAlbums, selectedHeroIds);
+  const portfolioImages = portfolioAlbums
+    .flatMap((album) => album.media)
+    .map((media) => portfolioMediaUrl(media, "card"));
 
   return {
     id: row.id,
@@ -154,6 +219,8 @@ function normalizeVendor(
     instagram: row.instagram?.trim() || "",
     facebook: row.facebook?.trim() || "",
     portfolioImages,
+    portfolioAlbums,
+    heroMedia,
   };
 }
 
@@ -283,6 +350,16 @@ export function subscribeToPublicVendorChanges(onChange: () => void) {
       .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "vendor_portfolio_media" },
+      scheduleMarketplaceChanged,
+      )
+      .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "vendor_portfolio_albums" },
+      scheduleMarketplaceChanged,
+      )
+      .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "vendor_portfolio_hero_media" },
       scheduleMarketplaceChanged,
       )
       .on(

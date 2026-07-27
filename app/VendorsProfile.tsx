@@ -14,14 +14,17 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { ChevronRight } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFavorites } from "@/context/FavoritesContext";
+import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import PackagesCard from "@/components/vendor-profile/PackagesCard";
-import PortfolioGallery, { type PortfolioItem } from "@/components/vendor-profile/PortfolioGallery";
+import FullscreenMediaViewer from "@/components/vendor-profile/FullscreenMediaViewer";
+import PortfolioAlbums from "@/components/vendor-profile/PortfolioAlbums";
 import ServiceChips from "@/components/vendor-profile/ServiceChips";
-import StickyQuoteBar, { STICKY_QUOTE_BAR_MIN_HEIGHT } from "@/components/vendor-profile/StickyQuoteBar";
 import VendorHeroCarousel from "@/components/vendor-profile/VendorHeroCarousel";
 import VendorInfoPanel from "@/components/vendor-profile/VendorInfoPanel";
 import VendorQuickActions from "@/components/vendor-profile/VendorQuickActions";
+import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
 import ConnectedVendorReviews from "@/components/reviews/ConnectedVendorReviews";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import {
@@ -29,6 +32,7 @@ import {
   subscribeToPublicVendorChanges,
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
+import { portfolioMediaUrl } from "@/services/vendorPortfolio";
 
 const PINK = "#E91E63";
 const CATEGORY_FALLBACKS: Record<string, number> = {
@@ -67,6 +71,7 @@ function SectionHeading({ children, dark }: { children: React.ReactNode; dark: b
 
 export default function VendorsProfile() {
   const { colorScheme } = useColorScheme();
+  const insets = useSafeAreaInsets();
   const dark = colorScheme === "dark";
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -80,6 +85,7 @@ export default function VendorsProfile() {
   const { isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
   const [expanded, setExpanded] = useState(false);
+  const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -115,43 +121,61 @@ export default function VendorsProfile() {
     };
   }, [vendorId]);
 
-  const background = dark ? "#151315" : "#FFF9FB";
-  const surface = dark ? "#1E1C1D" : "#FFFFFF";
-  const text = dark ? "#F8F1F4" : "#261A20";
-  const muted = dark ? "#B8ABB1" : "#71666C";
+  const background = dark ? "#070B14" : "#FFF9FB";
+  const surface = dark ? "#0E141F" : "#FFFFFF";
+  const text = dark ? "#FFF8FB" : "#1D1519";
+  const muted = dark ? "#C6BAC0" : "#62575D";
+  const sectionSurface = dark ? "#151B27" : "#FFFFFF";
+  const sectionBorder = dark ? "#2D3748" : "#F0DDE4";
   const contentWidth = Math.min(width, 1120);
+  const sectionCardStyle = {
+    backgroundColor: sectionSurface,
+    borderColor: sectionBorder,
+  };
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace({
+      pathname: "/VendorsListing",
+      params: { category },
+    });
+  };
 
-  const portfolioItems = useMemo<PortfolioItem[]>(
+  const heroImages = useMemo(
     () => vendor
-      ? [vendor.image, ...vendor.portfolioImages].filter(Boolean).map((image, index) => ({
-          id: `${vendor.id}-${index}`,
-          image: enhanceImage(image),
-          alt: `${vendor.name} portfolio image ${index + 1}`,
-        }))
+      ? vendor.heroMedia.length
+        ? vendor.heroMedia.map((media) => ({ uri: portfolioMediaUrl(media, "hero") }))
+        : [vendor.image].filter(Boolean).map((image) => ({ uri: enhanceImage(image) }))
       : [],
     [vendor],
   );
-  const heroImages = useMemo(
-    () => vendor
-      ? [vendor.image, ...vendor.portfolioImages].filter(Boolean).map((image) => ({ uri: enhanceImage(image) }))
-      : [],
+  const heroFocalPoints = useMemo(
+    () => vendor?.heroMedia.map((media) => ({
+      x: Number(media.focal_point_x ?? .5),
+      y: Number(media.focal_point_y ?? .5),
+    })) ?? [],
     [vendor],
   );
 
   if (loading || !vendor) {
     return (
-      <View style={[styles.notFound, { backgroundColor: background }]}>
-        <Text style={[styles.notFoundTitle, { color: text }]}>
-          {loading ? "Loading vendor…" : "Vendor is currently unavailable"}
-        </Text>
-        {!loading ? (
-          <>
-            {loadError ? <Text style={[styles.loadError, { color: muted }]}>{loadError}</Text> : null}
-            <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.goBack}>
-              <Text style={styles.goBackText}>Go back</Text>
-            </Pressable>
-          </>
-        ) : null}
+      <View style={[styles.root, { backgroundColor: background }]}>
+        <View style={styles.notFound}>
+          <Text style={[styles.notFoundTitle, { color: text }]}>
+            {loading ? "Loading vendor…" : "Vendor is currently unavailable"}
+          </Text>
+          {!loading ? (
+            <>
+              {loadError ? <Text style={[styles.loadError, { color: muted }]}>{loadError}</Text> : null}
+              <Pressable accessibilityRole="button" onPress={goBack} style={styles.goBack}>
+                <Text style={styles.goBackText}>Go back</Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+        <StandaloneMobileTabBar activeRoute="Categories" />
       </View>
     );
   }
@@ -159,12 +183,15 @@ export default function VendorsProfile() {
   const favorite = isFavorite(vendor.id);
   const displayedRating = getRating(vendor.id, vendor.rating, vendor.reviews);
   const fallbackImage = CATEGORY_FALLBACKS[category] ?? CATEGORY_FALLBACKS.Photographers;
-  const about = vendor.description || `${vendor.name} is a verified ${category.toLowerCase()} vendor serving ${vendor.location}.`;
+  const vendorDescription = vendor.description?.trim() ?? "";
+  const about = vendorDescription.length >= 40
+    ? vendorDescription
+    : `${vendor.name} is a verified ${category.toLowerCase()} professional serving ${vendor.location}. Explore their services, portfolio and customer reviews to find the right fit for your celebration.`;
   const aboutCopy = expanded || about.length <= 180 ? about : `${about.slice(0, 177).trim()}…`;
   const placeholder = (title: string) =>
     Alert.alert(title, `${title} is available as a local frontend placeholder.`);
 
-  const toggleVendorFavorite = () => toggleFavorite({
+  const toggleVendorFavorite = (source: FavoriteSourceRef) => toggleFavorite({
     id: vendor.id,
     name: vendor.name,
     category,
@@ -175,20 +202,24 @@ export default function VendorsProfile() {
     location: vendor.location,
     tags: vendor.tags,
     image: vendor.image,
-  });
+  }, source);
 
   return (
     <View style={[styles.root, { backgroundColor: background }]}>
       <ScrollView
+        style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: STICKY_QUOTE_BAR_MIN_HEIGHT + 52 }}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 92 + insets.bottom }]}
       >
         <View style={[styles.page, { width: contentWidth, backgroundColor: surface }]}>
           <VendorHeroCarousel
             images={heroImages}
             fallbackImage={fallbackImage}
             vendorName={vendor.name}
-            onBack={() => router.back()}
+            onBack={goBack}
+            focalPoints={heroFocalPoints}
+            paused={heroViewerIndex !== null}
+            onOpen={vendor.heroMedia.length ? setHeroViewerIndex : undefined}
           />
 
           <VendorInfoPanel
@@ -216,14 +247,14 @@ export default function VendorsProfile() {
             />
           </VendorInfoPanel>
 
-          <View style={styles.content}>
+          <View style={[styles.content, width < 600 && styles.contentCompact]}>
             <PackagesCard
               price={vendor.startingPrice}
               dark={dark}
               onPress={() => placeholder("Packages")}
             />
 
-            <View style={styles.section}>
+            <View style={[styles.section, styles.sectionCard, sectionCardStyle]}>
               <SectionHeading dark={dark}>About</SectionHeading>
               <Text style={[styles.aboutText, { color: muted }]}>{aboutCopy}</Text>
               {about.length > 180 ? (
@@ -248,17 +279,31 @@ export default function VendorsProfile() {
             </View>
 
             {vendor.contactPhone || vendor.contactEmail || vendor.website || vendor.instagram || vendor.facebook ? (
-              <View style={styles.section}>
+              <View style={[styles.section, styles.sectionCard, sectionCardStyle]}>
                 <SectionHeading dark={dark}>Contact & Social</SectionHeading>
                 <View style={styles.contactLinks}>
                   {vendor.contactPhone ? (
-                    <Pressable onPress={() => Linking.openURL(`tel:${vendor.contactPhone}`)}>
-                      <Text style={styles.contactLink}>{vendor.contactPhone}</Text>
+                    <Pressable
+                      accessibilityRole="link"
+                      onPress={() => Linking.openURL(`tel:${vendor.contactPhone}`)}
+                      style={[styles.contactLink, {
+                        backgroundColor: dark ? "#24202A" : "#FFF3F7",
+                        borderColor: dark ? "#4C3540" : "#EDC7D4",
+                      }]}
+                    >
+                      <Text style={[styles.contactLinkText, { color: dark ? "#FF9BBC" : "#922E51" }]}>{vendor.contactPhone}</Text>
                     </Pressable>
                   ) : null}
                   {vendor.contactEmail ? (
-                    <Pressable onPress={() => Linking.openURL(`mailto:${vendor.contactEmail}`)}>
-                      <Text style={styles.contactLink}>{vendor.contactEmail}</Text>
+                    <Pressable
+                      accessibilityRole="link"
+                      onPress={() => Linking.openURL(`mailto:${vendor.contactEmail}`)}
+                      style={[styles.contactLink, {
+                        backgroundColor: dark ? "#24202A" : "#FFF3F7",
+                        borderColor: dark ? "#4C3540" : "#EDC7D4",
+                      }]}
+                    >
+                      <Text style={[styles.contactLinkText, { color: dark ? "#FF9BBC" : "#922E51" }]}>{vendor.contactEmail}</Text>
                     </Pressable>
                   ) : null}
                   {[
@@ -266,43 +311,55 @@ export default function VendorsProfile() {
                     ["Instagram", vendor.instagram],
                     ["Facebook", vendor.facebook],
                   ].filter((entry) => entry[1]).map(([label, url]) => (
-                    <Pressable key={label} onPress={() => Linking.openURL(/^https?:\/\//i.test(url) ? url : `https://${url}`)}>
-                      <Text style={styles.contactLink}>{label}</Text>
+                    <Pressable
+                      key={label}
+                      accessibilityRole="link"
+                      onPress={() => Linking.openURL(/^https?:\/\//i.test(url) ? url : `https://${url}`)}
+                      style={[styles.contactLink, {
+                        backgroundColor: dark ? "#24202A" : "#FFF3F7",
+                        borderColor: dark ? "#4C3540" : "#EDC7D4",
+                      }]}
+                    >
+                      <Text style={[styles.contactLinkText, { color: dark ? "#FF9BBC" : "#922E51" }]}>{label}</Text>
                     </Pressable>
                   ))}
                 </View>
               </View>
             ) : null}
 
-            <View style={styles.section}>
-              <SectionHeading dark={dark}>Services</SectionHeading>
-              <ServiceChips services={vendor.services} dark={dark} />
-            </View>
+            {vendor.services.length ? (
+              <View style={[styles.section, styles.sectionCard, sectionCardStyle]}>
+                <SectionHeading dark={dark}>Services</SectionHeading>
+                <ServiceChips services={vendor.services} dark={dark} />
+              </View>
+            ) : null}
 
-            <View style={styles.portfolioSection}>
-              <PortfolioGallery
-                items={portfolioItems}
+            {vendor.portfolioAlbums.length ? <View style={[styles.portfolioSection, styles.sectionCard, sectionCardStyle]}>
+              <PortfolioAlbums
+                albums={vendor.portfolioAlbums}
                 dark={dark}
-                fallbackImage={fallbackImage}
-                onViewAll={() => placeholder("Portfolio")}
-                onOpenItem={(_item, index) =>
-                  Alert.alert("Portfolio Photo", `Photo ${index + 1} of ${portfolioItems.length}`)
-                }
+                onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id } })}
+                onOpenAlbum={(album) => router.push({
+                  pathname: "/VendorAlbum",
+                  params: { vendorId: vendor.id, albumId: album.id },
+                })}
               />
-            </View>
+            </View> : null}
 
-            <View style={styles.reviewsSection}>
+            <View style={[styles.reviewsSection, styles.sectionCard, sectionCardStyle]}>
               <ConnectedVendorReviews vendorKey={vendor.id} dark={dark} />
             </View>
           </View>
         </View>
       </ScrollView>
 
-      <StickyQuoteBar
-        price={vendor.startingPrice}
-        priceLabel="Starting from"
-        dark={dark}
-        onRequestQuote={() => placeholder("Request Quote")}
+      <StandaloneMobileTabBar activeRoute="Categories" />
+      <FullscreenMediaViewer
+        visible={heroViewerIndex !== null}
+        media={vendor.heroMedia}
+        initialIndex={heroViewerIndex ?? 0}
+        title={`${vendor.name} · Hero gallery`}
+        onClose={() => setHeroViewerIndex(null)}
       />
     </View>
   );
@@ -312,6 +369,8 @@ const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia,
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingBottom: 20 },
   page: {
     maxWidth: "100%",
     alignSelf: "center",
@@ -321,33 +380,34 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 6 },
   },
-  content: { paddingHorizontal: 20, paddingTop: 12 },
-  section: { marginTop: 30 },
-  portfolioSection: { marginTop: 27, marginBottom: 12 },
-  reviewsSection: { marginTop: 30, marginBottom: 18 },
-  sectionHeadingWrap: { alignSelf: "flex-start", marginBottom: 12 },
+  content: { width: "100%", maxWidth: 960, alignSelf: "center", paddingHorizontal: 22, paddingTop: 16 },
+  contentCompact: { paddingHorizontal: 14, paddingTop: 14 },
+  section: { marginTop: 16 },
+  sectionCard: { borderWidth: 1, borderRadius: 20, padding: 16 },
+  portfolioSection: { marginTop: 16 },
+  reviewsSection: { marginTop: 16, marginBottom: 16 },
+  sectionHeadingWrap: { alignSelf: "flex-start", marginBottom: 10 },
   sectionHeading: {
     fontFamily: serif,
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: "600",
-    letterSpacing: -0.25,
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: "700",
+    letterSpacing: -0.15,
   },
   ornament: { width: 82, height: 8, flexDirection: "row", alignItems: "center", gap: 4 },
   ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#D6A054" },
   ornamentDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#D6A054" },
-  aboutText: { maxWidth: 900, fontSize: 14, lineHeight: 23 },
-  contactLinks: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  aboutText: { maxWidth: 900, fontSize: 14, lineHeight: 22, fontWeight: "400" },
+  contactLinks: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   contactLink: {
-    color: PINK,
     borderWidth: 1,
-    borderColor: "#EDC4D2",
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    fontSize: 13,
-    fontWeight: "600",
+    minHeight: 36,
+    paddingHorizontal: 13,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  contactLinkText: { fontSize: 12, lineHeight: 16, fontWeight: "700" },
   readMore: {
     minHeight: 38,
     alignSelf: "flex-end",
@@ -358,7 +418,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   readMoreHover: { transform: [{ translateX: 2 }] },
-  readMoreText: { color: PINK, fontFamily: serif, fontSize: 15, fontWeight: "600" },
+  readMoreText: { color: PINK, fontSize: 13, fontWeight: "800" },
   pressed: { opacity: 0.7 },
   notFound: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
   notFoundTitle: { fontFamily: serif, fontSize: 23, fontWeight: "700" },

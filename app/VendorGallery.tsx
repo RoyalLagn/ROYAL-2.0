@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { CheckCircle2, ChevronLeft, ChevronRight, Eye, FolderOpen, ImagePlus, Images, Maximize2, Move, Pencil, Play, Plus, RotateCcw, Star, Trash2, Upload, X } from "lucide-react-native";
+import { CheckCircle2, ChevronLeft, ChevronRight, Crosshair, Eye, FolderOpen, ImagePlus, Images, Maximize2, Move, Pencil, Play, Plus, RotateCcw, Star, Trash2, Upload, X } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
@@ -10,6 +10,7 @@ import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { deletePortfolioMedia, deleteUnstoredPortfolioAsset, pickPortfolioMedia, type PortfolioAsset, uploadPortfolioAsset } from "@/services/cloudinary";
 import { supabase } from "@/services/supabase";
 import PortfolioVideoPlayer from "@/components/vendor/PortfolioVideoPlayer";
+import { portfolioAssetFingerprint, portfolioMediaUrl, PORTFOLIO_LIMITS, replaceHeroMedia, updateMediaFocalPoint } from "@/services/vendorPortfolio";
 
 export default function VendorGallery() {
   const router = useRouter();
@@ -41,6 +42,10 @@ export default function VendorGallery() {
   const [uploadModal, setUploadModal] = useState(false);
   const [moveMediaItem, setMoveMediaItem] = useState<any>(null);
   const [moveAlbumSource, setMoveAlbumSource] = useState<any>(null);
+  const [heroDraft, setHeroDraft] = useState<string[]>([]);
+  const [savingHero, setSavingHero] = useState(false);
+  const [focalMedia, setFocalMedia] = useState<any>(null);
+  const [focalFrame, setFocalFrame] = useState({ width: 1, height: 1 });
   const columns = width >= 900 ? 4 : width >= 600 ? 3 : 2;
   const gap = 10;
   const contentWidth = Math.min(width, 1120) - (width >= 900 ? 56 : 32);
@@ -52,7 +57,14 @@ export default function VendorGallery() {
     [data.media, preview?.album_id],
   );
   const previewIndex = previewMedia.findIndex((item) => item.id === preview?.id);
-  const remainingCapacity = Math.max(0, 25 - media.length);
+  const remainingCapacity = Math.max(0, PORTFOLIO_LIMITS.mediaPerAlbum - media.length);
+  const readyHeroImages = useMemo(() => data.media.filter((item) =>
+    item.resource_type === "image"
+    && item.upload_status === "completed"
+    && (item.processing_status ?? "ready") === "ready"
+    && data.albums.some((album) => album.id === item.album_id && album.is_visible),
+  ), [data.albums, data.media]);
+  const requiredHeroCount = Math.min(PORTFOLIO_LIMITS.heroMin, readyHeroImages.length);
   const uploading = Object.values(uploadProgress).some((task) =>
     task.status === "signing" || task.status === "uploading" || task.status === "processing");
   const showFailure = (title: string, caught: unknown, message = "Please check your connection and try again.") => {
@@ -61,8 +73,55 @@ export default function VendorGallery() {
   };
 
   useFocusEffect(React.useCallback(() => { refresh(); }, [refresh]));
+  useEffect(() => {
+    setHeroDraft(data.heroMedia.map((item) => item.media_id));
+  }, [data.heroMedia]);
+
+  const toggleHeroImage = (mediaId: string) => {
+    setHeroDraft((current) => {
+      if (current.includes(mediaId)) return current.filter((id) => id !== mediaId);
+      if (current.length >= PORTFOLIO_LIMITS.heroMax) {
+        Alert.alert("Hero gallery is full", "Choose no more than 8 images.");
+        return current;
+      }
+      return [...current, mediaId];
+    });
+  };
+  const moveHeroImage = (mediaId: string, direction: -1 | 1) => {
+    setHeroDraft((current) => {
+      const next = [...current];
+      const index = next.indexOf(mediaId);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= next.length) return current;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+  const saveHeroGallery = async () => {
+    if (!data.vendor?.id) return;
+    if (heroDraft.length > 0 && heroDraft.length < requiredHeroCount) {
+      return Alert.alert(
+        "Choose more hero images",
+        `Select ${requiredHeroCount}–${PORTFOLIO_LIMITS.heroMax} images, or clear the selection to use the automatic gallery.`,
+      );
+    }
+    setSavingHero(true);
+    try {
+      await replaceHeroMedia(data.vendor.id, heroDraft);
+      await refresh();
+      Alert.alert("Hero gallery saved", heroDraft.length ? "Your selected images will appear in this order." : "RoyalLagn will choose stable album images automatically.");
+    } catch (caught) {
+      showFailure("Hero gallery not saved", caught);
+    } finally {
+      setSavingHero(false);
+    }
+  };
 
   const openAlbum = (album?: any) => {
+    if (!album && data.albums.length >= PORTFOLIO_LIMITS.albums) {
+      Alert.alert("Album limit reached", "You can create up to 5 portfolio albums. Edit an existing album or delete one before creating another.");
+      return;
+    }
     setEditingAlbum(album ?? null);
     setTitle(album?.title ?? "");
     setDescription(album?.description ?? "");
@@ -72,6 +131,9 @@ export default function VendorGallery() {
   const saveAlbum = async (addMediaAfterSave = false) => {
     if (!data.vendor?.id) return Alert.alert("Vendor profile required", "Connect your Vendor profile before creating albums.");
     if (!title.trim()) return Alert.alert("Album title required");
+    if (!editingAlbum && data.albums.length >= PORTFOLIO_LIMITS.albums) {
+      return Alert.alert("Album limit reached", "You can create up to 5 portfolio albums.");
+    }
     const duplicate = data.albums.some((album) =>
       album.id !== editingAlbum?.id && album.title.trim().toLowerCase() === title.trim().toLowerCase());
     if (duplicate) return Alert.alert("Album name already used", "Choose a different name for this album.");
@@ -129,7 +191,7 @@ export default function VendorGallery() {
   };
   const moveMediaToAlbum = async (item: any, target: any) => {
     const targetCount = data.media.filter((entry) => entry.album_id === target.id).length;
-    if (targetCount >= 25) return Alert.alert("Album is full", "Choose an album with available space.");
+    if (targetCount >= PORTFOLIO_LIMITS.mediaPerAlbum) return Alert.alert("Album is full", "Choose an album with available space.");
     const { error: moveError } = await supabase.from("vendor_portfolio_media")
       .update({ album_id: target.id, display_order: targetCount, is_cover: targetCount === 0 })
       .eq("id", item.id).eq("vendor_id", data.vendor?.id);
@@ -143,8 +205,8 @@ export default function VendorGallery() {
     if (!moveAlbumSource) return;
     const sourceItems = data.media.filter((item) => item.album_id === moveAlbumSource.id);
     const targetCount = data.media.filter((item) => item.album_id === target.id).length;
-    if (targetCount + sourceItems.length > 25) {
-      return Alert.alert("Not enough room", `${target.title} has room for ${25 - targetCount} more items. Choose another album.`);
+    if (targetCount + sourceItems.length > PORTFOLIO_LIMITS.mediaPerAlbum) {
+      return Alert.alert("Not enough room", `${target.title} has room for ${PORTFOLIO_LIMITS.mediaPerAlbum - targetCount} more items. Choose another album.`);
     }
     setDeletingAlbumId(moveAlbumSource.id);
     try {
@@ -173,8 +235,8 @@ export default function VendorGallery() {
     currentMediaCount = media.length,
   ) => {
     if (!data.vendor?.id || !targetAlbumId) return Alert.alert("Create an album first", "Portfolio media must belong to an album.");
-    const targetRemaining = Math.max(0, 25 - currentMediaCount);
-    if (!targetRemaining) return Alert.alert("Album is full", "Each album can hold 25 photos or videos. Create another album to upload more.");
+    const targetRemaining = Math.max(0, PORTFOLIO_LIMITS.mediaPerAlbum - currentMediaCount);
+    if (!targetRemaining) return Alert.alert("Album is full", "Each album can hold 15 photos or videos. Create another album to upload more.");
     try {
       const selected = await pickPortfolioMedia(Math.min(12, targetRemaining));
       const unique = selected.filter((asset, index, all) =>
@@ -182,15 +244,24 @@ export default function VendorGallery() {
           candidate.uri === asset.uri
           || (candidate.fileName && candidate.fileName === asset.fileName && candidate.fileSize === asset.fileSize)
         ) === index);
-      if (!unique.length) return;
-      if (unique.length > targetRemaining) {
+      const existingFingerprints = new Set(data.media.map((item) => item.source_fingerprint).filter(Boolean));
+      const withoutStoredDuplicates = unique.filter((asset) => !existingFingerprints.has(portfolioAssetFingerprint(asset)));
+      if (withoutStoredDuplicates.length < unique.length) {
+        Alert.alert("Duplicate media skipped", `${unique.length - withoutStoredDuplicates.length} file${unique.length - withoutStoredDuplicates.length === 1 ? " was" : "s were"} already in your portfolio.`);
+      }
+      const longVideos = withoutStoredDuplicates.filter((asset) => asset.type === "video" && (asset.duration ?? 0) > PORTFOLIO_LIMITS.videoWarningSeconds * 1000);
+      if (longVideos.length) {
+        Alert.alert("Long video", `${longVideos.length} selected video${longVideos.length === 1 ? " is" : "s are"} over 3 minutes. Processing may take longer; the 4-minute limit still applies.`);
+      }
+      if (!withoutStoredDuplicates.length) return;
+      if (withoutStoredDuplicates.length > targetRemaining) {
         return Alert.alert("Too many files", `This album has room for ${targetRemaining} more media item${targetRemaining === 1 ? "" : "s"}.`);
       }
       setUploadAlbumId(targetAlbumId);
       setUploadAlbumTitle(targetAlbumTitle);
       setUploadAlbumInitialCount(currentMediaCount);
-      setPendingAssets(unique);
-      setUploadProgress(Object.fromEntries(unique.map((asset, index) => {
+      setPendingAssets(withoutStoredDuplicates);
+      setUploadProgress(Object.fromEntries(withoutStoredDuplicates.map((asset, index) => {
         const key = `${asset.uri}-${index}`;
         const name = asset.fileName || `${asset.type === "video" ? "Video" : "Image"} ${index + 1}`;
         return [key, { name, progress: 0, status: "waiting" as const }];
@@ -213,9 +284,14 @@ export default function VendorGallery() {
           vendor_id: data.vendor.id, album_id: uploadAlbumId, secure_url: uploaded.secureUrl,
           public_id: uploaded.publicId, resource_type: uploaded.resourceType, format: uploaded.format,
           width: uploaded.width, height: uploaded.height, duration: uploaded.duration, bytes: uploaded.bytes,
+          original_size_bytes: uploaded.originalBytes, optimized_size_bytes: uploaded.optimizedBytes,
+          optimized_url: uploaded.optimizedUrl, hero_url: uploaded.heroUrl,
+          fullscreen_url: uploaded.fullscreenUrl, video_poster_url: uploaded.videoPosterUrl,
+          aspect_ratio: uploaded.width && uploaded.height ? uploaded.width / uploaded.height : null,
+          source_fingerprint: portfolioAssetFingerprint(asset),
           thumbnail_url: uploaded.thumbnailUrl, display_order: uploadAlbumInitialCount + index,
           is_cover: uploadAlbumInitialCount === 0 && index === 0,
-          upload_status: "completed",
+          upload_status: "completed", processing_status: "ready",
         });
         if (insertError) {
           await deleteUnstoredPortfolioAsset(data.vendor.id, uploaded.publicId, uploaded.resourceType).catch(() => undefined);
@@ -289,7 +365,10 @@ export default function VendorGallery() {
       showFailure("Album order not updated", orderError);
     } else refresh();
   };
-  const removeMedia = (item: any) => Alert.alert("Delete media?", "This removes the Cloudinary asset and cannot be undone.", [
+  const removeMedia = (item: any) => Alert.alert(
+    "Delete media?",
+    `${heroDraft.includes(item.id) ? "This image is selected for the public hero gallery and will be removed from it. " : ""}This removes the Cloudinary asset and cannot be undone.`,
+    [
     { text: "Cancel", style: "cancel" },
     { text: "Delete", style: "destructive", onPress: async () => {
       try {
@@ -303,7 +382,8 @@ export default function VendorGallery() {
       }
       catch (caught) { showFailure("Media not deleted", caught, "Nothing was removed. Please check your connection and try again."); }
     }},
-  ]);
+    ],
+  );
 
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
@@ -314,11 +394,11 @@ export default function VendorGallery() {
       overScrollMode="never"
     >
       <View style={styles.headingRow}>
-        <View style={styles.flex}><Text style={[styles.eyebrow, { color: colors.pink }]}>YOUR BEST WORK</Text><Text style={[styles.title, { color: colors.text }]}>Portfolio</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Organise images and videos into polished customer-facing albums.</Text></View>
-        <Pressable onPress={() => openAlbum()} style={[styles.primary, { backgroundColor: colors.pink }]}><Plus size={18} color="#FFF" /><Text style={styles.primaryText}>Album</Text></Pressable>
+        <View style={styles.flex}><Text style={[styles.eyebrow, { color: colors.pink }]}>YOUR BEST WORK</Text><Text style={[styles.title, { color: colors.text }]}>Portfolio & Albums</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Organise images and videos into polished albums shown on your public profile.</Text></View>
+        <Pressable onPress={() => openAlbum()} style={[styles.primary, { backgroundColor: colors.pink }, data.albums.length >= PORTFOLIO_LIMITS.albums && { opacity: .65 }]}><Plus size={18} color="#FFF" /><Text style={styles.primaryText}>Album</Text></Pressable>
       </View>
       <View style={styles.summaryGrid}>
-        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.summaryValue, { color: colors.text }]}>{data.albums.length}</Text><Text style={[styles.summaryLabel, { color: colors.muted }]}>Albums</Text></View>
+        <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.summaryValue, { color: colors.text }]}>{data.albums.length}/{PORTFOLIO_LIMITS.albums}</Text><Text style={[styles.summaryLabel, { color: colors.muted }]}>Albums used</Text></View>
         <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.summaryValue, { color: colors.text }]}>{data.media.length}</Text><Text style={[styles.summaryLabel, { color: colors.muted }]}>Photos & videos</Text></View>
         <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.summaryValue, { color: colors.text }]}>{data.albums.filter((album) => album.is_visible).length}</Text><Text style={[styles.summaryLabel, { color: colors.muted }]}>Visible albums</Text></View>
       </View>
@@ -339,6 +419,46 @@ export default function VendorGallery() {
         </View>)}
       </View> : null}
 
+      {readyHeroImages.length ? <View style={[styles.heroManager, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.heroManagerHeader}>
+          <View style={styles.flex}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile Hero Gallery</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>
+              Select {requiredHeroCount}–{PORTFOLIO_LIMITS.heroMax} ready images. Clear all to use automatic album covers.
+            </Text>
+          </View>
+          <Text style={[styles.heroCount, { color: colors.pink, backgroundColor: colors.surfaceSoft }]}>{heroDraft.length}/{PORTFOLIO_LIMITS.heroMax}</Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.heroPicker}>
+          {readyHeroImages.map((item) => {
+            const selectedIndex = heroDraft.indexOf(item.id);
+            const selected = selectedIndex >= 0;
+            return <View key={item.id} style={styles.heroPickerItem}>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: selected }}
+                accessibilityLabel={`${selected ? "Remove" : "Select"} hero image`}
+                onPress={() => toggleHeroImage(item.id)}
+                style={[styles.heroThumb, { borderColor: selected ? colors.pink : colors.border, backgroundColor: colors.surfaceSoft }]}
+              >
+                <Image source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
+                {selected ? <View style={[styles.heroOrder, { backgroundColor: colors.pink }]}><Text style={styles.heroOrderText}>{selectedIndex + 1}</Text></View> : null}
+              </Pressable>
+              {selected ? <View style={styles.heroMoveRow}>
+                <Pressable accessibilityLabel="Move hero image earlier" onPress={() => moveHeroImage(item.id, -1)} style={[styles.heroMoveButton, { borderColor: colors.border }]}><ChevronLeft size={14} color={colors.text} /></Pressable>
+                <Pressable accessibilityLabel="Move hero image later" onPress={() => moveHeroImage(item.id, 1)} style={[styles.heroMoveButton, { borderColor: colors.border }]}><ChevronRight size={14} color={colors.text} /></Pressable>
+              </View> : null}
+            </View>;
+          })}
+        </ScrollView>
+        <View style={styles.heroActions}>
+          <Pressable onPress={() => setHeroDraft([])} style={[styles.orderButton, { borderColor: colors.border }]}><Text style={[styles.orderText, { color: colors.text }]}>Use automatic</Text></Pressable>
+          <Pressable disabled={savingHero} onPress={saveHeroGallery} style={[styles.heroSave, { backgroundColor: colors.pink }]}>
+            {savingHero ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>Save hero gallery</Text>}
+          </Pressable>
+        </View>
+      </View> : null}
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumStrip}>
         {data.albums.map((album) => {
           const albumMedia = data.media.filter((item) => item.album_id === album.id);
@@ -346,13 +466,13 @@ export default function VendorGallery() {
           const active = activeAlbum?.id === album.id;
           return <Pressable key={album.id} onPress={() => setSelectedAlbumId(album.id)}
             style={[styles.album, { backgroundColor: colors.surface, borderColor: active ? colors.pink : colors.border }]}>
-            <View style={[styles.albumCover, { backgroundColor: colors.surfaceSoft }]}>
-              {cover ? <Image source={{ uri: cover.thumbnail_url || cover.secure_url }} style={StyleSheet.absoluteFillObject} /> : <Images size={23} color={colors.muted} />}
+            <View style={styles.albumCover}>
+              {cover ? <Image source={{ uri: portfolioMediaUrl(cover, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} /> : <Images size={23} color={colors.muted} />}
             </View>
             <View style={styles.flex}>
               <Text numberOfLines={1} style={[styles.albumTitle, { color: colors.text }]}>{album.title}</Text>
-              <Text style={[styles.albumCount, { color: colors.muted }]}>{albumMedia.length}/25 · {album.is_visible ? "Visible" : "Hidden"}</Text>
-              <View style={[styles.albumCapacity, { backgroundColor: colors.border }]}><View style={{ width: `${albumMedia.length / 25 * 100}%`, height: "100%", backgroundColor: colors.pink }} /></View>
+              <Text style={[styles.albumCount, { color: colors.muted }]}>{albumMedia.length}/{PORTFOLIO_LIMITS.mediaPerAlbum} · {album.is_visible ? "Published" : "Draft"}</Text>
+              <View style={[styles.albumCapacity, { backgroundColor: colors.border }]}><View style={{ width: `${albumMedia.length / PORTFOLIO_LIMITS.mediaPerAlbum * 100}%`, height: "100%", backgroundColor: colors.pink }} /></View>
             </View>
             <Pressable accessibilityLabel={`Preview ${album.title} album`} onPress={() => setAlbumPreview(album)} style={styles.albumPreviewButton}>
               <Maximize2 size={14} color={active ? colors.pink : colors.muted} />
@@ -378,7 +498,7 @@ export default function VendorGallery() {
           </Pressable>
         </View>
         <View style={styles.orderRow}>
-          <Text style={[styles.orderLabel, { color: colors.muted }]}>{media.length}/25 media · {remainingCapacity} remaining</Text>
+          <Text style={[styles.orderLabel, { color: colors.muted }]}>{media.length}/{PORTFOLIO_LIMITS.mediaPerAlbum} media · {remainingCapacity} remaining</Text>
           <Pressable accessibilityLabel="Move album earlier" onPress={() => reorderAlbum(-1)} style={[styles.orderButton, { borderColor: colors.border }]}><ChevronLeft size={15} color={colors.text} /><Text style={[styles.orderText, { color: colors.text }]}>Earlier</Text></Pressable>
           <Pressable accessibilityLabel="Move album later" onPress={() => reorderAlbum(1)} style={[styles.orderButton, { borderColor: colors.border }]}><Text style={[styles.orderText, { color: colors.text }]}>Later</Text><ChevronRight size={15} color={colors.text} /></Pressable>
         </View>
@@ -386,11 +506,11 @@ export default function VendorGallery() {
           {uploading ? <ActivityIndicator color={colors.pink} /> : <Upload size={19} color={colors.pink} />}
           <Text style={{ color: colors.pink, fontWeight: "700", fontSize: 13 }}>{uploading ? "Uploading securely…" : remainingCapacity === 0 ? "Album limit reached" : "Add images or videos"}</Text>
         </Pressable>
-        {remainingCapacity === 0 && <View style={[styles.capacityNotice, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.capacityText, { color: colors.muted }]}>This album contains 25 media items. Create another album to continue uploading.</Text><Pressable onPress={() => openAlbum()}><Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>Create album</Text></Pressable></View>}
+        {remainingCapacity === 0 && <View style={[styles.capacityNotice, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.capacityText, { color: colors.muted }]}>This album contains 15 media items. Create another album to continue uploading.</Text><Pressable onPress={() => openAlbum()}><Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>Create album</Text></Pressable></View>}
         <View style={[styles.mediaGrid, { gap }]}>
           {media.map((item) => <Pressable key={item.id} onPress={() => setPreview(item)} style={{ width: tileWidth }}>
-            <View style={[styles.tile, { height: tileWidth * 0.8, backgroundColor: colors.surfaceSoft }]}>
-              <Image source={{ uri: item.thumbnail_url || item.secure_url }} style={StyleSheet.absoluteFillObject} />
+            <View style={[styles.tile, { height: tileWidth * 0.8 }]}>
+              <Image source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
               {item.resource_type === "video" && <View style={styles.play}><Play size={18} fill="#FFF" color="#FFF" /></View>}
               {item.resource_type === "video" && item.duration ? <View style={styles.durationBadge}><Text style={styles.durationText}>{Math.floor(item.duration / 60)}:{String(Math.round(item.duration % 60)).padStart(2, "0")}</Text></View> : null}
               {item.is_cover && <View style={[styles.coverBadge, { backgroundColor: colors.pink }]}><Star size={10} color="#FFF" fill="#FFF" /><Text style={styles.coverText}>Cover</Text></View>}
@@ -406,7 +526,7 @@ export default function VendorGallery() {
       <View style={styles.modalBackdrop}><View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.sheetHeader}><Text style={[styles.sectionTitle, { color: colors.text }]}>{editingAlbum ? "Edit album" : "New album"}</Text><Pressable onPress={() => setAlbumModal(false)}><X size={21} color={colors.text} /></Pressable></View>
         <Text style={[styles.inputLabel, { color: colors.text }]}>Album title</Text>
-        <TextInput value={title} onChangeText={setTitle} maxLength={80} placeholder="e.g. Intimate weddings" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
+        <TextInput value={title} onChangeText={setTitle} maxLength={60} placeholder="e.g. Intimate weddings" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
         <Text style={[styles.inputLabel, { color: colors.text }]}>Description</Text>
         <TextInput value={description} onChangeText={setDescription} multiline maxLength={300} placeholder="What makes this collection special?" placeholderTextColor={colors.muted} style={[styles.input, styles.textarea, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
         <View style={[styles.visibilityRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
@@ -450,12 +570,15 @@ export default function VendorGallery() {
               const completed = task?.status === "completed";
               const failed = task?.status === "failed";
               return <View key={`${asset.uri}-${index}`} style={[styles.uploadAsset, { backgroundColor: colors.background, borderColor: failed ? colors.warning : colors.border }]}>
-                <View style={[styles.uploadThumb, { backgroundColor: colors.surfaceSoft }]}>
-                  <Image source={{ uri: asset.uri }} style={StyleSheet.absoluteFillObject} />
+                <View style={styles.uploadThumb}>
+                  <Image source={{ uri: asset.uri }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
                   {asset.type === "video" && <View style={styles.miniPlay}><Play size={12} color="#FFF" fill="#FFF" /></View>}
                 </View>
                 <View style={styles.flex}>
                   <Text numberOfLines={1} style={[styles.uploadAssetName, { color: colors.text }]}>{task?.name}</Text>
+                  <Text style={[styles.uploadAssetMeta, { color: colors.muted }]}>
+                    {[asset.fileSize ? `${(asset.fileSize / 1024 / 1024).toFixed(1)} MB` : null, asset.type === "video" && asset.duration ? `${Math.round(asset.duration / 1000)} sec` : null].filter(Boolean).join(" · ")}
+                  </Text>
                   <Text style={[styles.uploadStatus, { color: failed ? colors.warning : completed ? colors.pink : colors.muted }]}>
                     {task?.status === "waiting" ? "Ready" : task?.status === "signing" ? "Securing upload…" : task?.status === "uploading" ? `${Math.round(task.progress * 100)}% uploaded` : task?.status === "processing" ? "Finalising…" : completed ? "Stored successfully" : "Upload failed. Tap retry."}
                   </Text>
@@ -473,7 +596,7 @@ export default function VendorGallery() {
           </ScrollView>
           <View style={[styles.uploadFooter, { borderTopColor: colors.border }]}>
             <View style={styles.flex}>
-              <Text style={[styles.modalHint, { color: colors.muted, margin: 0 }]}>Limits: images 15 MB, videos 80 MB. Assets are saved only after Cloudinary confirms the upload.</Text>
+              <Text style={[styles.modalHint, { color: colors.muted, margin: 0 }]}>Final limits: images 8 MB, videos 25 MB and 4 minutes. Cloudinary optimizes every asset before it becomes public.</Text>
               {pendingAssets.length > 0 && <Text style={[styles.overallProgress, { color: colors.pink }]}>Overall {Math.round(Object.values(uploadProgress).reduce((sum, task) => sum + task.progress, 0) / pendingAssets.length * 100)}%</Text>}
             </View>
             <Pressable
@@ -503,8 +626,8 @@ export default function VendorGallery() {
           </View>
           <View style={[styles.mediaGrid, { gap }]}>
             {data.media.filter((item) => item.album_id === albumPreview?.id).map((item) => <Pressable key={item.id} onPress={() => { setAlbumPreview(null); setPreview(item); }} style={{ width: tileWidth }}>
-              <View style={[styles.tile, { height: tileWidth * .8, backgroundColor: colors.surfaceSoft }]}>
-                <Image source={{ uri: item.thumbnail_url || item.secure_url }} style={StyleSheet.absoluteFillObject} />
+              <View style={[styles.tile, { height: tileWidth * .8 }]}>
+                <Image source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
                 {item.resource_type === "video" && <View style={styles.play}><Play size={18} fill="#FFF" color="#FFF" /></View>}
                 {item.is_cover && <View style={[styles.coverBadge, { backgroundColor: colors.pink }]}><Star size={10} color="#FFF" fill="#FFF" /><Text style={styles.coverText}>Cover</Text></View>}
               </View>
@@ -541,9 +664,42 @@ export default function VendorGallery() {
           <Pressable accessibilityLabel="Move media later" onPress={() => reorderMedia(preview, 1)} style={styles.previewButton}><Text style={styles.previewText}>Later →</Text></Pressable>
           {data.albums.length > 1 && <Pressable onPress={() => setMoveMediaItem(preview)} style={styles.previewButton}><Move size={17} color="#FFF" /><Text style={styles.previewText}>Move</Text></Pressable>}
           {!preview.is_cover && <Pressable onPress={() => { setCover(preview); setPreview(null); }} style={styles.previewButton}><Star size={17} color="#FFF" /><Text style={styles.previewText}>Set cover</Text></Pressable>}
+          {preview.resource_type === "image" && <Pressable onPress={() => { setFocalMedia(preview); setPreview(null); }} style={styles.previewButton}><Crosshair size={17} color="#FFF" /><Text style={styles.previewText}>Focal point</Text></Pressable>}
           <Pressable onPress={() => removeMedia(preview)} style={styles.previewButton}><Trash2 size={17} color="#FFF" /><Text style={styles.previewText}>Delete</Text></Pressable>
         </View>}
       </View>
+    </Modal>
+
+    <Modal visible={Boolean(focalMedia)} transparent animationType="fade" onRequestClose={() => setFocalMedia(null)}>
+      <View style={styles.modalBackdrop}><View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.sheetHeader}>
+          <View style={styles.flex}><Text style={[styles.sectionTitle, { color: colors.text }]}>Set focal point</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Tap the most important subject. Hero and card crops will keep this area in view.</Text></View>
+          <Pressable onPress={() => setFocalMedia(null)}><X size={21} color={colors.text} /></Pressable>
+        </View>
+        {focalMedia ? <Pressable
+          accessibilityLabel="Choose image focal point"
+          onLayout={(event) => setFocalFrame(event.nativeEvent.layout)}
+          onPress={async (event) => {
+            const x = event.nativeEvent.locationX / focalFrame.width;
+            const y = event.nativeEvent.locationY / focalFrame.height;
+            try {
+              await updateMediaFocalPoint(focalMedia.id, x, y);
+              setFocalMedia({ ...focalMedia, focal_point_x: x, focal_point_y: y });
+              await refresh();
+            } catch (caught) {
+              showFailure("Focal point not saved", caught);
+            }
+          }}
+          style={styles.focalImage}
+        >
+          <Image source={{ uri: focalMedia.hero_url || focalMedia.secure_url }} resizeMode="cover" style={StyleSheet.absoluteFillObject} />
+          <View style={[styles.focalMarker, {
+            left: `${Number(focalMedia.focal_point_x ?? .5) * 100}%`,
+            top: `${Number(focalMedia.focal_point_y ?? .5) * 100}%`,
+          }]}><Crosshair size={24} color="#FFF" /></View>
+        </Pressable> : null}
+        <Pressable onPress={() => setFocalMedia(null)} style={[styles.save, { backgroundColor: colors.pink }]}><Text style={styles.primaryText}>Done</Text></Pressable>
+      </View></View>
     </Modal>
 
     <Modal visible={Boolean(moveMediaItem || moveAlbumSource)} transparent animationType="fade" onRequestClose={() => { setMoveMediaItem(null); setMoveAlbumSource(null); }}>
@@ -556,7 +712,7 @@ export default function VendorGallery() {
           {data.albums.filter((album) => album.id !== (moveAlbumSource?.id || moveMediaItem?.album_id)).map((album) => {
             const count = data.media.filter((item) => item.album_id === album.id).length;
             const needed = moveAlbumSource ? data.media.filter((item) => item.album_id === moveAlbumSource.id).length : 1;
-            const disabled = count + needed > 25;
+            const disabled = count + needed > PORTFOLIO_LIMITS.mediaPerAlbum;
             return <Pressable
               key={album.id}
               disabled={disabled || Boolean(deletingAlbumId)}
@@ -564,7 +720,7 @@ export default function VendorGallery() {
               style={[styles.destination, { backgroundColor: colors.background, borderColor: colors.border }, disabled && { opacity: .45 }]}
             >
               <View style={[styles.destinationIcon, { backgroundColor: colors.surfaceSoft }]}><FolderOpen size={18} color={colors.pink} /></View>
-              <View style={styles.flex}><Text style={[styles.albumTitle, { color: colors.text }]}>{album.title}</Text><Text style={[styles.albumCount, { color: colors.muted }]}>{count}/25 items · {25 - count} spaces</Text></View>
+              <View style={styles.flex}><Text style={[styles.albumTitle, { color: colors.text }]}>{album.title}</Text><Text style={[styles.albumCount, { color: colors.muted }]}>{count}/{PORTFOLIO_LIMITS.mediaPerAlbum} items · {PORTFOLIO_LIMITS.mediaPerAlbum - count} spaces</Text></View>
               {deletingAlbumId ? <ActivityIndicator color={colors.pink} /> : <ChevronRight size={18} color={colors.muted} />}
             </Pressable>;
           })}
@@ -580,7 +736,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 29, lineHeight: 35, fontWeight: "800", letterSpacing: -0.8 }, subtitle: { fontSize: 12, lineHeight: 18, marginTop: 4 }, primary: { minHeight: 42, paddingHorizontal: 15, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }, primaryText: { color: "#FFF", fontWeight: "800", fontSize: 13 },
   error: { fontSize: 12, marginBottom: 12 }, albumStrip: { gap: 10, paddingBottom: 20 }, album: { width: 218, height: 72, padding: 8, borderRadius: 18, borderWidth: 1.5, flexDirection: "row", alignItems: "center", gap: 9 },
   albumPreviewButton: { width: 30, height: 34, alignItems: "center", justifyContent: "center" },
-  albumCover: { width: 54, height: 54, borderRadius: 13, overflow: "hidden", alignItems: "center", justifyContent: "center" }, albumTitle: { fontSize: 12, fontWeight: "700" }, albumCount: { fontSize: 10, marginTop: 4 },
+  albumCover: { width: 54, height: 54, borderRadius: 13, overflow: "hidden", alignItems: "center", justifyContent: "center", backgroundColor: "#050505" }, albumTitle: { fontSize: 12, fontWeight: "700" }, albumCount: { fontSize: 10, marginTop: 4 },
   albumCapacity: { height: 3, borderRadius: 3, overflow: "hidden", marginTop: 6, width: "86%" },
   skeletonGrid: { flexDirection: "row", gap: 10, paddingBottom: 20, overflow: "hidden" }, skeletonCard: { width: 218, height: 72, padding: 8, borderRadius: 18, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 9 },
   skeletonCover: { width: 54, height: 54, borderRadius: 13 }, skeletonLine: { height: 8, borderRadius: 5, marginVertical: 4 },
@@ -593,7 +749,7 @@ const styles = StyleSheet.create({
   orderText: { fontSize: 9, fontWeight: "700" },
   upload: { minHeight: 50, borderRadius: 16, borderWidth: 1, borderStyle: "dashed", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 13 },
   uploadTask: { marginBottom: 8 }, uploadTaskLabel: { flexDirection: "row", gap: 8, marginBottom: 5 }, uploadName: { flex: 1, fontSize: 10 }, uploadPercent: { fontSize: 9, fontWeight: "800" },
-  progress: { height: 5, borderRadius: 4, overflow: "hidden" }, mediaGrid: { flexDirection: "row", flexWrap: "wrap" }, tile: { width: "100%", borderRadius: 16, overflow: "hidden" },
+  progress: { height: 5, borderRadius: 4, overflow: "hidden" }, mediaGrid: { flexDirection: "row", flexWrap: "wrap" }, tile: { width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#050505" },
   play: { position: "absolute", top: "50%", left: "50%", marginLeft: -19, marginTop: -19, width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(0,0,0,.55)", alignItems: "center", justifyContent: "center" },
   coverBadge: { position: "absolute", left: 7, bottom: 7, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 4, flexDirection: "row", alignItems: "center", gap: 3 }, coverText: { color: "#FFF", fontSize: 8, fontWeight: "800" },
   durationBadge: { position: "absolute", right: 7, bottom: 7, paddingHorizontal: 6, paddingVertical: 4, backgroundColor: "rgba(0,0,0,.62)", borderRadius: 7 }, durationText: { color: "#FFF", fontSize: 8, fontWeight: "800" },
@@ -609,6 +765,18 @@ const styles = StyleSheet.create({
   summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginBottom: 18 },
   summaryCard: { flexGrow: 1, flexBasis: 130, minHeight: 72, padding: 14, borderWidth: 1, borderRadius: 17, justifyContent: "center" },
   summaryValue: { fontSize: 20, lineHeight: 24, fontWeight: "800" }, summaryLabel: { fontSize: 10, marginTop: 3 },
+  heroManager: { borderWidth: 1, borderRadius: 22, padding: 15, marginBottom: 18 },
+  heroManagerHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  heroCount: { overflow: "hidden", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, fontSize: 10, fontWeight: "800" },
+  heroPicker: { gap: 10, paddingTop: 13, paddingBottom: 10 },
+  heroPickerItem: { width: 90 },
+  heroThumb: { width: 90, height: 72, borderWidth: 2, borderRadius: 14, overflow: "hidden" },
+  heroOrder: { position: "absolute", right: 6, top: 6, width: 23, height: 23, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  heroOrderText: { color: "#FFF", fontSize: 10, fontWeight: "900" },
+  heroMoveRow: { flexDirection: "row", justifyContent: "center", gap: 5, marginTop: 5 },
+  heroMoveButton: { width: 31, height: 27, borderWidth: 1, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  heroActions: { flexDirection: "row", justifyContent: "flex-end", gap: 8, marginTop: 4 },
+  heroSave: { minHeight: 36, minWidth: 138, paddingHorizontal: 12, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   setupNotice: { borderWidth: 1, borderRadius: 16, padding: 13, marginBottom: 15 },
   setupTitle: { fontSize: 11, fontWeight: "800" }, setupBody: { fontSize: 10, lineHeight: 15, marginTop: 4 },
   connectButton: { alignSelf: "flex-start", minHeight: 36, paddingHorizontal: 13, borderRadius: 11, alignItems: "center", justifyContent: "center", marginTop: 10 },
@@ -616,14 +784,16 @@ const styles = StyleSheet.create({
   capacityText: { flex: 1, fontSize: 9, lineHeight: 13 },
   uploadSheet: { width: "100%", maxWidth: 620, maxHeight: "88%", alignSelf: "center", borderWidth: 1, borderRadius: 26, padding: 20 },
   uploadList: { maxHeight: 470, marginBottom: 14 }, uploadAsset: { minHeight: 76, borderWidth: 1, borderRadius: 16, padding: 8, flexDirection: "row", alignItems: "center", gap: 10 },
-  uploadThumb: { width: 58, height: 58, borderRadius: 12, overflow: "hidden" }, miniPlay: { position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,.28)" },
-  uploadAssetName: { fontSize: 11, fontWeight: "700" }, uploadStatus: { fontSize: 9, lineHeight: 12, marginTop: 3, marginBottom: 6 },
+  uploadThumb: { width: 58, height: 58, borderRadius: 12, overflow: "hidden", backgroundColor: "#050505" }, miniPlay: { position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,.18)" },
+  uploadAssetName: { fontSize: 11, fontWeight: "700" }, uploadAssetMeta: { fontSize: 8, lineHeight: 11, marginTop: 2 }, uploadStatus: { fontSize: 9, lineHeight: 12, marginTop: 3, marginBottom: 6 },
   taskAction: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
   uploadFooter: { paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", gap: 14 },
   overallProgress: { fontSize: 9, fontWeight: "800", marginTop: 5 },
   uploadStart: { width: 122, marginTop: 0, flexDirection: "row", gap: 7 },
   destination: { minHeight: 66, padding: 9, borderWidth: 1, borderRadius: 16, flexDirection: "row", alignItems: "center", gap: 10 },
   destinationIcon: { width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  focalImage: { width: "100%", aspectRatio: 1.45, overflow: "hidden", borderRadius: 18, backgroundColor: "#21171C", marginBottom: 14 },
+  focalMarker: { position: "absolute", width: 42, height: 42, marginLeft: -21, marginTop: -21, borderRadius: 21, backgroundColor: "rgba(233,30,99,.78)", borderWidth: 2, borderColor: "#FFF", alignItems: "center", justifyContent: "center" },
   albumPreviewBackdrop: { flex: 1 }, albumPreviewHeader: { minHeight: 82, paddingTop: 16, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", gap: 11 },
   previewEyebrow: { fontSize: 8, fontWeight: "800", letterSpacing: 1.3 }, albumPreviewTitle: { fontSize: 16, fontWeight: "800", marginTop: 2 },
   previewCount: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 }, albumPreviewContent: { width: "100%", maxWidth: 1040, alignSelf: "center", padding: 16, paddingBottom: 40 },

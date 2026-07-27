@@ -1,11 +1,13 @@
 import { useCallback } from "react";
 import { useRouter } from "expo-router";
+import { usePublicAuth } from "@/context/PublicAuthContext";
 
 export function useAuthenticationGateway() {
   const router = useRouter();
+  const { isPublicAuthenticated } = usePublicAuth();
 
   return useCallback(() => {
     router.dismissAll();
-    router.replace("/DashboardCenter");
-  }, [router]);
+    router.replace(isPublicAuthenticated ? "/(tabs)/profile" : "/DashboardCenter");
+  }, [isPublicAuthenticated, router]);
 }

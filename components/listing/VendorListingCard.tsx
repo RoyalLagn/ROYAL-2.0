@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { Crown, Heart, MapPin, Star } from "lucide-react-native";
+import { Crown, MapPin, Star } from "lucide-react-native";
+import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
+import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 
@@ -13,7 +15,7 @@ type VendorListingCardProps = {
   favorite: boolean;
   fallbackImage: number;
   onOpen: () => void;
-  onToggleFavorite: () => void;
+  onToggleFavorite: (source: FavoriteSourceRef) => void;
 };
 
 export default function VendorListingCard({
@@ -89,19 +91,18 @@ export default function VendorListingCard({
         </View>
       </Pressable>
 
-      <Pressable
-        accessibilityRole="button"
+      <FavoriteHeartButton
+        favorite={favorite}
         accessibilityLabel={favorite ? `Remove ${vendor.name} from favorites` : `Add ${vendor.name} to favorites`}
-        onPress={onToggleFavorite}
-        style={({ pressed, hovered }) => [
+        onToggle={onToggleFavorite}
+        style={[
           styles.favorite,
           { backgroundColor: dark ? "rgba(30,27,29,.92)" : "rgba(255,255,255,.94)", borderColor: border },
-          hovered && Platform.OS === "web" && { transform: [{ translateY: -1 }] },
-          pressed && styles.favoritePressed,
         ]}
-      >
-        <Heart size={17} color={PINK} fill={favorite ? PINK : "transparent"} />
-      </Pressable>
+        hoveredStyle={styles.favoriteHovered}
+        pressedStyle={styles.favoritePressed}
+        size={17}
+      />
     </View>
   );
 }
@@ -135,5 +136,6 @@ const styles = StyleSheet.create({
   price: { maxWidth: "100%", alignSelf: "flex-start", minHeight: 31, marginTop: 8, borderRadius: 999, paddingHorizontal: 11, alignItems: "center", justifyContent: "center" },
   priceText: { maxWidth: "100%", color: PINK, fontSize: 10.5, fontWeight: "800" },
   favorite: { position: "absolute", zIndex: 3, top: 12, right: 12, width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  favoriteHovered: { transform: [{ translateY: -1 }] },
   favoritePressed: { opacity: 0.72, transform: [{ scale: 0.94 }] },
 });

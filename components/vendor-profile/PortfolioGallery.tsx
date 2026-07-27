@@ -89,8 +89,8 @@ export default function PortfolioGallery({
 }: PortfolioGalleryProps) {
   const { width: viewportWidth } = useWindowDimensions();
   const thumbnailWidth = viewportWidth >= 900 ? 218 : viewportWidth >= 600 ? 190 : 156;
-  const text = dark ? "#F8F1F4" : "#241A20";
-  const muted = dark ? "#B9ABB2" : "#7A6C73";
+  const text = dark ? "#FFF8FB" : "#1D1519";
+  const muted = dark ? "#C6BAC0" : "#655A60";
 
   return (
     <View style={styles.section}>
@@ -170,10 +170,10 @@ const styles = StyleSheet.create({
   heading: {
     flexShrink: 1,
     fontFamily: serif,
-    fontSize: 25,
-    lineHeight: 31,
-    fontWeight: "600",
-    letterSpacing: -0.25,
+    fontSize: 21,
+    lineHeight: 27,
+    fontWeight: "700",
+    letterSpacing: -0.15,
   },
   viewAll: {
     minHeight: 38,
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   viewAllHovered: { opacity: 0.76, transform: [{ translateX: 2 }] },
-  viewAllText: { color: PINK, fontFamily: serif, fontSize: 16, fontWeight: "600" },
+  viewAllText: { color: PINK, fontSize: 13, fontWeight: "800" },
   chevron: { color: PINK, fontSize: 26, lineHeight: 28, fontWeight: "300" },
   ornamentRow: { width: 88, height: 8, flexDirection: "row", alignItems: "center", gap: 4 },
   ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#D8A55B" },

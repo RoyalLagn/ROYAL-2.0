@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { useRouter } from "expo-router";
 import { Grid3X3, Heart, Home, MessageSquareText, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
@@ -18,10 +19,13 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
 import { useAppTheme } from "@/components/ThemeProvider";
+import FavoriteNotificationDot from "@/components/favorites/FavoriteNotificationDot";
+import { useFavorites } from "@/context/FavoritesContext";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
 
 const PINK = "#E91E63";
@@ -30,6 +34,13 @@ const INACTIVE_LIGHT = "#6B6B73";
 const INACTIVE_DARK = "#AAA0A5";
 const HOME_ROUTE = "index";
 const TAB_COUNT = 5;
+const STANDALONE_TABS = [
+  { routeName: "Categories", label: "Category", href: "/(tabs)/Categories" },
+  { routeName: "favorites", label: "Favorites", href: "/(tabs)/favorites" },
+  { routeName: "index", label: "Home", href: "/(tabs)" },
+  { routeName: "enquiry", label: "Enquiry", href: "/(tabs)/enquiry" },
+  { routeName: "profile", label: "Profile", href: "/(tabs)/profile" },
+] as const;
 
 const AnimatedGrid = Animated.createAnimatedComponent(Grid3X3);
 const AnimatedHeart = Animated.createAnimatedComponent(Heart);
@@ -72,10 +83,19 @@ function AnimatedTab({
 }: AnimatedTabProps) {
   const active = useSharedValue(focused ? 1 : 0);
   const pressed = useSharedValue(1);
+  const arrival = useSharedValue(0);
+  const {
+    favoriteArrivalToken,
+    favoriteIndicatorToken,
+    hasUnviewedFavorites,
+    registerFavoritesDestination,
+  } = useFavorites();
   const isHome = routeName === HOME_ROUTE;
+  const isFavorites = routeName === "favorites";
   const activeColor = isDark ? ACTIVE_DARK : PINK;
   const inactiveColor = isDark ? INACTIVE_DARK : INACTIVE_LIGHT;
   const Icon = ICONS[routeName] ?? AnimatedHome;
+  const previousArrivalToken = useRef(favoriteArrivalToken);
 
   useEffect(() => {
     active.value = reducedMotion
@@ -83,12 +103,35 @@ function AnimatedTab({
       : withSpring(focused ? 1 : 0, { damping: 18, stiffness: 210, mass: 0.7 });
   }, [active, focused, reducedMotion]);
 
+  useEffect(() => {
+    if (!isFavorites || favoriteArrivalToken === previousArrivalToken.current) return;
+    previousArrivalToken.current = favoriteArrivalToken;
+    if (reducedMotion) {
+      arrival.value = 1;
+      arrival.value = withTiming(0, { duration: 220 });
+    } else {
+      arrival.value = withSequence(
+        withTiming(1, { duration: 130 }),
+        withSpring(0, { damping: 11, stiffness: 220, mass: 0.65 }),
+      );
+    }
+  }, [arrival, favoriteArrivalToken, isFavorites, reducedMotion]);
+
   const visualStyle = useAnimatedStyle<ViewStyle>(() => ({
     transform: [
       { translateY: isHome ? interpolate(active.value, [0, 1], [0, -2]) : interpolate(active.value, [0, 1], [0, -3]) },
-      { scale: pressed.value * interpolate(active.value, [0, 1], [1, isHome ? 1.06 : 1.08]) },
+      {
+        scale: pressed.value
+          * interpolate(active.value, [0, 1], [1, isHome ? 1.06 : 1.08])
+          * interpolate(arrival.value, [0, 1], [1, 1.18]),
+      },
     ],
   } as ViewStyle));
+
+  const favoritePulseStyle = useAnimatedStyle<ViewStyle>(() => ({
+    opacity: interpolate(arrival.value, [0, 0.45, 1], [0, 0.18, 0]),
+    transform: [{ scale: interpolate(arrival.value, [0, 1], [0.72, 1.55]) }],
+  }));
 
   const labelStyle = useAnimatedStyle<TextStyle>(() => ({
     color: interpolateColor(active.value, [0, 1], [inactiveColor, activeColor]),
@@ -106,8 +149,12 @@ function AnimatedTab({
   const iconProps = useAnimatedProps(() => ({
     color: isHome
       ? "#FFFFFF"
-      : interpolateColor(active.value, [0, 1], [inactiveColor, activeColor]),
-    fill: routeName === "favorites" && active.value > 0.5 ? activeColor : "transparent",
+      : isFavorites && arrival.value > 0.01
+        ? activeColor
+        : interpolateColor(active.value, [0, 1], [inactiveColor, activeColor]),
+    fill: isFavorites && (active.value > 0.5 || arrival.value > 0.01)
+      ? activeColor
+      : "transparent",
   }));
 
   const pressIn = () => {
@@ -123,7 +170,9 @@ function AnimatedTab({
     <Pressable
       accessibilityRole="tab"
       accessibilityState={focused ? { selected: true } : {}}
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={isFavorites && hasUnviewedFavorites
+        ? `${accessibilityLabel ?? "Favorites"}, new favorites available`
+        : accessibilityLabel}
       testID={testID}
       onPress={onPress}
       onLongPress={onLongPress}
@@ -138,8 +187,23 @@ function AnimatedTab({
           </Animated.View>
         </Animated.View>
       ) : (
-        <Animated.View style={[styles.regularVisual, visualStyle]}>
+        <Animated.View
+          ref={isFavorites ? registerFavoritesDestination as React.Ref<any> : undefined}
+          style={[styles.regularVisual, visualStyle]}
+        >
+          {isFavorites ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.favoritePulse, favoritePulseStyle]}
+            />
+          ) : null}
           <Icon animatedProps={iconProps} size={21} strokeWidth={focused ? 2.35 : 2} />
+          {isFavorites ? (
+            <FavoriteNotificationDot
+              visible={hasUnviewedFavorites}
+              animationToken={favoriteIndicatorToken}
+            />
+          ) : null}
         </Animated.View>
       )}
       <Animated.Text
@@ -273,6 +337,97 @@ export function MobileTabBar({
   );
 }
 
+type StandaloneMobileTabBarProps = {
+  activeRoute?: (typeof STANDALONE_TABS)[number]["routeName"];
+};
+
+/**
+ * Displays the same customer navigation on screens that intentionally live
+ * outside the Expo Router Tabs group, such as vendor listings and profiles.
+ */
+export function StandaloneMobileTabBar({
+  activeRoute = "Categories",
+}: StandaloneMobileTabBarProps) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const openAuthenticationGateway = useAuthenticationGateway();
+  const { colorScheme } = useAppTheme();
+  const reducedMotion = useReducedMotion();
+  const isDark = colorScheme === "dark";
+  const [itemsWidth, setItemsWidth] = useState(0);
+  const selectedIndex = Math.max(
+    0,
+    STANDALONE_TABS.findIndex((tab) => tab.routeName === activeRoute),
+  );
+  const activeIndex = useSharedValue(selectedIndex);
+
+  useEffect(() => {
+    activeIndex.value = reducedMotion
+      ? selectedIndex
+      : withSpring(selectedIndex, { damping: 20, stiffness: 190, mass: 0.75 });
+  }, [activeIndex, reducedMotion, selectedIndex]);
+
+  const indicatorStyle = useAnimatedStyle<ViewStyle>(() => {
+    const itemWidth = itemsWidth / TAB_COUNT;
+    return {
+      width: Math.max(0, itemWidth - 10),
+      opacity: Math.min(1, Math.abs(activeIndex.value - 2) * 2.5),
+      transform: [{ translateX: activeIndex.value * itemWidth + 5 }],
+    };
+  }, [itemsWidth]);
+
+  return (
+    <View style={styles.safeWrap}>
+      <View
+        style={[
+          styles.bar,
+          {
+            paddingBottom: insets.bottom,
+            backgroundColor: isDark ? "#0E141F" : "#FFFFFF",
+            borderColor: isDark ? "#5A2B3F" : "#F3D4DF",
+          },
+        ]}
+      >
+        <View
+          style={styles.items}
+          onLayout={(event) => setItemsWidth(event.nativeEvent.layout.width)}
+        >
+          {itemsWidth > 0 ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.activeIndicator,
+                { backgroundColor: isDark ? "rgba(236,72,153,.13)" : "#FFF0F6" },
+                indicatorStyle,
+              ]}
+            />
+          ) : null}
+
+          {STANDALONE_TABS.map((tab) => (
+            <AnimatedTab
+              key={tab.routeName}
+              routeName={tab.routeName}
+              label={tab.label}
+              focused={tab.routeName === activeRoute}
+              isDark={isDark}
+              reducedMotion={reducedMotion}
+              onPress={() => {
+                if (tab.routeName === "profile") {
+                  void openAuthenticationGateway();
+                  return;
+                }
+                router.replace(tab.href);
+              }}
+              onLongPress={() => undefined}
+              accessibilityLabel={`${tab.label} tab`}
+            />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeWrap: {
     width: "100%",
@@ -315,6 +470,14 @@ const styles = StyleSheet.create({
     marginTop: 7,
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
+  },
+  favoritePulse: {
+    position: "absolute",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: PINK,
   },
   homeVisual: {
     width: 44,

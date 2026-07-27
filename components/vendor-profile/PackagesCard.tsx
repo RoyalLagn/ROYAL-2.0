@@ -36,12 +36,12 @@ export default function PackagesCard({
         iconSurface: "#432833",
       }
     : {
-        surface: "#FFF8FA",
+        surface: "#FFFFFF",
         surfaceAccent: "#FFF0F5",
-        border: "#F2CAD8",
-        text: "#24191E",
-        muted: "#74676D",
-        eyebrow: "#B75472",
+        border: "#EFCED9",
+        text: "#1E161A",
+        muted: "#665A60",
+        eyebrow: "#A73F61",
         iconSurface: "#FCE7EE",
       };
 
@@ -101,6 +101,7 @@ export default function PackagesCard({
 }
 
 const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
+const sans = Platform.select({ ios: "System", android: "sans-serif", web: "system-ui, sans-serif" });
 
 const styles = StyleSheet.create({
   card: {
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
-  cardCompact: { minHeight: 128, padding: 12, gap: 8 },
+  cardCompact: { minHeight: 154, padding: 14, gap: 12, flexDirection: "column", alignItems: "stretch" },
   details: {
     flex: 1,
     minWidth: 0,
@@ -136,13 +137,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexShrink: 0,
   },
-  iconWrapCompact: { width: 44, height: 44, borderRadius: 22 },
+  iconWrapCompact: { width: 42, height: 42, borderRadius: 21 },
   copy: { flex: 1, minWidth: 0 },
   eyebrow: { fontSize: 12, lineHeight: 17, fontWeight: "600", letterSpacing: 0.15 },
   eyebrowCompact: { fontSize: 10.5, lineHeight: 14 },
   price: { marginTop: 2, fontFamily: serif, fontSize: 29, lineHeight: 35, fontWeight: "700" },
-  priceCompact: { fontSize: 24, lineHeight: 29 },
-  subtitle: { marginTop: 2, fontSize: 11.5, lineHeight: 16 },
+  priceCompact: { fontSize: 20, lineHeight: 25 },
+  subtitle: { marginTop: 3, fontSize: 12, lineHeight: 17 },
   button: {
     minWidth: 142,
     minHeight: 50,
@@ -159,11 +160,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  buttonCompact: { minWidth: 128, minHeight: 46, paddingHorizontal: 14 },
+  buttonCompact: { width: "100%", minWidth: 0, minHeight: 42, paddingHorizontal: 14 },
   buttonHovered: { transform: [{ translateY: -1 }], backgroundColor: "#C92559" },
   buttonPressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
   buttonText: { color: "#FFFFFF", fontFamily: serif, fontSize: 16, fontWeight: "700" },
-  buttonTextCompact: { fontSize: 14 },
+  buttonTextCompact: { fontFamily: sans, fontSize: 13, fontWeight: "800" },
   decorationLarge: {
     position: "absolute",
     width: 132,

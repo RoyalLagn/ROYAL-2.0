@@ -1,6 +1,6 @@
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { ChevronLeft, Filter, Heart, MapPin } from "lucide-react-native";
+import { ChevronLeft, MapPin } from "lucide-react-native";
 
 const PINK = "#E91E63";
 
@@ -9,8 +9,6 @@ type CategoryListingHeaderProps = {
   location: string;
   dark: boolean;
   onBack: () => void;
-  onFavorites: () => void;
-  onFilters: () => void;
 };
 
 export default function CategoryListingHeader({
@@ -18,8 +16,6 @@ export default function CategoryListingHeader({
   location,
   dark,
   onBack,
-  onFavorites,
-  onFilters,
 }: CategoryListingHeaderProps) {
   const text = dark ? "#F8F2F5" : "#18111B";
   const hover = dark ? "#2B2427" : "#FFF0F5";
@@ -44,14 +40,7 @@ export default function CategoryListingHeader({
         </View>
       </View>
 
-      <View style={styles.actions}>
-        <Pressable accessibilityRole="link" accessibilityLabel="Open favorites" onPress={onFavorites} style={actionStyle}>
-          <Heart size={23} color={PINK} strokeWidth={1.8} />
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Open listing filters" onPress={onFilters} style={actionStyle}>
-          <Filter size={23} color={PINK} strokeWidth={1.8} />
-        </Pressable>
-      </View>
+      <View style={styles.action} />
     </View>
   );
 }
@@ -66,5 +55,4 @@ const styles = StyleSheet.create({
   title: { maxWidth: "100%", fontFamily: serif, fontSize: 25, lineHeight: 30, fontWeight: "700", letterSpacing: -0.5 },
   location: { maxWidth: "100%", marginTop: 2, flexDirection: "row", alignItems: "center", gap: 4 },
   locationText: { flexShrink: 1, color: PINK, fontSize: 11, lineHeight: 15, fontWeight: "600" },
-  actions: { flexDirection: "row", alignItems: "center", gap: 2 },
 });

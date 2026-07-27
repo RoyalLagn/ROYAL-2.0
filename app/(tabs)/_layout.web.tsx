@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Platform,
   Pressable,
@@ -22,7 +22,18 @@ import LocationSelector from "@/components/home/LocationSelector";
 import HomeReveal from "@/components/home/HomeReveal";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
+import FavoriteNotificationDot from "@/components/favorites/FavoriteNotificationDot";
+import { useFavorites } from "@/context/FavoritesContext";
 import { useNotifications } from "@/context/NotificationContext";
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
 cssInterop(Home, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3, { className: { target: "style", nativeStyleToProp: { color: true } } });
@@ -54,6 +65,86 @@ function NavItem({ label, active, onPress }: NavItemProps) {
       {active ? (
         <View className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-primary" />
       ) : null}
+    </Pressable>
+  );
+}
+
+function DesktopFavoritesButton({
+  active,
+  onPress,
+}: {
+  active: boolean;
+  onPress: () => void;
+}) {
+  const {
+    favoriteArrivalToken,
+    favoriteIndicatorToken,
+    hasUnviewedFavorites,
+    registerFavoritesDestination,
+  } = useFavorites();
+  const reducedMotion = useReducedMotion();
+  const arrival = useSharedValue(0);
+  const previousArrivalToken = useRef(favoriteArrivalToken);
+  const [arriving, setArriving] = useState(false);
+
+  useEffect(() => {
+    if (favoriteArrivalToken === previousArrivalToken.current) return;
+    previousArrivalToken.current = favoriteArrivalToken;
+    setArriving(true);
+    if (reducedMotion) {
+      arrival.value = 1;
+      arrival.value = withTiming(0, { duration: 220 });
+    } else {
+      arrival.value = withSequence(
+        withTiming(1, { duration: 130 }),
+        withSpring(0, { damping: 11, stiffness: 220, mass: 0.65 }),
+      );
+    }
+    const timer = setTimeout(() => setArriving(false), reducedMotion ? 240 : 520);
+    return () => clearTimeout(timer);
+  }, [arrival, favoriteArrivalToken, reducedMotion]);
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(arrival.value, [0, 1], [1, 1.18]) }],
+  }));
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(arrival.value, [0, 0.45, 1], [0, 0.18, 0]),
+    transform: [{ scale: interpolate(arrival.value, [0, 1], [0.72, 1.55]) }],
+  }));
+
+  return (
+    <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={hasUnviewedFavorites ? "Favorites, new favorites available" : "Favorites"}
+      onPress={onPress}
+      className="h-12 min-w-[70px] px-2 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+    >
+      <Animated.View
+        ref={registerFavoritesDestination as React.Ref<any>}
+        className="relative w-8 h-7 items-center justify-center"
+        style={iconStyle}
+      >
+        <Animated.View
+          pointerEvents="none"
+          className="absolute w-7 h-7 rounded-full bg-primary"
+          style={pulseStyle}
+        />
+        <Heart
+          size={20}
+          className={active || arriving ? "text-primary" : "text-foreground/75"}
+          fill={active || arriving ? "currentColor" : "none"}
+        />
+        <FavoriteNotificationDot
+          visible={hasUnviewedFavorites}
+          animationToken={favoriteIndicatorToken}
+        />
+      </Animated.View>
+      <Text className={active
+        ? "text-primary text-2xs font-semibold mt-0.5"
+        : "text-muted-foreground text-2xs font-medium mt-0.5"}
+      >
+        Favorites
+      </Text>
     </Pressable>
   );
 }
@@ -165,24 +256,10 @@ export default function TabsWebLayout() {
                 ) : null}
               </Pressable>
 
-              <Pressable
-                accessibilityRole="link"
-                accessibilityLabel="Favorites"
+              <DesktopFavoritesButton
+                active={isActive("/(tabs)/favorites")}
                 onPress={() => router.push("/(tabs)/favorites")}
-                className="h-12 min-w-[70px] px-2 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-              >
-                <Heart
-                  size={20}
-                  className={isActive("/(tabs)/favorites") ? "text-primary" : "text-foreground/75"}
-                  fill={isActive("/(tabs)/favorites") ? "currentColor" : "none"}
-                />
-                <Text className={isActive("/(tabs)/favorites")
-                  ? "text-primary text-2xs font-semibold mt-0.5"
-                  : "text-muted-foreground text-2xs font-medium mt-0.5"}
-                >
-                  Favorites
-                </Text>
-              </Pressable>
+              />
 
               <Pressable
                 accessibilityRole="link"

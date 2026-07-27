@@ -25,9 +25,9 @@ export default function ServiceChips({
 }: ServiceChipsProps) {
   const { width } = useWindowDimensions();
   const chipWidth = width >= 900 ? "31.5%" : "48%";
-  const border = dark ? "#5A3744" : "#EDC4D2";
-  const surface = dark ? "#2C2227" : "#FFFBFC";
-  const text = dark ? "#F5C8D7" : "#A43C60";
+  const border = dark ? "#4C3942" : "#EBCBD6";
+  const surface = dark ? "#24202A" : "#FFF5F8";
+  const text = dark ? "#F2D6E0" : "#742B46";
   const normalized = services.map((service) =>
     typeof service === "string" ? { label: service } : service
   );
@@ -72,15 +72,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   chip: {
-    minHeight: 48,
+    minHeight: 44,
     borderWidth: 1,
     borderRadius: 999,
-    paddingVertical: 9,
-    paddingHorizontal: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 9,
+    gap: 7,
   },
   hovered: {
     backgroundColor: "#FFF2F6",
@@ -94,8 +94,8 @@ const styles = StyleSheet.create({
   label: {
     flexShrink: 1,
     textAlign: "center",
-    fontSize: 13,
-    lineHeight: 17,
-    fontWeight: "600",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
   },
 });

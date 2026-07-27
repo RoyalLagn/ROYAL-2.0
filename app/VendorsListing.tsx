@@ -5,15 +5,17 @@ import { useColorScheme } from "nativewind";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import CategoryFilterChips from "@/components/listing/CategoryFilterChips";
 import CategoryListingHeader from "@/components/listing/CategoryListingHeader";
-import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import ListingFilterModal, {
   type ListingFilters,
 } from "@/components/listing/ListingFilterModal";
 import ResultsSummary from "@/components/listing/ResultsSummary";
 import VendorListingCard from "@/components/listing/VendorListingCard";
 import HomeReveal from "@/components/home/HomeReveal";
+import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
 import { useCustomerLocation } from "@/context/LocationContext";
 import { useFavorites } from "@/context/FavoritesContext";
+import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import {
   getApprovedPublicVendors,
@@ -187,13 +189,21 @@ export default function VendorsListingScreen() {
     setFiltersVisible(true);
   };
 
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.replace("/(tabs)/Categories");
+  };
+
   const sortLabel = filters.sort === "rating"
     ? "Highest rated"
     : filters.sort === "price"
       ? "Lowest price"
       : "Popular";
 
-  const toggleVendorFavorite = (vendor: PublicVendorListing) => {
+  const toggleVendorFavorite = (vendor: PublicVendorListing, source: FavoriteSourceRef) => {
     toggleFavorite({
       id: vendor.id,
       name: vendor.name,
@@ -205,7 +215,7 @@ export default function VendorsListingScreen() {
       location: vendor.location,
       tags: vendor.tags,
       image: vendor.image,
-    });
+    }, source);
   };
 
   return (
@@ -216,20 +226,19 @@ export default function VendorsListingScreen() {
             category={displayCategory}
             location={locationSubtitle}
             dark={isDark}
-            onBack={() => router.back()}
-            onFavorites={() => router.push("/(tabs)/favorites")}
-            onFilters={() => openFilters("filters")}
+            onBack={goBack}
           />
         </HomeReveal>
 
         <HomeReveal delay={35}>
-          <CompactSearchBar
-            accessibilityLabel={`Search ${displayCategory.toLowerCase()}`}
-            value={query}
-            onChangeText={setQuery}
-            placeholder={`Search ${displayCategory.toLowerCase()}…`}
+          <CategorySearchBar
             dark={isDark}
-            style={styles.search}
+            query={query}
+            activeFilterCount={activeFilterCount}
+            accessibilityLabel={`Search ${displayCategory.toLowerCase()}`}
+            placeholder={`Search ${displayCategory.toLowerCase()}…`}
+            onChangeQuery={setQuery}
+            onOpenFilters={() => openFilters("filters")}
           />
         </HomeReveal>
 
@@ -240,7 +249,6 @@ export default function VendorsListingScreen() {
               sort: filters.sort !== "popular",
               price: filters.maximumPrice > 0,
               rating: filters.minimumRating > 0,
-              filters: activeFilterCount > 0,
             }}
             onPress={openFilters}
           />
@@ -277,7 +285,7 @@ export default function VendorsListingScreen() {
                   params: { vendorId: vendor.id, category: displayCategory },
                 })
               }
-              onToggleFavorite={() => toggleVendorFavorite(vendor)}
+              onToggleFavorite={(source) => toggleVendorFavorite(vendor, source)}
             />
           </HomeReveal>
         ))}
@@ -289,6 +297,8 @@ export default function VendorsListingScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      <StandaloneMobileTabBar activeRoute="Categories" />
 
       <ListingFilterModal
         visible={filtersVisible}
@@ -309,8 +319,7 @@ export default function VendorsListingScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   top: { alignSelf: "center", paddingBottom: 8 },
-  search: { width: "100%" },
-  chips: { marginTop: 10, marginBottom: 4 },
+  chips: { marginBottom: 4 },
   scroll: { flex: 1 },
   list: { alignSelf: "center", gap: 12, paddingTop: 4 },
   empty: { minHeight: 190, marginTop: 4, borderWidth: 1, borderStyle: "dashed", borderRadius: 22, paddingHorizontal: 24, alignItems: "center", justifyContent: "center" },

@@ -17,8 +17,6 @@ import {
   Bell,
   Search,
   ChevronRight,
-  Heart,
-  MoreHorizontal,
   Star,
   SlidersHorizontal,
   BadgeCheck,
@@ -42,11 +40,11 @@ import {
 } from "@/services/publicVendorListings";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { MARKETPLACE_CATEGORIES } from "@/data/marketplaceCategories";
+import HomeCategoryCard from "@/components/home/HomeCategoryCard";
+import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
 
 const PINK = "#E91E63";
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
-const GLASS_WEB_STYLE = Platform.OS === "web" ? ({ backdropFilter: "blur(10px)" } as never) : undefined;
-
 const categories = MARKETPLACE_CATEGORIES.map((category) => ({
   id: category.slug,
   name: category.name,
@@ -73,13 +71,13 @@ export default function HomeScreen() {
   const isDesktop = screenWidth >= 1100;
   const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
   const featureWidth = Math.min(screenWidth - horizontalInset * 2, 1280);
-  const categoryColumns = isDesktop ? 6 : 5;
+  const categoryColumns = isDesktop ? 6 : screenWidth < 360 ? 4 : 5;
   const categoryItemWidth = featureWidth / categoryColumns;
-  const categoryIconSize = isDesktop
-    ? 108
+  const categoryCardWidth = isDesktop
+    ? Math.min(120, categoryItemWidth - 26)
     : screenWidth >= 600
-      ? 88
-      : Math.min(58, Math.max(46, categoryItemWidth - 16));
+      ? Math.min(102, categoryItemWidth - 20)
+      : Math.min(70, Math.max(54, categoryItemWidth - 10));
   const vendorCardWidth = isDesktop
     ? 360
     : screenWidth >= 600
@@ -261,7 +259,7 @@ export default function HomeScreen() {
 
         {/* ── Hero carousel ── */}
         <HomeReveal delay={85} style={[s.heroPad, { width: featureWidth }]}>
-          <HeroCarousel width={featureWidth} city={city} desktop={isDesktop} />
+          <HeroCarousel width={featureWidth} desktop={isDesktop} />
         </HomeReveal>
 
         {/* ── Top Categories ── */}
@@ -274,53 +272,32 @@ export default function HomeScreen() {
           />
 
           <View style={s.catGrid}>
-            {displayedCategories.map((cat) => (
-              <Pressable
+            {displayedCategories.map((cat, index) => (
+              <HomeCategoryCard
                 key={cat.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Browse ${cat.name}`}
+                name={cat.name}
+                image={cat.image}
+                itemWidth={categoryItemWidth}
+                cardWidth={categoryCardWidth}
+                tone={index}
+                dark={isDark}
                 onPress={() => openCategory(cat.name)}
-                style={({ pressed, hovered }) => [
-                  s.catItem,
-                  { width: categoryItemWidth },
-                  hovered && Platform.OS === "web" && s.catItemHover,
-                  pressed && s.catItemPressed,
-                ]}
-              >
-                <View style={[s.catIconWrap, { width: categoryIconSize, height: categoryIconSize }, isDark && s.catIconWrapDark, GLASS_WEB_STYLE]}>
-                  <Image source={cat.image} style={s.catImage} resizeMode="cover" />
-                </View>
-                <Text
-                  style={[s.catLabel, screenWidth < 380 && s.catLabelNarrow, { color: isDark ? "#DDD0D8" : "#374151" }]}
-                  numberOfLines={2}
-                >
-                  {cat.name}
-                </Text>
-              </Pressable>
+              />
             ))}
             {!showAllCategories ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Show more categories"
+              <HomeCategoryCard
+                name="More Categories"
+                itemWidth={categoryItemWidth}
+                cardWidth={categoryCardWidth}
+                tone={1}
+                dark={isDark}
+                more
                 onPress={() => setShowAllCategories(true)}
-                style={({ pressed, hovered }) => [
-                  s.catItem,
-                  { width: categoryItemWidth },
-                  hovered && Platform.OS === "web" && s.catItemHover,
-                  pressed && s.catItemPressed,
-                ]}
-              >
-                <View style={[s.catIconWrap, s.moreCategoryTile, { width: categoryIconSize, height: categoryIconSize }, isDark && s.moreCategoryTileDark, GLASS_WEB_STYLE]}>
-                  <View style={s.moreIconHalo}>
-                    <MoreHorizontal size={Math.round(categoryIconSize * 0.42)} color={PINK} strokeWidth={2} />
-                  </View>
-                </View>
-                <Text style={[s.catLabel, screenWidth < 380 && s.catLabelNarrow, { color: isDark ? "#DDD0D8" : "#374151" }]} numberOfLines={2}>More Categories</Text>
-              </Pressable>
+              />
             ) : null}
           </View>
           {showAllCategories ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Show fewer categories" onPress={() => setShowAllCategories(false)} style={({ pressed }) => [s.showLessBtn, pressed && s.catItemPressed]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Show fewer categories" onPress={() => setShowAllCategories(false)} style={({ pressed }) => [s.showLessBtn, pressed && s.showLessPressed]}>
               <Text style={s.showLessText}>Show Less</Text>
             </Pressable>
           ) : null}
@@ -408,14 +385,17 @@ export default function HomeScreen() {
                       </View>
                     </View>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    accessibilityRole="button"
+                  <FavoriteHeartButton
+                    favorite={isFav}
                     accessibilityLabel={isFav ? `Remove ${v.name} from favorites` : `Add ${v.name} to favorites`}
-                    style={[s.heartBtn, isFav && s.heartBtnActive]}
-                    onPress={() => toggleFavorite(v)}
-                  >
-                    <Heart size={15} color={isFav ? "#FFF" : "#3A3035"} fill={isFav ? "#FFF" : "transparent"} />
-                  </TouchableOpacity>
+                    style={s.heartBtn}
+                    activeStyle={s.heartBtnActive}
+                    pressedStyle={s.favoritePressed}
+                    onToggle={(source) => toggleFavorite(v, source)}
+                    size={15}
+                    color="#3A3035"
+                    activeIconColor="#FFFFFF"
+                  />
                 </View>
               );
             })}
@@ -505,18 +485,8 @@ const s = StyleSheet.create<Record<string, any>>({
   /* Categories */
   section:         { alignSelf: "center", marginBottom: 12 },
   catGrid:         { flexDirection: "row", flexWrap: "wrap" },
-  catItem:         { alignItems: "center", marginBottom: 23, paddingHorizontal: 5 },
-  catItemHover:    { transform: [{ translateY: -3 }, { scale: 1.025 }] },
-  catItemPressed:  { opacity: 0.9, transform: [{ scale: 0.975 }] },
-  catIconWrap:     { overflow: "hidden", borderRadius: 16, alignItems: "center", justifyContent: "center", marginBottom: 8, borderWidth: 1, borderColor: "rgba(233,30,99,.32)", backgroundColor: "rgba(255,248,251,.82)", shadowColor: "#E91E63", shadowOpacity: 0.14, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  catIconWrapDark: { backgroundColor: "rgba(43,24,35,.82)", borderColor: "rgba(255,84,141,.38)", shadowColor: "#FF4F8B", shadowOpacity: 0.2 },
-  moreCategoryTile:{ backgroundColor: "rgba(255,244,248,.92)", borderColor: "rgba(233,30,99,.38)" },
-  moreCategoryTileDark: { backgroundColor: "rgba(73,37,54,.82)", borderColor: "rgba(255,99,151,.40)" },
-  moreIconHalo:    { width: "64%", height: "64%", borderRadius: 999, backgroundColor: "rgba(233,30,99,.10)", borderWidth: 1, borderColor: "rgba(233,30,99,.24)", alignItems: "center", justifyContent: "center" },
-  catImage:        { width: "100%", height: "100%", borderRadius: 15 },
-  catLabel:        { minHeight: 29, fontSize: 9.5, textAlign: "center", lineHeight: 12, fontWeight: "600" },
-  catLabelNarrow:  { fontSize: 9, lineHeight: 11.5 },
   showLessBtn:     { alignSelf: "center", minHeight: 38, marginTop: 1, marginBottom: 8, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1, borderColor: "rgba(233,30,99,.25)", backgroundColor: "rgba(233,30,99,.07)", alignItems: "center", justifyContent: "center" },
+  showLessPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
   showLessText:    { color: PINK, fontSize: 11, fontWeight: "800" },
 
   /* Trending */
@@ -536,6 +506,7 @@ const s = StyleSheet.create<Record<string, any>>({
   vendorImg:       { width: "100%", height: "100%" },
   heartBtn:        { position: "absolute", top: 8, right: 8, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(255,255,255,.94)", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } },
   heartBtnActive:  { backgroundColor: PINK },
+  favoritePressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
   imgBottomRow:    { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", padding: 7 },
   ratingBadge:     { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(27,25,27,.72)", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 20 },
   ratingBadgeTxt:  { color: "#FFF", fontSize: 9.5, fontWeight: "800" },

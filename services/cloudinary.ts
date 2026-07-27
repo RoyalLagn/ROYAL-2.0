@@ -33,6 +33,9 @@ export type PortfolioAsset = ImagePicker.ImagePickerAsset;
 export type ReviewPhotoAsset = ImagePicker.ImagePickerAsset;
 export type CloudinaryUpload = {
   secureUrl: string;
+  optimizedUrl?: string;
+  heroUrl?: string;
+  fullscreenUrl?: string;
   publicId: string;
   resourceType: "image" | "video";
   format?: string;
@@ -40,21 +43,49 @@ export type CloudinaryUpload = {
   height?: number;
   duration?: number;
   bytes?: number;
+  originalBytes?: number;
+  optimizedBytes?: number;
   thumbnailUrl?: string;
+  videoPosterUrl?: string;
 };
 
 type SignedUpload = {
-  signature: string;
-  timestamp: number;
+  uploadMode: "signed" | "unsigned";
+  signature?: string;
+  timestamp?: number;
   folder: string;
-  apiKey: string;
+  apiKey?: string;
   cloudName: string;
   resourceType: "image" | "video";
   public_id: string;
-  overwrite: string;
-  unique_filename: string;
+  overwrite?: string;
+  unique_filename?: string;
+  eager?: string;
+  uploadPreset?: string;
   remainingCapacity: number;
 };
+
+async function edgeFunctionErrorMessage(
+  error: unknown,
+  fallback: string,
+) {
+  const context = typeof error === "object" && error && "context" in error
+    ? (error as { context?: Response }).context
+    : null;
+  if (context) {
+    try {
+      const payload = await context.clone().json();
+      if (typeof payload?.error === "string" && payload.error.trim()) {
+        return payload.error;
+      }
+    } catch {
+      // The SDK error message below remains a useful fallback.
+    }
+  }
+  return error instanceof Error && error.message
+    ? error.message
+    : fallback;
+}
 
 function getUploadUrl(): string {
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
@@ -211,17 +242,26 @@ export async function pickPortfolioMedia(selectionLimit = 12): Promise<Portfolio
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images", "videos"],
     allowsMultipleSelection: true,
-    selectionLimit: Math.max(1, Math.min(selectionLimit, 25)),
+    selectionLimit: Math.max(1, Math.min(selectionLimit, 15)),
     quality: 0.82,
-    videoMaxDuration: 90,
+    videoMaxDuration: 240,
   });
   if (result.canceled) return [];
   for (const asset of result.assets) {
     const isVideo = asset.type === "video";
-    const maxBytes = isVideo ? 80 * 1024 * 1024 : 15 * 1024 * 1024;
+    const maxBytes = isVideo ? 150 * 1024 * 1024 : 30 * 1024 * 1024;
+    const durationSeconds = isVideo && asset.duration
+      ? asset.duration / 1000
+      : 0;
+    if (durationSeconds > 240) {
+      throw new CloudinaryError(
+        `${asset.fileName || "Video"} is longer than 4 minutes. Choose a shorter video.`,
+        "PICKER_ERROR",
+      );
+    }
     if (asset.fileSize && asset.fileSize > maxBytes) {
       throw new CloudinaryError(
-        `${asset.fileName || (isVideo ? "Video" : "Image")} is too large. ${isVideo ? "Videos must be under 80 MB." : "Images must be under 15 MB."}`,
+        `${asset.fileName || (isVideo ? "Video" : "Image")} is too large to process. Choose a smaller file.`,
         "PICKER_ERROR",
       );
     }
@@ -261,7 +301,21 @@ export async function uploadPortfolioAsset(
       batchSize: 1,
     },
   });
-  if (error || !data?.signature) throw new CloudinaryError(error?.message || "Unable to authorize upload.", "UPLOAD_ERROR");
+  if (error || !data?.uploadMode) {
+    throw new CloudinaryError(
+      await edgeFunctionErrorMessage(error, "Unable to authorize upload."),
+      "UPLOAD_ERROR",
+    );
+  }
+  const finalByteLimit = resourceType === "video" ? 25 * 1024 * 1024 : 8 * 1024 * 1024;
+  if (data.uploadMode === "unsigned" && resolvedFileSize > finalByteLimit) {
+    throw new CloudinaryError(
+      resourceType === "video"
+        ? "Signed video processing is not configured yet. Choose a video under 25 MB."
+        : "Signed image processing is not configured yet. Choose an image under 8 MB.",
+      "UPLOAD_ERROR",
+    );
+  }
 
   const body = new FormData();
   if (Platform.OS === "web") {
@@ -270,13 +324,26 @@ export async function uploadPortfolioAsset(
   } else {
     body.append("file", { uri: asset.uri, name: asset.fileName || `portfolio-${Date.now()}`, type: asset.mimeType || `${resourceType}/*` } as any);
   }
-  body.append("api_key", data.apiKey);
-  body.append("timestamp", String(data.timestamp));
-  body.append("folder", data.folder);
-  body.append("public_id", data.public_id);
-  body.append("overwrite", data.overwrite);
-  body.append("unique_filename", data.unique_filename);
-  body.append("signature", data.signature);
+  if (data.uploadMode === "signed") {
+    if (!data.apiKey || !data.timestamp || !data.signature || !data.eager) {
+      throw new CloudinaryError("Cloudinary returned incomplete signed upload parameters.", "UPLOAD_ERROR");
+    }
+    body.append("api_key", data.apiKey);
+    body.append("timestamp", String(data.timestamp));
+    body.append("folder", data.folder);
+    body.append("public_id", data.public_id);
+    body.append("overwrite", data.overwrite ?? "false");
+    body.append("unique_filename", data.unique_filename ?? "false");
+    body.append("eager", data.eager);
+    body.append("signature", data.signature);
+  } else {
+    if (!data.uploadPreset) {
+      throw new CloudinaryError("Cloudinary returned incomplete upload-preset parameters.", "UPLOAD_ERROR");
+    }
+    body.append("upload_preset", data.uploadPreset);
+    body.append("folder", data.folder);
+    body.append("public_id", data.public_id);
+  }
 
   const payload: any = await new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
@@ -296,16 +363,52 @@ export async function uploadPortfolioAsset(
     };
     request.send(body);
   });
+  const eager = Array.isArray(payload.eager) ? payload.eager : [];
+  const imageDerivatives = resourceType === "image" ? eager : [];
+  const optimizedVideo = resourceType === "video"
+    ? eager.find((item: any) => String(item.secure_url || item.url || "").toLowerCase().endsWith(".mp4"))
+    : undefined;
+  const videoPoster = resourceType === "video"
+    ? eager.find((item: any) => /\.(jpe?g|webp)$/i.test(String(item.secure_url || item.url || "")))
+    : undefined;
+  const processedBytes = resourceType === "video"
+    ? Number(optimizedVideo?.bytes ?? payload.bytes)
+    : Math.max(0, ...imageDerivatives.map((item: any) => Number(item.bytes ?? 0)));
+  if ((payload.duration && payload.duration > 240) || processedBytes > finalByteLimit) {
+    await deleteUnstoredPortfolioAsset(vendorId, payload.public_id, resourceType).catch(() => undefined);
+    throw new CloudinaryError(
+      resourceType === "video"
+        ? "This video could not be processed below 25 MB. Choose a shorter or smaller video."
+        : "This image could not be optimized below 8 MB. Choose a smaller image.",
+      "UPLOAD_ERROR",
+    );
+  }
+  const optimizedSecureUrl = optimizedVideo?.secure_url || optimizedVideo?.url || payload.secure_url;
   return {
     secureUrl: payload.secure_url,
+    optimizedUrl: resourceType === "image" && data.uploadMode === "signed"
+      ? imageDerivatives[1]?.secure_url || imageDerivatives[1]?.url
+      : resourceType === "video" && data.uploadMode === "signed" ? optimizedSecureUrl : undefined,
+    heroUrl: resourceType === "image" && data.uploadMode === "signed"
+      ? imageDerivatives[2]?.secure_url || imageDerivatives[2]?.url
+      : undefined,
+    fullscreenUrl: resourceType === "image" && data.uploadMode === "signed"
+      ? imageDerivatives[3]?.secure_url || imageDerivatives[3]?.url
+      : resourceType === "video" && data.uploadMode === "signed" ? optimizedSecureUrl : undefined,
     publicId: payload.public_id,
     resourceType,
     format: payload.format,
     width: payload.width,
     height: payload.height,
     duration: payload.duration,
-    bytes: payload.bytes,
-    thumbnailUrl: thumbnailFor(data.cloudName, payload.public_id, resourceType),
+    bytes: processedBytes || payload.bytes,
+    originalBytes: payload.bytes,
+    optimizedBytes: processedBytes || payload.bytes,
+    thumbnailUrl: imageDerivatives[0]?.secure_url
+      || imageDerivatives[0]?.url
+      || (resourceType === "video" ? videoPoster?.secure_url || videoPoster?.url : undefined)
+      || thumbnailFor(data.cloudName, payload.public_id, resourceType),
+    videoPosterUrl: videoPoster?.secure_url || videoPoster?.url,
   };
 }
 

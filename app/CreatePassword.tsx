@@ -47,7 +47,8 @@ export default function CreatePasswordScreen() {
         }
         await completePublicSignup({ email, fullName, phone }, password);
         await refreshProfile();
-        router.replace("/(tabs)/profile");
+        router.dismissAll();
+        router.replace("/(tabs)");
       }}
       getError={(error) =>
         getPublicAuthError(error, "Unable to save your password. Please try again.")}
