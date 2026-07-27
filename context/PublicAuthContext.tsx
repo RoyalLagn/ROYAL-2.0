@@ -86,6 +86,32 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
     };
   }, [loadPublicProfile]);
 
+  useEffect(() => {
+    const profileId = session?.user.id;
+    if (!profileId) return;
+
+    const channel = supabase
+      .channel(`public-profile-${profileId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${profileId}`,
+        },
+        (payload) => {
+          const nextProfile = payload.new as PublicProfile;
+          if (nextProfile.role === "public_user") setProfile(nextProfile);
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [session?.user.id]);
+
   const refreshProfile = useCallback(async () => {
     const currentSession = session ?? (await supabase.auth.getSession()).data.session;
     if (!currentSession?.user) return;

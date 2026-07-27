@@ -41,6 +41,7 @@ import {
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
 import { useMobileTabBarHeight } from "@/components/MobileTabBar";
+import { usePublicAuth } from "@/context/PublicAuthContext";
 
 const PINK = "#E91E63";
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
@@ -78,6 +79,8 @@ export default function HomeScreen() {
   const { getRating } = useReviewRatings();
   const { city } = useCustomerLocation();
   const { unreadCount } = useNotifications();
+  const { profile } = usePublicAuth();
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const tabBarHeight = useMobileTabBarHeight();
   const { width: screenWidth } = useWindowDimensions();
   const isDesktop = screenWidth >= 1100;
@@ -114,6 +117,11 @@ export default function HomeScreen() {
       active = false;
       unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60_000);
+    return () => clearInterval(timer);
   }, []);
 
   const bg     = isDark ? "#070B14" : "#FFFFFF";
@@ -153,6 +161,13 @@ export default function HomeScreen() {
     filters.nearbyOnly,
     filters.sort !== "recommended",
   ].filter(Boolean).length;
+  const firstName = profile?.full_name.trim().split(/\s+/)[0] || "there";
+  const currentHour = currentTime.getHours();
+  const greeting = currentHour < 12
+    ? "Good Morning"
+    : currentHour < 17
+      ? "Good Afternoon"
+      : "Good Evening";
   const nearbyVendors = useMemo(() => {
     return liveVendors
       .map((vendor) => {
@@ -193,20 +208,20 @@ export default function HomeScreen() {
         {/* ── Compact mobile header ── */}
         {!isDesktop ? (
           <HomeReveal direction="down" style={[s.header, { width: featureWidth }]}>
-            <View style={s.headerLocation}><LocationSelector dark={isDark} compact /></View>
+            <View style={s.headerSide}><LocationSelector dark={isDark} compact /></View>
 
-            <View pointerEvents="none" style={[s.headerLogo, screenWidth < 360 && s.headerLogoNarrow]}>
+            <View pointerEvents="none" style={s.headerLogo}>
               <Image
                 source={isDark
-                  ? require("../../assets/Logo/balck logo.jpeg")
-                  : require("../../assets/Logo/white logo.jpeg")}
+                  ? require("../../assets/Logo/black-logo-cropped.png")
+                  : require("../../assets/Logo/white-logo-cropped.png")}
                 resizeMode="contain"
                 accessibilityLabel="RoyalLagn Wedding Planner"
                 style={[s.headerLogoImage, screenWidth < 360 && s.headerLogoImageNarrow]}
               />
             </View>
 
-            <View style={s.headerRight}>
+            <View style={[s.headerSide, s.headerRight]}>
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
@@ -224,6 +239,15 @@ export default function HomeScreen() {
             </View>
           </HomeReveal>
         ) : null}
+
+        <HomeReveal delay={25} style={[s.greetingBlock, { width: featureWidth }]}>
+          <Text style={[s.greetingText, { color: muted }]}>
+            {greeting}, {firstName} 👋
+          </Text>
+          <Text style={[s.greetingTitle, isDesktop && s.greetingTitleDesktop, { color: text }]}>
+            Find your <Text style={s.greetingAccent}>perfect</Text>{"\n"}wedding team
+          </Text>
+        </HomeReveal>
 
         {/* ── Global search ── */}
         <HomeReveal delay={45} style={[s.searchPad, { width: featureWidth }]}>
@@ -463,19 +487,25 @@ const s = StyleSheet.create<Record<string, any>>({
   scroll:          {},
 
   /* Header */
-  header:          { minHeight: 58, alignSelf: "center", flexDirection: "row", alignItems: "center", justifyContent: "space-between", position: "relative" },
-  headerLocation:  { flex: 1, minWidth: 0, alignItems: "flex-start", justifyContent: "center" },
-  headerLogo:      { position: "absolute", left: "50%", width: 176, height: 56, marginLeft: -88, alignItems: "center", justifyContent: "center", overflow: "hidden", borderRadius: 8 },
-  headerLogoNarrow:{ width: 150, height: 50, marginLeft: -75 },
-  headerLogoImage: { width: 176, height: 56 },
-  headerLogoImageNarrow: { width: 150, height: 50 },
-  headerRight:     { flexShrink: 0, alignItems: "flex-end", justifyContent: "center" },
+  header:          { minHeight: 54, alignSelf: "center", flexDirection: "row", alignItems: "center" },
+  headerSide:      { flex: 1, minWidth: 0, alignItems: "flex-start", justifyContent: "center" },
+  headerLogo:      { flex: 1.55, minWidth: 0, height: 48, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  headerLogoImage: { width: 150, height: 46 },
+  headerLogoImageNarrow: { width: 126, height: 40 },
+  headerRight:     { alignItems: "flex-end" },
   bellWrap:        { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", position: "relative" },
   badge:           { position: "absolute", top: 2, right: 1, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: PINK, borderWidth: 2, borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
   badgeTxt:        { color: "#FFF", fontSize: 8, fontWeight: "800" },
 
+  /* Greeting */
+  greetingBlock:   { alignSelf: "center", marginTop: 5, marginBottom: 8 },
+  greetingText:    { fontSize: 12, lineHeight: 17, fontWeight: "600", marginBottom: 2 },
+  greetingTitle:   { fontFamily: "serif", fontSize: 22, lineHeight: 26, fontWeight: "800", letterSpacing: -0.5 },
+  greetingTitleDesktop: { fontSize: 27, lineHeight: 31 },
+  greetingAccent:  { color: PINK, fontStyle: "italic" },
+
   /* Search and filters */
-  searchPad:       { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 10, marginTop: 7, marginBottom: 14 },
+  searchPad:       { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4, marginBottom: 14 },
   searchBar:       { flex: 1, minWidth: 0, height: 46 },
   filterBtn:       { width: 46, height: 46, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 18, borderWidth: 1, borderColor: "#F04478", shadowOpacity: 0, elevation: 0 },
   filterBtnNarrow: { width: 44 },
