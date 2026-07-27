@@ -10,7 +10,7 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
   MapPin,
@@ -40,7 +40,7 @@ import {
   subscribeToPublicVendorChanges,
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
-import { MOBILE_TAB_BASE_HEIGHT } from "@/components/MobileTabBar";
+import { useMobileTabBarHeight } from "@/components/MobileTabBar";
 
 const PINK = "#E91E63";
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
@@ -78,7 +78,7 @@ export default function HomeScreen() {
   const { getRating } = useReviewRatings();
   const { city } = useCustomerLocation();
   const { unreadCount } = useNotifications();
-  const insets = useSafeAreaInsets();
+  const tabBarHeight = useMobileTabBarHeight();
   const { width: screenWidth } = useWindowDimensions();
   const isDesktop = screenWidth >= 1100;
   const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
@@ -186,7 +186,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           s.scroll,
-          { paddingBottom: isDesktop ? 32 : MOBILE_TAB_BASE_HEIGHT + insets.bottom },
+          { paddingBottom: isDesktop ? 32 : tabBarHeight },
         ]}
       >
 

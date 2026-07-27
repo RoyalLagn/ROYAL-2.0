@@ -10,7 +10,27 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
 
+/**
+ * Visual height of the tab bar content (icons + labels), excluding the device's
+ * bottom safe-area inset. This is the fixed design height of the clickable area.
+ */
 export const MOBILE_TAB_BASE_HEIGHT = 49;
+
+/**
+ * Returns the total rendered height of the MobileTabBar for the current device,
+ * including the bottom safe-area inset (home-indicator / gesture navigation area).
+ *
+ * Use this as the `paddingBottom` of any ScrollView that scrolls behind the bar,
+ * so content is never obscured regardless of device or navigation mode.
+ *
+ * @example
+ *   const tabBarHeight = useMobileTabBarHeight();
+ *   <ScrollView contentContainerStyle={{ paddingBottom: tabBarHeight }} />
+ */
+export function useMobileTabBarHeight(): number {
+  const insets = useSafeAreaInsets();
+  return MOBILE_TAB_BASE_HEIGHT + insets.bottom;
+}
 
 export function MobileTabBar({
   state,
