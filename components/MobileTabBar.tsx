@@ -45,7 +45,7 @@ const ICONS: Record<string, React.ComponentType<any>> = {
   profile: AnimatedUser,
 };
 
-export const MOBILE_TAB_BASE_HEIGHT = 80;
+export const MOBILE_TAB_BASE_HEIGHT = 58;
 
 type AnimatedTabProps = {
   routeName: string;
@@ -206,20 +206,15 @@ export function MobileTabBar({
 
   return (
     <View
-      style={[
-        styles.safeWrap,
-        {
-          paddingBottom: insets.bottom,
-          backgroundColor: isDark ? "#070B14" : "#FFFFFF",
-        },
-      ]}
+      style={styles.safeWrap}
     >
       <View
         style={[
           styles.bar,
           {
+            paddingBottom: insets.bottom,
             backgroundColor: isDark ? "#0E141F" : "#FFFFFF",
-            borderColor: isDark ? "#273248" : "#F4DCE5",
+            borderColor: isDark ? "#5A2B3F" : "#F3D4DF",
           },
         ]}
       >
@@ -282,12 +277,11 @@ const styles = StyleSheet.create({
   safeWrap: {
     width: "100%",
     flexShrink: 0,
-    paddingTop: 18,
-    paddingHorizontal: 10,
   },
   bar: {
     minHeight: 58,
-    borderWidth: StyleSheet.hairlineWidth,
+    marginHorizontal: 10,
+    borderWidth: 1,
     borderRadius: 31,
     overflow: "visible",
     shadowColor: "#573341",

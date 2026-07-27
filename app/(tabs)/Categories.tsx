@@ -7,21 +7,6 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  Building2,
-  UtensilsCrossed,
-  Camera,
-  Palette,
-  Sparkles,
-  Hand,
-  Headphones,
-  Shirt,
-  User,
-  Gem,
-  BookOpen,
-  Mail,
-  Music,
-} from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 import { useRouter } from "expo-router";
 import CategoryCard, { type CategoryCardItem } from "@/components/categories/CategoryCard";
@@ -29,158 +14,25 @@ import CategoryFilterModal from "@/components/categories/CategoryFilterModal";
 import CategoryPageHeader from "@/components/categories/CategoryPageHeader";
 import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import HomeReveal from "@/components/home/HomeReveal";
-import categoryImageUrls from "@/data/categoryImages.cloudinary.json";
+import {
+  findMarketplaceCategory,
+  MARKETPLACE_CATEGORIES,
+} from "@/data/marketplaceCategories";
 import {
   getPublicMarketplaceCategories,
   subscribeToPublicVendorChanges,
 } from "@/services/publicVendorListings";
 
-function cloudinaryCardImage(url: string) {
-  return url.replace("/image/upload/", "/image/upload/f_auto,q_auto,w_720/");
-}
-
-const CATEGORY_PRESENTATION: CategoryCardItem[] = [
-  {
-    id: "1",
-    name: "Venues",
-    description: "Banquets, Lawns, Resorts\n& more",
-    icon: Building2,
-    iconColor: "#F97316",
-    iconBg: "#FFF3EA",
-    image: cloudinaryCardImage(categoryImageUrls["venues.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/venues.png"),
-  },
-  {
-    id: "2",
-    name: "Caterers",
-    description: "Delicious food for every\ncelebration",
-    icon: UtensilsCrossed,
-    iconColor: "#EC4899",
-    iconBg: "#FFF0F7",
-    image: cloudinaryCardImage(categoryImageUrls["caterers.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/caterers.png"),
-  },
-  {
-    id: "3",
-    name: "Photographers",
-    description: "Capture your special\nmoments",
-    icon: Camera,
-    iconColor: "#3B82F6",
-    iconBg: "#EFF6FF",
-    image: cloudinaryCardImage(categoryImageUrls["photographer.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/photographer.png"),
-  },
-  {
-    id: "4",
-    name: "Decorators",
-    description: "Beautiful setups for\nyour events",
-    icon: Palette,
-    iconColor: "#22C55E",
-    iconBg: "#F0FDF4",
-    image: cloudinaryCardImage(categoryImageUrls["decoraters.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/decoraters.png"),
-  },
-  {
-    id: "5",
-    name: "Makeup Artists",
-    description: "Look your best on\nyour big day",
-    icon: Sparkles,
-    iconColor: "#EF4444",
-    iconBg: "#FFF1F1",
-    image: cloudinaryCardImage(categoryImageUrls["makeup.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/makeup.png"),
-  },
-  {
-    id: "6",
-    name: "Mehndi Artists",
-    description: "Beautiful mehndi for\nyour special day",
-    icon: Hand,
-    iconColor: "#F97316",
-    iconBg: "#FFF3EA",
-    image: cloudinaryCardImage(categoryImageUrls["mehendi artist.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/mehendi-artist.png"),
-  },
-  {
-    id: "7",
-    name: "DJs",
-    description: "Music that makes your\nevent unforgettable",
-    icon: Headphones,
-    iconColor: "#8B5CF6",
-    iconBg: "#F5F3FF",
-    image: cloudinaryCardImage(categoryImageUrls["DJ.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/DJ.png"),
-  },
-  {
-    id: "8",
-    name: "Bridal Wear",
-    description: "Exquisite outfits for\nbeautiful brides",
-    icon: Shirt,
-    iconColor: "#EC4899",
-    iconBg: "#FFF0F7",
-    image: cloudinaryCardImage(categoryImageUrls["bridal wear.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/bridal-wear.png"),
-  },
-  {
-    id: "9",
-    name: "Groom Wear",
-    description: "Sherwanis, Suits &\nmore",
-    icon: User,
-    iconColor: "#3B82F6",
-    iconBg: "#EFF6FF",
-    image: cloudinaryCardImage(categoryImageUrls["groom wear.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/groom-wear.png"),
-  },
-  {
-    id: "10",
-    name: "Jewellery & Accessories",
-    description: "Complete your look\nwith perfect jewellery",
-    icon: Gem,
-    iconColor: "#F59E0B",
-    iconBg: "#FFFBEA",
-    image: cloudinaryCardImage(categoryImageUrls["jewelwry & accessories.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/jewellery-accessories.png"),
-  },
-  {
-    id: "11",
-    name: "Pandits",
-    description: "Experienced pandits\nfor ceremonies",
-    icon: BookOpen,
-    iconColor: "#F97316",
-    iconBg: "#FFF3EA",
-    image: cloudinaryCardImage(categoryImageUrls["pandits.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/pandits.png"),
-  },
-  {
-    id: "12",
-    name: "Invites & Cards",
-    description: "Unique invitations &\nreturn gifts",
-    icon: Mail,
-    iconColor: "#8B5CF6",
-    iconBg: "#F5F3FF",
-    image: cloudinaryCardImage(categoryImageUrls["invite&cards.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/invites-cards.png"),
-  },
-  {
-    id: "13",
-    name: "Pre Wedding Shoot",
-    description: "Capture memories before\nthe big day",
-    icon: Camera,
-    iconColor: "#3B82F6",
-    iconBg: "#EFF6FF",
-    image: cloudinaryCardImage(categoryImageUrls["pre-wedding shoot.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/pre-wedding-shoot.png"),
-  },
-  {
-    id: "14",
-    name: "Music & Dance",
-    description: "Entertainment for every\nwedding occasion",
-    icon: Music,
-    iconColor: "#EC4899",
-    iconBg: "#FFF0F7",
-    image: cloudinaryCardImage(categoryImageUrls["dance.png"]),
-    fallbackImage: require("../../assets/images/category-fallback/dance.png"),
-  },
-];
+const CATEGORY_PRESENTATION: CategoryCardItem[] = MARKETPLACE_CATEGORIES.map((category) => ({
+  id: category.slug,
+  name: category.name,
+  description: category.description,
+  icon: category.icon,
+  iconColor: category.iconColor,
+  iconBg: category.iconBg,
+  image: category.cloudinaryImage,
+  fallbackImage: category.fallbackImage,
+}));
 
 export default function CategoriesScreen() {
   const { colorScheme } = useColorScheme();
@@ -189,14 +41,16 @@ export default function CategoriesScreen() {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
-  const [categories, setCategories] = useState<CategoryCardItem[]>([]);
-  const { width } = useWindowDimensions();
-  const twoColumns = width >= 900;
-  const compactCards = width < 600;
-  const contentWidth = Math.min(width - (width >= 1100 ? 48 : 32), 1180);
+  const [categories, setCategories] = useState<CategoryCardItem[]>(CATEGORY_PRESENTATION);
+  const { width: screenWidth } = useWindowDimensions();
+  const isDesktop = screenWidth >= 1100;
+  const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
+  const twoColumns = screenWidth >= 900;
+  const compactCards = screenWidth < 600;
+  const contentWidth = Math.min(screenWidth - horizontalInset * 2, 1180);
   const cardWidth = twoColumns ? (contentWidth - 14) / 2 : contentWidth;
 
-  const bg      = isDark ? "#070B14" : "#FFFAFC";
+  const bg      = isDark ? "#070B14" : "#FFFFFF";
   const text    = isDark ? "#F5F0F3" : "#141414";
   const muted   = isDark ? "#AAA0A5" : "#787178";
   const border  = isDark ? "#232C3D" : "#F0E8F2";
@@ -207,22 +61,18 @@ export default function CategoriesScreen() {
       getPublicMarketplaceCategories()
         .then((liveCategories) => {
           if (!active) return;
-          setCategories(liveCategories.map((category) => {
-            const presentation = CATEGORY_PRESENTATION.find(
-              (item) => item.name.toLowerCase() === category.name.toLowerCase(),
-            ) ?? CATEGORY_PRESENTATION[0];
-            return {
-              ...presentation,
-              id: category.id,
-              name: category.name,
-              description: presentation.name === category.name
-                ? presentation.description
-                : "Wedding services and trusted professionals",
-            };
-          }));
+          const liveIds = new Map<string, string>();
+          liveCategories.forEach((category) => {
+            const match = findMarketplaceCategory(category.name);
+            if (match && !liveIds.has(match.slug)) liveIds.set(match.slug, category.id);
+          });
+          setCategories(CATEGORY_PRESENTATION.map((category) => ({
+            ...category,
+            id: liveIds.get(category.id) ?? category.id,
+          })));
         })
         .catch(() => {
-          if (active) setCategories([]);
+          if (active) setCategories(CATEGORY_PRESENTATION);
         });
     };
     load();
@@ -258,6 +108,7 @@ export default function CategoriesScreen() {
           <CategorySearchBar
             dark={isDark}
             query={query}
+            activeFilterCount={selectedCategory ? 1 : 0}
             onChangeQuery={setQuery}
             onOpenFilters={() => setFiltersVisible(true)}
           />
@@ -314,7 +165,7 @@ export default function CategoriesScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  topContent: { alignSelf: "center", paddingBottom: 15 },
+  topContent: { alignSelf: "center" },
   scroll: { flex: 1 },
   list: { alignSelf: "center" },
   grid: { width: "100%", flexDirection: "row", flexWrap: "wrap", gap: 14 },

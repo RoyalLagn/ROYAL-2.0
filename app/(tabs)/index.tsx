@@ -40,30 +40,18 @@ import {
   subscribeToPublicVendorChanges,
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
-import { useMobileTabBarHeight } from "@/components/MobileTabBar";
 import { usePublicAuth } from "@/context/PublicAuthContext";
+import { MARKETPLACE_CATEGORIES } from "@/data/marketplaceCategories";
 
 const PINK = "#E91E63";
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
 const GLASS_WEB_STYLE = Platform.OS === "web" ? ({ backdropFilter: "blur(10px)" } as never) : undefined;
 
-const categories = [
-  { id: "1", name: "Venues", image: require("../../assets/images/category-icons-v3/venues.png") },
-  { id: "2", name: "Caterers", image: require("../../assets/images/category-icons-v3/caterers.png") },
-  { id: "3", name: "Photographers", image: require("../../assets/images/category-icons-v3/photographers.png") },
-  { id: "4", name: "Decorators", image: require("../../assets/images/category-icons-v3/decorators.png") },
-  { id: "5", name: "DJs", image: require("../../assets/images/category-icons-v3/djs.png") },
-  { id: "6", name: "Makeup Artists", image: require("../../assets/images/category-icons-v3/makeup-artists.png") },
-  { id: "7", name: "Mehndi Artists", image: require("../../assets/images/category-icons-v3/mehndi-artists.png") },
-  { id: "8", name: "Bridal Wear", image: require("../../assets/images/category-icons-v3/bridal-wear.png") },
-  { id: "9", name: "Groom Wear", image: require("../../assets/images/category-icons-v3/groom-wear.png") },
-  { id: "10", name: "Jewellery & Accessories", image: require("../../assets/images/category-icons-v3/jewellery-accessories.png") },
-  { id: "11", name: "Pandits", image: require("../../assets/images/category-icons-v3/pandits.png") },
-  { id: "12", name: "Invites & Cards", image: require("../../assets/images/category-icons-v3/invites-cards.png") },
-  { id: "13", name: "Dance & Choreography", image: require("../../assets/images/category-icons-v3/dance-choreography.png") },
-  { id: "14", name: "Pre-wedding Shoot", image: require("../../assets/images/category-icons-v3/pre-wedding-shoot.png") },
-  { id: "15", name: "Wedding Bands", image: require("../../assets/images/category-icons-v3/wedding-bands.png") },
-];
+const categories = MARKETPLACE_CATEGORIES.map((category) => ({
+  id: category.slug,
+  name: category.name,
+  image: category.homeImage,
+}));
 const PRIMARY_CATEGORY_COUNT = 9;
 
 export default function HomeScreen() {
@@ -81,7 +69,6 @@ export default function HomeScreen() {
   const { unreadCount } = useNotifications();
   const { profile } = usePublicAuth();
   const [currentTime, setCurrentTime] = useState(() => new Date());
-  const tabBarHeight = useMobileTabBarHeight();
   const { width: screenWidth } = useWindowDimensions();
   const isDesktop = screenWidth >= 1100;
   const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
@@ -195,13 +182,13 @@ export default function HomeScreen() {
   }, [city, filters, getRating, liveVendors]);
 
   return (
-    <SafeAreaView style={[s.root, { backgroundColor: "#FFFFFF" }]} edges={["top"]}>
+    <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
       <ScrollView
         style={{ backgroundColor: bg }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           s.scroll,
-          { paddingBottom: isDesktop ? 32 : tabBarHeight },
+          { paddingBottom: isDesktop ? 32 : 0, backgroundColor: bg },
         ]}
       >
 

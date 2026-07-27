@@ -1,6 +1,6 @@
 import React from "react";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
-import { Filter } from "lucide-react-native";
+import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { SlidersHorizontal } from "lucide-react-native";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 
 const PINK = "#E91E63";
@@ -8,6 +8,7 @@ const PINK = "#E91E63";
 type CategorySearchBarProps = {
   dark: boolean;
   query: string;
+  activeFilterCount?: number;
   onChangeQuery: (value: string) => void;
   onOpenFilters: () => void;
 };
@@ -15,9 +16,12 @@ type CategorySearchBarProps = {
 export default function CategorySearchBar({
   dark,
   query,
+  activeFilterCount = 0,
   onChangeQuery,
   onOpenFilters,
 }: CategorySearchBarProps) {
+  const { width } = useWindowDimensions();
+
   return (
     <View style={styles.row}>
       <CompactSearchBar
@@ -29,37 +33,61 @@ export default function CategorySearchBar({
         style={styles.search}
       />
 
-      <Pressable
+      <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel="Open category filters"
         onPress={onOpenFilters}
-        style={({ pressed, hovered }) => [
+        activeOpacity={0.76}
+        style={[
           styles.filter,
-          hovered && Platform.OS === "web" && styles.filterHover,
-          pressed && styles.pressed,
+          width < 380 && styles.filterNarrow,
+          { backgroundColor: dark ? "#0E141F" : "#FFFFFF" },
         ]}
       >
-        <Filter size={18} color="#FFFFFF" strokeWidth={2} />
-      </Pressable>
+        <SlidersHorizontal size={16} color={PINK} />
+        {activeFilterCount ? (
+          <View style={styles.filterCount}>
+            <Text style={styles.filterCountText}>{activeFilterCount}</Text>
+          </View>
+        ) : null}
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: 10 },
-  search: { flex: 1 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  search: { flex: 1, minWidth: 0, height: 46 },
   filter: {
-    height: 50,
-    width: 50,
-    borderRadius: 17,
+    width: 46,
+    height: 46,
+    flexShrink: 0,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#F04478",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  filterNarrow: { width: 44 },
+  filterCount: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
     backgroundColor: PINK,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: PINK,
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
   },
-  filterHover: { backgroundColor: "#D81758", transform: [{ translateY: -1 }] },
-  pressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
+  filterCountText: { color: "#FFFFFF", fontSize: 8, fontWeight: "900" },
 });
