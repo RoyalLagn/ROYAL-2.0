@@ -81,6 +81,9 @@ type HeroCarouselProps = {
 };
 
 export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps) {
+  const heroHeight = desktop
+    ? Math.min(320, Math.max(280, Math.round(width * 0.245)))
+    : Math.min(210, Math.max(185, Math.round(width * 0.54)));
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   const interactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -158,7 +161,7 @@ export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps
   };
 
   return (
-    <View style={[styles.shell, desktop && styles.shellDesktop, { width }]}>
+    <View style={[styles.shell, desktop && styles.shellDesktop, { width, height: heroHeight }]}>
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -179,23 +182,21 @@ export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps
               source={slide.image}
               resizeMode="cover"
               accessibilityLabel={`${slide.highlightedText} wedding campaign`}
-              style={[
-                StyleSheet.absoluteFillObject,
-                styles.image,
-              ]}
+              style={styles.image}
             />
             <LinearGradient
-              colors={["rgba(255,251,249,.98)", "rgba(255,244,241,.78)", "rgba(255,244,241,.04)"]}
-              locations={[0, 0.48, 0.82]}
+              pointerEvents="none"
+              colors={["rgba(10,8,9,.78)", "rgba(10,8,9,.42)", "rgba(10,8,9,.02)"]}
+              locations={[0, 0.5, 0.86]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
-              style={[StyleSheet.absoluteFillObject, styles.overlay]}
+              style={StyleSheet.absoluteFillObject}
             />
             <View style={[styles.copy, narrow && styles.copyNarrow, desktop && styles.copyDesktop]}>
               <Text numberOfLines={1} style={[styles.eyebrow, narrow && styles.eyebrowNarrow]}>{slide.eyebrow}</Text>
-              <Text style={[styles.title, narrow && styles.titleNarrow, desktop && styles.titleDesktop]}>{slide.title}</Text>
+              <Text numberOfLines={2} style={[styles.title, narrow && styles.titleNarrow, desktop && styles.titleDesktop]}>{slide.title}</Text>
               <Text numberOfLines={2} style={[styles.highlight, narrow && styles.highlightNarrow, desktop && styles.highlightDesktop]}>{slide.highlightedText}</Text>
-              <Text numberOfLines={2} style={[styles.description, narrow && styles.descriptionNarrow, desktop && styles.descriptionDesktop]}>
+              <Text numberOfLines={3} style={[styles.description, narrow && styles.descriptionNarrow, desktop && styles.descriptionDesktop]}>
                 {slide.description.replace("{{city}}", city)}
               </Text>
               <Pressable
@@ -210,7 +211,7 @@ export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps
                 ]}
               >
                 <Text style={[styles.ctaText, narrow && styles.ctaTextNarrow]}>{slide.ctaLabel}</Text>
-                <ChevronRight size={15} color="#FFFFFF" />
+                <ChevronRight size={13} color="#FFFFFF" />
               </Pressable>
             </View>
           </View>
@@ -251,31 +252,30 @@ export default function HeroCarousel({ width, city, desktop }: HeroCarouselProps
 }
 
 const styles = StyleSheet.create({
-  shell: { aspectRatio: 16 / 8.7, borderRadius: 22, overflow: "hidden", position: "relative", backgroundColor: "#FFF5F2" },
-  shellDesktop: { aspectRatio: 16 / 6.4, borderRadius: 26 },
-  slide: { height: "100%", position: "relative", overflow: "hidden" },
-  image: { width: "100%", height: "100%", zIndex: 0 },
-  overlay: { zIndex: 1 },
-  copy: { position: "absolute", zIndex: 2, left: 0, top: 0, bottom: 0, width: "76%", paddingHorizontal: 18, justifyContent: "center" },
-  copyNarrow: { width: "78%", paddingHorizontal: 13 },
-  copyDesktop: { width: "56%", paddingHorizontal: 54 },
-  eyebrow: { color: "#9A4E69", fontSize: 7, lineHeight: 10, fontWeight: "900", letterSpacing: 1.05, marginBottom: 6 },
+  shell: { borderRadius: 22, overflow: "hidden", position: "relative", backgroundColor: "#251B20" },
+  shellDesktop: { borderRadius: 26 },
+  slide: { height: "100%", position: "relative", overflow: "hidden", backgroundColor: "#251B20" },
+  image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+  copy: { position: "absolute", left: 0, top: 0, bottom: 0, width: "69%", paddingHorizontal: 20, justifyContent: "center" },
+  copyNarrow: { width: "72%", paddingHorizontal: 14 },
+  copyDesktop: { width: "50%", paddingHorizontal: 42 },
+  eyebrow: { color: "#F5D7E2", fontSize: 7.5, lineHeight: 10, fontWeight: "900", letterSpacing: 1.05, marginBottom: 6 },
   eyebrowNarrow: { fontSize: 6, lineHeight: 8, letterSpacing: 0.75, marginBottom: 3 },
-  title: { color: "#172132", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 21, lineHeight: 24, fontWeight: "700" },
-  titleNarrow: { fontSize: 17, lineHeight: 19 },
-  titleDesktop: { fontSize: 39, lineHeight: 43 },
-  highlight: { color: PINK, fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 22, lineHeight: 25, fontWeight: "700", fontStyle: "italic" },
-  highlightNarrow: { fontSize: 18, lineHeight: 20 },
-  highlightDesktop: { fontSize: 41, lineHeight: 46 },
-  description: { maxWidth: 290, color: "#3F4149", fontSize: 10, lineHeight: 14, marginTop: 6 },
-  descriptionNarrow: { fontSize: 8, lineHeight: 11, marginTop: 3 },
-  descriptionDesktop: { maxWidth: 470, fontSize: 13, lineHeight: 19, marginTop: 10 },
-  cta: { minHeight: 38, alignSelf: "flex-start", marginTop: 11, paddingHorizontal: 14, borderRadius: 999, backgroundColor: PINK, flexDirection: "row", alignItems: "center", gap: 4, shadowColor: "#3D0D20", shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
-  ctaNarrow: { minHeight: 32, marginTop: 6, paddingHorizontal: 11 },
+  title: { color: "#FFFFFF", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 19, lineHeight: 22, fontWeight: "700" },
+  titleNarrow: { fontSize: 16, lineHeight: 18 },
+  titleDesktop: { fontSize: 28, lineHeight: 32 },
+  highlight: { color: "#FF2A73", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 20, lineHeight: 23, fontWeight: "700" },
+  highlightNarrow: { fontSize: 17, lineHeight: 19 },
+  highlightDesktop: { fontSize: 30, lineHeight: 34 },
+  description: { maxWidth: 310, color: "#FFFFFF", fontSize: 9.5, lineHeight: 13, marginTop: 5 },
+  descriptionNarrow: { fontSize: 8.5, lineHeight: 11, marginTop: 3 },
+  descriptionDesktop: { maxWidth: 420, fontSize: 11.5, lineHeight: 17, marginTop: 6 },
+  cta: { minHeight: 31, alignSelf: "flex-start", marginTop: 7, paddingHorizontal: 11, borderRadius: 999, backgroundColor: PINK, flexDirection: "row", alignItems: "center", gap: 3, shadowColor: "#3D0D20", shadowOpacity: 0.16, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
+  ctaNarrow: { minHeight: 28, marginTop: 5, paddingHorizontal: 9 },
   ctaHover: { transform: [{ translateY: -1 }], backgroundColor: "#D81758" },
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
-  ctaText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
-  ctaTextNarrow: { fontSize: 9 },
+  ctaText: { color: "#FFFFFF", fontSize: 9.5, fontWeight: "800" },
+  ctaTextNarrow: { fontSize: 8.5 },
   indicators: { position: "absolute", zIndex: 4, left: 0, right: 0, bottom: 9, flexDirection: "row", justifyContent: "center", gap: 5 },
   indicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(233,30,99,.28)" },
   indicatorActive: { width: 20, backgroundColor: PINK },

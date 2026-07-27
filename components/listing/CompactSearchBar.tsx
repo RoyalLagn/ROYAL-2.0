@@ -23,20 +23,20 @@ export default function CompactSearchBar({
   style,
 }: CompactSearchBarProps) {
   const text = dark ? "#F8F2F5" : "#2A2026";
-  const muted = dark ? "#B9AEB3" : "#858087";
-  const icon = dark ? "#D39AAA" : "#B86F7E";
-  const border = dark ? "#4A363E" : "#F4DCE4";
+  const muted = dark ? "#B9AEB3" : "#777780";
+  const icon = dark ? "#F08AAC" : "#EB5B86";
+  const border = dark ? "#39445A" : "#F4CBD8";
   const gradient = dark
-    ? ["#252124", "#2A2226"] as const
-    : ["#FFFFFF", "#FFF5F8"] as const;
+    ? ["#0E141F", "#121A28"] as const
+    : ["#FFFFFF", "#FFFBFC"] as const;
 
   return (
-    <View style={[styles.shell, { backgroundColor: dark ? "#251F22" : "#FFF9FB", borderColor: border }, style]}>
+    <View style={[styles.shell, { backgroundColor: dark ? "#0E141F" : "#FFFFFF", borderColor: border }, style]}>
       <LinearGradient
         colors={gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.inner, { borderColor: dark ? "rgba(255,255,255,.06)" : "rgba(255,255,255,.96)" }]}
+        style={[styles.inner, { borderColor: dark ? "rgba(255,255,255,.04)" : "rgba(255,255,255,.98)" }]}
       >
         <Search size={18} color={icon} strokeWidth={1.7} />
         <TextInput
@@ -74,24 +74,23 @@ const styles = StyleSheet.create({
     minWidth: 0,
     height: 58,
     borderWidth: 1,
-    borderRadius: 26,
-    padding: 3,
-    shadowColor: "#E8A8BB",
-    shadowOpacity: 0.28,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
+    borderRadius: 28,
+    padding: 2,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   inner: {
     flex: 1,
     minWidth: 0,
     borderWidth: 1,
-    borderRadius: 22,
-    paddingLeft: 20,
-    paddingRight: 14,
+    borderRadius: 26,
+    paddingLeft: 18,
+    paddingRight: 13,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 13,
   },
   input: { flex: 1, minWidth: 0, paddingVertical: 0, fontSize: 14, fontWeight: "400", outlineStyle: "none" } as never,
   clear: { width: 30, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },

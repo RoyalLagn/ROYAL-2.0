@@ -68,11 +68,11 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
           pressed && styles.pressed,
         ]}
       >
-        <MapPin size={compact ? 13 : 14} color={PINK} />
-        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.triggerText, filterChip && styles.triggerFilterText, { color: colors.text }]}>
+        <MapPin size={compact ? 11 : 14} color={PINK} />
+        <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.triggerText, compact && styles.triggerTextCompact, filterChip && styles.triggerFilterText, { color: colors.text }]}>
           {filterChip ? "Location" : city}
         </Text>
-        <ChevronDown size={compact ? 11 : 12} color={colors.muted} />
+        <ChevronDown size={compact ? 9 : 12} color={colors.muted} />
       </Pressable>
 
       <Modal visible={visible} transparent animationType={Platform.OS === "web" ? "fade" : "slide"} onRequestClose={close}>
@@ -152,9 +152,10 @@ const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   pressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
   trigger: { minWidth: 0, maxWidth: 190, flexShrink: 1, height: 36, borderWidth: 1, borderRadius: 14, paddingHorizontal: 8, paddingVertical: 0, flexDirection: "row", alignItems: "center", gap: 3 },
-  triggerCompact: { maxWidth: 190, paddingHorizontal: 7, borderRadius: 13 },
+  triggerCompact: { maxWidth: 150, height: 30, paddingHorizontal: 6, borderRadius: 11 },
   triggerFilter: { minHeight: 42, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12 },
   triggerText: { flexShrink: 1, minWidth: 0, fontSize: 11, lineHeight: 14, fontWeight: "700", includeFontPadding: false },
+  triggerTextCompact: { fontSize: 10, lineHeight: 12 },
   triggerFilterText: { fontSize: 11 },
   backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(27,14,21,.48)" },
   backdropMobile: { padding: 0, justifyContent: "flex-end" },

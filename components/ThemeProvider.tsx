@@ -30,13 +30,8 @@ export function useAppTheme() {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const {
-    colorScheme: nativeWindColorScheme,
-    setColorScheme: setNativeWindColorScheme,
-  } = useColorScheme();
-  const [colorScheme, setColorScheme] = useState<AppColorScheme>(
-    nativeWindColorScheme === 'dark' ? 'dark' : 'light'
-  );
+  const { setColorScheme: setNativeWindColorScheme } = useColorScheme();
+  const [colorScheme, setColorScheme] = useState<AppColorScheme>('light');
 
   useEffect(() => {
     const restoreTheme = async () => {
@@ -93,7 +88,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       <View
         style={[
           themeVars,
-          { flex: 1, backgroundColor: colorScheme === 'dark' ? '#141414' : '#FFFBFC' },
+          { flex: 1, backgroundColor: colorScheme === 'dark' ? '#070B14' : '#FFFBFC' },
         ]}
         className={`${colorScheme} flex-1 bg-background`}
       >

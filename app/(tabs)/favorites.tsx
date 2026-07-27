@@ -27,8 +27,8 @@ export default function FavoritesScreen() {
   const [gridView, setGridView] = useState(true);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  const bg    = isDark ? "#141414" : "#F8F4F8";
-  const card  = isDark ? "#1E1E1E" : "#FFFFFF";
+  const bg    = isDark ? "#070B14" : "#F8F4F8";
+  const card  = isDark ? "#0E141F" : "#FFFFFF";
   const text  = isDark ? "#F5F0F3" : "#141414";
   const muted = isDark ? "#AAA0A5" : "#787178";
   const border= isDark ? "#2A2A2A" : "#EEE4F0";

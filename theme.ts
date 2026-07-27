@@ -111,32 +111,32 @@ export const lightTheme = vars({
 export const darkTheme = vars({
 "--radius": "12", // 0.75rem = 12px
 
-// Core semantic colors - Premium Charcoal Dark
-"--background": "20 20 20", // Premium charcoal black #141414
+// Core semantic colors - Midnight Black
+"--background": "7 11 20", // Midnight black #070B14
 "--foreground": "245 245 245", // Near white
 
-"--card": "30 30 30", // Charcoal card #1E1E1E
+"--card": "14 20 31", // Raised midnight surface #0E141F
 "--card-foreground": "245 245 245", // Light text
 
-"--popover": "36 36 36", // Slightly lighter charcoal
+"--popover": "17 24 39", // Slightly lighter midnight surface
 "--popover-foreground": "245 245 245", // Light text
 
 "--primary": "236 72 153", // Pink-500
 "--primary-foreground": "255 255 255", // White
 
-"--secondary": "42 42 42", // Charcoal secondary
+"--secondary": "22 30 46", // Midnight secondary
 "--secondary-foreground": "251 207 232", // Pink-200
 
-"--muted": "32 32 32", // Dark muted #202020
+"--muted": "16 23 36", // Dark midnight muted
 "--muted-foreground": "160 160 165", // Muted text
 
-"--accent": "42 42 42", // Charcoal accent
+"--accent": "22 30 46", // Midnight accent
 "--accent-foreground": "251 207 232", // Pink-200
 
 "--destructive": "248 113 113", // Red
 
-"--border": "42 42 42", // Charcoal border #2A2A2A
-"--input": "37 37 37", // Charcoal input #252525
+"--border": "35 44 61", // Midnight border
+"--input": "24 32 48", // Midnight input
 "--ring": "236 72 153", // Pink-500
 
 // Chart colors
@@ -147,12 +147,12 @@ export const darkTheme = vars({
 "--chart-5": "239 68 68", // oklch(0.645 0.246 16.439)
 
 // Sidebar colors
-"--sidebar": "30 30 30", // oklch(0.205 0 0)
+"--sidebar": "14 20 31",
 "--sidebar-foreground": "250 250 250", // oklch(0.985 0 0)
 "--sidebar-primary": "99 102 241", // oklch(0.488 0.243 264.376)
 "--sidebar-primary-foreground": "250 250 250", // oklch(0.985 0 0)
-"--sidebar-accent": "45 45 45", // oklch(0.269 0 0)
+"--sidebar-accent": "22 30 46",
 "--sidebar-accent-foreground": "250 250 250", // oklch(0.985 0 0)
-"--sidebar-border": "38 38 38", // oklch(1 0 0 / 10%)
+"--sidebar-border": "35 44 61",
 "--sidebar-ring": "82 82 82", // oklch(0.439 0 0)
 });

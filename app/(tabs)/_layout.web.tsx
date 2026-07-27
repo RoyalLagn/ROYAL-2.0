@@ -12,6 +12,7 @@ import {
   Grid3X3,
   Heart,
   Home,
+  MessageSquareText,
   User,
 } from "lucide-react-native";
 import { cssInterop, useColorScheme } from "nativewind";
@@ -26,6 +27,7 @@ import { useNotifications } from "@/context/NotificationContext";
 cssInterop(Home, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Heart, { className: { target: "style", nativeStyleToProp: { color: true } } });
+cssInterop(MessageSquareText, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(User, { className: { target: "style", nativeStyleToProp: { color: true } } });
 
 type NavItemProps = {
@@ -63,6 +65,7 @@ export default function TabsWebLayout() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const isDesktop = width >= 1100;
+  const isHome = pathname === "/" || pathname === "/(tabs)";
   const [searchQuery, setSearchQuery] = useState("");
   const openAuthenticationGateway = useAuthenticationGateway();
   const { unreadCount } = useNotifications();
@@ -95,19 +98,23 @@ export default function TabsWebLayout() {
             : undefined}
         >
           <View className="w-full max-w-[1280px] h-[72px] px-6 self-center flex-row items-center">
-            <Pressable
-              accessibilityRole="link"
-              accessibilityLabel="RoyalLagn home"
-              onPress={() => router.push("/(tabs)")}
-              className="flex-row items-center mr-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-xl"
-            >
-              <View className="w-9 h-9 rounded-xl bg-primary items-center justify-center mr-2.5">
-                <Heart size={18} color="#FFFFFF" strokeWidth={2.4} />
-              </View>
-              <Text className="text-foreground text-xl font-bold tracking-tight">
-                Royal<Text className="text-primary">Lagn</Text>
-              </Text>
-            </Pressable>
+            {!isHome ? (
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="RoyalLagn home"
+                onPress={() => router.push("/(tabs)")}
+                className="flex-row items-center mr-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-xl"
+              >
+                <View className="w-9 h-9 rounded-xl bg-primary items-center justify-center mr-2.5">
+                  <Heart size={18} color="#FFFFFF" strokeWidth={2.4} />
+                </View>
+                <Text className="text-foreground text-xl font-bold tracking-tight">
+                  Royal<Text className="text-primary">Lagn</Text>
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {isHome ? <View className="mr-5"><LocationSelector dark={isDark} compact /></View> : null}
 
             <View className="flex-row items-center mr-6">
               <NavItem
@@ -120,20 +127,27 @@ export default function TabsWebLayout() {
                 active={isActive("/(tabs)/Categories")}
                 onPress={() => router.push("/(tabs)/Categories")}
               />
+              <NavItem
+                label="Enquiry"
+                active={isActive("/(tabs)/enquiry")}
+                onPress={() => router.push("/(tabs)/enquiry")}
+              />
             </View>
 
-            <CompactSearchBar
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onSubmit={submitSearch}
-              placeholder="Search vendors, categories, services..."
-              dark={isDark}
-              accessibilityLabel="Search vendors, categories and services"
-              style={{ flex: 1, maxWidth: 330, marginRight: "auto" }}
-            />
+            {!isHome ? (
+              <CompactSearchBar
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmit={submitSearch}
+                placeholder="Search vendors, categories, services..."
+                dark={isDark}
+                accessibilityLabel="Search vendors, categories and services"
+                style={{ flex: 1, maxWidth: 330, marginRight: "auto" }}
+              />
+            ) : <View className="flex-1" />}
 
             <View className="flex-row items-center ml-3 gap-1">
-              <LocationSelector dark={isDark} compact />
+              {!isHome ? <LocationSelector dark={isDark} compact /> : null}
 
               <Pressable
                 accessibilityRole="button"
@@ -219,6 +233,19 @@ export default function TabsWebLayout() {
             title: "Category",
             tabBarIcon: ({ focused }) => (
               <Grid3X3
+                className={focused ? "text-primary" : "text-muted-foreground"}
+                size={22}
+                strokeWidth={focused ? 2.5 : 2}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="enquiry"
+          options={{
+            title: "Enquiry",
+            tabBarIcon: ({ focused }) => (
+              <MessageSquareText
                 className={focused ? "text-primary" : "text-muted-foreground"}
                 size={22}
                 strokeWidth={focused ? 2.5 : 2}

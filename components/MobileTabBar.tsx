@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +9,8 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
+
+export const MOBILE_TAB_BASE_HEIGHT = 49;
 
 export function MobileTabBar({
   state,
@@ -22,14 +23,14 @@ export function MobileTabBar({
   const isDark = colorScheme === "dark";
   const activeColor = isDark ? "#EC4899" : "#E91E63";
   const inactiveColor = isDark ? "#AAA0A5" : "#787178";
-  const bottomInset = Math.max(insets.bottom, Platform.OS === "ios" ? 6 : 8);
+  const bottomInset = insets.bottom;
 
   return (
     <View
       style={[
         styles.bar,
         {
-          backgroundColor: isDark ? "#141414" : "#FFF1FC",
+          backgroundColor: isDark ? "#070B14" : "#FFF1FC",
           borderTopColor: isDark ? "#333333" : "#FBCFE8",
           paddingBottom: bottomInset,
         },
@@ -118,7 +119,14 @@ const styles = StyleSheet.create({
     width: "100%",
     flexShrink: 0,
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 6,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingTop: 5,
+    shadowColor: "#5E4751",
+    shadowOpacity: 0.13,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: -5 },
+    elevation: 9,
   },
   items: {
     width: "100%",
@@ -128,10 +136,10 @@ const styles = StyleSheet.create({
   item: {
     flex: 1,
     minWidth: 0,
-    minHeight: 50,
+    minHeight: MOBILE_TAB_BASE_HEIGHT - 5,
     paddingHorizontal: 2,
-    paddingTop: 2,
-    paddingBottom: 4,
+    paddingTop: 1,
+    paddingBottom: 2,
     alignItems: "center",
     justifyContent: "flex-start",
   },
@@ -140,16 +148,16 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     width: 28,
-    minHeight: 24,
+    minHeight: 22,
     alignItems: "center",
     justifyContent: "center",
   },
   label: {
     width: "100%",
-    marginTop: 2,
+    marginTop: 1,
     paddingHorizontal: 1,
     fontSize: 11,
-    lineHeight: 14,
+    lineHeight: 13,
     textAlign: "center",
     includeFontPadding: false,
   },

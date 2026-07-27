@@ -65,7 +65,7 @@ export default function RootLayout() {
                 <ThemeProvider>
                   <SafeAreaProvider>
                     <ResponsiveLayoutProvider>
-                    <StatusBar style="auto" />
+                    <StatusBar style="dark" backgroundColor="#FFFFFF" translucent={false} />
                     <View className="bg-background" style={styles.app}>
                       <View style={styles.stack}>
                         <AdminRouteGuard>

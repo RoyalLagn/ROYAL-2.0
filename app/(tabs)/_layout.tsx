@@ -1,11 +1,12 @@
 import { Tabs } from 'expo-router';
-import { Home, Grid3X3, Heart, User } from 'lucide-react-native';
+import { Home, Grid3X3, Heart, MessageSquareText, User } from 'lucide-react-native';
 import { cssInterop, useColorScheme } from 'nativewind';
 import { MobileTabBar } from '@/components/MobileTabBar';
 
 cssInterop(Home,     { className: { target: 'style', nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3,  { className: { target: 'style', nativeStyleToProp: { color: true } } });
 cssInterop(Heart,    { className: { target: 'style', nativeStyleToProp: { color: true } } });
+cssInterop(MessageSquareText, { className: { target: 'style', nativeStyleToProp: { color: true } } });
 cssInterop(User,     { className: { target: 'style', nativeStyleToProp: { color: true } } });
 
 export default function TabsLayout() {
@@ -41,6 +42,19 @@ export default function TabsLayout() {
                     title: 'Category',
                     tabBarIcon: ({ focused }) => (
                         <Grid3X3
+                            className={focused ? 'text-primary' : 'text-muted-foreground'}
+                            size={22}
+                            strokeWidth={focused ? 2.5 : 2}
+                        />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="enquiry"
+                options={{
+                    title: 'Enquiry',
+                    tabBarIcon: ({ focused }) => (
+                        <MessageSquareText
                             className={focused ? 'text-primary' : 'text-muted-foreground'}
                             size={22}
                             strokeWidth={focused ? 2.5 : 2}

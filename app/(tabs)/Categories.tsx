@@ -196,10 +196,10 @@ export default function CategoriesScreen() {
   const contentWidth = Math.min(width - (width >= 1100 ? 48 : 32), 1180);
   const cardWidth = twoColumns ? (contentWidth - 14) / 2 : contentWidth;
 
-  const bg      = isDark ? "#141214" : "#FFFAFC";
+  const bg      = isDark ? "#070B14" : "#FFFAFC";
   const text    = isDark ? "#F5F0F3" : "#141414";
   const muted   = isDark ? "#AAA0A5" : "#787178";
-  const border  = isDark ? "#2A2A2A" : "#F0E8F2";
+  const border  = isDark ? "#232C3D" : "#F0E8F2";
 
   useEffect(() => {
     let active = true;
