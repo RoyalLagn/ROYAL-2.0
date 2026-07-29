@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Dimensions,
 } from "react-native";
+import CategoryBadge from "@/components/categories/CategoryBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Heart, Star, MapPin, Grid2x2, List } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
@@ -205,7 +206,7 @@ function GridCard({ vendor, isDark, text, muted, onPress, onRemove }: {
         </TouchableOpacity>
         {/* Category badge */}
         <View style={s.gridCatBadge}>
-          <Text style={s.gridCatTxt} numberOfLines={1}>{vendor.category}</Text>
+          <CategoryBadge name={vendor.category} style={s.gridCatTxt} />
         </View>
         {/* Rating */}
         <View style={s.gridRatingBadge}>
@@ -240,7 +241,7 @@ function ListCard({ vendor, card, text, muted, border, isDark, onPress, onRemove
       <View style={s.listImgWrap}>
         <Image source={{ uri: vendor.image }} style={s.listImg} resizeMode="cover" />
         <View style={s.listCatBadge}>
-          <Text style={s.listCatTxt}>{vendor.category}</Text>
+          <CategoryBadge name={vendor.category} style={s.listCatTxt} />
         </View>
       </View>
 

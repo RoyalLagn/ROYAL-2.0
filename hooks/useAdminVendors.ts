@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminVendorService } from "@/services/adminVendorService";
 import type { AdminVendorRecord, VendorFilters, VendorHealthMetrics, VendorStatistics } from "@/types/adminVendors";
+import { useCategories } from "@/context/CategoryContext";
 
 const defaults: VendorFilters = {
   query: "", status: "all", verification: "all", plan: "all",
@@ -17,11 +18,15 @@ function errorMessage(reason: unknown) {
 }
 
 export function useAdminVendors() {
+  const { categories: sharedCategories } = useCategories();
+  const categories = useMemo(
+    () => sharedCategories.map(({ id, name }) => ({ id, name })),
+    [sharedCategories],
+  );
   const [filters, setFilters] = useState(defaults);
   const [rows, setRows] = useState<AdminVendorRecord[]>([]);
   const rowsRef = useRef<AdminVendorRecord[]>([]);
   const [statistics, setStatistics] = useState<VendorStatistics | null>(null);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,10 +36,9 @@ export function useAdminVendors() {
   const load = useCallback(async (force = false) => {
     setLoading(true);
     setError(null);
-    const [listResult, statsResult, categoryResult] = await Promise.allSettled([
+    const [listResult, statsResult] = await Promise.allSettled([
       AdminVendorService.list(filters, force),
       AdminVendorService.statistics(),
-      AdminVendorService.categories(),
     ]);
     if (listResult.status === "fulfilled") {
       setRows(listResult.value.rows);
@@ -44,7 +48,6 @@ export function useAdminVendors() {
         .catch(() => setHealth({}));
     } else setError(errorMessage(listResult.reason));
     if (statsResult.status === "fulfilled") setStatistics(statsResult.value);
-    if (categoryResult.status === "fulfilled") setCategories(categoryResult.value);
     setLoading(false);
   }, [filters]);
 

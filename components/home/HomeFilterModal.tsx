@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Check, SlidersHorizontal, X } from "lucide-react-native";
+import { useCategories } from "@/context/CategoryContext";
 
 const PINK = "#E91E63";
 
@@ -42,7 +43,6 @@ const BUDGETS = [
   { value: 50000, label: "Under ₹50k" },
   { value: 100000, label: "Under ₹1L" },
 ];
-const CATEGORIES = ["", "Venues", "Photographers", "Decorators", "Caterers", "Makeup Artists"];
 const SORTS = [
   { value: "recommended" as const, label: "Recommended" },
   { value: "rating" as const, label: "Highest rated" },
@@ -51,6 +51,8 @@ const SORTS = [
 
 export default function HomeFilterModal({ visible, dark, value, city, onClose, onApply }: Props) {
   const [draft, setDraft] = useState(value);
+  const { searchCategories } = useCategories();
+  const categories = ["", ...searchCategories.map((category) => category.name)];
 
   useEffect(() => {
     if (visible) setDraft(value);
@@ -109,7 +111,7 @@ export default function HomeFilterModal({ visible, dark, value, city, onClose, o
 
             <Text style={[styles.label, { color: colors.text }]}>Category</Text>
             <View style={styles.pills}>
-              {CATEGORIES.map((category) => (
+              {categories.map((category) => (
                 <Pressable key={category || "all"} accessibilityRole="button" accessibilityState={{ selected: draft.category === category }} onPress={() => setDraft({ ...draft, category })} style={[styles.pill, pill(draft.category === category)]}>
                   <Text style={[styles.pillText, { color: draft.category === category ? PINK : colors.text }]}>{category || "All categories"}</Text>
                 </Pressable>

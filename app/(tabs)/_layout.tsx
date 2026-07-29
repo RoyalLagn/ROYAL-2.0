@@ -1,11 +1,11 @@
 import { Tabs } from 'expo-router';
-import { Home, Grid3X3, Heart, MessageSquareText, User } from 'lucide-react-native';
+import { Clapperboard, Home, Grid3X3, MessageSquareText, User } from 'lucide-react-native';
 import { cssInterop, useColorScheme } from 'nativewind';
 import { MobileTabBar } from '@/components/MobileTabBar';
 
 cssInterop(Home,     { className: { target: 'style', nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3,  { className: { target: 'style', nativeStyleToProp: { color: true } } });
-cssInterop(Heart,    { className: { target: 'style', nativeStyleToProp: { color: true } } });
+cssInterop(Clapperboard, { className: { target: 'style', nativeStyleToProp: { color: true } } });
 cssInterop(MessageSquareText, { className: { target: 'style', nativeStyleToProp: { color: true } } });
 cssInterop(User,     { className: { target: 'style', nativeStyleToProp: { color: true } } });
 
@@ -25,6 +25,19 @@ export default function TabsLayout() {
             }}
         >
             <Tabs.Screen
+                name="index"
+                options={{
+                    title: 'Home',
+                    tabBarIcon: ({ focused }) => (
+                        <Home
+                            className={focused ? 'text-primary' : 'text-muted-foreground'}
+                            size={22}
+                            strokeWidth={focused ? 2.5 : 2}
+                        />
+                    ),
+                }}
+            />
+            <Tabs.Screen
                 name="Categories"
                 options={{
                     title: 'Category',
@@ -38,31 +51,21 @@ export default function TabsLayout() {
                 }}
             />
             <Tabs.Screen
-                name="favorites"
+                name="clips"
                 options={{
-                    title: 'Favorites',
+                    title: 'Clips',
                     tabBarIcon: ({ focused }) => (
-                        <Heart
+                        <Clapperboard
                             className={focused ? 'text-primary' : 'text-muted-foreground'}
                             size={22}
                             strokeWidth={focused ? 2.5 : 2}
-                            fill={focused ? 'currentColor' : 'none'}
                         />
                     ),
                 }}
             />
             <Tabs.Screen
-                name="index"
-                options={{
-                    title: 'Home',
-                    tabBarIcon: ({ focused }) => (
-                        <Home
-                            className={focused ? 'text-primary' : 'text-muted-foreground'}
-                            size={22}
-                            strokeWidth={focused ? 2.5 : 2}
-                        />
-                    ),
-                }}
+                name="favorites"
+                options={{ href: null }}
             />
             <Tabs.Screen
                 name="enquiry"

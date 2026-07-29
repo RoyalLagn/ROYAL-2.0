@@ -23,6 +23,7 @@ import {
   subscribeToPublicVendorChanges,
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
+import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 
 function getPriceOptions(category: string) {
   if (category === "Caterers") {
@@ -62,6 +63,9 @@ const CATEGORY_ALIASES: Record<string, string> = {
   "music and dance": "Music & Dance",
   "invites and cards": "Invites & Cards",
   "dj": "DJs",
+  "live orchestra": "Live Orchestra & Band",
+  "orchestra and band": "Live Orchestra & Band",
+  "wedding bands": "Live Orchestra & Band",
 };
 
 function resolveCategory(value?: string) {
@@ -69,23 +73,6 @@ function resolveCategory(value?: string) {
   const aliased = CATEGORY_ALIASES[value.trim().toLowerCase()] ?? value.trim();
   return normalizeMarketplaceCategoryName(aliased);
 }
-
-const CATEGORY_FALLBACKS: Record<string, number> = {
-  Venues: require("../assets/images/category-fallback/venues.png"),
-  Caterers: require("../assets/images/category-fallback/caterers.png"),
-  Photographers: require("../assets/images/category-fallback/photographer.png"),
-  Decorators: require("../assets/images/category-fallback/decoraters.png"),
-  "Makeup Artists": require("../assets/images/category-fallback/makeup.png"),
-  "Mehndi Artists": require("../assets/images/category-fallback/mehendi-artist.png"),
-  DJs: require("../assets/images/category-fallback/DJ.png"),
-  "Bridal Wear": require("../assets/images/category-fallback/bridal-wear.png"),
-  "Groom Wear": require("../assets/images/category-fallback/groom-wear.png"),
-  "Jewellery & Accessories": require("../assets/images/category-fallback/jewellery-accessories.png"),
-  Pandits: require("../assets/images/category-fallback/pandits.png"),
-  "Invites & Cards": require("../assets/images/category-fallback/invites-cards.png"),
-  "Pre Wedding Shoot": require("../assets/images/category-fallback/pre-wedding-shoot.png"),
-  "Music & Dance": require("../assets/images/category-fallback/dance.png"),
-};
 
 export default function VendorsListingScreen() {
   const { colorScheme } = useColorScheme();
@@ -278,7 +265,7 @@ export default function VendorsListingScreen() {
               dark={isDark}
               compact={compact}
               favorite={isFavorite(vendor.id)}
-              fallbackImage={CATEGORY_FALLBACKS[displayCategory] ?? CATEGORY_FALLBACKS.Venues}
+              fallbackImage={resolveMarketplaceCategoryImage(displayCategory).fallbackSource}
               onOpen={() =>
                 router.push({
                   pathname: "/VendorsProfile",

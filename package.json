@@ -9,7 +9,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "prebuild:android": "expo prebuild --platform android --clean",
-    "build:apk": "cd android && node -e \"require('child_process').execSync((process.platform==='win32'?'gradlew.bat':'./gradlew')+' assembleRelease',{stdio:'inherit'})\"",
+    "build:apk": "cd android && node -e \"process.env.NODE_ENV='production';require('child_process').execSync((process.platform==='win32'?'gradlew.bat':'./gradlew')+' assembleRelease',{stdio:'inherit',env:process.env})\"",
     "lint": "expo lint"
   },
   "dependencies": {

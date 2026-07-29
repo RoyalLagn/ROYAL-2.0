@@ -15,6 +15,7 @@ import { NotificationProvider } from '@/context/NotificationContext';
 import { AdminAuthProvider } from '@/context/AdminAuthContext';
 import { AdminRouteGuard } from '@/components/auth/AdminRouteGuard';
 import { ResponsiveLayoutProvider } from '@/context/ResponsiveLayoutContext';
+import { CategoryProvider } from '@/context/CategoryContext';
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
@@ -56,6 +57,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <PublicAuthProvider>
+        <CategoryProvider>
         <AdminAuthProvider>
         <NotificationProvider>
           <VendorSessionProvider>
@@ -83,6 +85,7 @@ export default function RootLayout() {
           </VendorSessionProvider>
         </NotificationProvider>
         </AdminAuthProvider>
+        </CategoryProvider>
       </PublicAuthProvider>
     </ErrorBoundary>
   );

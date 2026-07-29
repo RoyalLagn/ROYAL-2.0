@@ -4,7 +4,7 @@
     "slug": "royallagn",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/app-icon.png",
     "scheme": "royallagn",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -13,8 +13,9 @@
       "bundleIdentifier": "com.royallagn.app"
     },
     "android": {
+      "versionCode": 3,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/app-icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.royallagn.app"
@@ -27,10 +28,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/splash.png",
+          "imageWidth": 320,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#FAD1CE"
         }
       ],
       "expo-font",

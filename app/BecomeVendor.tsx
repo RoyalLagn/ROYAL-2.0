@@ -8,8 +8,8 @@ import { useRouter } from "expo-router";
 import { ArrowLeft, Camera, Check, ChevronDown, X } from "lucide-react-native";
 import { supabase } from "@/services/supabase";
 import { CloudinaryError, pickAndUploadImage } from "@/services/cloudinary";
+import { useCategories } from "@/context/CategoryContext";
 
-type Category = { id: string; name: string };
 type FormState = Record<string, string>;
 const initialForm: FormState = {
   full_name: "", email: "", phone: "", business_name: "", category_id: "",
@@ -29,8 +29,8 @@ const sections = [
 
 export default function BecomeVendor() {
   const router = useRouter();
+  const { registrationCategories: categories } = useCategories();
   const [form, setForm] = useState(initialForm);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [declared, setDeclared] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -58,10 +58,6 @@ export default function BecomeVendor() {
         email: profile.email || data.user?.email || current.email,
         phone: profile.phone || current.phone,
       }));
-    });
-    supabase.from("categories").select("id,name").order("name").then(({ data, error }) => {
-      if (error) Alert.alert("Unable to load categories", error.message);
-      else setCategories(data ?? []);
     });
   }, [router]);
 

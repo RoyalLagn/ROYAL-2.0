@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Platform,
   Pressable,
   Text,
@@ -9,10 +10,12 @@ import {
 import { Tabs, usePathname, useRouter } from "expo-router";
 import {
   Bell,
+  Clapperboard,
   Grid3X3,
   Heart,
   Home,
   MessageSquareText,
+  Share2,
   User,
 } from "lucide-react-native";
 import { cssInterop, useColorScheme } from "nativewind";
@@ -34,10 +37,12 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import { shareRoyalLagnApp } from "@/services/AppShareService";
 
 cssInterop(Home, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Heart, { className: { target: "style", nativeStyleToProp: { color: true } } });
+cssInterop(Clapperboard, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(MessageSquareText, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(User, { className: { target: "style", nativeStyleToProp: { color: true } } });
 
@@ -164,6 +169,13 @@ export default function TabsWebLayout() {
   const submitSearch = () => {
     router.push({ pathname: "/Search", params: { query: searchQuery.trim() } });
   };
+  const shareApp = async () => {
+    try {
+      await shareRoyalLagnApp();
+    } catch {
+      Alert.alert("Unable to share", "Please try sharing RoyalLagn again.");
+    }
+  };
 
   const isActive = (route: string) => {
     if (route === "/(tabs)") return pathname === "/" || pathname === "/(tabs)";
@@ -219,6 +231,11 @@ export default function TabsWebLayout() {
                 onPress={() => router.push("/(tabs)/Categories")}
               />
               <NavItem
+                label="Clips"
+                active={isActive("/(tabs)/clips")}
+                onPress={() => router.push("/(tabs)/clips")}
+              />
+              <NavItem
                 label="Enquiry"
                 active={isActive("/(tabs)/enquiry")}
                 onPress={() => router.push("/(tabs)/enquiry")}
@@ -262,6 +279,15 @@ export default function TabsWebLayout() {
               />
 
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Share RoyalLagn"
+                onPress={shareApp}
+                className="w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <Share2 size={19} className="text-foreground/75" />
+              </Pressable>
+
+              <Pressable
                 accessibilityRole="link"
                 accessibilityLabel="Profile"
                 onPress={() => void openAuthenticationGateway()}
@@ -293,6 +319,19 @@ export default function TabsWebLayout() {
         }}
       >
         <Tabs.Screen
+          name="index"
+          options={{
+            title: "Home",
+            tabBarIcon: ({ focused }) => (
+              <Home
+                className={focused ? "text-primary" : "text-muted-foreground"}
+                size={22}
+                strokeWidth={focused ? 2.5 : 2}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="Categories"
           options={{
             title: "Category",
@@ -306,31 +345,21 @@ export default function TabsWebLayout() {
           }}
         />
         <Tabs.Screen
-          name="favorites"
+          name="clips"
           options={{
-            title: "Favorites",
+            title: "Clips",
             tabBarIcon: ({ focused }) => (
-              <Heart
+              <Clapperboard
                 className={focused ? "text-primary" : "text-muted-foreground"}
                 size={22}
                 strokeWidth={focused ? 2.5 : 2}
-                fill={focused ? "currentColor" : "none"}
               />
             ),
           }}
         />
         <Tabs.Screen
-          name="index"
-          options={{
-            title: "Home",
-            tabBarIcon: ({ focused }) => (
-              <Home
-                className={focused ? "text-primary" : "text-muted-foreground"}
-                size={22}
-                strokeWidth={focused ? 2.5 : 2}
-              />
-            ),
-          }}
+          name="favorites"
+          options={{ href: null }}
         />
         <Tabs.Screen
           name="enquiry"

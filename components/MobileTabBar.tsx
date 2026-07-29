@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
   StyleSheet,
-  Text,
   View,
   type LayoutChangeEvent,
   type TextStyle,
@@ -10,7 +9,7 @@ import {
 } from "react-native";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useRouter } from "expo-router";
-import { Grid3X3, Heart, Home, MessageSquareText, User } from "lucide-react-native";
+import { Clapperboard, Grid3X3, Heart, Home, MessageSquareText, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   interpolate,
@@ -32,12 +31,19 @@ const PINK = "#E91E63";
 const ACTIVE_DARK = "#EC4899";
 const INACTIVE_LIGHT = "#6B6B73";
 const INACTIVE_DARK = "#AAA0A5";
-const HOME_ROUTE = "index";
+const CENTER_ROUTE = "clips";
 const TAB_COUNT = 5;
+const CUSTOMER_TAB_ROUTES = new Set([
+  "index",
+  "Categories",
+  "clips",
+  "enquiry",
+  "profile",
+]);
 const STANDALONE_TABS = [
-  { routeName: "Categories", label: "Category", href: "/(tabs)/Categories" },
-  { routeName: "favorites", label: "Favorites", href: "/(tabs)/favorites" },
   { routeName: "index", label: "Home", href: "/(tabs)" },
+  { routeName: "Categories", label: "Category", href: "/(tabs)/Categories" },
+  { routeName: "clips", label: "Clips", href: "/(tabs)/clips" },
   { routeName: "enquiry", label: "Enquiry", href: "/(tabs)/enquiry" },
   { routeName: "profile", label: "Profile", href: "/(tabs)/profile" },
 ] as const;
@@ -45,6 +51,7 @@ const STANDALONE_TABS = [
 const AnimatedGrid = Animated.createAnimatedComponent(Grid3X3);
 const AnimatedHeart = Animated.createAnimatedComponent(Heart);
 const AnimatedHome = Animated.createAnimatedComponent(Home);
+const AnimatedClapperboard = Animated.createAnimatedComponent(Clapperboard);
 const AnimatedMessage = Animated.createAnimatedComponent(MessageSquareText);
 const AnimatedUser = Animated.createAnimatedComponent(User);
 
@@ -52,6 +59,7 @@ const ICONS: Record<string, React.ComponentType<any>> = {
   Categories: AnimatedGrid,
   favorites: AnimatedHeart,
   index: AnimatedHome,
+  clips: AnimatedClapperboard,
   enquiry: AnimatedMessage,
   profile: AnimatedUser,
 };
@@ -90,7 +98,7 @@ function AnimatedTab({
     hasUnviewedFavorites,
     registerFavoritesDestination,
   } = useFavorites();
-  const isHome = routeName === HOME_ROUTE;
+  const isCenter = routeName === CENTER_ROUTE;
   const isFavorites = routeName === "favorites";
   const activeColor = isDark ? ACTIVE_DARK : PINK;
   const inactiveColor = isDark ? INACTIVE_DARK : INACTIVE_LIGHT;
@@ -119,10 +127,10 @@ function AnimatedTab({
 
   const visualStyle = useAnimatedStyle<ViewStyle>(() => ({
     transform: [
-      { translateY: isHome ? interpolate(active.value, [0, 1], [0, -2]) : interpolate(active.value, [0, 1], [0, -3]) },
+      { translateY: isCenter ? interpolate(active.value, [0, 1], [0, -2]) : interpolate(active.value, [0, 1], [0, -3]) },
       {
         scale: pressed.value
-          * interpolate(active.value, [0, 1], [1, isHome ? 1.06 : 1.08])
+          * interpolate(active.value, [0, 1], [1, isCenter ? 1.06 : 1.08])
           * interpolate(arrival.value, [0, 1], [1, 1.18]),
       },
     ],
@@ -147,7 +155,7 @@ function AnimatedTab({
   }));
 
   const iconProps = useAnimatedProps(() => ({
-    color: isHome
+    color: isCenter
       ? "#FFFFFF"
       : isFavorites && arrival.value > 0.01
         ? activeColor
@@ -180,7 +188,7 @@ function AnimatedTab({
       onPressOut={pressOut}
       style={styles.item}
     >
-      {isHome ? (
+      {isCenter ? (
         <Animated.View style={[styles.homeVisual, visualStyle]}>
           <Animated.View style={[styles.homeCircle, circleStyle]}>
             <Icon animatedProps={iconProps} size={20} strokeWidth={2.35} />
@@ -210,7 +218,7 @@ function AnimatedTab({
         allowFontScaling
         maxFontSizeMultiplier={1.25}
         numberOfLines={1}
-        style={[styles.label, isHome && styles.homeLabel, focused && styles.activeLabel, labelStyle]}
+        style={[styles.label, isCenter && styles.homeLabel, focused && styles.activeLabel, labelStyle]}
       >
         {label}
       </Animated.Text>
@@ -231,7 +239,7 @@ function AnimatedTab({
  */
 export function useMobileTabBarHeight(): number {
   const insets = useSafeAreaInsets();
-  return MOBILE_TAB_BASE_HEIGHT + insets.bottom;
+  return MOBILE_TAB_BASE_HEIGHT + Math.max(insets.bottom, 8);
 }
 
 export function MobileTabBar({
@@ -245,24 +253,32 @@ export function MobileTabBar({
   const reducedMotion = useReducedMotion();
   const isDark = colorScheme === "dark";
   const [itemsWidth, setItemsWidth] = useState(0);
-  const activeIndex = useSharedValue(state.index);
-  const orderedRoutes = useMemo(() => state.routes, [state.routes]);
-  const homeIndex = state.routes.findIndex((route) => route.name === HOME_ROUTE);
+  const orderedRoutes = useMemo(
+    () => state.routes.filter((route) => CUSTOMER_TAB_ROUTES.has(route.name)),
+    [state.routes],
+  );
+  const activeRouteName = state.routes[state.index]?.name;
+  const selectedIndex = Math.max(
+    0,
+    orderedRoutes.findIndex((route) => route.name === activeRouteName),
+  );
+  const activeIndex = useSharedValue(selectedIndex);
+  const centerIndex = orderedRoutes.findIndex((route) => route.name === CENTER_ROUTE);
 
   useEffect(() => {
     activeIndex.value = reducedMotion
-      ? state.index
-      : withSpring(state.index, { damping: 20, stiffness: 190, mass: 0.75 });
-  }, [activeIndex, reducedMotion, state.index]);
+      ? selectedIndex
+      : withSpring(selectedIndex, { damping: 20, stiffness: 190, mass: 0.75 });
+  }, [activeIndex, reducedMotion, selectedIndex]);
 
   const indicatorStyle = useAnimatedStyle<ViewStyle>(() => {
     const itemWidth = itemsWidth / TAB_COUNT;
     return {
       width: Math.max(0, itemWidth - 10),
-      opacity: Math.min(1, Math.abs(activeIndex.value - homeIndex) * 2.5),
+      opacity: Math.min(1, Math.abs(activeIndex.value - centerIndex) * 2.5),
       transform: [{ translateX: activeIndex.value * itemWidth + 5 }],
     };
-  }, [homeIndex, itemsWidth]);
+  }, [centerIndex, itemsWidth]);
 
   const onItemsLayout = (event: LayoutChangeEvent) => {
     setItemsWidth(event.nativeEvent.layout.width);
@@ -270,13 +286,18 @@ export function MobileTabBar({
 
   return (
     <View
-      style={styles.safeWrap}
+      style={[
+        styles.safeWrap,
+        {
+          paddingBottom: Math.max(insets.bottom, 8),
+          backgroundColor: isDark ? "#070B14" : "#FFFFFF",
+        },
+      ]}
     >
       <View
         style={[
           styles.bar,
           {
-            paddingBottom: insets.bottom,
             backgroundColor: isDark ? "#0E141F" : "#FFFFFF",
             borderColor: isDark ? "#5A2B3F" : "#F3D4DF",
           },
@@ -377,12 +398,19 @@ export function StandaloneMobileTabBar({
   }, [itemsWidth]);
 
   return (
-    <View style={styles.safeWrap}>
+    <View
+      style={[
+        styles.safeWrap,
+        {
+          paddingBottom: Math.max(insets.bottom, 8),
+          backgroundColor: isDark ? "#070B14" : "#FFFFFF",
+        },
+      ]}
+    >
       <View
         style={[
           styles.bar,
           {
-            paddingBottom: insets.bottom,
             backgroundColor: isDark ? "#0E141F" : "#FFFFFF",
             borderColor: isDark ? "#5A2B3F" : "#F3D4DF",
           },

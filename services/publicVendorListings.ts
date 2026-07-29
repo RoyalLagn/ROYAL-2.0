@@ -37,11 +37,6 @@ export type PublicVendorListing = {
   heroMedia: VendorPortfolioMedia[];
 };
 
-export type PublicMarketplaceCategory = {
-  id: string;
-  name: string;
-};
-
 const PUBLIC_VENDOR_LIST_SELECT = `
   id,
   business_name,
@@ -114,8 +109,6 @@ const PUBLIC_VENDOR_DETAIL_SELECT = `
 let marketplaceCache: PublicVendorListing[] | null = null;
 let marketplaceRequest: Promise<PublicVendorListing[]> | null = null;
 let marketplaceCacheVersion = 0;
-let categoryCache: PublicMarketplaceCategory[] | null = null;
-let categoryRequest: Promise<PublicMarketplaceCategory[]> | null = null;
 const marketplaceListeners = new Set<() => void>();
 let marketplaceChannel: ReturnType<typeof supabase.channel> | null = null;
 let marketplaceRefreshTimer: ReturnType<typeof setTimeout> | null = null;
@@ -136,6 +129,11 @@ const MARKETPLACE_CATEGORY_NAMES: Record<string, string> = {
   "invitation cards": "Invites & Cards",
   pandit: "Pandits",
   choreographer: "Music & Dance",
+  "live orchestra": "Live Orchestra & Band",
+  orchestra: "Live Orchestra & Band",
+  "orchestra and band": "Live Orchestra & Band",
+  "wedding band": "Live Orchestra & Band",
+  "wedding bands": "Live Orchestra & Band",
 };
 
 export function normalizeMarketplaceCategoryName(value: string) {
@@ -228,34 +226,6 @@ export function invalidatePublicVendorCache() {
   marketplaceCacheVersion += 1;
   marketplaceCache = null;
   marketplaceRequest = null;
-  categoryCache = null;
-  categoryRequest = null;
-}
-
-export async function getPublicMarketplaceCategories(): Promise<PublicMarketplaceCategory[]> {
-  if (categoryCache) return categoryCache;
-  if (categoryRequest) return categoryRequest;
-
-  const requestVersion = marketplaceCacheVersion;
-  const request = (async () => {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("id,name")
-      .order("name");
-    if (error) throw error;
-    const categories = (data ?? []).map((category) => ({
-      id: category.id,
-      name: category.name,
-    }));
-    if (requestVersion === marketplaceCacheVersion) categoryCache = categories;
-    return categories;
-  })();
-  categoryRequest = request;
-  try {
-    return await request;
-  } finally {
-    if (categoryRequest === request) categoryRequest = null;
-  }
 }
 
 export async function getApprovedPublicVendors(

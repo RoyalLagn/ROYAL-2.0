@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -14,25 +14,7 @@ import CategoryFilterModal from "@/components/categories/CategoryFilterModal";
 import CategoryPageHeader from "@/components/categories/CategoryPageHeader";
 import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import HomeReveal from "@/components/home/HomeReveal";
-import {
-  findMarketplaceCategory,
-  MARKETPLACE_CATEGORIES,
-} from "@/data/marketplaceCategories";
-import {
-  getPublicMarketplaceCategories,
-  subscribeToPublicVendorChanges,
-} from "@/services/publicVendorListings";
-
-const CATEGORY_PRESENTATION: CategoryCardItem[] = MARKETPLACE_CATEGORIES.map((category) => ({
-  id: category.slug,
-  name: category.name,
-  description: category.description,
-  icon: category.icon,
-  iconColor: category.iconColor,
-  iconBg: category.iconBg,
-  image: category.cloudinaryImage,
-  fallbackImage: category.fallbackImage,
-}));
+import { useCategories } from "@/context/CategoryContext";
 
 export default function CategoriesScreen() {
   const { colorScheme } = useColorScheme();
@@ -41,7 +23,19 @@ export default function CategoriesScreen() {
   const [query, setQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [filtersVisible, setFiltersVisible] = useState(false);
-  const [categories, setCategories] = useState<CategoryCardItem[]>(CATEGORY_PRESENTATION);
+  const { searchCategories: liveCategories } = useCategories();
+  const categories = useMemo<CategoryCardItem[]>(() =>
+    liveCategories.map((category) => ({
+      id: category.id,
+      name: category.name,
+      description: category.description,
+      icon: category.icon,
+      iconColor: category.iconColor,
+      iconBg: category.iconBg,
+      image: category.imageUrl,
+      fallbackImage: category.fallbackImage,
+      vendorCount: category.vendorCount,
+    })), [liveCategories]);
   const { width: screenWidth } = useWindowDimensions();
   const isDesktop = screenWidth >= 1100;
   const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
@@ -54,34 +48,6 @@ export default function CategoriesScreen() {
   const text    = isDark ? "#F5F0F3" : "#141414";
   const muted   = isDark ? "#AAA0A5" : "#787178";
   const border  = isDark ? "#232C3D" : "#F0E8F2";
-
-  useEffect(() => {
-    let active = true;
-    const load = () => {
-      getPublicMarketplaceCategories()
-        .then((liveCategories) => {
-          if (!active) return;
-          const liveIds = new Map<string, string>();
-          liveCategories.forEach((category) => {
-            const match = findMarketplaceCategory(category.name);
-            if (match && !liveIds.has(match.slug)) liveIds.set(match.slug, category.id);
-          });
-          setCategories(CATEGORY_PRESENTATION.map((category) => ({
-            ...category,
-            id: liveIds.get(category.id) ?? category.id,
-          })));
-        })
-        .catch(() => {
-          if (active) setCategories(CATEGORY_PRESENTATION);
-        });
-    };
-    load();
-    const unsubscribe = subscribeToPublicVendorChanges(load);
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, []);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();

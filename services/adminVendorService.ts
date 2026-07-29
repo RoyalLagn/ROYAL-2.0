@@ -1,5 +1,6 @@
 import { Platform, Share } from "react-native";
 import { supabase } from "@/services/supabase";
+import { CategoryService } from "@/services/CategoryService";
 import type {
   AdminVendorRecord,
   VendorAction,
@@ -100,9 +101,7 @@ export const AdminVendorService = {
   },
 
   async categories() {
-    const { data, error } = await supabase.from("categories").select("id,name").order("name");
-    if (error) throw error;
-    return data ?? [];
+    return (await CategoryService.list()).map(({ id, name }) => ({ id, name }));
   },
 
   async healthMetrics(rows: AdminVendorRecord[]) {

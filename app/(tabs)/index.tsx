@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   View,
   Text,
   ScrollView,
   Image,
-  Platform,
   Pressable,
   TouchableOpacity,
   StyleSheet,
@@ -15,6 +15,8 @@ import { useRouter } from "expo-router";
 import {
   MapPin,
   Bell,
+  Heart,
+  Share2,
   Search,
   ChevronRight,
   Star,
@@ -39,17 +41,13 @@ import {
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
 import { usePublicAuth } from "@/context/PublicAuthContext";
-import { MARKETPLACE_CATEGORIES } from "@/data/marketplaceCategories";
 import HomeCategoryCard from "@/components/home/HomeCategoryCard";
 import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
+import { shareRoyalLagnApp } from "@/services/AppShareService";
+import { useCategories } from "@/context/CategoryContext";
 
 const PINK = "#E91E63";
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
-const categories = MARKETPLACE_CATEGORIES.map((category) => ({
-  id: category.slug,
-  name: category.name,
-  image: category.homeImage,
-}));
 const PRIMARY_CATEGORY_COUNT = 9;
 
 export default function HomeScreen() {
@@ -66,6 +64,7 @@ export default function HomeScreen() {
   const { city } = useCustomerLocation();
   const { unreadCount } = useNotifications();
   const { profile } = usePublicAuth();
+  const { homeCategories: categories } = useCategories();
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const { width: screenWidth } = useWindowDimensions();
   const isDesktop = screenWidth >= 1100;
@@ -138,6 +137,13 @@ export default function HomeScreen() {
     setFiltersVisible(false);
     router.push({ pathname: "/Search", params: searchParams(value) });
   };
+  const shareApp = async () => {
+    try {
+      await shareRoyalLagnApp();
+    } catch {
+      Alert.alert("Unable to share", "Please try sharing RoyalLagn again.");
+    }
+  };
   const activeFilterCount = [
     filters.minimumRating > 0,
     filters.maximumBudget > 0,
@@ -193,24 +199,35 @@ export default function HomeScreen() {
         {/* ── Compact mobile header ── */}
         {!isDesktop ? (
           <HomeReveal direction="down" style={[s.header, { width: featureWidth }]}>
-            <View style={s.headerSide}><LocationSelector dark={isDark} compact /></View>
+            <View style={s.headerLocation}><LocationSelector dark={isDark} compact /></View>
 
             <View pointerEvents="none" style={s.headerLogo}>
               <Image
                 source={isDark
-                  ? require("../../assets/Logo/black-logo-cropped.png")
-                  : require("../../assets/Logo/white-logo-cropped.png")}
+                  ? require("../../assets/Logo/center-logo.png")
+                  : require("../../assets/Logo/light-logo.png")}
                 resizeMode="contain"
                 accessibilityLabel="RoyalLagn Wedding Planner"
                 style={[s.headerLogoImage, screenWidth < 360 && s.headerLogoImageNarrow]}
               />
             </View>
 
-            <View style={[s.headerSide, s.headerRight]}>
+            <View style={s.headerActions}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Open favorites"
+                style={s.headerAction}
+                hitSlop={4}
+                onPress={() => router.push("/(tabs)/favorites")}
+                activeOpacity={0.7}
+              >
+                <Heart size={20} color={text} />
+              </TouchableOpacity>
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
-                style={s.bellWrap}
+                style={s.headerAction}
+                hitSlop={4}
                 onPress={() => router.push("/Notifications")}
                 activeOpacity={0.7}
               >
@@ -220,6 +237,16 @@ export default function HomeScreen() {
                     <Text style={s.badgeTxt}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
                   </View>
                 ) : null}
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Share RoyalLagn"
+                style={s.headerAction}
+                hitSlop={4}
+                onPress={shareApp}
+                activeOpacity={0.7}
+              >
+                <Share2 size={20} color={text} />
               </TouchableOpacity>
             </View>
           </HomeReveal>
@@ -276,7 +303,7 @@ export default function HomeScreen() {
               <HomeCategoryCard
                 key={cat.id}
                 name={cat.name}
-                image={cat.image}
+                image={cat.homeImage}
                 itemWidth={categoryItemWidth}
                 cardWidth={categoryCardWidth}
                 tone={index}
@@ -394,7 +421,7 @@ export default function HomeScreen() {
                     onToggle={(source) => toggleFavorite(v, source)}
                     size={15}
                     color="#3A3035"
-                    activeIconColor="#FFFFFF"
+                    activeIconColor={PINK}
                   />
                 </View>
               );
@@ -454,13 +481,13 @@ const s = StyleSheet.create<Record<string, any>>({
   scroll:          {},
 
   /* Header */
-  header:          { minHeight: 54, alignSelf: "center", flexDirection: "row", alignItems: "center" },
-  headerSide:      { flex: 1, minWidth: 0, alignItems: "flex-start", justifyContent: "center" },
-  headerLogo:      { flex: 1.55, minWidth: 0, height: 48, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  headerLogoImage: { width: 150, height: 46 },
-  headerLogoImageNarrow: { width: 126, height: 40 },
-  headerRight:     { alignItems: "flex-end" },
-  bellWrap:        { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", position: "relative" },
+  header:          { minHeight: 54, alignSelf: "center", flexDirection: "row", alignItems: "center", position: "relative" },
+  headerLocation:  { zIndex: 2, minWidth: 54, maxWidth: 100, flexShrink: 1, alignItems: "flex-start", justifyContent: "center" },
+  headerLogo:      { position: "absolute", zIndex: 1, left: 0, right: 0, height: 48, paddingHorizontal: 108, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  headerLogoImage: { width: "100%", maxWidth: 150, height: 46, transform: [{ scale: 1.85 }] },
+  headerLogoImageNarrow: { maxWidth: 120, height: 40, transform: [{ scale: 1.65 }] },
+  headerActions:   { zIndex: 2, marginLeft: "auto", flexDirection: "row", flexShrink: 0, alignItems: "center" },
+  headerAction:    { width: 36, height: 44, borderRadius: 18, alignItems: "center", justifyContent: "center", position: "relative" },
   badge:           { position: "absolute", top: 2, right: 1, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: PINK, borderWidth: 2, borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
   badgeTxt:        { color: "#FFF", fontSize: 8, fontWeight: "800" },
 
@@ -505,7 +532,7 @@ const s = StyleSheet.create<Record<string, any>>({
   vendorImgWrap:   { position: "relative", overflow: "hidden" },
   vendorImg:       { width: "100%", height: "100%" },
   heartBtn:        { position: "absolute", top: 8, right: 8, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(255,255,255,.94)", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } },
-  heartBtnActive:  { backgroundColor: PINK },
+  heartBtnActive:  { backgroundColor: "rgba(255,255,255,.94)" },
   favoritePressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
   imgBottomRow:    { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", padding: 7 },
   ratingBadge:     { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(27,25,27,.72)", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 20 },

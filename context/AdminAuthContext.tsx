@@ -50,11 +50,17 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      if (data.session) void refreshAdmin(data.session);
-      else setLoading(false);
-    });
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        if (!mounted) return;
+        if (data.session) void refreshAdmin(data.session);
+        else setLoading(false);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setIdentity(null);
+        setLoading(false);
+      });
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       if (event === "SIGNED_OUT" || !session) {

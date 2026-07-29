@@ -20,6 +20,8 @@ import {
   subscribeToPublicVendorChanges,
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
+import { useCategories } from "@/context/CategoryContext";
+import CategoryBadge from "@/components/categories/CategoryBadge";
 
 const GLOBAL_PAGES = [
   { label: "Categories", detail: "Browse every wedding service", keywords: "categories services vendors browse", route: "/(tabs)/Categories" as const },
@@ -45,6 +47,7 @@ export default function SearchScreen() {
   const isDark = colorScheme === "dark";
   const { width } = useWindowDimensions();
   const { getRating } = useReviewRatings();
+  const { searchCategories } = useCategories();
   const params = useLocalSearchParams<{
     query?: string;
     location?: string;
@@ -133,12 +136,16 @@ export default function SearchScreen() {
   const pageResults = useMemo(() => {
     if (!query.trim()) return { fixedPages: [], categoryPages: [] };
     const fixedPages = GLOBAL_PAGES.filter((page) => matchesKeyword(`${page.label} ${page.detail} ${page.keywords}`, query));
-    const categoryPages = [...new Set(vendors.map((vendor) => vendor.category))]
-      .filter((category) => matchesKeyword(`${category} wedding vendors services`, query))
+    const categoryPages = searchCategories
+      .filter((category) => matchesKeyword(`${category.name} ${category.description} wedding vendors services`, query))
       .slice(0, 5)
-      .map((category) => ({ label: category, detail: `Browse ${category.toLowerCase()}`, category }));
+      .map((category) => ({
+        label: category.name,
+        detail: `Browse ${category.name.toLowerCase()}`,
+        category: category.name,
+      }));
     return { fixedPages, categoryPages };
-  }, [query, vendors]);
+  }, [query, searchCategories]);
 
   const submit = () => setQuery(draftQuery.trim());
   const activeFilterCount = [minimumRating > 0, maximumBudget > 0, Boolean(selectedCategory), availabilityOnly, nearbyOnly, sort !== "recommended"].filter(Boolean).length;
@@ -221,7 +228,10 @@ export default function SearchScreen() {
             <Image source={{ uri: vendor.image }} className="w-20 h-20 rounded-xl" resizeMode="cover" />
             <View className="ml-3 flex-1 justify-center">
               <Text className="text-foreground font-semibold">{vendor.name}</Text>
-              <Text className="text-primary text-xs mt-1">{vendor.category} · {vendor.rating} ★</Text>
+              <View style={styles.categoryMeta}>
+                <CategoryBadge name={vendor.category} style={styles.categoryBadge} />
+                <Text className="text-primary text-xs">· {vendor.rating} ★</Text>
+              </View>
               <Text className="text-muted-foreground text-xs mt-1">{vendor.location} · {vendor.startingPrice}</Text>
             </View>
           </TouchableOpacity>
@@ -255,6 +265,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
     height: 46,
   },
+  categoryMeta: { marginTop: 4, flexDirection: "row", alignItems: "center", gap: 3 },
+  categoryBadge: { color: "#E91E63", fontSize: 12 },
   scroll: { flex: 1 },
   results: {
     alignSelf: "center",

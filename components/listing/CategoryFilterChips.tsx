@@ -1,5 +1,5 @@
 import React from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { ArrowUpDown, ChevronDown, Star, Tag } from "lucide-react-native";
 
 const PINK = "#E91E63";
@@ -37,14 +37,12 @@ export default function CategoryFilterChips({ dark, active, onPress }: CategoryF
             accessibilityState={{ selected }}
             accessibilityLabel={`${chip.label} listing options`}
             onPress={() => onPress(chip.key)}
-            style={({ pressed, hovered }) => [
+            style={[
               styles.chip,
               {
                 backgroundColor: selected ? (dark ? "#3A222C" : "#FFF0F6") : surface,
                 borderColor: selected ? PINK : border,
               },
-              hovered && Platform.OS === "web" && styles.hover,
-              pressed && styles.pressed,
             ]}
           >
             <Icon size={15} color={selected || chip.key !== "rating" ? PINK : "#F2A91F"} strokeWidth={1.9} />
@@ -61,6 +59,4 @@ const styles = StyleSheet.create({
   row: { gap: 4, paddingRight: 2 },
   chip: { minWidth: 72, height: 42, borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 },
   label: { fontSize: 10.5, fontWeight: "700" },
-  hover: { transform: [{ translateY: -1 }], borderColor: PINK },
-  pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
 });

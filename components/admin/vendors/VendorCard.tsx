@@ -1,4 +1,5 @@
 import React from "react";
+import CategoryBadge from "@/components/categories/CategoryBadge";
 import { Image, Pressable, Text, View } from "react-native";
 import { Check, MoreVertical, Square } from "lucide-react-native";
 import type { AdminVendorRecord, VendorHealthMetrics } from "@/types/adminVendors";
@@ -48,9 +49,15 @@ export const VendorCard = React.memo(function VendorCard({
           <Badge text={item.plan_name} tone={item.plan_name.toLowerCase() === "free" ? "neutral" : "premium"} />
         </View>
         <View className="flex-1" />
-        <Text className="text-muted-foreground text-xs" numberOfLines={1}>
-          {item.category_name || "Uncategorized"} · {item.city}, {item.state}
-        </Text>
+        <View className="flex-row items-center">
+          <CategoryBadge
+            name={item.category_name || "Uncategorized"}
+            style={{ color: "#787178", fontSize: 12 }}
+          />
+          <Text className="text-muted-foreground text-xs" numberOfLines={1}>
+            {" "}· {item.city}, {item.state}
+          </Text>
+        </View>
       </View>
       {health ? <View className="mt-3">
         <View className="flex-row flex-wrap gap-2">

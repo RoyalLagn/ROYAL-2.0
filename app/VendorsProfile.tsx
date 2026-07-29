@@ -33,24 +33,9 @@ import {
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
 import { portfolioMediaUrl } from "@/services/vendorPortfolio";
+import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 
 const PINK = "#E91E63";
-const CATEGORY_FALLBACKS: Record<string, number> = {
-  Venues: require("../assets/images/category-fallback/venues.png"),
-  Caterers: require("../assets/images/category-fallback/caterers.png"),
-  Photographers: require("../assets/images/category-fallback/photographer.png"),
-  Decorators: require("../assets/images/category-fallback/decoraters.png"),
-  "Makeup Artists": require("../assets/images/category-fallback/makeup.png"),
-  "Mehndi Artists": require("../assets/images/category-fallback/mehendi-artist.png"),
-  DJs: require("../assets/images/category-fallback/DJ.png"),
-  "Bridal Wear": require("../assets/images/category-fallback/bridal-wear.png"),
-  "Groom Wear": require("../assets/images/category-fallback/groom-wear.png"),
-  "Jewellery & Accessories": require("../assets/images/category-fallback/jewellery-accessories.png"),
-  Pandits: require("../assets/images/category-fallback/pandits.png"),
-  "Invites & Cards": require("../assets/images/category-fallback/invites-cards.png"),
-  "Pre Wedding Shoot": require("../assets/images/category-fallback/pre-wedding-shoot.png"),
-  "Music & Dance": require("../assets/images/category-fallback/dance.png"),
-};
 
 function enhanceImage(uri: string) {
   return uri.replace(/([?&])w=\d+/, "$1w=1200");
@@ -182,7 +167,7 @@ export default function VendorsProfile() {
 
   const favorite = isFavorite(vendor.id);
   const displayedRating = getRating(vendor.id, vendor.rating, vendor.reviews);
-  const fallbackImage = CATEGORY_FALLBACKS[category] ?? CATEGORY_FALLBACKS.Photographers;
+  const fallbackImage = resolveMarketplaceCategoryImage(category).fallbackSource;
   const vendorDescription = vendor.description?.trim() ?? "";
   const about = vendorDescription.length >= 40
     ? vendorDescription

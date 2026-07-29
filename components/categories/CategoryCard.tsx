@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React from "react";
 import {
-  Image,
   type ImageURISource,
   Platform,
   Pressable,
@@ -8,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import SafeImage from "@/components/SafeImage";
 
 export type CategoryCardItem = {
   id: string;
@@ -18,6 +18,7 @@ export type CategoryCardItem = {
   iconBg: string;
   image: string;
   fallbackImage: number | ImageURISource;
+  vendorCount?: number;
 };
 
 type CategoryCardProps = {
@@ -29,7 +30,6 @@ type CategoryCardProps = {
 
 export default function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
   const Icon = category.icon;
-  const [imageFailed, setImageFailed] = useState(false);
   const text = dark ? "#F8F2F5" : "#17111D";
   const muted = dark ? "#B5A9AF" : "#776A79";
   const surface = dark ? "#201D1F" : "#FFFFFF";
@@ -41,12 +41,10 @@ export default function CategoryCard({ category, dark, compact, onPress }: Categ
       accessibilityRole="button"
       accessibilityLabel={`Browse ${category.name}`}
       onPress={onPress}
-      style={({ pressed, hovered }) => [
+      style={[
         styles.card,
         compact ? styles.cardCompact : styles.cardWide,
         { backgroundColor: surface, borderColor: border },
-        hovered && Platform.OS === "web" && styles.cardHover,
-        pressed && styles.cardPressed,
       ]}
     >
       <View style={[styles.details, compact && styles.detailsCompact]}>
@@ -62,6 +60,7 @@ export default function CategoryCard({ category, dark, compact, onPress }: Categ
         <View style={styles.copy}>
           <Text numberOfLines={2} style={[styles.name, compact && styles.nameCompact, { color: text }]}>
             {category.name}
+            {typeof category.vendorCount === "number" ? ` (${category.vendorCount})` : ""}
           </Text>
           <Text numberOfLines={3} style={[styles.description, compact && styles.descriptionCompact, { color: muted }]}>
             {category.description}
@@ -70,15 +69,13 @@ export default function CategoryCard({ category, dark, compact, onPress }: Categ
       </View>
 
       <View style={[styles.imageWrap, compact && styles.imageWrapCompact]}>
-        <Image
+        <SafeImage
           accessibilityLabel={`${category.name} category`}
-          source={imageFailed ? category.fallbackImage : { uri: category.image }}
-          defaultSource={category.fallbackImage}
+          source={category.image}
+          fallbackSource={category.fallbackImage}
+          debugLabel={`${category.name} category`}
           resizeMode="cover"
           style={styles.image}
-          onError={() => {
-            if (!imageFailed) setImageFailed(true);
-          }}
         />
       </View>
     </Pressable>
@@ -93,17 +90,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: "hidden",
     flexDirection: "row",
-    alignItems: "stretch",
+    alignItems: "center",
     shadowColor: "#613548",
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 5 },
     elevation: 3,
   },
-  cardCompact: { minHeight: 116, borderRadius: 20 },
-  cardWide: { minHeight: 142, borderRadius: 22 },
-  cardHover: { transform: [{ translateY: -2 }], shadowOpacity: 0.14, shadowRadius: 16 },
-  cardPressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
+  cardCompact: { height: 116, borderRadius: 20 },
+  cardWide: { height: 142, borderRadius: 22 },
   details: { flex: 1, minWidth: 0, paddingHorizontal: 18, paddingVertical: 18, flexDirection: "row", alignItems: "center", gap: 15 },
   detailsCompact: { paddingHorizontal: 12, paddingVertical: 13, gap: 10 },
   iconCircle: { width: 68, height: 68, borderRadius: 34, borderWidth: 1, alignItems: "center", justifyContent: "center", flexShrink: 0 },
@@ -113,7 +108,7 @@ const styles = StyleSheet.create({
   nameCompact: { fontSize: 17, lineHeight: 21, marginBottom: 3 },
   description: { fontSize: 12, lineHeight: 18, fontWeight: "400" },
   descriptionCompact: { fontSize: 10.5, lineHeight: 15 },
-  imageWrap: { width: 132, margin: 4, marginLeft: 0, borderRadius: 18, overflow: "hidden", backgroundColor: "#F8E9EE" },
-  imageWrapCompact: { width: 106, borderRadius: 17 },
-  image: { width: "100%", height: "100%" },
+  imageWrap: { width: 132, height: 134, margin: 4, marginLeft: 0, borderRadius: 18, overflow: "hidden", backgroundColor: "#F8E9EE" },
+  imageWrapCompact: { width: 106, height: 108, borderRadius: 17 },
+  image: StyleSheet.absoluteFillObject,
 });

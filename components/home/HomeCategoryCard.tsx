@@ -1,11 +1,10 @@
 import React from "react";
 import {
-  Image,
+  type ImageURISource,
   Platform,
   Pressable,
   StyleSheet,
   Text,
-  type ImageSourcePropType,
   type TextStyle,
   type ViewStyle,
   View,
@@ -18,6 +17,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import SafeImage from "@/components/SafeImage";
 
 const PINK = "#E91E63";
 
@@ -31,7 +31,7 @@ const FRAME_TONES = [
 
 type HomeCategoryCardProps = {
   name: string;
-  image?: ImageSourcePropType;
+  image?: number | ImageURISource;
   itemWidth: number;
   cardWidth: number;
   tone: number;
@@ -125,9 +125,11 @@ export default function HomeCategoryCard({
                 />
               </View>
             ) : image ? (
-              <Image
+              <SafeImage
                 accessibilityLabel={`${name} category`}
                 source={image}
+                fallbackSource={image}
+                debugLabel={`${name} compact category`}
                 resizeMode="cover"
                 style={styles.image}
               />
@@ -176,7 +178,7 @@ const styles = StyleSheet.create({
   },
   imageShell: {
     width: "100%",
-    height: "100%",
+    flex: 1,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.94)",

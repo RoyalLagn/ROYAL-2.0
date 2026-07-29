@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from "react";
 import {
-  Platform,
   Pressable,
   type Insets,
   type StyleProp,
@@ -41,8 +40,6 @@ export default function FavoriteHeartButton({
   accessibilityLabel,
   onToggle,
   style,
-  hoveredStyle,
-  pressedStyle,
   activeStyle,
   size = 18,
   color = PINK,
@@ -88,11 +85,9 @@ export default function FavoriteHeartButton({
       accessibilityState={{ selected: favorite }}
       hitSlop={hitSlop}
       onPress={() => onToggle(sourceRef)}
-      style={({ pressed, hovered }) => [
+      style={[
         style,
         favorite && activeStyle,
-        hovered && Platform.OS === "web" && hoveredStyle,
-        pressed && pressedStyle,
       ]}
     >
       <Animated.View style={iconStyle}>

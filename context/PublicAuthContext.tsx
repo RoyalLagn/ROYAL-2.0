@@ -68,16 +68,30 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!active) return;
-      await loadPublicProfile(data.session);
-      if (active) setLoading(false);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      void loadPublicProfile(nextSession).finally(() => {
+    supabase.auth.getSession()
+      .then(async ({ data }) => {
+        if (!active) return;
+        await loadPublicProfile(data.session);
+      })
+      .catch(() => {
+        if (!active) return;
+        setSession(null);
+        setProfile(null);
+      })
+      .finally(() => {
         if (active) setLoading(false);
       });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void loadPublicProfile(nextSession)
+        .catch(() => {
+          if (!active) return;
+          setSession(null);
+          setProfile(null);
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
     });
 
     return () => {

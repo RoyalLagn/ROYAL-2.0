@@ -67,21 +67,25 @@ export default function VendorBottomNav() {
   useEffect(() => {
     if (!isVendorPage) return;
     let active = true;
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!active) return;
-      if (!data.user) {
-        router.replace("/DashboardCenter");
-        return;
-      }
-      try {
-        const destination = await resolveVendorDestination(data.user);
-        if (active && destination.pathname !== "/vendor-dashboard") {
-          router.replace(destination as never);
+    supabase.auth.getUser()
+      .then(async ({ data }) => {
+        if (!active) return;
+        if (!data.user) {
+          router.replace("/DashboardCenter");
+          return;
         }
-      } catch {
+        try {
+          const destination = await resolveVendorDestination(data.user);
+          if (active && destination.pathname !== "/vendor-dashboard") {
+            router.replace(destination as never);
+          }
+        } catch {
+          if (active) router.replace("/DashboardCenter");
+        }
+      })
+      .catch(() => {
         if (active) router.replace("/DashboardCenter");
-      }
-    });
+      });
     return () => { active = false; };
   }, [isVendorPage, router]);
 

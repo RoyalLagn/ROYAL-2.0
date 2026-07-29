@@ -202,6 +202,18 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     fallbackImage: require("../assets/images/category-fallback/dance.png"),
     homeImage: require("../assets/images/category-icons/dance.png"),
   },
+  {
+    slug: "live-orchestra-band",
+    name: "Live Orchestra & Band",
+    aliases: ["live orchestra", "orchestra", "orchestra and band", "wedding band", "wedding bands", "live band"],
+    description: "Live music and wedding bands for every celebration",
+    icon: Music,
+    iconColor: "#E91E63",
+    iconBg: "#FFF0F6",
+    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["bands.png"]),
+    fallbackImage: require("../assets/images/category-fallback/live-orchestra-band.png"),
+    homeImage: require("../assets/images/category-icons/live-orchestra-band.png"),
+  },
 ] as const;
 
 function normalizeCategoryKey(value: string) {
@@ -220,4 +232,17 @@ export function findMarketplaceCategory(value: string) {
     || normalizeCategoryKey(category.slug) === candidate
     || category.aliases.some((alias) => normalizeCategoryKey(alias) === candidate)
   );
+}
+
+export function resolveMarketplaceCategoryImage(
+  value: MarketplaceCategory | string,
+) {
+  const category = typeof value === "string"
+    ? findMarketplaceCategory(value)
+    : value;
+  const fallbackCategory = category ?? MARKETPLACE_CATEGORIES[0];
+  return {
+    source: category?.cloudinaryImage ?? "",
+    fallbackSource: fallbackCategory.fallbackImage,
+  };
 }

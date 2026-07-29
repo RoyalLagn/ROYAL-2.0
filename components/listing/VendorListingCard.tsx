@@ -1,7 +1,15 @@
-import React, { useState } from "react";
-import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import React from "react";
+import {
+  type ImageURISource,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Crown, MapPin, Star } from "lucide-react-native";
 import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
+import SafeImage from "@/components/SafeImage";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
@@ -13,7 +21,7 @@ type VendorListingCardProps = {
   dark: boolean;
   compact: boolean;
   favorite: boolean;
-  fallbackImage: number;
+  fallbackImage: number | ImageURISource;
   onOpen: () => void;
   onToggleFavorite: (source: FavoriteSourceRef) => void;
 };
@@ -29,7 +37,6 @@ export default function VendorListingCard({
 }: VendorListingCardProps) {
   const { getRating } = useReviewRatings();
   const displayedRating = getRating(vendor.id, vendor.rating, vendor.reviews);
-  const [imageFailed, setImageFailed] = useState(false);
   const surface = dark ? "#201D1F" : "#FFFFFF";
   const text = dark ? "#F8F2F5" : "#181118";
   const muted = dark ? "#B3A8AE" : "#776C73";
@@ -42,21 +49,15 @@ export default function VendorListingCard({
         accessibilityRole="button"
         accessibilityLabel={`Open ${vendor.name}`}
         onPress={onOpen}
-        style={({ pressed, hovered }) => [
-          styles.main,
-          hovered && Platform.OS === "web" && styles.hover,
-          pressed && styles.pressed,
-        ]}
+        style={styles.main}
       >
         <View style={[styles.imageWrap, compact ? styles.imageCompact : styles.imageWide]}>
-          <Image
+          <SafeImage
             accessibilityLabel={`${vendor.name} listing`}
-            source={imageFailed ? fallbackImage : { uri: imageUri }}
-            defaultSource={fallbackImage}
+            source={imageUri}
+            fallbackSource={fallbackImage}
+            debugLabel={`${vendor.name} listing`}
             resizeMode="cover"
-            onError={() => {
-              if (!imageFailed) setImageFailed(true);
-            }}
             style={styles.image}
           />
           {vendor.isTopRated ? (
@@ -111,15 +112,13 @@ const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia,
 
 const styles = StyleSheet.create({
   card: { width: "100%", borderWidth: 1, overflow: "hidden", position: "relative", shadowColor: "#63374A", shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  cardCompact: { minHeight: 172, borderRadius: 20 },
-  cardWide: { minHeight: 220, borderRadius: 24 },
+  cardCompact: { height: 172, borderRadius: 20 },
+  cardWide: { height: 220, borderRadius: 24 },
   main: { flex: 1, flexDirection: "row", padding: 8, gap: 13 },
-  hover: { backgroundColor: "rgba(233,30,99,.018)" },
-  pressed: { opacity: 0.9, transform: [{ scale: 0.995 }] },
   imageWrap: { position: "relative", flexShrink: 0, borderRadius: 16, overflow: "hidden", backgroundColor: "#F8E9EE" },
-  imageCompact: { width: "42%", maxWidth: 146, minHeight: 154 },
-  imageWide: { width: "36%", maxWidth: 340, minHeight: 202 },
-  image: { width: "100%", height: "100%" },
+  imageCompact: { width: 146, height: 154 },
+  imageWide: { width: 340, height: 202 },
+  image: StyleSheet.absoluteFillObject,
   topRated: { position: "absolute", top: 10, left: 0, minHeight: 29, borderTopRightRadius: 999, borderBottomRightRadius: 999, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: PINK },
   topRatedText: { color: "#FFFFFF", fontSize: 10, fontWeight: "800" },
   body: { flex: 1, minWidth: 0, paddingVertical: 10, paddingRight: 42, justifyContent: "center" },

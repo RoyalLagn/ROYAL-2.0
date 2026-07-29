@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Check, X } from "lucide-react-native";
 import type { CategoryCardItem } from "./CategoryCard";
 
@@ -35,12 +35,12 @@ export default function CategoryFilterModal({
   const border = dark ? "#44333B" : "#F0D4DF";
 
   return (
-    <Modal visible={visible} transparent animationType={Platform.OS === "web" ? "fade" : "slide"} onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, Platform.OS !== "web" && styles.backdropMobile]} onPress={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable
           accessibilityViewIsModal
           onPress={(event) => event.stopPropagation()}
-          style={[styles.sheet, Platform.OS !== "web" && styles.sheetMobile, { backgroundColor: surface, borderColor: border }]}
+          style={[styles.sheet, { backgroundColor: surface, borderColor: border }]}
         >
           <View style={styles.header}>
             <View style={styles.flex}>
@@ -63,13 +63,12 @@ export default function CategoryFilterModal({
                   accessibilityState={{ selected: active }}
                   accessibilityLabel={`Filter by ${category.name}`}
                   onPress={() => setDraft(id)}
-                  style={({ pressed }) => [
+                  style={[
                     styles.option,
                     {
                       backgroundColor: active ? (dark ? "#38232C" : "#FFF0F6") : soft,
                       borderColor: active ? PINK : border,
                     },
-                    pressed && styles.pressed,
                   ]}
                 >
                   <Text numberOfLines={1} style={[styles.optionText, { color: active ? PINK : text }]}>{category.name}</Text>
@@ -96,9 +95,7 @@ export default function CategoryFilterModal({
 const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(31,16,23,.48)" },
-  backdropMobile: { padding: 0, justifyContent: "flex-end" },
   sheet: { width: "100%", maxWidth: 520, maxHeight: "82%", borderWidth: 1, borderRadius: 26, padding: 20 },
-  sheetMobile: { maxWidth: "100%", maxHeight: "86%", borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 28 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 15 },
   title: { fontSize: 20, lineHeight: 26, fontWeight: "800", letterSpacing: -0.3 },
   subtitle: { marginTop: 3, fontSize: 10.5, lineHeight: 15 },
@@ -107,7 +104,6 @@ const styles = StyleSheet.create({
   options: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingBottom: 4 },
   option: { minHeight: 44, maxWidth: "100%", borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 7 },
   optionText: { maxWidth: 220, fontSize: 11, fontWeight: "700" },
-  pressed: { opacity: 0.76, transform: [{ scale: 0.985 }] },
   actions: { flexDirection: "row", gap: 9, marginTop: 18 },
   reset: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   resetText: { fontSize: 11, fontWeight: "800" },

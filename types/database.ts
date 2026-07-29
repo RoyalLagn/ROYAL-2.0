@@ -12,20 +12,53 @@ export type Database = {
       categories: {
         Row: {
           created_at: string;
+          description: string;
+          fallback_image_url: string | null;
           id: string;
+          icon_url: string | null;
+          is_active: boolean;
+          is_featured: boolean;
+          localization_key: string | null;
           name: string;
+          show_in_search: boolean;
+          show_in_vendor_registration: boolean;
+          show_on_home: boolean;
+          slug: string;
+          sort_order: number;
           updated_at: string;
         };
         Insert: {
           created_at?: string;
+          description?: string;
+          fallback_image_url?: string | null;
           id?: string;
+          icon_url?: string | null;
+          is_active?: boolean;
+          is_featured?: boolean;
+          localization_key?: string | null;
           name: string;
+          show_in_search?: boolean;
+          show_in_vendor_registration?: boolean;
+          show_on_home?: boolean;
+          slug: string;
+          sort_order?: number;
           updated_at?: string;
         };
         Update: {
           created_at?: string;
+          description?: string;
+          fallback_image_url?: string | null;
           id?: string;
+          icon_url?: string | null;
+          is_active?: boolean;
+          is_featured?: boolean;
+          localization_key?: string | null;
           name?: string;
+          show_in_search?: boolean;
+          show_in_vendor_registration?: boolean;
+          show_on_home?: boolean;
+          slug?: string;
+          sort_order?: number;
           updated_at?: string;
         };
         Relationships: [];

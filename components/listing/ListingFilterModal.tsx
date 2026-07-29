@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Check, X } from "lucide-react-native";
 
 const PINK = "#E91E63";
@@ -67,13 +67,12 @@ export default function ListingFilterModal({
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.option,
         {
           backgroundColor: selected ? (dark ? "#39242D" : "#FFF0F6") : soft,
           borderColor: selected ? PINK : border,
         },
-        pressed && styles.pressed,
       ]}
     >
       <Text style={[styles.optionText, { color: selected ? PINK : text }]}>{label}</Text>
@@ -86,12 +85,12 @@ export default function ListingFilterModal({
     : [initialSection] as const;
 
   return (
-    <Modal visible={visible} transparent animationType={Platform.OS === "web" ? "fade" : "slide"} onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, Platform.OS !== "web" && styles.backdropMobile]} onPress={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable
           accessibilityViewIsModal
           onPress={(event) => event.stopPropagation()}
-          style={[styles.sheet, Platform.OS !== "web" && styles.sheetMobile, { backgroundColor: surface, borderColor: border }]}
+          style={[styles.sheet, { backgroundColor: surface, borderColor: border }]}
         >
           <View style={styles.header}>
             <View style={styles.flex}>
@@ -147,9 +146,7 @@ export default function ListingFilterModal({
 const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(31,16,23,.50)" },
-  backdropMobile: { padding: 0, justifyContent: "flex-end" },
   sheet: { width: "100%", maxWidth: 520, maxHeight: "82%", borderWidth: 1, borderRadius: 26, padding: 20 },
-  sheetMobile: { maxWidth: "100%", maxHeight: "86%", borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 28 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 8 },
   title: { fontSize: 20, lineHeight: 26, fontWeight: "800" },
   subtitle: { marginTop: 3, fontSize: 10.5, lineHeight: 15 },
@@ -160,7 +157,6 @@ const styles = StyleSheet.create({
   options: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   option: { minHeight: 43, borderWidth: 1, borderRadius: 14, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 6 },
   optionText: { fontSize: 10.5, fontWeight: "700" },
-  pressed: { opacity: 0.76, transform: [{ scale: 0.985 }] },
   actions: { flexDirection: "row", gap: 9, marginTop: 18 },
   reset: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   resetText: { fontSize: 11, fontWeight: "800" },
