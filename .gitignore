@@ -13,3 +13,12 @@ node_modules/
 
 # Environment variables
 .env
+
+# Android builds
+*.apk
+*.aab
+
+# Expo logs
+.expo-web.log
+.expo-web.stdout.log
+.expo-web.stderr.log

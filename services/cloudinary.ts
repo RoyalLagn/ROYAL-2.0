@@ -1,4 +1,5 @@
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { Platform } from "react-native";
 import { supabase } from "./supabase";
 
@@ -236,6 +237,66 @@ export async function pickAndUploadImage(
   return image ? uploadImage(image) : null;
 }
 
+export type UploadedBusinessDocument = {
+  name: string;
+  url: string;
+  mimeType: string;
+  size: number | null;
+};
+
+export async function pickAndUploadBusinessDocument(): Promise<UploadedBusinessDocument | null> {
+  const result = await DocumentPicker.getDocumentAsync({
+    type: ["application/pdf", "image/*"],
+    copyToCacheDirectory: true,
+    multiple: false,
+  });
+  if (result.canceled || !result.assets.length) return null;
+
+  const asset = result.assets[0];
+  if (asset.size && asset.size > 10 * 1024 * 1024) {
+    throw new CloudinaryError("Business documents must be 10 MB or smaller.", "PICKER_ERROR");
+  }
+  if (!CLOUD_NAME || !UPLOAD_PRESET) {
+    throw new CloudinaryError("Cloudinary is not configured.", "CONFIGURATION_ERROR");
+  }
+
+  const mimeType = asset.mimeType || "application/octet-stream";
+  const resourceType = mimeType.startsWith("image/") ? "image" : "raw";
+  const body = new FormData();
+  if (Platform.OS === "web") {
+    const blob = await fetch(asset.uri).then((response) => response.blob());
+    body.append("file", new File([blob], asset.name, { type: mimeType }));
+  } else {
+    body.append("file", {
+      uri: asset.uri,
+      name: asset.name,
+      type: mimeType,
+    } as unknown as Blob);
+  }
+  body.append("upload_preset", UPLOAD_PRESET);
+  body.append("folder", "royallagn/vendor-applications/documents");
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`,
+      { method: "POST", body },
+    );
+  } catch (error) {
+    throw new CloudinaryError("Network error while uploading the document.", "NETWORK_ERROR", error);
+  }
+  const payload = await response.json();
+  if (!response.ok || !payload.secure_url) {
+    throw new CloudinaryError(payload.error?.message || "Document upload failed.", "UPLOAD_ERROR");
+  }
+  return {
+    name: asset.name,
+    url: payload.secure_url,
+    mimeType,
+    size: asset.size ?? null,
+  };
+}
+
 export async function pickPortfolioMedia(selectionLimit = 12): Promise<PortfolioAsset[]> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) throw new CloudinaryError("Media library permission is required.", "PERMISSION_DENIED");
@@ -340,6 +401,12 @@ export async function uploadPortfolioAsset(
     if (!data.uploadPreset) {
       throw new CloudinaryError("Cloudinary returned incomplete upload-preset parameters.", "UPLOAD_ERROR");
     }
+    body.delete("api_key");
+    body.delete("timestamp");
+    body.delete("signature");
+    body.delete("overwrite");
+    body.delete("unique_filename");
+    body.delete("eager");
     body.append("upload_preset", data.uploadPreset);
     body.append("folder", data.folder);
     body.append("public_id", data.public_id);

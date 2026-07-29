@@ -1,214 +1,285 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator, Alert, BackHandler, Image, Modal, Pressable, ScrollView,
-  Text, TextInput, TouchableOpacity, View,
+  ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Text,
+  TextInput, TouchableOpacity, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Camera, Check, ChevronDown, X } from "lucide-react-native";
+import {
+  ArrowLeft, Check, ChevronDown, FileText, ImagePlus, Trash2, X,
+} from "lucide-react-native";
 import { supabase } from "@/services/supabase";
-import { CloudinaryError, pickAndUploadImage } from "@/services/cloudinary";
+import {
+  CloudinaryError, pickAndUploadBusinessDocument, pickAndUploadImage,
+  type UploadedBusinessDocument,
+} from "@/services/cloudinary";
 import { useCategories } from "@/context/CategoryContext";
 
-type FormState = Record<string, string>;
-const initialForm: FormState = {
-  full_name: "", email: "", phone: "", business_name: "", category_id: "",
-  description: "", experience: "", address: "", city: "", state: "",
-  pincode: "", country: "India", instagram: "", facebook: "", website: "", logo_url: "",
+type FormState = {
+  businessName: string; ownerName: string; email: string; mobile: string;
+  categoryId: string; city: string; area: string; experience: string;
+  description: string; instagram: string; facebook: string; website: string;
+  logoUrl: string; coverImageUrl: string;
+};
+
+const emptyForm: FormState = {
+  businessName: "", ownerName: "", email: "", mobile: "", categoryId: "",
+  city: "", area: "", experience: "", description: "", instagram: "",
+  facebook: "", website: "", logoUrl: "", coverImageUrl: "",
 };
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^[+]?[0-9\s-]{7,15}$/;
-const requiredKeys = ["full_name", "email", "phone", "business_name", "category_id", "description", "experience", "address", "city", "state", "pincode", "country"];
 
-const sections = [
-  { title: "Personal Information", fields: [["full_name", "Full Name"], ["email", "Email"], ["phone", "Phone Number"]] },
-  { title: "Business Information", fields: [["business_name", "Business Name"], ["description", "Business Description"], ["experience", "Years of Experience"]] },
-  { title: "Business Address", fields: [["address", "Address"], ["city", "City"], ["state", "State"], ["pincode", "Pincode"], ["country", "Country"]] },
-  { title: "Social Links (Optional)", fields: [["instagram", "Instagram"], ["facebook", "Facebook"], ["website", "Website"]] },
-] as const;
+function Field({
+  label, value, onChangeText, required, multiline, keyboardType = "default",
+  autoCapitalize = "sentences",
+}: {
+  label: string; value: string; onChangeText: (value: string) => void;
+  required?: boolean; multiline?: boolean;
+  keyboardType?: "default" | "email-address" | "phone-pad" | "number-pad" | "url";
+  autoCapitalize?: "none" | "sentences" | "words";
+}) {
+  return (
+    <View className="mb-4">
+      <Text className="text-foreground text-sm font-semibold mb-2">
+        {label}{required ? <Text className="text-primary"> *</Text> : null}
+      </Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={`Enter ${label.toLowerCase()}`}
+        placeholderTextColor="#8A8589"
+        className={`border border-border bg-background text-foreground rounded-2xl px-4 ${multiline ? "min-h-[112px] py-4" : "h-14"}`}
+        multiline={multiline}
+        textAlignVertical={multiline ? "top" : "center"}
+        keyboardType={keyboardType}
+        autoCapitalize={autoCapitalize}
+      />
+    </View>
+  );
+}
 
 export default function BecomeVendor() {
   const router = useRouter();
   const { registrationCategories: categories } = useCategories();
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [documents, setDocuments] = useState<UploadedBusinessDocument[]>([]);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
-  const [declared, setDeclared] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState<"logo" | "cover" | "document" | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) {
-        router.replace("/DashboardCenter");
-        return;
-      }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name,email,phone,role")
-        .eq("id", data.user.id)
-        .maybeSingle();
-      if (!profile || profile.role !== "vendor") {
-        router.replace("/DashboardCenter");
-        return;
-      }
-      setForm((current) => ({
-        ...current,
-        full_name: profile.full_name || current.full_name,
-        email: profile.email || data.user?.email || current.email,
-        phone: profile.phone || current.phone,
-      }));
-    });
-  }, [router]);
+  const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
+    setForm((current) => ({ ...current, [key]: value }));
+  const selectedCategory = categories.find((item) => item.id === form.categoryId);
+  const requiredComplete = useMemo(() => [
+    form.businessName, form.ownerName, form.email, form.mobile, form.categoryId,
+    form.city, form.area, form.experience, form.description,
+  ].every((value) => value.trim()), [form]);
 
-  useEffect(() => {
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      router.dismissAll();
-      router.replace("/(tabs)");
-      return true;
-    });
-    return () => subscription.remove();
-  }, [router]);
-
-  const selectedCategory = categories.find((item) => item.id === form.category_id);
-  const isComplete = useMemo(
-    () => requiredKeys.every((key) => form[key]?.trim()) && !!form.logo_url && declared,
-    [declared, form]
-  );
-
-  const update = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }));
-  const uploadLogo = async () => {
+  const uploadImage = async (kind: "logo" | "cover") => {
     if (uploading) return;
-
-    setUploading(true);
+    setUploading(kind);
     try {
-      const uploadedUrl = await pickAndUploadImage({
+      const url = await pickAndUploadImage({
         allowsEditing: true,
-        aspect: [1, 1],
+        aspect: kind === "logo" ? [1, 1] : [16, 9],
       });
-
-      if (uploadedUrl) {
-        update("logo_url", uploadedUrl);
-      }
+      if (url) update(kind === "logo" ? "logoUrl" : "coverImageUrl", url);
     } catch (error) {
-      Alert.alert("Upload failed", error instanceof CloudinaryError ? error.message : "Unable to upload the logo.");
-    } finally { setUploading(false); }
+      Alert.alert("Upload failed", error instanceof CloudinaryError ? error.message : "Unable to upload image.");
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const uploadDocument = async () => {
+    if (uploading || documents.length >= 5) return;
+    setUploading("document");
+    try {
+      const document = await pickAndUploadBusinessDocument();
+      if (document) setDocuments((current) => [...current, document]);
+    } catch (error) {
+      Alert.alert("Upload failed", error instanceof CloudinaryError ? error.message : "Unable to upload document.");
+    } finally {
+      setUploading(null);
+    }
   };
 
   const submit = async () => {
-    if (!isComplete || submitting) return;
+    if (submitting) return;
+    if (!requiredComplete) return Alert.alert("Incomplete application", "Complete all required fields.");
     if (!emailPattern.test(form.email.trim())) return Alert.alert("Invalid email", "Enter a valid email address.");
-    if (!phonePattern.test(form.phone.trim())) return Alert.alert("Invalid phone", "Enter a valid phone number.");
+    if (!phonePattern.test(form.mobile.trim())) return Alert.alert("Invalid mobile number", "Enter a valid mobile number.");
     const experience = Number(form.experience);
-    if (!Number.isInteger(experience) || experience < 0) return Alert.alert("Invalid experience", "Enter a valid number of years.");
+    if (!Number.isInteger(experience) || experience < 0 || experience > 100) {
+      return Alert.alert("Invalid experience", "Enter a valid number of years.");
+    }
+    if (!termsAccepted) return Alert.alert("Terms required", "Accept the Terms & Conditions to continue.");
 
     setSubmitting(true);
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData.user) {
-      setSubmitting(false);
-      router.replace("/DashboardCenter");
-      return;
-    }
-    const { data: existing, error: existingError } = await supabase
+    const normalizedEmail = form.email.trim().toLowerCase();
+    const { data: existing, error: lookupError } = await supabase
       .from("vendor_applications")
-      .select("id,status")
-      .eq("profile_id", authData.user.id)
-      .in("status", ["pending", "approved"])
+      .select("id")
+      .eq("email", normalizedEmail)
+      .eq("status", "pending")
       .limit(1);
-    if (existingError) {
+    if (lookupError) {
       setSubmitting(false);
-      return Alert.alert("Submission failed", existingError.message);
+      return Alert.alert("Submission failed", lookupError.message);
     }
     if (existing?.length) {
       setSubmitting(false);
-      return router.replace(existing[0].status === "approved"
-        ? "/vendor-dashboard"
-        : { pathname: "/VendorAuthStatus", params: { status: "pending" } });
+      return Alert.alert("Application already submitted", "A pending application already exists for this email.");
     }
+
     const { error } = await supabase.from("vendor_applications").insert({
-      ...form,
-      profile_id: authData.user.id,
-      email: form.email.trim().toLowerCase(),
+      profile_id: null,
+      full_name: form.ownerName.trim(),
+      email: normalizedEmail,
+      phone: form.mobile.trim(),
+      business_name: form.businessName.trim(),
+      category_id: form.categoryId,
+      description: form.description.trim(),
       experience,
+      address: form.area.trim(),
+      area: form.area.trim(),
+      city: form.city.trim(),
+      state: "Not provided",
+      pincode: "Not provided",
+      country: "India",
       instagram: form.instagram.trim() || null,
       facebook: form.facebook.trim() || null,
       website: form.website.trim() || null,
+      logo_url: form.logoUrl.trim(),
+      cover_image_url: form.coverImageUrl.trim() || null,
+      business_documents: documents,
+      terms_accepted_at: new Date().toISOString(),
       status: "pending",
     });
     setSubmitting(false);
-    if (error) Alert.alert("Submission failed", error.message);
-    else {
-      setSuccess(true);
-      router.replace({ pathname: "/VendorAuthStatus", params: { status: "pending" } });
-    }
+    if (error) return Alert.alert("Submission failed", error.message);
+    setSubmitted(true);
   };
 
-  if (success) return (
-    <SafeAreaView className="flex-1 bg-background items-center justify-center px-7">
-      <View className="w-20 h-20 rounded-full bg-primary/15 items-center justify-center mb-6"><Check size={38} className="text-primary" /></View>
-      <Text className="text-foreground text-2xl font-bold text-center mb-3">Application Submitted</Text>
-      <Text className="text-muted-foreground text-center leading-6 mb-8">Your vendor registration request is pending admin review.</Text>
-      <TouchableOpacity className="bg-primary px-8 py-4 rounded-2xl" onPress={() => router.replace("/(tabs)")}><Text className="text-white font-semibold">Back to Home</Text></TouchableOpacity>
-    </SafeAreaView>
-  );
+  if (submitted) {
+    return (
+      <SafeAreaView className="flex-1 bg-background items-center justify-center px-7">
+        <View className="w-20 h-20 rounded-full bg-primary/15 items-center justify-center mb-6">
+          <Check size={38} className="text-primary" />
+        </View>
+        <Text className="text-foreground text-2xl font-bold text-center mb-3">Application Submitted Successfully</Text>
+        <Text className="text-muted-foreground text-center leading-6">
+          Thank you for registering with RoyalLagn.{"\n\n"}
+          Your application has been received and is under review.{"\n\n"}
+          Our team will review your application and notify you by email after approval.
+        </Text>
+        <View className="bg-card border border-border rounded-2xl px-6 py-4 my-7 w-full">
+          <Text className="text-muted-foreground text-xs text-center uppercase tracking-wider">Estimated review time</Text>
+          <Text className="text-foreground text-lg font-bold text-center mt-1">24–48 hours</Text>
+        </View>
+        <TouchableOpacity className="bg-primary px-9 py-4 rounded-2xl" onPress={() => router.replace("/(tabs)")}>
+          <Text className="text-white font-bold">Back to Home</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <View className="flex-row items-center px-5 py-4 border-b border-border">
-        <TouchableOpacity
-          className="w-10 h-10 rounded-full bg-card border border-border items-center justify-center"
-          onPress={() => {
-            router.dismissAll();
-            router.replace("/(tabs)");
-          }}
-        >
+        <TouchableOpacity className="w-10 h-10 rounded-full bg-card border border-border items-center justify-center" onPress={() => router.back()}>
           <ArrowLeft size={20} className="text-foreground" />
         </TouchableOpacity>
-        <View className="ml-4"><Text className="text-foreground text-xl font-bold">Become a Vendor</Text><Text className="text-muted-foreground text-xs">Grow your business with RoyalLagn</Text></View>
+        <View className="ml-4">
+          <Text className="text-foreground text-xl font-bold">Register Your Business</Text>
+          <Text className="text-muted-foreground text-xs">Apply to join RoyalLagn</Text>
+        </View>
       </View>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 50 }} keyboardShouldPersistTaps="handled">
-        {sections.map((section) => (
-          <View key={section.title} className="bg-card border border-border rounded-3xl p-5 mb-5">
-            <Text className="text-primary text-xs font-bold uppercase tracking-wider mb-4">{section.title}</Text>
-            {section.title === "Business Information" ? (
-              <TouchableOpacity className="border border-border bg-background rounded-2xl px-4 py-4 mb-3 flex-row justify-between" onPress={() => setCategoryOpen(true)}>
-                <Text className={selectedCategory ? "text-foreground" : "text-muted-foreground"}>{selectedCategory?.name ?? "Vendor Category"}</Text><ChevronDown size={18} className="text-muted-foreground" />
-              </TouchableOpacity>
-            ) : null}
-            {section.fields.map(([key, label]) => (
-              <TextInput
-                key={key} value={form[key]} onChangeText={(value) => update(key, value)} placeholder={label} placeholderTextColor="#8A8589"
-                className="border border-border bg-background text-foreground rounded-2xl px-4 py-4 mb-3"
-                multiline={key === "description" || key === "address"}
-                keyboardType={key === "email" ? "email-address" : key === "phone" ? "phone-pad" : key === "experience" || key === "pincode" ? "number-pad" : "default"}
-                autoCapitalize={key === "email" || key === "website" || key === "instagram" || key === "facebook" ? "none" : "sentences"}
-              />
-            ))}
-          </View>
-        ))}
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 52 }} keyboardShouldPersistTaps="handled">
+        <View className="bg-primary/10 border border-primary/20 rounded-3xl p-5 mb-5">
+          <Text className="text-foreground font-bold text-lg">Vendor Application</Text>
+          <Text className="text-muted-foreground text-sm leading-5 mt-1">Tell us about your business. Fields marked * are required.</Text>
+        </View>
 
         <View className="bg-card border border-border rounded-3xl p-5 mb-5">
-          <Text className="text-primary text-xs font-bold uppercase tracking-wider mb-4">Business Logo</Text>
-          <TouchableOpacity className="h-36 rounded-2xl border border-dashed border-primary/50 bg-primary/5 items-center justify-center overflow-hidden" onPress={uploadLogo} disabled={uploading}>
-            {form.logo_url ? <Image source={{ uri: form.logo_url }} className="w-full h-full" resizeMode="cover" /> : uploading ? <ActivityIndicator color="#EC4899" /> : <><Camera size={28} className="text-primary mb-2" /><Text className="text-foreground font-medium">Upload Business Logo</Text></>}
+          <Text className="text-primary text-xs font-bold uppercase tracking-wider mb-5">Business details</Text>
+          <Field label="Business Name" required value={form.businessName} onChangeText={(v) => update("businessName", v)} />
+          <Field label="Owner Name" required value={form.ownerName} onChangeText={(v) => update("ownerName", v)} />
+          <Field label="Email" required value={form.email} onChangeText={(v) => update("email", v)} keyboardType="email-address" autoCapitalize="none" />
+          <Field label="Mobile Number" required value={form.mobile} onChangeText={(v) => update("mobile", v)} keyboardType="phone-pad" />
+          <Text className="text-foreground text-sm font-semibold mb-2">Business Category <Text className="text-primary">*</Text></Text>
+          <TouchableOpacity className="border border-border bg-background rounded-2xl px-4 h-14 mb-4 flex-row items-center justify-between" onPress={() => setCategoryOpen(true)}>
+            <Text className={selectedCategory ? "text-foreground" : "text-muted-foreground"}>{selectedCategory?.name ?? "Select business category"}</Text>
+            <ChevronDown size={18} className="text-muted-foreground" />
+          </TouchableOpacity>
+          <Field label="City" required value={form.city} onChangeText={(v) => update("city", v)} />
+          <Field label="Area" required value={form.area} onChangeText={(v) => update("area", v)} />
+          <Field label="Years of Experience" required value={form.experience} onChangeText={(v) => update("experience", v)} keyboardType="number-pad" />
+          <Field label="Business Description" required multiline value={form.description} onChangeText={(v) => update("description", v)} />
+        </View>
+
+        <View className="bg-card border border-border rounded-3xl p-5 mb-5">
+          <Text className="text-primary text-xs font-bold uppercase tracking-wider mb-5">Online presence (optional)</Text>
+          <Field label="Instagram" value={form.instagram} onChangeText={(v) => update("instagram", v)} autoCapitalize="none" />
+          <Field label="Facebook" value={form.facebook} onChangeText={(v) => update("facebook", v)} autoCapitalize="none" />
+          <Field label="Website" value={form.website} onChangeText={(v) => update("website", v)} keyboardType="url" autoCapitalize="none" />
+        </View>
+
+        <View className="bg-card border border-border rounded-3xl p-5 mb-5">
+          <Text className="text-primary text-xs font-bold uppercase tracking-wider mb-5">Business media (optional)</Text>
+          {(["logo", "cover"] as const).map((kind) => {
+            const url = kind === "logo" ? form.logoUrl : form.coverImageUrl;
+            return (
+              <View key={kind} className="mb-4">
+                <Text className="text-foreground text-sm font-semibold mb-2">{kind === "logo" ? "Logo" : "Cover Image"}</Text>
+                <TouchableOpacity className={`rounded-2xl border border-dashed border-primary/50 bg-primary/5 items-center justify-center overflow-hidden ${kind === "logo" ? "h-36" : "h-44"}`} onPress={() => uploadImage(kind)} disabled={!!uploading}>
+                  {url ? <Image source={{ uri: url }} className="w-full h-full" resizeMode="cover" /> :
+                    uploading === kind ? <ActivityIndicator color="#EC4899" /> :
+                    <><ImagePlus size={27} className="text-primary mb-2" /><Text className="text-foreground font-medium">Upload {kind === "logo" ? "Logo" : "Cover Image"}</Text></>}
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+          <Text className="text-foreground text-sm font-semibold mb-2">Business Documents</Text>
+          {documents.map((document, index) => (
+            <View key={`${document.url}-${index}`} className="flex-row items-center bg-background border border-border rounded-2xl p-3 mb-2">
+              <FileText size={20} className="text-primary" />
+              <Text className="text-foreground text-sm flex-1 ml-3" numberOfLines={1}>{document.name}</Text>
+              <TouchableOpacity onPress={() => setDocuments((current) => current.filter((_, i) => i !== index))}><Trash2 size={18} className="text-destructive" /></TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity className="h-14 rounded-2xl border border-dashed border-primary/50 items-center justify-center flex-row" onPress={uploadDocument} disabled={!!uploading || documents.length >= 5}>
+            {uploading === "document" ? <ActivityIndicator color="#EC4899" /> : <><FileText size={19} className="text-primary mr-2" /><Text className="text-primary font-semibold">Add PDF or Image ({documents.length}/5)</Text></>}
           </TouchableOpacity>
         </View>
 
-        <Pressable className="flex-row items-center mb-6" onPress={() => setDeclared((value) => !value)}>
-          <View className={`w-6 h-6 rounded-md border items-center justify-center mr-3 ${declared ? "bg-primary border-primary" : "border-border bg-card"}`}>{declared ? <Check size={16} color="#FFF" /> : null}</View>
-          <Text className="text-foreground flex-1">I confirm that the information provided is correct.</Text>
+        <Pressable className="flex-row items-start mb-6" onPress={() => setTermsAccepted((value) => !value)}>
+          <View className={`w-6 h-6 rounded-md border items-center justify-center mr-3 mt-0.5 ${termsAccepted ? "bg-primary border-primary" : "border-border bg-card"}`}>
+            {termsAccepted ? <Check size={16} color="#FFF" /> : null}
+          </View>
+          <Text className="text-foreground flex-1 leading-5">I agree to the Terms & Conditions and confirm that the information provided is accurate.</Text>
         </Pressable>
 
-        <TouchableOpacity className={`rounded-2xl py-4 items-center ${isComplete ? "bg-primary" : "bg-muted"}`} disabled={!isComplete || submitting} onPress={submit}>
-          {submitting ? <ActivityIndicator color="#FFF" /> : <Text className={isComplete ? "text-white font-bold" : "text-muted-foreground font-bold"}>Submit Application</Text>}
+        <TouchableOpacity className={`rounded-2xl py-4 items-center ${requiredComplete && termsAccepted ? "bg-primary" : "bg-muted"}`} disabled={!requiredComplete || !termsAccepted || submitting || !!uploading} onPress={submit}>
+          {submitting ? <ActivityIndicator color="#FFF" /> : <Text className={requiredComplete && termsAccepted ? "text-white font-bold" : "text-muted-foreground font-bold"}>Submit Application</Text>}
         </TouchableOpacity>
       </ScrollView>
 
       <Modal visible={categoryOpen} transparent animationType="fade" onRequestClose={() => setCategoryOpen(false)}>
         <Pressable className="flex-1 bg-black/60 justify-end" onPress={() => setCategoryOpen(false)}>
-          <Pressable className="bg-card rounded-t-3xl p-5 max-h-[65%]" onPress={(event) => event.stopPropagation()}>
-            <View className="flex-row justify-between mb-4"><Text className="text-foreground text-lg font-bold">Select Category</Text><TouchableOpacity onPress={() => setCategoryOpen(false)}><X className="text-foreground" /></TouchableOpacity></View>
-            <ScrollView>{categories.map((category) => <TouchableOpacity key={category.id} className="py-4 border-b border-border" onPress={() => { update("category_id", category.id); setCategoryOpen(false); }}><Text className="text-foreground">{category.name}</Text></TouchableOpacity>)}</ScrollView>
+          <Pressable className="bg-card rounded-t-3xl p-5 max-h-[70%]" onPress={(event) => event.stopPropagation()}>
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-foreground text-lg font-bold">Select Category</Text>
+              <TouchableOpacity onPress={() => setCategoryOpen(false)}><X className="text-foreground" /></TouchableOpacity>
+            </View>
+            <ScrollView>{categories.map((category) => (
+              <TouchableOpacity key={category.id} className="py-4 border-b border-border" onPress={() => { update("categoryId", category.id); setCategoryOpen(false); }}>
+                <Text className="text-foreground">{category.name}</Text>
+              </TouchableOpacity>
+            ))}</ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

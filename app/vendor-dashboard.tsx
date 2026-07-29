@@ -2,14 +2,16 @@ import React, { useCallback } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
-  ArrowRight, CalendarDays, Check, ChevronRight, CircleAlert, Clock3, Eye,
-  Images, MessageSquareText, Plus, Sparkles, Star, UserRoundPen,
+  ArrowRight, Bookmark, CalendarDays, Check, ChevronRight, CircleAlert,
+  Clapperboard, Clock3, Eye, Heart, Images, MessageSquareText, Plus,
+  Sparkles, Star, UserRoundPen,
 } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
+import { useVendorClipOverview } from "@/clips/hooks";
 
 const completionMeta = {
   complete: { label: "Complete", icon: Check },
@@ -24,6 +26,12 @@ export default function VendorDashboard() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { data, loading, error, completion, refresh } = useVendorWorkspace();
+  const {
+    loading: clipsLoading,
+    error: clipsError,
+    overview: clipsOverview,
+    refresh: refreshClips,
+  } = useVendorClipOverview(data.vendor?.id);
   const desktop = width >= 900;
   const unread = data.notifications.filter((item) => !item.is_read).length;
   const openEnquiries = data.enquiries.filter((item) => !["closed", "booked"].includes(item.status)).length;
@@ -33,7 +41,10 @@ export default function VendorDashboard() {
   const vendorName = data.vendor?.business_name || "Your vendor business";
   const plan = data.subscription?.plan_name || data.vendor?.subscription_status || "Free";
 
-  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+  useFocusEffect(useCallback(() => {
+    refresh();
+    void refreshClips();
+  }, [refresh, refreshClips]));
   const stats = [
     { label: "Profile views", value: String(data.vendor?.profile_views ?? 0), icon: Eye },
     { label: "Open enquiries", value: String(openEnquiries), icon: MessageSquareText },
@@ -45,6 +56,7 @@ export default function VendorDashboard() {
     { label: "Add portfolio", icon: Images, route: "/VendorGallery" },
     { label: "Update calendar", icon: CalendarDays, route: "/VendorCalendar" },
     { label: "View enquiries", icon: MessageSquareText, route: "/VendorEnquiries" },
+    { label: "Clips", icon: Clapperboard, route: "/VendorClips" },
   ];
 
   return (
@@ -120,6 +132,76 @@ export default function VendorDashboard() {
             </Pressable>)}
           </View>
 
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open Clips management"
+            onPress={() => router.push("/VendorClips")}
+            style={({ pressed }) => [
+              styles.clipsCard,
+              { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow },
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={styles.clipsHeading}>
+              <View style={[styles.clipsHeroIcon, { backgroundColor: colors.pink }]}>
+                <Clapperboard size={24} color="#FFF" />
+              </View>
+              <View style={styles.flex}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>🎬 Clips</Text>
+                <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>Upload and manage your wedding videos</Text>
+              </View>
+              <ChevronRight size={19} color={colors.pink} />
+            </View>
+
+            {clipsError ? (
+              <View style={[styles.clipsNotice, { backgroundColor: colors.surfaceSoft }]}>
+                <Text style={[styles.clipsNoticeText, { color: colors.muted }]}>Clips data will appear after the Clips database migration is deployed.</Text>
+              </View>
+            ) : clipsLoading ? (
+              <ActivityIndicator color={colors.pink} style={{ marginVertical: 18 }} />
+            ) : (
+              <>
+                <View style={styles.clipsStats}>
+                  {[
+                    ["Total Clips", clipsOverview.total, Clapperboard],
+                    ["Approved", clipsOverview.approved, Check],
+                    ["Pending Review", clipsOverview.pending, Clock3],
+                    ["Drafts", clipsOverview.draftCount, Plus],
+                    ["Views", clipsOverview.views, Eye],
+                    ["Likes", clipsOverview.likes, Heart],
+                    ["Saves", clipsOverview.saves, Bookmark],
+                  ].map(([label, value, Icon]: any) => (
+                    <View key={label} style={[styles.clipMetric, { backgroundColor: colors.surfaceSoft }]}>
+                      <Icon size={15} color={colors.pink} />
+                      <Text style={[styles.clipMetricValue, { color: colors.text }]}>{value}</Text>
+                      <Text numberOfLines={1} style={[styles.clipMetricLabel, { color: colors.muted }]}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <View style={[styles.clipUsage, { borderTopColor: colors.border }]}>
+                  <View style={styles.flex}>
+                    <Text style={[styles.clipUsageText, { color: colors.text }]}>
+                      {clipsOverview.maximumClips
+                        ? `${clipsOverview.total} / ${clipsOverview.maximumClips} Clips Used`
+                        : `${clipsOverview.total} Clips Used`}
+                    </Text>
+                    <Text style={[styles.clipUsageHint, { color: clipsOverview.limitReached ? colors.warning : colors.muted }]}>
+                      {clipsOverview.limitReached
+                        ? "Clip limit reached. Uploading a new Clip will replace an existing one."
+                        : clipsOverview.mostViewed
+                          ? `Most viewed: ${clipsOverview.mostViewed.title} (${clipsOverview.mostViewed.views_count}) · Newest: ${clipsOverview.newest?.title || "—"}`
+                          : "Share your best wedding work with future couples."}
+                    </Text>
+                  </View>
+                  <Text style={{ color: colors.pink, fontWeight: "800", fontSize: 11 }}>
+                    {clipsOverview.limitReached ? "Manage Clips" : "Open Clips"}
+                  </Text>
+                </View>
+              </>
+            )}
+          </Pressable>
+
           <View style={[styles.dualGrid, desktop && styles.dualDesktop]}>
             <Pressable onPress={() => router.push("/VendorGallery")} style={[styles.summaryCard, desktop && styles.summaryDesktop, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.sectionHeading}><View><Text style={[styles.sectionTitle, { color: colors.text }]}>Portfolio</Text><Text style={[styles.sectionSubtitle, { color: colors.muted }]}>{data.albums.length} albums · {data.media.length} media</Text></View><Images size={21} color={colors.pink} /></View>
@@ -188,6 +270,18 @@ const styles = StyleSheet.create({
   action: { width: "48.4%", minHeight: 66, borderRadius: 18, borderWidth: 1, padding: 11, flexDirection: "row", alignItems: "center", gap: 8 },
   actionIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   actionText: { flex: 1, fontSize: 11, fontWeight: "700" },
+  clipsCard: { borderWidth: 1, borderRadius: 22, padding: 16, marginBottom: 18, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 18, elevation: 2 },
+  clipsHeading: { flexDirection: "row", alignItems: "center", gap: 11 },
+  clipsHeroIcon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  clipsStats: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 15 },
+  clipMetric: { minWidth: "22%", flexGrow: 1, borderRadius: 14, padding: 10 },
+  clipMetricValue: { fontSize: 16, fontWeight: "900", marginTop: 6 },
+  clipMetricLabel: { fontSize: 8, marginTop: 2 },
+  clipUsage: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", gap: 12, marginTop: 14, paddingTop: 13 },
+  clipUsageText: { fontSize: 12, fontWeight: "800" },
+  clipUsageHint: { fontSize: 9, lineHeight: 14, marginTop: 3 },
+  clipsNotice: { borderRadius: 14, padding: 12, marginTop: 14 },
+  clipsNoticeText: { fontSize: 10, lineHeight: 15 },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
   dualGrid: { gap: 12 },
   dualDesktop: { flexDirection: "row" },

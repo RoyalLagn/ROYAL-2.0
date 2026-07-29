@@ -25,6 +25,7 @@ import { useRouter } from "expo-router";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   Bell,
+  Bookmark,
   ChevronRight,
   Edit,
   HelpCircle,
@@ -303,6 +304,12 @@ export default function ProfileScreen() {
   };
 
   const accountOptions = [
+    {
+      icon: Bookmark,
+      title: "Saved Clips",
+      description: "Your saved wedding inspiration",
+      onPress: () => router.push("/SavedClips"),
+    },
     {
       icon: User,
       title: "Personal Information",

@@ -1,0 +1,89 @@
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ChevronDown, ChevronLeft, ImagePlus, Save } from "lucide-react-native";
+import VendorHeader from "@/components/vendor/VendorHeader";
+import PortfolioVideoPlayer from "@/components/vendor/PortfolioVideoPlayer";
+import { useAppTheme } from "@/components/ThemeProvider";
+import { vendorTheme } from "@/components/vendor/VendorTheme";
+import { useCategories } from "@/context/CategoryContext";
+import { supabase } from "@/services/supabase";
+import { ClipManagementService, pickClipThumbnail } from "@/clips/services";
+import type { ClipVisibility } from "@/clips/types";
+import { ClipStatusBadge } from "@/clips/components";
+
+export default function VendorClipEdit() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const { colorScheme } = useAppTheme();
+  const colors = vendorTheme[colorScheme];
+  const { registrationCategories: categories } = useCategories();
+  const [clip, setClip] = useState<any>(null);
+  const [title, setTitle] = useState("");
+  const [caption, setCaption] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [visibility, setVisibility] = useState<ClipVisibility>("public");
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const selectedCategory = categories.find((item) => item.id === categoryId);
+
+  useEffect(() => {
+    supabase.from("clips").select("*").eq("id", id).single().then(({ data, error }) => {
+      if (error) return Alert.alert("Unable to load Clip", error.message);
+      setClip(data); setTitle(data.title); setCaption(data.caption || "");
+      setCategoryId(data.category_id); setVisibility(data.visibility);
+    });
+  }, [id]);
+
+  const save = async () => {
+    if (!title.trim() || !categoryId) return Alert.alert("Title and category are required");
+    setSaving(true);
+    const result = await ClipManagementService.update(id, { title, caption, categoryId, visibility });
+    setSaving(false);
+    if (result.error) Alert.alert("Clip not saved", result.error.message);
+    else router.back();
+  };
+  const replaceThumbnail = async () => {
+    const uri = await pickClipThumbnail();
+    if (!uri || !clip) return;
+    setSaving(true);
+    try {
+      const result = await ClipManagementService.replaceThumbnail(clip.id, clip.vendor_id, uri);
+      if (result.error) throw result.error;
+      setClip(result.data);
+    } catch (error) {
+      Alert.alert("Thumbnail not replaced", error instanceof Error ? error.message : "Try again.");
+    } finally { setSaving(false); }
+  };
+
+  if (!clip) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.pink} /></View>;
+  return <View style={[styles.root, { backgroundColor: colors.background }]}>
+    <VendorHeader />
+    <ScrollView contentContainerStyle={styles.scroll}>
+      <View style={styles.titleRow}><Pressable onPress={() => router.back()} style={[styles.back, { backgroundColor: colors.surface }]}><ChevronLeft size={20} color={colors.text} /></Pressable><View style={styles.flex}><Text style={[styles.heading, { color: colors.text }]}>Edit Clip</Text><Text style={[styles.subheading, { color: colors.muted }]}>Video replacement is disabled after upload</Text></View><ClipStatusBadge status={clip.status} /></View>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.video}><PortfolioVideoPlayer uri={clip.video_url} /></View>
+        <Text style={[styles.label, { color: colors.text }]}>Cover thumbnail</Text><Pressable onPress={replaceThumbnail} style={styles.thumbnail}><Image source={{ uri: clip.thumbnail_url }} style={styles.image} /><View style={styles.overlay}><ImagePlus size={20} color="#FFF" /><Text style={styles.overlayText}>Replace cover</Text></View></Pressable>
+      </View>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.label, { color: colors.text }]}>Title</Text><TextInput value={title} onChangeText={setTitle} maxLength={120} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSoft }]} />
+        <Text style={[styles.label, { color: colors.text }]}>Caption</Text><TextInput value={caption} onChangeText={setCaption} maxLength={2200} multiline style={[styles.input, styles.caption, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSoft }]} />
+        <Text style={[styles.label, { color: colors.text }]}>Category</Text><Pressable onPress={() => setCategoryOpen((value) => !value)} style={[styles.input, styles.select, { borderColor: colors.border, backgroundColor: colors.surfaceSoft }]}><Text style={{ color: colors.text }}>{selectedCategory?.name}</Text><ChevronDown size={18} color={colors.muted} /></Pressable>
+        {categoryOpen && <View style={[styles.options, { borderColor: colors.border }]}>{categories.map((category) => <Pressable key={category.id} onPress={() => { setCategoryId(category.id); setCategoryOpen(false); }} style={[styles.option, { borderBottomColor: colors.border }]}><Text style={{ color: colors.text }}>{category.name}</Text></Pressable>)}</View>}
+        <Text style={[styles.label, { color: colors.text }]}>Visibility</Text><View style={styles.visibility}>{(["public", "unlisted", "private"] as ClipVisibility[]).map((value) => <Pressable key={value} onPress={() => setVisibility(value)} style={[styles.visibilityChoice, { borderColor: visibility === value ? colors.pink : colors.border, backgroundColor: visibility === value ? `${colors.pink}14` : colors.surfaceSoft }]}><Text style={{ color: visibility === value ? colors.pink : colors.muted, fontWeight: "700", fontSize: 11 }}>{value}</Text></Pressable>)}</View>
+        <Pressable disabled={saving} onPress={save} style={[styles.primary, { backgroundColor: colors.pink }]}>{saving ? <ActivityIndicator color="#FFF" /> : <><Save size={17} color="#FFF" /><Text style={styles.primaryText}>Save Changes</Text></>}</Pressable>
+      </View>
+    </ScrollView>
+  </View>;
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 }, center: { flex: 1, alignItems: "center", justifyContent: "center" }, scroll: { width: "100%", maxWidth: 760, alignSelf: "center", padding: 18, paddingBottom: 60 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 16 }, back: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" }, flex: { flex: 1 }, heading: { fontSize: 22, fontWeight: "900" }, subheading: { fontSize: 9, marginTop: 3 },
+  card: { borderWidth: 1, borderRadius: 22, padding: 16, marginBottom: 16 }, video: { height: 300, borderRadius: 16, overflow: "hidden", backgroundColor: "#000", marginBottom: 16 },
+  label: { fontSize: 12, fontWeight: "800", marginBottom: 7, marginTop: 4 }, thumbnail: { height: 180, borderRadius: 16, overflow: "hidden" }, image: { width: "100%", height: "100%" }, overlay: { position: "absolute", right: 10, bottom: 10, borderRadius: 12, paddingHorizontal: 11, height: 36, backgroundColor: "rgba(0,0,0,.68)", flexDirection: "row", alignItems: "center", gap: 6 }, overlayText: { color: "#FFF", fontSize: 10, fontWeight: "800" },
+  input: { borderWidth: 1, minHeight: 50, borderRadius: 15, paddingHorizontal: 14, fontSize: 12, marginBottom: 15 }, caption: { minHeight: 110, paddingTop: 13, textAlignVertical: "top" }, select: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  options: { borderWidth: 1, borderRadius: 14, marginTop: -10, marginBottom: 15, maxHeight: 220, overflow: "hidden" }, option: { padding: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  visibility: { flexDirection: "row", gap: 8, marginBottom: 20 }, visibilityChoice: { flex: 1, borderWidth: 1, borderRadius: 13, paddingVertical: 12, alignItems: "center" },
+  primary: { height: 50, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }, primaryText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
+});
