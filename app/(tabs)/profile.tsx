@@ -31,7 +31,6 @@ import {
   HelpCircle,
   LogOut,
   Mail,
-  MapPin,
   Phone,
   Shield,
   Trash2,
@@ -40,8 +39,10 @@ import {
 } from "lucide-react-native";
 import {
   CloudinaryError,
-  pickAndUploadImage,
+  deleteManagedProfileImage,
+  pickAndUploadProfileImage,
 } from "@/services/cloudinary";
+import { getPublicAuthError, updatePublicProfile } from "@/services/publicAuth";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 
@@ -182,7 +183,7 @@ function SectionHeading({ eyebrow, title, description }: SectionHeadingProps) {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, loading: authLoading, isPublicAuthenticated, signOut } = usePublicAuth();
+  const { session, profile, loading: authLoading, isPublicAuthenticated, refreshProfile, signOut } = usePublicAuth();
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
@@ -199,7 +200,6 @@ export default function ProfileScreen() {
     name: profile?.full_name || "RoyalLagn User",
     email: profile?.email || "",
     phone: profile?.phone || "Not provided",
-    location: "Not provided",
   };
 
   useEffect(() => {
@@ -258,30 +258,55 @@ export default function ProfileScreen() {
 
     setIsUploadingPhoto(true);
     try {
-      const uploadedUrl = await pickAndUploadImage({
-        allowsEditing: true,
-        aspect: [1, 1],
-      });
+      const previousUrl = profileImageUrl;
+      const uploadedUrl = await pickAndUploadProfileImage({ kind: "customer" });
 
       if (uploadedUrl) {
+        if (!session?.user.id) throw new Error("Your session expired. Sign in again.");
+        try {
+          await updatePublicProfile(session.user.id, { profileImage: uploadedUrl });
+        } catch (error) {
+          await deleteManagedProfileImage({ kind: "customer" }, uploadedUrl).catch(() => undefined);
+          throw error;
+        }
+        await refreshProfile();
         setProfileImageUrl(uploadedUrl);
+        if (previousUrl && previousUrl !== uploadedUrl) {
+          await deleteManagedProfileImage({ kind: "customer" }, previousUrl).catch(() => {
+            Alert.alert("Photo updated", "Your new photo is saved, but the previous image could not be cleaned up yet.");
+          });
+        }
       }
     } catch (error) {
       Alert.alert(
         "Photo upload failed",
         error instanceof CloudinaryError
           ? error.message
-          : "Unable to upload the selected photo. Please try again."
+          : getPublicAuthError(error, "Unable to save the selected photo. Please try again.")
       );
     } finally {
       setIsUploadingPhoto(false);
     }
   };
 
-  const removeProfilePhoto = () => {
-    setProfileImageUrl(null);
-    setIsConfirmingPhotoRemoval(false);
-    setIsPhotoViewerVisible(false);
+  const removeProfilePhoto = async () => {
+    if (!session?.user.id || isUploadingPhoto) return;
+    const previousUrl = profileImageUrl;
+    setIsUploadingPhoto(true);
+    try {
+      await updatePublicProfile(session.user.id, { profileImage: null });
+      await refreshProfile();
+      setProfileImageUrl(null);
+      await deleteManagedProfileImage({ kind: "customer" }, previousUrl).catch(() => {
+        Alert.alert("Photo removed", "Your profile was updated, but the previous image could not be cleaned up yet.");
+      });
+      setIsConfirmingPhotoRemoval(false);
+      setIsPhotoViewerVisible(false);
+    } catch (error) {
+      Alert.alert("Photo not removed", getPublicAuthError(error, "Unable to remove your profile photo."));
+    } finally {
+      setIsUploadingPhoto(false);
+    }
   };
 
   const openPhotoViewer = () => {
@@ -446,22 +471,13 @@ export default function ProfileScreen() {
       </View>
 
       <View className="mt-6 rounded-2xl overflow-hidden border border-primary/10 bg-card/55 relative z-10">
-        <View className="min-h-[64px] px-4 flex-row items-center border-b border-primary/10">
+        <View className="min-h-[64px] px-4 flex-row items-center">
           <View className="w-9 h-9 rounded-xl bg-primary/10 items-center justify-center mr-3">
             <Phone size={17} className="text-primary" />
           </View>
           <View className="flex-1 min-w-0">
             <Text className="text-muted-foreground text-2xs uppercase tracking-wider mb-0.5">Phone</Text>
             <Text className="text-foreground text-sm font-semibold" numberOfLines={1}>{user.phone}</Text>
-          </View>
-        </View>
-        <View className="min-h-[64px] px-4 flex-row items-center">
-          <View className="w-9 h-9 rounded-xl bg-primary/10 items-center justify-center mr-3">
-            <MapPin size={17} className="text-primary" />
-          </View>
-          <View className="flex-1 min-w-0">
-            <Text className="text-muted-foreground text-2xs uppercase tracking-wider mb-0.5">Location</Text>
-            <Text className="text-foreground text-sm font-semibold" numberOfLines={1}>{user.location}</Text>
           </View>
         </View>
       </View>

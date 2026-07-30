@@ -3,6 +3,7 @@ import { supabase } from "@/services/supabase";
 import {
   validateEmail,
   validateFullName,
+  normalizePhone,
   validatePassword,
   validatePhone,
 } from "@/utils/authValidation";
@@ -74,7 +75,7 @@ export async function sendSignupOtp(details: SignupDetails) {
       data: {
         role: "public_user",
         full_name: details.fullName.trim(),
-        phone: details.phone.trim(),
+        phone: normalizePhone(details.phone),
         registration_pending: true,
       },
     },
@@ -133,7 +134,7 @@ export async function completePublicSignup(details: SignupDetails, password: str
     data: {
       role: "public_user",
       full_name: details.fullName.trim(),
-      phone: details.phone.trim(),
+      phone: normalizePhone(details.phone),
       registration_pending: false,
     },
   });
@@ -145,7 +146,7 @@ export async function completePublicSignup(details: SignupDetails, password: str
       id: data.user.id,
       email: normalizeEmail(details.email),
       full_name: details.fullName.trim(),
-      phone: details.phone.trim(),
+      phone: normalizePhone(details.phone),
       role: "public_user",
     })
     .select(PROFILE_COLUMNS)
@@ -177,6 +178,44 @@ export async function ensurePublicProfile(user: User): Promise<PublicProfile> {
     throw new Error("This account is not a Public User account.");
   }
   return profile;
+}
+
+export async function updatePublicProfile(
+  userId: string,
+  changes: {
+    fullName?: string;
+    phone?: string | null;
+    profileImage?: string | null;
+  },
+): Promise<PublicProfile> {
+  const payload: Record<string, string | null> = {};
+  if (changes.fullName !== undefined) {
+    if (!validateFullName(changes.fullName)) throw new Error("Enter a valid full name.");
+    payload.full_name = changes.fullName.trim();
+  }
+  if (changes.phone !== undefined) {
+    const phone = changes.phone?.trim() || null;
+    if (phone && !validatePhone(phone)) throw new Error("Enter a valid phone number.");
+    payload.phone = phone ? normalizePhone(phone) : null;
+  }
+  if (changes.profileImage !== undefined) {
+    payload.profile_image = changes.profileImage?.trim() || null;
+  }
+  if (!Object.keys(payload).length) {
+    const current = await getOwnProfile(userId);
+    if (!current) throw new Error("Public profile not found.");
+    return current;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(payload)
+    .eq("id", userId)
+    .eq("role", "public_user")
+    .select(PROFILE_COLUMNS)
+    .single();
+  if (error) throw error;
+  return data as PublicProfile;
 }
 
 export function getPublicAuthError(error: unknown, fallback: string) {

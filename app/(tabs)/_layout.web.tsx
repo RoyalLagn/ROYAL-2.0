@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  Image,
   Platform,
   Pressable,
   Text,
@@ -29,6 +30,7 @@ import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
 import FavoriteNotificationDot from "@/components/favorites/FavoriteNotificationDot";
 import { useFavorites } from "@/context/FavoritesContext";
 import { useNotifications } from "@/context/NotificationContext";
+import { usePublicAuth } from "@/context/PublicAuthContext";
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -123,11 +125,11 @@ function DesktopFavoritesButton({
       accessibilityRole="link"
       accessibilityLabel={hasUnviewedFavorites ? "Favorites, new favorites available" : "Favorites"}
       onPress={onPress}
-      className="h-12 min-w-[70px] px-2 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      className="relative w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
     >
       <Animated.View
         ref={registerFavoritesDestination as React.Ref<any>}
-        className="relative w-8 h-7 items-center justify-center"
+        className="relative w-9 h-9 items-center justify-center"
         style={iconStyle}
       >
         <Animated.View
@@ -145,12 +147,6 @@ function DesktopFavoritesButton({
           animationToken={favoriteIndicatorToken}
         />
       </Animated.View>
-      <Text className={active
-        ? "text-primary text-2xs font-semibold mt-0.5"
-        : "text-muted-foreground text-2xs font-medium mt-0.5"}
-      >
-        Favorites
-      </Text>
     </Pressable>
   );
 }
@@ -168,6 +164,7 @@ export default function TabsWebLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const openAuthenticationGateway = useAuthenticationGateway();
   const { unreadCount } = useNotifications();
+  const { profile, isPublicAuthenticated } = usePublicAuth();
 
   useEffect(() => {
     if (isClips) setSearchQuery(typeof clipSearch === "string" ? clipSearch : "");
@@ -219,7 +216,7 @@ export default function TabsWebLayout() {
               onPress={() => router.push("/(tabs)")}
               className="mr-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-xl"
             >
-              <RoyalLagnLogo width={148} height={46} />
+              <RoyalLagnLogo width={172} height={52} scale={1.9} />
             </Pressable>
 
             {isHome ? <View className="mr-5"><LocationSelector dark={isDark} compact /></View> : null}
@@ -268,7 +265,7 @@ export default function TabsWebLayout() {
                 onPress={() => router.push("/Notifications")}
                 className="relative w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
-                <Bell size={19} className="text-foreground/75" />
+                <Bell size={20} className="text-foreground/75" />
                 {unreadCount > 0 ? (
                   <View className="absolute top-1.5 right-1.5 min-w-[15px] h-[15px] rounded-full bg-primary border-2 border-card items-center justify-center px-0.5">
                     <Text className="text-white text-[7px] font-bold">
@@ -289,25 +286,30 @@ export default function TabsWebLayout() {
                 onPress={shareApp}
                 className="w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
-                <Share2 size={19} className="text-foreground/75" />
+                <Share2 size={20} className="text-foreground/75" />
               </Pressable>
 
               <Pressable
                 accessibilityRole="link"
-                accessibilityLabel="Profile"
+                accessibilityLabel={isPublicAuthenticated ? `Profile for ${profile?.full_name}` : "Profile"}
                 onPress={() => void openAuthenticationGateway()}
-                className="h-12 min-w-[68px] px-2 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                className={isPublicAuthenticated
+                  ? "h-11 max-w-[150px] px-2 rounded-xl flex-row items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  : "w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"}
               >
-                <User size={20} className={isActive("/(tabs)/profile") ? "text-primary" : "text-foreground/75"} />
-                <Text className={isActive("/(tabs)/profile")
-                  ? "text-primary text-2xs font-semibold mt-0.5"
-                  : "text-muted-foreground text-2xs font-medium mt-0.5"}
-                >
-                  Profile
-                </Text>
+                {profile?.profile_image ? (
+                  <Image source={{ uri: profile.profile_image }} className="w-8 h-8 rounded-full bg-muted" />
+                ) : (
+                  <User size={20} className={isActive("/(tabs)/profile") ? "text-primary" : "text-foreground/75"} />
+                )}
+                {isPublicAuthenticated ? (
+                  <Text className="text-foreground text-xs font-semibold ml-2 max-w-[88px]" numberOfLines={1}>
+                    {profile?.full_name}
+                  </Text>
+                ) : null}
               </Pressable>
 
-              <ThemeToggle />
+              <ThemeToggle size={20} />
             </View>
           </View>
         </HomeReveal>

@@ -2,7 +2,7 @@ import { Pressable } from 'react-native';
 import { Sun, Moon } from 'lucide-react-native';
 import { useAppTheme } from './ThemeProvider';
 
-export function ThemeToggle() {
+export function ThemeToggle({ size = 24 }: { size?: number }) {
   const { colorScheme, toggleColorScheme } = useAppTheme();
 
   return (
@@ -15,9 +15,9 @@ export function ThemeToggle() {
       onPress={toggleColorScheme}
     >
       {colorScheme === 'dark' ? (
-        <Sun color="#F8F2F5" size={24} />
+        <Sun color="#F8F2F5" size={size} />
       ) : (
-        <Moon color="#17111D" size={24} />
+        <Moon color="#17111D" size={size} />
       )}
     </Pressable>
   );

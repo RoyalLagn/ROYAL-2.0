@@ -42,9 +42,35 @@ npx supabase secrets set \
   CLOUDINARY_API_SECRET=your-api-secret
 npx supabase functions deploy cloudinary-sign
 npx supabase functions deploy cloudinary-delete
+npx supabase functions deploy profile-image
 ```
 
 Uploaded portfolio assets use `royallagn/vendors/{vendorId}/albums/{albumId}/`. The app stores the secure URL, Cloudinary public ID, media type, display order, and album relationship in Supabase.
+
+## Profile propagation verification
+
+Run the fast source-level integration guard on every change:
+
+```bash
+npm run test:profile-smoke
+```
+
+For the authenticated database and Realtime test, add disposable staging accounts
+to `.env` and run:
+
+```bash
+E2E_CUSTOMER_EMAIL=
+E2E_CUSTOMER_PASSWORD=
+E2E_VENDOR_EMAIL=
+E2E_VENDOR_PASSWORD=
+E2E_ADMIN_EMAIL=
+E2E_ADMIN_PASSWORD=
+npm run test:profile-e2e
+```
+
+The E2E test verifies customer-to-Admin propagation, atomic Vendor owner/business
+updates, public and Admin Vendor visibility, and live Vendor profile-view updates.
+It restores names after the run; the test Vendor receives one intentional profile view.
 
 ## Get a fresh project
 

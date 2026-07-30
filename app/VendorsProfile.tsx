@@ -25,10 +25,12 @@ import VendorHeroCarousel from "@/components/vendor-profile/VendorHeroCarousel";
 import VendorInfoPanel from "@/components/vendor-profile/VendorInfoPanel";
 import VendorQuickActions from "@/components/vendor-profile/VendorQuickActions";
 import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
+import PublicWebNavbar from "@/components/PublicWebNavbar";
 import ConnectedVendorReviews from "@/components/reviews/ConnectedVendorReviews";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import {
   getApprovedPublicVendorById,
+  recordPublicVendorProfileView,
   subscribeToPublicVendorChanges,
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
@@ -60,6 +62,7 @@ export default function VendorsProfile() {
   const dark = colorScheme === "dark";
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const desktop = width >= 1100;
   const params = useLocalSearchParams<{ vendorId?: string; category?: string }>();
   const vendorId = Array.isArray(params.vendorId) ? params.vendorId[0] : params.vendorId;
   const paramCategory = Array.isArray(params.category) ? params.category[0] : params.category;
@@ -106,6 +109,13 @@ export default function VendorsProfile() {
     };
   }, [vendorId]);
 
+  useEffect(() => {
+    if (!vendor?.id) return;
+    void recordPublicVendorProfileView(vendor.id).catch(() => {
+      // Profile viewing must never block the public Vendor page.
+    });
+  }, [vendor?.id]);
+
   const background = dark ? "#070B14" : "#FFF9FB";
   const surface = dark ? "#0E141F" : "#FFFFFF";
   const text = dark ? "#FFF8FB" : "#1D1519";
@@ -147,6 +157,7 @@ export default function VendorsProfile() {
   if (loading || !vendor) {
     return (
       <View style={[styles.root, { backgroundColor: background }]}>
+        <PublicWebNavbar activeRoute="Categories" />
         <View style={styles.notFound}>
           <Text style={[styles.notFoundTitle, { color: text }]}>
             {loading ? "Loading vendor…" : "Vendor is currently unavailable"}
@@ -160,7 +171,7 @@ export default function VendorsProfile() {
             </>
           ) : null}
         </View>
-        <StandaloneMobileTabBar activeRoute="Categories" />
+        {!desktop ? <StandaloneMobileTabBar activeRoute="Categories" /> : null}
       </View>
     );
   }
@@ -191,10 +202,11 @@ export default function VendorsProfile() {
 
   return (
     <View style={[styles.root, { backgroundColor: background }]}>
+      <PublicWebNavbar activeRoute="Categories" />
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: 92 + insets.bottom }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: desktop ? 28 : 92 + insets.bottom }]}
       >
         <View style={[styles.page, { width: contentWidth, backgroundColor: surface }]}>
           <VendorHeroCarousel
@@ -338,7 +350,7 @@ export default function VendorsProfile() {
         </View>
       </ScrollView>
 
-      <StandaloneMobileTabBar activeRoute="Categories" />
+      {!desktop ? <StandaloneMobileTabBar activeRoute="Categories" /> : null}
       <FullscreenMediaViewer
         visible={heroViewerIndex !== null}
         media={vendor.heroMedia}

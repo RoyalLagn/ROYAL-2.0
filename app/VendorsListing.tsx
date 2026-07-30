@@ -13,6 +13,7 @@ import ResultsSummary from "@/components/listing/ResultsSummary";
 import VendorListingCard from "@/components/listing/VendorListingCard";
 import HomeReveal from "@/components/home/HomeReveal";
 import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
+import PublicWebNavbar from "@/components/PublicWebNavbar";
 import { useCustomerLocation } from "@/context/LocationContext";
 import { useFavorites } from "@/context/FavoritesContext";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
@@ -94,6 +95,7 @@ export default function VendorsListingScreen() {
   const [approvedVendors, setApprovedVendors] = useState<PublicVendorListing[]>([]);
 
   const compact = width < 600;
+  const desktop = width >= 1100;
   const contentWidth = Math.min(width - (width >= 1100 ? 48 : 32), 980);
   const background = isDark ? "#141214" : "#FFFAFC";
   const text = isDark ? "#F8F2F5" : "#231A20";
@@ -207,6 +209,7 @@ export default function VendorsListingScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "left", "right"]}>
+      <PublicWebNavbar activeRoute="Categories" />
       <View style={[styles.top, { width: contentWidth }]}>
         <HomeReveal direction="down">
           <CategoryListingHeader
@@ -285,7 +288,7 @@ export default function VendorsListingScreen() {
         ) : null}
       </ScrollView>
 
-      <StandaloneMobileTabBar activeRoute="Categories" />
+      {!desktop ? <StandaloneMobileTabBar activeRoute="Categories" /> : null}
 
       <ListingFilterModal
         visible={filtersVisible}

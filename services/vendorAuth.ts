@@ -7,6 +7,7 @@ import {
 import {
   validateEmail,
   validateFullName,
+  normalizePhone,
   validatePassword,
   validatePhone,
 } from "@/utils/authValidation";
@@ -108,7 +109,7 @@ export async function sendVendorSignupOtp(details: VendorSignupDetails) {
       data: {
         role: "vendor",
         full_name: details.ownerName.trim(),
-        phone: details.phone.trim(),
+        phone: normalizePhone(details.phone),
         registration_pending: true,
       },
     },
@@ -169,7 +170,7 @@ export async function completeVendorSignup(details: VendorSignupDetails, passwor
     data: {
       role: "vendor",
       full_name: details.ownerName.trim(),
-      phone: details.phone.trim(),
+      phone: normalizePhone(details.phone),
       registration_pending: false,
     },
   });
@@ -178,7 +179,7 @@ export async function completeVendorSignup(details: VendorSignupDetails, passwor
     id: data.user.id,
     email: normalizeEmail(details.email),
     full_name: details.ownerName.trim(),
-    phone: details.phone.trim(),
+    phone: normalizePhone(details.phone),
     role: "vendor",
   });
   if (profileError) throw profileError;

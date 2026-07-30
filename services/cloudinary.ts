@@ -66,6 +66,23 @@ type SignedUpload = {
   remainingCapacity: number;
 };
 
+type ProfileImageTarget =
+  | { kind: "customer" }
+  | { kind: "vendor"; vendorId: string };
+
+type SignedProfileImage = {
+  uploadMode: "signed" | "unsigned";
+  signature?: string;
+  timestamp?: number;
+  folder: string;
+  apiKey?: string;
+  cloudName: string;
+  public_id: string;
+  overwrite?: string;
+  unique_filename?: string;
+  uploadPreset?: string;
+};
+
 async function edgeFunctionErrorMessage(
   error: unknown,
   fallback: string,
@@ -235,6 +252,86 @@ export async function pickAndUploadImage(
 ): Promise<string | null> {
   const image = await pickImage(options);
   return image ? uploadImage(image) : null;
+}
+
+export async function pickAndUploadProfileImage(
+  target: ProfileImageTarget,
+): Promise<string | null> {
+  const asset = await pickImage({ allowsEditing: true, aspect: [1, 1], quality: 0.88 });
+  if (!asset) return null;
+  let fileSize = asset.fileSize;
+  if (!fileSize) {
+    fileSize = (await fetch(asset.uri).then((response) => response.blob())).size;
+  }
+  const mimeType = asset.mimeType || "image/jpeg";
+  const { data, error } = await supabase.functions.invoke<SignedProfileImage>("profile-image", {
+    body: { ...target, action: "sign", mimeType, fileSize },
+  });
+  if (error || !data?.uploadMode) {
+    throw new CloudinaryError(
+      await edgeFunctionErrorMessage(error, "Unable to authorize profile image upload."),
+      "UPLOAD_ERROR",
+    );
+  }
+
+  const body = new FormData();
+  if (Platform.OS === "web") {
+    const blob = await fetch(asset.uri).then((response) => response.blob());
+    body.append("file", new File([blob], asset.fileName || `profile-${Date.now()}.jpg`, {
+      type: mimeType || blob.type,
+    }));
+  } else {
+    body.append("file", {
+      uri: asset.uri,
+      name: asset.fileName || `profile-${Date.now()}.jpg`,
+      type: mimeType,
+    } as unknown as Blob);
+  }
+  if (data.uploadMode === "signed") {
+    if (!data.apiKey || !data.timestamp || !data.signature) {
+      throw new CloudinaryError("Profile image authorization was incomplete.", "UPLOAD_ERROR");
+    }
+    body.append("api_key", data.apiKey);
+    body.append("timestamp", String(data.timestamp));
+    body.append("folder", data.folder);
+    body.append("public_id", data.public_id);
+    body.append("overwrite", data.overwrite ?? "false");
+    body.append("unique_filename", data.unique_filename ?? "false");
+    body.append("signature", data.signature);
+  } else {
+    if (!data.uploadPreset) {
+      throw new CloudinaryError("Profile image upload preset is missing.", "UPLOAD_ERROR");
+    }
+    body.append("upload_preset", data.uploadPreset);
+    body.append("folder", data.folder);
+    body.append("public_id", data.public_id);
+  }
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${data.cloudName}/image/upload`,
+    { method: "POST", body },
+  );
+  const payload = await response.json();
+  if (!response.ok || !payload.secure_url) {
+    throw new CloudinaryError(payload.error?.message || "Profile image upload failed.", "UPLOAD_ERROR");
+  }
+  return payload.secure_url;
+}
+
+export async function deleteManagedProfileImage(
+  target: ProfileImageTarget,
+  url: string | null | undefined,
+) {
+  if (!url) return;
+  const { error } = await supabase.functions.invoke("profile-image", {
+    body: { ...target, action: "delete", url },
+  });
+  if (error) {
+    throw new CloudinaryError(
+      await edgeFunctionErrorMessage(error, "Unable to delete the previous profile image."),
+      "UPLOAD_ERROR",
+    );
+  }
 }
 
 export type UploadedBusinessDocument = {

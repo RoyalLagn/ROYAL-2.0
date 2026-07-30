@@ -228,6 +228,20 @@ export function invalidatePublicVendorCache() {
   marketplaceRequest = null;
 }
 
+const recordedProfileViews = new Set<string>();
+
+export async function recordPublicVendorProfileView(vendorId: string) {
+  if (!vendorId || recordedProfileViews.has(vendorId)) return;
+  recordedProfileViews.add(vendorId);
+  const { error } = await supabase.rpc("record_vendor_profile_view", {
+    target_vendor_id: vendorId,
+  });
+  if (error) {
+    recordedProfileViews.delete(vendorId);
+    throw error;
+  }
+}
+
 export async function getApprovedPublicVendors(
   options: { force?: boolean } = {},
 ): Promise<PublicVendorListing[]> {

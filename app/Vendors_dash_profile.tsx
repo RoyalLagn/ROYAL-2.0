@@ -1,18 +1,38 @@
 import React, { useState } from "react";
-import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { BriefcaseBusiness, ChevronRight, CircleHelp, Images, MapPin, Pencil, Settings, Sparkles, Trash2, X } from "lucide-react-native";
+import {
+  BriefcaseBusiness,
+  ChevronRight,
+  CircleHelp,
+  FileText,
+  Images,
+  LogOut,
+  MapPin,
+  Palette,
+  Pencil,
+  Settings,
+  ShieldCheck,
+  Trash2,
+  X,
+} from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
+import { useVendorLogout } from "@/hooks/useVendorLogout";
+import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
+import { supabase } from "@/services/supabase";
+import { deleteManagedProfileImage } from "@/services/cloudinary";
 
 export default function VendorProfile() {
   const router = useRouter();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
-  const { data, completion } = useVendorWorkspace();
+  const { data, completion, refresh } = useVendorWorkspace();
   const [photoOpen, setPhotoOpen] = useState(false);
+  const performVendorLogout = useVendorLogout();
   const vendor = data.vendor;
   const groups = [
     [
@@ -21,11 +41,58 @@ export default function VendorProfile() {
       { label: "Portfolio", detail: `${data.albums.length} albums · ${data.media.length} media`, icon: Images, route: "/VendorGallery" },
     ],
     [
-      { label: "Subscription", detail: vendor?.subscription_status || "Review plan and visibility", icon: Sparkles, route: "/VendorSubscription" },
       { label: "Vendor settings", detail: "Preferences and account controls", icon: Settings, route: "/VendorSettings" },
       { label: "Help and support", detail: "Guides and contact options", icon: CircleHelp, route: "/VendorHelp" },
+      { label: "Privacy policy", detail: "How RoyalLagn handles your information", icon: ShieldCheck, route: "/VendorPrivacyPolicy" },
+      { label: "Terms and conditions", detail: "Rules for using the vendor workspace", icon: FileText, route: "/VendorTerms" },
     ],
   ];
+  const executeLogout = async () => {
+    try {
+      await performVendorLogout();
+    } catch {
+      Alert.alert("Logout failed", "Unable to leave the Vendor workspace. Please try again.");
+    }
+  };
+  const logout = () => {
+    if (Platform.OS === "web") {
+      void executeLogout();
+      return;
+    }
+    Alert.alert("Log out of Vendor workspace?", "You can sign in again from the role-selection screen.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Log out", style: "destructive", onPress: () => void executeLogout() },
+    ]);
+  };
+  const removePhoto = () => {
+    if (!vendor?.id) return;
+    Alert.alert("Remove business logo?", "The logo will also be removed from your public vendor profile.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          const previousLogoUrl = vendor.logo_url;
+          const { error } = await supabase.from("vendors").update({ logo_url: null }).eq("id", vendor.id);
+          if (error) return Alert.alert("Logo not removed", error.message);
+          invalidatePublicVendorCache();
+          await refresh();
+          await deleteManagedProfileImage(
+            { kind: "vendor", vendorId: vendor.id },
+            previousLogoUrl,
+          ).catch((cleanupError) => {
+            Alert.alert(
+              "Logo removed",
+              cleanupError instanceof Error
+                ? "The profile was updated, but the previous image could not be cleaned up yet."
+                : "The profile was updated.",
+            );
+          });
+          setPhotoOpen(false);
+        },
+      },
+    ]);
+  };
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
     <ScrollView contentContainerStyle={styles.content}>
@@ -50,6 +117,36 @@ export default function VendorProfile() {
           <ChevronRight size={18} color={colors.muted} />
         </Pressable>)}
       </View>)}
+      <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.row}>
+          <View style={[styles.rowIcon, { backgroundColor: colors.surfaceSoft }]}>
+            <Palette size={19} color={colors.pink} />
+          </View>
+          <View style={styles.flex}>
+            <Text style={[styles.rowLabel, { color: colors.text }]}>Appearance</Text>
+            <Text style={[styles.rowDetail, { color: colors.muted }]}>Switch between light and dark mode</Text>
+          </View>
+          <ThemeToggle size={20} />
+        </View>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        onPress={logout}
+        style={({ pressed }) => [
+          styles.logout,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+          pressed && { backgroundColor: colors.surfaceSoft },
+        ]}
+      >
+        <View style={[styles.rowIcon, { backgroundColor: `${colors.warning}14` }]}>
+          <LogOut size={19} color={colors.warning} />
+        </View>
+        <View style={styles.flex}>
+          <Text style={[styles.rowLabel, { color: colors.warning }]}>Log out</Text>
+          <Text style={[styles.rowDetail, { color: colors.muted }]}>Leave the Vendor workspace on this device</Text>
+        </View>
+        <ChevronRight size={18} color={colors.muted} />
+      </Pressable>
     </ScrollView>
     <Modal visible={photoOpen} transparent animationType="fade" onRequestClose={() => setPhotoOpen(false)}>
       <Pressable style={styles.overlay} onPress={() => setPhotoOpen(false)}>
@@ -60,7 +157,7 @@ export default function VendorProfile() {
           </View>
           <View style={styles.photoActions}>
             <Pressable onPress={() => { setPhotoOpen(false); router.push("/VendorEditProfile"); }} style={[styles.photoAction, { backgroundColor: colors.surfaceSoft }]}><Pencil size={19} color={colors.pink} /><Text style={[styles.photoActionText, { color: colors.text }]}>Edit photo</Text></Pressable>
-            <Pressable onPress={() => Alert.alert("Remove profile photo?", "Open Edit Profile to confirm this change.")} style={[styles.photoAction, { backgroundColor: colors.surfaceSoft }]}><Trash2 size={19} color={colors.warning} /><Text style={[styles.photoActionText, { color: colors.text }]}>Delete photo</Text></Pressable>
+            <Pressable onPress={removePhoto} style={[styles.photoAction, { backgroundColor: colors.surfaceSoft }]}><Trash2 size={19} color={colors.warning} /><Text style={[styles.photoActionText, { color: colors.text }]}>Delete photo</Text></Pressable>
           </View>
         </View>
       </Pressable>
@@ -75,6 +172,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 22, lineHeight: 28, fontWeight: "800", textAlign: "center", letterSpacing: -0.45 }, category: { fontSize: 12, marginTop: 4 }, location: { flexDirection: "row", gap: 4, alignItems: "center", marginTop: 8 }, locationText: { fontSize: 11 },
   completion: { borderRadius: 15, width: "100%", maxWidth: 420, padding: 12, marginTop: 16 }, completionText: { fontSize: 11, fontWeight: "800", textAlign: "center" }, track: { height: 5, borderRadius: 4, marginTop: 8, overflow: "hidden" }, fill: { height: "100%", borderRadius: 4 },
   group: { borderRadius: 22, borderWidth: 1, overflow: "hidden", marginBottom: 13 }, row: { minHeight: 75, flexDirection: "row", alignItems: "center", padding: 13, gap: 11 },
+  logout: { minHeight: 75, borderRadius: 22, borderWidth: 1, flexDirection: "row", alignItems: "center", padding: 13, gap: 11 },
   rowIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, rowLabel: { fontSize: 13, fontWeight: "750" as any }, rowDetail: { fontSize: 10, marginTop: 4 },
   overlay: { flex: 1, backgroundColor: "rgba(20,10,15,.48)", justifyContent: "flex-end" }, photoSheet: { borderWidth: 1, borderRadius: 28, padding: 20, paddingBottom: 34, width: "100%", maxWidth: 520, alignSelf: "center" },
   sheetTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, sheetTitle: { fontSize: 18, fontWeight: "800" },

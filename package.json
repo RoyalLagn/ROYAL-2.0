@@ -10,7 +10,9 @@
     "web": "expo start --web",
     "prebuild:android": "expo prebuild --platform android --clean",
     "build:apk": "cd android && node -e \"process.env.NODE_ENV='production';require('child_process').execSync((process.platform==='win32'?'gradlew.bat':'./gradlew')+' assembleRelease',{stdio:'inherit',env:process.env})\"",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test:profile-smoke": "node scripts/smoke-profile-propagation.mjs",
+    "test:profile-e2e": "node --env-file=.env scripts/e2e-profile-propagation.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "6.1.2",

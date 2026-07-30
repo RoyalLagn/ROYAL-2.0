@@ -79,6 +79,7 @@ export default function FrontendScreen({
   const isVendorWorkspace = [
     "/vendoreditprofile", "/vendorservices", "/vendornotifications",
     "/vendorsettings", "/vendorhelp", "/vendorsubscription",
+    "/vendorprivacypolicy", "/vendorterms",
   ].some((route) => pathname.toLowerCase().startsWith(route));
   const { width } = useWindowDimensions();
   const { colorScheme } = useColorScheme();

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/services/supabase";
 import { useVendorSession } from "@/context/VendorSessionContext";
 
@@ -61,6 +61,7 @@ export function useVendorWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
+  const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -129,6 +130,42 @@ export function useVendorWorkspace() {
   }, [isPreviewMode, workspaceEpoch]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    const vendorId = data.vendor?.id;
+    const profileId = data.vendor?.profile_id;
+    if (isPreviewMode || !vendorId || !profileId) return;
+
+    const scheduleRefresh = () => {
+      if (realtimeRefreshTimer.current) clearTimeout(realtimeRefreshTimer.current);
+      realtimeRefreshTimer.current = setTimeout(() => {
+        realtimeRefreshTimer.current = null;
+        void refresh();
+      }, 75);
+    };
+    const channel = supabase
+      .channel(`vendor-workspace-live-${vendorId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "vendors", filter: `id=eq.${vendorId}` },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${profileId}` },
+        scheduleRefresh,
+      )
+      .subscribe();
+
+    return () => {
+      if (realtimeRefreshTimer.current) {
+        clearTimeout(realtimeRefreshTimer.current);
+        realtimeRefreshTimer.current = null;
+      }
+      void supabase.removeChannel(channel);
+    };
+  }, [data.vendor?.id, data.vendor?.profile_id, isPreviewMode, refresh]);
+
   const completion = useMemo(() => calculateVendorCompletion(data), [data]);
   return { data, loading, error, portfolioError, completion, refresh };
 }
