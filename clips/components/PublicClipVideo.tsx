@@ -44,7 +44,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   }), [uri]);
   const player = useVideoPlayer(source, (instance) => {
     instance.loop = true;
-    instance.muted = muted;
+    instance.muted = muted || !active;
     instance.bufferOptions = {
       preferredForwardBufferDuration: 6,
       waitsToMinimizeStalling: true,
@@ -55,8 +55,8 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const status = useEvent(player, "statusChange", { status: player.status });
 
   useEffect(() => {
-    player.muted = muted;
-  }, [muted, player]);
+    player.muted = muted || !active;
+  }, [active, muted, player]);
   useEffect(() => {
     if (!active) {
       player.pause();
@@ -64,7 +64,6 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
       return;
     }
     if (!manuallyPaused) player.play();
-    return () => player.pause();
   }, [active, manuallyPaused, player]);
   useEffect(() => () => {
     if (tapTimer.current) clearTimeout(tapTimer.current);
@@ -143,6 +142,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
         contentFit={contentFit}
         nativeControls={false}
         playsInline
+        surfaceType={Platform.OS === "android" ? "textureView" : undefined}
         allowsVideoFrameAnalysis={false}
         onFirstFrameRender={() => {
           if (!firstFrameRendered) setFirstFrameRendered(true);

@@ -24,6 +24,7 @@ type PublicAuthContextValue = {
 };
 
 const PublicAuthContext = createContext<PublicAuthContextValue | null>(null);
+let publicProfileChannelSequence = 0;
 
 export function PublicAuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -104,8 +105,9 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
     const profileId = session?.user.id;
     if (!profileId) return;
 
+    publicProfileChannelSequence += 1;
     const channel = supabase
-      .channel(`public-profile-${profileId}`)
+      .channel(`public-profile-${profileId}-${publicProfileChannelSequence}`)
       .on(
         "postgres_changes",
         {

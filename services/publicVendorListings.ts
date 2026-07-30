@@ -111,6 +111,7 @@ let marketplaceRequest: Promise<PublicVendorListing[]> | null = null;
 let marketplaceCacheVersion = 0;
 const marketplaceListeners = new Set<() => void>();
 let marketplaceChannel: ReturnType<typeof supabase.channel> | null = null;
+let marketplaceChannelSequence = 0;
 let marketplaceRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 function relatedOne<T>(value: T | T[] | null | undefined): T | null {
@@ -301,6 +302,7 @@ export function subscribeToPublicVendorChanges(onChange: () => void) {
   marketplaceListeners.add(onChange);
 
   if (!marketplaceChannel) {
+    marketplaceChannelSequence += 1;
     const scheduleMarketplaceChanged = () => {
       if (marketplaceRefreshTimer) clearTimeout(marketplaceRefreshTimer);
       marketplaceRefreshTimer = setTimeout(() => {
@@ -310,7 +312,7 @@ export function subscribeToPublicVendorChanges(onChange: () => void) {
       }, 60);
     };
     marketplaceChannel = supabase
-      .channel("public-marketplace")
+      .channel(`public-marketplace-${marketplaceChannelSequence}`)
       .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "vendors" },

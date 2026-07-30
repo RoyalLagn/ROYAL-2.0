@@ -3,8 +3,8 @@ import '@/global.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, StyleSheet, Platform } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import { Pressable, View, Text, StyleSheet } from 'react-native';
+import React from 'react';
 import { FavoritesProvider } from '@/context/FavoritesContext';
 import VendorBottomNav from '@/components/vendor/VendorBottomNav';
 import { LocationProvider } from '@/context/LocationContext';
@@ -21,36 +21,38 @@ export const unstable_settings = {
   initialRouteName: "(tabs)",
 };
 
-// Error Boundary Component
-function ErrorBoundary({ children }: { children: React.ReactNode }) {
-  const [hasError, setHasError] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+class ErrorBoundary extends React.Component<
+  React.PropsWithChildren,
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
 
-  useEffect(() => {
-    // window.addEventListener is web-only — it does not exist on native and
-    // will throw "TypeError: window.addEventListener is not a function".
-    if (Platform.OS !== 'web') return;
-
-    const handleError = (error: ErrorEvent) => {
-      console.error('Caught error:', error);
-      setHasError(true);
-      setError(error.error);
-    };
-
-    window.addEventListener('error', handleError);
-    return () => window.removeEventListener('error', handleError);
-  }, []);
-
-  if (hasError) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Something went wrong</Text>
-        <Text style={styles.errorText}>{error?.message || 'Unknown error'}</Text>
-      </View>
-    );
+  static getDerivedStateFromError(error: Error) {
+    return { error };
   }
 
-  return <>{children}</>;
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('Caught application error:', error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Something went wrong</Text>
+          <Text style={styles.errorText}>{this.state.error.message || 'Unknown error'}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => this.setState({ error: null })}
+            style={styles.errorRetry}
+          >
+            <Text style={styles.errorRetryText}>Try again</Text>
+          </Pressable>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export default function RootLayout() {
@@ -111,5 +113,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
+  },
+  errorRetry: {
+    minHeight: 44,
+    marginTop: 20,
+    paddingHorizontal: 22,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E91E63',
+  },
+  errorRetryText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

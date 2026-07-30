@@ -11,11 +11,13 @@ import { ClipUploadService } from "./ClipUploadService";
 export type UploadProgressHandler = (progress: UploadProgress) => void;
 
 const OPERATION_TIMEOUT_MS = 30_000;
+const MEDIA_PREPARATION_TIMEOUT_MS = 3 * 60_000;
 
 async function withTimeout<T>(
   label: string,
   operation: PromiseLike<T>,
   onTimeout?: () => void,
+  timeoutMs = OPERATION_TIMEOUT_MS,
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const startedAt = Date.now();
@@ -27,16 +29,26 @@ async function withTimeout<T>(
           ClipLogger.error("database", `${label} timed out`, { elapsedMs: Date.now() - startedAt });
           reject(new ClipModuleError(
             "UPLOAD_ERROR",
-            `${label} timed out after 30 seconds. Please try again.`,
+            `${label} timed out. Please try again.`,
             false,
           ));
           onTimeout?.();
-        }, OPERATION_TIMEOUT_MS);
+        }, timeoutMs);
       }),
     ]);
   } finally {
     if (timer) clearTimeout(timer);
   }
+}
+
+function createClipId() {
+  const nativeUuid = globalThis.crypto?.randomUUID?.();
+  if (nativeUuid) return nativeUuid;
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (character) => {
+    const random = Math.floor(Math.random() * 16);
+    const value = character === "x" ? random : (random & 0x3) | 0x8;
+    return value.toString(16);
+  });
 }
 
 export const ClipUploadOrchestrator = {
@@ -111,7 +123,7 @@ export const ClipUploadOrchestrator = {
       ClipLogger.info("compression", "Preparing video", { queueId: item.id });
       const prepared = await withTimeout("Preparing video", ClipUploadService.prepare(draft, (value) => {
         onProgress({ stage: "compressing", progress: value * 0.3, bytesUploaded: 0, totalBytes: draft.source.fileSizeBytes, attempt: item.retryCount + 1 });
-      }));
+      }), undefined, MEDIA_PREPARATION_TIMEOUT_MS);
       ClipLogger.info("compression", "Video prepared", { queueId: item.id, bytes: prepared.fileSizeBytes });
       ClipLogger.uploadDebug(uploadId, "VIDEO_PREPARE", "DONE", {
         elapsedMs: Date.now() - stageStartedAt, bytes: prepared.fileSizeBytes,
@@ -132,13 +144,15 @@ export const ClipUploadOrchestrator = {
         : await withTimeout(
           "Generating thumbnail",
           ClipThumbnailService.generate(prepared, clipsConfig.thumbnail.captureAtSeconds),
+          undefined,
+          MEDIA_PREPARATION_TIMEOUT_MS,
         );
       ClipLogger.info("upload", "Thumbnail ready", { queueId: item.id });
       ClipLogger.uploadDebug(uploadId, "THUMBNAIL", "DONE", {
         elapsedMs: Date.now() - stageStartedAt,
       });
       ensureActive();
-      const clipId = globalThis.crypto.randomUUID();
+      const clipId = createClipId();
       stageStartedAt = Date.now();
       ClipLogger.uploadDebug(uploadId, "CLOUDINARY", "START", { clipId });
       ClipLogger.info("upload", "Uploading video and thumbnail", { queueId: item.id, clipId });

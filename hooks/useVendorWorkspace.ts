@@ -62,6 +62,9 @@ export function useVendorWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [portfolioError, setPortfolioError] = useState<string | null>(null);
   const realtimeRefreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const realtimeInstanceId = useRef(
+    `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -144,7 +147,7 @@ export function useVendorWorkspace() {
       }, 75);
     };
     const channel = supabase
-      .channel(`vendor-workspace-live-${vendorId}`)
+      .channel(`vendor-workspace-live-${vendorId}-${realtimeInstanceId.current}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "vendors", filter: `id=eq.${vendorId}` },

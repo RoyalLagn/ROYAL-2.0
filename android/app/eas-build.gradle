@@ -16,17 +16,9 @@ android {
   }
 }
 
-def isEasBuildConfigured = false
+def debug = gradle.startParameter.taskNames.any { it.toLowerCase().contains('debug') }
 
-tasks.whenTaskAdded {
-  def debug = gradle.startParameter.taskNames.any { it.toLowerCase().contains('debug') }
-
-  if (debug || isEasBuildConfigured) {
-    return
-  }
-
-  isEasBuildConfigured = true
-
+if (!debug) {
   android.signingConfigs.release {
     def credentialsJson = rootProject.file("../credentials.json")
 

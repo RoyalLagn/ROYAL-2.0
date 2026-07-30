@@ -24,11 +24,25 @@ type SignResponse = {
 };
 
 const OPERATION_TIMEOUT_MS = 30_000;
+const MIN_UPLOAD_TIMEOUT_MS = 3 * 60_000;
+const MAX_UPLOAD_TIMEOUT_MS = 10 * 60_000;
+const ASSUMED_SLOW_UPLOAD_BYTES_PER_SECOND = 128 * 1024;
+
+function uploadTimeoutForBytes(bytes: number) {
+  const estimatedTransferMs = Math.ceil(
+    Math.max(0, bytes) / ASSUMED_SLOW_UPLOAD_BYTES_PER_SECOND,
+  ) * 1000;
+  return Math.min(
+    MAX_UPLOAD_TIMEOUT_MS,
+    Math.max(MIN_UPLOAD_TIMEOUT_MS, estimatedTransferMs + 60_000),
+  );
+}
 
 async function withTimeout<T>(
   label: string,
   operation: PromiseLike<T>,
   onTimeout?: () => void,
+  timeoutMs = OPERATION_TIMEOUT_MS,
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const startedAt = Date.now();
@@ -40,11 +54,11 @@ async function withTimeout<T>(
           ClipLogger.error("upload", `${label} timed out`, { elapsedMs: Date.now() - startedAt });
           reject(new ClipModuleError(
             "UPLOAD_ERROR",
-            `${label} timed out after 30 seconds. Check your connection and try again.`,
+            `${label} timed out. Check your connection and try again.`,
             false,
           ));
           onTimeout?.();
-        }, OPERATION_TIMEOUT_MS);
+        }, timeoutMs);
       }),
     ]);
   } finally {
@@ -92,6 +106,7 @@ async function uploadOne(
   registerAbort?: (abort: () => void) => void,
 ) {
   const uploadId = input.debugUploadId ?? input.clipId;
+  const uploadTimeoutMs = uploadTimeoutForBytes(input.size);
   const signatureStartedAt = Date.now();
   ClipLogger.uploadDebug(uploadId, `${input.kind.toUpperCase()}_SIGNATURE`, "START", {
     clipId: input.clipId, vendorId: input.vendorId, bytes: input.size,
@@ -207,7 +222,7 @@ async function uploadOne(
       reject(error);
     };
     request.open("POST", `https://api.cloudinary.com/v1_1/${data.cloudName}/${data.resourceType}/upload`);
-    request.timeout = OPERATION_TIMEOUT_MS;
+    request.timeout = uploadTimeoutMs;
     ClipLogger.info("cloudinary", `${input.kind} upload started`, { clipId: input.clipId, bytes: input.size });
     ClipLogger.uploadDebug(uploadId, `${input.kind.toUpperCase()}_XHR`, "START", {
       clipId: input.clipId, url: `https://api.cloudinary.com/v1_1/${data.cloudName}/${data.resourceType}/upload`,
@@ -223,7 +238,7 @@ async function uploadOne(
     };
     request.onerror = () => fail(new ClipModuleError("UPLOAD_ERROR", `Network error while uploading ${input.kind}.`, true));
     request.ontimeout = () => {
-      fail(new ClipModuleError("UPLOAD_ERROR", `${input.kind} upload timed out after 30 seconds.`, false));
+      fail(new ClipModuleError("UPLOAD_ERROR", `${input.kind} upload timed out. Check your connection and try again.`, false));
       request.abort();
     };
     request.onabort = () => fail(new ClipModuleError("UPLOAD_ERROR", `${input.kind} upload was cancelled.`, false));
@@ -281,11 +296,11 @@ async function uploadOne(
       if (settled) return;
       fail(new ClipModuleError(
         "UPLOAD_ERROR",
-        `${input.kind} upload timed out after 30 seconds while waiting for Cloudinary to return a response.`,
+        `${input.kind} upload timed out while waiting for Cloudinary to return a response.`,
         false,
       ));
       request.abort();
-    }, OPERATION_TIMEOUT_MS);
+    }, uploadTimeoutMs);
     request.send(body);
   });
 }
@@ -349,6 +364,7 @@ ClipCloudinaryService.configure({
       "Video and thumbnail uploads",
       uploads,
       () => aborters.forEach((abort) => abort()),
+      uploadTimeoutForBytes(input.video.fileSizeBytes) + OPERATION_TIMEOUT_MS,
     );
     ClipLogger.info("upload", "Cloudinary uploads returned", {
       clipId: input.clipId, elapsedMs: Date.now() - uploadsStartedAt,

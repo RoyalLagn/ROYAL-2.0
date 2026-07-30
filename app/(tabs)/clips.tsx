@@ -301,7 +301,9 @@ export default function ClipsScreen() {
         desktop={desktop}
         dark={dark}
         active={index === activeIndex && isFocused && foreground}
-        nearby={index === activeIndex || index === preloadIndex}
+        nearby={Platform.OS === "android"
+          ? index === activeIndex
+          : index === activeIndex || index === preloadIndex}
         muted={muted}
         engagement={engagement[item.id] ?? EMPTY_ENGAGEMENT}
         counts={counts[item.id] ?? { likes: item.likesCount, saves: item.savesCount, views: item.viewsCount }}
@@ -363,10 +365,17 @@ export default function ClipsScreen() {
         style={[styles.feed, Platform.OS === "web" ? styles.feedWeb : null]}
         pagingEnabled snapToInterval={containerHeight} snapToAlignment="start" decelerationRate="fast"
         disableIntervalMomentum showsVerticalScrollIndicator={false}
-        initialNumToRender={2} maxToRenderPerBatch={3} windowSize={3} removeClippedSubviews={Platform.OS !== "web"}
+        initialNumToRender={Platform.OS === "android" ? 1 : 2}
+        maxToRenderPerBatch={Platform.OS === "android" ? 2 : 3}
+        windowSize={Platform.OS === "android" ? 2 : 3}
+        removeClippedSubviews={Platform.OS === "ios"}
         getItemLayout={(_, index) => ({ length: containerHeight, offset: containerHeight * index, index })}
         onViewableItemsChanged={onViewableItemsChanged} viewabilityConfig={viewabilityConfig}
-        onScrollBeginDrag={() => setPreloadIndex(activeIndex < feedItems.length - 1 ? activeIndex + 1 : null)}
+        onScrollBeginDrag={() => {
+          if (Platform.OS !== "android") {
+            setPreloadIndex(activeIndex < feedItems.length - 1 ? activeIndex + 1 : null);
+          }
+        }}
         onScrollEndDrag={(event) => {
           if (Math.abs(event.nativeEvent.velocity?.y ?? 0) < 0.05) setPreloadIndex(null);
         }}

@@ -1,6 +1,8 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 
+let reviewChannelSequence = 0;
+
 export type ReviewStatus = "published" | "pending" | "rejected";
 export type ReviewSort =
   | "most_recent"
@@ -281,8 +283,9 @@ export function subscribeToVendorReviews(
       onChange();
     });
   };
+  reviewChannelSequence += 1;
   const channel: RealtimeChannel = supabase
-    .channel(`vendor-reviews:${vendorKey}`)
+    .channel(`vendor-reviews:${vendorKey}:${reviewChannelSequence}`)
     .on(
       "postgres_changes",
       {
@@ -312,8 +315,9 @@ export function subscribeToVendorReviews(
 export function subscribeToReviewAggregates(
   onChange: (summary: ReviewSummary) => void
 ): () => void {
+  reviewChannelSequence += 1;
   const channel = supabase
-    .channel("review-aggregates:all")
+    .channel(`review-aggregates:all:${reviewChannelSequence}`)
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "review_aggregates" },
