@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useEvent } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import Animated, {
@@ -12,6 +12,7 @@ const DOUBLE_TAP_MS = 260;
 
 export const PublicClipVideo = React.memo(function PublicClipVideo({
   uri, thumbnailUrl, sourceWidth, sourceHeight, active, muted, onToggleMuted, onDoubleTapLike,
+  showMuteControl = true,
 }: {
   uri: string;
   thumbnailUrl: string;
@@ -21,6 +22,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   muted: boolean;
   onToggleMuted: () => void;
   onDoubleTapLike: () => void;
+  showMuteControl?: boolean;
 }) {
   const [manuallyPaused, setManuallyPaused] = useState(false);
   const [firstFrameRendered, setFirstFrameRendered] = useState(false);
@@ -129,7 +131,6 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   }));
   const videoStyle = useAnimatedStyle(() => ({ opacity: videoOpacity.value }));
   const failed = status?.status === "error";
-  const loading = !firstFrameRendered && !failed;
 
   return <View style={StyleSheet.absoluteFill}>
     <Image source={{ uri: thumbnailUrl }} style={[StyleSheet.absoluteFill, styles.backdrop]} resizeMode="cover" />
@@ -161,11 +162,10 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
       }}
       style={StyleSheet.absoluteFill}
     />
-    {active && loading && <View pointerEvents="none" style={styles.center}><ActivityIndicator color="#FFFFFF" size="large" /><Text style={styles.loading}>Preparing inspiration…</Text></View>}
     {failed && <View style={styles.center}><Text style={styles.errorTitle}>This Clip couldn&apos;t play</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry video" onPress={() => { player.replace(uri); player.play(); }} style={styles.retry}><RefreshCw size={17} color="#FFF" /><Text style={styles.retryText}>Retry</Text></Pressable></View>}
     <Animated.View pointerEvents="none" style={[styles.playBurst, playStyle]}><Play size={44} color="#FFF" fill="#FFF" /></Animated.View>
     <Animated.View pointerEvents="none" style={[styles.heartBurst, heartStyle]}><Heart size={94} color="#FFF" fill="#E91E63" strokeWidth={1.5} /></Animated.View>
-    <Pressable
+    {showMuteControl ? <Pressable
       accessibilityRole="button"
       accessibilityLabel={muted ? "Turn Clip sound on" : "Mute Clip"}
       onPress={onToggleMuted}
@@ -173,7 +173,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     >
       {muted ? <VolumeX size={14} color="#FFF" /> : <Volume2 size={14} color="#FFF" />}
       <Text style={styles.muteText}>{muted ? "Tap for sound" : "Sound on"}</Text>
-    </Pressable>
+    </Pressable> : null}
   </View>;
 });
 
@@ -181,7 +181,6 @@ const styles = StyleSheet.create({
   backdrop: { opacity: 0.58, transform: [{ scale: 1.05 }] },
   backdropShade: { backgroundColor: "rgba(7,5,7,.5)" },
   center: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(10,7,9,.48)", alignItems: "center", justifyContent: "center", gap: 10 },
-  loading: { color: "#FFF", fontSize: 11, fontWeight: "700" },
   errorTitle: { color: "#FFF", fontSize: 14, fontWeight: "800" },
   retry: { minHeight: 44, paddingHorizontal: 16, borderRadius: 22, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(233,30,99,.9)" },
   retryText: { color: "#FFF", fontSize: 11, fontWeight: "800" },

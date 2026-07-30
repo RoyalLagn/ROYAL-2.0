@@ -169,8 +169,8 @@ function AlbumTile({
 }) {
   const text = dark ? "#FFF8FB" : "#24171E";
   const muted = dark ? "#C6BAC0" : "#77676F";
-  const surface = dark ? "#171D29" : "#FFFAFC";
-  const border = dark ? "#3C3040" : "#F1CCD9";
+  const surface = dark ? "#171D29" : "#FFFFFF";
+  const border = "transparent";
 
   return (
     <InteractiveTile
@@ -340,7 +340,7 @@ export default function PortfolioAlbums({
 
 const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
 const styles = StyleSheet.create({
-  root: { width: "100%", padding: 16 },
+  root: { width: "100%", paddingVertical: 25 },
   headingRow: {
     minHeight: 52,
     flexDirection: "row",
@@ -355,26 +355,25 @@ const styles = StyleSheet.create({
     minHeight: 34,
     paddingHorizontal: 11,
     borderRadius: 17,
-    borderWidth: 1,
-    borderColor: "#F2CBDA",
-    backgroundColor: "#FFF6F9",
+    borderWidth: 0,
+    backgroundColor: "#FFF2F7",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
   },
-  viewAllButtonDark: { borderColor: "#4B3340", backgroundColor: "#251B23" },
-  viewAllHovered: { borderColor: "#E78BAA", transform: [{ translateY: -1 }] },
+  viewAllButtonDark: { backgroundColor: "#251B23" },
+  viewAllHovered: { transform: [{ translateY: -1 }] },
   viewAllPressed: { opacity: 0.76, transform: [{ scale: 0.97 }] },
   viewAll: { color: "#E91E63", fontSize: 11, lineHeight: 15, fontWeight: "900" },
   grid: { width: "100%", maxWidth: 590, alignSelf: "center", flexDirection: "row", flexWrap: "wrap" },
   tileOuter: {
-    borderWidth: 1,
-    borderRadius: 18,
-    shadowOpacity: 0.09,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
+    borderWidth: 0,
+    borderRadius: 17,
+    shadowOpacity: 0.075,
+    shadowRadius: 13,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 1,
   },
   tileFallbackWidth: { width: "48%" },
   tilePressable: { flex: 1, borderRadius: 17, overflow: "hidden" },

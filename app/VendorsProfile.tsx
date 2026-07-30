@@ -11,10 +11,13 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { ChevronRight } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { PublicClip } from "@/clips/types";
+import { PublicClipService } from "@/clips/services";
 import { useFavorites } from "@/context/FavoritesContext";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import PackagesCard from "@/components/vendor-profile/PackagesCard";
@@ -24,6 +27,12 @@ import ServiceChips from "@/components/vendor-profile/ServiceChips";
 import VendorHeroCarousel from "@/components/vendor-profile/VendorHeroCarousel";
 import VendorInfoPanel from "@/components/vendor-profile/VendorInfoPanel";
 import VendorQuickActions from "@/components/vendor-profile/VendorQuickActions";
+import VendorAvailabilityModal from "@/components/vendor-profile/VendorAvailabilityModal";
+import VendorClipsGrid from "@/components/vendor-profile/VendorClipsGrid";
+import VendorClipsReelViewer from "@/components/vendor-profile/VendorClipsReelViewer";
+import VendorProfileTabs, {
+  type VendorProfileTab,
+} from "@/components/vendor-profile/VendorProfileTabs";
 import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
 import PublicWebNavbar from "@/components/PublicWebNavbar";
 import ConnectedVendorReviews from "@/components/reviews/ConnectedVendorReviews";
@@ -74,6 +83,13 @@ export default function VendorsProfile() {
   const { getRating } = useReviewRatings();
   const [expanded, setExpanded] = useState(false);
   const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<VendorProfileTab>("portfolio");
+  const [vendorClips, setVendorClips] = useState<PublicClip[]>([]);
+  const [clipsLoading, setClipsLoading] = useState(false);
+  const [clipsError, setClipsError] = useState("");
+  const [clipsReloadKey, setClipsReloadKey] = useState(0);
+  const [reelViewerIndex, setReelViewerIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -116,16 +132,52 @@ export default function VendorsProfile() {
     });
   }, [vendor?.id]);
 
-  const background = dark ? "#070B14" : "#FFF9FB";
+  useEffect(() => {
+    if (!vendorId) return;
+    let active = true;
+    setSelectedTab("portfolio");
+    void AsyncStorage.getItem(`royallagn:vendor-profile-tab:${vendorId}`)
+      .then((saved) => {
+        if (active && (saved === "portfolio" || saved === "clips")) setSelectedTab(saved);
+      })
+      .catch(() => {
+        // The in-memory selection still works when local persistence is unavailable.
+      });
+    return () => {
+      active = false;
+    };
+  }, [vendorId]);
+
+  useEffect(() => {
+    if (!vendor?.id) return;
+    let active = true;
+    setClipsLoading(true);
+    setClipsError("");
+    void PublicClipService.listVendor(vendor.id)
+      .then((clips) => {
+        if (active) setVendorClips(clips);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setVendorClips([]);
+        setClipsError(error instanceof Error ? error.message : "Unable to load this vendor's Clips.");
+      })
+      .finally(() => {
+        if (active) setClipsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [clipsReloadKey, vendor?.id]);
+
+  const background = dark ? "#070B14" : "#FFF8FA";
   const surface = dark ? "#0E141F" : "#FFFFFF";
   const text = dark ? "#FFF8FB" : "#1D1519";
   const muted = dark ? "#C6BAC0" : "#62575D";
-  const sectionSurface = dark ? "#151B27" : "#FFFFFF";
-  const sectionBorder = dark ? "#2D3748" : "#F0DDE4";
+  const sectionDivider = dark ? "#2A303B" : "#F3E7EB";
   const contentWidth = Math.min(width, 1120);
-  const sectionCardStyle = {
-    backgroundColor: sectionSurface,
-    borderColor: sectionBorder,
+  const openSectionStyle = {
+    borderTopColor: sectionDivider,
   };
   const goBack = () => {
     if (router.canGoBack()) {
@@ -176,7 +228,6 @@ export default function VendorsProfile() {
     );
   }
 
-  const favorite = isFavorite(vendor.id);
   const displayedRating = getRating(vendor.id, vendor.rating, vendor.reviews);
   const fallbackImage = resolveMarketplaceCategoryImage(category).fallbackSource;
   const vendorDescription = vendor.description?.trim() ?? "";
@@ -186,7 +237,13 @@ export default function VendorsProfile() {
   const aboutCopy = expanded || about.length <= 180 ? about : `${about.slice(0, 177).trim()}…`;
   const placeholder = (title: string) =>
     Alert.alert(title, `${title} is available as a local frontend placeholder.`);
-
+  const selectProfileTab = (tab: VendorProfileTab) => {
+    setSelectedTab(tab);
+    void AsyncStorage.setItem(`royallagn:vendor-profile-tab:${vendor.id}`, tab).catch(() => {
+      // Persisting the selected tab is an enhancement, not a navigation dependency.
+    });
+  };
+  const favorite = isFavorite(vendor.id);
   const toggleVendorFavorite = (source: FavoriteSourceRef) => toggleFavorite({
     id: vendor.id,
     name: vendor.name,
@@ -215,7 +272,7 @@ export default function VendorsProfile() {
             vendorName={vendor.name}
             onBack={goBack}
             focalPoints={heroFocalPoints}
-            paused={heroViewerIndex !== null}
+            paused={heroViewerIndex !== null || calendarVisible}
             onOpen={vendor.heroMedia.length ? setHeroViewerIndex : undefined}
           />
 
@@ -241,6 +298,7 @@ export default function VendorsProfile() {
                 ? Linking.openURL(`https://wa.me/${vendor.contactPhone.replace(/\D/g, "")}`)
                 : Alert.alert("Contact unavailable", "This vendor has not added a WhatsApp number yet.")}
               onEnquire={() => placeholder("Send Enquiry")}
+              onCalendar={() => setCalendarVisible(true)}
             />
           </VendorInfoPanel>
 
@@ -251,7 +309,36 @@ export default function VendorsProfile() {
               onPress={() => placeholder("Packages")}
             />
 
-            <View style={[styles.section, styles.sectionCard, sectionCardStyle]}>
+            <VendorProfileTabs
+              selected={selectedTab}
+              dark={dark}
+              onChange={selectProfileTab}
+            />
+
+            {selectedTab === "portfolio" ? (
+              vendor.portfolioAlbums.length ? <View style={styles.portfolioSection}>
+                <PortfolioAlbums
+                  albums={vendor.portfolioAlbums}
+                  dark={dark}
+                  onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id } })}
+                  onOpenAlbum={(album) => router.push({
+                    pathname: "/VendorAlbum",
+                    params: { vendorId: vendor.id, albumId: album.id },
+                  })}
+                />
+              </View> : null
+            ) : (
+              <VendorClipsGrid
+                clips={vendorClips}
+                loading={clipsLoading}
+                error={clipsError}
+                dark={dark}
+                onOpen={setReelViewerIndex}
+                onRetry={() => setClipsReloadKey((current) => current + 1)}
+              />
+            )}
+
+            <View style={[styles.section, styles.openSection, openSectionStyle]}>
               <SectionHeading dark={dark}>About</SectionHeading>
               <Text style={[styles.aboutText, { color: muted }]}>{aboutCopy}</Text>
               {about.length > 180 ? (
@@ -275,75 +362,14 @@ export default function VendorsProfile() {
               ) : null}
             </View>
 
-            {vendor.contactPhone || vendor.contactEmail || vendor.website || vendor.instagram || vendor.facebook ? (
-              <View style={[styles.section, styles.sectionCard, sectionCardStyle]}>
-                <SectionHeading dark={dark}>Contact & Social</SectionHeading>
-                <View style={styles.contactLinks}>
-                  {vendor.contactPhone ? (
-                    <Pressable
-                      accessibilityRole="link"
-                      onPress={() => Linking.openURL(`tel:${vendor.contactPhone}`)}
-                      style={[styles.contactLink, {
-                        backgroundColor: dark ? "#24202A" : "#FFF3F7",
-                        borderColor: dark ? "#4C3540" : "#EDC7D4",
-                      }]}
-                    >
-                      <Text style={[styles.contactLinkText, { color: dark ? "#FF9BBC" : "#922E51" }]}>{vendor.contactPhone}</Text>
-                    </Pressable>
-                  ) : null}
-                  {vendor.contactEmail ? (
-                    <Pressable
-                      accessibilityRole="link"
-                      onPress={() => Linking.openURL(`mailto:${vendor.contactEmail}`)}
-                      style={[styles.contactLink, {
-                        backgroundColor: dark ? "#24202A" : "#FFF3F7",
-                        borderColor: dark ? "#4C3540" : "#EDC7D4",
-                      }]}
-                    >
-                      <Text style={[styles.contactLinkText, { color: dark ? "#FF9BBC" : "#922E51" }]}>{vendor.contactEmail}</Text>
-                    </Pressable>
-                  ) : null}
-                  {[
-                    ["Website", vendor.website],
-                    ["Instagram", vendor.instagram],
-                    ["Facebook", vendor.facebook],
-                  ].filter((entry) => entry[1]).map(([label, url]) => (
-                    <Pressable
-                      key={label}
-                      accessibilityRole="link"
-                      onPress={() => Linking.openURL(/^https?:\/\//i.test(url) ? url : `https://${url}`)}
-                      style={[styles.contactLink, {
-                        backgroundColor: dark ? "#24202A" : "#FFF3F7",
-                        borderColor: dark ? "#4C3540" : "#EDC7D4",
-                      }]}
-                    >
-                      <Text style={[styles.contactLinkText, { color: dark ? "#FF9BBC" : "#922E51" }]}>{label}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            ) : null}
-
             {vendor.services.length ? (
-              <View style={[styles.section, styles.sectionCard, sectionCardStyle]}>
+              <View style={[styles.section, styles.openSection, openSectionStyle]}>
                 <SectionHeading dark={dark}>Services</SectionHeading>
                 <ServiceChips services={vendor.services} dark={dark} />
               </View>
             ) : null}
 
-            {vendor.portfolioAlbums.length ? <View style={[styles.portfolioSection, styles.sectionCard, sectionCardStyle]}>
-              <PortfolioAlbums
-                albums={vendor.portfolioAlbums}
-                dark={dark}
-                onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id } })}
-                onOpenAlbum={(album) => router.push({
-                  pathname: "/VendorAlbum",
-                  params: { vendorId: vendor.id, albumId: album.id },
-                })}
-              />
-            </View> : null}
-
-            <View style={[styles.reviewsSection, styles.sectionCard, sectionCardStyle]}>
+            <View style={[styles.reviewsSection, styles.openSection, openSectionStyle]}>
               <ConnectedVendorReviews vendorKey={vendor.id} dark={dark} />
             </View>
           </View>
@@ -357,6 +383,21 @@ export default function VendorsProfile() {
         initialIndex={heroViewerIndex ?? 0}
         title={`${vendor.name} · Hero gallery`}
         onClose={() => setHeroViewerIndex(null)}
+      />
+      <VendorAvailabilityModal
+        visible={calendarVisible}
+        vendorName={vendor.name}
+        availability={vendor.availability}
+        dark={dark}
+        onClose={() => setCalendarVisible(false)}
+      />
+      <VendorClipsReelViewer
+        visible={reelViewerIndex !== null}
+        clips={vendorClips}
+        initialIndex={reelViewerIndex ?? 0}
+        vendorName={vendor.name}
+        verified
+        onClose={() => setReelViewerIndex(null)}
       />
     </View>
   );
@@ -372,18 +413,14 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
     alignSelf: "center",
     overflow: "hidden",
-    shadowColor: "#8D5368",
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
   },
-  content: { width: "100%", maxWidth: 960, alignSelf: "center", paddingHorizontal: 22, paddingTop: 16 },
-  contentCompact: { paddingHorizontal: 14, paddingTop: 14 },
-  section: { marginTop: 16 },
-  sectionCard: { borderWidth: 1, borderRadius: 20, padding: 16 },
-  portfolioSection: { marginTop: 16 },
-  reviewsSection: { marginTop: 16, marginBottom: 16 },
-  sectionHeadingWrap: { alignSelf: "flex-start", marginBottom: 10 },
+  content: { width: "100%", maxWidth: 960, alignSelf: "center", paddingHorizontal: 22, paddingTop: 22 },
+  contentCompact: { paddingHorizontal: 18, paddingTop: 20 },
+  section: { marginTop: 30 },
+  openSection: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 26 },
+  portfolioSection: { marginTop: 2 },
+  reviewsSection: { marginTop: 32, marginBottom: 24 },
+  sectionHeadingWrap: { alignSelf: "flex-start", marginBottom: 12 },
   sectionHeading: {
     fontFamily: serif,
     fontSize: 21,
@@ -394,17 +431,7 @@ const styles = StyleSheet.create({
   ornament: { width: 82, height: 8, flexDirection: "row", alignItems: "center", gap: 4 },
   ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#D6A054" },
   ornamentDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#D6A054" },
-  aboutText: { maxWidth: 900, fontSize: 14, lineHeight: 22, fontWeight: "400" },
-  contactLinks: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  contactLink: {
-    borderWidth: 1,
-    borderRadius: 999,
-    minHeight: 36,
-    paddingHorizontal: 13,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  contactLinkText: { fontSize: 12, lineHeight: 16, fontWeight: "700" },
+  aboutText: { maxWidth: 900, fontSize: 14, lineHeight: 23, fontWeight: "400" },
   readMore: {
     minHeight: 38,
     alignSelf: "flex-end",

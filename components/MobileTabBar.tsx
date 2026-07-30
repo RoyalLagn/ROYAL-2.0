@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useRouter } from "expo-router";
-import { Clapperboard, Grid3X3, Heart, Home, MessageSquareText, User } from "lucide-react-native";
+import { Clapperboard, Grid3X3, Heart, Home, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   interpolate,
@@ -37,14 +37,14 @@ const CUSTOMER_TAB_ROUTES = new Set([
   "index",
   "Categories",
   "clips",
-  "enquiry",
+  "favorites",
   "profile",
 ]);
 const STANDALONE_TABS = [
   { routeName: "index", label: "Home", href: "/(tabs)" },
   { routeName: "Categories", label: "Category", href: "/(tabs)/Categories" },
   { routeName: "clips", label: "Clips", href: "/(tabs)/clips" },
-  { routeName: "enquiry", label: "Enquiry", href: "/(tabs)/enquiry" },
+  { routeName: "favorites", label: "Favorites", href: "/(tabs)/favorites" },
   { routeName: "profile", label: "Profile", href: "/(tabs)/profile" },
 ] as const;
 
@@ -52,7 +52,6 @@ const AnimatedGrid = Animated.createAnimatedComponent(Grid3X3);
 const AnimatedHeart = Animated.createAnimatedComponent(Heart);
 const AnimatedHome = Animated.createAnimatedComponent(Home);
 const AnimatedClapperboard = Animated.createAnimatedComponent(Clapperboard);
-const AnimatedMessage = Animated.createAnimatedComponent(MessageSquareText);
 const AnimatedUser = Animated.createAnimatedComponent(User);
 
 const ICONS: Record<string, React.ComponentType<any>> = {
@@ -60,7 +59,6 @@ const ICONS: Record<string, React.ComponentType<any>> = {
   favorites: AnimatedHeart,
   index: AnimatedHome,
   clips: AnimatedClapperboard,
-  enquiry: AnimatedMessage,
   profile: AnimatedUser,
 };
 
@@ -160,9 +158,7 @@ function AnimatedTab({
       : isFavorites && arrival.value > 0.01
         ? activeColor
         : interpolateColor(active.value, [0, 1], [inactiveColor, activeColor]),
-    fill: isFavorites && (active.value > 0.5 || arrival.value > 0.01)
-      ? activeColor
-      : "transparent",
+    fill: "transparent",
   }));
 
   const pressIn = () => {

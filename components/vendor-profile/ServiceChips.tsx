@@ -24,9 +24,9 @@ export default function ServiceChips({
   accessibilityLabel = "Vendor services",
 }: ServiceChipsProps) {
   const { width } = useWindowDimensions();
-  const chipWidth = width >= 900 ? "31.5%" : "48%";
-  const border = dark ? "#4C3942" : "#EBCBD6";
-  const surface = dark ? "#24202A" : "#FFF5F8";
+  const chipWidth = width >= 900 ? "31.5%" : undefined;
+  const border = "transparent";
+  const surface = dark ? "#24202A" : "#FFF2F6";
   const text = dark ? "#F2D6E0" : "#742B46";
   const normalized = services.map((service) =>
     typeof service === "string" ? { label: service } : service
@@ -72,14 +72,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   chip: {
-    minHeight: 44,
-    borderWidth: 1,
+    minHeight: 40,
+    borderWidth: 0,
     borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     gap: 7,
   },
   hovered: {
@@ -93,9 +93,9 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   label: {
     flexShrink: 1,
-    textAlign: "center",
-    fontSize: 12,
+    textAlign: "left",
+    fontSize: 11.5,
     lineHeight: 16,
-    fontWeight: "700",
+    fontWeight: "600",
   },
 });

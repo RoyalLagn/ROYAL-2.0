@@ -13,6 +13,11 @@ const statuses = [
   { id: "blocked", label: "Blocked", icon: LockKeyhole },
 ] as const;
 type AvailabilityStatus = (typeof statuses)[number]["id"];
+const statusColors: Record<AvailabilityStatus, { background: string; text: string }> = {
+  available: { background: "#16A34A", text: "#FFFFFF" },
+  tentative: { background: "#F4B400", text: "#3C2A00" },
+  blocked: { background: "#E53935", text: "#FFFFFF" },
+};
 const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 export default function VendorCalendar() {
@@ -23,6 +28,7 @@ export default function VendorCalendar() {
   const [selected, setSelected] = useState(() => iso(new Date()));
   const [savedStatuses, setSavedStatuses] = useState<Record<string, AvailabilityStatus>>({});
   const [savingStatus, setSavingStatus] = useState<AvailabilityStatus | null>(null);
+  const today = iso(new Date());
   const days = useMemo(() => {
     const result: (Date | null)[] = Array(month.getDay()).fill(null);
     const count = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
@@ -71,6 +77,9 @@ export default function VendorCalendar() {
 
   const dateStatus = (date: string) => savedStatuses[date];
   const update = async (status: AvailabilityStatus) => {
+    if (selected < today) {
+      return Alert.alert("Past date is locked", "Availability records for past dates are read-only and cannot be changed.");
+    }
     if (!data.vendor?.id) return Alert.alert("Vendor profile required", "Connect a vendor profile before changing availability.");
     if (savingStatus) return;
     const previousStatus = savedStatuses[selected];
@@ -102,28 +111,66 @@ export default function VendorCalendar() {
       <Text style={[styles.eyebrow, { color: colors.pink }]}>PLAN WITH CLARITY</Text>
       <Text style={[styles.title, { color: colors.text }]}>Availability</Text>
       <Text style={[styles.subtitle, { color: colors.muted }]}>Keep customer expectations accurate with an up-to-date working calendar.</Text>
-      <View style={[styles.calendar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.calendar, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
         <View style={styles.monthRow}><Pressable onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} style={styles.arrow}><ChevronLeft size={20} color={colors.text} /></Pressable><Text style={[styles.month, { color: colors.text }]}>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</Text><Pressable onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} style={styles.arrow}><ChevronRight size={20} color={colors.text} /></Pressable></View>
         <View style={styles.grid}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <Text key={`${day}${index}`} style={[styles.weekday, { color: colors.muted }]}>{day}</Text>)}
           {days.map((date, index) => {
             if (!date) return <View key={`blank${index}`} style={styles.day} />;
-            const value = iso(date); const status = dateStatus(value); const active = value === selected;
-            return <Pressable key={value} onPress={() => setSelected(value)} style={[styles.day, active && { backgroundColor: colors.pink }, !active && status === "available" && { backgroundColor: colors.surfaceSoft }]}>
-              <Text style={{ color: active ? "#FFF" : colors.text, fontSize: 12, fontWeight: active ? "800" : "600" }}>{date.getDate()}</Text>
-              {status && !active && <View style={[styles.dot, { backgroundColor: status === "available" ? colors.success : status === "blocked" ? colors.warning : colors.pink }]} />}
+            const value = iso(date);
+            const status = dateStatus(value);
+            const active = value === selected;
+            const past = value < today;
+            const palette = status ? statusColors[status] : null;
+            const backgroundColor = past
+              ? colorScheme === "dark" ? "#292C33" : "#E8E8EC"
+              : palette?.background ?? (active ? colors.pink : "transparent");
+            const dateColor = past
+              ? colorScheme === "dark" ? "#747982" : "#9A9AA1"
+              : palette?.text ?? (active ? "#FFFFFF" : colors.text);
+            return <Pressable
+              key={value}
+              disabled={past}
+              accessibilityLabel={`${date.toLocaleDateString()}${past ? ", past date, locked" : status ? `, ${status}` : ""}`}
+              accessibilityState={{ disabled: past, selected: active }}
+              onPress={() => setSelected(value)}
+              style={[
+                styles.day,
+                { backgroundColor },
+                past && styles.pastDay,
+                active && !past && {
+                  borderWidth: 2,
+                  borderColor: status === "tentative" ? "#6F5100" : "#FFFFFF",
+                },
+              ]}
+            >
+              <Text style={[styles.dayText, { color: dateColor }]}>{date.getDate()}</Text>
             </Pressable>;
           })}
         </View>
+        <View style={styles.legend}>
+          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: statusColors.available.background }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Available</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: statusColors.tentative.background }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Tentative</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: statusColors.blocked.background }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Blocked</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: colorScheme === "dark" ? "#292C33" : "#E8E8EC" }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Past · locked</Text></View>
+        </View>
       </View>
-      <View style={[styles.editor, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.editor, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
         <Text style={[styles.editorTitle, { color: colors.text }]}>{new Date(`${selected}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>Choose how this date appears in your vendor schedule.</Text>
         <View style={styles.statusGrid}>{statuses.map(({ id, label, icon: Icon }) => {
           const active = dateStatus(selected) === id;
-          return <Pressable key={id} disabled={savingStatus !== null} onPress={() => update(id)} style={[styles.status, { borderColor: active ? colors.pink : colors.border, backgroundColor: active ? colors.surfaceSoft : colors.background }]}>
-            {savingStatus === id ? <ActivityIndicator size="small" color={colors.pink} /> : <Icon size={19} color={active ? colors.pink : colors.muted} />}<Text style={{ color: active ? colors.pink : colors.text, fontSize: 11, fontWeight: "700" }}>{label}</Text>
+          const palette = statusColors[id];
+          return <Pressable key={id} disabled={savingStatus !== null || selected < today} onPress={() => update(id)} style={({ pressed }) => [styles.status, { backgroundColor: active ? palette.background : colors.background }, selected < today && styles.statusDisabled, pressed && styles.pressed]}>
+            {savingStatus === id
+              ? <ActivityIndicator size="small" color={active ? palette.text : colors.pink} />
+              : <Icon size={19} color={active ? palette.text : colors.muted} />}
+            <Text style={{ color: active ? palette.text : colors.text, fontSize: 11, fontWeight: "800" }}>{label}</Text>
           </Pressable>;
         })}</View>
+        {selected < today ? <View style={[styles.lockNotice, { backgroundColor: colors.surfaceSoft }]}>
+          <LockKeyhole size={16} color={colors.muted} />
+          <Text style={[styles.lockText, { color: colors.muted }]}>Past availability is read-only and cannot be changed.</Text>
+        </View> : null}
       </View>
     </ScrollView>
   </View>;
@@ -132,10 +179,12 @@ export default function VendorCalendar() {
 const styles = StyleSheet.create({
   page: { flex: 1 }, content: { padding: 16, paddingTop: 22, paddingBottom: 24, width: "100%", maxWidth: 780, alignSelf: "center" },
   eyebrow: { fontSize: 10, letterSpacing: 1.5, fontWeight: "800", marginBottom: 5 }, title: { fontSize: 29, fontWeight: "800", letterSpacing: -0.8 },
-  subtitle: { fontSize: 12, lineHeight: 18, marginTop: 4 }, calendar: { borderWidth: 1, borderRadius: 24, padding: 15, marginTop: 20 },
+  subtitle: { fontSize: 12, lineHeight: 18, marginTop: 4 }, calendar: { borderRadius: 24, padding: 15, marginTop: 20, shadowOffset: { width: 0, height: 9 }, shadowOpacity: .08, shadowRadius: 22, elevation: 3 },
   monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }, month: { fontSize: 16, fontWeight: "800" }, arrow: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap" }, weekday: { width: "14.285%", textAlign: "center", fontSize: 10, fontWeight: "800", paddingVertical: 8 },
-  day: { width: "14.285%", aspectRatio: 1, borderRadius: 13, alignItems: "center", justifyContent: "center" }, dot: { position: "absolute", bottom: 5, width: 4, height: 4, borderRadius: 2 },
-  editor: { borderWidth: 1, borderRadius: 22, padding: 16, marginTop: 12 }, editorTitle: { fontSize: 16, fontWeight: "800" },
-  statusGrid: { flexDirection: "row", gap: 8, marginTop: 16 }, status: { flex: 1, minHeight: 68, borderWidth: 1, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 },
+  day: { width: "14.285%", aspectRatio: 1, borderRadius: 12, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] }, dayText: { fontSize: 12, lineHeight: 16, fontWeight: "800" }, pastDay: { opacity: .6 },
+  legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13, paddingTop: 16 }, legendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, legendSwatch: { width: 10, height: 10, borderRadius: 3 }, legendText: { fontSize: 9, fontWeight: "700" },
+  editor: { borderRadius: 22, padding: 16, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .07, shadowRadius: 18, elevation: 2 }, editorTitle: { fontSize: 16, fontWeight: "800" },
+  statusGrid: { flexDirection: "row", gap: 8, marginTop: 16 }, status: { flex: 1, minHeight: 68, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 }, statusDisabled: { opacity: .45 }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
+  lockNotice: { minHeight: 44, borderRadius: 14, marginTop: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 }, lockText: { flex: 1, fontSize: 10, lineHeight: 14 },
 });

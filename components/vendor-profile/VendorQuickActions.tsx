@@ -1,5 +1,5 @@
 import React from "react";
-import { CalendarDays, MessageCircle, Phone } from "lucide-react-native";
+import { CalendarDays, MessageCircle, MessageSquareText, Phone } from "lucide-react-native";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 export type VendorQuickActionsProps = {
@@ -7,6 +7,7 @@ export type VendorQuickActionsProps = {
   onCall: () => void;
   onWhatsApp: () => void;
   onEnquire: () => void;
+  onCalendar: () => void;
   callDisabled?: boolean;
   whatsAppDisabled?: boolean;
   enquireDisabled?: boolean;
@@ -58,6 +59,7 @@ export default function VendorQuickActions({
   onCall,
   onWhatsApp,
   onEnquire,
+  onCalendar,
   callDisabled = false,
   whatsAppDisabled = false,
   enquireDisabled = false,
@@ -94,7 +96,16 @@ export default function VendorQuickActions({
         disabled={enquireDisabled}
         onPress={onEnquire}
         labelColor={labelColor}
-        icon={<CalendarDays size={21} color="#815AD9" strokeWidth={1.9} />}
+        icon={<MessageSquareText size={21} color="#815AD9" strokeWidth={1.9} />}
+      />
+      <ActionItem
+        label="Calendar"
+        accessibilityLabel="View vendor calendar"
+        backgroundColor={dark ? "#382F20" : "#FFF8E8"}
+        borderColor={dark ? "#665331" : "#F0D8A4"}
+        onPress={onCalendar}
+        labelColor={labelColor}
+        icon={<CalendarDays size={21} color="#B7791F" strokeWidth={1.9} />}
       />
     </View>
   );
@@ -105,27 +116,32 @@ const styles = StyleSheet.create({
     width: "100%",
     flexDirection: "row",
     alignItems: "flex-start",
-    justifyContent: "space-around",
-    paddingTop: 20,
-    paddingBottom: 16,
+    justifyContent: "space-between",
+    paddingTop: 22,
+    paddingBottom: 20,
   },
   action: {
-    width: "30%",
-    maxWidth: 130,
-    minWidth: 78,
+    width: "24%",
+    maxWidth: 112,
+    minWidth: 68,
     alignItems: "center",
-    gap: 7,
+    gap: 8,
   },
   circle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1,
+    width: 48,
+    height: 48,
+    borderRadius: 18,
+    borderWidth: 0,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#87455D",
+    shadowOpacity: 0.075,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
-  label: { fontSize: 12, lineHeight: 16, fontWeight: "700", textAlign: "center" },
-  actionHovered: { transform: [{ translateY: -1 }] },
-  actionPressed: { transform: [{ scale: 0.98 }], opacity: 0.88 },
+  label: { fontSize: 11.5, lineHeight: 15, fontWeight: "600", textAlign: "center" },
+  actionHovered: { transform: [{ translateY: -2 }] },
+  actionPressed: { transform: [{ scale: 0.94 }], opacity: 0.88 },
   disabled: { opacity: 0.45 },
 });

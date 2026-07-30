@@ -300,7 +300,7 @@ function EmptyState({ isDark, text, muted, router, hasAny, selectedCat }: {
       <Text style={[s.emptyDesc, { color: muted }]}>
         {hasAny
           ? `You haven't saved any ${selectedCat} yet. Browse the category to find your perfect match.`
-          : "Tap the ♥ on any vendor profile to save them here for quick access."}
+          : "Tap the heart on any vendor card to save them here for quick access."}
       </Text>
       <TouchableOpacity
         style={s.exploreBtn}

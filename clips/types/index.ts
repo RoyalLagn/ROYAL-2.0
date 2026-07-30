@@ -175,9 +175,18 @@ export interface PublicClip extends Clip {
   hashtags: string[];
 }
 
+export interface PublicClipCursor {
+  offset: number;
+}
+
+export interface PublicClipFeedSession {
+  seed: string;
+  startedAt: string;
+}
+
 export interface PublicClipPage {
   items: PublicClip[];
-  nextCursor: ClipCursor | null;
+  nextCursor: PublicClipCursor | null;
   hasMore: boolean;
 }
 

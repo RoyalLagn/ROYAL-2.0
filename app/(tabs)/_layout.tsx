@@ -1,12 +1,12 @@
 import { Tabs } from 'expo-router';
-import { Clapperboard, Home, Grid3X3, MessageSquareText, User } from 'lucide-react-native';
+import { Clapperboard, Heart, Home, Grid3X3, User } from 'lucide-react-native';
 import { cssInterop, useColorScheme } from 'nativewind';
 import { MobileTabBar } from '@/components/MobileTabBar';
 
 cssInterop(Home,     { className: { target: 'style', nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3,  { className: { target: 'style', nativeStyleToProp: { color: true } } });
 cssInterop(Clapperboard, { className: { target: 'style', nativeStyleToProp: { color: true } } });
-cssInterop(MessageSquareText, { className: { target: 'style', nativeStyleToProp: { color: true } } });
+cssInterop(Heart, { className: { target: 'style', nativeStyleToProp: { color: true } } });
 cssInterop(User,     { className: { target: 'style', nativeStyleToProp: { color: true } } });
 
 export default function TabsLayout() {
@@ -65,20 +65,20 @@ export default function TabsLayout() {
             />
             <Tabs.Screen
                 name="favorites"
-                options={{ href: null }}
-            />
-            <Tabs.Screen
-                name="enquiry"
                 options={{
-                    title: 'Enquiry',
+                    title: 'Favorites',
                     tabBarIcon: ({ focused }) => (
-                        <MessageSquareText
+                        <Heart
                             className={focused ? 'text-primary' : 'text-muted-foreground'}
                             size={22}
                             strokeWidth={focused ? 2.5 : 2}
                         />
                     ),
                 }}
+            />
+            <Tabs.Screen
+                name="enquiry"
+                options={{ href: null }}
             />
             <Tabs.Screen
                 name="profile"

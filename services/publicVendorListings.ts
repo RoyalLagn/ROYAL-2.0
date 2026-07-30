@@ -10,6 +10,11 @@ import {
   type VendorPortfolioMedia,
 } from "@/services/vendorPortfolio";
 
+export type PublicVendorAvailability = {
+  date: string;
+  status: "available" | "tentative" | "blocked";
+};
+
 export type PublicVendorListing = {
   id: string;
   name: string;
@@ -26,6 +31,7 @@ export type PublicVendorListing = {
   isTopRated: boolean;
   isFeatured: boolean;
   isAvailable: boolean;
+  availability: PublicVendorAvailability[];
   description: string;
   contactPhone: string;
   contactEmail: string;
@@ -158,10 +164,13 @@ function normalizeVendor(
     .filter((price: number) => Number.isFinite(price) && price > 0);
   const startingPriceValue = prices.length ? Math.min(...prices) : 0;
   const today = new Date().toISOString().slice(0, 10);
-  const isAvailable = (row.vendor_availability ?? []).some(
-    (availability: any) =>
-      availability.status === "available" && availability.date >= today,
-  );
+  const availability = (row.vendor_availability ?? [])
+    .filter((item: any): item is PublicVendorAvailability =>
+      typeof item.date === "string"
+      && ["available", "tentative", "blocked"].includes(item.status))
+    .sort((a: PublicVendorAvailability, b: PublicVendorAvailability) => a.date.localeCompare(b.date));
+  const isAvailable = availability.some((item: PublicVendorAvailability) =>
+    item.status === "available" && item.date >= today);
   const portfolioAlbums: PublicPortfolioAlbum[] = (row.vendor_portfolio_albums ?? [])
     .filter((album: any) => album.is_visible)
     .sort((a: any, b: any) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0))
@@ -211,6 +220,7 @@ function normalizeVendor(
     isTopRated: Boolean(row.is_featured),
     isFeatured: Boolean(row.is_featured),
     isAvailable,
+    availability,
     description: row.description?.trim() || "",
     contactPhone: row.contact_phone?.trim() || "",
     contactEmail: row.contact_email?.trim() || "",

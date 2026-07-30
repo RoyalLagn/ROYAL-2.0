@@ -120,7 +120,7 @@ function DesktopFavoritesButton({ onPress }: { onPress: () => void }) {
         <Heart
           size={20}
           className={arriving ? "text-primary" : "text-foreground/75"}
-          fill={arriving ? "currentColor" : "none"}
+          fill="none"
         />
         <FavoriteNotificationDot
           visible={hasUnviewedFavorites}
@@ -183,7 +183,7 @@ export default function PublicWebNavbar({
           <NavItem label="Home" active={activeRoute === "Home"} onPress={() => router.push("/(tabs)")} />
           <NavItem label="Categories" active={activeRoute === "Categories"} onPress={() => router.push("/(tabs)/Categories")} />
           <NavItem label="Clips" active={activeRoute === "Clips"} onPress={() => router.push("/(tabs)/clips")} />
-          <NavItem label="Enquiry" active={activeRoute === "Enquiry"} onPress={() => router.push("/(tabs)/enquiry")} />
+          <DesktopFavoritesButton onPress={() => router.push("/(tabs)/favorites")} />
         </View>
 
         <CompactSearchBar
@@ -213,7 +213,14 @@ export default function PublicWebNavbar({
             ) : null}
           </Pressable>
 
-          <DesktopFavoritesButton onPress={() => router.push("/(tabs)/favorites")} />
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="Open enquiries"
+            onPress={() => router.push("/(tabs)/enquiry")}
+            className="w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <MessageSquareText size={20} className="text-foreground/75" />
+          </Pressable>
 
           <Pressable
             accessibilityRole="button"

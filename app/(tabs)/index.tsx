@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 import {
   MapPin,
   Bell,
-  Heart,
+  MessageSquareText,
   Share2,
   Search,
   ChevronRight,
@@ -218,13 +218,13 @@ export default function HomeScreen() {
             <View style={s.headerActions}>
               <TouchableOpacity
                 accessibilityRole="button"
-                accessibilityLabel="Open favorites"
+                accessibilityLabel="Open enquiries"
                 style={s.headerAction}
                 hitSlop={4}
-                onPress={() => router.push("/(tabs)/favorites")}
+                onPress={() => router.push("/(tabs)/enquiry")}
                 activeOpacity={0.7}
               >
-                <Heart size={20} color={text} />
+                <MessageSquareText size={20} color={text} />
               </TouchableOpacity>
               <TouchableOpacity
                 accessibilityRole="button"

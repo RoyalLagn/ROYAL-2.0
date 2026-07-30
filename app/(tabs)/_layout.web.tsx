@@ -140,7 +140,7 @@ function DesktopFavoritesButton({
         <Heart
           size={20}
           className={active || arriving ? "text-primary" : "text-foreground/75"}
-          fill={active || arriving ? "currentColor" : "none"}
+          fill="none"
         />
         <FavoriteNotificationDot
           visible={hasUnviewedFavorites}
@@ -237,10 +237,9 @@ export default function TabsWebLayout() {
                 active={isActive("/(tabs)/clips")}
                 onPress={() => router.push("/(tabs)/clips")}
               />
-              <NavItem
-                label="Enquiry"
-                active={isActive("/(tabs)/enquiry")}
-                onPress={() => router.push("/(tabs)/enquiry")}
+              <DesktopFavoritesButton
+                active={isActive("/(tabs)/favorites")}
+                onPress={() => router.push("/(tabs)/favorites")}
               />
             </View>
 
@@ -275,10 +274,14 @@ export default function TabsWebLayout() {
                 ) : null}
               </Pressable>
 
-              <DesktopFavoritesButton
-                active={isActive("/(tabs)/favorites")}
-                onPress={() => router.push("/(tabs)/favorites")}
-              />
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Open enquiries"
+                onPress={() => router.push("/(tabs)/enquiry")}
+                className="w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <MessageSquareText size={20} className="text-foreground/75" />
+              </Pressable>
 
               <Pressable
                 accessibilityRole="button"
@@ -366,20 +369,20 @@ export default function TabsWebLayout() {
         />
         <Tabs.Screen
           name="favorites"
-          options={{ href: null }}
-        />
-        <Tabs.Screen
-          name="enquiry"
           options={{
-            title: "Enquiry",
+            title: "Favorites",
             tabBarIcon: ({ focused }) => (
-              <MessageSquareText
+              <Heart
                 className={focused ? "text-primary" : "text-muted-foreground"}
                 size={22}
                 strokeWidth={focused ? 2.5 : 2}
               />
             ),
           }}
+        />
+        <Tabs.Screen
+          name="enquiry"
+          options={{ href: null }}
         />
         <Tabs.Screen
           name="profile"

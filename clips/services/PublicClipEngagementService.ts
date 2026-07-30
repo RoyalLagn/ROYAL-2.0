@@ -1,16 +1,9 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "@/services/supabase";
 import type { ClipEngagementState } from "../types";
+import { ClipViewerSessionService } from "./ClipViewerSessionService";
 import { SavedClipEvents } from "./SavedClipService";
 
-const SESSION_KEY = "@royallagn/clips/public-view-session/v1";
-async function sessionHash() {
-  const existing = await AsyncStorage.getItem(SESSION_KEY);
-  if (existing) return existing;
-  const created = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  await AsyncStorage.setItem(SESSION_KEY, created);
-  return created;
-}
+let recordViewFunctionAvailable: boolean | null = null;
 
 export const PublicClipEngagementService = {
   async getMine(clipIds: string[], profileId?: string | null) {
@@ -42,13 +35,70 @@ export const PublicClipEngagementService = {
       throw result.error;
     }
   },
-  async recordView(clipId: string, profileId?: string | null) {
-    const result = await supabase.from("clip_views").insert({
-      clip_id: clipId, viewer_id: profileId || null,
-      session_hash: profileId ? null : await sessionHash(),
-      watch_duration_seconds: 3, completed: false,
-    });
-    if (result.error && result.error.code !== "23505") throw result.error;
+  async recordView(
+    clipId: string,
+    profileId?: string | null,
+    clipDurationSeconds?: number,
+  ) {
+    const watchDurationSeconds = 3;
+    const watchPercentage = clipDurationSeconds && clipDurationSeconds > 0
+      ? Math.min(100, (watchDurationSeconds / clipDurationSeconds) * 100)
+      : null;
+    await ClipViewerSessionService.recordRecentlyViewed(
+      clipId,
+      watchDurationSeconds,
+      watchPercentage,
+    );
+    const anonymousSessionHash = profileId
+      ? null
+      : await ClipViewerSessionService.getAnonymousSessionHash();
+    let rpcData: unknown = null;
+    let rpcError: { code?: string; message?: string } | null = null;
+    if (recordViewFunctionAvailable !== false) {
+      const result = await supabase.rpc("record_public_clip_view", {
+        p_clip_id: clipId,
+        p_watch_duration_seconds: watchDurationSeconds,
+        p_watch_percentage: watchPercentage,
+        p_completed: false,
+        p_session_hash: anonymousSessionHash,
+      });
+      rpcData = result.data;
+      rpcError = result.error;
+      if (rpcError && (
+        rpcError.code === "PGRST202"
+        || rpcError.code === "42883"
+        || rpcError.message?.includes("record_public_clip_view")
+      )) recordViewFunctionAvailable = false;
+      else if (!rpcError) recordViewFunctionAvailable = true;
+    }
+    if (recordViewFunctionAvailable === false) {
+      if (profileId) {
+        const history = await supabase.from("clip_watch_history").upsert({
+          user_id: profileId,
+          clip_id: clipId,
+          watched_at: new Date().toISOString(),
+          watch_duration_seconds: watchDurationSeconds,
+          watch_percentage: watchPercentage,
+        }, { onConflict: "user_id,clip_id" });
+        if (
+          history.error
+          && history.error.code !== "42P01"
+          && history.error.code !== "PGRST205"
+        ) throw history.error;
+      }
+      const fallback = await supabase.from("clip_views").insert({
+        clip_id: clipId,
+        viewer_id: profileId || null,
+        session_hash: anonymousSessionHash,
+        watch_duration_seconds: watchDurationSeconds,
+        completed: false,
+      });
+      if (fallback.error?.code === "23505") return false;
+      if (fallback.error) throw fallback.error;
+      return true;
+    }
+    if (rpcError) throw rpcError;
+    return Boolean(rpcData);
   },
   async report(clipId: string, reporterId: string, reason: string, details?: string) {
     const { error } = await supabase.from("clip_reports").insert({

@@ -1,5 +1,6 @@
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Tag } from "lucide-react-native";
 
 const PINK = "#E91E63";
@@ -57,13 +58,14 @@ export default function PackagesCard({
         },
       ]}
     >
-      <View
+      <LinearGradient
         pointerEvents="none"
-        style={[styles.decorationLarge, { borderColor: palette.border }]}
-      />
-      <View
-        pointerEvents="none"
-        style={[styles.decorationSmall, { borderColor: palette.border }]}
+        colors={dark
+          ? [palette.surface, palette.surfaceAccent]
+          : ["#FFFFFF", "#FFF8FB", palette.surfaceAccent]}
+        start={{ x: 0.05, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFill}
       />
 
       <View style={styles.details}>
@@ -106,21 +108,21 @@ const sans = Platform.select({ ios: "System", android: "sans-serif", web: "syste
 const styles = StyleSheet.create({
   card: {
     width: "100%",
-    minHeight: 142,
-    borderWidth: 1,
-    borderRadius: 22,
+    minHeight: 136,
+    borderWidth: 0,
+    borderRadius: 20,
     padding: 18,
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 16,
-    shadowOpacity: 0.09,
-    shadowRadius: 15,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    shadowOpacity: 0.085,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 2,
   },
-  cardCompact: { minHeight: 154, padding: 14, gap: 12, flexDirection: "column", alignItems: "stretch" },
+  cardCompact: { minHeight: 146, padding: 16, gap: 13, flexDirection: "column", alignItems: "stretch" },
   details: {
     flex: 1,
     minWidth: 0,
@@ -130,19 +132,19 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   iconWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 50,
+    height: 50,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
-  iconWrapCompact: { width: 42, height: 42, borderRadius: 21 },
+  iconWrapCompact: { width: 42, height: 42, borderRadius: 14 },
   copy: { flex: 1, minWidth: 0 },
   eyebrow: { fontSize: 12, lineHeight: 17, fontWeight: "600", letterSpacing: 0.15 },
   eyebrowCompact: { fontSize: 10.5, lineHeight: 14 },
   price: { marginTop: 2, fontFamily: serif, fontSize: 29, lineHeight: 35, fontWeight: "700" },
-  priceCompact: { fontSize: 20, lineHeight: 25 },
+  priceCompact: { fontSize: 21, lineHeight: 26 },
   subtitle: { marginTop: 3, fontSize: 12, lineHeight: 17 },
   button: {
     minWidth: 142,
@@ -151,38 +153,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 21,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,.68)",
+    borderWidth: 0,
     zIndex: 1,
     shadowColor: "#A72C57",
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    shadowOpacity: 0.13,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
-  buttonCompact: { width: "100%", minWidth: 0, minHeight: 42, paddingHorizontal: 14 },
+  buttonCompact: { width: "100%", minWidth: 0, minHeight: 44, paddingHorizontal: 14 },
   buttonHovered: { transform: [{ translateY: -1 }], backgroundColor: "#C92559" },
   buttonPressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
   buttonText: { color: "#FFFFFF", fontFamily: serif, fontSize: 16, fontWeight: "700" },
   buttonTextCompact: { fontFamily: sans, fontSize: 13, fontWeight: "800" },
-  decorationLarge: {
-    position: "absolute",
-    width: 132,
-    height: 132,
-    borderRadius: 66,
-    borderWidth: 1,
-    right: -45,
-    top: -54,
-    opacity: 0.42,
-  },
-  decorationSmall: {
-    position: "absolute",
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 1,
-    right: 28,
-    bottom: -43,
-    opacity: 0.32,
-  },
 });

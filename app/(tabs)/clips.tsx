@@ -16,11 +16,11 @@ import { useCategories } from "@/context/CategoryContext";
 import { PublicClipCard } from "@/clips/components";
 import {
   PublicClipEngagementService, PublicClipService, sharePublicClip,
-  ClipViewerHandoff,
+  ClipViewerHandoff, ClipViewerSessionService,
 } from "@/clips/services";
 import { CLIP_FEED_SETTINGS } from "@/clips/constants";
 import type {
-  ClipCursor, ClipEngagementState, PublicClip,
+  ClipEngagementState, PublicClip, PublicClipCursor,
 } from "@/clips/types";
 
 const EMPTY_ENGAGEMENT: ClipEngagementState = { liked: false, saved: false };
@@ -46,15 +46,20 @@ export default function ClipsScreen() {
   const { categories } = useCategories();
   const listRef = useRef<FlatList<PublicClip>>(null);
   const viewedIds = useRef(new Set<string>());
+  const previousFocus = useRef(isFocused);
   const [containerHeight, setContainerHeight] = useState(Math.max(1, windowHeight - (width >= 1100 ? 166 : 178)));
   const [clips, setClips] = useState<PublicClip[]>([]);
-  const [cursor, setCursor] = useState<ClipCursor | null>(null);
+  const [cursor, setCursor] = useState<PublicClipCursor | null>(null);
+  const [feedSession, setFeedSession] = useState(
+    () => ClipViewerSessionService.createFeedSession(),
+  );
+  const activeFeedSeed = useRef(feedSession.seed);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const [preloadIndex, setPreloadIndex] = useState<number | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [muted, setMuted] = useState(Platform.OS === "web");
@@ -118,12 +123,26 @@ export default function ClipsScreen() {
     }
   }, [profile?.id]);
 
+  const beginNewFeedSession = useCallback(() => {
+    const nextSession = ClipViewerSessionService.createFeedSession();
+    activeFeedSeed.current = nextSession.seed;
+    setLoadingMore(false);
+    setFeedSession(nextSession);
+  }, []);
+
   const loadInitial = useCallback(async () => {
+    const requestSeed = feedSession.seed;
     setLoading(true);
     setError("");
     setActiveIndex(0);
+    viewedIds.current.clear();
     try {
-      const page = await PublicClipService.list({ categoryId: selectedCategoryId });
+      const page = await PublicClipService.list({
+        categoryId: selectedCategoryId,
+        session: feedSession,
+        pinnedClipId: clipId || null,
+      });
+      if (activeFeedSeed.current !== requestSeed) return;
       const handedOff = clipId ? ClipViewerHandoff.consume(clipId) : null;
       const selected = handedOff ?? page.items.find((item) => item.id === clipId) ?? null;
       const orderedItems = selected
@@ -134,26 +153,42 @@ export default function ClipsScreen() {
       setHasMore(page.hasMore);
       await hydrateEngagement(orderedItems);
     } catch (caught) {
+      if (activeFeedSeed.current !== requestSeed) return;
       setClips([]);
       setError(caught instanceof Error ? caught.message : "Unable to load wedding inspiration.");
     } finally {
+      if (activeFeedSeed.current !== requestSeed) return;
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [clipId, hydrateEngagement, selectedCategoryId]);
+  }, [clipId, feedSession, hydrateEngagement, selectedCategoryId]);
 
   useEffect(() => { void loadInitial(); }, [loadInitial]);
 
   useEffect(() => {
+    if (isFocused && !previousFocus.current) {
+      beginNewFeedSession();
+    }
+    previousFocus.current = isFocused;
+  }, [beginNewFeedSession, isFocused]);
+
+  useEffect(() => {
     setActiveIndex(0);
-    setPreloadIndex(null);
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [searchQuery]);
 
   const loadMore = useCallback(async () => {
     if (!cursor || !hasMore || loadingMore) return;
+    const requestSeed = feedSession.seed;
     setLoadingMore(true);
     try {
-      const page = await PublicClipService.list({ categoryId: selectedCategoryId, cursor });
+      const page = await PublicClipService.list({
+        categoryId: selectedCategoryId,
+        cursor,
+        session: feedSession,
+        pinnedClipId: clipId || null,
+      });
+      if (activeFeedSeed.current !== requestSeed) return;
       setClips((current) => {
         const known = new Set(current.map((clip) => clip.id));
         return [...current, ...page.items.filter((clip) => !known.has(clip.id))];
@@ -164,22 +199,49 @@ export default function ClipsScreen() {
     } catch {
       // Keep the current page usable; scrolling can trigger another attempt.
     } finally {
+      if (activeFeedSeed.current !== requestSeed) return;
       setLoadingMore(false);
     }
-  }, [cursor, hasMore, hydrateEngagement, loadingMore, selectedCategoryId]);
+  }, [clipId, cursor, feedSession, hasMore, hydrateEngagement, loadingMore, selectedCategoryId]);
+
+  const refreshFeed = useCallback(() => {
+    setRefreshing(true);
+    beginNewFeedSession();
+  }, [beginNewFeedSession]);
+
+  const selectCategory = useCallback((categoryId: string | null) => {
+    if (categoryId === selectedCategoryId) return;
+    setSelectedCategoryId(categoryId);
+    beginNewFeedSession();
+  }, [beginNewFeedSession, selectedCategoryId]);
 
   useEffect(() => {
     const clip = feedItems[activeIndex];
     if (!clip || !isFocused || !foreground || viewedIds.current.has(clip.id)) return;
     const timer = setTimeout(() => {
       viewedIds.current.add(clip.id);
-      setCounts((current) => ({
-        ...current,
-        [clip.id]: { ...(current[clip.id] ?? { likes: clip.likesCount, saves: clip.savesCount, views: clip.viewsCount }), views: (current[clip.id]?.views ?? clip.viewsCount) + 1 },
-      }));
-      void PublicClipEngagementService.recordView(clip.id, profile?.id).catch(() => {
-        // Unique-index conflicts mean this installation already counted the view.
-      });
+      void PublicClipEngagementService.recordView(
+        clip.id,
+        profile?.id,
+        clip.durationSeconds,
+      )
+        .then((countedNewView) => {
+          if (!countedNewView) return;
+          setCounts((current) => ({
+            ...current,
+            [clip.id]: {
+              ...(current[clip.id] ?? {
+                likes: clip.likesCount,
+                saves: clip.savesCount,
+                views: clip.viewsCount,
+              }),
+              views: (current[clip.id]?.views ?? clip.viewsCount) + 1,
+            },
+          }));
+        })
+        .catch(() => {
+          // Playback stays usable if analytics cannot be recorded.
+        });
     }, CLIP_FEED_SETTINGS.minimumViewDurationMs);
     return () => clearTimeout(timer);
   }, [activeIndex, feedItems, foreground, isFocused, profile?.id]);
@@ -280,10 +342,9 @@ export default function ClipsScreen() {
     const visible = viewableItems.find((token) => token.isViewable && typeof token.index === "number");
     if (typeof visible?.index === "number") {
       setActiveIndex(visible.index);
-      setPreloadIndex(null);
     }
   }).current;
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 75, minimumViewTime: 120 }).current;
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60, minimumViewTime: 80 }).current;
 
   const renderItem = useCallback(({ item, index }: ListRenderItemInfo<PublicClip>) => (
     <View
@@ -301,9 +362,10 @@ export default function ClipsScreen() {
         desktop={desktop}
         dark={dark}
         active={index === activeIndex && isFocused && foreground}
-        nearby={Platform.OS === "android"
-          ? index === activeIndex
-          : index === activeIndex || index === preloadIndex}
+        nearby={
+          index >= activeIndex - 1
+          && index <= activeIndex + CLIP_FEED_SETTINGS.prefetchAhead
+        }
         muted={muted}
         engagement={engagement[item.id] ?? EMPTY_ENGAGEMENT}
         counts={counts[item.id] ?? { likes: item.likesCount, saves: item.savesCount, views: item.viewsCount }}
@@ -315,7 +377,7 @@ export default function ClipsScreen() {
         onContact={() => void contactVendor(item)}
       />
     </View>
-  ), [activeIndex, background, compactPlayer, contactVendor, containerHeight, counts, dark, desktop, engagement, feedWidth, foreground, isFocused, muted, openVendor, playerHeight, playerWidth, preloadIndex, toggleLike, toggleSave]);
+  ), [activeIndex, background, compactPlayer, contactVendor, containerHeight, counts, dark, desktop, engagement, feedWidth, foreground, isFocused, muted, openVendor, playerHeight, playerWidth, toggleLike, toggleSave]);
 
   return <View style={[styles.root, { backgroundColor: background }, Platform.OS === "web" ? styles.rootWeb : null]}>
     <StatusBar style={dark ? "light" : "dark"} backgroundColor={background} translucent={false} />
@@ -348,10 +410,10 @@ export default function ClipsScreen() {
           />
         </View> : null}
         <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chips, compactPlayer && styles.chipsCompact]}>
-          <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCategoryId === null }} onPress={() => setSelectedCategoryId(null)} style={[styles.chip, { backgroundColor: dark ? "#181818" : "#F7F7F7", borderColor: dark ? "#353535" : "#E2E2E2" }, compactPlayer && styles.chipCompact, selectedCategoryId === null && styles.chipActive]}><Text style={[styles.chipText, { color: dark ? "#F6EAF0" : "#4A4A4A" }, selectedCategoryId === null && styles.chipTextActive]}>All</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCategoryId === null }} onPress={() => selectCategory(null)} style={[styles.chip, { backgroundColor: dark ? "#181818" : "#F7F7F7", borderColor: dark ? "#353535" : "#E2E2E2" }, compactPlayer && styles.chipCompact, selectedCategoryId === null && styles.chipActive]}><Text style={[styles.chipText, { color: dark ? "#F6EAF0" : "#4A4A4A" }, selectedCategoryId === null && styles.chipTextActive]}>All</Text></Pressable>
           {visibleCategories.map((category) => {
             const selected = selectedCategoryId === category.id;
-            return <Pressable key={category.id} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => setSelectedCategoryId(category.id)} style={[styles.chip, { backgroundColor: dark ? "#181818" : "#F7F7F7", borderColor: dark ? "#353535" : "#E2E2E2" }, compactPlayer && styles.chipCompact, selected && styles.chipActive]}><Text style={[styles.chipText, { color: dark ? "#F6EAF0" : "#4A4A4A" }, selected && styles.chipTextActive]}>{category.name}</Text></Pressable>;
+            return <Pressable key={category.id} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => selectCategory(category.id)} style={[styles.chip, { backgroundColor: dark ? "#181818" : "#F7F7F7", borderColor: dark ? "#353535" : "#E2E2E2" }, compactPlayer && styles.chipCompact, selected && styles.chipActive]}><Text style={[styles.chipText, { color: dark ? "#F6EAF0" : "#4A4A4A" }, selected && styles.chipTextActive]}>{category.name}</Text></Pressable>;
           })}
         </ScrollView>
       </View>
@@ -363,23 +425,17 @@ export default function ClipsScreen() {
       !feedItems.length ? <View style={styles.state}><Search size={42} color="#E91E63" /><Text style={[styles.stateTitle, { color: dark ? "#FFF" : "#171717" }]}>No Clips match your search</Text><Text style={[styles.stateText, { color: dark ? "#CBBBC3" : "#737373" }]}>Try a vendor, city, category or another wedding keyword.</Text></View> :
       <FlatList ref={listRef} data={feedItems} renderItem={renderItem} keyExtractor={(item) => item.id}
         style={[styles.feed, Platform.OS === "web" ? styles.feedWeb : null]}
+        refreshing={refreshing}
+        onRefresh={refreshFeed}
         pagingEnabled snapToInterval={containerHeight} snapToAlignment="start" decelerationRate="fast"
         disableIntervalMomentum showsVerticalScrollIndicator={false}
-        initialNumToRender={Platform.OS === "android" ? 1 : 2}
-        maxToRenderPerBatch={Platform.OS === "android" ? 2 : 3}
-        windowSize={Platform.OS === "android" ? 2 : 3}
+        initialNumToRender={3}
+        maxToRenderPerBatch={4}
+        updateCellsBatchingPeriod={16}
+        windowSize={5}
         removeClippedSubviews={Platform.OS === "ios"}
         getItemLayout={(_, index) => ({ length: containerHeight, offset: containerHeight * index, index })}
         onViewableItemsChanged={onViewableItemsChanged} viewabilityConfig={viewabilityConfig}
-        onScrollBeginDrag={() => {
-          if (Platform.OS !== "android") {
-            setPreloadIndex(activeIndex < feedItems.length - 1 ? activeIndex + 1 : null);
-          }
-        }}
-        onScrollEndDrag={(event) => {
-          if (Math.abs(event.nativeEvent.velocity?.y ?? 0) < 0.05) setPreloadIndex(null);
-        }}
-        onMomentumScrollEnd={() => setPreloadIndex(null)}
         onEndReached={() => void loadMore()} onEndReachedThreshold={0.75}
         onScrollToIndexFailed={({ index }) => listRef.current?.scrollToOffset({ offset: index * containerHeight, animated: false })}
       />}

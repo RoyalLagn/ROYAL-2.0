@@ -1,5 +1,6 @@
 export * from "./ClipAnalyticsService";
 export * from "./ClipCacheService";
+export * from "./ClipViewerSessionService";
 export * from "./ClipCloudinaryService";
 export * from "./ClipCloudinaryNativeAdapter";
 export * from "./ClipCompressionService";
