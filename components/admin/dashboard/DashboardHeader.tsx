@@ -7,6 +7,7 @@ import type { DashboardHealth } from "@/types/adminDashboard";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { ResponsiveCard } from "@/components/responsive/ResponsiveCard";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
+import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 
 export function DashboardHeader({
   refreshing,
@@ -31,11 +32,13 @@ export function DashboardHeader({
   const lastLogin = identity?.user.last_sign_in_at;
   return (
     <>
-      <ResponsiveContainer className="flex-row items-center justify-between py-2">
+      <ResponsiveContainer className="flex-row items-center justify-between py-2" style={{ position: "relative" }}>
         <Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={() => router.push("/admin-dash-logout")}>
           <Menu size={24} className="text-foreground" />
         </Pressable>
-        <Text className="text-xl font-bold text-primary">RoyalLagn</Text>
+        <View pointerEvents="none" style={{ position: "absolute", left: "50%", width: 160, height: 44, marginLeft: -80, alignItems: "center", justifyContent: "center" }}>
+          <RoyalLagnLogo width={160} height={44} />
+        </View>
         <Pressable className="min-w-11 min-h-11 items-center justify-center" disabled={refreshing} onPress={onRefresh}>
           <RefreshCw size={22} className="text-foreground" />
         </Pressable>

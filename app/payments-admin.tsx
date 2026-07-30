@@ -15,6 +15,7 @@ import {
   Download,
 } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
+import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 
 type PaymentStat = {
   id: string;
@@ -221,11 +222,13 @@ export default function PaymentsAdmin() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View className="flex-row items-center justify-between px-6 py-4">
+        <View className="relative flex-row items-center justify-between px-6 py-4">
           <TouchableOpacity className="p-2 -ml-2" onPress={() => router.push("/admin-dash-logout")}>
             <Menu size={24} className="text-foreground" />
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-primary">RoyalLagn</Text>
+          <View pointerEvents="none" style={{ position: "absolute", left: "50%", width: 160, height: 44, marginLeft: -80 }}>
+            <RoyalLagnLogo width={160} height={44} />
+          </View>
           <TouchableOpacity className="p-2 -mr-2 relative" onPress={() => showPlaceholder("Payment Notifications")}>
             <Bell size={24} className="text-foreground" />
             <View className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />

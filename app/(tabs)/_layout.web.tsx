@@ -7,7 +7,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Tabs, usePathname, useRouter } from "expo-router";
+import { Tabs, useLocalSearchParams, usePathname, useRouter } from "expo-router";
 import {
   Bell,
   Clapperboard,
@@ -24,6 +24,7 @@ import { MobileTabBar } from "@/components/MobileTabBar";
 import LocationSelector from "@/components/home/LocationSelector";
 import HomeReveal from "@/components/home/HomeReveal";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
 import FavoriteNotificationDot from "@/components/favorites/FavoriteNotificationDot";
 import { useFavorites } from "@/context/FavoritesContext";
@@ -157,17 +158,28 @@ function DesktopFavoritesButton({
 export default function TabsWebLayout() {
   const router = useRouter();
   const pathname = usePathname();
+  const { clipSearch } = useLocalSearchParams<{ clipSearch?: string }>();
   const { width } = useWindowDimensions();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const isDesktop = width >= 1100;
   const isHome = pathname === "/" || pathname === "/(tabs)";
+  const isClips = pathname.toLowerCase().includes("/clips");
   const [searchQuery, setSearchQuery] = useState("");
   const openAuthenticationGateway = useAuthenticationGateway();
   const { unreadCount } = useNotifications();
 
+  useEffect(() => {
+    if (isClips) setSearchQuery(typeof clipSearch === "string" ? clipSearch : "");
+  }, [clipSearch, isClips]);
+
   const submitSearch = () => {
-    router.push({ pathname: "/Search", params: { query: searchQuery.trim() } });
+    const query = searchQuery.trim();
+    if (isClips) {
+      router.setParams({ clipSearch: query || undefined });
+      return;
+    }
+    router.push({ pathname: "/Search", params: { query } });
   };
   const shareApp = async () => {
     try {
@@ -201,21 +213,14 @@ export default function TabsWebLayout() {
             : undefined}
         >
           <View className="w-full max-w-[1280px] h-[72px] px-6 self-center flex-row items-center">
-            {!isHome ? (
-              <Pressable
-                accessibilityRole="link"
-                accessibilityLabel="RoyalLagn home"
-                onPress={() => router.push("/(tabs)")}
-                className="flex-row items-center mr-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-xl"
-              >
-                <View className="w-9 h-9 rounded-xl bg-primary items-center justify-center mr-2.5">
-                  <Heart size={18} color="#FFFFFF" strokeWidth={2.4} />
-                </View>
-                <Text className="text-foreground text-xl font-bold tracking-tight">
-                  Royal<Text className="text-primary">Lagn</Text>
-                </Text>
-              </Pressable>
-            ) : null}
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel="RoyalLagn home"
+              onPress={() => router.push("/(tabs)")}
+              className="mr-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-xl"
+            >
+              <RoyalLagnLogo width={148} height={46} />
+            </Pressable>
 
             {isHome ? <View className="mr-5"><LocationSelector dark={isDark} compact /></View> : null}
 
@@ -247,9 +252,9 @@ export default function TabsWebLayout() {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 onSubmit={submitSearch}
-                placeholder="Search vendors, categories, services..."
+                placeholder={isClips ? "Search vendors and clips..." : "Search vendors, categories, services..."}
                 dark={isDark}
-                accessibilityLabel="Search vendors, categories and services"
+                accessibilityLabel={isClips ? "Search vendors and clips" : "Search vendors, categories and services"}
                 style={{ flex: 1, maxWidth: 330, marginRight: "auto" }}
               />
             ) : <View className="flex-1" />}

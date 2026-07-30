@@ -11,10 +11,12 @@ import { Heart, Play, RefreshCw, Volume2, VolumeX } from "lucide-react-native";
 const DOUBLE_TAP_MS = 260;
 
 export const PublicClipVideo = React.memo(function PublicClipVideo({
-  uri, thumbnailUrl, active, muted, onToggleMuted, onDoubleTapLike,
+  uri, thumbnailUrl, sourceWidth, sourceHeight, active, muted, onToggleMuted, onDoubleTapLike,
 }: {
   uri: string;
   thumbnailUrl: string;
+  sourceWidth: number;
+  sourceHeight: number;
   active: boolean;
   muted: boolean;
   onToggleMuted: () => void;
@@ -31,6 +33,11 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const heartOpacity = useSharedValue(0);
   const heartScale = useSharedValue(0.45);
   const videoOpacity = useSharedValue(0);
+  const sourceAspectRatio = sourceWidth > 0 && sourceHeight > 0
+    ? sourceWidth / sourceHeight
+    : 9 / 16;
+  const preserveFullFrame = sourceAspectRatio > 0.72 || sourceAspectRatio < 0.46;
+  const contentFit = preserveFullFrame ? "contain" : "cover";
   const source = React.useMemo(() => ({
     uri,
     useCaching: Platform.OS !== "web",
@@ -126,12 +133,14 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const loading = !firstFrameRendered && !failed;
 
   return <View style={StyleSheet.absoluteFill}>
-    <Image source={{ uri: thumbnailUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+    <Image source={{ uri: thumbnailUrl }} style={[StyleSheet.absoluteFill, styles.backdrop]} resizeMode="cover" />
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdropShade]} />
+    <Image source={{ uri: thumbnailUrl }} style={StyleSheet.absoluteFill} resizeMode={contentFit} />
     {!failed && <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, videoStyle]}>
       <VideoView
         player={player}
         style={StyleSheet.absoluteFill}
-        contentFit="cover"
+        contentFit={contentFit}
         nativeControls={false}
         playsInline
         allowsVideoFrameAnalysis={false}
@@ -169,6 +178,8 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
 });
 
 const styles = StyleSheet.create({
+  backdrop: { opacity: 0.58, transform: [{ scale: 1.05 }] },
+  backdropShade: { backgroundColor: "rgba(7,5,7,.5)" },
   center: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(10,7,9,.48)", alignItems: "center", justifyContent: "center", gap: 10 },
   loading: { color: "#FFF", fontSize: 11, fontWeight: "700" },
   errorTitle: { color: "#FFF", fontSize: 14, fontWeight: "800" },
@@ -176,6 +187,6 @@ const styles = StyleSheet.create({
   retryText: { color: "#FFF", fontSize: 11, fontWeight: "800" },
   playBurst: { position: "absolute", alignSelf: "center", top: "43%", width: 82, height: 82, borderRadius: 41, alignItems: "center", justifyContent: "center", paddingLeft: 5, backgroundColor: "rgba(8,5,7,.58)", borderWidth: 1, borderColor: "rgba(255,255,255,.25)" },
   heartBurst: { position: "absolute", alignSelf: "center", top: "38%" },
-  muteState: { position: "absolute", top: 154, right: 14, height: 28, borderRadius: 14, paddingHorizontal: 9, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(8,5,7,.48)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.2)" },
+  muteState: { position: "absolute", top: 12, right: 12, minHeight: 32, borderRadius: 16, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(8,5,7,.62)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.24)", zIndex: 5 },
   muteText: { color: "#FFF", fontSize: 9, fontWeight: "700" },
 });

@@ -34,6 +34,7 @@ import SectionHeader from "@/components/home/SectionHeader";
 import HomeFilterModal, { DEFAULT_HOME_FILTERS, type HomeFilters } from "@/components/home/HomeFilterModal";
 import { useCustomerLocation } from "@/context/LocationContext";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { useNotifications } from "@/context/NotificationContext";
 import {
   getApprovedPublicVendors,
@@ -201,15 +202,17 @@ export default function HomeScreen() {
           <HomeReveal direction="down" style={[s.header, { width: featureWidth }]}>
             <View style={s.headerLocation}><LocationSelector dark={isDark} compact /></View>
 
-            <View pointerEvents="none" style={s.headerLogo}>
-              <Image
-                source={isDark
-                  ? require("../../assets/Logo/center-logo.png")
-                  : require("../../assets/Logo/light-logo.png")}
-                resizeMode="contain"
-                accessibilityLabel="RoyalLagn Wedding Planner"
-                style={[s.headerLogoImage, screenWidth < 360 && s.headerLogoImageNarrow]}
-              />
+            <View
+              pointerEvents="none"
+              style={[
+                s.headerLogo,
+                {
+                  width: screenWidth < 360 ? 152 : 176,
+                  marginLeft: screenWidth < 360 ? -76 : -88,
+                },
+              ]}
+            >
+              <RoyalLagnLogo width={screenWidth < 360 ? 152 : 176} height={48} />
             </View>
 
             <View style={s.headerActions}>
@@ -483,9 +486,7 @@ const s = StyleSheet.create<Record<string, any>>({
   /* Header */
   header:          { minHeight: 54, alignSelf: "center", flexDirection: "row", alignItems: "center", position: "relative" },
   headerLocation:  { zIndex: 2, minWidth: 54, maxWidth: 100, flexShrink: 1, alignItems: "flex-start", justifyContent: "center" },
-  headerLogo:      { position: "absolute", zIndex: 1, left: 0, right: 0, height: 48, paddingHorizontal: 108, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  headerLogoImage: { width: "100%", maxWidth: 150, height: 46, transform: [{ scale: 1.85 }] },
-  headerLogoImageNarrow: { maxWidth: 120, height: 40, transform: [{ scale: 1.65 }] },
+  headerLogo:      { position: "absolute", zIndex: 1, left: "50%", height: 48, alignItems: "center", justifyContent: "center" },
   headerActions:   { zIndex: 2, marginLeft: "auto", flexDirection: "row", flexShrink: 0, alignItems: "center" },
   headerAction:    { width: 36, height: 44, borderRadius: 18, alignItems: "center", justifyContent: "center", position: "relative" },
   badge:           { position: "absolute", top: 2, right: 1, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: PINK, borderWidth: 2, borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },

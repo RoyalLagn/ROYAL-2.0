@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { Bell, Menu, Moon, Sun } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/ThemeProvider";
+import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { vendorTheme } from "./VendorTheme";
 import VendorDrawer from "./VendorDrawer";
 
@@ -21,7 +22,7 @@ export default function VendorHeader({ unread = 0, onMenu }: { unread?: number; 
         <Menu size={20} color={colors.text} />
       </Pressable>
       <View style={styles.brandWrap}>
-        <Text style={[styles.brand, { color: colors.text }]}>Royal<Text style={{ color: colors.pink }}>Lagn</Text></Text>
+        <RoyalLagnLogo width={168} height={46} />
       </View>
       <View style={styles.actions}>
         <Pressable onPress={() => router.push("/VendorNotifications")} accessibilityLabel="Open notifications"
@@ -42,8 +43,7 @@ export default function VendorHeader({ unread = 0, onMenu }: { unread?: number; 
 
 const styles = StyleSheet.create({
   header: { minHeight: 68, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: StyleSheet.hairlineWidth },
-  brandWrap: { flex: 1, alignItems: "center", justifyContent: "center", paddingLeft: 8 },
-  brand: { textAlign: "center", fontSize: 20, fontWeight: "800", letterSpacing: -0.5 },
+  brandWrap: { position: "absolute", left: "50%", width: 168, height: 46, marginLeft: -84, alignItems: "center", justifyContent: "center" },
   actions: { width: 88, flexDirection: "row", gap: 8 },
   iconButton: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.88 },

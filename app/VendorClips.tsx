@@ -55,7 +55,7 @@ export default function VendorClips() {
     });
   };
   const showAnalytics = (clip: any) => Alert.alert(
-    clip.title,
+    clip.caption?.trim() || "Clip analytics",
     `Views: ${clip.views_count}\nLikes: ${clip.likes_count}\nSaves: ${clip.saves_count}\nStatus: ${clip.status}`,
   );
 
@@ -97,8 +97,8 @@ export default function VendorClips() {
           ].map(([label, value, Icon]: any) => <View key={label} style={[styles.overviewMetric, { backgroundColor: colors.surfaceSoft }]}><Icon size={16} color={colors.pink} /><Text style={[styles.overviewValue, { color: colors.text }]}>{value}</Text><Text style={[styles.overviewLabel, { color: colors.muted }]}>{label}</Text></View>)}
         </View>
         <View style={[styles.analyticsRows, { borderTopColor: colors.border }]}>
-          <Text numberOfLines={1} style={[styles.analyticsRow, { color: colors.muted }]}>Most viewed: <Text style={{ color: colors.text, fontWeight: "800" }}>{overview.mostViewed ? `${overview.mostViewed.title} (${overview.mostViewed.views_count})` : "—"}</Text></Text>
-          <Text numberOfLines={1} style={[styles.analyticsRow, { color: colors.muted }]}>Newest Clip: <Text style={{ color: colors.text, fontWeight: "800" }}>{overview.newest?.title || "—"}</Text></Text>
+          <Text numberOfLines={1} style={[styles.analyticsRow, { color: colors.muted }]}>Most viewed: <Text style={{ color: colors.text, fontWeight: "800" }}>{overview.mostViewed ? `${overview.mostViewed.caption?.trim() || "Wedding Clip"} (${overview.mostViewed.views_count})` : "—"}</Text></Text>
+          <Text numberOfLines={1} style={[styles.analyticsRow, { color: colors.muted }]}>Newest Clip: <Text style={{ color: colors.text, fontWeight: "800" }}>{overview.newest?.caption?.trim() || (overview.newest ? "Wedding Clip" : "—")}</Text></Text>
         </View>
       </View>
 
@@ -146,7 +146,7 @@ export default function VendorClips() {
       <View style={[styles.grid, { gap: 14 }]}>{visibleClips.map((clip) => <View key={clip.id} style={[styles.card, { width: columns === 1 ? "100%" : `${100 / columns - 1}%`, backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Image source={{ uri: clip.thumbnail_url }} style={styles.thumb} />
         <View style={styles.cardBody}>
-          <View style={styles.row}><Text numberOfLines={1} style={[styles.cardTitle, { color: colors.text }]}>{clip.title}</Text><ClipStatusBadge status={clip.status as ClipStatus} /></View>
+          <View style={styles.row}><Text numberOfLines={2} style={[styles.cardTitle, { color: colors.text }]}>{clip.caption?.trim() || "Wedding Clip"}</Text><ClipStatusBadge status={clip.status as ClipStatus} /></View>
           <View style={styles.analytics}><View style={styles.metric}><Eye size={14} color={colors.muted} /><Text style={[styles.metricText, { color: colors.muted }]}>{clip.views_count}</Text></View><View style={styles.metric}><Heart size={14} color={colors.muted} /><Text style={[styles.metricText, { color: colors.muted }]}>{clip.likes_count}</Text></View><View style={styles.metric}><Save size={14} color={colors.muted} /><Text style={[styles.metricText, { color: colors.muted }]}>{clip.saves_count}</Text></View></View>
           <Text style={[styles.date, { color: colors.muted }]}>Uploaded {new Date(clip.created_at).toLocaleDateString()}{clip.published_at ? ` · Published ${new Date(clip.published_at).toLocaleDateString()}` : ""}</Text>
           <View style={[styles.actions, { borderTopColor: colors.border }]}>
