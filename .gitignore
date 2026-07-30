@@ -11,12 +11,24 @@ expo-env.d.ts
 # Node modules
 node_modules/
 
-# Environment variables
+# Environment variables and local secrets
 .env
+.env.*
+!.env.example
+credentials.json
 
-# Android builds
+# Signing credentials
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+
+# Generated builds and exports
 *.apk
 *.aab
+*.ipa
+dist/
 
 # Expo logs
 .expo-web.log

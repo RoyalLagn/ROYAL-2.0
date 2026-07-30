@@ -10,10 +10,15 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.royallagn.app"
+      "bundleIdentifier": "com.royallagn.app",
+      "buildNumber": "1"
     },
     "android": {
       "versionCode": 3,
+      "blockedPermissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/app-icon.png",
         "backgroundColor": "#ffffff"
@@ -32,6 +37,14 @@
           "imageWidth": 320,
           "resizeMode": "contain",
           "backgroundColor": "#FAD1CE"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow RoyalLagn to select photos and videos for profiles, portfolios, reviews, and Clips.",
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ],
       "expo-font",
