@@ -132,6 +132,13 @@ class Queue {
 
   getItems() { return [...this.items]; }
 
+  async clear() {
+    this.items = [];
+    this.hydrated = true;
+    await AsyncStorage.removeItem(KEY);
+    this.emit();
+  }
+
   onReconnect(callback: () => void) {
     return NetInfo.addEventListener((state) => {
       if (state.isConnected && state.isInternetReachable !== false) callback();

@@ -13,6 +13,8 @@ import SafeImage from "@/components/SafeImage";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
+import { useCustomerLocation } from "@/context/LocationContext";
+import { vendorNearbyLabel } from "@/services/locations";
 
 const PINK = "#E91E63";
 
@@ -36,6 +38,8 @@ export default function VendorListingCard({
   onToggleFavorite,
 }: VendorListingCardProps) {
   const { getRating } = useReviewRatings();
+  const { preference } = useCustomerLocation();
+  const nearbyLabel = vendorNearbyLabel(vendor, preference);
   const displayedRating = getRating(vendor.id, vendor.rating, vendor.reviews);
   const surface = dark ? "#201D1F" : "#FFFFFF";
   const text = dark ? "#F8F2F5" : "#181118";
@@ -66,6 +70,7 @@ export default function VendorListingCard({
               <Text style={styles.topRatedText}>Top Rated</Text>
             </View>
           ) : null}
+          {nearbyLabel ? <View style={styles.nearby}><MapPin size={10} color={PINK} /><Text style={styles.nearbyText}>{nearbyLabel}</Text></View> : null}
         </View>
 
         <View style={[styles.body, compact && styles.bodyCompact]}>
@@ -121,6 +126,8 @@ const styles = StyleSheet.create({
   image: StyleSheet.absoluteFillObject,
   topRated: { position: "absolute", top: 10, left: 0, minHeight: 29, borderTopRightRadius: 999, borderBottomRightRadius: 999, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: PINK },
   topRatedText: { color: "#FFFFFF", fontSize: 10, fontWeight: "800" },
+  nearby: { position: "absolute", left: 8, bottom: 8, minHeight: 27, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,.94)" },
+  nearbyText: { color: PINK, fontSize: 9, fontWeight: "800" },
   body: { flex: 1, minWidth: 0, paddingVertical: 10, paddingRight: 42, justifyContent: "center" },
   bodyCompact: { paddingVertical: 5, paddingRight: 34 },
   name: { fontFamily: serif, fontSize: 23, lineHeight: 28, fontWeight: "700", letterSpacing: -0.35, marginBottom: 9 },

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator, Alert, AppState, FlatList, Linking, Platform,
-  Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View,
+  ActivityIndicator, Alert, Animated, AppState, FlatList, Platform,
+  Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View,
   type ListRenderItemInfo, type ViewToken,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -10,9 +10,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, Clapperboard, RefreshCw, Search, Sparkles } from "lucide-react-native";
 import { useAppTheme } from "@/components/ThemeProvider";
-import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import { usePublicAuth } from "@/context/PublicAuthContext";
-import { useCategories } from "@/context/CategoryContext";
 import { PublicClipCard } from "@/clips/components";
 import {
   PublicClipEngagementService, PublicClipService, sharePublicClip,
@@ -22,6 +20,7 @@ import { CLIP_FEED_SETTINGS } from "@/clips/constants";
 import type {
   ClipEngagementState, PublicClip, PublicClipCursor,
 } from "@/clips/types";
+import { EnquiryExternalOpenError, EnquiryService } from "@/services/enquiries";
 
 const EMPTY_ENGAGEMENT: ClipEngagementState = { liked: false, saved: false };
 
@@ -43,11 +42,10 @@ export default function ClipsScreen() {
   const dark = colorScheme === "dark";
   const isFocused = useIsFocused();
   const { profile } = usePublicAuth();
-  const { categories } = useCategories();
   const listRef = useRef<FlatList<PublicClip>>(null);
   const viewedIds = useRef(new Set<string>());
   const previousFocus = useRef(isFocused);
-  const [containerHeight, setContainerHeight] = useState(Math.max(1, windowHeight - (width >= 1100 ? 166 : 178)));
+  const [containerHeight, setContainerHeight] = useState(Math.max(1, windowHeight - (width >= 1100 ? 166 : 80)));
   const [clips, setClips] = useState<PublicClip[]>([]);
   const [cursor, setCursor] = useState<PublicClipCursor | null>(null);
   const [feedSession, setFeedSession] = useState(
@@ -60,16 +58,14 @@ export default function ClipsScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [immersiveHold, setImmersiveHold] = useState(false);
   const [muted, setMuted] = useState(Platform.OS === "web");
   const [foreground, setForeground] = useState(AppState.currentState === "active");
   const [engagement, setEngagement] = useState<Record<string, ClipEngagementState>>({});
   const [counts, setCounts] = useState<Record<string, { likes: number; saves: number; views: number }>>({});
 
-  const visibleCategories = useMemo(() =>
-    categories.filter((category) => category.isActive && category.showInSearch).slice(0, 14),
-  [categories]);
+  const headerOpacity = useRef(new Animated.Value(1)).current;
   const feedItems = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase();
     if (!query) return clips;
@@ -84,18 +80,23 @@ export default function ClipsScreen() {
     ].some((value) => value.toLocaleLowerCase().includes(query)));
   }, [clips, searchQuery]);
   const feedWidth = width;
-  const background = dark ? "#000000" : "#FFFFFF";
   const desktop = width >= 1100;
-  const tablet = width >= 768 && !desktop;
-  const horizontalInset = desktop ? 28 : tablet ? 20 : 4;
-  const maximumPlayerWidth = desktop ? 480 : tablet ? 440 : Math.max(1, feedWidth - (horizontalInset * 2));
-  const playerWidth = Math.max(1, Math.min(
-    maximumPlayerWidth,
-    feedWidth - (horizontalInset * 2),
-    containerHeight * (9 / 16),
-  ));
-  const playerHeight = Math.max(1, Math.min(containerHeight, playerWidth * (16 / 9)));
+  const background = desktop && !dark ? "#FFFFFF" : "#000000";
+  const playerWidth = desktop
+    ? Math.max(1, Math.min(480, feedWidth - 56, containerHeight * (9 / 16)))
+    : Math.max(1, feedWidth);
+  const playerHeight = desktop
+    ? Math.max(1, Math.min(containerHeight, playerWidth * (16 / 9)))
+    : Math.max(1, containerHeight);
   const compactPlayer = playerWidth < 360 || playerHeight < 620;
+
+  useEffect(() => {
+    Animated.timing(headerOpacity, {
+      toValue: immersiveHold ? 0 : 1,
+      duration: immersiveHold ? 90 : 170,
+      useNativeDriver: Platform.OS !== "web",
+    }).start();
+  }, [headerOpacity, immersiveHold]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => setForeground(state === "active"));
@@ -138,7 +139,6 @@ export default function ClipsScreen() {
     viewedIds.current.clear();
     try {
       const page = await PublicClipService.list({
-        categoryId: selectedCategoryId,
         session: feedSession,
         pinnedClipId: clipId || null,
       });
@@ -161,7 +161,7 @@ export default function ClipsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [clipId, feedSession, hydrateEngagement, selectedCategoryId]);
+  }, [clipId, feedSession, hydrateEngagement]);
 
   useEffect(() => { void loadInitial(); }, [loadInitial]);
 
@@ -183,7 +183,6 @@ export default function ClipsScreen() {
     setLoadingMore(true);
     try {
       const page = await PublicClipService.list({
-        categoryId: selectedCategoryId,
         cursor,
         session: feedSession,
         pinnedClipId: clipId || null,
@@ -202,18 +201,12 @@ export default function ClipsScreen() {
       if (activeFeedSeed.current !== requestSeed) return;
       setLoadingMore(false);
     }
-  }, [clipId, cursor, feedSession, hasMore, hydrateEngagement, loadingMore, selectedCategoryId]);
+  }, [clipId, cursor, feedSession, hasMore, hydrateEngagement, loadingMore]);
 
   const refreshFeed = useCallback(() => {
     setRefreshing(true);
     beginNewFeedSession();
   }, [beginNewFeedSession]);
-
-  const selectCategory = useCallback((categoryId: string | null) => {
-    if (categoryId === selectedCategoryId) return;
-    setSelectedCategoryId(categoryId);
-    beginNewFeedSession();
-  }, [beginNewFeedSession, selectedCategoryId]);
 
   useEffect(() => {
     const clip = feedItems[activeIndex];
@@ -331,11 +324,20 @@ export default function ClipsScreen() {
     router.push({ pathname: "/VendorsProfile", params: { vendorId: clip.vendor.id, category: clip.vendor.categoryName } });
   }, [router]);
   const contactVendor = useCallback(async (clip: PublicClip) => {
-    const destination = clip.vendor.contactPhone
-      ? `tel:${clip.vendor.contactPhone.replace(/[^\d+]/g, "")}`
-      : clip.vendor.contactEmail ? `mailto:${clip.vendor.contactEmail}` : null;
-    if (!destination || !(await Linking.canOpenURL(destination))) return openVendor(clip);
-    await Linking.openURL(destination);
+    if (!clip.vendor.contactPhone) return openVendor(clip);
+    try {
+      await EnquiryService.trackContactAndOpen({
+        vendorId: clip.vendor.id,
+        vendorName: clip.vendor.name,
+        contactPhone: clip.vendor.contactPhone,
+        channel: "call",
+        source: "clip",
+        sourceRecordId: clip.id,
+      });
+    } catch (cause) {
+      if (cause instanceof EnquiryExternalOpenError) Alert.alert("Dialler not opened", `${cause.message} Call Click ${cause.referenceCode} is still saved.`);
+      else Alert.alert("Contact unavailable", cause instanceof Error ? cause.message : "Open the vendor profile to contact them.");
+    }
   }, [openVendor]);
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken<PublicClip>[] }) => {
@@ -345,6 +347,13 @@ export default function ClipsScreen() {
     }
   }).current;
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60, minimumViewTime: 80 }).current;
+  const handleHoldChange = useCallback((holding: boolean) => {
+    setImmersiveHold(holding);
+  }, []);
+
+  useEffect(() => {
+    setImmersiveHold(false);
+  }, [activeIndex, isFocused]);
 
   const renderItem = useCallback(({ item, index }: ListRenderItemInfo<PublicClip>) => (
     <View
@@ -369,6 +378,8 @@ export default function ClipsScreen() {
         muted={muted}
         engagement={engagement[item.id] ?? EMPTY_ENGAGEMENT}
         counts={counts[item.id] ?? { likes: item.likesCount, saves: item.savesCount, views: item.viewsCount }}
+        chromeVisible={!immersiveHold}
+        onHoldChange={handleHoldChange}
         onToggleMuted={() => setMuted((value) => !value)}
         onLike={() => void toggleLike(item)}
         onSave={() => void toggleSave(item)}
@@ -377,47 +388,42 @@ export default function ClipsScreen() {
         onContact={() => void contactVendor(item)}
       />
     </View>
-  ), [activeIndex, background, compactPlayer, contactVendor, containerHeight, counts, dark, desktop, engagement, feedWidth, foreground, isFocused, muted, openVendor, playerHeight, playerWidth, toggleLike, toggleSave]);
+  ), [activeIndex, background, compactPlayer, contactVendor, containerHeight, counts, dark, desktop, engagement, feedWidth, foreground, handleHoldChange, immersiveHold, isFocused, muted, openVendor, playerHeight, playerWidth, toggleLike, toggleSave]);
 
   return <View style={[styles.root, { backgroundColor: background }, Platform.OS === "web" ? styles.rootWeb : null]}>
-    <StatusBar style={dark ? "light" : "dark"} backgroundColor={background} translucent={false} />
-    <View style={[styles.toolbar, {
-      paddingTop: desktop ? 4 : Math.max(insets.top, 8),
-      backgroundColor: dark ? "#000000" : "#FFFFFF",
-      borderBottomColor: dark ? "#242424" : "#EFEFEF",
-    }]}>
-      <View style={[styles.toolbarInner, { maxWidth: desktop ? 560 : tablet ? 520 : feedWidth }]}>
-        {!desktop ? <View style={styles.mobileSearchRow}>
+    <StatusBar style="light" backgroundColor="transparent" translucent={!desktop} />
+    {!desktop ? <Animated.View
+      pointerEvents={immersiveHold ? "none" : "box-none"}
+      style={[styles.toolbar, { paddingTop: Math.max(insets.top, 10), opacity: headerOpacity }]}
+    >
+      <View style={[styles.toolbarInner, { maxWidth: feedWidth }]}>
+        <View style={styles.mobileSearchRow}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Go back"
             onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)")}
-            style={({ pressed }) => [
-              styles.backButton,
-              { backgroundColor: dark ? "#0E141F" : "#FFFFFF" },
-              pressed && styles.backButtonPressed,
-            ]}
+            style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
           >
-            <ChevronLeft size={18} color="#F04478" strokeWidth={2} />
+            <ChevronLeft size={22} color="#FFFFFF" strokeWidth={2.3} />
           </Pressable>
-          <CompactSearchBar
-            accessibilityLabel="Search vendors, clips and cities"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search vendors, clips, cities..."
-            dark={dark}
-            style={styles.homeSearchBar}
-          />
-        </View> : null}
-        <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chips, compactPlayer && styles.chipsCompact]}>
-          <Pressable accessibilityRole="button" accessibilityState={{ selected: selectedCategoryId === null }} onPress={() => selectCategory(null)} style={[styles.chip, { backgroundColor: dark ? "#181818" : "#F7F7F7", borderColor: dark ? "#353535" : "#E2E2E2" }, compactPlayer && styles.chipCompact, selectedCategoryId === null && styles.chipActive]}><Text style={[styles.chipText, { color: dark ? "#F6EAF0" : "#4A4A4A" }, selectedCategoryId === null && styles.chipTextActive]}>All</Text></Pressable>
-          {visibleCategories.map((category) => {
-            const selected = selectedCategoryId === category.id;
-            return <Pressable key={category.id} accessibilityRole="button" accessibilityState={{ selected }} onPress={() => selectCategory(category.id)} style={[styles.chip, { backgroundColor: dark ? "#181818" : "#F7F7F7", borderColor: dark ? "#353535" : "#E2E2E2" }, compactPlayer && styles.chipCompact, selected && styles.chipActive]}><Text style={[styles.chipText, { color: dark ? "#F6EAF0" : "#4A4A4A" }, selected && styles.chipTextActive]}>{category.name}</Text></Pressable>;
-          })}
-        </ScrollView>
+          <View style={styles.searchShell}>
+            <Search size={19} color="#FFFFFF" strokeWidth={2} />
+            <TextInput
+              accessibilityLabel="Search vendors, clips and weddings"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search clips, vendors, weddings..."
+              placeholderTextColor="rgba(255,255,255,.76)"
+              selectionColor="#FF7DA8"
+              returnKeyType="search"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+              style={styles.searchInput}
+            />
+          </View>
+        </View>
       </View>
-    </View>
+    </Animated.View> : null}
 
     <View onLayout={(event) => setContainerHeight(Math.max(1, Math.round(event.nativeEvent.layout.height)))} style={[styles.feedFrame, { width: feedWidth, backgroundColor: background }]}>
       {loading ? <FeedSkeleton dark={dark} width={playerWidth} height={playerHeight} /> : error ? <View style={[styles.state, { backgroundColor: background }]}><Clapperboard size={48} color="#E91E63" /><Text style={[styles.stateTitle, { color: dark ? "#FFF" : "#171717" }]}>Inspiration is taking a moment</Text><Text style={[styles.stateText, { color: dark ? "#CBBBC3" : "#737373" }]}>Check your connection and try again.</Text><Pressable onPress={() => void loadInitial()} style={styles.retry}><RefreshCw size={17} color="#FFF" /><Text style={styles.retryText}>Retry</Text></Pressable></View> :
@@ -447,21 +453,17 @@ export default function ClipsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, width: "100%", maxWidth: "100%", minHeight: 0, alignItems: "center", overflow: "hidden", backgroundColor: "#080608" },
   rootWeb: { maxHeight: "100dvh", overscrollBehavior: "none" } as any,
-  toolbar: { width: "100%", flexShrink: 0, alignItems: "center", backgroundColor: "#0D090C", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,.1)" },
-  toolbarInner: { width: "100%", paddingHorizontal: 12 },
-  mobileSearchRow: { width: "100%", flexDirection: "row", alignItems: "center", gap: 8 },
-  homeSearchBar: { flex: 1, minWidth: 0, height: 42 },
-  backButton: { width: 42, height: 42, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 16, borderWidth: 1, borderColor: "#F04478", shadowOpacity: 0, elevation: 0 },
+  toolbar: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, width: "100%", alignItems: "center", paddingBottom: 12 },
+  toolbarInner: { width: "100%", paddingHorizontal: 14 },
+  mobileSearchRow: { width: "100%", flexDirection: "row", alignItems: "center", gap: 10 },
+  backButton: { width: 44, height: 44, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: "rgba(7,5,7,.38)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.38)", shadowColor: "#000", shadowOpacity: 0.24, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
   backButtonPressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
-  chips: { paddingTop: 7, paddingBottom: 8, gap: 6 },
-  chipsCompact: { paddingTop: 6, paddingBottom: 7, gap: 5 },
-  chip: { height: 28, borderRadius: 14, paddingHorizontal: 11, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(35,25,30,.92)", borderWidth: 1, borderColor: "rgba(255,255,255,.18)" },
-  chipCompact: { height: 26, borderRadius: 13, paddingHorizontal: 9 },
-  chipActive: { backgroundColor: "#E91E63", borderColor: "#F8B4CF" }, chipText: { color: "#F6EAF0", fontSize: 9, fontWeight: "700" }, chipTextActive: { color: "#FFF", fontWeight: "900" },
+  searchShell: { flex: 1, minWidth: 0, height: 46, borderRadius: 23, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(7,5,7,.30)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.46)", shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  searchInput: { flex: 1, minWidth: 0, height: "100%", paddingVertical: 0, color: "#FFFFFF", fontSize: 14, fontWeight: "500", textShadowColor: "rgba(0,0,0,.4)", textShadowRadius: 4 },
   feedFrame: { flex: 1, minHeight: 0, alignSelf: "center", backgroundColor: "#080608", overflow: "hidden" },
   feed: { flex: 1, width: "100%" },
   feedWeb: { scrollSnapType: "y mandatory", overscrollBehavior: "contain", scrollbarWidth: "none" } as any,
-  page: { alignItems: "center", justifyContent: "center", overflow: "hidden", backgroundColor: "#080608" },
+  page: { flexShrink: 0, alignItems: "center", justifyContent: "center", overflow: "hidden", backgroundColor: "#080608" },
   skeletonStage: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "transparent" },
   skeleton: { overflow: "hidden", borderRadius: 18 }, skeletonVideo: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(233,30,99,.08)" },
   skeletonBottom: { position: "absolute", left: 18, right: 70, bottom: 25, flexDirection: "row", alignItems: "center" }, skeletonAvatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: "rgba(233,30,99,.24)" }, skeletonLines: { flex: 1, marginLeft: 10, gap: 7 }, skeletonLine: { height: 9, borderRadius: 5, backgroundColor: "rgba(233,30,99,.18)" },

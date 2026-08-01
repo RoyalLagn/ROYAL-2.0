@@ -13,6 +13,7 @@ import { useClipUploadQueue } from "@/clips/hooks";
 import { UploadQueuePanel } from "@/clips/components";
 import type { ClipDraftRecord, ClipUpload } from "@/clips/types";
 import { validateClipSource } from "@/clips/utils/validation";
+import PremiumRouteGate from "@/components/subscriptions/PremiumRouteGate";
 
 function Preview({ source }: { source: ClipUpload }) {
   const player = useVideoPlayer(source.uri, (instance) => { instance.loop = true; });
@@ -130,7 +131,7 @@ export default function VendorClipUpload() {
   }, [data.vendor?.id, limitFailure, retryQueueItem, router]);
 
   if (loading) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.pink} /></View>;
-  return <View style={[styles.root, { backgroundColor: colors.background }]}>
+  return <PremiumRouteGate feature="upload_clips"><View style={[styles.root, { backgroundColor: colors.background }]}>
     <VendorHeader />
     <ScrollView contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll]} keyboardShouldPersistTaps="handled">
       <View style={styles.titleRow}><Pressable onPress={() => router.back()} style={[styles.back, { backgroundColor: colors.surface }]}><ChevronLeft size={20} color={colors.text} /></Pressable><View><Text style={[styles.heading, { color: colors.text }]}>Share a Clip</Text><Text style={[styles.subheading, { color: colors.muted }]}>Choose a wedding video, add a caption and share</Text></View></View>
@@ -159,7 +160,7 @@ export default function VendorClipUpload() {
       </View>
     </ScrollView>
     <Modal visible={categoryOpen} transparent animationType="fade"><Pressable onPress={() => setCategoryOpen(false)} style={styles.backdrop}><View style={[styles.sheet, { backgroundColor: colors.surface }]}><View style={styles.sheetHead}><Text style={[styles.heading2, { color: colors.text }]}>Choose category</Text><Pressable onPress={() => setCategoryOpen(false)}><X color={colors.text} /></Pressable></View><ScrollView>{categories.map((category) => <Pressable key={category.id} onPress={() => { setCategoryId(category.id); setCategoryOpen(false); }} style={[styles.category, { borderBottomColor: colors.border }]}><Text style={{ color: colors.text }}>{category.name}</Text></Pressable>)}</ScrollView></View></Pressable></Modal>
-  </View>;
+  </View></PremiumRouteGate>;
 }
 
 const styles = StyleSheet.create({

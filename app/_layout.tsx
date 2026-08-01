@@ -16,6 +16,9 @@ import { AdminAuthProvider } from '@/context/AdminAuthContext';
 import { AdminRouteGuard } from '@/components/auth/AdminRouteGuard';
 import { ResponsiveLayoutProvider } from '@/context/ResponsiveLayoutContext';
 import { CategoryProvider } from '@/context/CategoryContext';
+import { SubscriptionProvider } from '@/context/SubscriptionContext';
+import { VendorNotificationProvider } from '@/context/VendorNotificationContext';
+import { AdminWorkspaceShell } from '@/components/admin/AdminWorkspaceShell';
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
@@ -59,43 +62,49 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <PublicAuthProvider>
-        <CategoryProvider>
-        <AdminAuthProvider>
-        <NotificationProvider>
-          <VendorSessionProvider>
-            <FavoritesProvider>
-              <ReviewRatingsProvider>
-                <LocationProvider>
-                <ThemeProvider>
-                  <SafeAreaProvider>
-                    <ResponsiveLayoutProvider>
-                    <StatusBar style="dark" backgroundColor="#FFFFFF" translucent={false} />
-                    <View className="bg-background" style={styles.app}>
-                      <View style={styles.stack}>
-                        <AdminRouteGuard>
-                          <Stack screenOptions={{ headerShown: false }} />
-                        </AdminRouteGuard>
-                      </View>
-                      <VendorBottomNav />
-                    </View>
-                    </ResponsiveLayoutProvider>
-                  </SafeAreaProvider>
-                </ThemeProvider>
-                </LocationProvider>
-              </ReviewRatingsProvider>
-            </FavoritesProvider>
-          </VendorSessionProvider>
-        </NotificationProvider>
-        </AdminAuthProvider>
-        </CategoryProvider>
-      </PublicAuthProvider>
+          <CategoryProvider>
+            <AdminAuthProvider>
+              <NotificationProvider>
+                <VendorSessionProvider>
+                  <VendorNotificationProvider>
+                    <SubscriptionProvider>
+                      <FavoritesProvider>
+                        <ReviewRatingsProvider>
+                          <LocationProvider>
+                            <ThemeProvider>
+                              <SafeAreaProvider>
+                                <ResponsiveLayoutProvider>
+                                  <StatusBar style="dark" backgroundColor="#FFFFFF" translucent={false} />
+                                  <View className="bg-background" style={styles.app}>
+                                    <AdminWorkspaceShell>
+                                      <View style={styles.stack}>
+                                        <AdminRouteGuard>
+                                          <Stack screenOptions={{ headerShown: false }} />
+                                        </AdminRouteGuard>
+                                      </View>
+                                    </AdminWorkspaceShell>
+                                    <VendorBottomNav />
+                                  </View>
+                                </ResponsiveLayoutProvider>
+                              </SafeAreaProvider>
+                            </ThemeProvider>
+                          </LocationProvider>
+                        </ReviewRatingsProvider>
+                      </FavoritesProvider>
+                    </SubscriptionProvider>
+                  </VendorNotificationProvider>
+                </VendorSessionProvider>
+              </NotificationProvider>
+            </AdminAuthProvider>
+          </CategoryProvider>
+        </PublicAuthProvider>
     </ErrorBoundary>
   );
 }
 
 const styles = StyleSheet.create({
   app: { flex: 1 },
-  stack: { flex: 1, minHeight: 0 },
+  stack: { flex: 1, minHeight: 0, zIndex: 0 },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',

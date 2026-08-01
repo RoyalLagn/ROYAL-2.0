@@ -47,6 +47,11 @@ Deno.serve(async (request) => {
     const { data: album } = await supabase
       .from("vendor_portfolio_albums").select("id,media_count").eq("id", albumId).eq("vendor_id", vendorId).maybeSingle();
     if (!vendor || !album) throw new Error("Vendor album not found");
+    const { error: accessError } = await supabase.rpc("require_vendor_feature_access", {
+      target_vendor_id: vendorId,
+      requested_feature_key: "upload_gallery",
+    });
+    if (accessError) throw accessError;
     const { count, error: countError } = await supabase
       .from("vendor_portfolio_media").select("id", { count: "exact", head: true }).eq("album_id", albumId);
     if (countError) throw countError;

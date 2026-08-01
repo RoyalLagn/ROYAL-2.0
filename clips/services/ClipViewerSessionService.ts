@@ -53,6 +53,7 @@ async function getRecentlyViewed(): Promise<Record<string, RecentClipWatch>> {
 }
 
 export const ClipViewerSessionService = {
+  clearLocalState: () => AsyncStorage.multiRemove([VIEWER_SESSION_KEY, RECENTLY_VIEWED_KEY]),
   createFeedSession(): PublicClipFeedSession {
     return {
       seed: randomId(),

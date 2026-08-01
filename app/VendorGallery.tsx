@@ -12,6 +12,7 @@ import { deletePortfolioMedia, deleteUnstoredPortfolioAsset, pickPortfolioMedia,
 import { supabase } from "@/services/supabase";
 import PortfolioVideoPlayer from "@/components/vendor/PortfolioVideoPlayer";
 import { portfolioAssetFingerprint, portfolioMediaUrl, PORTFOLIO_LIMITS, replaceHeroMedia, updateMediaFocalPoint } from "@/services/vendorPortfolio";
+import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 
 export default function VendorGallery() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function VendorGallery() {
   const insets = useSafeAreaInsets();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const { requireFeature } = useSubscriptionAccess();
   const { data, loading, error, portfolioError, refresh } = useVendorWorkspace();
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [albumModal, setAlbumModal] = useState(false);
@@ -91,6 +93,7 @@ export default function VendorGallery() {
   }, [readyHeroImages, heroDraft]);
 
   const toggleHeroImage = (mediaId: string) => {
+    if (!requireFeature("upload_gallery")) return;
     setHeroDraft((current) => {
       if (current.includes(mediaId)) return current.filter((id) => id !== mediaId);
       if (current.length >= PORTFOLIO_LIMITS.heroMax) {
@@ -101,6 +104,7 @@ export default function VendorGallery() {
     });
   };
   const moveHeroImage = (mediaId: string, direction: -1 | 1) => {
+    if (!requireFeature("upload_gallery")) return;
     setHeroDraft((current) => {
       const next = [...current];
       const index = next.indexOf(mediaId);
@@ -111,6 +115,7 @@ export default function VendorGallery() {
     });
   };
   const saveHeroGallery = async () => {
+    if (!requireFeature("upload_gallery")) return;
     if (!data.vendor?.id) return;
     if (heroDraft.length > 0 && heroDraft.length < requiredHeroCount) {
       return Alert.alert(
@@ -131,6 +136,7 @@ export default function VendorGallery() {
   };
 
   const openAlbum = (album?: any) => {
+    if (!requireFeature("manage_albums")) return;
     if (!album && data.albums.length >= PORTFOLIO_LIMITS.albums) {
       Alert.alert("Album limit reached", "You can create up to 5 portfolio albums. Edit an existing album or delete one before creating another.");
       return;
@@ -142,6 +148,7 @@ export default function VendorGallery() {
     setAlbumModal(true);
   };
   const saveAlbum = async (addMediaAfterSave = false) => {
+    if (!requireFeature("manage_albums")) return;
     if (!data.vendor?.id) return Alert.alert("Vendor profile required", "Connect your Vendor profile before creating albums.");
     if (!title.trim()) return Alert.alert("Album title required");
     if (!editingAlbum && data.albums.length >= PORTFOLIO_LIMITS.albums) {
@@ -165,6 +172,7 @@ export default function VendorGallery() {
     }
   };
   const deleteAlbumAndMedia = async (album: any) => {
+    if (!requireFeature("manage_albums")) return;
     setDeletingAlbumId(album.id);
     try {
       const albumMedia = data.media.filter((item) => item.album_id === album.id);
@@ -182,6 +190,7 @@ export default function VendorGallery() {
     }
   };
   const removeAlbum = (album: any) => {
+    if (!requireFeature("manage_albums")) return;
     const albumMedia = data.media.filter((item) => item.album_id === album.id);
     if (!albumMedia.length) {
       return Alert.alert("Delete empty album?", "This cannot be undone.", [
@@ -203,6 +212,7 @@ export default function VendorGallery() {
     Alert.alert("Album contains media", "Move its media to another album, or permanently delete the album and every asset inside it.", actions);
   };
   const moveMediaToAlbum = async (item: any, target: any) => {
+    if (!requireFeature("manage_albums")) return;
     const targetCount = data.media.filter((entry) => entry.album_id === target.id).length;
     if (targetCount >= PORTFOLIO_LIMITS.mediaPerAlbum) return Alert.alert("Album is full", "Choose an album with available space.");
     const { error: moveError } = await supabase.from("vendor_portfolio_media")
@@ -215,6 +225,7 @@ export default function VendorGallery() {
     await refresh();
   };
   const moveAlbumMediaTo = async (target: any) => {
+    if (!requireFeature("manage_albums")) return;
     if (!moveAlbumSource) return;
     const sourceItems = data.media.filter((item) => item.album_id === moveAlbumSource.id);
     const targetCount = data.media.filter((item) => item.album_id === target.id).length;
@@ -247,6 +258,7 @@ export default function VendorGallery() {
     targetAlbumTitle = activeAlbum?.title ?? "",
     currentMediaCount = media.length,
   ) => {
+    if (!requireFeature("upload_gallery")) return;
     if (!data.vendor?.id || !targetAlbumId) return Alert.alert("Create an album first", "Portfolio media must belong to an album.");
     const targetRemaining = Math.max(0, PORTFOLIO_LIMITS.mediaPerAlbum - currentMediaCount);
     if (!targetRemaining) return Alert.alert("Album is full", "Each album can hold 15 photos or videos. Create another album to upload more.");
@@ -285,6 +297,7 @@ export default function VendorGallery() {
     }
   };
   const uploadOne = async (asset: PortfolioAsset, index: number) => {
+    if (!requireFeature("upload_gallery")) return false;
     if (!data.vendor?.id || !uploadAlbumId) return false;
     const key = `${asset.uri}-${index}`;
     const name = asset.fileName || `${asset.type === "video" ? "Video" : "Image"} ${index + 1}`;
@@ -320,6 +333,7 @@ export default function VendorGallery() {
     }
   };
   const upload = async () => {
+    if (!requireFeature("upload_gallery")) return;
     const pending = pendingAssets
       .map((asset, index) => ({ asset, index, task: uploadProgress[`${asset.uri}-${index}`] }))
       .filter(({ task }) => !task || task.status === "waiting" || task.status === "failed");
@@ -343,6 +357,7 @@ export default function VendorGallery() {
     if (!next.length) setUploadModal(false);
   };
   const setCover = async (item: any) => {
+    if (!requireFeature("manage_albums")) return;
     const { error: coverError } = await supabase.from("vendor_portfolio_media").update({ is_cover: true }).eq("id", item.id).eq("vendor_id", data.vendor?.id);
     if (coverError) return showFailure("Cover not updated", coverError);
     const { error: unsetError } = await supabase.from("vendor_portfolio_media").update({ is_cover: false }).eq("album_id", item.album_id).neq("id", item.id);
@@ -350,6 +365,7 @@ export default function VendorGallery() {
     await refresh();
   };
   const reorderMedia = async (item: any, direction: -1 | 1) => {
+    if (!requireFeature("manage_albums")) return;
     const ordered = [...media].sort((a, b) => a.display_order - b.display_order);
     const index = ordered.findIndex((entry) => entry.id === item.id);
     const swap = ordered[index + direction];
@@ -364,6 +380,7 @@ export default function VendorGallery() {
     } else refresh();
   };
   const reorderAlbum = async (direction: -1 | 1) => {
+    if (!requireFeature("manage_albums")) return;
     if (!activeAlbum) return;
     const ordered = [...data.albums].sort((a, b) => a.display_order - b.display_order);
     const index = ordered.findIndex((entry) => entry.id === activeAlbum.id);
@@ -378,25 +395,28 @@ export default function VendorGallery() {
       showFailure("Album order not updated", orderError);
     } else refresh();
   };
-  const removeMedia = (item: any) => Alert.alert(
-    "Delete media?",
-    `${heroDraft.includes(item.id) ? "This image is selected for the public hero gallery and will be removed from it. " : ""}This removes the Cloudinary asset and cannot be undone.`,
-    [
-    { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: async () => {
-      try {
-        await deletePortfolioMedia(item.id);
-        if (item.is_cover) {
-          const nextCover = media.find((entry) => entry.id !== item.id);
-          if (nextCover) await supabase.from("vendor_portfolio_media").update({ is_cover: true }).eq("id", nextCover.id).eq("vendor_id", data.vendor?.id);
-        }
-        setPreview(null);
-        await refresh();
-      }
-      catch (caught) { showFailure("Media not deleted", caught, "Nothing was removed. Please check your connection and try again."); }
-    }},
-    ],
-  );
+  const removeMedia = (item: any) => {
+    if (!requireFeature("manage_albums")) return;
+    Alert.alert(
+      "Delete media?",
+      `${heroDraft.includes(item.id) ? "This image is selected for the public hero gallery and will be removed from it. " : ""}This removes the Cloudinary asset and cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: async () => {
+          try {
+            await deletePortfolioMedia(item.id);
+            if (item.is_cover) {
+              const nextCover = media.find((entry) => entry.id !== item.id);
+              if (nextCover) await supabase.from("vendor_portfolio_media").update({ is_cover: true }).eq("id", nextCover.id).eq("vendor_id", data.vendor?.id);
+            }
+            setPreview(null);
+            await refresh();
+          }
+          catch (caught) { showFailure("Media not deleted", caught, "Nothing was removed. Please check your connection and try again."); }
+        }},
+      ],
+    );
+  };
 
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
@@ -580,7 +600,7 @@ export default function VendorGallery() {
         </View> : null}
         <View style={styles.heroActions}>
           <Pressable
-            onPress={() => setHeroDraft([])}
+            onPress={() => requireFeature("upload_gallery", () => setHeroDraft([]))}
             style={({ pressed }) => [styles.heroAutomatic, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressLift]}
           ><Sparkles size={17} color={colors.text} /><Text style={[styles.heroAutomaticText, { color: colors.text }]}>Use automatic</Text></Pressable>
           <Pressable disabled={savingHero} onPress={saveHeroGallery} style={({ pressed }) => [styles.heroSave, { backgroundColor: colors.pink, shadowColor: colors.shadow }, pressed && styles.pressLift]}>
@@ -856,9 +876,9 @@ export default function VendorGallery() {
         {preview && <View style={styles.previewActions}>
           <Pressable accessibilityLabel="Move media earlier" onPress={() => reorderMedia(preview, -1)} style={styles.previewButton}><Text style={styles.previewText}>← Earlier</Text></Pressable>
           <Pressable accessibilityLabel="Move media later" onPress={() => reorderMedia(preview, 1)} style={styles.previewButton}><Text style={styles.previewText}>Later →</Text></Pressable>
-          {data.albums.length > 1 && <Pressable onPress={() => setMoveMediaItem(preview)} style={styles.previewButton}><Move size={17} color="#FFF" /><Text style={styles.previewText}>Move</Text></Pressable>}
+          {data.albums.length > 1 && <Pressable onPress={() => requireFeature("manage_albums", () => setMoveMediaItem(preview))} style={styles.previewButton}><Move size={17} color="#FFF" /><Text style={styles.previewText}>Move</Text></Pressable>}
           {!preview.is_cover && <Pressable onPress={() => { setCover(preview); setPreview(null); }} style={styles.previewButton}><Star size={17} color="#FFF" /><Text style={styles.previewText}>Set cover</Text></Pressable>}
-          {preview.resource_type === "image" && <Pressable onPress={() => { setFocalMedia(preview); setPreview(null); }} style={styles.previewButton}><Crosshair size={17} color="#FFF" /><Text style={styles.previewText}>Focal point</Text></Pressable>}
+          {preview.resource_type === "image" && <Pressable onPress={() => requireFeature("upload_gallery", () => { setFocalMedia(preview); setPreview(null); })} style={styles.previewButton}><Crosshair size={17} color="#FFF" /><Text style={styles.previewText}>Focal point</Text></Pressable>}
           <Pressable onPress={() => removeMedia(preview)} style={styles.previewButton}><Trash2 size={17} color="#FFF" /><Text style={styles.previewText}>Delete</Text></Pressable>
         </View>}
       </View>
@@ -874,6 +894,7 @@ export default function VendorGallery() {
           accessibilityLabel="Choose image focal point"
           onLayout={(event) => setFocalFrame(event.nativeEvent.layout)}
           onPress={async (event) => {
+            if (!requireFeature("upload_gallery")) return;
             const x = event.nativeEvent.locationX / focalFrame.width;
             const y = event.nativeEvent.locationY / focalFrame.height;
             try {

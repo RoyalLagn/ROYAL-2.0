@@ -5,6 +5,7 @@ import { Bell, Crown, MessageSquareText } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/ThemeProvider";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
+import { useVendorNotifications } from "@/context/VendorNotificationContext";
 import { vendorTheme } from "./VendorTheme";
 
 const desktopNav = [
@@ -15,13 +16,15 @@ const desktopNav = [
   { label: "Profile", route: "/Vendors_dash_profile" },
 ] as const;
 
-export default function VendorHeader({ unread = 0 }: { unread?: number }) {
+export default function VendorHeader(_props: { unread?: number }) {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
+  const { unreadCount } = useVendorNotifications();
   const colors = vendorTheme[colorScheme];
+  const unread = unreadCount;
   const desktop = Platform.OS === "web" && width >= 900;
   const normalizedPath = pathname.toLowerCase();
   const activeRoute = normalizedPath.startsWith("/vendorclip")

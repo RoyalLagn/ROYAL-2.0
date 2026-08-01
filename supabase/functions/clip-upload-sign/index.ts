@@ -49,6 +49,11 @@ Deno.serve(async (request) => {
     const { data: vendor } = await supabase.from("vendors").select("id")
       .eq("id", vendorId).eq("profile_id", user.id).eq("is_verified", true).maybeSingle();
     if (!vendor) throw new Error("Approved Vendor access required");
+    const { error: accessError } = await supabase.rpc("require_vendor_feature_access", {
+      target_vendor_id: vendorId,
+      requested_feature_key: "upload_clips",
+    });
+    if (accessError) throw accessError;
     console.log(`[CLIP-DEBUG][${uploadId}] EDGE_VENDOR_AUTH DONE`, { requestId, vendorId, clipId, kind });
 
     const resourceType = kind === "video" ? "video" : "image";

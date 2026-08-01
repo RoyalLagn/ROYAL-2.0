@@ -17,8 +17,10 @@ type PublicClipCardProps = {
   active: boolean;
   nearby: boolean;
   muted: boolean;
+  chromeVisible: boolean;
   engagement: ClipEngagementState;
   counts: { likes: number; saves: number; views: number };
+  onHoldChange: (holding: boolean) => void;
   onToggleMuted: () => void;
   onLike: () => void;
   onSave: () => void;
@@ -29,7 +31,7 @@ type PublicClipCardProps = {
 
 function PublicClipCardComponent({
   clip, width, height, compact, desktop, dark, active, nearby, muted, engagement, counts,
-  onToggleMuted, onLike, onSave, onShare, onVendor, onContact,
+  chromeVisible, onHoldChange, onToggleMuted, onLike, onSave, onShare, onVendor, onContact,
 }: PublicClipCardProps) {
   const [captionExpanded, setCaptionExpanded] = useState(false);
   const contentOpacity = useSharedValue(active ? 1 : 0);
@@ -37,6 +39,11 @@ function PublicClipCardComponent({
     contentOpacity.value = withTiming(active ? 1 : 0.45, { duration: 220 });
   }, [active, contentOpacity]);
   const contentStyle = useAnimatedStyle(() => ({ opacity: contentOpacity.value }));
+  const chromeOpacity = useSharedValue(chromeVisible ? 1 : 0);
+  useEffect(() => {
+    chromeOpacity.value = withTiming(chromeVisible ? 1 : 0, { duration: chromeVisible ? 170 : 90 });
+  }, [chromeOpacity, chromeVisible]);
+  const chromeStyle = useAnimatedStyle(() => ({ opacity: chromeOpacity.value }));
   const caption = useMemo(() => clip.caption?.trim() ?? "", [clip.caption]);
   const longCaption = caption.length > 112;
   const foreground = desktop && !dark ? "#171717" : "#FFFFFF";
@@ -95,7 +102,7 @@ function PublicClipCardComponent({
   );
 
   const video = (
-    <View style={[styles.card, compact && styles.cardCompact, { width, height }, Platform.OS === "web" ? styles.cardWeb : null]}>
+    <View style={[styles.card, !desktop && styles.cardMobile, compact && desktop && styles.cardCompact, { width, height }, desktop && Platform.OS === "web" ? styles.cardWeb : null]}>
       {nearby
         ? <PublicClipVideo
           uri={clip.videoUrl}
@@ -105,18 +112,23 @@ function PublicClipCardComponent({
           active={active}
           muted={muted}
           onToggleMuted={onToggleMuted}
+          onHoldChange={desktop ? undefined : onHoldChange}
+          showMuteControl={desktop || chromeVisible}
           onDoubleTapLike={() => {
             if (!engagement.liked) onLike();
           }}
         />
         : <Image source={{ uri: clip.thumbnailUrl }} resizeMode="cover" style={StyleSheet.absoluteFill} />}
-      {!desktop ? <LinearGradient
-        pointerEvents="none"
-        colors={["rgba(4,3,4,.04)", "rgba(4,3,4,.02)", "rgba(4,3,4,.24)", "rgba(4,3,4,.94)"]}
-        locations={[0, 0.42, 0.68, 1]}
-        style={StyleSheet.absoluteFill}
-      /> : null}
-      {!desktop ? <>
+      {!desktop ? <Animated.View
+        pointerEvents={chromeVisible ? "box-none" : "none"}
+        style={[StyleSheet.absoluteFill, chromeStyle]}
+      >
+        <LinearGradient
+          pointerEvents="none"
+          colors={["rgba(4,3,4,.02)", "rgba(4,3,4,.02)", "rgba(4,3,4,.5)", "rgba(4,3,4,.96)", "#040304"]}
+          locations={[0, 0.54, 0.76, 0.9, 1]}
+          style={StyleSheet.absoluteFill}
+        />
         <PublicClipActions
           avatarUrl={clip.vendor.avatarUrl}
           vendorName={clip.vendor.name}
@@ -136,7 +148,7 @@ function PublicClipCardComponent({
           {clip.hashtags.length > 0 && <Text numberOfLines={1} style={styles.hashtags}>{clip.hashtags.join("  ")}</Text>}
           {contactButton}
         </Animated.View>
-      </> : null}
+      </Animated.View> : null}
     </View>
   );
 
@@ -184,6 +196,7 @@ export const PublicClipCard = React.memo(
     && previous.active === next.active
     && previous.nearby === next.nearby
     && previous.muted === next.muted
+    && previous.chromeVisible === next.chromeVisible
     && previous.engagement.liked === next.engagement.liked
     && previous.engagement.saved === next.engagement.saved
     && previous.counts.likes === next.counts.likes
@@ -197,6 +210,7 @@ const styles = StyleSheet.create({
   desktopActionSide: { width: 240, height: "100%", alignItems: "flex-start", justifyContent: "flex-end", paddingBottom: 20 },
   desktopInfoContent: { width: "100%", paddingHorizontal: 8 },
   card: { flexShrink: 0, borderRadius: 20, backgroundColor: "#080608", overflow: "hidden", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.16)" },
+  cardMobile: { borderRadius: 0, borderWidth: 0 },
   cardCompact: { borderRadius: 16 },
   cardWeb: { boxShadow: "0 18px 50px rgba(0,0,0,.34)" } as any,
   info: { position: "absolute", left: 15, right: 76, bottom: 18, zIndex: 3 },

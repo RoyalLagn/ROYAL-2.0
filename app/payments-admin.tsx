@@ -1,364 +1,47 @@
-import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import {
-  Menu,
-  Bell,
-  ChevronDown,
-  Filter,
-  Wallet,
-  XCircle,
-  RotateCcw,
-  CheckCircle,
-  ChevronRight,
-  Download,
-} from "lucide-react-native";
+import { useFocusEffect } from "expo-router";
+import { CircleCheck, CircleX, CreditCard, ReceiptText, RefreshCw, RotateCcw, Search } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
-import RoyalLagnLogo from "@/components/RoyalLagnLogo";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { PaginationBar } from "@/components/admin/ui/PaginationBar";
+import { SubscriptionAdminService } from "@/subscriptions/services/SubscriptionAdminService";
+import { formatSubscriptionPrice, subscriptionStatusLabel } from "@/subscriptions/utils";
 
-type PaymentStat = {
-  id: string;
-  title: string;
-  amount: string;
-  transactions: string;
-  icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
-};
-
-type Transaction = {
-  id: string;
-  vendorName: string;
-  avatar: string;
-  plan: string;
-  amount: string;
-  status: "Success" | "Failed" | "Refunded";
-  date: string;
-  time: string;
-};
-
-const paymentStats: PaymentStat[] = [
-  {
-    id: "received",
-    title: "Received Payments",
-    amount: "₹18,72,950",
-    transactions: "128 Transactions",
-    icon: Wallet,
-    iconBg: "#D1FAE5",
-    iconColor: "#10B981",
-  },
-  {
-    id: "failed",
-    title: "Failed Payments",
-    amount: "₹1,25,300",
-    transactions: "14 Transactions",
-    icon: XCircle,
-    iconBg: "#FEE2E2",
-    iconColor: "#EF4444",
-  },
-  {
-    id: "refunds",
-    title: "Refunds",
-    amount: "₹95,450",
-    transactions: "8 Transactions",
-    icon: RotateCcw,
-    iconBg: "#FEF3C7",
-    iconColor: "#F59E0B",
-  },
-];
-
-const transactions: Transaction[] = [
-  {
-    id: "1",
-    vendorName: "Magic Moments Photography",
-    avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop",
-    plan: "Premium Plan • 1 Year",
-    amount: "₹4,990",
-    status: "Success",
-    date: "20 May 2025",
-    time: "11:30 AM",
-  },
-  {
-    id: "2",
-    vendorName: "Dream Decorators",
-    avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop",
-    plan: "Standard Plan • 1 Month",
-    amount: "₹299",
-    status: "Success",
-    date: "20 May 2025",
-    time: "10:15 AM",
-  },
-  {
-    id: "3",
-    vendorName: "Royal Caterers",
-    avatar:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-    plan: "Premium Plan • 1 Year",
-    amount: "₹4,990",
-    status: "Failed",
-    date: "20 May 2025",
-    time: "09:45 AM",
-  },
-  {
-    id: "4",
-    vendorName: "Perfect Clicks",
-    avatar:
-      "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop",
-    plan: "Standard Plan • 1 Month",
-    amount: "₹299",
-    status: "Success",
-    date: "19 May 2025",
-    time: "04:20 PM",
-  },
-  {
-    id: "5",
-    vendorName: "Elegant Events",
-    avatar:
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop",
-    plan: "Premium Plan • 1 Year",
-    amount: "₹4,990",
-    status: "Refunded",
-    date: "19 May 2025",
-    time: "02:10 PM",
-  },
-  {
-    id: "6",
-    vendorName: "Beat Masters DJs",
-    avatar:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop",
-    plan: "Standard Plan • 1 Month",
-    amount: "₹299",
-    status: "Success",
-    date: "19 May 2025",
-    time: "12:05 PM",
-  },
-  {
-    id: "7",
-    vendorName: "Glam Touch Makeup",
-    avatar:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
-    plan: "Premium Plan • 1 Year",
-    amount: "₹4,990",
-    status: "Failed",
-    date: "19 May 2025",
-    time: "11:00 AM",
-  },
-  {
-    id: "8",
-    vendorName: "Shubh Wedding Venue",
-    avatar:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=100&h=100&fit=crop",
-    plan: "Premium Plan • 1 Year",
-    amount: "₹4,990",
-    status: "Success",
-    date: "18 May 2025",
-    time: "06:30 PM",
-  },
-  {
-    id: "9",
-    vendorName: "Vintage Photography",
-    avatar:
-      "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=100&h=100&fit=crop",
-    plan: "Standard Plan • 1 Month",
-    amount: "₹299",
-    status: "Refunded",
-    date: "18 May 2025",
-    time: "03:25 PM",
-  },
-  {
-    id: "10",
-    vendorName: "Food Fiesta Caterers",
-    avatar:
-      "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=100&h=100&fit=crop",
-    plan: "Standard Plan • 1 Month",
-    amount: "₹299",
-    status: "Success",
-    date: "18 May 2025",
-    time: "01:10 PM",
-  },
-];
-
+const pink = "#E91E63";
 export default function PaymentsAdmin() {
-  const router = useRouter();
-  const showPlaceholder = (title: string) =>
-    Alert.alert(title, `${title} is available as a local frontend placeholder.`);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Success":
-        return "text-emerald-500";
-      case "Failed":
-        return "text-red-500";
-      case "Refunded":
-        return "text-amber-500";
-      default:
-        return "text-muted-foreground";
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "Success":
-        return <CheckCircle size={18} color="#10B981" />;
-      case "Failed":
-        return <XCircle size={18} color="#EF4444" />;
-      case "Refunded":
-        return <RotateCcw size={18} color="#F59E0B" />;
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <SafeAreaView
-      className="flex-1 bg-background"
-      edges={["top", "left", "right"]}
-    >
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View className="relative flex-row items-center justify-between px-6 py-4">
-          <TouchableOpacity className="p-2 -ml-2" onPress={() => router.push("/admin-dash-logout")}>
-            <Menu size={24} className="text-foreground" />
-          </TouchableOpacity>
-          <View pointerEvents="none" style={{ position: "absolute", left: "50%", width: 160, height: 44, marginLeft: -80 }}>
-            <RoyalLagnLogo width={160} height={44} />
-          </View>
-          <TouchableOpacity className="p-2 -mr-2 relative" onPress={() => showPlaceholder("Payment Notifications")}>
-            <Bell size={24} className="text-foreground" />
-            <View className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Title Section */}
-        <View className="px-6 mb-4">
-          <Text className="text-2xl font-bold text-foreground">Payments</Text>
-          <Text className="text-muted-foreground text-sm">
-            Track all payments and transactions
-          </Text>
-        </View>
-
-        {/* Date Filters */}
-        <View className="px-6 mb-6">
-          <View className="flex-row items-center gap-2">
-            <TouchableOpacity className="flex-row items-center bg-card border border-border rounded-lg px-3 py-2" onPress={() => showPlaceholder("Select Day")}>
-              <Text className="text-foreground text-sm mr-2">20</Text>
-              <ChevronDown size={14} className="text-foreground" />
-            </TouchableOpacity>
-            <TouchableOpacity className="flex-row items-center bg-card border border-border rounded-lg px-3 py-2" onPress={() => showPlaceholder("Select Month")}>
-              <Text className="text-foreground text-sm mr-2">May</Text>
-              <ChevronDown size={14} className="text-foreground" />
-            </TouchableOpacity>
-            <TouchableOpacity className="flex-row items-center bg-card border border-border rounded-lg px-3 py-2" onPress={() => showPlaceholder("Select Year")}>
-              <Text className="text-foreground text-sm mr-2">2025</Text>
-              <ChevronDown size={14} className="text-foreground" />
-            </TouchableOpacity>
-            <TouchableOpacity className="w-10 h-10 bg-primary rounded-lg items-center justify-center ml-auto" onPress={() => showPlaceholder("Apply Payment Filters")}>
-              <Filter size={18} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Payment Stats Cards */}
-        <View className="px-6 mb-6">
-          <View className="gap-3">
-            {paymentStats.map((stat) => {
-              const Icon = stat.icon;
-              return (
-                <View
-                  key={stat.id}
-                  className="flex-row items-center bg-card rounded-xl p-4 border border-border"
-                >
-                  <View
-                    className="w-12 h-12 rounded-xl items-center justify-center mr-4"
-                    style={{ backgroundColor: stat.iconBg }}
-                  >
-                    <Icon size={24} color={stat.iconColor} />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-muted-foreground text-xs mb-0.5">
-                      {stat.title}
-                    </Text>
-                    <Text className="text-foreground text-xl font-bold">
-                      {stat.amount}
-                    </Text>
-                    <Text className="text-muted-foreground text-xs">
-                      {stat.transactions}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* All Transactions */}
-        <View className="px-6 mb-6">
-          <Text className="text-foreground font-semibold text-base mb-4">
-            All Transactions
-          </Text>
-
-          <View className="bg-card rounded-2xl border border-border overflow-hidden">
-            {transactions.map((transaction, index) => (
-              <TouchableOpacity
-                key={transaction.id}
-                className={`flex-row items-center p-4 ${
-                  index !== transactions.length - 1
-                    ? "border-b border-border"
-                    : ""
-                }`}
-                onPress={() => Alert.alert("Transaction Details", `${transaction.vendorName}\n${transaction.amount}\n${transaction.status}`)}
-              >
-                <View className="mr-3">
-                  {getStatusIcon(transaction.status)}
-                </View>
-                <View className="flex-1">
-                  <Text className="text-foreground font-medium text-sm">
-                    {transaction.vendorName}
-                  </Text>
-                  <Text className="text-muted-foreground text-xs">
-                    {transaction.plan}
-                  </Text>
-                </View>
-                <View className="items-end">
-                  <Text className="text-foreground font-semibold text-sm">
-                    {transaction.amount}
-                  </Text>
-                  <Text
-                    className={getStatusColor(transaction.status) + " text-xs"}
-                  >
-                    {transaction.status}
-                  </Text>
-                  <Text className="text-muted-foreground text-[10px] mt-0.5">
-                    {transaction.date} • {transaction.time}
-                  </Text>
-                </View>
-                <ChevronRight
-                  size={16}
-                  className="text-muted-foreground ml-2"
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Download Report Button */}
-        <View className="px-6 mb-6">
-          <TouchableOpacity className="flex-row items-center justify-center bg-card border border-primary rounded-xl py-3" onPress={() => showPlaceholder("Download Payment Report")}>
-            <Download size={18} color="#E91E63" />
-            <Text className="text-primary font-medium text-sm ml-2">
-              Download Report
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-
-      <AdminFooter activeTab="payments" />
-    </SafeAreaView>
-  );
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const load = useCallback(async () => { setLoading(true); setError(null); try { setPayments(await SubscriptionAdminService.listPayments()); } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to load payments."); } finally { setLoading(false); } }, []);
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
+  const filtered = useMemo(() => payments.filter((payment) => {
+    const matchesStatus = filter === "all" || payment.payment_status === filter;
+    const haystack = `${payment.vendors?.business_name || ""} ${payment.razorpay_order_id || ""} ${payment.razorpay_payment_id || ""}`.toLowerCase();
+    return matchesStatus && haystack.includes(search.trim().toLowerCase());
+  }), [filter, payments, search]);
+  const pages = Math.max(1, Math.ceil(filtered.length / 20));
+  const currentPage = Math.min(page, pages);
+  const visible = filtered.slice((currentPage - 1) * 20, currentPage * 20);
+  const total = (statuses: string[]) => payments.filter((payment) => statuses.includes(payment.payment_status)).reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const stats = [
+    { label: "Verified revenue", value: total(["verified"]), count: payments.filter((p) => p.payment_status === "verified").length, icon: CircleCheck, tint: "#11875D" },
+    { label: "Failed", value: total(["failed"]), count: payments.filter((p) => p.payment_status === "failed").length, icon: CircleX, tint: "#D33B55" },
+    { label: "Refunded", value: total(["refunded","partially_refunded"]), count: payments.filter((p) => ["refunded","partially_refunded"].includes(p.payment_status)).length, icon: RotateCcw, tint: "#B76A00" },
+  ];
+  return <SafeAreaView style={styles.page} edges={["top","left","right"]}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <AdminPageHeader title="Payments" subtitle="Verified Razorpay orders, captures, failures and refunds" action={<Pressable accessibilityLabel="Refresh payments" onPress={() => void load()} style={styles.headerButton}><RefreshCw size={19} color={pink} /></Pressable>} />
+    <View style={styles.stats}>{stats.map(({ label, value, count, icon: Icon, tint }) => <View key={label} style={styles.stat}><View style={[styles.statIcon, { backgroundColor: `${tint}15` }]}><Icon size={20} color={tint} /></View><Text style={styles.statValue}>{formatSubscriptionPrice(value)}</Text><Text style={styles.statLabel}>{label} · {count}</Text></View>)}</View>
+    <View style={styles.searchBox}><Search size={17} color="#887A81" /><TextInput value={search} onChangeText={(value) => { setSearch(value); setPage(1); }} placeholder="Vendor, order ID or payment ID" style={styles.input} /></View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{["all","verified","pending","captured","failed","refunded"].map((item) => <Pressable key={item} onPress={() => { setFilter(item); setPage(1); }} style={[styles.filter, filter === item && styles.filterActive]}><Text style={[styles.filterText, filter === item && styles.filterTextActive]}>{subscriptionStatusLabel(item as any)}</Text></Pressable>)}</ScrollView>
+    {loading ? <ActivityIndicator color={pink} style={{ marginTop: 35 }} /> : null}{error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text><Pressable onPress={load}><Text style={styles.retry}>Retry</Text></Pressable></View> : null}
+    {!loading && filtered.length === 0 ? <View style={styles.empty}><ReceiptText size={28} color={pink} /><Text style={styles.emptyTitle}>No matching payments</Text><Text style={styles.emptyText}>Transactions will appear after a Vendor starts checkout.</Text></View> : null}
+    <View style={styles.list}>{visible.map((payment) => { const successful = payment.payment_status === "verified"; const failed = payment.payment_status === "failed"; return <View key={payment.id} style={styles.payment}><View style={[styles.paymentIcon, { backgroundColor: successful ? "#E8F7F0" : failed ? "#FFF0F2" : "#FFF3D8" }]}>{successful ? <CircleCheck size={19} color="#11875D" /> : failed ? <CircleX size={19} color="#D33B55" /> : <CreditCard size={19} color="#B76A00" />}</View><View style={styles.flex}><Text style={styles.vendor}>{payment.vendors?.business_name || "Vendor"}</Text><Text style={styles.plan}>{payment.subscription_plans?.name || "Subscription plan"} · {subscriptionStatusLabel(payment.payment_status as any)}</Text><Text style={styles.ids} numberOfLines={1}>{payment.razorpay_payment_id || payment.razorpay_order_id || payment.id}</Text>{payment.failure_reason ? <Text style={styles.failure}>{payment.failure_reason}</Text> : null}</View><View style={styles.right}><Text style={styles.amount}>{formatSubscriptionPrice(Number(payment.amount), payment.currency)}</Text><Text style={styles.date}>{new Date(payment.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</Text></View></View>; })}</View>
+    {!loading && !error && filtered.length > 20 ? <PaginationBar page={currentPage} pages={pages} onPage={setPage} /> : null}
+  </ScrollView><AdminFooter activeTab="payments" /></SafeAreaView>;
 }
+const styles = StyleSheet.create({ page: { flex: 1, backgroundColor: "#FFF9FB" }, header: { height: 62, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, backgroundColor: "#FFF", borderBottomWidth: 1, borderBottomColor: "#F4E6EC" }, headerButton: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, logo: { position: "absolute", left: "50%", width: 155, height: 42, marginLeft: -77.5 }, content: { width: "100%", maxWidth: 1100, alignSelf: "center", padding: 18, paddingBottom: 110 }, flex: { flex: 1, minWidth: 0 }, eyebrow: { color: pink, fontSize: 9, fontWeight: "900", letterSpacing: 1.5 }, title: { color: "#1D1720", fontSize: 30, fontWeight: "900", letterSpacing: -.8, marginTop: 3 }, subtitle: { color: "#82747B", fontSize: 11, marginTop: 3 }, stats: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 18 }, stat: { flex: 1, minWidth: 170, backgroundColor: "#FFF", borderRadius: 21, padding: 15 }, statIcon: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" }, statValue: { color: "#1D1720", fontSize: 20, fontWeight: "900", marginTop: 10 }, statLabel: { color: "#82747B", fontSize: 9, marginTop: 2 }, searchBox: { minHeight: 49, borderRadius: 16, backgroundColor: "#FFF", paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14 }, input: { flex: 1, color: "#1D1720", fontSize: 11, outlineStyle: "none" } as any, filters: { gap: 7, paddingVertical: 12 }, filter: { paddingHorizontal: 13, paddingVertical: 8, borderRadius: 999, backgroundColor: "#FFF0F5" }, filterActive: { backgroundColor: pink }, filterText: { color: "#6D6067", fontSize: 9, fontWeight: "800" }, filterTextActive: { color: "#FFF" }, list: { gap: 9 }, payment: { borderRadius: 19, backgroundColor: "#FFF", padding: 13, flexDirection: "row", alignItems: "center", gap: 10 }, paymentIcon: { width: 43, height: 43, borderRadius: 14, alignItems: "center", justifyContent: "center" }, vendor: { color: "#1D1720", fontSize: 12, fontWeight: "900" }, plan: { color: "#82747B", fontSize: 9, marginTop: 3 }, ids: { color: "#AAA0A5", fontSize: 8, marginTop: 3 }, failure: { color: "#D33B55", fontSize: 8, marginTop: 3 }, right: { alignItems: "flex-end", maxWidth: 150 }, amount: { color: "#1D1720", fontSize: 13, fontWeight: "900" }, date: { color: "#9A8E94", fontSize: 7, textAlign: "right", marginTop: 4 }, empty: { backgroundColor: "#FFF", borderRadius: 22, alignItems: "center", padding: 28 }, emptyTitle: { color: "#1D1720", fontSize: 14, fontWeight: "900", marginTop: 8 }, emptyText: { color: "#82747B", fontSize: 9, marginTop: 3 }, error: { backgroundColor: "#FFF0F2", borderRadius: 16, padding: 14, flexDirection: "row", justifyContent: "space-between" }, errorText: { color: "#D33B55", fontSize: 10 }, retry: { color: pink, fontSize: 10, fontWeight: "900" } });

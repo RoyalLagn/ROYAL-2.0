@@ -49,6 +49,11 @@ Deno.serve(async (request) => {
       }
     }
     if (!media) throw new Error("Media not found");
+    const { error: accessError } = await supabase.rpc("require_vendor_feature_access", {
+      target_vendor_id: media.vendor_id,
+      requested_feature_key: "upload_gallery",
+    });
+    if (accessError) throw accessError;
 
     const timestamp = Math.floor(Date.now() / 1000);
     const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET")!;

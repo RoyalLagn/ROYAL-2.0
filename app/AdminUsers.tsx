@@ -13,12 +13,16 @@ import { Mail, Phone, RefreshCw, Search, UserRound, Users } from "lucide-react-n
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
+import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { AdminUserService, type AdminPublicUser } from "@/services/adminUsers";
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<AdminPublicUser[]>([]);
   const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
+  const [sort, setSort] = useState<"newest" | "oldest" | "name">("newest");
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,12 +47,15 @@ export default function AdminUsers() {
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return users;
-    return users.filter((user) =>
+    const rows = users.filter((user) => (status === "all" || (status === "active" ? user.is_active : !user.is_active)) && (!normalized ||
       [user.full_name, user.email, user.phone, user.id]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(normalized)));
-  }, [query, users]);
+        .some((value) => String(value).toLowerCase().includes(normalized))));
+    return rows.sort((a, b) => sort === "name" ? a.full_name.localeCompare(b.full_name) : sort === "oldest" ? Date.parse(a.created_at) - Date.parse(b.created_at) : Date.parse(b.created_at) - Date.parse(a.created_at));
+  }, [query, sort, status, users]);
+  const pages = Math.max(1, Math.ceil(filtered.length / 15));
+  const currentPage = Math.min(page, pages);
+  const visible = filtered.slice((currentPage - 1) * 15, currentPage * 15);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
@@ -83,20 +90,26 @@ export default function AdminUsers() {
             <Search size={18} className="text-muted-foreground" />
             <TextInput
               value={query}
-              onChangeText={setQuery}
+              onChangeText={(value) => { setQuery(value); setPage(1); }}
               placeholder="Search name, email, phone or user ID"
               placeholderTextColor="#8A8589"
               className="flex-1 h-12 ml-3 text-foreground"
             />
           </View>
 
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
+            {(["all", "active", "inactive"] as const).map((value) => <Pressable key={value} onPress={() => { setStatus(value); setPage(1); }} className={status === value ? "px-4 py-2 rounded-xl bg-primary" : "px-4 py-2 rounded-xl bg-card border border-border"}><Text className={status === value ? "text-white text-xs font-semibold capitalize" : "text-foreground text-xs font-semibold capitalize"}>{value}</Text></Pressable>)}
+            {(["newest", "oldest", "name"] as const).map((value) => <Pressable key={value} onPress={() => setSort(value)} className={sort === value ? "px-4 py-2 rounded-xl bg-primary/10" : "px-4 py-2 rounded-xl"}><Text className={sort === value ? "text-primary text-xs font-semibold capitalize" : "text-muted-foreground text-xs capitalize"}>{value}</Text></Pressable>)}
+          </ScrollView>
+
           {loading ? <AdminLoadingState label="Loading live customer profiles…" />
             : error ? <AdminErrorState message={error} onRetry={() => void load()} />
-              : !filtered.length ? <AdminEmptyState title="No users found" message={query ? "Try another search." : "Customer accounts will appear here after registration."} />
-                : <View className="gap-3">{filtered.map((user) => <UserCard key={user.id} user={user} />)}</View>}
+              : !visible.length ? <AdminEmptyState title="No users found" message={query || status !== "all" ? "Try another search or status filter." : "Customer accounts will appear here after registration."} />
+                : <View className="gap-3">{visible.map((user) => <UserCard key={user.id} user={user} />)}</View>}
+          {!loading && !error && filtered.length > 15 ? <PaginationBar page={currentPage} pages={pages} onPage={setPage} /> : null}
         </ResponsiveContainer>
       </ScrollView>
-      <AdminFooter activeTab="more" />
+      <AdminFooter activeTab="profile" />
     </SafeAreaView>
   );
 }

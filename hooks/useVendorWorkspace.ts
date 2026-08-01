@@ -97,7 +97,7 @@ export function useVendorWorkspace() {
         supabase.from("vendor_enquiries").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("vendor_notifications").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("reviews").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),
-        supabase.from("vendor_services").select("*").eq("vendor_id", vendor.id).order("created_at"),
+        supabase.from("vendor_services").select("*").eq("vendor_id", vendor.id).order("display_order").order("created_at"),
         supabase.from("subscriptions").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
       // Album, availability, enquiry and notification tables are additive. Keep

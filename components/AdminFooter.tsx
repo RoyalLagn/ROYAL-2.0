@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TouchableOpacity, Text } from "react-native";
+import { View, TouchableOpacity, Text, useWindowDimensions } from "react-native";
 import { useColorScheme } from "nativewind";
 import { Href, useRouter } from "expo-router";
 import {
@@ -7,12 +7,12 @@ import {
   Users,
   Crown,
   Wallet,
-  MoreHorizontal,
+  CircleUserRound,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 
-type TabKey = "dashboard" | "vendors" | "subscriptions" | "payments" | "more";
+type TabKey = "dashboard" | "vendors" | "subscriptions" | "payments" | "profile";
 
 type TabItem = {
   key: TabKey;
@@ -27,7 +27,7 @@ const tabs: TabItem[] = [
   { key: "vendors", label: "Vendors", icon: Users, route: "/vendors-admin-listing" },
   { key: "subscriptions", label: "Subscriptions", shortLabel: "Plans", icon: Crown, route: "/subscriptions-admin" },
   { key: "payments", label: "Payments", icon: Wallet, route: "/payments-admin" },
-  { key: "more", label: "More", icon: MoreHorizontal, route: "/admin-dash-logout" },
+  { key: "profile", label: "Profile", icon: CircleUserRound, route: "/admin-dash-logout" },
 ];
 
 interface AdminFooterProps {
@@ -40,6 +40,9 @@ export default function AdminFooter({ activeTab }: AdminFooterProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
+  const { width } = useWindowDimensions();
+
+  if (width >= 768) return null;
 
   const isActive = (tab: TabItem) => tab.key === activeTab;
 

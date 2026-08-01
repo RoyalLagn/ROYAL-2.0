@@ -1,87 +1,97 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { CircleDollarSign, Pencil, Plus, Trash2, Wrench, X } from "lucide-react-native";
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ArrowDown, ArrowUp, CircleDollarSign, Eye, PackagePlus, Pencil, Power, RefreshCw, Trash2, X } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
-import { supabase } from "@/services/supabase";
+import { useVendorPackages } from "@/hooks/useVendorPackages";
+import PackageEditorModal from "@/components/packages/PackageEditorModal";
+import PackageDisplayCard, { packagePriceLabel } from "@/components/packages/PackageDisplayCard";
+import { VendorPackageService, type VendorPackage, type VendorPackageInput, type VendorPackageStatus } from "@/services/vendorPackages";
 
 export default function VendorServices() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
-  const { data, loading, refresh } = useVendorWorkspace();
-  const [modal, setModal] = useState(false);
-  const [editing, setEditing] = useState<any>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [price, setPrice] = useState("");
+  const dark = colorScheme === "dark";
+  const { data } = useVendorWorkspace();
+  const vendorId = data.vendor?.id as string | undefined;
+  const { packages, loading, error, refresh } = useVendorPackages(vendorId, false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editing, setEditing] = useState<VendorPackage | null>(null);
+  const [preview, setPreview] = useState<VendorPackage | null>(null);
   const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const open = (service?: any) => {
-    setEditing(service ?? null); setTitle(service?.title ?? ""); setDescription(service?.description ?? "");
-    setPrice(service?.price == null ? "" : String(service.price)); setModal(true);
-  };
-  const save = async () => {
-    if (!data.vendor?.id) return Alert.alert("Vendor profile required", "Connect a Vendor profile before adding services.");
-    if (!title.trim()) return Alert.alert("Service name required");
-    const numericPrice = price.trim() ? Number(price) : null;
-    if (numericPrice != null && (!Number.isFinite(numericPrice) || numericPrice < 0)) return Alert.alert("Enter a valid price");
+  const openEditor = (item: VendorPackage | null = null) => { setEditing(item); setEditorOpen(true); };
+  const save = async (input: VendorPackageInput) => {
+    if (!vendorId || saving) return;
     setSaving(true);
-    const payload = { vendor_id: data.vendor.id, title: title.trim(), description: description.trim() || null, price: numericPrice };
-    const result = editing
-      ? await supabase.from("vendor_services").update(payload).eq("id", editing.id).eq("vendor_id", data.vendor.id)
-      : await supabase.from("vendor_services").insert(payload);
-    setSaving(false);
-    if (result.error) return Alert.alert("Service not saved", result.error.message);
-    setModal(false); await refresh();
+    try {
+      await VendorPackageService.save(input, editing?.id);
+      setEditorOpen(false);
+      setEditing(null);
+      await refresh();
+      Alert.alert(input.status === "draft" ? "Draft saved" : "Package saved", input.status === "active" ? "Customers can now see this package." : "The package is saved but hidden from customers.");
+    } catch (cause) { Alert.alert("Package not saved", cause instanceof Error ? cause.message : "Please try again."); }
+    finally { setSaving(false); }
   };
-  const remove = (service: any) => Alert.alert("Delete service?", service.title, [
+  const changeStatus = async (item: VendorPackage, status: VendorPackageStatus) => {
+    if (!vendorId || busyId) return;
+    setBusyId(item.id);
+    try { await VendorPackageService.setStatus(item.id, vendorId, status); await refresh(true); }
+    catch (cause) { Alert.alert("Package not updated", cause instanceof Error ? cause.message : "Please try again."); }
+    finally { setBusyId(null); }
+  };
+  const remove = (item: VendorPackage) => Alert.alert("Delete package?", `${item.title} and its included service items will be permanently removed. Existing enquiries keep the package name.`, [
     { text: "Cancel", style: "cancel" },
     { text: "Delete", style: "destructive", onPress: async () => {
-      const { error } = await supabase.from("vendor_services").delete().eq("id", service.id).eq("vendor_id", data.vendor?.id);
-      if (error) Alert.alert("Service not deleted", error.message); else refresh();
-    }},
+      if (!vendorId || busyId) return;
+      setBusyId(item.id);
+      try { await VendorPackageService.remove(item.id, vendorId); await refresh(true); }
+      catch (cause) { Alert.alert("Package not deleted", cause instanceof Error ? cause.message : "Please try again."); }
+      finally { setBusyId(null); }
+    } },
   ]);
-  const toggle = async (service: any) => {
-    const { error } = await supabase.from("vendor_services").update({ is_active: !service.is_active }).eq("id", service.id).eq("vendor_id", data.vendor?.id);
-    if (error) Alert.alert("Service not updated", error.message); else refresh();
+  const move = async (index: number, direction: -1 | 1) => {
+    if (!vendorId || busyId) return;
+    const target = index + direction;
+    if (target < 0 || target >= packages.length) return;
+    const ordered = packages.map((item) => item.id);
+    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+    setBusyId(packages[index].id);
+    try { await VendorPackageService.reorder(vendorId, ordered); await refresh(true); }
+    catch (cause) { Alert.alert("Order not updated", cause instanceof Error ? cause.message : "Please try again."); }
+    finally { setBusyId(null); }
   };
+
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-    <ScrollView contentContainerStyle={styles.content}>
-      <View style={styles.heading}><View style={styles.flex}><Text style={[styles.eyebrow, { color: colors.pink }]}>YOUR OFFERING</Text><Text style={[styles.title, { color: colors.text }]}>Services & pricing</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Keep packages clear so customers know what to ask about.</Text></View>
-        <Pressable onPress={() => open()} style={[styles.primary, { backgroundColor: colors.pink }]}><Plus size={18} color="#FFF" /><Text style={styles.primaryText}>Service</Text></Pressable></View>
-      {loading ? <ActivityIndicator color={colors.pink} style={{ marginTop: 40 }} /> : data.services.map((service) => <View key={service.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={[styles.serviceIcon, { backgroundColor: colors.surfaceSoft }]}><Wrench size={20} color={colors.pink} /></View>
-        <View style={styles.flex}><View style={styles.nameRow}><Text style={[styles.name, { color: colors.text }]}>{service.title}</Text><Pressable onPress={() => toggle(service)} style={[styles.status, { backgroundColor: service.is_active ? `${colors.success}18` : colors.surfaceSoft }]}><Text style={{ color: service.is_active ? colors.success : colors.muted, fontSize: 9, fontWeight: "800" }}>{service.is_active ? "ACTIVE" : "HIDDEN"}</Text></Pressable></View>
-          <Text numberOfLines={2} style={[styles.description, { color: colors.muted }]}>{service.description || "No description added yet."}</Text>
-          <View style={styles.price}><CircleDollarSign size={14} color={colors.pink} /><Text style={{ color: colors.text, fontSize: 12, fontWeight: "800" }}>{service.price == null ? "Price on request" : `₹${Number(service.price).toLocaleString("en-IN")}`}</Text></View>
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.heading}><View style={styles.flex}><Text style={[styles.eyebrow, { color: colors.pink }]}>DIGITAL PACKAGES</Text><Text style={[styles.title, { color: colors.text }]}>Packages & pricing</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Create clear packages, publish the ones customers can book and keep drafts private.</Text></View><Pressable disabled={!vendorId} onPress={() => openEditor()} style={[styles.primary, { backgroundColor: colors.pink }, !vendorId && styles.disabled]}><PackagePlus size={18} color="#FFF" /><Text style={styles.primaryText}>New package</Text></Pressable></View>
+      <View style={styles.summary}><Summary label="Total" value={packages.length} colors={colors} /><Summary label="Active" value={packages.filter((item) => item.status === "active").length} colors={colors} /><Summary label="Drafts" value={packages.filter((item) => item.status === "draft").length} colors={colors} /><Pressable accessibilityLabel="Refresh packages" onPress={() => void refresh()} style={[styles.refresh, { backgroundColor: colors.surface, borderColor: colors.border }]}><RefreshCw size={17} color={colors.pink} /></Pressable></View>
+
+      {loading ? <ActivityIndicator color={colors.pink} style={styles.loading} /> : null}
+      {!loading && error ? <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.emptyTitle, { color: colors.text }]}>Packages unavailable</Text><Text style={[styles.emptyText, { color: colors.muted }]}>{error}</Text><Pressable onPress={() => void refresh()} style={[styles.retry, { backgroundColor: colors.pink }]}><Text style={styles.primaryText}>Try again</Text></Pressable></View> : null}
+      {!loading && !error && !packages.length ? <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><PackagePlus size={31} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.text }]}>Create your first package</Text><Text style={[styles.emptyText, { color: colors.muted }]}>Add pricing, coverage and included services once, then customers can enquire about that exact package.</Text><Pressable onPress={() => openEditor()} style={[styles.retry, { backgroundColor: colors.pink }]}><Text style={styles.primaryText}>Create package</Text></Pressable></View> : null}
+
+      {!loading && !error ? packages.map((item, index) => <View key={item.id} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+        <View style={[styles.packageIcon, { backgroundColor: colors.surfaceSoft }]}><CircleDollarSign size={21} color={colors.pink} /></View>
+        <View style={styles.flex}><View style={styles.nameRow}><Text numberOfLines={1} style={[styles.name, { color: colors.text }]}>{item.title}</Text><Status status={item.status} colors={colors} /></View><Text numberOfLines={2} style={[styles.description, { color: colors.muted }]}>{item.description || "No package description yet."}</Text><View style={styles.meta}><Text style={[styles.price, { color: colors.text }]}>{packagePriceLabel(item)}</Text><Text style={[styles.metaText, { color: colors.muted }]}>{item.items.filter((entry) => entry.item_type === "included").length} included · Position {index + 1}</Text></View>
+          <View style={styles.actions}><SmallAction label="Preview" icon={Eye} onPress={() => setPreview(item)} colors={colors} /><SmallAction label="Edit" icon={Pencil} onPress={() => openEditor(item)} colors={colors} /><SmallAction label={item.status === "active" ? "Deactivate" : "Activate"} icon={Power} onPress={() => void changeStatus(item, item.status === "active" ? "inactive" : "active")} colors={colors} /><SmallAction label="Delete" icon={Trash2} onPress={() => remove(item)} colors={colors} danger /></View>
         </View>
-        <View style={styles.actions}><Pressable accessibilityLabel="Edit service" onPress={() => open(service)} style={[styles.icon, { backgroundColor: colors.surfaceSoft }]}><Pencil size={16} color={colors.text} /></Pressable><Pressable accessibilityLabel="Delete service" onPress={() => remove(service)} style={[styles.icon, { backgroundColor: colors.surfaceSoft }]}><Trash2 size={16} color={colors.warning} /></Pressable></View>
-      </View>)}
-      {!loading && !data.services.length && <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><Wrench size={29} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.text }]}>Add your first service</Text><Text style={[styles.emptyText, { color: colors.muted }]}>Services and pricing contribute directly to profile completion.</Text></View>}
+        <View style={styles.order}><Pressable disabled={index === 0 || Boolean(busyId)} accessibilityLabel={`Move ${item.title} up`} onPress={() => void move(index, -1)} style={[styles.orderButton, { backgroundColor: colors.surfaceSoft }, index === 0 && styles.disabled]}><ArrowUp size={15} color={colors.text} /></Pressable><Pressable disabled={index === packages.length - 1 || Boolean(busyId)} accessibilityLabel={`Move ${item.title} down`} onPress={() => void move(index, 1)} style={[styles.orderButton, { backgroundColor: colors.surfaceSoft }, index === packages.length - 1 && styles.disabled]}><ArrowDown size={15} color={colors.text} /></Pressable>{busyId === item.id ? <ActivityIndicator size="small" color={colors.pink} /> : null}</View>
+      </View>) : null}
     </ScrollView>
-    <Modal visible={modal} transparent animationType="fade" onRequestClose={() => setModal(false)}><View style={styles.backdrop}><View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={styles.sheetTop}><Text style={[styles.sheetTitle, { color: colors.text }]}>{editing ? "Edit service" : "New service"}</Text><Pressable onPress={() => setModal(false)}><X size={21} color={colors.text} /></Pressable></View>
-      <Text style={[styles.label, { color: colors.text }]}>Service name</Text><TextInput value={title} onChangeText={setTitle} placeholder="e.g. Candid photography" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
-      <Text style={[styles.label, { color: colors.text }]}>Description</Text><TextInput value={description} onChangeText={setDescription} multiline placeholder="What is included?" placeholderTextColor={colors.muted} style={[styles.input, styles.textarea, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
-      <Text style={[styles.label, { color: colors.text }]}>Starting price (₹)</Text><TextInput value={price} onChangeText={setPrice} keyboardType="decimal-pad" placeholder="Optional" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
-      <Pressable disabled={saving} onPress={save} style={[styles.save, { backgroundColor: colors.pink }, saving && { opacity: .6 }]}>{saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>Save service</Text>}</Pressable>
-    </View></View></Modal>
+
+    <PackageEditorModal visible={editorOpen} vendorId={vendorId ?? ""} item={editing} dark={dark} saving={saving} onClose={() => { if (!saving) { setEditorOpen(false); setEditing(null); } }} onSave={(input) => void save(input)} />
+    <Modal visible={Boolean(preview)} transparent animationType="fade" onRequestClose={() => setPreview(null)}><View style={styles.previewBackdrop}><View style={[styles.previewSheet, { backgroundColor: colors.background }]}><View style={styles.previewHeader}><View style={styles.flex}><Text style={[styles.previewTitle, { color: colors.text }]}>Customer preview</Text><Text style={[styles.previewHint, { color: colors.muted }]}>This is how your package information will appear.</Text></View><Pressable accessibilityLabel="Close preview" onPress={() => setPreview(null)} style={[styles.orderButton, { backgroundColor: colors.surfaceSoft }]}><X size={19} color={colors.text} /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>{preview ? <PackageDisplayCard item={preview} dark={dark} preview /> : null}</ScrollView></View></View></Modal>
   </View>;
 }
 
+function Summary({ label, value, colors }: any) { return <View style={[styles.summaryItem, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.summaryValue, { color: colors.text }]}>{value}</Text><Text style={[styles.summaryLabel, { color: colors.muted }]}>{label}</Text></View>; }
+function Status({ status, colors }: { status: VendorPackageStatus; colors: any }) { const tint = status === "active" ? colors.success : status === "draft" ? colors.warning : colors.muted; return <View style={[styles.status, { backgroundColor: `${tint}18` }]}><Text style={[styles.statusText, { color: tint }]}>{status.toUpperCase()}</Text></View>; }
+function SmallAction({ label, icon: Icon, onPress, colors, danger }: any) { return <Pressable onPress={onPress} style={({ pressed }) => [styles.smallAction, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressed]}><Icon size={14} color={danger ? colors.warning : colors.pink} /><Text style={[styles.smallActionText, { color: danger ? colors.warning : colors.text }]}>{label}</Text></Pressable>; }
 const styles = StyleSheet.create({
-  page: { flex: 1 }, content: { width: "100%", maxWidth: 900, alignSelf: "center", padding: 16, paddingTop: 22, paddingBottom: 24 },
-  heading: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 20 }, flex: { flex: 1, minWidth: 0 }, eyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.5, marginBottom: 5 },
-  title: { fontSize: 28, fontWeight: "800", letterSpacing: -.8 }, subtitle: { fontSize: 12, lineHeight: 18, marginTop: 4 }, primary: { minHeight: 42, borderRadius: 14, paddingHorizontal: 15, backgroundColor: "#E91E63", flexDirection: "row", alignItems: "center", gap: 7 }, primaryText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
-  card: { borderWidth: 1, borderRadius: 21, padding: 14, marginBottom: 10, flexDirection: "row", alignItems: "flex-start", gap: 11 }, serviceIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  nameRow: { flexDirection: "row", alignItems: "center", gap: 8 }, name: { flex: 1, fontSize: 13, fontWeight: "800" }, status: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5 }, description: { fontSize: 11, lineHeight: 16, marginTop: 4 },
-  price: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 9 }, actions: { gap: 7 }, icon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  empty: { borderWidth: 1, borderRadius: 23, padding: 32, alignItems: "center" }, emptyTitle: { fontSize: 17, fontWeight: "800", marginTop: 11 }, emptyText: { fontSize: 11, textAlign: "center", marginTop: 5 },
-  backdrop: { flex: 1, backgroundColor: "rgba(15,8,12,.5)", justifyContent: "flex-end" }, sheet: { width: "100%", maxWidth: 520, alignSelf: "center", borderWidth: 1, borderRadius: 26, padding: 20, paddingBottom: 30 },
-  sheetTop: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }, sheetTitle: { fontSize: 17, fontWeight: "800" }, label: { fontSize: 11, fontWeight: "700", marginBottom: 7 },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, marginBottom: 14, fontSize: 13 }, textarea: { minHeight: 92, paddingTop: 12, textAlignVertical: "top" },
-  save: { minHeight: 48, borderRadius: 15, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  page: { flex: 1 }, content: { width: "100%", maxWidth: 980, alignSelf: "center", padding: 16, paddingTop: 22, paddingBottom: 36 }, heading: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 18 }, flex: { flex: 1, minWidth: 0 }, eyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.5, marginBottom: 5 }, title: { fontSize: 28, fontWeight: "900", letterSpacing: -.8 }, subtitle: { fontSize: 11, lineHeight: 17, marginTop: 4, maxWidth: 560 }, primary: { minHeight: 44, borderRadius: 14, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", gap: 7 }, primaryText: { color: "#FFF", fontSize: 11, fontWeight: "800" }, summary: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginBottom: 16 }, summaryItem: { minWidth: 92, flexGrow: 1, borderWidth: 1, borderRadius: 16, padding: 13 }, summaryValue: { fontSize: 19, fontWeight: "900" }, summaryLabel: { fontSize: 9, marginTop: 2 }, refresh: { width: 48, borderWidth: 1, borderRadius: 16, alignItems: "center", justifyContent: "center" }, loading: { marginTop: 50 }, empty: { borderWidth: 1, borderRadius: 23, padding: 34, alignItems: "center" }, emptyTitle: { fontSize: 17, fontWeight: "800", marginTop: 10 }, emptyText: { fontSize: 11, lineHeight: 17, textAlign: "center", maxWidth: 460, marginTop: 5 }, retry: { minHeight: 42, borderRadius: 13, paddingHorizontal: 16, alignItems: "center", justifyContent: "center", marginTop: 14 }, card: { borderWidth: 1, borderRadius: 22, padding: 14, marginBottom: 10, flexDirection: "row", alignItems: "flex-start", gap: 11, shadowOpacity: .045, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 1 }, packageIcon: { width: 43, height: 43, borderRadius: 14, alignItems: "center", justifyContent: "center" }, nameRow: { flexDirection: "row", alignItems: "center", gap: 8 }, name: { flex: 1, fontSize: 14, fontWeight: "800" }, status: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 5 }, statusText: { fontSize: 8, fontWeight: "900", letterSpacing: .4 }, description: { fontSize: 10, lineHeight: 15, marginTop: 4 }, meta: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 9, marginTop: 8 }, price: { fontSize: 12, fontWeight: "900" }, metaText: { fontSize: 9 }, actions: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 11 }, smallAction: { minHeight: 36, borderRadius: 11, paddingHorizontal: 9, flexDirection: "row", alignItems: "center", gap: 5 }, smallActionText: { fontSize: 9, fontWeight: "800" }, order: { gap: 6, alignItems: "center" }, orderButton: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" }, disabled: { opacity: .4 }, pressed: { opacity: .72, transform: [{ scale: .97 }] }, previewBackdrop: { flex: 1, backgroundColor: "rgba(12,7,10,.58)", alignItems: "center", justifyContent: "center", padding: 18 }, previewSheet: { width: "100%", maxWidth: 700, maxHeight: "90%", borderRadius: 26, padding: 16 }, previewHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 13 }, previewTitle: { fontSize: 18, fontWeight: "900" }, previewHint: { fontSize: 10, marginTop: 2 },
 });

@@ -29,6 +29,7 @@ import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
+import SubscriptionDashboardCard from "@/components/vendor/SubscriptionDashboardCard";
 
 const completionMeta = {
   complete: { label: "Complete", icon: Check },
@@ -118,6 +119,8 @@ export default function VendorDashboard() {
               </View>
             </View>
           ) : null}
+
+          {data.vendor ? <SubscriptionDashboardCard /> : null}
 
           <View style={[styles.statsGrid, desktop && styles.statsDesktop]}>
             {stats.map(({ label, value, detail, icon: Icon }, index) => (

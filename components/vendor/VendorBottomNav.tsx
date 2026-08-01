@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   BackHandler,
   Platform,
@@ -24,8 +24,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { CalendarDays, Clapperboard, Images, LayoutDashboard, UserRound } from "lucide-react-native";
 import { useAppTheme } from "@/components/ThemeProvider";
-import { supabase } from "@/services/supabase";
-import { resolveVendorDestination } from "@/services/vendorAuth";
 
 const PINK = "#E91E63";
 const CENTER_ROUTE = "/VendorClips";
@@ -59,6 +57,7 @@ const vendorWorkspaceRoutes = [
   "/vendoreditprofile",
   "/vendorservices",
   "/vendorsubscription",
+  "/vendorpaymenthistory",
   "/vendornotifications",
   "/vendorsettings",
   "/vendorhelp",
@@ -123,26 +122,30 @@ function AnimatedVendorTab({
 
   return (
     <Pressable
+      testID={`vendor-tab-${label.toLowerCase()}`}
       accessibilityRole="tab"
       accessibilityState={active ? { selected: true } : {}}
       accessibilityLabel={`${label} tab`}
       onPress={onPress}
       onPressIn={pressIn}
       onPressOut={pressOut}
+      hitSlop={{ top: 4, bottom: 4 }}
+      android_ripple={{ color: dark ? "rgba(236,72,153,.14)" : "rgba(233,30,99,.09)", borderless: false }}
       style={styles.tab}
     >
       {center ? (
-        <Animated.View style={[styles.centerVisual, visualStyle]}>
+        <Animated.View pointerEvents="none" style={[styles.centerVisual, visualStyle]}>
           <Animated.View style={[styles.centerCircle, circleStyle]}>
             <Icon animatedProps={iconProps} size={20} strokeWidth={2.35} />
           </Animated.View>
         </Animated.View>
       ) : (
-        <Animated.View style={[styles.regularVisual, visualStyle]}>
+        <Animated.View pointerEvents="none" style={[styles.regularVisual, visualStyle]}>
           <Icon animatedProps={iconProps} size={21} strokeWidth={active ? 2.35 : 2} />
         </Animated.View>
       )}
       <Animated.Text
+        pointerEvents="none"
         numberOfLines={1}
         allowFontScaling
         maxFontSizeMultiplier={1.2}
@@ -171,6 +174,7 @@ export default function VendorBottomNav() {
     : normalizedPath.startsWith("/vendoreditprofile") || normalizedPath.startsWith("/vendorservices")
       ? "/Vendors_dash_profile"
       : normalizedPath.startsWith("/vendorsubscription")
+        || normalizedPath.startsWith("/vendorpaymenthistory")
         || normalizedPath.startsWith("/vendorsettings")
         || normalizedPath.startsWith("/vendorhelp")
         || normalizedPath.startsWith("/vendorprivacypolicy")
@@ -182,33 +186,8 @@ export default function VendorBottomNav() {
 
   useEffect(() => {
     if (!isVendorPage) return;
-    let active = true;
-    supabase.auth.getUser()
-      .then(async ({ data }) => {
-        if (!active) return;
-        if (!data.user) {
-          router.replace("/DashboardCenter");
-          return;
-        }
-        try {
-          const destination = await resolveVendorDestination(data.user);
-          if (active && destination.pathname !== "/vendor-dashboard") {
-            router.replace(destination as never);
-          }
-        } catch {
-          if (active) router.replace("/DashboardCenter");
-        }
-      })
-      .catch(() => {
-        if (active) router.replace("/DashboardCenter");
-      });
-    return () => { active = false; };
-  }, [isVendorPage, router]);
-
-  useEffect(() => {
-    if (!isVendorPage) return;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      router.dismissAll();
+      if (router.canDismiss()) router.dismissAll();
       router.replace("/(tabs)");
       return true;
     });
@@ -234,18 +213,23 @@ export default function VendorBottomNav() {
     setItemsWidth(event.nativeEvent.layout.width);
   };
 
+  const openTab = useCallback((route: (typeof tabs)[number]["route"]) => {
+    if (route === activeRoute) return;
+    router.replace(route as any);
+  }, [activeRoute, router]);
+
   if (!shouldShow || !isVendorPage) return null;
 
   return (
-    <View testID="vendor-bottom-navigation" style={[styles.safeWrap, {
+    <View pointerEvents="box-none" testID="vendor-bottom-navigation" style={[styles.safeWrap, {
       paddingBottom: Math.max(insets.bottom, 8),
       backgroundColor: dark ? "#070B14" : "#FFFFFF",
     }]}>
-      <View style={[styles.bar, {
+      <View pointerEvents="box-none" style={[styles.bar, {
         backgroundColor: dark ? "#0E141F" : "#FFFFFF",
         borderColor: dark ? "#5A2B3F" : "#F3D4DF",
       }]}>
-        <View style={styles.items} onLayout={onItemsLayout}>
+        <View pointerEvents="box-none" style={styles.items} onLayout={onItemsLayout}>
           {itemsWidth > 0 ? (
             <Animated.View
               pointerEvents="none"
@@ -263,7 +247,7 @@ export default function VendorBottomNav() {
               active={activeRoute === tab.route}
               dark={dark}
               reducedMotion={reducedMotion}
-              onPress={() => router.replace(tab.route as any)}
+              onPress={() => openTab(tab.route)}
             />
           ))}
         </View>
@@ -273,7 +257,7 @@ export default function VendorBottomNav() {
 }
 
 const styles = StyleSheet.create({
-  safeWrap: { width: "100%", flexShrink: 0 },
+  safeWrap: { position: "relative", zIndex: 1000, elevation: 30, width: "100%", flexShrink: 0 },
   bar: {
     minHeight: 58,
     marginHorizontal: 10,
@@ -284,11 +268,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.13,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: -4 },
-    elevation: 12,
+    elevation: 20,
   },
   items: { minHeight: 58, flexDirection: "row", alignItems: "stretch", position: "relative" },
   activeIndicator: { position: "absolute", top: 5, bottom: 5, borderRadius: 25 },
-  tab: { flex: 1, minWidth: 0, alignItems: "center", justifyContent: "flex-start", zIndex: 2 },
+  tab: { flex: 1, minWidth: 0, minHeight: 58, alignItems: "center", justifyContent: "flex-start", zIndex: 2 },
   regularVisual: { width: 34, height: 31, marginTop: 7, alignItems: "center", justifyContent: "center" },
   centerVisual: { width: 44, height: 40, marginTop: 2, alignItems: "center", justifyContent: "center" },
   centerCircle: {

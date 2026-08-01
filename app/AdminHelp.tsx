@@ -1,13 +1,9 @@
 import React from "react";
-import FrontendScreen from "@/components/FrontendScreen";
+import { ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import AdminFooter from "@/components/AdminFooter";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 
-export default function AdminHelp() {
-  return (
-    <FrontendScreen
-      title="Admin Help"
-      subtitle="Platform administration support"
-      mode="help"
-      items={["Vendor Management", "User Management", "Categories", "Reports"]}
-    />
-  );
-}
+const help = [{ title: "Approvals", text: "Open a pending application, verify its submitted details, then approve or reject it. Rejections require a reason." }, { title: "Vendor management", text: "Use search and filters to locate a vendor. Open the vendor record before changing verification, access or account status." }, { title: "Content and enquiries", text: "Moderate clips from Clips, inspect customer feedback in Reviews and track vendor requests in Enquiries." }, { title: "Subscriptions and payments", text: "Plans, offers and vendor access are managed in Subscriptions. Payment records are read from Payments." }];
+export default function AdminHelp() { return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}><ScrollView contentContainerStyle={{ paddingBottom: 120 }}><ResponsiveContainer><AdminPageHeader title="Admin Help" subtitle="Short guidance for existing RoyalLagn workspaces" /><View className="gap-3">{help.map((item) => <View key={item.title} className="bg-card border border-border rounded-2xl p-4"><Text className="text-foreground font-bold">{item.title}</Text><Text className="text-muted-foreground text-xs leading-5 mt-2">{item.text}</Text></View>)}</View><Text className="text-muted-foreground text-xs leading-5 mt-5">For failed database actions, keep the exact error message and operation name. Do not retry destructive actions repeatedly.</Text></ResponsiveContainer></ScrollView><AdminFooter activeTab="profile" /></SafeAreaView>; }

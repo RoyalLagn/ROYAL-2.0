@@ -20,11 +20,15 @@ export default function CreatePasswordScreen() {
     email?: string;
     fullName?: string;
     phone?: string;
+    preferredCityId?: string;
+    preferredAreaId?: string;
     purpose?: OtpPurpose;
   }>();
   const email = param(params.email);
   const fullName = param(params.fullName);
   const phone = param(params.phone);
+  const preferredCityId = param(params.preferredCityId);
+  const preferredAreaId = param(params.preferredAreaId);
   const recovery = param(params.purpose) === "recovery";
 
   useEffect(() => {
@@ -45,7 +49,13 @@ export default function CreatePasswordScreen() {
           });
           return;
         }
-        await completePublicSignup({ email, fullName, phone }, password);
+        await completePublicSignup({
+          email,
+          fullName,
+          phone,
+          preferredCityId,
+          preferredAreaId: preferredAreaId || null,
+        }, password);
         await refreshProfile();
         router.dismissAll();
         router.replace("/(tabs)");

@@ -24,7 +24,7 @@ export default function AdminVendorDetailsScreen() {
   const [editOpen, setEditOpen] = useState(false);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!id) { setError("Vendor ID is missing."); setLoading(false); return; }
     setLoading(true);
     setError("");
     try {
@@ -58,7 +58,7 @@ export default function AdminVendorDetailsScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <ResponsiveContainer className="flex-row items-center py-2">
-        <Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={() => router.back()}><ArrowLeft size={21} className="text-foreground" /></Pressable>
+        <Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={() => router.canGoBack() ? router.back() : router.replace("/vendors-admin-listing")}><ArrowLeft size={21} className="text-foreground" /></Pressable>
         <View className="flex-1 px-2"><Text className="text-foreground text-xl font-bold" numberOfLines={1}>{record.business_name}</Text><Text className="text-muted-foreground text-xs">Vendor ID: {record.vendor_id || record.record_id}</Text></View>
         {record.vendor_id ? <Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={() => setEditOpen(true)}><Edit3 size={19} className="text-primary" /></Pressable> : <MoreVertical size={20} className="text-muted-foreground" />}
       </ResponsiveContainer>
@@ -92,7 +92,7 @@ export default function AdminVendorDetailsScreen() {
               </View>
               <View className="flex-row flex-wrap gap-3 mt-4">
                 {vendor?.website ? <LinkButton label="Website" url={vendor.website} /> : null}
-                {record.vendor_id ? <Pressable className="min-h-11 px-4 rounded-full bg-primary items-center justify-center" onPress={() => router.push({ pathname: "/VendorsProfile", params: { id: record.vendor_id } })}><Text className="text-white text-xs font-semibold">Public Profile</Text></Pressable> : null}
+                {record.vendor_id ? <Pressable className="min-h-11 px-4 rounded-full bg-primary items-center justify-center" onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: record.vendor_id } })}><Text className="text-white text-xs font-semibold">Public Profile</Text></Pressable> : null}
               </View>
             </View>
           </ResponsiveSection>
@@ -125,7 +125,7 @@ export default function AdminVendorDetailsScreen() {
               ]} />
             </DashboardWidget>
             <DashboardWidget title="Availability">
-              {details.availability.length ? details.availability.slice(0, 8).map((slot) => <InfoRows key={slot.id} rows={[[new Date(slot.available_date).toLocaleDateString(), slot.status]]} />) : <Empty text="No availability configured." />}
+              {details.availability.length ? details.availability.slice(0, 8).map((slot) => <InfoRows key={slot.id} rows={[[new Date(`${slot.date}T00:00:00`).toLocaleDateString(), slot.status]]} />) : <Empty text="No availability configured." />}
             </DashboardWidget>
           </ResponsiveColumns>
 
@@ -194,6 +194,11 @@ function EditVendorModal({ visible, record, vendor, onClose, onSaved }: { visibl
   const [saving, setSaving] = useState(false);
   const save = async () => {
     if (!record.vendor_id) return;
+    if (!values.business_name.trim()) return Alert.alert("Business name required", "Enter the vendor business name.");
+    if (values.contact_email && !/^\S+@\S+\.\S+$/.test(values.contact_email.trim())) return Alert.alert("Invalid email", "Enter a valid contact email.");
+    for (const field of ["website", "instagram", "facebook"]) {
+      if (values[field] && !/^https?:\/\//i.test(values[field].trim())) return Alert.alert("Invalid link", `${field.replaceAll("_", " ")} must begin with http:// or https://.`);
+    }
     setSaving(true);
     try { await AdminVendorService.update(record.vendor_id, values); await onSaved(); }
     catch (error) { Alert.alert("Update failed", error instanceof Error ? error.message : "Unable to update vendor."); }

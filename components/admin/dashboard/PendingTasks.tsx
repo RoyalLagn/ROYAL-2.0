@@ -13,7 +13,7 @@ export function PendingTasks({ statistics, health }: { statistics: DashboardStat
     ["Rejected Vendors Awaiting Resubmission", statistics.rejectedApplications, "Medium", "/VendorApplications"],
     ["Incomplete Vendor Profiles", statistics.incompleteVendorProfiles, "Medium", "/vendors-admin-listing"],
     ["Expired Subscriptions", statistics.expiredSubscriptions, "Medium", "/subscriptions-admin"],
-    ["System Warnings", warnings, warnings ? "High" : "Healthy", "/AdminSettings"],
+    ["System Warnings", warnings, warnings ? "High" : "Healthy", "/AdminReports"],
   ] as const;
   return (
     <View className="gap-3">

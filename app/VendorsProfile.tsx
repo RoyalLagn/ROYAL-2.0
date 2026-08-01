@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -21,6 +19,8 @@ import { PublicClipService } from "@/clips/services";
 import { useFavorites } from "@/context/FavoritesContext";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import PackagesCard from "@/components/vendor-profile/PackagesCard";
+import PackageDetailsModal from "@/components/packages/PackageDetailsModal";
+import PackageEnquiryModal from "@/components/packages/PackageEnquiryModal";
 import FullscreenMediaViewer from "@/components/vendor-profile/FullscreenMediaViewer";
 import PortfolioAlbums from "@/components/vendor-profile/PortfolioAlbums";
 import ServiceChips from "@/components/vendor-profile/ServiceChips";
@@ -45,6 +45,9 @@ import {
 } from "@/services/publicVendorListings";
 import { portfolioMediaUrl } from "@/services/vendorPortfolio";
 import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
+import type { VendorPackage } from "@/services/vendorPackages";
+import { EnquiryExternalOpenError, EnquiryService, type EnquiryChannel } from "@/services/enquiries";
+import { shareVendorProfile } from "@/services/vendorShare";
 
 const PINK = "#E91E63";
 
@@ -84,6 +87,8 @@ export default function VendorsProfile() {
   const [expanded, setExpanded] = useState(false);
   const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const [packagesVisible, setPackagesVisible] = useState(false);
+  const [enquiryPackage, setEnquiryPackage] = useState<VendorPackage | null>(null);
   const [selectedTab, setSelectedTab] = useState<VendorProfileTab>("portfolio");
   const [vendorClips, setVendorClips] = useState<PublicClip[]>([]);
   const [clipsLoading, setClipsLoading] = useState(false);
@@ -235,8 +240,6 @@ export default function VendorsProfile() {
     ? vendorDescription
     : `${vendor.name} is a verified ${category.toLowerCase()} professional serving ${vendor.location}. Explore their services, portfolio and customer reviews to find the right fit for your celebration.`;
   const aboutCopy = expanded || about.length <= 180 ? about : `${about.slice(0, 177).trim()}…`;
-  const placeholder = (title: string) =>
-    Alert.alert(title, `${title} is available as a local frontend placeholder.`);
   const selectProfileTab = (tab: VendorProfileTab) => {
     setSelectedTab(tab);
     void AsyncStorage.setItem(`royallagn:vendor-profile-tab:${vendor.id}`, tab).catch(() => {
@@ -256,6 +259,34 @@ export default function VendorsProfile() {
     tags: vendor.tags,
     image: vendor.image,
   }, source);
+  const contactVendor = async (channel: Extract<EnquiryChannel, "call" | "whatsapp">, item?: VendorPackage) => {
+    try {
+      await EnquiryService.trackContactAndOpen({
+        vendorId: vendor.id,
+        vendorName: vendor.name,
+        contactPhone: vendor.contactPhone,
+        channel,
+        source: item ? "package" : "vendor_profile",
+        sourceRecordId: item?.id ?? vendor.id,
+        packageId: item?.id,
+        packageName: item?.title,
+      });
+    } catch (cause) {
+      if (cause instanceof EnquiryExternalOpenError) {
+        Alert.alert("Contact app not opened", `${cause.message} Your enquiry click was saved as ${cause.referenceCode}.`);
+      } else {
+        Alert.alert("Contact unavailable", cause instanceof Error ? cause.message : "Please try again.");
+      }
+    }
+  };
+  const shareProfile = async () => {
+    try {
+      const result = await shareVendorProfile({ vendorId: vendor.id, vendorName: vendor.name, category, location: vendor.location });
+      if (result === "copied") Alert.alert("Profile link copied", "You can paste the RoyalLagn vendor link into WhatsApp, Instagram, email or any other app.");
+    } catch (cause) {
+      Alert.alert("Unable to share", cause instanceof Error ? cause.message : "Please try again.");
+    }
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: background }]}>
@@ -272,7 +303,7 @@ export default function VendorsProfile() {
             vendorName={vendor.name}
             onBack={goBack}
             focalPoints={heroFocalPoints}
-            paused={heroViewerIndex !== null || calendarVisible}
+            paused={heroViewerIndex !== null || calendarVisible || packagesVisible || Boolean(enquiryPackage)}
             onOpen={vendor.heroMedia.length ? setHeroViewerIndex : undefined}
           />
 
@@ -287,17 +318,13 @@ export default function VendorsProfile() {
             dark={dark}
             favorite={favorite}
             onToggleFavorite={toggleVendorFavorite}
-            onShare={() => Share.share({ message: `View ${vendor.name} on RoyalLagn — ${vendor.location}` })}
+            onShare={() => void shareProfile()}
           >
             <VendorQuickActions
               dark={dark}
-              onCall={() => vendor.contactPhone
-                ? Linking.openURL(`tel:${vendor.contactPhone}`)
-                : Alert.alert("Contact unavailable", "This vendor has not added a phone number yet.")}
-              onWhatsApp={() => vendor.contactPhone
-                ? Linking.openURL(`https://wa.me/${vendor.contactPhone.replace(/\D/g, "")}`)
-                : Alert.alert("Contact unavailable", "This vendor has not added a WhatsApp number yet.")}
-              onEnquire={() => placeholder("Send Enquiry")}
+              onCall={() => void contactVendor("call")}
+              onWhatsApp={() => void contactVendor("whatsapp")}
+              onEnquire={() => setPackagesVisible(true)}
               onCalendar={() => setCalendarVisible(true)}
             />
           </VendorInfoPanel>
@@ -306,7 +333,8 @@ export default function VendorsProfile() {
             <PackagesCard
               price={vendor.startingPrice}
               dark={dark}
-              onPress={() => placeholder("Packages")}
+              subtitle={vendor.services.length ? `${vendor.services.length} active ${vendor.services.length === 1 ? "package" : "packages"} available` : "Request a custom package"}
+              onPress={() => setPackagesVisible(true)}
             />
 
             <VendorProfileTabs
@@ -383,6 +411,30 @@ export default function VendorsProfile() {
         initialIndex={heroViewerIndex ?? 0}
         title={`${vendor.name} · Hero gallery`}
         onClose={() => setHeroViewerIndex(null)}
+      />
+      <PackageDetailsModal
+        visible={packagesVisible}
+        vendorId={vendor.id}
+        vendorName={vendor.name}
+        contactPhone={vendor.contactPhone}
+        dark={dark}
+        onClose={() => setPackagesVisible(false)}
+        onCall={(item) => void contactVendor("call", item)}
+        onWhatsApp={(item) => void contactVendor("whatsapp", item)}
+        onEnquire={(item) => {
+          setPackagesVisible(false);
+          setEnquiryPackage(item);
+        }}
+      />
+      <PackageEnquiryModal
+        visible={Boolean(enquiryPackage)}
+        vendorId={vendor.id}
+        vendorName={vendor.name}
+        item={enquiryPackage}
+        dark={dark}
+        onClose={() => setEnquiryPackage(null)}
+        onSignInRequired={() => router.push("/DashboardCenter")}
+        onSent={() => setEnquiryPackage(null)}
       />
       <VendorAvailabilityModal
         visible={calendarVisible}

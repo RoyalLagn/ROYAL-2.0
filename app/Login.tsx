@@ -24,6 +24,9 @@ import {
   validateFullName,
   validatePhone,
 } from "@/utils/authValidation";
+import { SupportedLocationField } from "@/components/locations/SupportedLocationField";
+import { useCustomerLocation } from "@/context/LocationContext";
+import type { LocationPreference } from "@/locations/types";
 
 type AuthTab = "login" | "signup";
 
@@ -61,6 +64,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ reset?: string }>();
   const { refreshProfile, isPublicAuthenticated, loading: authLoading } = usePublicAuth();
+  const { locations, preference } = useCustomerLocation();
   const [tab, setTab] = useState<AuthTab>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -68,10 +72,11 @@ export default function LoginScreen() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [signupLocation, setSignupLocation] = useState<LocationPreference | null>(preference);
 
   const signupValid = useMemo(
-    () => validateFullName(fullName) && validatePhone(phone) && validateEmail(email),
-    [email, fullName, phone]
+    () => validateFullName(fullName) && validatePhone(phone) && validateEmail(email) && Boolean(signupLocation?.cityId),
+    [email, fullName, phone, signupLocation?.cityId]
   );
 
   useEffect(() => {
@@ -114,13 +119,22 @@ export default function LoginScreen() {
     setLoading(true);
     setError("");
     try {
-      const normalizedEmail = await sendSignupOtp({ email, fullName, phone });
+      if (!signupLocation) return;
+      const normalizedEmail = await sendSignupOtp({
+        email,
+        fullName,
+        phone,
+        preferredCityId: signupLocation.cityId,
+        preferredAreaId: signupLocation.areaId,
+      });
       router.replace({
         pathname: "/OtpVerification",
         params: {
           email: normalizedEmail,
           fullName: fullName.trim(),
           phone: phone.trim(),
+          preferredCityId: signupLocation.cityId,
+          preferredAreaId: signupLocation.areaId ?? "",
           purpose: "signup",
         },
       });
@@ -179,6 +193,14 @@ export default function LoginScreen() {
                   value={fullName}
                   onChangeText={(value) => { setFullName(value); setError(""); }}
                   placeholder="Full Name *"
+                />
+                <SupportedLocationField
+                  label="Preferred browsing location"
+                  required
+                  locations={locations}
+                  value={signupLocation}
+                  onChange={(value) => { setSignupLocation(value); setError(""); }}
+                  helper="Used only to prioritize nearby vendors. You can change it anytime."
                 />
                 <Input
                   icon={Phone}

@@ -252,6 +252,12 @@ content_path = "./supabase/templates/confirmation.html"
 subject = "{{ .Token }} is your RoyalLagn verification code"
 content_path = "./supabase/templates/magic_link.html"
 
+[functions.lookup-india-pincode]
+verify_jwt = false
+
+[functions.submit-vendor-application]
+verify_jwt = false
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true
@@ -385,6 +391,14 @@ policy = "per_worker"
 inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
+
+# Razorpay signs webhook requests itself. The lifecycle endpoint uses a
+# dedicated x-cron-secret and must be callable by Supabase Cron.
+[functions.razorpay-webhook]
+verify_jwt = false
+
+[functions.process-subscription-lifecycle]
+verify_jwt = false
 
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"

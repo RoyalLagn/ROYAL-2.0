@@ -18,18 +18,22 @@ export type PublicProfile = {
   role: "public_user";
   created_at: string;
   updated_at: string;
+  preferred_city_id?: string | null;
+  preferred_area_id?: string | null;
 };
 
 export type SignupDetails = {
   email: string;
   fullName: string;
   phone: string;
+  preferredCityId: string;
+  preferredAreaId: string | null;
 };
 
 export type OtpPurpose = "signup" | "recovery";
 
 const PROFILE_COLUMNS =
-  "id,email,full_name,phone,profile_image,role,created_at,updated_at";
+  "id,email,full_name,phone,profile_image,role,created_at,updated_at,preferred_city_id,preferred_area_id";
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
@@ -68,6 +72,23 @@ export async function sendSignupOtp(details: SignupDetails) {
   if (!validateFullName(details.fullName) || !validatePhone(details.phone) || !validateEmail(email)) {
     throw new Error("Enter a valid full name, phone number, and email address.");
   }
+  const { data: city, error: cityError } = await supabase
+    .from("supported_cities")
+    .select("id")
+    .eq("id", details.preferredCityId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (cityError || !city) throw cityError ?? new Error("Choose an active RoyalLagn city.");
+  if (details.preferredAreaId) {
+    const { data: area, error: areaError } = await supabase
+      .from("supported_areas")
+      .select("id")
+      .eq("id", details.preferredAreaId)
+      .eq("city_id", details.preferredCityId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (areaError || !area) throw areaError ?? new Error("Choose an active RoyalLagn area.");
+  }
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
@@ -76,6 +97,8 @@ export async function sendSignupOtp(details: SignupDetails) {
         role: "public_user",
         full_name: details.fullName.trim(),
         phone: normalizePhone(details.phone),
+        preferred_city_id: details.preferredCityId,
+        preferred_area_id: details.preferredAreaId,
         registration_pending: true,
       },
     },
@@ -135,6 +158,8 @@ export async function completePublicSignup(details: SignupDetails, password: str
       role: "public_user",
       full_name: details.fullName.trim(),
       phone: normalizePhone(details.phone),
+      preferred_city_id: details.preferredCityId,
+      preferred_area_id: details.preferredAreaId,
       registration_pending: false,
     },
   });
@@ -148,6 +173,8 @@ export async function completePublicSignup(details: SignupDetails, password: str
       full_name: details.fullName.trim(),
       phone: normalizePhone(details.phone),
       role: "public_user",
+      preferred_city_id: details.preferredCityId,
+      preferred_area_id: details.preferredAreaId,
     })
     .select(PROFILE_COLUMNS)
     .single();

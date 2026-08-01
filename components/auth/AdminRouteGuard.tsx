@@ -2,33 +2,7 @@ import React, { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { usePathname, useRouter } from "expo-router";
 import { useAdminAuth } from "@/context/AdminAuthContext";
-
-const ADMIN_ROUTES = new Set([
-  "/admin-dashboard",
-  "/admin-dash-logout",
-  "/vendors-admin-listing",
-  "/VendorApplications",
-  "/VendorApplicationDetails",
-  "/subscriptions-admin",
-  "/payments-admin",
-  "/AdminUsers",
-  "/AdminCategories",
-  "/AdminReports",
-  "/AdminSettings",
-  "/AdminHelp",
-]);
-
-const ADMIN_AUTH_ROUTES = new Set([
-  "/AdminLogin",
-  "/AdminForgotPassword",
-  "/AdminOtpVerification",
-  "/AdminCreatePassword",
-]);
-
-function isProtectedAdminRoute(pathname: string) {
-  if (ADMIN_AUTH_ROUTES.has(pathname)) return false;
-  return ADMIN_ROUTES.has(pathname) || pathname.toLowerCase().includes("admin");
-}
+import { isProtectedAdminRoute } from "@/admin/navigation";
 
 export function AdminRouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

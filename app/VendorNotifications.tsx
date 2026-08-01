@@ -1,37 +1,51 @@
 import React from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Bell, CheckCheck } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
-import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
-import { supabase } from "@/services/supabase";
+import { useVendorNotifications, type VendorNotification } from "@/context/VendorNotificationContext";
+
+const vendorNotificationDestination = (notification: VendorNotification) => {
+  if (notification.target_path) return notification.target_path;
+  if (notification.kind === "subscription" || notification.kind === "payment") return "/VendorSubscription";
+  if (notification.kind === "enquiry") return "/VendorEnquiries";
+  if (notification.kind === "review") return "/vendor-dashboard";
+  return null;
+};
 
 export default function VendorNotifications() {
+  const router = useRouter();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
-  const { data, loading, refresh } = useVendorWorkspace();
-  const unread = data.notifications.filter((item) => !item.is_read).length;
-  const markRead = async (id?: string) => {
-    if (!data.vendor?.id) return;
-    let query = supabase.from("vendor_notifications").update({ is_read: true }).eq("vendor_id", data.vendor.id);
-    if (id) query = query.eq("id", id);
-    else query = query.eq("is_read", false);
-    const { error } = await query;
-    if (error) Alert.alert("Notifications not updated", error.message); else refresh();
+  const { notifications, unreadCount: unread, loading, markAsRead, markAllAsRead } = useVendorNotifications();
+  const openNotification = (notification: VendorNotification) => {
+    if (!notification.is_read) {
+      void markAsRead(notification.id).then((success) => {
+        if (!success) Alert.alert("Notification not updated", "Please check your connection and try again.");
+      });
+    }
+    const destination = vendorNotificationDestination(notification);
+    if (destination) router.push(destination as never);
+  };
+  const readAll = () => {
+    void markAllAsRead().then((success) => {
+      if (!success) Alert.alert("Notifications not updated", "Please check your connection and try again.");
+    });
   };
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
-    <VendorHeader unread={unread} />
+    <VendorHeader />
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.heading}><View style={styles.flex}><Text style={[styles.eyebrow, { color: colors.pink }]}>STAY INFORMED</Text><Text style={[styles.title, { color: colors.text }]}>Notifications</Text><Text style={[styles.subtitle, { color: colors.muted }]}>{unread ? `${unread} unread updates` : "You are all caught up."}</Text></View>
-        {unread > 0 && <Pressable onPress={() => markRead()} style={[styles.mark, { backgroundColor: colors.surfaceSoft }]}><CheckCheck size={16} color={colors.pink} /><Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>Read all</Text></Pressable>}</View>
-      {loading ? <ActivityIndicator color={colors.pink} style={{ marginTop: 40 }} /> : data.notifications.map((item) => <Pressable key={item.id} onPress={() => !item.is_read && markRead(item.id)}
+        {unread > 0 && <Pressable onPress={readAll} style={[styles.mark, { backgroundColor: colors.surfaceSoft }]}><CheckCheck size={16} color={colors.pink} /><Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>Read all</Text></Pressable>}</View>
+      {loading ? <ActivityIndicator color={colors.pink} style={{ marginTop: 40 }} /> : notifications.map((item) => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${item.title}${item.is_read ? "" : ", unread"}`} onPress={() => openNotification(item)}
         style={[styles.card, { backgroundColor: colors.surface, borderColor: item.is_read ? colors.border : colors.pink }]}>
         <View style={[styles.icon, { backgroundColor: colors.surfaceSoft }]}><Bell size={18} color={item.is_read ? colors.muted : colors.pink} /></View>
         <View style={styles.flex}><Text style={[styles.cardTitle, { color: colors.text }]}>{item.title}</Text><Text style={[styles.body, { color: colors.muted }]}>{item.body || "Open to mark this notification as read."}</Text><Text style={[styles.date, { color: colors.muted }]}>{new Date(item.created_at).toLocaleString()}</Text></View>
         {!item.is_read && <View style={[styles.dot, { backgroundColor: colors.pink }]} />}
       </Pressable>)}
-      {!loading && !data.notifications.length && <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><Bell size={29} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.text }]}>No notifications</Text><Text style={[styles.emptyBody, { color: colors.muted }]}>Enquiries, reviews and important account updates will appear here.</Text></View>}
+      {!loading && !notifications.length && <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><Bell size={29} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.text }]}>No notifications</Text><Text style={[styles.emptyBody, { color: colors.muted }]}>Enquiries, reviews and important account updates will appear here.</Text></View>}
     </ScrollView>
   </View>;
 }

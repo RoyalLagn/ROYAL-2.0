@@ -1,0 +1,89 @@
+import {
+  constantTimeEqual,
+  corsHeaders,
+  hmacHex,
+  json,
+  requireEnv,
+  safeProviderPayload,
+  serviceClient,
+} from "../_shared/subscriptions.ts";
+
+Deno.serve(async (request) => {
+  if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  const rawBody = await request.text();
+  try {
+    const receivedSignature = (request.headers.get("x-razorpay-signature") ?? "").toLowerCase();
+    const expectedSignature = await hmacHex(requireEnv("RAZORPAY_TEST_WEBHOOK_SECRET"), rawBody);
+    if (!receivedSignature || !constantTimeEqual(receivedSignature, expectedSignature)) {
+      return json({ error: "Invalid webhook signature" }, 401);
+    }
+    const payload = JSON.parse(rawBody);
+    const eventType = String(payload.event ?? "unknown");
+    const paymentEntity = payload?.payload?.payment?.entity;
+    const orderEntity = payload?.payload?.order?.entity;
+    const orderId = paymentEntity?.order_id ?? orderEntity?.id;
+    const providerEventId = request.headers.get("x-razorpay-event-id")
+      ?? `${eventType}:${paymentEntity?.id ?? orderId ?? await hmacHex("royallagn-event", rawBody)}`;
+    const admin = serviceClient();
+    const { data: eventRow, error: eventError } = await admin.from("subscription_webhook_events").insert({
+      provider: "razorpay",
+      provider_event_id: providerEventId,
+      event_type: eventType,
+      safe_payload: safeProviderPayload(payload),
+    }).select("id").single();
+    if (eventError?.code === "23505") return json({ received: true, idempotent: true });
+    if (eventError) throw eventError;
+
+    const { data: payment } = orderId ? await admin
+      .from("subscription_payments")
+      .select("id,vendor_id")
+      .eq("razorpay_order_id", orderId)
+      .maybeSingle() : { data: null };
+    if (!payment) {
+      await admin.from("subscription_webhook_events").update({ processing_status: "ignored", processed_at: new Date().toISOString() }).eq("id", eventRow.id);
+      return json({ received: true, ignored: true });
+    }
+
+    if (["payment.captured", "order.paid"].includes(eventType) && paymentEntity?.id) {
+      await admin.from("subscription_payments").update({
+        payment_status: "captured",
+        razorpay_payment_id: paymentEntity.id,
+        payment_method: paymentEntity.method ?? null,
+        paid_at: new Date().toISOString(),
+      }).eq("id", payment.id);
+      const { error: activationError } = await admin.rpc("activate_verified_subscription_payment", {
+        target_payment_id: payment.id,
+        verified_payment_id: paymentEntity.id,
+        verified_payment_method: paymentEntity.method ?? null,
+        verification_metadata: { verified_via: "razorpay_webhook", provider_event_id: providerEventId },
+      });
+      if (activationError) throw activationError;
+    } else if (eventType === "payment.failed") {
+      await admin.from("subscription_payments").update({
+        payment_status: "failed",
+        razorpay_payment_id: paymentEntity?.id ?? null,
+        failure_code: paymentEntity?.error_code ?? "payment_failed",
+        failure_reason: paymentEntity?.error_description ?? "Payment failed",
+      }).eq("id", payment.id);
+      await admin.from("vendor_notifications").insert({
+        vendor_id: payment.vendor_id,
+        title: "Payment failed",
+        body: "Your subscription payment could not be completed. You can safely try again.",
+        kind: "subscription",
+      });
+    } else if (eventType === "refund.processed") {
+      await admin.from("subscription_payments").update({ payment_status: "refunded", refunded_at: new Date().toISOString() }).eq("id", payment.id);
+    }
+    await admin.from("subscription_webhook_events").update({
+      payment_id: payment.id,
+      processing_status: "processed",
+      processed_at: new Date().toISOString(),
+    }).eq("id", eventRow.id);
+    return json({ received: true });
+  } catch (error) {
+    console.error("[razorpay-webhook]", error);
+    return json({ error: error instanceof Error ? error.message : "Webhook processing failed" }, 400);
+  }
+});
+

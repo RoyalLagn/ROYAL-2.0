@@ -33,6 +33,11 @@ import LocationSelector from "@/components/home/LocationSelector";
 import SectionHeader from "@/components/home/SectionHeader";
 import HomeFilterModal, { DEFAULT_HOME_FILTERS, type HomeFilters } from "@/components/home/HomeFilterModal";
 import { useCustomerLocation } from "@/context/LocationContext";
+import {
+  rankVendorsByLocation,
+  vendorLocationPriority,
+  vendorNearbyLabel,
+} from "@/services/locations";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { useNotifications } from "@/context/NotificationContext";
@@ -62,7 +67,7 @@ export default function HomeScreen() {
   const [liveVendors, setLiveVendors] = useState<PublicVendorListing[]>([]);
   const { isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
-  const { city } = useCustomerLocation();
+  const { city, preference, strictCityOnly } = useCustomerLocation();
   const { unreadCount } = useNotifications();
   const { profile } = usePublicAuth();
   const { homeCategories: categories } = useCategories();
@@ -161,7 +166,7 @@ export default function HomeScreen() {
       ? "Good Afternoon"
       : "Good Evening";
   const nearbyVendors = useMemo(() => {
-    return liveVendors
+    const eligible = liveVendors
       .map((vendor) => {
         const current = getRating(vendor.id, vendor.rating, 0);
         return { ...vendor, rating: current.rating, reviews: current.reviews };
@@ -174,7 +179,7 @@ export default function HomeScreen() {
         ))
         && (!filters.category || vendor.category === filters.category)
         && (!filters.availabilityOnly || vendor.isAvailable)
-        && (!filters.nearbyOnly || vendor.location.toLowerCase().includes(city.toLowerCase()))
+        && (!filters.nearbyOnly || vendorLocationPriority(vendor, preference) >= 2)
       )
       .sort((a, b) => {
         if (filters.sort === "rating") return b.rating - a.rating;
@@ -182,9 +187,10 @@ export default function HomeScreen() {
           return (a.startingPriceValue || Number.MAX_SAFE_INTEGER)
             - (b.startingPriceValue || Number.MAX_SAFE_INTEGER);
         }
-        return Number(b.location.includes(city)) - Number(a.location.includes(city)) || b.rating - a.rating;
+        return b.rating - a.rating || b.reviews - a.reviews;
       });
-  }, [city, filters, getRating, liveVendors]);
+    return rankVendorsByLocation(eligible, preference, strictCityOnly || filters.nearbyOnly);
+  }, [filters, getRating, liveVendors, preference, strictCityOnly]);
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
@@ -378,6 +384,7 @@ export default function HomeScreen() {
           >
             {nearbyVendors.map((v) => {
               const isFav = isFavorite(v.id);
+              const nearbyLabel = vendorNearbyLabel(v, preference);
               return (
                 <View key={v.id} style={[s.vendorCard, { width: vendorCardWidth, backgroundColor: card, borderColor: border }]}>
                   <TouchableOpacity
@@ -404,6 +411,7 @@ export default function HomeScreen() {
                           <Text style={s.verifiedTxt}>Verified</Text>
                         </View>
                       </View>
+                      {nearbyLabel ? <View style={s.vendorNearby}><MapPin size={10} color={PINK} /><Text style={s.vendorNearbyText}>{nearbyLabel}</Text></View> : null}
                     </View>
                     <View style={s.vendorInfo}>
                       <Text style={[s.vendorName, isDesktop && s.vendorNameDesktop, { color: text }]} numberOfLines={1}>{v.name}</Text>
@@ -532,6 +540,8 @@ const s = StyleSheet.create<Record<string, any>>({
   vendorMain:      { flex: 1 },
   vendorImgWrap:   { position: "relative", overflow: "hidden" },
   vendorImg:       { width: "100%", height: "100%" },
+  vendorNearby:    { position: "absolute", top: 8, left: 8, minHeight: 25, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,.94)" },
+  vendorNearbyText:{ color: PINK, fontSize: 8.5, fontWeight: "800" },
   heartBtn:        { position: "absolute", top: 8, right: 8, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(255,255,255,.94)", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } },
   heartBtnActive:  { backgroundColor: "rgba(255,255,255,.94)" },
   favoritePressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },

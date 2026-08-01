@@ -12,7 +12,7 @@ const DOUBLE_TAP_MS = 260;
 
 export const PublicClipVideo = React.memo(function PublicClipVideo({
   uri, thumbnailUrl, sourceWidth, sourceHeight, active, muted, onToggleMuted, onDoubleTapLike,
-  showMuteControl = true,
+  onHoldChange, showMuteControl = true,
 }: {
   uri: string;
   thumbnailUrl: string;
@@ -22,6 +22,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   muted: boolean;
   onToggleMuted: () => void;
   onDoubleTapLike: () => void;
+  onHoldChange?: (holding: boolean) => void;
   showMuteControl?: boolean;
 }) {
   const [manuallyPaused, setManuallyPaused] = useState(false);
@@ -29,6 +30,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastTap = useRef(0);
   const longPressed = useRef(false);
+  const holdReleaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = useReducedMotion();
   const playOpacity = useSharedValue(0);
   const playScale = useSharedValue(0.82);
@@ -38,8 +40,8 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const sourceAspectRatio = sourceWidth > 0 && sourceHeight > 0
     ? sourceWidth / sourceHeight
     : 9 / 16;
-  const preserveFullFrame = sourceAspectRatio > 0.72 || sourceAspectRatio < 0.46;
-  const contentFit = preserveFullFrame ? "contain" : "cover";
+  const isReelAspectRatio = sourceAspectRatio >= 0.46 && sourceAspectRatio <= 0.72;
+  const contentFit = isReelAspectRatio ? "cover" : "contain";
   const source = React.useMemo(() => ({
     uri,
     useCaching: Platform.OS !== "web",
@@ -69,7 +71,9 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   }, [active, manuallyPaused, player]);
   useEffect(() => () => {
     if (tapTimer.current) clearTimeout(tapTimer.current);
-  }, []);
+    if (holdReleaseTimer.current) clearTimeout(holdReleaseTimer.current);
+    onHoldChange?.(false);
+  }, [onHoldChange]);
 
   const showPauseState = useCallback((paused: boolean) => {
     playOpacity.value = withTiming(paused ? 1 : 0, { duration: reduced ? 0 : 180 });
@@ -133,13 +137,11 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const failed = status?.status === "error";
 
   return <View style={StyleSheet.absoluteFill}>
-    <Image source={{ uri: thumbnailUrl }} style={[StyleSheet.absoluteFill, styles.backdrop]} resizeMode="cover" />
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdropShade]} />
-    <Image source={{ uri: thumbnailUrl }} style={StyleSheet.absoluteFill} resizeMode={contentFit} />
-    {!failed && <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, videoStyle]}>
+    <Image source={{ uri: thumbnailUrl }} style={styles.mediaFill} resizeMode={contentFit} />
+    {!failed && <Animated.View pointerEvents="none" style={[styles.mediaFill, videoStyle]}>
       <VideoView
         player={player}
-        style={StyleSheet.absoluteFill}
+        style={styles.mediaFill}
         contentFit={contentFit}
         nativeControls={false}
         playsInline
@@ -155,37 +157,43 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
       accessibilityRole="button"
       accessibilityLabel={manuallyPaused ? "Resume Clip" : "Pause Clip"}
       onPress={handleTap}
-      delayLongPress={420}
+      delayLongPress={260}
       onLongPress={() => {
         longPressed.current = true;
-        onToggleMuted();
+        onHoldChange?.(true);
       }}
-      style={StyleSheet.absoluteFill}
+      onPressOut={() => {
+        if (!longPressed.current) return;
+        onHoldChange?.(false);
+        if (holdReleaseTimer.current) clearTimeout(holdReleaseTimer.current);
+        holdReleaseTimer.current = setTimeout(() => {
+          longPressed.current = false;
+          holdReleaseTimer.current = null;
+        }, 80);
+      }}
+      style={styles.mediaFill}
     />
     {failed && <View style={styles.center}><Text style={styles.errorTitle}>This Clip couldn&apos;t play</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry video" onPress={() => { player.replace(uri); player.play(); }} style={styles.retry}><RefreshCw size={17} color="#FFF" /><Text style={styles.retryText}>Retry</Text></Pressable></View>}
     <Animated.View pointerEvents="none" style={[styles.playBurst, playStyle]}><Play size={44} color="#FFF" fill="#FFF" /></Animated.View>
     <Animated.View pointerEvents="none" style={[styles.heartBurst, heartStyle]}><Heart size={94} color="#FFF" fill="#E91E63" strokeWidth={1.5} /></Animated.View>
-    {showMuteControl ? <Pressable
+    {showMuteControl && manuallyPaused ? <Pressable
       accessibilityRole="button"
       accessibilityLabel={muted ? "Turn Clip sound on" : "Mute Clip"}
       onPress={onToggleMuted}
       style={styles.muteState}
     >
-      {muted ? <VolumeX size={14} color="#FFF" /> : <Volume2 size={14} color="#FFF" />}
-      <Text style={styles.muteText}>{muted ? "Tap for sound" : "Sound on"}</Text>
+      {muted ? <VolumeX size={17} color="#FFF" /> : <Volume2 size={17} color="#FFF" />}
     </Pressable> : null}
   </View>;
 });
 
 const styles = StyleSheet.create({
-  backdrop: { opacity: 0.58, transform: [{ scale: 1.05 }] },
-  backdropShade: { backgroundColor: "rgba(7,5,7,.5)" },
+  mediaFill: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
   center: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(10,7,9,.48)", alignItems: "center", justifyContent: "center", gap: 10 },
   errorTitle: { color: "#FFF", fontSize: 14, fontWeight: "800" },
   retry: { minHeight: 44, paddingHorizontal: 16, borderRadius: 22, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(233,30,99,.9)" },
   retryText: { color: "#FFF", fontSize: 11, fontWeight: "800" },
   playBurst: { position: "absolute", alignSelf: "center", top: "43%", width: 82, height: 82, borderRadius: 41, alignItems: "center", justifyContent: "center", paddingLeft: 5, backgroundColor: "rgba(8,5,7,.58)", borderWidth: 1, borderColor: "rgba(255,255,255,.25)" },
   heartBurst: { position: "absolute", alignSelf: "center", top: "38%" },
-  muteState: { position: "absolute", top: 12, right: 12, minHeight: 32, borderRadius: 16, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(8,5,7,.62)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.24)", zIndex: 5 },
-  muteText: { color: "#FFF", fontSize: 9, fontWeight: "700" },
+  muteState: { position: "absolute", alignSelf: "center", top: "55%", width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,5,7,.62)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.32)", zIndex: 6 },
 });

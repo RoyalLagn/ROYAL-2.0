@@ -10,7 +10,8 @@ import {
   WalletCards,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { AuthBackButton } from "@/components/auth/AuthBackButton";
 import { useAppTheme } from "@/components/ThemeProvider";
 import {
@@ -36,6 +37,15 @@ const formatTimestamp = (timestamp: string) => {
     dateStyle: "medium",
     timeStyle: "short",
   });
+};
+
+const notificationDestination = (notification: RoyalLagnNotification) => {
+  if (notification.targetPath) return notification.targetPath;
+  if (notification.type === "booking_confirmed" || notification.type === "booking_cancelled" || notification.type === "payment_reminder") return "/(tabs)/enquiry";
+  if (notification.type === "new_offer") return "/(tabs)/Categories";
+  if (notification.type === "profile_updated") return "/(tabs)/profile";
+  if (notification.type === "vendor_approval") return "/DashboardCenter";
+  return null;
 };
 
 function NotificationRow({
@@ -86,11 +96,13 @@ function NotificationRow({
 }
 
 export default function NotificationsScreen() {
+  const router = useRouter();
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
   const {
     notifications,
     unreadCount,
+    loading,
     markAsRead,
     markAllAsRead,
     clearNotifications,
@@ -106,7 +118,12 @@ export default function NotificationsScreen() {
         <Text className="text-foreground text-xl font-bold">Notifications</Text>
       </View>
 
-      {!notifications.length ? (
+      {loading ? (
+        <View style={styles.empty}>
+          <ActivityIndicator size="large" color="#E91E63" />
+          <Text className="text-muted-foreground text-sm mt-3">Loading notifications…</Text>
+        </View>
+      ) : !notifications.length ? (
         <View style={styles.empty}>
           <View
             style={[
@@ -159,7 +176,11 @@ export default function NotificationsScreen() {
                 key={notification.id}
                 notification={notification}
                 dark={isDark}
-                onOpen={() => markAsRead(notification.id)}
+                onOpen={() => {
+                  markAsRead(notification.id);
+                  const destination = notificationDestination(notification);
+                  if (destination) router.push(destination as never);
+                }}
               />
             ))}
           </ScrollView>

@@ -190,7 +190,7 @@ export const AdminVendorService = {
         .order("submitted_at", { ascending: false }),
       vendorId ? supabase.from("vendor_services").select("*").eq("vendor_id", vendorId).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
       vendorId ? supabase.from("vendor_portfolio_media").select("*").eq("vendor_id", vendorId).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
-      vendorId ? supabase.from("vendor_availability").select("*").eq("vendor_id", vendorId).order("available_date") : Promise.resolve({ data: [], error: null }),
+      vendorId ? supabase.from("vendor_availability").select("*").eq("vendor_id", vendorId).order("date") : Promise.resolve({ data: [], error: null }),
       vendorId ? supabase.from("subscriptions").select("*").eq("vendor_id", vendorId).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
       vendorId ? supabase.from("reviews").select("*").eq("vendor_id", vendorId).order("created_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
       supabase.from("admin_vendor_activity").select("*,profiles!admin_vendor_activity_administrator_id_fkey(full_name,email)")
@@ -226,8 +226,13 @@ export const AdminVendorService = {
 
   async review(record: AdminVendorRecord, decision: "approved" | "rejected", reason?: string) {
     if (!record.application_id) throw new Error("Vendor application not found.");
+    await this.reviewApplication(record.application_id, decision, reason);
+  },
+
+  async reviewApplication(applicationId: string, decision: "approved" | "rejected", reason?: string) {
+    if (decision === "rejected" && !reason?.trim()) throw new Error("A rejection reason is required.");
     const { error } = await supabase.rpc("admin_review_vendor_application", {
-      target_application_id: record.application_id,
+      target_application_id: applicationId,
       decision,
       reason: decision === "rejected" ? reason?.trim() || null : null,
     });

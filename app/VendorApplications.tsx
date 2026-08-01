@@ -1,41 +1,58 @@
-import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { Image, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
-import { ArrowLeft, Building2, ChevronRight, MapPin } from "lucide-react-native";
+import { Building2, ChevronRight, MapPin, RefreshCw, Search } from "lucide-react-native";
+import AdminFooter from "@/components/AdminFooter";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
+import { PaginationBar } from "@/components/admin/ui/PaginationBar";
+import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { supabase } from "@/services/supabase";
 
-type Application = {
-  id: string; business_name: string; full_name: string; city: string; logo_url: string;
-  status: string; submitted_at: string; categories: { name: string } | null;
-};
+type ApplicationStatus = "pending" | "approved" | "rejected";
+type Application = { id: string; business_name: string; full_name: string; city: string; logo_url: string; status: ApplicationStatus; submitted_at: string; reviewed_at: string | null; categories: { name: string } | { name: string }[] | null };
+const PAGE_SIZE = 15;
 
 export default function VendorApplications() {
   const router = useRouter();
   const [items, setItems] = useState<Application[]>([]);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<ApplicationStatus | "all">("pending");
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setError("");
-    const { data, error: queryError } = await supabase.from("vendor_applications")
-      .select("id,business_name,full_name,city,logo_url,status,submitted_at,categories(name)")
-      .eq("status", "pending").order("submitted_at", { ascending: false });
-    if (queryError) setError(queryError.message); else setItems((data as unknown as Application[]) ?? []);
-    setLoading(false);
+  const load = useCallback(async (refresh = false) => {
+    if (refresh) setRefreshing(true); else setLoading(true); setError(null);
+    const result = await supabase.from("vendor_applications").select("id,business_name,full_name,city,logo_url,status,submitted_at,reviewed_at,categories(name)").order("submitted_at", { ascending: false });
+    if (result.error) setError(result.error.message); else setItems((result.data as unknown as Application[]) ?? []);
+    setLoading(false); setRefreshing(false);
   }, []);
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return items.filter((item) => (status === "all" || item.status === status) && (!needle || [item.business_name, item.full_name, item.city, categoryName(item)].some((value) => value?.toLowerCase().includes(needle))));
+  }, [items, query, status]);
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pages);
+  const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-    <View className="flex-row items-center px-5 py-4 border-b border-border"><TouchableOpacity onPress={() => router.back()} className="w-10 h-10 rounded-full bg-card border border-border items-center justify-center"><ArrowLeft size={20} className="text-foreground" /></TouchableOpacity><View className="ml-4"><Text className="text-foreground text-xl font-bold">Vendor Applications</Text><Text className="text-muted-foreground text-xs">Pending registration requests</Text></View></View>
-    {loading ? <View className="flex-1 items-center justify-center"><ActivityIndicator color="#EC4899" /></View> :
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} refreshControl={<RefreshControl refreshing={loading} onRefresh={() => { setLoading(true); load(); }} />}>
-        {error ? <Text className="text-destructive text-center mb-4">{error}</Text> : null}
-        {!items.length && !error ? <View className="items-center py-20"><Building2 size={40} className="text-muted-foreground mb-4" /><Text className="text-foreground font-semibold">No pending applications</Text></View> : null}
-        {items.map((item) => <View key={item.id} className="bg-card border border-border rounded-3xl p-4 mb-4">
-          <View className="flex-row"><Image source={{ uri: item.logo_url }} className="w-16 h-16 rounded-2xl bg-muted" /><View className="flex-1 ml-4"><Text className="text-foreground font-bold text-base">{item.business_name}</Text><Text className="text-muted-foreground text-sm">{item.full_name} · {item.categories?.name ?? "Uncategorized"}</Text><View className="flex-row items-center mt-1"><MapPin size={13} className="text-primary" /><Text className="text-muted-foreground text-xs ml-1">{item.city}</Text></View></View><View className="bg-amber-500/15 px-2 py-1 rounded-full self-start"><Text className="text-amber-500 text-xs font-semibold">Pending</Text></View></View>
-          <View className="flex-row items-center justify-between border-t border-border mt-4 pt-3"><Text className="text-muted-foreground text-xs">{new Date(item.submitted_at).toLocaleDateString()}</Text><TouchableOpacity className="flex-row items-center" onPress={() => router.push({ pathname: "/VendorApplicationDetails", params: { id: item.id } })}><Text className="text-primary font-semibold text-sm mr-1">View Details</Text><ChevronRight size={16} className="text-primary" /></TouchableOpacity></View>
-        </View>)}
-      </ScrollView>}
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}>
+      <ResponsiveContainer>
+        <AdminPageHeader title="Vendor Approvals" subtitle="Review current and previous registration decisions" action={<Pressable accessibilityLabel="Refresh applications" onPress={() => void load(true)} className="min-w-11 min-h-11 items-center justify-center"><RefreshCw size={19} className="text-primary" /></Pressable>} />
+        <View className="bg-card border border-border rounded-2xl px-4 h-12 flex-row items-center"><Search size={18} className="text-muted-foreground" /><TextInput value={query} onChangeText={(value) => { setQuery(value); setPage(1); }} placeholder="Search business, owner, category or city" placeholderTextColor="#8A8589" className="flex-1 h-12 ml-3 text-foreground" /></View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 12 }}>{(["pending", "approved", "rejected", "all"] as const).map((value) => <Pressable key={value} onPress={() => { setStatus(value); setPage(1); }} className={status === value ? "px-4 py-2 rounded-xl bg-primary" : "px-4 py-2 rounded-xl bg-card border border-border"}><Text className={status === value ? "text-white text-xs font-semibold capitalize" : "text-foreground text-xs font-semibold capitalize"}>{value}</Text></Pressable>)}</ScrollView>
+        <Text className="text-muted-foreground text-xs mb-3">{filtered.length} application{filtered.length === 1 ? "" : "s"}</Text>
+        {loading ? <AdminLoadingState label="Loading applications…" /> : error ? <AdminErrorState message={error} onRetry={() => void load()} /> : !visible.length ? <AdminEmptyState title="No applications found" message="Try another search or status filter." /> : <View className="gap-3">{visible.map((item) => <Pressable key={item.id} onPress={() => router.push({ pathname: "/VendorApplicationDetails", params: { id: item.id } })} className="bg-card border border-border rounded-2xl p-4"><View className="flex-row items-center">{item.logo_url ? <Image source={{ uri: item.logo_url }} className="w-14 h-14 rounded-xl bg-muted" /> : <View className="w-14 h-14 rounded-xl bg-primary/10 items-center justify-center"><Building2 size={22} className="text-primary" /></View>}<View className="flex-1 min-w-0 ml-3"><Text numberOfLines={1} className="text-foreground font-bold">{item.business_name}</Text><Text numberOfLines={1} className="text-muted-foreground text-xs mt-1">{item.full_name} · {categoryName(item)}</Text><View className="flex-row items-center mt-1"><MapPin size={12} className="text-primary" /><Text className="text-muted-foreground text-[10px] ml-1">{item.city || "Location not supplied"}</Text></View></View><View className="items-end ml-2"><Text className={statusClass(item.status)}>{item.status.toUpperCase()}</Text><ChevronRight size={17} className="text-muted-foreground mt-3" /></View></View><Text className="text-muted-foreground text-[9px] mt-3">Submitted {new Date(item.submitted_at).toLocaleString()}</Text></Pressable>)}</View>}
+        {!loading && !error && filtered.length > PAGE_SIZE ? <PaginationBar page={currentPage} pages={pages} onPage={setPage} /> : null}
+      </ResponsiveContainer>
+    </ScrollView><AdminFooter activeTab="profile" />
   </SafeAreaView>;
 }
+
+function categoryName(item: Application) { const category = Array.isArray(item.categories) ? item.categories[0] : item.categories; return category?.name ?? "Uncategorized"; }
+function statusClass(status: ApplicationStatus) { return status === "approved" ? "text-emerald-700 bg-emerald-500/10 text-[9px] font-bold px-2 py-1 rounded-full" : status === "rejected" ? "text-red-600 bg-red-500/10 text-[9px] font-bold px-2 py-1 rounded-full" : "text-amber-700 bg-amber-500/10 text-[9px] font-bold px-2 py-1 rounded-full"; }

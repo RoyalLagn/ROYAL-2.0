@@ -8,23 +8,28 @@ import { useRouter } from "expo-router";
 import {
   ArrowLeft, Check, ChevronDown, FileText, ImagePlus, Trash2, X,
 } from "lucide-react-native";
-import { supabase } from "@/services/supabase";
 import {
   CloudinaryError, pickAndUploadBusinessDocument, pickAndUploadImage,
   type UploadedBusinessDocument,
 } from "@/services/cloudinary";
 import { useCategories } from "@/context/CategoryContext";
+import {
+  VendorServiceLocationEditor,
+  type VendorLocationValue,
+} from "@/components/locations/VendorServiceLocationEditor";
+import { useCustomerLocation } from "@/context/LocationContext";
+import { submitVendorApplication } from "@/services/vendorApplications";
 
 type FormState = {
   businessName: string; ownerName: string; email: string; mobile: string;
-  categoryId: string; city: string; area: string; experience: string;
+  categoryId: string; experience: string;
   description: string; instagram: string; facebook: string; website: string;
   logoUrl: string; coverImageUrl: string;
 };
 
 const emptyForm: FormState = {
   businessName: "", ownerName: "", email: "", mobile: "", categoryId: "",
-  city: "", area: "", experience: "", description: "", instagram: "",
+  experience: "", description: "", instagram: "",
   facebook: "", website: "", logoUrl: "", coverImageUrl: "",
 };
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -62,7 +67,16 @@ function Field({
 export default function BecomeVendor() {
   const router = useRouter();
   const { registrationCategories: categories } = useCategories();
+  const { locations } = useCustomerLocation();
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [vendorLocation, setVendorLocation] = useState<VendorLocationValue>({
+    pincode: "",
+    primaryCityId: "",
+    primaryAreaId: null,
+    serviceAreaIds: [],
+  });
+  const [locationValid, setLocationValid] = useState(false);
+  const [locationSource, setLocationSource] = useState<"verified" | "manual_fallback" | null>(null);
   const [documents, setDocuments] = useState<UploadedBusinessDocument[]>([]);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
@@ -75,8 +89,8 @@ export default function BecomeVendor() {
   const selectedCategory = categories.find((item) => item.id === form.categoryId);
   const requiredComplete = useMemo(() => [
     form.businessName, form.ownerName, form.email, form.mobile, form.categoryId,
-    form.city, form.area, form.experience, form.description,
-  ].every((value) => value.trim()), [form]);
+    form.experience, form.description,
+  ].every((value) => value.trim()) && locationValid, [form, locationValid]);
 
   const uploadImage = async (kind: "logo" | "cover") => {
     if (uploading) return;
@@ -117,51 +131,42 @@ export default function BecomeVendor() {
       return Alert.alert("Invalid experience", "Enter a valid number of years.");
     }
     if (!termsAccepted) return Alert.alert("Terms required", "Accept the Terms & Conditions to continue.");
+    const selectedCity = locations.find((item) => item.id === vendorLocation.primaryCityId);
+    const selectedArea = selectedCity?.areas.find((item) => item.id === vendorLocation.primaryAreaId);
+    if (!selectedCity || !locationValid) {
+      return Alert.alert("Service location required", "Verify your PIN code and choose an active RoyalLagn service location.");
+    }
 
     setSubmitting(true);
     const normalizedEmail = form.email.trim().toLowerCase();
-    const { data: existing, error: lookupError } = await supabase
-      .from("vendor_applications")
-      .select("id")
-      .eq("email", normalizedEmail)
-      .eq("status", "pending")
-      .limit(1);
-    if (lookupError) {
+    try {
+      await submitVendorApplication({
+        full_name: form.ownerName.trim(),
+        email: normalizedEmail,
+        phone: form.mobile.trim(),
+        business_name: form.businessName.trim(),
+        category_id: form.categoryId,
+        description: form.description.trim(),
+        experience,
+        address: selectedArea?.name ?? selectedCity.name,
+        pincode: vendorLocation.pincode,
+        city_id: selectedCity.id,
+        area_id: selectedArea?.id ?? null,
+        service_area_ids: vendorLocation.serviceAreaIds,
+        location_fallback: locationSource === "manual_fallback",
+        instagram: form.instagram.trim() || null,
+        facebook: form.facebook.trim() || null,
+        website: form.website.trim() || null,
+        logo_url: form.logoUrl.trim() || null,
+        cover_image_url: form.coverImageUrl.trim() || null,
+        business_documents: documents,
+      });
+      setSubmitted(true);
+    } catch (caught) {
+      Alert.alert("Submission failed", caught instanceof Error ? caught.message : "Unable to submit the Vendor application.");
+    } finally {
       setSubmitting(false);
-      return Alert.alert("Submission failed", lookupError.message);
     }
-    if (existing?.length) {
-      setSubmitting(false);
-      return Alert.alert("Application already submitted", "A pending application already exists for this email.");
-    }
-
-    const { error } = await supabase.from("vendor_applications").insert({
-      profile_id: null,
-      full_name: form.ownerName.trim(),
-      email: normalizedEmail,
-      phone: form.mobile.trim(),
-      business_name: form.businessName.trim(),
-      category_id: form.categoryId,
-      description: form.description.trim(),
-      experience,
-      address: form.area.trim(),
-      area: form.area.trim(),
-      city: form.city.trim(),
-      state: "Not provided",
-      pincode: "Not provided",
-      country: "India",
-      instagram: form.instagram.trim() || null,
-      facebook: form.facebook.trim() || null,
-      website: form.website.trim() || null,
-      logo_url: form.logoUrl.trim(),
-      cover_image_url: form.coverImageUrl.trim() || null,
-      business_documents: documents,
-      terms_accepted_at: new Date().toISOString(),
-      status: "pending",
-    });
-    setSubmitting(false);
-    if (error) return Alert.alert("Submission failed", error.message);
-    setSubmitted(true);
   };
 
   if (submitted) {
@@ -215,8 +220,11 @@ export default function BecomeVendor() {
             <Text className={selectedCategory ? "text-foreground" : "text-muted-foreground"}>{selectedCategory?.name ?? "Select business category"}</Text>
             <ChevronDown size={18} className="text-muted-foreground" />
           </TouchableOpacity>
-          <Field label="City" required value={form.city} onChangeText={(v) => update("city", v)} />
-          <Field label="Area" required value={form.area} onChangeText={(v) => update("area", v)} />
+          <VendorServiceLocationEditor
+            value={vendorLocation}
+            onChange={setVendorLocation}
+            onValidationChange={(valid, source) => { setLocationValid(valid); setLocationSource(source); }}
+          />
           <Field label="Years of Experience" required value={form.experience} onChangeText={(v) => update("experience", v)} keyboardType="number-pad" />
           <Field label="Business Description" required multiline value={form.description} onChangeText={(v) => update("description", v)} />
         </View>

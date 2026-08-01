@@ -31,12 +31,16 @@ export default function OtpVerificationScreen() {
     email?: string;
     fullName?: string;
     phone?: string;
+    preferredCityId?: string;
+    preferredAreaId?: string;
     purpose?: OtpPurpose;
   }>();
   const value = (item?: string | string[]) => Array.isArray(item) ? item[0] || "" : item || "";
   const email = value(params.email);
   const fullName = value(params.fullName);
   const phone = value(params.phone);
+  const preferredCityId = value(params.preferredCityId);
+  const preferredAreaId = value(params.preferredAreaId);
   const purpose: OtpPurpose = value(params.purpose) === "recovery" ? "recovery" : "signup";
   const inputRef = useRef<TextInput>(null);
   const [otp, setOtp] = useState("");
@@ -65,7 +69,7 @@ export default function OtpVerificationScreen() {
       await verifyPublicEmailOtp(email, otp);
       router.replace({
         pathname: "/CreatePassword",
-        params: { email, fullName, phone, purpose },
+        params: { email, fullName, phone, preferredCityId, preferredAreaId, purpose },
       });
     } catch (caught) {
       if (purpose === "recovery") clearRecoverySession();
@@ -83,7 +87,13 @@ export default function OtpVerificationScreen() {
     setError("");
     try {
       if (purpose === "recovery") await sendRecoveryOtp(email);
-      else await sendSignupOtp({ email, fullName, phone });
+      else await sendSignupOtp({
+        email,
+        fullName,
+        phone,
+        preferredCityId,
+        preferredAreaId: preferredAreaId || null,
+      });
       setOtp("");
       setCountdown(60);
     } catch (caught) {

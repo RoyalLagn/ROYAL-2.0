@@ -11,6 +11,7 @@ import { supabase } from "@/services/supabase";
 import { ClipManagementService, pickClipThumbnail } from "@/clips/services";
 import type { ClipVisibility } from "@/clips/types";
 import { ClipStatusBadge } from "@/clips/components";
+import PremiumRouteGate from "@/components/subscriptions/PremiumRouteGate";
 
 export default function VendorClipEdit() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,7 +58,7 @@ export default function VendorClipEdit() {
   };
 
   if (!clip) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.pink} /></View>;
-  return <View style={[styles.root, { backgroundColor: colors.background }]}>
+  return <PremiumRouteGate feature="upload_clips"><View style={[styles.root, { backgroundColor: colors.background }]}>
     <VendorHeader />
     <ScrollView contentContainerStyle={styles.scroll}>
       <View style={styles.titleRow}><Pressable onPress={() => router.back()} style={[styles.back, { backgroundColor: colors.surface }]}><ChevronLeft size={20} color={colors.text} /></Pressable><View style={styles.flex}><Text style={[styles.heading, { color: colors.text }]}>Edit Clip</Text><Text style={[styles.subheading, { color: colors.muted }]}>Video replacement is disabled after upload</Text></View><ClipStatusBadge status={clip.status} /></View>
@@ -74,7 +75,7 @@ export default function VendorClipEdit() {
         <Pressable disabled={saving} onPress={save} style={[styles.primary, { backgroundColor: colors.pink }]}>{saving ? <ActivityIndicator color="#FFF" /> : <><Save size={17} color="#FFF" /><Text style={styles.primaryText}>Save Changes</Text></>}</Pressable>
       </View>
     </ScrollView>
-  </View>;
+  </View></PremiumRouteGate>;
 }
 
 const styles = StyleSheet.create({

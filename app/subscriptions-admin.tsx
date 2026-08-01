@@ -1,416 +1,176 @@
-import React from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-} from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useColorScheme } from "nativewind";
-import { useRouter } from "expo-router";
-import {
-  Menu,
-  Bell,
-  ChevronDown,
-  Users,
-  Crown,
-  Calendar,
-  XCircle,
-  Star,
-  Info,
-} from "lucide-react-native";
+import { useFocusEffect } from "expo-router";
+import { CalendarClock, CircleDollarSign, Crown, Edit3, Gift, Plus, Search, Settings2, Trash2, Users, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
-import RoyalLagnLogo from "@/components/RoyalLagnLogo";
-type StatCard = {
-  id: string;
-  title: string;
-  value: string;
-  change: string;
-  changeType: "positive" | "negative";
-  icon: React.ElementType;
-  iconBg: string;
-  iconColor: string;
-};
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { SubscriptionAdminService, type AdminPlanInput, type AdminVendorSubscriptionRow } from "@/subscriptions/services/SubscriptionAdminService";
+import { formatSubscriptionPrice, subscriptionStatusLabel } from "@/subscriptions/utils";
+import { isSubscriptionSchemaMissing, subscriptionErrorMessage } from "@/subscriptions/error";
 
-type PlanCard = {
-  id: string;
-  name: string;
-  price: string;
-  period: string;
-  description: string;
-  icon: React.ElementType;
-  iconBg: string;
-  status: "Active";
-  stats: {
-    active: number;
-    newThisMonth: number;
-    cancelled: number;
-    revenue: string;
-  };
-};
+type Tab = "overview" | "plans" | "vendors" | "offers" | "settings" | "audit";
+const pink = "#E91E63";
+const emptyPlan: AdminPlanInput = { name: "", slug: "", description: "", price: 0, discounted_price: null, billing_interval: "custom", billing_interval_count: 1, duration_days: null, trial_enabled: false, trial_days: 0, grace_period_days: 0, is_active: true, is_featured: false };
+const emptyOffer = { name: "", code: "", description: "", discount_type: "percentage", discount_value: 0, start_date: "", end_date: "", is_global: true, is_active: true, applicable_plan_ids: [], applicable_vendor_ids: [], uses_per_vendor: 1 };
 
-const statsData: StatCard[] = [
-  {
-    id: "total",
-    title: "Total Subscriptions",
-    value: "986",
-    change: "10.3%",
-    changeType: "positive",
-    icon: Users,
-    iconBg: "#FCE7F3",
-    iconColor: "#E91E63",
-  },
-  {
-    id: "active",
-    title: "Active Subscriptions",
-    value: "872",
-    change: "11.2%",
-    changeType: "positive",
-    icon: Crown,
-    iconBg: "#E0E7FF",
-    iconColor: "#6366F1",
-  },
-  {
-    id: "new",
-    title: "New Subscriptions",
-    value: "124",
-    change: "8.6%",
-    changeType: "positive",
-    icon: Calendar,
-    iconBg: "#FEF3C7",
-    iconColor: "#F59E0B",
-  },
-  {
-    id: "cancelled",
-    title: "Cancelled / Expired",
-    value: "114",
-    change: "6.4%",
-    changeType: "negative",
-    icon: XCircle,
-    iconBg: "#FEE2E2",
-    iconColor: "#EF4444",
-  },
-];
-
-const subscriptionPlans: PlanCard[] = [
-  {
-    id: "standard",
-    name: "Standard Plan",
-    price: "₹299",
-    period: "/ month",
-    description: "Best for individuals and small businesses getting started.",
-    icon: Star,
-    iconBg: "#FCE7F3",
-    status: "Active",
-    stats: {
-      active: 612,
-      newThisMonth: 38,
-      cancelled: 22,
-      revenue: "₹1,83,588",
-    },
-  },
-  {
-    id: "premium",
-    name: "Premium Plan",
-    price: "₹499",
-    period: "/ month",
-    description: "Advanced features for growing businesses and professionals.",
-    icon: Crown,
-    iconBg: "#E0E7FF",
-    status: "Active",
-    stats: {
-      active: 260,
-      newThisMonth: 86,
-      cancelled: 36,
-      revenue: "₹1,29,740",
-    },
-  },
-];
+function Field({ label, value, onChangeText, placeholder, numeric, multiline }: any) {
+  return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><TextInput value={String(value ?? "")} onChangeText={onChangeText} placeholder={placeholder} keyboardType={numeric ? "decimal-pad" : "default"} multiline={multiline} style={[styles.input, multiline && styles.multiline]} /></View>;
+}
 
 export default function SubscriptionsAdmin() {
-  const { colorScheme } = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const router = useRouter();
-  const showPlaceholder = (title: string) =>
-    Alert.alert(title, `${title} is available as a local frontend placeholder.`);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [metrics, setMetrics] = useState<Record<string, number>>({});
+  const [plans, setPlans] = useState<any[]>([]);
+  const [offers, setOffers] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<AdminVendorSubscriptionRow[]>([]);
+  const [settings, setSettings] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [planEditor, setPlanEditor] = useState<AdminPlanInput | null>(null);
+  const [offerEditor, setOfferEditor] = useState<any | null>(null);
+  const [vendorEditor, setVendorEditor] = useState<AdminVendorSubscriptionRow | null>(null);
+  const [vendorAction, setVendorAction] = useState("grant_free");
+  const [vendorDays, setVendorDays] = useState("30");
+  const [vendorExpiry, setVendorExpiry] = useState("");
+  const [vendorNotes, setVendorNotes] = useState("");
+  const [vendorPlanId, setVendorPlanId] = useState("");
+  const [featurePlan, setFeaturePlan] = useState<any | null>(null);
+  const [features, setFeatures] = useState<any[]>([]);
+  const [planFeatures, setPlanFeatures] = useState<any[]>([]);
 
-  return (
-    <SafeAreaView
-      className="flex-1 bg-background"
-      edges={["top", "left", "right"]}
-    >
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View className="relative flex-row items-center justify-between px-6 py-4">
-          <TouchableOpacity className="p-2 -ml-2" onPress={() => router.push("/admin-dash-logout")}>
-            <Menu size={24} className="text-foreground" />
-          </TouchableOpacity>
-          <View pointerEvents="none" style={{ position: "absolute", left: "50%", width: 160, height: 44, marginLeft: -80 }}>
-            <RoyalLagnLogo width={160} height={44} />
-          </View>
-          <TouchableOpacity className="p-2 -mr-2 relative" onPress={() => showPlaceholder("Subscription Notifications")}>
-            <Bell size={24} className="text-foreground" />
-            <View className="absolute top-1 right-1 w-5 h-5 bg-destructive rounded-full items-center justify-center">
-              <Text className="text-white text-xs font-bold">12</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const nextPlans = await SubscriptionAdminService.listPlans();
+      const [nextMetrics, nextOffers, nextVendors, nextSettings, nextEvents] = await Promise.all([
+        SubscriptionAdminService.metrics(), SubscriptionAdminService.listOffers(), SubscriptionAdminService.listVendors(search, statusFilter), SubscriptionAdminService.listSettings(), SubscriptionAdminService.listEvents(),
+      ]);
+      setMetrics(nextMetrics ?? {}); setPlans(nextPlans); setOffers(nextOffers); setVendors(nextVendors); setSettings(nextSettings); setEvents(nextEvents);
+    } catch (caught) {
+      setError(isSubscriptionSchemaMissing(caught)
+        ? "Subscription database setup is required. Apply the pending Supabase migrations, then retry."
+        : subscriptionErrorMessage(caught, "Unable to load subscription management."));
+    }
+    finally { setLoading(false); }
+  }, [search, statusFilter]);
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
-        {/* Title Section */}
-        <View className="px-6 mb-4">
-          <Text className="text-2xl font-bold text-foreground mb-1">
-            Subscriptions
-          </Text>
-          <Text className="text-muted-foreground text-sm">
-            Manage subscriptions and track performance
-          </Text>
-        </View>
+  const savePlan = async () => {
+    if (!planEditor?.name.trim() || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(planEditor.slug.trim())) return Alert.alert("Check plan", "Enter a name and a lowercase slug using letters, numbers and hyphens.");
+    const price = Number(planEditor.price), discount = planEditor.discounted_price == null || planEditor.discounted_price === ("" as any) ? null : Number(planEditor.discounted_price), interval = Number(planEditor.billing_interval_count), duration = Number(planEditor.duration_days), trial = Number(planEditor.trial_days), grace = Number(planEditor.grace_period_days);
+    if (!Number.isFinite(price) || price < 0) return Alert.alert("Check price", "Price must be zero or greater.");
+    if (discount !== null && (!Number.isFinite(discount) || discount < 0 || discount > price)) return Alert.alert("Check offer price", "Offer price must be between zero and the regular price.");
+    if (!Number.isInteger(interval) || interval < 1) return Alert.alert("Check duration", "Billing interval count must be a positive whole number.");
+    if (planEditor.billing_interval === "custom" && (!Number.isInteger(duration) || duration < 1)) return Alert.alert("Check duration", "Custom plans require a positive duration in days.");
+    if ((planEditor.trial_enabled && (!Number.isInteger(trial) || trial < 1)) || !Number.isInteger(grace) || grace < 0) return Alert.alert("Check access days", "Trial and grace days must be valid whole numbers.");
+    setSaving(true); try { await SubscriptionAdminService.savePlan({ ...planEditor, price: Number(planEditor.price), discounted_price: planEditor.discounted_price == null || planEditor.discounted_price === ("" as any) ? null : Number(planEditor.discounted_price), billing_interval_count: Number(planEditor.billing_interval_count), duration_days: planEditor.duration_days ? Number(planEditor.duration_days) : null, trial_days: Number(planEditor.trial_days), grace_period_days: Number(planEditor.grace_period_days) }); setPlanEditor(null); await load(); }
+    catch (caught) { Alert.alert("Plan not saved", caught instanceof Error ? caught.message : "Try again."); } finally { setSaving(false); }
+  };
+  const saveOffer = async () => {
+    if (!offerEditor?.name.trim()) return Alert.alert("Offer name required", "Enter a clear offer name.");
+    const discount = Number(offerEditor.discount_value);
+    if (!Number.isFinite(discount) || discount < 0 || (offerEditor.discount_type === "percentage" && discount > 100)) return Alert.alert("Check discount", offerEditor.discount_type === "percentage" ? "Percentage must be between 0 and 100." : "Discount must be zero or greater.");
+    const start = offerEditor.start_date ? Date.parse(offerEditor.start_date) : null;
+    const end = offerEditor.end_date ? Date.parse(offerEditor.end_date) : null;
+    if ((offerEditor.start_date && Number.isNaN(start)) || (offerEditor.end_date && Number.isNaN(end))) return Alert.alert("Check offer dates", "Enter valid ISO date and time values.");
+    if (start !== null && end !== null && end <= start) return Alert.alert("Check offer dates", "Offer end must be after its start.");
+    if (!Number.isInteger(Number(offerEditor.uses_per_vendor)) || Number(offerEditor.uses_per_vendor) < 1) return Alert.alert("Check usage limit", "Uses per vendor must be a positive whole number.");
+    setSaving(true); try { await SubscriptionAdminService.saveOffer({ ...offerEditor, start_date: offerEditor.start_date || null, end_date: offerEditor.end_date || null }); setOfferEditor(null); await load(); }
+    catch (caught) { Alert.alert("Offer not saved", caught instanceof Error ? caught.message : "Try again."); } finally { setSaving(false); }
+  };
+  const openFeatures = async (plan: any) => {
+    try { const [definitions, assigned] = await Promise.all([SubscriptionAdminService.listFeatures(), SubscriptionAdminService.listPlanFeatures(plan.id)]); setFeatures(definitions); setPlanFeatures(assigned); setFeaturePlan(plan); }
+    catch (caught) { Alert.alert("Features unavailable", caught instanceof Error ? caught.message : "Try again."); }
+  };
+  const toggleFeature = async (feature: any, enabled: boolean) => {
+    if (!featurePlan) return;
+    const assigned = planFeatures.find((entry) => entry.feature_id === feature.id);
+    try { await SubscriptionAdminService.setPlanFeature(featurePlan.id, feature.id, enabled, assigned?.limit_value); setPlanFeatures(await SubscriptionAdminService.listPlanFeatures(featurePlan.id)); }
+    catch (caught) { Alert.alert("Feature not updated", caught instanceof Error ? caught.message : "Try again."); }
+  };
+  const runVendorAction = async () => {
+    if (!vendorEditor) return;
+    const destructive = ["suspend", "cancel", "deactivate", "shorten"].includes(vendorAction);
+    if (["grant_free", "grant_trial", "change_plan"].includes(vendorAction) && !vendorPlanId) return Alert.alert("Plan required", "Select a subscription plan before applying this action.");
+    if (["grant_free", "grant_trial", "extend", "shorten"].includes(vendorAction) && (!Number.isInteger(Number(vendorDays)) || Number(vendorDays) < 1)) return Alert.alert("Days required", "Enter a positive whole number of days.");
+    if (vendorAction === "set_expiry" && (!/^\d{4}-\d{2}-\d{2}$/.test(vendorExpiry) || Number.isNaN(Date.parse(`${vendorExpiry}T00:00:00Z`)))) return Alert.alert("Expiry date required", "Use a valid date in YYYY-MM-DD format.");
+    if (destructive && !vendorNotes.trim()) return Alert.alert("Internal note required", "Record a reason for this access change.");
+    const execute = async () => {
+      setSaving(true); try {
+        const payload: Record<string, unknown> = { admin_notes: vendorNotes || undefined, plan_id: vendorPlanId || undefined };
+        if (["grant_free", "grant_trial", "extend", "shorten"].includes(vendorAction)) payload.days = Number(vendorDays || 0);
+        if (vendorAction === "set_expiry") payload.expiry_date = vendorExpiry ? new Date(vendorExpiry).toISOString() : null;
+        await SubscriptionAdminService.manageVendor(vendorEditor.vendor_id, vendorAction, payload); setVendorEditor(null); await load();
+      } catch (caught) { Alert.alert("Action failed", caught instanceof Error ? caught.message : "Try again."); } finally { setSaving(false); }
+    };
+    if (destructive) Alert.alert("Confirm subscription change", `This will ${vendorAction} access for ${vendorEditor.business_name}.`, [{ text: "Cancel", style: "cancel" }, { text: "Confirm", style: "destructive", onPress: () => void execute() }]); else await execute();
+  };
 
-        {/* Date Dropdown */}
-        <View className="px-6 mb-6">
-          <TouchableOpacity className="flex-row items-center bg-card border border-border rounded-xl px-4 py-3 self-start" onPress={() => showPlaceholder("Subscription Month")}>
-            <Calendar size={18} className="text-foreground mr-2" />
-            <Text className="text-foreground font-medium mr-2">May 2025</Text>
-            <ChevronDown size={16} className="text-foreground" />
-          </TouchableOpacity>
-        </View>
+  const filteredStats = [
+    { label: "All vendors", value: metrics.total_vendors ?? 0, icon: Users, tint: "#5B5FEF" },
+    { label: "Active", value: metrics.active ?? 0, icon: Crown, tint: pink },
+    { label: "Trial / launch", value: (metrics.trial ?? 0) + (metrics.launch_offer ?? 0), icon: Gift, tint: "#C77B00" },
+    { label: "Verified revenue", value: formatSubscriptionPrice(Number(metrics.verified_revenue ?? 0)), icon: CircleDollarSign, tint: "#11875D" },
+  ];
+  const planFeatureEnabled = (featureId: string) => Boolean(planFeatures.find((entry) => entry.feature_id === featureId)?.is_enabled);
+  const openNewPlan = () => {
+    const setting = (key: string, fallback: number) => Number(settings.find((item) => item.key === key)?.value ?? fallback);
+    setPlanEditor({
+      ...emptyPlan,
+      price: setting("subscription_default_price", 0),
+      duration_days: setting("subscription_default_duration_days", 0) || null,
+      grace_period_days: setting("subscription_grace_period_days", 0),
+      trial_days: setting("subscription_free_trial_days", 0),
+    });
+  };
 
-        {/* Subscription Summary */}
-        <View className="px-6 mb-6">
-          <Text className="text-foreground font-semibold text-base mb-4">
-            Subscription Summary
-          </Text>
-          <View className="flex-row flex-wrap gap-4">
-            {statsData.map((stat) => {
-              const Icon = stat.icon;
-              return (
-                <View
-                  key={stat.id}
-                  className="flex-1 min-w-[45%] bg-card rounded-2xl p-4 border border-border"
-                >
-                  <View
-                    className="w-10 h-10 rounded-xl items-center justify-center mb-3"
-                    style={{ backgroundColor: stat.iconBg }}
-                  >
-                    <Icon size={20} color={stat.iconColor} />
-                  </View>
-                  <Text className="text-muted-foreground text-xs mb-1">
-                    {stat.title}
-                  </Text>
-                  <Text className="text-foreground text-xl font-bold mb-1">
-                    {stat.value}
-                  </Text>
-                  <View className="flex-row items-center">
-                    <Text
-                      className={`text-xs font-medium ${
-                        stat.changeType === "positive"
-                          ? "text-emerald-500"
-                          : "text-red-500"
-                      }`}
-                    >
-                      {stat.changeType === "positive" ? "↑" : "↓"} {stat.change}
-                    </Text>
-                    <Text className="text-muted-foreground text-xs ml-1">
-                      vs Apr 2025
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </View>
+  return <SafeAreaView style={styles.page} edges={["top", "left", "right"]}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <AdminPageHeader title="Subscriptions" subtitle="Plans, vendor access, offers, settings and audit history" />
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>{(["overview", "plans", "vendors", "offers", "settings", "audit"] as Tab[]).map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}><Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item.charAt(0).toUpperCase() + item.slice(1)}</Text></Pressable>)}</ScrollView>
+    {loading ? <ActivityIndicator color={pink} style={{ marginTop: 40 }} /> : null}{error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text><Pressable onPress={load}><Text style={styles.retry}>Retry</Text></Pressable></View> : null}
 
-        {/* Subscription Trends */}
-        <View className="px-6 mb-6">
-          <Text className="text-foreground font-semibold text-base mb-4">
-            Subscription Trends
-          </Text>
-          <View className="bg-card rounded-2xl p-4 border border-border">
-            <View className="flex-row items-center">
-              {/* Custom Donut Chart Visualization */}
-              <View className="relative w-40 h-40 items-center justify-center">
-                {/* Outer ring - Active (79%) */}
-                <View
-                  className="absolute w-40 h-40 rounded-full"
-                  style={{
-                    borderWidth: 16,
-                    borderColor: "#E91E63",
-                    borderRightColor: "transparent",
-                    transform: [{ rotate: "-45deg" }],
-                  }}
-                />
-                {/* Middle ring - Trial (11%) */}
-                <View
-                  className="absolute w-40 h-40 rounded-full"
-                  style={{
-                    borderWidth: 16,
-                    borderColor: "#8B5CF6",
-                    borderLeftColor: "transparent",
-                    borderTopColor: "transparent",
-                    transform: [{ rotate: "225deg" }],
-                  }}
-                />
-                {/* Inner ring - Expired (10%) */}
-                <View
-                  className="absolute w-40 h-40 rounded-full"
-                  style={{
-                    borderWidth: 16,
-                    borderColor: "#F97316",
-                    borderLeftColor: "transparent",
-                    transform: [{ rotate: "260deg" }],
-                  }}
-                />
-                {/* Center circle */}
-                <View
-                  className="w-24 h-24 rounded-full items-center justify-center"
-                  style={{ backgroundColor: isDark ? "#141414" : "#FFFFFF" }}
-                >
-                  <Text className="text-foreground text-2xl font-bold">
-                    986
-                  </Text>
-                  <Text className="text-muted-foreground text-xs">Total</Text>
-                </View>
-              </View>
+    {!loading && tab === "overview" ? <><View style={styles.stats}>{filteredStats.map(({ label, value, icon: Icon, tint }) => <View key={label} style={styles.stat}><View style={[styles.statIcon, { backgroundColor: `${tint}16` }]}><Icon size={20} color={tint} /></View><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>)}</View><View style={styles.panel}><Text style={styles.panelTitle}>Operational status</Text><Text style={styles.panelText}>{metrics.grace_period ?? 0} vendors in grace period · {metrics.suspended ?? 0} suspended · {metrics.failed_payments ?? 0} failed payments.</Text><Pressable onPress={() => setTab("vendors")} style={styles.primary}><Text style={styles.primaryText}>Manage Vendor access</Text></Pressable></View></> : null}
 
-              {/* Legend */}
-              <View className="flex-1 ml-4 gap-3">
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center">
-                    <View className="w-3 h-3 rounded-full bg-[#E91E63] mr-2" />
-                    <Text className="text-foreground text-sm">Active</Text>
-                  </View>
-                  <Text className="text-foreground text-sm font-medium">
-                    872 (79%)
-                  </Text>
-                </View>
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center">
-                    <View className="w-3 h-3 rounded-full bg-[#8B5CF6] mr-2" />
-                    <Text className="text-foreground text-sm">Trial</Text>
-                  </View>
-                  <Text className="text-foreground text-sm font-medium">
-                    124 (11%)
-                  </Text>
-                </View>
-                <View className="flex-row items-center justify-between">
-                  <View className="flex-row items-center">
-                    <View className="w-3 h-3 rounded-full bg-[#F97316] mr-2" />
-                    <Text className="text-foreground text-sm">Expired</Text>
-                  </View>
-                  <Text className="text-foreground text-sm font-medium">
-                    114 (10%)
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
+    {!loading && tab === "plans" ? <><View style={styles.sectionRow}><View><Text style={styles.sectionTitle}>Subscription plans</Text><Text style={styles.sectionHint}>Database-driven pricing and duration</Text></View><Pressable onPress={openNewPlan} style={styles.add}><Plus size={17} color="#FFF" /><Text style={styles.addText}>Plan</Text></Pressable></View><View style={styles.list}>{plans.map((plan) => <View key={plan.id} style={styles.card}><View style={styles.cardTop}><View style={styles.flex}><Text style={styles.cardTitle}>{plan.name}</Text><Text style={styles.cardSub}>{plan.description}</Text></View><Switch value={plan.is_active} onValueChange={(value) => void SubscriptionAdminService.setPlanActive(plan.id, value).then(load)} trackColor={{ true: "#F7A5C1" }} thumbColor={plan.is_active ? pink : "#EEE"} /></View><Text style={styles.price}>{formatSubscriptionPrice(Number(plan.discounted_price ?? plan.price), plan.currency)} <Text style={styles.period}>/ {plan.duration_days ? `${plan.duration_days} days` : `${plan.billing_interval_count} ${plan.billing_interval}`}</Text></Text><View style={styles.cardActions}><Pressable onPress={() => setPlanEditor({ ...plan })} style={styles.secondary}><Edit3 size={15} color={pink} /><Text style={styles.secondaryText}>Edit</Text></Pressable><Pressable onPress={() => void openFeatures(plan)} style={styles.secondary}><Settings2 size={15} color={pink} /><Text style={styles.secondaryText}>Features</Text></Pressable><Pressable onPress={() => Alert.alert("Remove plan?", "The plan will be archived. Existing payment history remains intact.", [{ text: "Cancel", style: "cancel" }, { text: "Archive", style: "destructive", onPress: () => void SubscriptionAdminService.archivePlan(plan.id).then(load) }])} style={styles.iconDanger}><Trash2 size={16} color="#CC334E" /></Pressable></View></View>)}</View></> : null}
 
-        {/* Subscription Plans */}
-        <View className="px-6 mb-6">
-          <Text className="text-foreground font-semibold text-base mb-4">
-            Subscription Plans
-          </Text>
-          <View className="gap-4">
-            {subscriptionPlans.map((plan) => {
-              const Icon = plan.icon;
-              return (
-                <View
-                  key={plan.id}
-                  className="bg-card rounded-2xl p-4 border border-border"
-                >
-                  {/* Plan Header */}
-                  <View className="flex-row items-start justify-between mb-3">
-                    <View className="flex-row items-center flex-1">
-                      <View
-                        className="w-12 h-12 rounded-xl items-center justify-center mr-3"
-                        style={{ backgroundColor: plan.iconBg }}
-                      >
-                        <Icon size={24} color="#E91E63" />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-foreground font-semibold text-base">
-                          {plan.name}
-                        </Text>
-                        <View className="flex-row items-center">
-                          <Text className="text-foreground font-bold text-lg">
-                            {plan.price}
-                          </Text>
-                          <Text className="text-muted-foreground text-sm">
-                            {plan.period}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                    <View className="bg-emerald-100 px-3 py-1 rounded-full">
-                      <Text className="text-emerald-700 text-xs font-medium">
-                        Active
-                      </Text>
-                    </View>
-                  </View>
+    {!loading && tab === "vendors" ? <><View style={styles.searchBox}><Search size={17} color="#8D8188" /><TextInput value={search} onChangeText={setSearch} onSubmitEditing={load} placeholder="Search Vendor, owner, email or ID" style={styles.searchInput} /><Pressable onPress={load}><Text style={styles.retry}>Search</Text></Pressable></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{["all","active","trial","launch_offer","grace_period","expired","suspended"].map((item) => <Pressable key={item} onPress={() => setStatusFilter(item)} style={[styles.filter, statusFilter === item && styles.filterActive]}><Text style={[styles.filterText, statusFilter === item && styles.filterTextActive]}>{subscriptionStatusLabel(item as any)}</Text></Pressable>)}</ScrollView><View style={styles.list}>{vendors.map((vendor) => <Pressable key={vendor.vendor_id} onPress={() => { setVendorEditor(vendor); setVendorPlanId(vendor.plan_id || plans[0]?.id || ""); setVendorNotes(""); }} style={styles.vendorCard}><View style={[styles.avatar, { backgroundColor: vendor.status === "active" ? "#E9F8F1" : "#FFF0F5" }]}><Text style={{ color: vendor.status === "active" ? "#11875D" : pink, fontWeight: "900" }}>{vendor.business_name?.charAt(0)}</Text></View><View style={styles.flex}><Text style={styles.cardTitle}>{vendor.business_name}</Text><Text style={styles.cardSub}>{vendor.plan_name || "No plan"} · {subscriptionStatusLabel(vendor.status as any)}</Text><Text style={styles.vendorMeta}>{vendor.expiry_date ? `Expires ${new Date(vendor.expiry_date).toLocaleDateString("en-IN")}` : "No expiry date"}</Text></View><Text style={styles.manage}>Manage</Text></Pressable>)}</View></> : null}
 
-                  {/* Plan Description */}
-                  <Text className="text-muted-foreground text-sm mb-4">
-                    {plan.description}
-                  </Text>
+    {!loading && tab === "offers" ? <><View style={styles.sectionRow}><View><Text style={styles.sectionTitle}>Offers</Text><Text style={styles.sectionHint}>Discounts and Vendor-specific campaigns</Text></View><Pressable onPress={() => setOfferEditor({ ...emptyOffer })} style={styles.add}><Plus size={17} color="#FFF" /><Text style={styles.addText}>Offer</Text></Pressable></View><View style={styles.list}>{offers.map((offer) => <View key={offer.id} style={styles.card}><View style={styles.cardTop}><View style={[styles.statIcon, { backgroundColor: "#FFF3D8" }]}><Gift size={19} color="#B76A00" /></View><View style={styles.flex}><Text style={styles.cardTitle}>{offer.name}</Text><Text style={styles.cardSub}>{offer.code || "Automatic"} · {offer.discount_type} {Number(offer.discount_value)}</Text></View><Text style={{ color: offer.is_active ? "#11875D" : "#8D8188", fontWeight: "800", fontSize: 10 }}>{offer.is_active ? "ACTIVE" : "OFF"}</Text></View><View style={styles.cardActions}><Pressable onPress={() => setOfferEditor({ ...offer })} style={styles.secondary}><Edit3 size={15} color={pink} /><Text style={styles.secondaryText}>Edit</Text></Pressable><Pressable onPress={() => Alert.alert("Remove offer?", "This offer will be archived.", [{ text: "Cancel", style: "cancel" }, { text: "Archive", style: "destructive", onPress: () => void SubscriptionAdminService.archiveOffer(offer.id).then(load) }])} style={styles.iconDanger}><Trash2 size={16} color="#CC334E" /></Pressable></View></View>)}</View></> : null}
 
-                  {/* Plan Stats */}
-                  <View className="flex-row items-center justify-between pt-4 border-t border-border">
-                    <View className="items-center flex-1">
-                      <Text className="text-foreground font-bold text-lg">
-                        {plan.stats.active}
-                      </Text>
-                      <Text className="text-muted-foreground text-xs">
-                        Active
-                      </Text>
-                    </View>
-                    <View className="items-center flex-1 border-l border-border">
-                      <Text className="text-foreground font-bold text-lg">
-                        {plan.stats.newThisMonth}
-                      </Text>
-                      <Text className="text-muted-foreground text-xs">
-                        New This Month
-                      </Text>
-                    </View>
-                    <View className="items-center flex-1 border-l border-border">
-                      <Text className="text-foreground font-bold text-lg">
-                        {plan.stats.cancelled}
-                      </Text>
-                      <Text className="text-muted-foreground text-xs">
-                        Cancelled
-                      </Text>
-                    </View>
-                    <View className="items-center flex-1 border-l border-border">
-                      <Text className="text-foreground font-bold text-lg">
-                        {plan.stats.revenue}
-                      </Text>
-                      <Text className="text-muted-foreground text-xs">
-                        Revenue
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </View>
+    {!loading && tab === "settings" ? <><View style={styles.sectionRow}><View><Text style={styles.sectionTitle}>Application settings</Text><Text style={styles.sectionHint}>Launch access, trials, duration and grace periods</Text></View></View><View style={styles.list}>{settings.map((setting) => <SettingRow key={setting.key} setting={setting} onSave={async (value) => { await SubscriptionAdminService.updateSetting(setting.key, value); await load(); }} />)}</View></> : null}
+    {!loading && tab === "audit" ? <><View style={styles.sectionRow}><View><Text style={styles.sectionTitle}>Subscription audit history</Text><Text style={styles.sectionHint}>Immutable payment, system and administrator events</Text></View></View><View style={styles.list}>{events.map((event) => <View key={event.id} style={styles.card}><View style={[styles.statIcon, { backgroundColor: "#FFF0F5" }]}><CalendarClock size={19} color={pink} /></View><View style={styles.flex}><Text style={styles.cardTitle}>{event.event_type?.replaceAll("_", " ")}</Text><Text style={styles.cardSub}>{event.vendors?.business_name || event.vendor_id} · {event.previous_status || "—"} → {event.new_status || "—"}</Text><Text style={styles.vendorMeta}>{new Date(event.created_at).toLocaleString("en-IN")} · {event.performed_by_role}</Text>{event.reason ? <Text style={styles.vendorMeta}>{event.reason}</Text> : null}</View></View>)}</View></> : null}
+    {!loading && !error && tab === "plans" && !plans.length ? <EmptySection title="No subscription plans" text="Create a plan to make it available to vendors." /> : null}
+    {!loading && !error && tab === "vendors" && !vendors.length ? <EmptySection title="No matching vendors" text="Try another search or subscription status." /> : null}
+    {!loading && !error && tab === "offers" && !offers.length ? <EmptySection title="No offers" text="Create an offer when a discount campaign is required." /> : null}
+    {!loading && !error && tab === "settings" && !settings.length ? <EmptySection title="No subscription settings" text="Subscription settings are not available in the database." /> : null}
+    {!loading && !error && tab === "audit" && !events.length ? <EmptySection title="No audit events" text="Subscription changes will appear here." /> : null}
+  </ScrollView><AdminFooter activeTab="subscriptions" />
 
-        {/* Info Banner */}
-        <View className="px-6 mb-6">
-          <View className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex-row items-center">
-            <Info size={20} color="#F59E0B" />
-            <Text className="text-amber-800 text-sm ml-3 flex-1">
-              New vendors get 1 month free trial on any plan.
-            </Text>
-          </View>
-        </View>
-      </ScrollView>
+  <Modal visible={Boolean(planEditor)} transparent animationType="slide" onRequestClose={() => setPlanEditor(null)}>{planEditor ? <View style={styles.modalBackdrop}><View style={styles.modal}><ModalHeader title={planEditor.id ? "Edit plan" : "Create plan"} close={() => setPlanEditor(null)} /><ScrollView><Field label="Plan name" value={planEditor.name} onChangeText={(name: string) => setPlanEditor({ ...planEditor, name, slug: planEditor.id ? planEditor.slug : name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") })} /><Field label="Slug" value={planEditor.slug} onChangeText={(slug: string) => setPlanEditor({ ...planEditor, slug })} /><Field label="Description" value={planEditor.description} multiline onChangeText={(description: string) => setPlanEditor({ ...planEditor, description })} /><View style={styles.twoCols}><Field label="Price (₹)" numeric value={planEditor.price} onChangeText={(price: string) => setPlanEditor({ ...planEditor, price: price as any })} /><Field label="Offer price" numeric value={planEditor.discounted_price ?? ""} onChangeText={(discounted_price: string) => setPlanEditor({ ...planEditor, discounted_price: discounted_price as any })} /></View><Text style={styles.fieldLabel}>Billing duration</Text><View style={styles.filters}>{["day","month","year","custom"].map((item) => <Pressable key={item} onPress={() => setPlanEditor({ ...planEditor, billing_interval: item as any })} style={[styles.filter, planEditor.billing_interval === item && styles.filterActive]}><Text style={[styles.filterText, planEditor.billing_interval === item && styles.filterTextActive]}>{item}</Text></Pressable>)}</View><View style={styles.twoCols}><Field label="Interval count" numeric value={planEditor.billing_interval_count} onChangeText={(billing_interval_count: string) => setPlanEditor({ ...planEditor, billing_interval_count: billing_interval_count as any })} />{planEditor.billing_interval === "custom" ? <Field label="Duration days" numeric value={planEditor.duration_days ?? ""} onChangeText={(duration_days: string) => setPlanEditor({ ...planEditor, duration_days: duration_days as any })} /> : <Field label="Grace days" numeric value={planEditor.grace_period_days} onChangeText={(grace_period_days: string) => setPlanEditor({ ...planEditor, grace_period_days: grace_period_days as any })} />}</View><Toggle label="Free trial" value={Boolean(planEditor.trial_enabled)} onValueChange={(trial_enabled: boolean) => setPlanEditor({ ...planEditor, trial_enabled })} />{planEditor.trial_enabled ? <Field label="Trial days" numeric value={planEditor.trial_days} onChangeText={(trial_days: string) => setPlanEditor({ ...planEditor, trial_days: trial_days as any })} /> : null}<Toggle label="Featured plan" value={Boolean(planEditor.is_featured)} onValueChange={(is_featured: boolean) => setPlanEditor({ ...planEditor, is_featured })} /><Toggle label="Active" value={Boolean(planEditor.is_active)} onValueChange={(is_active: boolean) => setPlanEditor({ ...planEditor, is_active })} /></ScrollView><Pressable disabled={saving} onPress={savePlan} style={styles.primary}>{saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>Save plan</Text>}</Pressable></View></View> : null}</Modal>
 
-      <AdminFooter activeTab="subscriptions" />
-    </SafeAreaView>
-  );
+  <Modal visible={Boolean(offerEditor)} transparent animationType="slide" onRequestClose={() => setOfferEditor(null)}>{offerEditor ? <View style={styles.modalBackdrop}><View style={styles.modal}><ModalHeader title={offerEditor.id ? "Edit offer" : "Create offer"} close={() => setOfferEditor(null)} /><ScrollView><Field label="Offer name" value={offerEditor.name} onChangeText={(name: string) => setOfferEditor({ ...offerEditor, name })} /><Field label="Code (optional)" value={offerEditor.code} onChangeText={(code: string) => setOfferEditor({ ...offerEditor, code })} /><Field label="Description" value={offerEditor.description} multiline onChangeText={(description: string) => setOfferEditor({ ...offerEditor, description })} /><Text style={styles.fieldLabel}>Discount type</Text><View style={styles.filters}>{["percentage","fixed","free"].map((item) => <Pressable key={item} onPress={() => setOfferEditor({ ...offerEditor, discount_type: item })} style={[styles.filter, offerEditor.discount_type === item && styles.filterActive]}><Text style={[styles.filterText, offerEditor.discount_type === item && styles.filterTextActive]}>{item}</Text></Pressable>)}</View><Field label="Discount value" numeric value={offerEditor.discount_value} onChangeText={(discount_value: string) => setOfferEditor({ ...offerEditor, discount_value })} /><Text style={styles.fieldLabel}>Applicable plans (none means all)</Text><View style={styles.filters}>{plans.map((plan) => { const selected = (offerEditor.applicable_plan_ids || []).includes(plan.id); return <Pressable key={plan.id} onPress={() => setOfferEditor({ ...offerEditor, applicable_plan_ids: selected ? offerEditor.applicable_plan_ids.filter((id: string) => id !== plan.id) : [...(offerEditor.applicable_plan_ids || []), plan.id] })} style={[styles.filter, selected && styles.filterActive]}><Text style={[styles.filterText, selected && styles.filterTextActive]}>{plan.name}</Text></Pressable>; })}</View><Field label="Starts (ISO date/time, optional)" value={offerEditor.start_date || ""} onChangeText={(start_date: string) => setOfferEditor({ ...offerEditor, start_date })} /><Field label="Ends (ISO date/time, optional)" value={offerEditor.end_date || ""} onChangeText={(end_date: string) => setOfferEditor({ ...offerEditor, end_date })} /><View style={styles.twoCols}><Field label="Maximum uses" numeric value={offerEditor.maximum_uses || ""} onChangeText={(maximum_uses: string) => setOfferEditor({ ...offerEditor, maximum_uses: maximum_uses ? Number(maximum_uses) : null })} /><Field label="Uses per Vendor" numeric value={offerEditor.uses_per_vendor || 1} onChangeText={(uses_per_vendor: string) => setOfferEditor({ ...offerEditor, uses_per_vendor: Number(uses_per_vendor || 1) })} /></View><Toggle label="Available to all eligible Vendors" value={Boolean(offerEditor.is_global)} onValueChange={(is_global: boolean) => setOfferEditor({ ...offerEditor, is_global })} />{!offerEditor.is_global ? <Field label="Selected Vendor IDs (comma separated)" value={(offerEditor.applicable_vendor_ids || []).join(", ")} onChangeText={(value: string) => setOfferEditor({ ...offerEditor, applicable_vendor_ids: value.split(",").map((id) => id.trim()).filter(Boolean) })} /> : null}<Toggle label="Active" value={Boolean(offerEditor.is_active)} onValueChange={(is_active: boolean) => setOfferEditor({ ...offerEditor, is_active })} /></ScrollView><Pressable disabled={saving} onPress={saveOffer} style={styles.primary}><Text style={styles.primaryText}>Save offer</Text></Pressable></View></View> : null}</Modal>
+
+  <Modal visible={Boolean(vendorEditor)} transparent animationType="slide" onRequestClose={() => setVendorEditor(null)}>{vendorEditor ? <View style={styles.modalBackdrop}><View style={styles.modal}><ModalHeader title={vendorEditor.business_name} close={() => setVendorEditor(null)} /><Text style={styles.modalHint}>{vendorEditor.plan_name || "No plan"} · {subscriptionStatusLabel(vendorEditor.status as any)}</Text><Text style={styles.fieldLabel}>Action</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{["grant_free","grant_trial","extend","shorten","set_expiry","change_plan","suspend","cancel","reactivate","deactivate"].map((item) => <Pressable key={item} onPress={() => setVendorAction(item)} style={[styles.filter, vendorAction === item && styles.filterActive]}><Text style={[styles.filterText, vendorAction === item && styles.filterTextActive]}>{item.replaceAll("_", " ")}</Text></Pressable>)}</ScrollView>{["grant_free","grant_trial","change_plan"].includes(vendorAction) ? <><Text style={styles.fieldLabel}>Plan</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{plans.map((plan) => <Pressable key={plan.id} onPress={() => setVendorPlanId(plan.id)} style={[styles.filter, vendorPlanId === plan.id && styles.filterActive]}><Text style={[styles.filterText, vendorPlanId === plan.id && styles.filterTextActive]}>{plan.name}</Text></Pressable>)}</ScrollView></> : null}{["grant_free","grant_trial","extend","shorten"].includes(vendorAction) ? <Field label="Days" numeric value={vendorDays} onChangeText={setVendorDays} /> : null}{vendorAction === "set_expiry" ? <Field label="New expiry (YYYY-MM-DD)" value={vendorExpiry} onChangeText={setVendorExpiry} /> : null}<Field label="Internal notes" value={vendorNotes} multiline onChangeText={setVendorNotes} /><Pressable disabled={saving} onPress={runVendorAction} style={styles.primary}>{saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>Apply action</Text>}</Pressable></View></View> : null}</Modal>
+
+  <Modal visible={Boolean(featurePlan)} transparent animationType="slide" onRequestClose={() => setFeaturePlan(null)}>{featurePlan ? <View style={styles.modalBackdrop}><View style={styles.modal}><ModalHeader title={`${featurePlan.name} features`} close={() => setFeaturePlan(null)} /><ScrollView>{features.map((feature) => { const assigned = planFeatures.find((entry) => entry.feature_id === feature.id); return <View key={feature.id} style={styles.toggle}><View style={styles.flex}><Text style={styles.toggleLabel}>{feature.name}</Text><Text style={styles.toggleHint}>{feature.description}</Text></View><TextInput defaultValue={assigned?.limit_value == null ? "" : String(assigned.limit_value)} placeholder="Limit" keyboardType="number-pad" style={styles.limitInput} onEndEditing={(event) => void SubscriptionAdminService.setPlanFeature(featurePlan.id, feature.id, Boolean(assigned?.is_enabled), event.nativeEvent.text ? Number(event.nativeEvent.text) : null).then(() => SubscriptionAdminService.listPlanFeatures(featurePlan.id)).then(setPlanFeatures)} /><Switch value={planFeatureEnabled(feature.id)} onValueChange={(value) => void toggleFeature(feature, value)} trackColor={{ true: "#F7A5C1" }} thumbColor={planFeatureEnabled(feature.id) ? pink : "#EEE"} /></View>; })}</ScrollView></View></View> : null}</Modal>
+  </SafeAreaView>;
 }
+
+function EmptySection({ title, text }: { title: string; text: string }) { return <View style={styles.panel}><Text style={styles.panelTitle}>{title}</Text><Text style={styles.panelText}>{text}</Text></View>; }
+function ModalHeader({ title, close }: { title: string; close: () => void }) { return <View style={styles.modalHeader}><Text style={styles.modalTitle}>{title}</Text><Pressable onPress={close} style={styles.headerButton}><X size={20} color="#1D1720" /></Pressable></View>; }
+function Toggle({ label, value, onValueChange }: any) { return <View style={styles.toggle}><Text style={styles.toggleLabel}>{label}</Text><Switch value={value} onValueChange={onValueChange} trackColor={{ true: "#F7A5C1" }} thumbColor={value ? pink : "#EEE"} /></View>; }
+function SettingRow({ setting, onSave }: any) { const [value, setValue] = useState(setting.value === null ? "" : String(setting.value)); useEffect(() => setValue(setting.value === null ? "" : String(setting.value)), [setting.value]); const boolean = setting.value_type === "boolean"; return <View style={styles.card}><View style={styles.flex}><Text style={styles.cardTitle}>{setting.key.replace(/^subscription_/, "").replaceAll("_", " ")}</Text><Text style={styles.cardSub}>{setting.description}</Text></View>{boolean ? <Switch value={setting.value === true} onValueChange={(next) => void onSave(next)} trackColor={{ true: "#F7A5C1" }} thumbColor={setting.value === true ? pink : "#EEE"} /> : <View style={styles.settingEdit}><TextInput value={value} onChangeText={setValue} style={styles.settingInput} /><Pressable onPress={() => { let next: any = value; if (setting.value_type === "integer" || setting.value_type === "decimal") { next = Number(value); if (!Number.isFinite(next) || (setting.value_type === "integer" && !Number.isInteger(next))) return Alert.alert("Invalid value", "Enter a valid number."); } else if (setting.value_type === "json") { try { next = JSON.parse(value); } catch { return Alert.alert("Invalid JSON", "Correct the JSON value before saving."); } } void onSave(next).catch((cause: unknown) => Alert.alert("Setting not saved", cause instanceof Error ? cause.message : "Please try again.")); }}><Text style={styles.retry}>Save</Text></Pressable></View>}</View>; }
+
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: "#FFF9FB" }, header: { height: 62, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, backgroundColor: "rgba(255,255,255,.96)", borderBottomWidth: 1, borderBottomColor: "#F4E6EC" }, headerButton: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, logo: { position: "absolute", left: "50%", width: 155, height: 42, marginLeft: -77.5 }, content: { width: "100%", maxWidth: 1180, alignSelf: "center", padding: 18, paddingBottom: 110 }, flex: { flex: 1, minWidth: 0 },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14 }, eyebrow: { color: pink, fontSize: 9, fontWeight: "900", letterSpacing: 1.5 }, title: { color: "#1D1720", fontSize: 30, fontWeight: "900", letterSpacing: -.9, marginTop: 3 }, subtitle: { color: "#82747B", fontSize: 11, marginTop: 3 }, tabs: { gap: 7, paddingVertical: 18 }, tab: { minHeight: 40, paddingHorizontal: 15, borderRadius: 14, backgroundColor: "#FFF0F5", alignItems: "center", justifyContent: "center" }, tabActive: { backgroundColor: pink }, tabText: { color: "#6D6067", fontSize: 10, fontWeight: "800" }, tabTextActive: { color: "#FFF" },
+  stats: { flexDirection: "row", flexWrap: "wrap", gap: 10 }, stat: { flexGrow: 1, minWidth: 145, backgroundColor: "#FFF", borderRadius: 21, padding: 16, shadowColor: "#7D3D58", shadowOpacity: .05, shadowRadius: 16, shadowOffset: { width: 0, height: 7 }, elevation: 2 }, statIcon: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" }, statValue: { color: "#1D1720", fontSize: 22, fontWeight: "900", marginTop: 11 }, statLabel: { color: "#82747B", fontSize: 9, marginTop: 2 }, panel: { backgroundColor: "#FFF", borderRadius: 23, padding: 18, marginTop: 12 }, panelTitle: { color: "#1D1720", fontSize: 15, fontWeight: "900" }, panelText: { color: "#82747B", fontSize: 10, lineHeight: 16, marginTop: 5 }, primary: { minHeight: 46, borderRadius: 15, backgroundColor: pink, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", marginTop: 15 }, primaryText: { color: "#FFF", fontSize: 11, fontWeight: "900" },
+  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }, sectionTitle: { color: "#1D1720", fontSize: 17, fontWeight: "900" }, sectionHint: { color: "#82747B", fontSize: 9, marginTop: 3 }, add: { height: 42, borderRadius: 14, paddingHorizontal: 14, backgroundColor: pink, flexDirection: "row", alignItems: "center", gap: 5 }, addText: { color: "#FFF", fontSize: 10, fontWeight: "900" }, list: { gap: 10 }, card: { backgroundColor: "#FFF", borderRadius: 21, padding: 16, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }, cardTop: { width: "100%", flexDirection: "row", alignItems: "flex-start", gap: 10 }, cardTitle: { color: "#1D1720", fontSize: 13, fontWeight: "900", textTransform: "capitalize" }, cardSub: { color: "#82747B", fontSize: 9, lineHeight: 14, marginTop: 3 }, price: { width: "100%", color: "#1D1720", fontSize: 22, fontWeight: "900", marginTop: 5 }, period: { color: "#82747B", fontSize: 9, fontWeight: "600" }, cardActions: { width: "100%", flexDirection: "row", gap: 8, marginTop: 5 }, secondary: { minHeight: 38, borderRadius: 13, paddingHorizontal: 12, backgroundColor: "#FFF0F5", flexDirection: "row", alignItems: "center", gap: 5 }, secondaryText: { color: pink, fontSize: 9, fontWeight: "800" }, iconDanger: { width: 40, height: 38, borderRadius: 13, backgroundColor: "#FFF0F2", alignItems: "center", justifyContent: "center" },
+  searchBox: { minHeight: 48, borderRadius: 16, backgroundColor: "#FFF", paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 8 }, searchInput: { flex: 1, color: "#1D1720", fontSize: 11, outlineStyle: "none" } as any, retry: { color: pink, fontSize: 10, fontWeight: "900" }, filters: { flexDirection: "row", gap: 7, paddingVertical: 11 }, filter: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#FFF0F5" }, filterActive: { backgroundColor: pink }, filterText: { color: "#6D6067", fontSize: 9, fontWeight: "800", textTransform: "capitalize" }, filterTextActive: { color: "#FFF" }, vendorCard: { backgroundColor: "#FFF", borderRadius: 19, padding: 13, flexDirection: "row", alignItems: "center", gap: 10 }, avatar: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, vendorMeta: { color: "#A0969B", fontSize: 8, marginTop: 3 }, manage: { color: pink, fontSize: 9, fontWeight: "900" },
+  error: { borderRadius: 16, padding: 14, backgroundColor: "#FFF0F2", flexDirection: "row", justifyContent: "space-between" }, errorText: { color: "#A83245", fontSize: 10 }, modalBackdrop: { flex: 1, backgroundColor: "rgba(25,15,21,.45)", justifyContent: "flex-end", padding: 10 }, modal: { width: "100%", maxWidth: 620, maxHeight: "90%", alignSelf: "center", backgroundColor: "#FFF", borderRadius: 27, padding: 18 }, modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }, modalTitle: { color: "#1D1720", fontSize: 20, fontWeight: "900" }, modalHint: { color: "#82747B", fontSize: 10, marginBottom: 12 }, field: { flex: 1, minWidth: 130, marginTop: 10 }, fieldLabel: { color: "#6D6067", fontSize: 9, fontWeight: "800", marginBottom: 6, marginTop: 8, textTransform: "capitalize" }, input: { minHeight: 45, borderRadius: 14, backgroundColor: "#FFF7FA", paddingHorizontal: 12, color: "#1D1720", fontSize: 11, borderWidth: 1, borderColor: "#F3E3E9", outlineStyle: "none" } as any, multiline: { height: 78, textAlignVertical: "top", paddingTop: 11 }, twoCols: { flexDirection: "row", gap: 9 }, toggle: { minHeight: 57, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1, borderBottomColor: "#F6EAF0" }, toggleLabel: { color: "#1D1720", fontSize: 11, fontWeight: "800" }, toggleHint: { color: "#82747B", fontSize: 8, lineHeight: 12, marginTop: 3 }, limitInput: { width: 58, minHeight: 36, borderRadius: 11, backgroundColor: "#FFF7FA", paddingHorizontal: 8, fontSize: 9, outlineStyle: "none" } as any, settingEdit: { width: "100%", flexDirection: "row", alignItems: "center", gap: 8 }, settingInput: { flex: 1, minHeight: 40, borderRadius: 12, backgroundColor: "#FFF7FA", paddingHorizontal: 10, fontSize: 10, outlineStyle: "none" } as any,
+});

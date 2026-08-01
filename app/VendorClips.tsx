@@ -16,6 +16,7 @@ import { ClipManagementService, shareVendorClip } from "@/clips/services";
 import { ClipStatusBadge } from "@/clips/components";
 import { useVendorClipOverview } from "@/clips/hooks";
 import type { ClipStatus } from "@/clips/types";
+import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 
 type ClipGroup = "approved" | "pending" | "draft" | "hidden" | "rejected";
 
@@ -26,6 +27,7 @@ export default function VendorClips() {
   const colors = vendorTheme[colorScheme];
   const { data, loading: workspaceLoading } = useVendorWorkspace();
   const { drafts, loading, error, overview, refresh } = useVendorClipOverview(data.vendor?.id);
+  const { hasFeature, requireFeature } = useSubscriptionAccess();
   const [group, setGroup] = useState<ClipGroup>("approved");
   const columns = width >= 1000 ? 3 : width >= 640 ? 2 : 1;
 
@@ -39,13 +41,23 @@ export default function VendorClips() {
     { key: "rejected", label: "Rejected", count: overview.byStatus.rejected.length },
   ];
 
-  const remove = (clip: any) => Alert.alert("Delete Clip?", "The video and thumbnail will be removed. This cannot be undone.", [
-    { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: async () => {
-      try { await ClipManagementService.remove(clip.id); await refresh(); }
-      catch (caught) { Alert.alert("Delete failed", caught instanceof Error ? caught.message : "Try again."); }
-    } },
-  ]);
+  const openUpload = (draftId?: string) => requireFeature("upload_clips", () => {
+    if (draftId) router.push({ pathname: "/VendorClipUpload", params: { draftId } });
+    else router.push("/VendorClipUpload");
+  });
+  const openEdit = (clipId: string) => requireFeature("upload_clips", () => {
+    router.push({ pathname: "/VendorClipEdit", params: { id: clipId } });
+  });
+  const remove = (clip: any) => {
+    if (!requireFeature("upload_clips")) return;
+    Alert.alert("Delete Clip?", "The video and thumbnail will be removed. This cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: async () => {
+        try { await ClipManagementService.remove(clip.id); await refresh(); }
+        catch (caught) { Alert.alert("Delete failed", caught instanceof Error ? caught.message : "Try again."); }
+      } },
+    ]);
+  };
   const share = async (clip: any) => {
     await shareVendorClip({
       id: clip.id,
@@ -54,10 +66,10 @@ export default function VendorClips() {
       vendorName: data.vendor.business_name || "this vendor",
     });
   };
-  const showAnalytics = (clip: any) => Alert.alert(
+  const showAnalytics = (clip: any) => requireFeature("view_analytics", () => Alert.alert(
     clip.caption?.trim() || "Clip analytics",
     `Views: ${clip.views_count}\nLikes: ${clip.likes_count}\nSaves: ${clip.saves_count}\nStatus: ${clip.status}`,
-  );
+  ));
 
   if (workspaceLoading || loading) {
     return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.pink} /></View>;
@@ -77,7 +89,7 @@ export default function VendorClips() {
           <Text style={[styles.heading, { color: colors.text }]}>Your Clips</Text>
           <Text style={[styles.subheading, { color: colors.muted }]}>{overview.total} clips · {drafts.length} local drafts</Text>
         </View>
-        <Pressable onPress={() => router.push("/VendorClipUpload")} style={[styles.primary, { backgroundColor: colors.pink }]}>
+        <Pressable onPress={() => openUpload()} style={[styles.primary, { backgroundColor: colors.pink }]}>
           <Plus size={18} color="#FFF" /><Text style={styles.primaryText}>Upload Clip</Text>
         </Pressable>
       </View>
@@ -86,7 +98,7 @@ export default function VendorClips() {
         <Text style={[styles.noticeText, { color: colors.muted }]}>{error}</Text>
       </View>}
 
-      <View style={[styles.overviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      {hasFeature("view_analytics") ? <View style={[styles.overviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.sectionHeading}><View><Text style={[styles.sectionTitle, { color: colors.text }]}>Clips overview</Text><Text style={[styles.sectionSubtitle, { color: colors.muted }]}>Your reach and engagement at a glance</Text></View><BarChart3 size={20} color={colors.pink} /></View>
         <View style={styles.metricGrid}>
           {[
@@ -100,7 +112,7 @@ export default function VendorClips() {
           <Text numberOfLines={1} style={[styles.analyticsRow, { color: colors.muted }]}>Most viewed: <Text style={{ color: colors.text, fontWeight: "800" }}>{overview.mostViewed ? `${overview.mostViewed.caption?.trim() || "Wedding Clip"} (${overview.mostViewed.views_count})` : "—"}</Text></Text>
           <Text numberOfLines={1} style={[styles.analyticsRow, { color: colors.muted }]}>Newest Clip: <Text style={{ color: colors.text, fontWeight: "800" }}>{overview.newest?.caption?.trim() || (overview.newest ? "Wedding Clip" : "—")}</Text></Text>
         </View>
-      </View>
+      </View> : null}
 
       <View style={[styles.limitCard, { backgroundColor: overview.limitReached ? `${colors.warning}12` : colors.surfaceSoft, borderColor: overview.limitReached ? colors.warning : colors.border }]}>
         <View style={styles.flex}>
@@ -134,14 +146,14 @@ export default function VendorClips() {
 
       {group === "draft" && drafts.length > 0 && <View style={[styles.draftBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Saved drafts</Text>
-        {drafts.map((draft) => <Pressable key={draft.id} onPress={() => router.push({ pathname: "/VendorClipUpload", params: { draftId: draft.id } })} style={styles.draftRow}><Save size={16} color={colors.pink} /><Text numberOfLines={1} style={[styles.draftText, { color: colors.text }]}>{draft.title || "Untitled Clip"}</Text><Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>Resume</Text></Pressable>)}
+        {drafts.map((draft) => <Pressable key={draft.id} onPress={() => openUpload(draft.id)} style={styles.draftRow}><Save size={16} color={colors.pink} /><Text numberOfLines={1} style={[styles.draftText, { color: colors.text }]}>{draft.title || "Untitled Clip"}</Text><Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>Resume</Text></Pressable>)}
       </View>}
 
       {!visibleClips.length && !(group === "draft" && drafts.length) ? <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={[styles.emptyIllustration, { backgroundColor: colors.surfaceSoft }]}><Video size={44} color={colors.pink} /></View>
         <Text style={[styles.emptyTitle, { color: colors.text }]}>{overview.total ? `No ${group} Clips` : "Share your best wedding work and inspire future couples."}</Text>
         <Text style={[styles.emptyText, { color: colors.muted }]}>{overview.total ? "Your Clips will appear here when their status changes." : "Short, beautiful videos help couples discover your business."}</Text>
-        {!overview.total && <Pressable onPress={() => router.push("/VendorClipUpload")} style={[styles.emptyButton, { backgroundColor: colors.pink }]}><Plus size={17} color="#FFF" /><Text style={styles.primaryText}>Upload First Clip</Text></Pressable>}
+        {!overview.total && <Pressable onPress={() => openUpload()} style={[styles.emptyButton, { backgroundColor: colors.pink }]}><Plus size={17} color="#FFF" /><Text style={styles.primaryText}>Upload First Clip</Text></Pressable>}
       </View> :
       <View style={[styles.grid, { gap: 14 }]}>{visibleClips.map((clip) => <View key={clip.id} style={[styles.card, { width: columns === 1 ? "100%" : `${100 / columns - 1}%`, backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Image source={{ uri: clip.thumbnail_url }} style={styles.thumb} />
@@ -150,7 +162,7 @@ export default function VendorClips() {
           <View style={styles.analytics}><View style={styles.metric}><Eye size={14} color={colors.muted} /><Text style={[styles.metricText, { color: colors.muted }]}>{clip.views_count}</Text></View><View style={styles.metric}><Heart size={14} color={colors.muted} /><Text style={[styles.metricText, { color: colors.muted }]}>{clip.likes_count}</Text></View><View style={styles.metric}><Save size={14} color={colors.muted} /><Text style={[styles.metricText, { color: colors.muted }]}>{clip.saves_count}</Text></View></View>
           <Text style={[styles.date, { color: colors.muted }]}>Uploaded {new Date(clip.created_at).toLocaleDateString()}{clip.published_at ? ` · Published ${new Date(clip.published_at).toLocaleDateString()}` : ""}</Text>
           <View style={[styles.actions, { borderTopColor: colors.border }]}>
-            <Pressable accessibilityLabel="Edit Clip" onPress={() => router.push({ pathname: "/VendorClipEdit", params: { id: clip.id } })} style={styles.action}><Edit3 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Edit</Text></Pressable>
+            <Pressable accessibilityLabel="Edit Clip" onPress={() => openEdit(clip.id)} style={styles.action}><Edit3 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Edit</Text></Pressable>
             <Pressable accessibilityLabel="Delete Clip" onPress={() => remove(clip)} style={styles.action}><Trash2 size={16} color="#DC2626" /><Text style={[styles.actionLabel, { color: "#DC2626" }]}>Delete</Text></Pressable>
             <Pressable accessibilityLabel="Share Clip" onPress={() => void share(clip)} style={styles.action}><Share2 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Share</Text></Pressable>
             <Pressable accessibilityLabel="Copy Clip link coming soon" disabled style={[styles.action, { opacity: 0.45 }]}><Link2 size={16} color={colors.muted} /><Text style={[styles.actionLabel, { color: colors.muted }]}>Copy Link</Text></Pressable>
@@ -160,7 +172,7 @@ export default function VendorClips() {
       </View>)}</View>}
     </ScrollView>
 
-    <Pressable accessibilityRole="button" accessibilityLabel="Upload New Clip" onPress={() => router.push("/VendorClipUpload")} style={[styles.floatingUpload, { backgroundColor: colors.pink, shadowColor: colors.shadow }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel="Upload New Clip" onPress={() => openUpload()} style={[styles.floatingUpload, { backgroundColor: colors.pink, shadowColor: colors.shadow }]}>
       <Plus size={20} color="#FFF" /><Text style={styles.floatingText}>Upload New Clip</Text>
     </Pressable>
   </View>;

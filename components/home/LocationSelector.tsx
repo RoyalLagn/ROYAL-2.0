@@ -1,15 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { Check, ChevronDown, MapPin, X } from "lucide-react-native";
-import { SUPPORTED_LOCATIONS, useCustomerLocation } from "@/context/LocationContext";
+import { useCustomerLocation } from "@/context/LocationContext";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import type { LocationPreference } from "@/locations/types";
 
 const PINK = "#E91E63";
 
@@ -20,23 +23,58 @@ type LocationSelectorProps = {
 };
 
 export default function LocationSelector({ dark, compact = false, filterChip = false }: LocationSelectorProps) {
-  const { location, setLocation } = useCustomerLocation();
-  const city = location.split(",")[0];
+  const {
+    location,
+    city,
+    locations,
+    preference,
+    loading,
+    saving,
+    error,
+    needsLocationSelection,
+    claimLocationOnboardingPrompt,
+    setLocation,
+  } = useCustomerLocation();
   const [visible, setVisible] = useState(false);
   const [query, setQuery] = useState("");
-  const [draft, setDraft] = useState(location);
+  const [draft, setDraft] = useState<LocationPreference | null>(preference);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     if (visible) {
-      setDraft(location);
+      setDraft(preference);
       setQuery("");
+      setSaveError("");
     }
-  }, [location, visible]);
+  }, [preference, visible]);
 
-  const suggestions = useMemo(
-    () => SUPPORTED_LOCATIONS.filter((item) => item.toLowerCase().includes(query.trim().toLowerCase())),
-    [query],
-  );
+  useEffect(() => {
+    if (
+      needsLocationSelection
+      && locations.length
+      && claimLocationOnboardingPrompt()
+    ) setVisible(true);
+  }, [claimLocationOnboardingPrompt, locations.length, needsLocationSelection]);
+
+  const suggestions = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return locations.flatMap((supportedCity) => {
+      const cityOption = {
+        key: `city:${supportedCity.id}`,
+        label: `${supportedCity.name}, ${supportedCity.state}`,
+        detail: supportedCity.areas.length ? `${supportedCity.areas.length} supported areas` : "City-wide service",
+        preference: { cityId: supportedCity.id, areaId: null } satisfies LocationPreference,
+      };
+      const areaOptions = supportedCity.areas.map((supportedArea) => ({
+        key: `area:${supportedArea.id}`,
+        label: `${supportedArea.name}, ${supportedCity.name}`,
+        detail: supportedCity.state,
+        preference: { cityId: supportedCity.id, areaId: supportedArea.id } satisfies LocationPreference,
+      }));
+      return [cityOption, ...areaOptions].filter((item) =>
+        !needle || `${item.label} ${item.detail}`.toLowerCase().includes(needle));
+    });
+  }, [locations, query]);
 
   const colors = {
     surface: dark ? "#211E20" : "#FFFFFF",
@@ -46,10 +84,18 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
     border: dark ? "#3B3237" : "#F0D9E4",
   };
 
-  const close = () => setVisible(false);
-  const confirm = () => {
-    setLocation(draft);
-    close();
+  const close = () => {
+    if (!needsLocationSelection) setVisible(false);
+  };
+  const confirm = async () => {
+    if (!draft || saving) return;
+    setSaveError("");
+    try {
+      await setLocation(draft);
+      setVisible(false);
+    } catch (caught) {
+      setSaveError(caught instanceof Error ? caught.message : "Unable to save this location.");
+    }
   };
 
   return (
@@ -105,16 +151,18 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
             />
 
             <Text style={[styles.groupLabel, { color: colors.muted }]}>SUGGESTED LOCATIONS</Text>
-            <View style={styles.options}>
+            <ScrollView style={styles.optionScroll} contentContainerStyle={styles.options} keyboardShouldPersistTaps="handled">
+              {loading ? <ActivityIndicator color={PINK} style={styles.loader} /> : null}
               {suggestions.map((item) => {
-                const selected = draft === item;
+                const selected = draft?.cityId === item.preference.cityId
+                  && draft?.areaId === item.preference.areaId;
                 return (
                   <Pressable
-                    key={item}
+                    key={item.key}
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
-                    accessibilityLabel={`Select ${item}`}
-                    onPress={() => setDraft(item)}
+                    accessibilityLabel={`Select ${item.label}`}
+                    onPress={() => setDraft(item.preference)}
                     style={({ pressed }) => [
                       styles.option,
                       {
@@ -125,20 +173,25 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
                     ]}
                   >
                     <View style={[styles.optionIcon, { backgroundColor: colors.surface }]}><MapPin size={16} color={PINK} /></View>
-                    <Text style={[styles.optionText, { color: colors.text }]}>{item}</Text>
+                    <View style={styles.optionCopy}>
+                      <Text style={[styles.optionText, { color: colors.text }]}>{item.label}</Text>
+                      <Text style={[styles.optionDetail, { color: colors.muted }]}>{item.detail}</Text>
+                    </View>
                     {selected ? <Check size={18} color={PINK} /> : null}
                   </Pressable>
                 );
               })}
-              {!suggestions.length ? <Text style={[styles.emptyText, { color: colors.muted }]}>No supported location found.</Text> : null}
-            </View>
+              {!loading && !suggestions.length ? <Text style={[styles.emptyText, { color: colors.muted }]}>{error || "No supported location found."}</Text> : null}
+            </ScrollView>
+
+            {saveError ? <Text style={styles.saveError}>{saveError}</Text> : null}
 
             <View style={styles.actions}>
-              <Pressable accessibilityRole="button" onPress={close} style={[styles.cancel, { borderColor: colors.border }]}>
+              <Pressable accessibilityRole="button" disabled={needsLocationSelection || saving} onPress={close} style={[styles.cancel, { borderColor: colors.border }, needsLocationSelection && styles.disabled]}>
                 <Text style={[styles.cancelText, { color: colors.text }]}>Cancel</Text>
               </Pressable>
-              <Pressable accessibilityRole="button" onPress={confirm} style={styles.confirm}>
-                <Text style={styles.confirmText}>Confirm location</Text>
+              <Pressable accessibilityRole="button" disabled={!draft || saving} onPress={() => void confirm()} style={[styles.confirm, (!draft || saving) && styles.disabled]}>
+                {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.confirmText}>Confirm location</Text>}
               </Pressable>
             </View>
           </Pressable>
@@ -167,13 +220,19 @@ const styles = StyleSheet.create({
   closeButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   groupLabel: { fontSize: 8, fontWeight: "900", letterSpacing: 1.1, marginTop: 18, marginBottom: 9 },
   options: { gap: 8 },
+  optionScroll: { maxHeight: 330 },
+  loader: { paddingVertical: 24 },
   option: { minHeight: 54, borderWidth: 1, borderRadius: 15, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 10 },
   optionIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  optionText: { flex: 1, minWidth: 0, fontSize: 12, fontWeight: "700" },
+  optionCopy: { flex: 1, minWidth: 0 },
+  optionText: { fontSize: 12, fontWeight: "700" },
+  optionDetail: { fontSize: 9, marginTop: 2 },
   emptyText: { textAlign: "center", paddingVertical: 18, fontSize: 11 },
+  saveError: { color: "#DC2626", fontSize: 10, lineHeight: 15, marginTop: 10 },
   actions: { flexDirection: "row", gap: 9, marginTop: 18 },
   cancel: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   cancelText: { fontSize: 11, fontWeight: "800" },
   confirm: { flex: 1.4, minHeight: 48, borderRadius: 15, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
   confirmText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
+  disabled: { opacity: 0.48 },
 });

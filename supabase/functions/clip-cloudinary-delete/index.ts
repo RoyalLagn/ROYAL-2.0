@@ -33,10 +33,12 @@ Deno.serve(async (request) => {
     if (!user) throw new Error("Authentication required");
     const { clipId, vendorId, publicId: requestedPublicId } = await request.json();
     let publicId = requestedPublicId as string | undefined;
+    let ownedVendorId = vendorId as string | undefined;
     if (clipId) {
-      const { data: clip } = await supabase.from("clips").select("cloudinary_public_id,vendors!inner(profile_id)")
+      const { data: clip } = await supabase.from("clips").select("cloudinary_public_id,vendor_id,vendors!inner(profile_id)")
         .eq("id", clipId).eq("vendors.profile_id", user.id).maybeSingle();
       publicId = clip?.cloudinary_public_id;
+      ownedVendorId = clip?.vendor_id;
     } else {
       const { data: vendor } = await supabase.from("vendors").select("id")
         .eq("id", vendorId).eq("profile_id", user.id).maybeSingle();
@@ -45,6 +47,11 @@ Deno.serve(async (request) => {
       }
     }
     if (!publicId) throw new Error("Owned Clip not found");
+    const { error: accessError } = await supabase.rpc("require_vendor_feature_access", {
+      target_vendor_id: ownedVendorId,
+      requested_feature_key: "upload_clips",
+    });
+    if (accessError) throw accessError;
     const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
     const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
     const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME");

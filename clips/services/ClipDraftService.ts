@@ -16,6 +16,7 @@ async function readAll(): Promise<ClipDraftRecord[]> {
 
 export const ClipDraftService = {
   list: readAll,
+  clear: () => AsyncStorage.removeItem(KEY),
   async save(draft: ClipDraftRecord) {
     const items = await readAll();
     const next = [draft, ...items.filter((item) => item.id !== draft.id)];

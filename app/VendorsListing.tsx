@@ -25,6 +25,7 @@ import {
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
 import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
+import { rankVendorsByLocation } from "@/services/locations";
 
 function getPriceOptions(category: string) {
   if (category === "Caterers") {
@@ -79,7 +80,7 @@ export default function VendorsListingScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
-  const { city } = useCustomerLocation();
+  const { city, preference, strictCityOnly } = useCustomerLocation();
   const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ category?: string; query?: string }>();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -155,7 +156,7 @@ export default function VendorsListingScreen() {
         ));
     });
 
-    return [...matching].sort((a, b) => {
+    const baseSorted = [...matching].sort((a, b) => {
       if (filters.sort === "rating") return b.rating - a.rating || b.reviews - a.reviews;
       if (filters.sort === "price") {
         return (a.startingPriceValue || Number.MAX_SAFE_INTEGER)
@@ -165,7 +166,8 @@ export default function VendorsListingScreen() {
         || b.reviews - a.reviews
         || b.rating - a.rating;
     });
-  }, [filters, getRating, query, vendors]);
+    return rankVendorsByLocation(baseSorted, preference, strictCityOnly);
+  }, [filters, getRating, preference, query, strictCityOnly, vendors]);
 
   const activeFilterCount = [
     filters.sort !== "popular",

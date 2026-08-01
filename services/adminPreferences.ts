@@ -16,8 +16,16 @@ async function write(value: string) {
   }
   await SecureStore.setItemAsync(KEY, value);
 }
+async function clear() {
+  if (Platform.OS === "web") {
+    if (typeof localStorage !== "undefined") localStorage.removeItem(KEY);
+    return;
+  }
+  await SecureStore.deleteItemAsync(KEY);
+}
 
 export const AdminPreferences = {
+  clear,
   async listVendorFilters(): Promise<SavedVendorFilter[]> {
     try { return JSON.parse((await read()) || "[]") as SavedVendorFilter[]; }
     catch { return []; }

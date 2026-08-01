@@ -9,6 +9,8 @@ import {
   type PublicPortfolioAlbum,
   type VendorPortfolioMedia,
 } from "@/services/vendorPortfolio";
+import { mapVendorServiceLocation } from "@/services/locations";
+import type { VendorServiceLocation } from "@/locations/types";
 
 export type PublicVendorAvailability = {
   date: string;
@@ -41,6 +43,9 @@ export type PublicVendorListing = {
   portfolioImages: string[];
   portfolioAlbums: PublicPortfolioAlbum[];
   heroMedia: VendorPortfolioMedia[];
+  primaryCityId: string | null;
+  primaryAreaId: string | null;
+  serviceLocations: VendorServiceLocation[];
 };
 
 const PUBLIC_VENDOR_LIST_SELECT = `
@@ -54,12 +59,28 @@ const PUBLIC_VENDOR_LIST_SELECT = `
   is_verified,
   is_featured,
   categories(name),
-  vendor_services(title,price,is_active),
+  vendor_services(title,price,discounted_price,is_active,status,display_order),
   vendor_availability(date,status)
 `;
 
-const PUBLIC_VENDOR_DETAIL_SELECT = `
+const PUBLIC_VENDOR_LOCATION_SELECT = `
   ${PUBLIC_VENDOR_LIST_SELECT},
+  primary_city_id,
+  primary_area_id,
+  vendor_service_locations(
+    id,
+    vendor_id,
+    city_id,
+    area_id,
+    pincode,
+    is_primary,
+    supported_cities(name,state),
+    supported_areas(name)
+  )
+`;
+
+const PUBLIC_VENDOR_DETAIL_SELECT = `
+  ${PUBLIC_VENDOR_LOCATION_SELECT},
   contact_phone,
   contact_email,
   website,
@@ -157,10 +178,10 @@ function normalizeVendor(
   const category = normalizeMarketplaceCategoryName(databaseCategory);
 
   const activeServices = (row.vendor_services ?? []).filter(
-    (service: any) => service.is_active,
-  );
+    (service: any) => service.is_active && (service.status ?? "active") === "active",
+  ).sort((a: any, b: any) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0));
   const prices = activeServices
-    .map((service: any) => Number(service.price))
+    .map((service: any) => Number(service.discounted_price ?? service.price))
     .filter((price: number) => Number.isFinite(price) && price > 0);
   const startingPriceValue = prices.length ? Math.min(...prices) : 0;
   const today = new Date().toISOString().slice(0, 10);
@@ -201,6 +222,13 @@ function normalizeVendor(
   const portfolioImages = portfolioAlbums
     .flatMap((album) => album.media)
     .map((media) => portfolioMediaUrl(media, "card"));
+  const serviceLocations = (row.vendor_service_locations ?? []).map(mapVendorServiceLocation);
+  const primaryLocation = serviceLocations.find((item: VendorServiceLocation) => item.isPrimary)
+    ?? serviceLocations[0]
+    ?? null;
+  const location = primaryLocation
+    ? [primaryLocation.areaName, primaryLocation.cityName, primaryLocation.state].filter(Boolean).join(", ")
+    : [row.city, row.state].filter(Boolean).join(", ");
 
   return {
     id: row.id,
@@ -209,7 +237,7 @@ function normalizeVendor(
     rating: reviewSummary?.average_rating ?? 0,
     reviews: reviewSummary?.review_count ?? 0,
     priceLevel: "₹ ₹",
-    location: [row.city, row.state].filter(Boolean).join(", "),
+    location,
     tags: Array.isArray(row.tags) ? row.tags : [],
     services: activeServices.map((service: any) => service.title).filter(Boolean),
     startingPrice: startingPriceValue
@@ -230,7 +258,14 @@ function normalizeVendor(
     portfolioImages,
     portfolioAlbums,
     heroMedia,
+    primaryCityId: primaryLocation?.cityId ?? row.primary_city_id ?? null,
+    primaryAreaId: primaryLocation?.areaId ?? row.primary_area_id ?? null,
+    serviceLocations,
   };
+}
+
+function canUseLegacyVendorQuery(error: { message?: string; code?: string } | null) {
+  return Boolean(error && /vendor_service_locations|primary_city_id|primary_area_id|schema cache|PGRST200|PGRST205|42P01|42703/i.test(`${error.code ?? ""} ${error.message ?? ""}`));
 }
 
 export function invalidatePublicVendorCache() {
@@ -262,12 +297,24 @@ export async function getApprovedPublicVendors(
 
   const requestVersion = marketplaceCacheVersion;
   const request = (async () => {
-    const { data, error } = await supabase
+    const primaryResult = await supabase
       .from("vendors")
-      .select(PUBLIC_VENDOR_LIST_SELECT)
+      .select(PUBLIC_VENDOR_LOCATION_SELECT)
       .eq("is_verified", true)
       .order("is_featured", { ascending: false })
       .order("updated_at", { ascending: false });
+    let data: any[] | null = primaryResult.data as any[] | null;
+    let error: any = primaryResult.error;
+    if (canUseLegacyVendorQuery(error)) {
+      const legacy = await supabase
+        .from("vendors")
+        .select(PUBLIC_VENDOR_LIST_SELECT)
+        .eq("is_verified", true)
+        .order("is_featured", { ascending: false })
+        .order("updated_at", { ascending: false });
+      data = legacy.data;
+      error = legacy.error;
+    }
     if (error) throw error;
 
     const vendorIds = (data ?? []).map((row: any) => row.id);
@@ -295,7 +342,7 @@ export async function getApprovedPublicVendors(
 export async function getApprovedPublicVendorById(
   vendorId: string,
 ): Promise<PublicVendorListing | null> {
-  const [{ data, error }, reviewSummaries] = await Promise.all([
+  const [locationResult, reviewSummaries] = await Promise.all([
     supabase
       .from("vendors")
       .select(PUBLIC_VENDOR_DETAIL_SELECT)
@@ -304,6 +351,18 @@ export async function getApprovedPublicVendorById(
       .maybeSingle(),
     listReviewSummaries([vendorId]).catch(() => ({})),
   ]);
+  let data: any = locationResult.data;
+  let error: any = locationResult.error;
+  if (canUseLegacyVendorQuery(error)) {
+    const legacy = await supabase
+      .from("vendors")
+      .select(PUBLIC_VENDOR_DETAIL_SELECT.replace(PUBLIC_VENDOR_LOCATION_SELECT, PUBLIC_VENDOR_LIST_SELECT))
+      .eq("id", vendorId)
+      .eq("is_verified", true)
+      .maybeSingle();
+    data = legacy.data;
+    error = legacy.error;
+  }
   if (error) throw error;
   return data ? normalizeVendor(data, reviewSummaries[vendorId]) : null;
 }
@@ -331,6 +390,11 @@ export function subscribeToPublicVendorChanges(onChange: () => void) {
       .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "vendor_services" },
+      scheduleMarketplaceChanged,
+      )
+      .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "vendor_service_locations" },
       scheduleMarketplaceChanged,
       )
       .on(

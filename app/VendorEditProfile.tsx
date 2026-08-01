@@ -36,6 +36,16 @@ import {
 } from "@/services/cloudinary";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
+import PremiumRouteGate from "@/components/subscriptions/PremiumRouteGate";
+import {
+  VendorServiceLocationEditor,
+  type VendorLocationValue,
+} from "@/components/locations/VendorServiceLocationEditor";
+import { useCustomerLocation } from "@/context/LocationContext";
+import {
+  listVendorServiceLocations,
+  replaceVendorServiceLocations,
+} from "@/services/locations";
 import {
   normalizeOptionalUrl,
   normalizePhone,
@@ -85,12 +95,20 @@ export default function VendorEditProfile() {
   const colors = vendorTheme[colorScheme];
   const { registrationCategories: categories } = useCategories();
   const { data, loading, refresh } = useVendorWorkspace();
+  const { locations } = useCustomerLocation();
   const [form, setForm] = useState<ProfileForm>(emptyForm);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [persistedLogoUrl, setPersistedLogoUrl] = useState("");
+  const [vendorLocation, setVendorLocation] = useState<VendorLocationValue>({
+    pincode: "",
+    primaryCityId: "",
+    primaryAreaId: null,
+    serviceAreaIds: [],
+  });
+  const [locationValid, setLocationValid] = useState(false);
   const twoColumns = width >= 760;
   const selectedCategory = categories.find((item) => item.id === form.categoryId);
   const tagList = useMemo(
@@ -119,6 +137,32 @@ export default function VendorEditProfile() {
     setPersistedLogoUrl(data.vendor.logo_url ?? "");
   }, [data.vendor]);
 
+  useEffect(() => {
+    if (!data.vendor?.id) return;
+    let active = true;
+    listVendorServiceLocations(data.vendor.id)
+      .then((serviceLocations) => {
+        if (!active) return;
+        const primary = serviceLocations.find((item) => item.isPrimary);
+        setVendorLocation({
+          pincode: primary?.pincode ?? (/^[1-9][0-9]{5}$/.test(data.vendor.pincode ?? "") ? data.vendor.pincode : ""),
+          primaryCityId: primary?.cityId ?? data.vendor.primary_city_id ?? "",
+          primaryAreaId: primary?.areaId ?? data.vendor.primary_area_id ?? null,
+          serviceAreaIds: serviceLocations.map((item) => item.areaId).filter((item): item is string => Boolean(item)),
+        });
+      })
+      .catch(() => {
+        if (!active) return;
+        setVendorLocation({
+          pincode: /^[1-9][0-9]{5}$/.test(data.vendor.pincode ?? "") ? data.vendor.pincode : "",
+          primaryCityId: data.vendor.primary_city_id ?? "",
+          primaryAreaId: data.vendor.primary_area_id ?? null,
+          serviceAreaIds: data.vendor.primary_area_id ? [data.vendor.primary_area_id] : [],
+        });
+      });
+    return () => { active = false; };
+  }, [data.vendor?.id, data.vendor?.pincode, data.vendor?.primary_area_id, data.vendor?.primary_city_id]);
+
   const update = <K extends keyof ProfileForm>(key: K, value: ProfileForm[K]) => {
     setSaved(false);
     setForm((current) => ({ ...current, [key]: value }));
@@ -146,7 +190,8 @@ export default function VendorEditProfile() {
     if (!validateFullName(form.ownerName)) return Alert.alert("Owner name required", "Enter the account owner's full name.");
     if (!form.categoryId) return Alert.alert("Category required", "Choose the category that best represents your business.");
     if (!form.description.trim()) return Alert.alert("Description required", "Tell customers what makes your business a good choice.");
-    if (!form.city.trim() || !form.state.trim()) return Alert.alert("Service location required", "Enter both city and state.");
+    const selectedCity = locations.find((item) => item.id === vendorLocation.primaryCityId);
+    if (!locationValid || !selectedCity) return Alert.alert("Service location required", "Choose a supported primary city and enter a valid six-digit PIN code.");
     if (form.contactEmail.trim() && !validateEmail(form.contactEmail)) {
       return Alert.alert("Invalid email", "Enter a valid customer contact email.");
     }
@@ -172,6 +217,13 @@ export default function VendorEditProfile() {
     setSaved(false);
     const nextLogoUrl = form.logoUrl.trim() || null;
     try {
+      await replaceVendorServiceLocations({
+        vendorId: data.vendor.id,
+        primaryCityId: vendorLocation.primaryCityId,
+        primaryAreaId: vendorLocation.primaryAreaId,
+        serviceAreaIds: vendorLocation.serviceAreaIds,
+        pincode: vendorLocation.pincode,
+      });
       await updateVendorPublicProfile({
         business_name: form.businessName.trim(),
         owner_name: form.ownerName.trim(),
@@ -180,8 +232,8 @@ export default function VendorEditProfile() {
         contact_email: form.contactEmail.trim().toLowerCase() || null,
         contact_phone: form.contactPhone.trim() ? normalizePhone(form.contactPhone) : null,
         address: form.address.trim() || null,
-        city: form.city.trim(),
-        state: form.state.trim(),
+        city: selectedCity.name,
+        state: selectedCity.state,
         website,
         instagram,
         facebook,
@@ -219,7 +271,7 @@ export default function VendorEditProfile() {
   const inputStyle = { backgroundColor: colors.background, borderColor: colors.border, color: colors.text };
 
   return (
-    <View style={[styles.page, { backgroundColor: colors.background }]}>
+    <PremiumRouteGate feature="edit_vendor_profile"><View style={[styles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <View style={styles.heading}>
@@ -305,13 +357,15 @@ export default function VendorEditProfile() {
             </View>
 
             <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <SectionTitle icon={MapPin} title="Service location" detail="City and state power marketplace location and search filters." colors={colors} />
+              <SectionTitle icon={MapPin} title="Service location" detail="Choose only active RoyalLagn cities and the localities your business serves." colors={colors} />
               <View style={styles.grid}>
-                <View style={{ width: fieldWidth }}>
-                  <Field label="City" required value={form.city} onChangeText={(value) => update("city", value)} placeholder="Pune" colors={colors} />
-                </View>
-                <View style={{ width: fieldWidth }}>
-                  <Field label="State" required value={form.state} onChangeText={(value) => update("state", value)} placeholder="Maharashtra" colors={colors} />
+                <View style={{ width: "100%" }}>
+                  <VendorServiceLocationEditor
+                    value={vendorLocation}
+                    onChange={(next) => { setSaved(false); setVendorLocation(next); }}
+                    requireLookup={false}
+                    onValidationChange={setLocationValid}
+                  />
                 </View>
                 <View style={{ width: "100%" }}>
                   <Field label="Business address" value={form.address} onChangeText={(value) => update("address", value)} placeholder="Street, area or landmark (optional)" colors={colors} />
@@ -397,7 +451,7 @@ export default function VendorEditProfile() {
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+    </View></PremiumRouteGate>
   );
 }
 

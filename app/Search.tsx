@@ -22,6 +22,12 @@ import {
 } from "@/services/publicVendorListings";
 import { useCategories } from "@/context/CategoryContext";
 import CategoryBadge from "@/components/categories/CategoryBadge";
+import { useCustomerLocation } from "@/context/LocationContext";
+import {
+  rankVendorsByLocation,
+  vendorLocationPriority,
+  vendorNearbyLabel,
+} from "@/services/locations";
 
 const GLOBAL_PAGES = [
   { label: "Categories", detail: "Browse every wedding service", keywords: "categories services vendors browse", route: "/(tabs)/Categories" as const },
@@ -48,6 +54,7 @@ export default function SearchScreen() {
   const { width } = useWindowDimensions();
   const { getRating } = useReviewRatings();
   const { searchCategories } = useCategories();
+  const { preference, strictCityOnly } = useCustomerLocation();
   const params = useLocalSearchParams<{
     query?: string;
     location?: string;
@@ -88,7 +95,6 @@ export default function SearchScreen() {
     };
   }, []);
 
-  const selectedLocation = Array.isArray(params.location) ? params.location[0] : params.location ?? "";
   const minimumRating = Number(Array.isArray(params.rating) ? params.rating[0] : params.rating) || 0;
   const maximumBudget = Number(Array.isArray(params.budget) ? params.budget[0] : params.budget) || 0;
   const selectedCategory = Array.isArray(params.category) ? params.category[0] : params.category ?? "";
@@ -118,20 +124,19 @@ export default function SearchScreen() {
           && vendor.startingPriceValue <= maximumBudget
         ))
         && (!availabilityOnly || vendor.isAvailable)
-        && (!nearbyOnly || vendor.location.toLowerCase().includes(selectedLocation.toLowerCase()));
+        && (!nearbyOnly || vendorLocationPriority(vendor, preference) >= 2);
     });
 
-    return [...filtered].sort((a, b) => {
+    const baseSorted = [...filtered].sort((a, b) => {
       if (sort === "rating") return b.rating - a.rating || b.reviews - a.reviews;
       if (sort === "price") {
         return (a.startingPriceValue || Number.MAX_SAFE_INTEGER)
           - (b.startingPriceValue || Number.MAX_SAFE_INTEGER);
       }
-      const aLocal = selectedLocation && a.location.toLowerCase().includes(selectedLocation.toLowerCase()) ? 1 : 0;
-      const bLocal = selectedLocation && b.location.toLowerCase().includes(selectedLocation.toLowerCase()) ? 1 : 0;
-      return bLocal - aLocal || b.rating - a.rating || b.reviews - a.reviews;
+      return b.rating - a.rating || b.reviews - a.reviews;
     });
-  }, [availabilityOnly, getRating, maximumBudget, minimumRating, nearbyOnly, query, selectedCategory, selectedLocation, sort, vendors]);
+    return rankVendorsByLocation(baseSorted, preference, strictCityOnly || nearbyOnly);
+  }, [availabilityOnly, getRating, maximumBudget, minimumRating, nearbyOnly, preference, query, selectedCategory, sort, strictCityOnly, vendors]);
 
   const pageResults = useMemo(() => {
     if (!query.trim()) return { fixedPages: [], categoryPages: [] };
@@ -228,6 +233,7 @@ export default function SearchScreen() {
             <Image source={{ uri: vendor.image }} className="w-20 h-20 rounded-xl" resizeMode="cover" />
             <View className="ml-3 flex-1 justify-center">
               <Text className="text-foreground font-semibold">{vendor.name}</Text>
+              {vendorNearbyLabel(vendor, preference) ? <Text className="text-primary text-[10px] font-bold mt-0.5">{vendorNearbyLabel(vendor, preference)}</Text> : null}
               <View style={styles.categoryMeta}>
                 <CategoryBadge name={vendor.category} style={styles.categoryBadge} />
                 <Text className="text-primary text-xs">· {vendor.rating} ★</Text>

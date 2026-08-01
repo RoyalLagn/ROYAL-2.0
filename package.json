@@ -12,7 +12,11 @@
     "build:apk": "cd android && node -e \"process.env.NODE_ENV='production';require('child_process').execSync((process.platform==='win32'?'gradlew.bat':'./gradlew')+' assembleRelease',{stdio:'inherit',env:process.env})\"",
     "lint": "expo lint",
     "test:profile-smoke": "node scripts/smoke-profile-propagation.mjs",
-    "test:profile-e2e": "node --env-file=.env scripts/e2e-profile-propagation.mjs"
+    "test:profile-e2e": "node --env-file=.env scripts/e2e-profile-propagation.mjs",
+    "test:subscriptions": "node --experimental-strip-types scripts/test-subscription-domain.mjs",
+    "test:packages": "node --experimental-strip-types scripts/test-package-domain.mjs",
+    "test:contacts": "node --experimental-strip-types scripts/test-contact-actions.mjs",
+    "test:locations": "node --experimental-strip-types scripts/test-location-domain.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "6.1.2",
@@ -22,6 +26,7 @@
     "@react-navigation/elements": "2.6.5",
     "@react-navigation/native": "^7.1.8",
     "@supabase/supabase-js": "^2.110.7",
+    "chart.js": "^4.5.1",
     "expo": "~54.0.35",
     "expo-constants": "~18.0.13",
     "expo-document-picker": "~14.0.8",
@@ -48,6 +53,7 @@
     "react-native-css-interop": "0.2.1",
     "react-native-gesture-handler": "2.28.0",
     "react-native-nitro-modules": "^0.36.3",
+    "react-native-razorpay": "^2.3.1",
     "react-native-reanimated": "4.1.3",
     "react-native-safe-area-context": "5.6.1",
     "react-native-screens": "4.16.0",
