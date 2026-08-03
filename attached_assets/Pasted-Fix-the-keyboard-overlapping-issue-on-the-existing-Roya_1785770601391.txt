@@ -1,0 +1,31 @@
+Fix the keyboard-overlapping issue on the existing RoyalLagn Login/Sign-Up screen without redesigning the page or changing authentication logic.
+
+Currently, when the mobile keyboard opens, the password field and login button are hidden, so the user cannot complete login. Make the entire authentication area automatically move upward and remain scrollable whenever any input is focused.
+
+Use the correct React Native keyboard-handling approach:
+
+Wrap the screen with KeyboardAvoidingView.
+Use behavior="padding" for iOS and behavior="height" or the most stable equivalent for Android.
+Place the form inside a ScrollView.
+Add keyboardShouldPersistTaps="handled".
+Use contentContainerStyle={{ flexGrow: 1 }} so the normal layout remains unchanged when the keyboard is closed.
+Automatically scroll the focused email, password, or sign-up input into the visible area.
+Keep the password field and primary Login/Sign-Up button fully visible above the keyboard.
+Allow the user to dismiss the keyboard by tapping outside the inputs or dragging the screen.
+Set correct returnKeyType, blurOnSubmit, and input focus order so pressing Next on email focuses password, and pressing Done on password submits the form or closes the keyboard.
+Respect Android and iOS safe-area insets.
+Do not use fixed screen heights, large absolute positioning, or hardcoded top margins that break on different phone sizes.
+
+Add a smooth keyboard transition: when the keyboard opens, gently move the RoyalLagn logo and form upward with a short natural animation rather than making the page jump. Reduce the large empty space above the logo only while the keyboard is open, then smoothly restore the original layout after the keyboard closes.
+
+Make sure:
+
+There is no flickering, shaking, layout jump, or extra white space.
+The back arrow and status bar remain correctly positioned.
+Login and Sign-Up tabs remain usable.
+Password visibility icon remains clickable.
+The solution works on small Android phones, large Android phones, iPhones with notches, Expo Go, development APK, and production builds.
+The desktop/web layout is not affected.
+Existing styling, Supabase authentication, validation, navigation, and error messages remain unchanged.
+
+Inspect the current authentication screen implementation first and make only the necessary changes.

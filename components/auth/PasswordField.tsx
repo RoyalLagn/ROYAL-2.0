@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { forwardRef, useState } from "react";
 import { Eye, EyeOff, Lock } from "lucide-react-native";
 import { Pressable, TextInput, View } from "react-native";
 
@@ -8,20 +8,23 @@ type PasswordFieldProps = {
   placeholder: string;
   onSubmitEditing?: () => void;
   returnKeyType?: "done" | "next" | "go";
+  onFocus?: (event: unknown) => void;
 };
 
-export function PasswordField({
+export const PasswordField = forwardRef<TextInput, PasswordFieldProps>(function PasswordField({
   value,
   onChangeText,
   placeholder,
   onSubmitEditing,
   returnKeyType = "done",
-}: PasswordFieldProps) {
+  onFocus,
+}, ref) {
   const [visible, setVisible] = useState(false);
   return (
     <View className="flex-row items-center bg-card border border-border rounded-2xl px-4">
       <Lock size={20} className="text-muted-foreground" />
       <TextInput
+        ref={ref}
         className="flex-1 text-foreground py-4 mx-3"
         placeholder={placeholder}
         placeholderTextColor="#A8A29E"
@@ -34,6 +37,8 @@ export function PasswordField({
         onChangeText={onChangeText}
         onSubmitEditing={onSubmitEditing}
         returnKeyType={returnKeyType}
+        submitBehavior={returnKeyType === "next" ? "submit" : "blurAndSubmit"}
+        onFocus={onFocus}
       />
       <Pressable
         accessibilityRole="button"
@@ -47,4 +52,4 @@ export function PasswordField({
       </Pressable>
     </View>
   );
-}
+});

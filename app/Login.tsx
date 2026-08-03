@@ -1,5 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
+  Easing,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -30,23 +33,30 @@ import type { LocationPreference } from "@/locations/types";
 
 type AuthTab = "login" | "signup";
 
-function Input({
-  icon: Icon,
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType,
-}: {
+const Input = forwardRef<TextInput, {
   icon: React.ElementType;
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
   keyboardType?: "email-address" | "phone-pad";
-}) {
+  returnKeyType?: "done" | "next" | "go";
+  onSubmitEditing?: () => void;
+  onFocus?: (event: unknown) => void;
+}>(function Input({
+  icon: Icon,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType,
+  returnKeyType,
+  onSubmitEditing,
+  onFocus,
+}, ref) {
   return (
     <View className="flex-row items-center bg-card border border-border rounded-2xl px-4">
       <Icon size={20} className="text-muted-foreground" />
       <TextInput
+        ref={ref}
         className="flex-1 text-foreground py-4 ml-3"
         placeholder={placeholder}
         placeholderTextColor="#A8A29E"
@@ -55,10 +65,14 @@ function Input({
         keyboardType={keyboardType}
         value={value}
         onChangeText={onChangeText}
+        returnKeyType={returnKeyType}
+        onSubmitEditing={onSubmitEditing}
+        submitBehavior={returnKeyType === "next" ? "submit" : "blurAndSubmit"}
+        onFocus={onFocus}
       />
     </View>
   );
-}
+});
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -73,6 +87,63 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [signupLocation, setSignupLocation] = useState<LocationPreference | null>(preference);
+
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const phoneRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const keyboardAnim = useRef(new Animated.Value(0)).current;
+
+  const animateKeyboard = React.useCallback((toValue: number, duration = 220) => {
+    Animated.timing(keyboardAnim, {
+      toValue,
+      duration,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: false,
+    }).start();
+  }, [keyboardAnim]);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, (event) =>
+      animateKeyboard(1, event?.duration || 220)
+    );
+    const hideSub = Keyboard.addListener(hideEvent, (event) =>
+      animateKeyboard(0, event?.duration || 220)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [animateKeyboard]);
+
+  // Starts the layout animation immediately on focus (before the keyboard has
+  // finished opening — avoids a visible jump on Android) and scrolls the
+  // focused input above the keyboard.
+  const handleInputFocus = React.useCallback((event: unknown) => {
+    if (Platform.OS === "web") return;
+    animateKeyboard(1);
+    const node = (event as { target?: number } | undefined)?.target;
+    const responder = scrollRef.current?.getScrollResponder?.() as
+      | { scrollResponderScrollNativeHandleToKeyboard?: (node: number, offset: number, animated: boolean) => void }
+      | undefined;
+    if (node != null && responder?.scrollResponderScrollNativeHandleToKeyboard) {
+      setTimeout(() => {
+        try {
+          responder.scrollResponderScrollNativeHandleToKeyboard!(node, 120, true);
+        } catch {
+          // best-effort: native ScrollView + KeyboardAvoidingView still handle visibility
+        }
+      }, 60);
+    }
+  }, [animateKeyboard]);
+
+  const logoSpacing = {
+    paddingTop: keyboardAnim.interpolate({ inputRange: [0, 1], outputRange: [48, 8] }),
+    marginBottom: keyboardAnim.interpolate({ inputRange: [0, 1], outputRange: [28, 12] }),
+  };
 
   const signupValid = useMemo(
     () => validateFullName(fullName) && validatePhone(phone) && validateEmail(email) && Boolean(signupLocation?.cityId),
@@ -153,15 +224,19 @@ export default function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          contentContainerClassName="flex-grow justify-center px-6 py-12"
+          ref={scrollRef}
+          contentContainerClassName="flex-grow justify-center px-6 pb-12"
+          contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          showsVerticalScrollIndicator={false}
         >
-          <View className="items-center mb-7">
+          <Animated.View className="items-center" style={logoSpacing}>
             <Text className="text-primary font-bold text-4xl mb-2">
               Royal<Text className="text-foreground">Lagn</Text>
             </Text>
             <Text className="text-muted-foreground text-base">Welcome to your celebration journey</Text>
-          </View>
+          </Animated.View>
 
           <View className="flex-row bg-muted rounded-2xl p-1 mb-5">
             {(["login", "signup"] as const).map((item) => (
@@ -193,6 +268,9 @@ export default function LoginScreen() {
                   value={fullName}
                   onChangeText={(value) => { setFullName(value); setError(""); }}
                   placeholder="Full Name *"
+                  returnKeyType="next"
+                  onSubmitEditing={() => phoneRef.current?.focus()}
+                  onFocus={handleInputFocus}
                 />
                 <SupportedLocationField
                   label="Preferred browsing location"
@@ -203,28 +281,39 @@ export default function LoginScreen() {
                   helper="Used only to prioritize nearby vendors. You can change it anytime."
                 />
                 <Input
+                  ref={phoneRef}
                   icon={Phone}
                   value={phone}
                   onChangeText={(value) => { setPhone(value.replace(/\D/g, "")); setError(""); }}
                   placeholder="Phone Number *"
                   keyboardType="phone-pad"
+                  returnKeyType="next"
+                  onSubmitEditing={() => emailRef.current?.focus()}
+                  onFocus={handleInputFocus}
                 />
               </>
             ) : null}
             <Input
+              ref={emailRef}
               icon={Mail}
               value={email}
               onChangeText={(value) => { setEmail(value); setError(""); }}
               placeholder="Email Address *"
               keyboardType="email-address"
+              returnKeyType={tab === "login" ? "next" : "done"}
+              onSubmitEditing={tab === "login" ? () => passwordRef.current?.focus() : Keyboard.dismiss}
+              onFocus={handleInputFocus}
             />
             {tab === "login" ? (
               <>
                 <PasswordField
+                  ref={passwordRef}
                   value={password}
                   onChangeText={(value) => { setPassword(value); setError(""); }}
                   placeholder="Password"
+                  returnKeyType="done"
                   onSubmitEditing={login}
+                  onFocus={handleInputFocus}
                 />
                 <Pressable
                   className="self-end active:opacity-70"
