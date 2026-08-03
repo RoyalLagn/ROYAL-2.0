@@ -22,13 +22,13 @@ args = "Start application"
 name = "Start application"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm install --legacy-peer-deps --prefer-offline && npx expo start --web --port 5000 --host lan"
-waitForPort = 5000
-
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm install --legacy-peer-deps --prefer-offline && node scripts/patch-expo.js && npx expo start --web --port 5000 --host localhost --clear"
+waitForPort = 5000
 
 [[ports]]
 localPort = 5000
@@ -37,6 +37,10 @@ externalPort = 80
 [[ports]]
 localPort = 5001
 externalPort = 3000
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
 
 [userenv]
 
