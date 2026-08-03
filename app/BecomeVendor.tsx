@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Text,
+  ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text,
   TextInput, TouchableOpacity, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -203,7 +203,16 @@ export default function BecomeVendor() {
           <Text className="text-muted-foreground text-xs">Apply to join RoyalLagn</Text>
         </View>
       </View>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 52 }} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 66 : 0}
+      >
+      <ScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 52 }}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+      >
         <View className="bg-primary/10 border border-primary/20 rounded-3xl p-5 mb-5">
           <Text className="text-foreground font-bold text-lg">Vendor Application</Text>
           <Text className="text-muted-foreground text-sm leading-5 mt-1">Tell us about your business. Fields marked * are required.</Text>
@@ -275,6 +284,7 @@ export default function BecomeVendor() {
           {submitting ? <ActivityIndicator color="#FFF" /> : <Text className={requiredComplete && termsAccepted ? "text-white font-bold" : "text-muted-foreground font-bold"}>Submit Application</Text>}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal visible={categoryOpen} transparent animationType="fade" onRequestClose={() => setCategoryOpen(false)}>
         <Pressable className="flex-1 bg-black/60 justify-end" onPress={() => setCategoryOpen(false)}>

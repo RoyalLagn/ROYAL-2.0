@@ -4,7 +4,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -269,7 +271,16 @@ export default function VendorEditProfile() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 66 : 0}
+      >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+        contentContainerStyle={styles.content}
+      >
         <View style={styles.heading}>
           <Text style={[styles.eyebrow, { color: colors.pink }]}>PUBLIC BUSINESS PROFILE</Text>
           <Text style={[styles.title, { color: colors.text }]}>Edit business profile</Text>
@@ -438,6 +449,7 @@ export default function VendorEditProfile() {
           </>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal visible={categoryOpen} transparent animationType="fade" onRequestClose={() => setCategoryOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setCategoryOpen(false)}>

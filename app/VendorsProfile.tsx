@@ -48,6 +48,7 @@ import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 import type { VendorPackage } from "@/services/vendorPackages";
 import { EnquiryExternalOpenError, EnquiryService, type EnquiryChannel } from "@/services/enquiries";
 import { shareVendorProfile } from "@/services/vendorShare";
+import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
 
 const PINK = "#E91E63";
 
@@ -355,25 +356,29 @@ export default function VendorsProfile() {
 
             {selectedTab === "portfolio" ? (
               vendor.portfolioAlbums.length ? <View style={styles.portfolioSection}>
-                <PortfolioAlbums
-                  albums={vendor.portfolioAlbums}
-                  dark={dark}
-                  onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id } })}
-                  onOpenAlbum={(album) => router.push({
-                    pathname: "/VendorAlbum",
-                    params: { vendorId: vendor.id, albumId: album.id },
-                  })}
-                />
+                <SectionErrorBoundary label="Portfolio" key={`portfolio-${vendor.id}`}>
+                  <PortfolioAlbums
+                    albums={vendor.portfolioAlbums}
+                    dark={dark}
+                    onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id } })}
+                    onOpenAlbum={(album) => router.push({
+                      pathname: "/VendorAlbum",
+                      params: { vendorId: vendor.id, albumId: album.id },
+                    })}
+                  />
+                </SectionErrorBoundary>
               </View> : null
             ) : (
-              <VendorClipsGrid
-                clips={vendorClips}
-                loading={clipsLoading}
-                error={clipsError}
-                dark={dark}
-                onOpen={setReelViewerIndex}
-                onRetry={() => setClipsReloadKey((current) => current + 1)}
-              />
+              <SectionErrorBoundary label="Clips" key={`clips-${vendor.id}`}>
+                <VendorClipsGrid
+                  clips={vendorClips}
+                  loading={clipsLoading}
+                  error={clipsError}
+                  dark={dark}
+                  onOpen={setReelViewerIndex}
+                  onRetry={() => setClipsReloadKey((current) => current + 1)}
+                />
+              </SectionErrorBoundary>
             )}
 
             <View style={[styles.sectionCard, sectionCardStyle]}>
