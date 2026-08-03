@@ -48,3 +48,7 @@ externalPort = 8081
 EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME = "hp6vu8o9"
 EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET = "royallagn_uploads"
 EXPO_PUBLIC_SUPABASE_URL = "https://fymdrjcinqvmjthdwrtd.supabase.co"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 240000
