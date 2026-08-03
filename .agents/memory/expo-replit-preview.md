@@ -10,6 +10,8 @@ Working workflow command:
 npm install --legacy-peer-deps --prefer-offline && node scripts/patch-expo.js && EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN npx expo start --web --port 5000 --host localhost --clear
 ```
 
+Both `scripts/patch-expo.js` and the `.replit` workflow command are committed to git — restore them from git if a reset breaks previews.
+
 **Rules:**
 - Web preview: Metro must serve on `localhost:5000`; Replit's standard proxy maps the dev domain (443) → localhost:5000. Never rely on `--host lan`.
 - Expo Go (phone): use `EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN`. This makes the QR URL `exp://<expo-domain>` on port 443, which Replit's Expo proxy accepts.
