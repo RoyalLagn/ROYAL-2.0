@@ -19,6 +19,7 @@ export type VendorInfoPanelProps = {
   onShare?: () => void;
   dark?: boolean;
   children?: React.ReactNode;
+  overlap?: boolean;
 };
 
 export default function VendorInfoPanel({
@@ -34,6 +35,7 @@ export default function VendorInfoPanel({
   onShare,
   dark = false,
   children,
+  overlap = true,
 }: VendorInfoPanelProps) {
   const { width } = useWindowDimensions();
   const compact = width < 440;
@@ -44,14 +46,14 @@ export default function VendorInfoPanel({
     badge: dark ? "#35262C" : "#FFF5F7",
     badgeBorder: dark ? "#553642" : "#F4D8E1",
     actionSurface: dark ? "#202632" : "#FFFFFF",
-    actionBorder: "transparent",
+    actionBorder: dark ? "#303846" : "#ECE7EA",
     specialtySurface: dark ? "#25202A" : "#FFF2F6",
     specialtyBorder: "transparent",
   };
   const hasActions = Boolean(onToggleFavorite || onShare);
 
   return (
-    <View style={[styles.panel, { backgroundColor: colors.surface }]}>
+    <View style={[styles.panel, !overlap && styles.panelEmbedded, { backgroundColor: colors.surface }]}>
       <View style={styles.headingRow}>
         <View style={styles.nameLine}>
           <Text style={[styles.name, compact && styles.nameCompact, { color: colors.text }]}>{name}</Text>
@@ -148,9 +150,9 @@ const styles = StyleSheet.create({
     marginTop: -20,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingTop: 29,
-    paddingHorizontal: 20,
-    paddingBottom: 4,
+    paddingTop: 20,
+    paddingHorizontal: 18,
+    paddingBottom: 0,
     position: "relative",
     zIndex: 2,
     shadowColor: "#6F3048",
@@ -158,6 +160,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: -4 },
   },
+  panelEmbedded: { marginTop: 0 },
   headingRow: {
     width: "100%",
     flexDirection: "row",
@@ -181,13 +184,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -0.35,
   },
-  nameCompact: { fontSize: 22, lineHeight: 27 },
+  nameCompact: { fontSize: 21, lineHeight: 26 },
   topRated: {
     flexShrink: 0,
-    minHeight: 37,
+    minHeight: 34,
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 13,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -195,7 +198,7 @@ const styles = StyleSheet.create({
   topRatedText: {
     color: "#C34D71",
     fontFamily: serif,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
   },
   headingActions: {
@@ -206,15 +209,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 0,
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#7C4056",
-    shadowOpacity: 0.09,
-    shadowRadius: 6,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
@@ -223,7 +226,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }],
   },
   metaRow: {
-    marginTop: 9,
+    marginTop: 7,
     minHeight: 25,
     flexDirection: "row",
     alignItems: "center",
@@ -235,7 +238,7 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 13 },
   separator: { fontSize: 14, paddingHorizontal: 1 },
   location: { minWidth: 0, flexShrink: 1, fontSize: 13, lineHeight: 18 },
-  specialties: { marginTop: 12, flexDirection: "row", flexWrap: "wrap", gap: 7 },
-  specialtyChip: { maxWidth: "48%", minHeight: 27, borderRadius: 999, borderWidth: 0, paddingHorizontal: 11, alignItems: "center", justifyContent: "center" },
+  specialties: { marginTop: 9, flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  specialtyChip: { maxWidth: "48%", minHeight: 25, borderRadius: 12, borderWidth: 0, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" },
   specialtyText: { maxWidth: "100%", fontSize: 10.5, lineHeight: 14, fontWeight: "700" },
 });

@@ -1,6 +1,5 @@
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Tag } from "lucide-react-native";
 
 const PINK = "#E91E63";
@@ -15,7 +14,7 @@ export type PackagesCardProps = {
   accessibilityLabel?: string;
 };
 
-export default function PackagesCard({
+function PackagesCard({
   price,
   onPress,
   dark = false,
@@ -25,11 +24,10 @@ export default function PackagesCard({
   accessibilityLabel = "View vendor packages",
 }: PackagesCardProps) {
   const { width } = useWindowDimensions();
-  const compact = width < 440;
+  const compact = width < 360;
   const palette = dark
     ? {
         surface: "#302127",
-        surfaceAccent: "#3A252E",
         border: "#583541",
         text: "#FFF8FB",
         muted: "#CFBBC4",
@@ -38,7 +36,6 @@ export default function PackagesCard({
       }
     : {
         surface: "#FFFFFF",
-        surfaceAccent: "#FFF0F5",
         border: "#EFCED9",
         text: "#1E161A",
         muted: "#665A60",
@@ -58,16 +55,6 @@ export default function PackagesCard({
         },
       ]}
     >
-      <LinearGradient
-        pointerEvents="none"
-        colors={dark
-          ? [palette.surface, palette.surfaceAccent]
-          : ["#FFFFFF", "#FFF8FB", palette.surfaceAccent]}
-        start={{ x: 0.05, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
       <View style={styles.details}>
         <View style={[styles.iconWrap, compact && styles.iconWrapCompact, { backgroundColor: palette.iconSurface }]}>
           <Tag size={compact ? 19 : 23} strokeWidth={1.8} color={dark ? "#FF78A6" : PINK} />
@@ -75,7 +62,7 @@ export default function PackagesCard({
 
         <View style={styles.copy}>
           <Text numberOfLines={2} style={[styles.eyebrow, compact && styles.eyebrowCompact, { color: palette.eyebrow }]}>{eyebrow}</Text>
-          <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.price, compact && styles.priceCompact, { color: palette.text }]}>
+          <Text numberOfLines={2} adjustsFontSizeToFit style={[styles.price, compact && styles.priceCompact, { color: palette.text }]}>
             {price}
           </Text>
           <Text numberOfLines={2} style={[styles.subtitle, { color: palette.muted }]}>
@@ -102,39 +89,40 @@ export default function PackagesCard({
   );
 }
 
+export default React.memo(PackagesCard);
+
 const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
 const sans = Platform.select({ ios: "System", android: "sans-serif", web: "system-ui, sans-serif" });
 
 const styles = StyleSheet.create({
   card: {
     width: "100%",
-    minHeight: 136,
-    borderWidth: 0,
-    borderRadius: 20,
-    padding: 18,
+    minHeight: 112,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 16,
-    shadowOpacity: 0.085,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 2,
+    gap: 8,
+    shadowOpacity: 0.035,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
   },
-  cardCompact: { minHeight: 146, padding: 16, gap: 13, flexDirection: "column", alignItems: "stretch" },
+  cardCompact: { padding: 14, gap: 10, flexDirection: "column", alignItems: "stretch" },
   details: {
     flex: 1,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 8,
     zIndex: 1,
   },
   iconWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -143,27 +131,24 @@ const styles = StyleSheet.create({
   copy: { flex: 1, minWidth: 0 },
   eyebrow: { fontSize: 12, lineHeight: 17, fontWeight: "600", letterSpacing: 0.15 },
   eyebrowCompact: { fontSize: 10.5, lineHeight: 14 },
-  price: { marginTop: 2, fontFamily: serif, fontSize: 29, lineHeight: 35, fontWeight: "700" },
+  price: { marginTop: 1, fontFamily: serif, fontSize: 20, lineHeight: 25, fontWeight: "700" },
   priceCompact: { fontSize: 21, lineHeight: 26 },
   subtitle: { marginTop: 3, fontSize: 12, lineHeight: 17 },
   button: {
-    minWidth: 142,
-    minHeight: 50,
-    borderRadius: 999,
-    paddingHorizontal: 21,
+    minWidth: 110,
+    minHeight: 42,
+    borderRadius: 12,
+    paddingHorizontal: 11,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 0,
     zIndex: 1,
     shadowColor: "#A72C57",
-    shadowOpacity: 0.13,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 1,
+    shadowOpacity: 0,
   },
   buttonCompact: { width: "100%", minWidth: 0, minHeight: 44, paddingHorizontal: 14 },
   buttonHovered: { transform: [{ translateY: -1 }], backgroundColor: "#C92559" },
   buttonPressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
-  buttonText: { color: "#FFFFFF", fontFamily: serif, fontSize: 16, fontWeight: "700" },
+  buttonText: { color: "#FFFFFF", fontFamily: sans, fontSize: 13, fontWeight: "800" },
   buttonTextCompact: { fontFamily: sans, fontSize: 13, fontWeight: "800" },
 });

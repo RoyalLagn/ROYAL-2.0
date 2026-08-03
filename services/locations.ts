@@ -154,18 +154,16 @@ export async function saveCustomerLocationPreference(preference: LocationPrefere
   if (authError || !authData.user) {
     throw authError ?? new Error("Log in to save your location.");
   }
-  const { data, error } = await supabase
-    .from("profiles")
-    .update({
-      preferred_city_id: preference.cityId,
-      preferred_area_id: preference.areaId,
-    })
-    .eq("id", authData.user.id)
-    .eq("role", "public_user")
-    .select("preferred_city_id,preferred_area_id")
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("set_customer_location_preference", {
+    target_city_id: preference.cityId,
+    target_area_id: preference.areaId ?? null,
+  });
   if (error) throw error;
   if (!data) throw new Error("Your customer profile could not save this location.");
+
+  // Keep a local copy as a resilient fallback while the authenticated profile
+  // is being restored on a later visit.
+  await saveGuestLocationPreference(preference);
 }
 
 export function subscribeToLocationChanges(onChange: () => void) {

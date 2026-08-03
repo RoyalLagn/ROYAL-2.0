@@ -81,7 +81,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (!authLoading && isPublicAuthenticated) {
-      router.dismissAll();
+      if (router.canDismiss()) router.dismissAll();
       router.replace("/(tabs)");
     }
   }, [authLoading, isPublicAuthenticated, router]);
@@ -105,7 +105,7 @@ export default function LoginScreen() {
     try {
       await loginPublicUser(email, password);
       await refreshProfile();
-      router.dismissAll();
+      if (router.canDismiss()) router.dismissAll();
       router.replace("/(tabs)");
     } catch (caught) {
       setError(getPublicAuthError(caught, "Unable to log in. Please try again."));

@@ -53,7 +53,7 @@ export default function DashboardCenter() {
     setResolvingRole(role);
     try {
       const destination = await resolveSelectedRole(role);
-      router.dismissAll();
+      if (router.canDismiss()) router.dismissAll();
       router.replace(destination as never);
     } finally {
       setResolvingRole(null);

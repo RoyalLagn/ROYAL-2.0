@@ -10,7 +10,7 @@ import {
 
 export type VendorProfileTab = "portfolio" | "clips";
 
-export default function VendorProfileTabs({
+function VendorProfileTabs({
   selected,
   dark,
   onChange,
@@ -39,7 +39,10 @@ export default function VendorProfileTabs({
   return (
     <View
       accessibilityRole="tablist"
-      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+      onLayout={(event) => {
+        const nextWidth = Math.round(event.nativeEvent.layout.width);
+        setWidth((current) => current === nextWidth ? current : nextWidth);
+      }}
       style={[
         styles.container,
         {
@@ -93,13 +96,15 @@ export default function VendorProfileTabs({
   );
 }
 
+export default React.memo(VendorProfileTabs);
+
 const styles = StyleSheet.create({
   container: {
     width: "100%",
-    height: 48,
-    marginTop: 24,
+    height: 46,
+    marginTop: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
+    borderRadius: 13,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -107,7 +112,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 16,
     bottom: 0,
-    height: 3,
+    height: 2,
     borderTopLeftRadius: 3,
     borderTopRightRadius: 3,
     shadowColor: "#E91E63",
@@ -117,7 +122,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    height: 48,
+    height: 46,
     zIndex: 1,
     alignItems: "center",
     justifyContent: "center",

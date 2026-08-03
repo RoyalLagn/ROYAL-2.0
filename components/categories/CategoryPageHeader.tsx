@@ -1,17 +1,28 @@
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { ChevronLeft, Crown } from "lucide-react-native";
+import Animated, { Extrapolation, interpolate, type SharedValue, useAnimatedStyle } from "react-native-reanimated";
 
 const PINK = "#E91E63";
 
 type CategoryPageHeaderProps = {
   dark: boolean;
   onBack: () => void;
+  entrance?: SharedValue<number>;
+  reducedMotion?: boolean;
 };
 
-export default function CategoryPageHeader({ dark, onBack }: CategoryPageHeaderProps) {
+function CategoryPageHeader({ dark, onBack, entrance, reducedMotion = false }: CategoryPageHeaderProps) {
   const text = dark ? "#F8F2F5" : "#15111E";
   const hover = dark ? "#2A2226" : "#FFF2F7";
+  const ornamentStyle = useAnimatedStyle(() => ({
+    opacity: entrance ? interpolate(entrance.value, [0.08, 0.38], [0, 1], Extrapolation.CLAMP) : 1,
+    transform: [{
+      scale: reducedMotion || !entrance
+        ? 1
+        : interpolate(entrance.value, [0.08, 0.38], [0.98, 1], Extrapolation.CLAMP),
+    }],
+  }), [entrance, reducedMotion]);
 
   return (
     <View style={styles.header}>
@@ -30,17 +41,19 @@ export default function CategoryPageHeader({ dark, onBack }: CategoryPageHeaderP
 
       <View pointerEvents="none" style={styles.titleBlock}>
         <Text style={[styles.title, { color: text }]}>All Categories</Text>
-        <View style={styles.ornament}>
+        <Animated.View style={[styles.ornament, ornamentStyle]}>
           <View style={styles.line} />
           <Crown size={14} color={PINK} strokeWidth={1.7} />
           <View style={styles.line} />
-        </View>
+        </Animated.View>
       </View>
 
       <View style={styles.action} />
     </View>
   );
 }
+
+export default React.memo(CategoryPageHeader);
 
 const styles = StyleSheet.create({
   header: { minHeight: 76, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

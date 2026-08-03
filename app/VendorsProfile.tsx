@@ -3,7 +3,6 @@ import {
   Alert,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -25,6 +24,7 @@ import FullscreenMediaViewer from "@/components/vendor-profile/FullscreenMediaVi
 import PortfolioAlbums from "@/components/vendor-profile/PortfolioAlbums";
 import ServiceChips from "@/components/vendor-profile/ServiceChips";
 import VendorHeroCarousel from "@/components/vendor-profile/VendorHeroCarousel";
+import PinnedHeroProfileLayout from "@/components/vendor-profile/PinnedHeroProfileLayout";
 import VendorInfoPanel from "@/components/vendor-profile/VendorInfoPanel";
 import VendorQuickActions from "@/components/vendor-profile/VendorQuickActions";
 import VendorAvailabilityModal from "@/components/vendor-profile/VendorAvailabilityModal";
@@ -33,7 +33,7 @@ import VendorClipsReelViewer from "@/components/vendor-profile/VendorClipsReelVi
 import VendorProfileTabs, {
   type VendorProfileTab,
 } from "@/components/vendor-profile/VendorProfileTabs";
-import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
+import { StandaloneMobileTabBar, useMobileTabBarHeight } from "@/components/MobileTabBar";
 import PublicWebNavbar from "@/components/PublicWebNavbar";
 import ConnectedVendorReviews from "@/components/reviews/ConnectedVendorReviews";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
@@ -71,9 +71,10 @@ function SectionHeading({ children, dark }: { children: React.ReactNode; dark: b
 export default function VendorsProfile() {
   const { colorScheme } = useColorScheme();
   const insets = useSafeAreaInsets();
+  const mobileTabBarHeight = useMobileTabBarHeight();
   const dark = colorScheme === "dark";
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const desktop = width >= 1100;
   const params = useLocalSearchParams<{ vendorId?: string; category?: string }>();
   const vendorId = Array.isArray(params.vendorId) ? params.vendorId[0] : params.vendorId;
@@ -179,11 +180,15 @@ export default function VendorsProfile() {
   const surface = dark ? "#0E141F" : "#FFFFFF";
   const text = dark ? "#FFF8FB" : "#1D1519";
   const muted = dark ? "#C6BAC0" : "#62575D";
-  const sectionDivider = dark ? "#2A303B" : "#F3E7EB";
+  const sectionDivider = dark ? "#303846" : "#ECE7EA";
   const contentWidth = Math.min(width, 1120);
-  const openSectionStyle = {
-    borderTopColor: sectionDivider,
-  };
+  const heroHeight = useMemo(() => {
+    const usableHeight = Math.max(520, height - insets.top - insets.bottom);
+    return desktop
+      ? Math.max(420, Math.min(520, usableHeight * 0.5))
+      : Math.max(300, Math.min(460, usableHeight * 0.42));
+  }, [desktop, height, insets.bottom, insets.top]);
+  const sectionCardStyle = { backgroundColor: surface, borderColor: sectionDivider };
   const goBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -291,22 +296,26 @@ export default function VendorsProfile() {
   return (
     <View style={[styles.root, { backgroundColor: background }]}>
       <PublicWebNavbar activeRoute="Categories" />
-      <ScrollView
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: desktop ? 28 : 92 + insets.bottom }]}
-      >
-        <View style={[styles.page, { width: contentWidth, backgroundColor: surface }]}>
+      <PinnedHeroProfileLayout
+        heroHeight={heroHeight}
+        pageWidth={contentWidth}
+        overlap={24}
+        backgroundColor={background}
+        sheetColor={background}
+        contentContainerStyle={{ paddingBottom: desktop ? 28 : mobileTabBarHeight }}
+        hero={(
           <VendorHeroCarousel
             images={heroImages}
             fallbackImage={fallbackImage}
             vendorName={vendor.name}
+            height={heroHeight}
             onBack={goBack}
             focalPoints={heroFocalPoints}
             paused={heroViewerIndex !== null || calendarVisible || packagesVisible || Boolean(enquiryPackage)}
             onOpen={vendor.heroMedia.length ? setHeroViewerIndex : undefined}
           />
-
+        )}
+      >
           <VendorInfoPanel
             name={vendor.name}
             rating={displayedRating.rating}
@@ -319,12 +328,13 @@ export default function VendorsProfile() {
             favorite={favorite}
             onToggleFavorite={toggleVendorFavorite}
             onShare={() => void shareProfile()}
+            overlap={false}
           >
             <VendorQuickActions
               dark={dark}
               onCall={() => void contactVendor("call")}
               onWhatsApp={() => void contactVendor("whatsapp")}
-              onEnquire={() => setPackagesVisible(true)}
+              onEnquire={() => router.push("/enquiry")}
               onCalendar={() => setCalendarVisible(true)}
             />
           </VendorInfoPanel>
@@ -366,7 +376,7 @@ export default function VendorsProfile() {
               />
             )}
 
-            <View style={[styles.section, styles.openSection, openSectionStyle]}>
+            <View style={[styles.sectionCard, sectionCardStyle]}>
               <SectionHeading dark={dark}>About</SectionHeading>
               <Text style={[styles.aboutText, { color: muted }]}>{aboutCopy}</Text>
               {about.length > 180 ? (
@@ -391,18 +401,17 @@ export default function VendorsProfile() {
             </View>
 
             {vendor.services.length ? (
-              <View style={[styles.section, styles.openSection, openSectionStyle]}>
+              <View style={[styles.sectionCard, sectionCardStyle]}>
                 <SectionHeading dark={dark}>Services</SectionHeading>
                 <ServiceChips services={vendor.services} dark={dark} />
               </View>
             ) : null}
 
-            <View style={[styles.reviewsSection, styles.openSection, openSectionStyle]}>
+            <View style={[styles.sectionCard, styles.reviewsSection, sectionCardStyle]}>
               <ConnectedVendorReviews vendorKey={vendor.id} dark={dark} />
             </View>
           </View>
-        </View>
-      </ScrollView>
+      </PinnedHeroProfileLayout>
 
       {!desktop ? <StandaloneMobileTabBar activeRoute="Categories" /> : null}
       <FullscreenMediaViewer
@@ -459,31 +468,32 @@ const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia,
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 20 },
-  page: {
-    maxWidth: "100%",
-    alignSelf: "center",
-    overflow: "hidden",
+  content: { width: "100%", maxWidth: 960, alignSelf: "center", paddingHorizontal: 20, paddingTop: 16 },
+  contentCompact: { paddingHorizontal: 14, paddingTop: 14 },
+  sectionCard: {
+    marginTop: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderRadius: 16,
+    shadowColor: "#6F3048",
+    shadowOpacity: 0.025,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
-  content: { width: "100%", maxWidth: 960, alignSelf: "center", paddingHorizontal: 22, paddingTop: 22 },
-  contentCompact: { paddingHorizontal: 18, paddingTop: 20 },
-  section: { marginTop: 30 },
-  openSection: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 26 },
   portfolioSection: { marginTop: 2 },
-  reviewsSection: { marginTop: 32, marginBottom: 24 },
-  sectionHeadingWrap: { alignSelf: "flex-start", marginBottom: 12 },
+  reviewsSection: { marginBottom: 16 },
+  sectionHeadingWrap: { alignSelf: "flex-start", marginBottom: 10 },
   sectionHeading: {
     fontFamily: serif,
-    fontSize: 21,
-    lineHeight: 27,
+    fontSize: 18,
+    lineHeight: 23,
     fontWeight: "700",
     letterSpacing: -0.15,
   },
-  ornament: { width: 82, height: 8, flexDirection: "row", alignItems: "center", gap: 4 },
+  ornament: { width: 64, height: 7, flexDirection: "row", alignItems: "center", gap: 4 },
   ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#D6A054" },
   ornamentDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#D6A054" },
-  aboutText: { maxWidth: 900, fontSize: 14, lineHeight: 23, fontWeight: "400" },
+  aboutText: { maxWidth: 900, fontSize: 13, lineHeight: 20, fontWeight: "400" },
   readMore: {
     minHeight: 38,
     alignSelf: "flex-end",

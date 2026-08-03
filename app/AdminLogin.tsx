@@ -29,7 +29,7 @@ export default function AdminLoginScreen() {
 
   React.useEffect(() => {
     if (!restoring && isAdminAuthenticated) {
-      router.dismissAll();
+      if (router.canDismiss()) router.dismissAll();
       router.replace("/admin-dashboard");
     }
   }, [isAdminAuthenticated, restoring, router]);
@@ -45,7 +45,7 @@ export default function AdminLoginScreen() {
     try {
       const identity = await loginAdmin(email, password);
       await refreshAdmin(identity.session);
-      router.dismissAll();
+      if (router.canDismiss()) router.dismissAll();
       router.replace("/admin-dashboard");
     } catch (caught) {
       setError(getAdminAuthError(caught, "Unable to sign in."));

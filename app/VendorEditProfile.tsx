@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
 import {
   ActivityIndicator,
   Alert,
@@ -36,7 +37,6 @@ import {
 } from "@/services/cloudinary";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
-import PremiumRouteGate from "@/components/subscriptions/PremiumRouteGate";
 import {
   VendorServiceLocationEditor,
   type VendorLocationValue,
@@ -46,14 +46,6 @@ import {
   listVendorServiceLocations,
   replaceVendorServiceLocations,
 } from "@/services/locations";
-import {
-  normalizeOptionalUrl,
-  normalizePhone,
-  normalizeSocialUrl,
-  validateEmail,
-  validateFullName,
-  validatePhone,
-} from "@/utils/authValidation";
 
 type ProfileForm = {
   businessName: string;
@@ -90,17 +82,19 @@ const emptyForm: ProfileForm = {
 };
 
 export default function VendorEditProfile() {
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { registrationCategories: categories } = useCategories();
-  const { data, loading, refresh } = useVendorWorkspace();
+  const { data, loading, error, refresh } = useVendorWorkspace();
   const { locations } = useCustomerLocation();
   const [form, setForm] = useState<ProfileForm>(emptyForm);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [persistedLogoUrl, setPersistedLogoUrl] = useState("");
   const [vendorLocation, setVendorLocation] = useState<VendorLocationValue>({
     pincode: "",
@@ -109,6 +103,7 @@ export default function VendorEditProfile() {
     serviceAreaIds: [],
   });
   const [locationValid, setLocationValid] = useState(false);
+  const [locationDirty, setLocationDirty] = useState(false);
   const twoColumns = width >= 760;
   const selectedCategory = categories.find((item) => item.id === form.categoryId);
   const tagList = useMemo(
@@ -150,6 +145,7 @@ export default function VendorEditProfile() {
           primaryAreaId: primary?.areaId ?? data.vendor.primary_area_id ?? null,
           serviceAreaIds: serviceLocations.map((item) => item.areaId).filter((item): item is string => Boolean(item)),
         });
+        setLocationDirty(false);
       })
       .catch(() => {
         if (!active) return;
@@ -159,12 +155,14 @@ export default function VendorEditProfile() {
           primaryAreaId: data.vendor.primary_area_id ?? null,
           serviceAreaIds: data.vendor.primary_area_id ? [data.vendor.primary_area_id] : [],
         });
+        setLocationDirty(false);
       });
     return () => { active = false; };
   }, [data.vendor?.id, data.vendor?.pincode, data.vendor?.primary_area_id, data.vendor?.primary_city_id]);
 
   const update = <K extends keyof ProfileForm>(key: K, value: ProfileForm[K]) => {
     setSaved(false);
+    setSaveError("");
     setForm((current) => ({ ...current, [key]: value }));
   };
 
@@ -185,55 +183,50 @@ export default function VendorEditProfile() {
   };
 
   const save = async () => {
-    if (!data.vendor?.id) return Alert.alert("Vendor profile required", "Create or connect your Vendor profile before saving.");
-    if (!form.businessName.trim()) return Alert.alert("Business name required", "Enter the name customers should see.");
-    if (!validateFullName(form.ownerName)) return Alert.alert("Owner name required", "Enter the account owner's full name.");
-    if (!form.categoryId) return Alert.alert("Category required", "Choose the category that best represents your business.");
-    if (!form.description.trim()) return Alert.alert("Description required", "Tell customers what makes your business a good choice.");
+    const rejectSave = (title: string, message: string) => {
+      setSaveError(message);
+      Alert.alert(title, message);
+    };
+    setSaveError("");
+    if (!data.vendor?.id) return rejectSave("Vendor profile required", "Create or connect your Vendor profile before saving.");
     const selectedCity = locations.find((item) => item.id === vendorLocation.primaryCityId);
-    if (!locationValid || !selectedCity) return Alert.alert("Service location required", "Choose a supported primary city and enter a valid six-digit PIN code.");
-    if (form.contactEmail.trim() && !validateEmail(form.contactEmail)) {
-      return Alert.alert("Invalid email", "Enter a valid customer contact email.");
-    }
-    if (form.contactPhone.trim() && !validatePhone(form.contactPhone)) {
-      return Alert.alert("Invalid phone number", "Enter a valid customer contact number.");
-    }
-    if (!form.contactEmail.trim() && !form.contactPhone.trim()) {
-      return Alert.alert("Contact required", "Add an email address or phone number so customers can reach you.");
-    }
-
-    let website: string | null;
-    let instagram: string | null;
-    let facebook: string | null;
-    try {
-      website = normalizeOptionalUrl(form.website);
-      instagram = normalizeSocialUrl(form.instagram, "instagram");
-      facebook = normalizeSocialUrl(form.facebook, "facebook");
-    } catch (error) {
-      return Alert.alert("Invalid link", error instanceof Error ? error.message : "Check your website and social links.");
-    }
+    // Social and website fields are saved independently. A legacy or partial
+    // value must never block an unrelated profile change.
+    const website = form.website.trim() || null;
+    const instagram = form.instagram.trim() || null;
+    const facebook = form.facebook.trim() || null;
 
     setSaving(true);
     setSaved(false);
     const nextLogoUrl = form.logoUrl.trim() || null;
+    let locationWarning = "";
+    let locationSaved = false;
     try {
-      await replaceVendorServiceLocations({
-        vendorId: data.vendor.id,
-        primaryCityId: vendorLocation.primaryCityId,
-        primaryAreaId: vendorLocation.primaryAreaId,
-        serviceAreaIds: vendorLocation.serviceAreaIds,
-        pincode: vendorLocation.pincode,
-      });
+      if (locationDirty && locationValid && selectedCity) {
+        try {
+          await replaceVendorServiceLocations({
+            vendorId: data.vendor.id,
+            primaryCityId: vendorLocation.primaryCityId,
+            primaryAreaId: vendorLocation.primaryAreaId,
+            serviceAreaIds: vendorLocation.serviceAreaIds,
+            pincode: vendorLocation.pincode,
+          });
+          locationSaved = true;
+        } catch (error) {
+          locationWarning = `Profile saved, but location was unchanged: ${error instanceof Error ? error.message : "Unable to update service location."}`;
+        }
+        setLocationDirty(false);
+      }
       await updateVendorPublicProfile({
-        business_name: form.businessName.trim(),
-        owner_name: form.ownerName.trim(),
-        category_id: form.categoryId,
+        business_name: form.businessName.trim() || data.vendor.business_name,
+        owner_name: form.ownerName.trim() || data.vendor.owner_name,
+        category_id: form.categoryId || data.vendor.category_id,
         description: form.description.trim(),
         contact_email: form.contactEmail.trim().toLowerCase() || null,
-        contact_phone: form.contactPhone.trim() ? normalizePhone(form.contactPhone) : null,
+        contact_phone: form.contactPhone.trim() || null,
         address: form.address.trim() || null,
-        city: selectedCity.name,
-        state: selectedCity.state,
+        city: locationSaved && selectedCity ? selectedCity.name : data.vendor.city,
+        state: locationSaved && selectedCity ? selectedCity.state : data.vendor.state,
         website,
         instagram,
         facebook,
@@ -251,6 +244,7 @@ export default function VendorEditProfile() {
         });
       }
       setPersistedLogoUrl(nextLogoUrl ?? "");
+      setSaveError(locationWarning);
       setSaved(true);
       setTimeout(() => setSaved(false), 2200);
     } catch (error) {
@@ -261,7 +255,9 @@ export default function VendorEditProfile() {
         ).catch(() => undefined);
         update("logoUrl", persistedLogoUrl);
       }
-      Alert.alert("Profile not saved", error instanceof Error ? error.message : "Unable to update the Vendor profile.");
+      const message = error instanceof Error ? error.message : "Unable to update the Vendor profile.";
+      setSaveError(message);
+      Alert.alert("Profile not saved", message);
     } finally {
       setSaving(false);
     }
@@ -271,7 +267,7 @@ export default function VendorEditProfile() {
   const inputStyle = { backgroundColor: colors.background, borderColor: colors.border, color: colors.text };
 
   return (
-    <PremiumRouteGate feature="edit_vendor_profile"><View style={[styles.page, { backgroundColor: colors.background }]}>
+    <View style={[styles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         <View style={styles.heading}>
@@ -284,6 +280,21 @@ export default function VendorEditProfile() {
 
         {loading && !data.vendor ? (
           <ActivityIndicator color={colors.pink} style={{ marginTop: 40 }} />
+        ) : !data.vendor ? (
+          <View style={[styles.workspaceError, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.workspaceErrorTitle, { color: colors.text }]}>Vendor business not connected</Text>
+            <Text style={[styles.workspaceErrorText, { color: colors.muted }]}>
+              {error ?? "Sign in with the Vendor account connected to this business before editing its live profile."}
+            </Text>
+            <View style={styles.workspaceErrorActions}>
+              <Pressable onPress={() => void refresh()} style={[styles.workspaceErrorButton, { backgroundColor: colors.surfaceSoft }]}>
+                <Text style={[styles.workspaceErrorButtonText, { color: colors.text }]}>Try again</Text>
+              </Pressable>
+              <Pressable onPress={() => router.replace("/VendorLogin")} style={[styles.workspaceErrorButton, { backgroundColor: colors.pink }]}>
+                <Text style={[styles.workspaceErrorButtonText, { color: "#FFF" }]}>Vendor sign in</Text>
+              </Pressable>
+            </View>
+          </View>
         ) : (
           <>
             <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -305,7 +316,6 @@ export default function VendorEditProfile() {
                 <View style={styles.identityFields}>
                   <Field
                     label="Business name"
-                    required
                     value={form.businessName}
                     onChangeText={(value) => update("businessName", value)}
                     placeholder="The name customers will see"
@@ -313,13 +323,12 @@ export default function VendorEditProfile() {
                   />
                   <Field
                     label="Owner name"
-                    required
                     value={form.ownerName}
                     onChangeText={(value) => update("ownerName", value)}
                     placeholder="Account owner's full name"
                     colors={colors}
                   />
-                  <Text style={[styles.label, { color: colors.text }]}>Business category <Text style={{ color: colors.pink }}>*</Text></Text>
+                  <Text style={[styles.label, { color: colors.text }]}>Business category</Text>
                   <Pressable
                     onPress={() => setCategoryOpen(true)}
                     style={[styles.input, styles.select, inputStyle]}
@@ -333,7 +342,6 @@ export default function VendorEditProfile() {
               </View>
               <Field
                 label="About the business"
-                required
                 value={form.description}
                 onChangeText={(value) => update("description", value)}
                 placeholder="Describe your experience, style and what customers can expect."
@@ -362,7 +370,12 @@ export default function VendorEditProfile() {
                 <View style={{ width: "100%" }}>
                   <VendorServiceLocationEditor
                     value={vendorLocation}
-                    onChange={(next) => { setSaved(false); setVendorLocation(next); }}
+                    onChange={(next) => {
+                      setSaved(false);
+                      setSaveError("");
+                      setLocationDirty(true);
+                      setVendorLocation(next);
+                    }}
                     requireLookup={false}
                     onValidationChange={setLocationValid}
                   />
@@ -407,7 +420,7 @@ export default function VendorEditProfile() {
 
             <View style={[styles.saveBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.saveMessage}>
-                {saved ? <><Check size={16} color={colors.success} /><Text style={[styles.savedText, { color: colors.success }]}>Profile updated</Text></> : <Text style={[styles.saveHint, { color: colors.muted }]}>Changes update your public vendor profile.</Text>}
+                {saveError ? <Text style={styles.saveErrorText}>{saveError}</Text> : saved ? <><Check size={16} color={colors.success} /><Text style={[styles.savedText, { color: colors.success }]}>Profile updated and live</Text></> : <Text style={[styles.saveHint, { color: colors.muted }]}>Changes update your public vendor profile.</Text>}
               </View>
               <Pressable
                 disabled={saving || uploadingLogo}
@@ -451,7 +464,7 @@ export default function VendorEditProfile() {
           </Pressable>
         </Pressable>
       </Modal>
-    </View></PremiumRouteGate>
+    </View>
   );
 }
 
@@ -521,6 +534,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 29, lineHeight: 35, fontWeight: "900", letterSpacing: -0.8 },
   subtitle: { fontSize: 11, lineHeight: 18, marginTop: 5, maxWidth: 680 },
   section: { borderWidth: 1, borderRadius: 23, padding: 17, marginBottom: 12 },
+  workspaceError: { borderWidth: 1, borderRadius: 23, padding: 22, marginTop: 10 },
+  workspaceErrorTitle: { fontSize: 16, fontWeight: "900" },
+  workspaceErrorText: { fontSize: 11, lineHeight: 18, marginTop: 7 },
+  workspaceErrorActions: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginTop: 16 },
+  workspaceErrorButton: { minHeight: 44, borderRadius: 14, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
+  workspaceErrorButtonText: { fontSize: 10, fontWeight: "900" },
   sectionTitle: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 17 },
   sectionIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   sectionHeading: { fontSize: 14, fontWeight: "900" },
@@ -547,6 +566,7 @@ const styles = StyleSheet.create({
   saveMessage: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },
   saveHint: { fontSize: 9 },
   savedText: { fontSize: 10, fontWeight: "800" },
+  saveErrorText: { color: "#D33B55", fontSize: 10, lineHeight: 15, fontWeight: "700" },
   save: { minWidth: 150, minHeight: 47, paddingHorizontal: 18, borderRadius: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   saveText: { color: "#FFF", fontSize: 11, fontWeight: "900" },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },

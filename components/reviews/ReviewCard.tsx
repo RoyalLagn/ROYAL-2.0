@@ -20,7 +20,6 @@ export default function ReviewCard({ review, dark = false, onHelpful, onEdit, on
       <Text style={[styles.date, { color: c.muted }]}>{formatDate(review.createdAt)}</Text>
     </View>
     <Text accessibilityLabel={`${review.rating} out of 5 stars`} style={[styles.stars, { color: c.gold }]}>{"★".repeat(review.rating)}<Text style={{ color: dark ? "#51484C" : "#E9DFE3" }}>{"★".repeat(5 - review.rating)}</Text></Text>
-    <Text style={[styles.title, { color: c.text }]}>{review.title}</Text>
     <Text style={[styles.body, { color: c.muted }]}>{review.text}</Text>
     {review.photos?.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>{review.photos.map((photo, i) => <Image key={i} source={reviewImageSource(photo)} style={[styles.photo, { backgroundColor: c.soft }]} />)}</ScrollView> : null}
     <View style={[styles.actions, { borderTopColor: c.border }]}>
@@ -36,7 +35,7 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 18, padding: 16, gap: 8, shadowColor: "#94546C", shadowOpacity: .045, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
   authorRow: { flexDirection: "row", alignItems: "center", gap: 10 }, avatar: { width: 42, height: 42, borderRadius: 21 }, fallback: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" }, initial: { fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 19, fontWeight: "700" },
   authorCopy: { flex: 1, minWidth: 0 }, name: { fontSize: 14, fontWeight: "700" }, verified: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }, verifiedText: { fontSize: 10, fontWeight: "600" }, date: { fontSize: 10 },
-  stars: { fontSize: 14, letterSpacing: 1 }, title: { fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 18, fontWeight: "600" }, body: { fontSize: 14, lineHeight: 21 },
+  stars: { fontSize: 14, letterSpacing: 1 }, body: { fontSize: 14, lineHeight: 21 },
   photos: { gap: 8, paddingTop: 3 }, photo: { width: 108, height: 90, borderRadius: 12 },
   actions: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11, marginTop: 5, flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   action: { minHeight: 32, flexDirection: "row", alignItems: "center", gap: 6 }, actionText: { fontSize: 11, fontWeight: "600" }, ownerActions: { flexDirection: "row", gap: 14 },

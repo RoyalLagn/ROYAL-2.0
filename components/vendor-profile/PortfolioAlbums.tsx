@@ -170,7 +170,7 @@ function AlbumTile({
   const text = dark ? "#FFF8FB" : "#24171E";
   const muted = dark ? "#C6BAC0" : "#77676F";
   const surface = dark ? "#171D29" : "#FFFFFF";
-  const border = "transparent";
+  const border = dark ? "#303846" : "#ECE7EA";
 
   return (
     <InteractiveTile
@@ -267,7 +267,7 @@ function ViewMoreTile({
   );
 }
 
-export default function PortfolioAlbums({
+function PortfolioAlbums({
   albums,
   dark = false,
   mode = "preview",
@@ -317,7 +317,10 @@ export default function PortfolioAlbums({
       ) : null}
 
       <View
-        onLayout={(event) => setGridWidth(Math.round(event.nativeEvent.layout.width))}
+        onLayout={(event) => {
+          const nextWidth = Math.round(event.nativeEvent.layout.width);
+          setGridWidth((current) => current === nextWidth ? current : nextWidth);
+        }}
         style={[styles.grid, { columnGap: gap, rowGap: gap }]}
       >
         {gridAlbums.map((album) => (
@@ -338,24 +341,26 @@ export default function PortfolioAlbums({
   );
 }
 
+export default React.memo(PortfolioAlbums);
+
 const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
 const styles = StyleSheet.create({
-  root: { width: "100%", paddingVertical: 25 },
+  root: { width: "100%", paddingVertical: 16 },
   headingRow: {
-    minHeight: 52,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 10,
     gap: 12,
   },
   eyebrow: { fontSize: 8, lineHeight: 12, fontWeight: "900", letterSpacing: 1.35, marginBottom: 1 },
-  heading: { fontFamily: serif, fontSize: 22, lineHeight: 28, fontWeight: "700", letterSpacing: -0.2 },
+  heading: { fontFamily: serif, fontSize: 19, lineHeight: 24, fontWeight: "700", letterSpacing: -0.2 },
   viewAllButton: {
     minHeight: 34,
     paddingHorizontal: 11,
-    borderRadius: 17,
-    borderWidth: 0,
+    borderRadius: 14,
+    borderWidth: 1,
     backgroundColor: "#FFF2F7",
     flexDirection: "row",
     alignItems: "center",
@@ -370,14 +375,13 @@ const styles = StyleSheet.create({
   tileOuter: {
     borderWidth: 0,
     borderRadius: 17,
-    shadowOpacity: 0.075,
-    shadowRadius: 13,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 1,
+    shadowOpacity: 0.025,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
   },
   tileFallbackWidth: { width: "48%" },
-  tilePressable: { flex: 1, borderRadius: 17, overflow: "hidden" },
-  card: { flex: 1, overflow: "hidden", borderRadius: 17 },
+  tilePressable: { flex: 1, borderRadius: 14, overflow: "hidden" },
+  card: { flex: 1, overflow: "hidden", borderRadius: 14 },
   coverFrame: { width: "100%", aspectRatio: 1.08, overflow: "hidden", backgroundColor: "#F8E9EF" },
   coverFill: { height: "100%", flex: 1, aspectRatio: undefined },
   skeleton: { backgroundColor: "#F3D6E1" },

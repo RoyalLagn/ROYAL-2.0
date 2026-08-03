@@ -7,7 +7,7 @@ export function useAuthenticationGateway() {
   const { isPublicAuthenticated } = usePublicAuth();
 
   return useCallback(() => {
-    router.dismissAll();
+    if (router.canDismiss()) router.dismissAll();
     router.replace(isPublicAuthenticated ? "/(tabs)/profile" : "/DashboardCenter");
   }, [isPublicAuthenticated, router]);
 }

@@ -28,7 +28,7 @@ type CategoryCardProps = {
   onPress: () => void;
 };
 
-export default function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
+function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
   const Icon = category.icon;
   const text = dark ? "#F8F2F5" : "#17111D";
   const muted = dark ? "#B5A9AF" : "#776A79";
@@ -81,6 +81,8 @@ export default function CategoryCard({ category, dark, compact, onPress }: Categ
     </Pressable>
   );
 }
+
+export default React.memo(CategoryCard);
 
 const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
 

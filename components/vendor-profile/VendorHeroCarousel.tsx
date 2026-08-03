@@ -26,6 +26,7 @@ export type VendorHeroCarouselProps = {
   focalPoints?: { x: number; y: number }[];
   paused?: boolean;
   intervalMs?: number;
+  height?: number;
 };
 
 const DEFAULT_INTERVAL = 3500;
@@ -35,7 +36,7 @@ function remoteUri(source?: CarouselImage) {
   return typeof source === "object" && source?.uri ? source.uri : null;
 }
 
-export default function VendorHeroCarousel({
+function VendorHeroCarousel({
   images,
   vendorName,
   fallbackImage,
@@ -44,6 +45,7 @@ export default function VendorHeroCarousel({
   focalPoints = [],
   paused = false,
   intervalMs = DEFAULT_INTERVAL,
+  height,
 }: VendorHeroCarouselProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -56,7 +58,7 @@ export default function VendorHeroCarousel({
   const pausedRef = useRef(false);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transitioningRef = useRef(false);
-  const heroHeight = width >= 900 ? 470 : Math.max(300, Math.min(410, width * 0.78));
+  const heroHeight = height ?? (width >= 900 ? 470 : Math.max(300, Math.min(410, width * 0.78)));
 
   useEffect(() => {
     let mounted = true;
@@ -72,7 +74,9 @@ export default function VendorHeroCarousel({
 
   useEffect(() => {
     indexRef.current = index;
+    const currentUri = remoteUri(sources[index]);
     const nextUri = remoteUri(sources[(index + 1) % sources.length]);
+    if (currentUri) Image.prefetch(currentUri).catch(() => undefined);
     if (nextUri) Image.prefetch(nextUri).catch(() => undefined);
   }, [index, sources]);
 
@@ -132,16 +136,20 @@ export default function VendorHeroCarousel({
     showIndex(nextIndex);
   }, [pauseTemporarily, showIndex]);
 
-  const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_event, gesture) =>
-      sources.length > 1 && Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-    onPanResponderGrant: () => pauseTemporarily(),
-    onPanResponderRelease: (_event, gesture) => {
-      if (Math.abs(gesture.dx) < 42) return;
-      manuallyShow(indexRef.current + (gesture.dx < 0 ? 1 : -1));
-    },
-    onPanResponderTerminate: () => pauseTemporarily(),
-  }), [manuallyShow, pauseTemporarily, sources.length]);
+  const panResponder = useMemo(() => {
+    const isHorizontalSwipe = (dx: number, dy: number) =>
+      sources.length > 1 && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.2;
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_event, gesture) => isHorizontalSwipe(gesture.dx, gesture.dy),
+      onMoveShouldSetPanResponderCapture: (_event, gesture) => isHorizontalSwipe(gesture.dx, gesture.dy),
+      onPanResponderGrant: () => pauseTemporarily(),
+      onPanResponderRelease: (_event, gesture) => {
+        if (Math.abs(gesture.dx) < 42) return;
+        manuallyShow(indexRef.current + (gesture.dx < 0 ? 1 : -1));
+      },
+      onPanResponderTerminate: () => pauseTemporarily(),
+    });
+  }, [manuallyShow, pauseTemporarily, sources.length]);
 
   const currentSource = failed.has(index) && fallbackImage ? fallbackImage : sources[index];
 
@@ -214,6 +222,8 @@ export default function VendorHeroCarousel({
     </Pressable>
   );
 }
+
+export default React.memo(VendorHeroCarousel);
 
 const styles = StyleSheet.create({
   root: {

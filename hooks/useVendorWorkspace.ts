@@ -67,6 +67,7 @@ export function useVendorWorkspace() {
   );
 
   const refresh = useCallback(async () => {
+    void workspaceEpoch;
     setLoading(true);
     setError(null);
     setPortfolioError(null);
@@ -79,15 +80,31 @@ export function useVendorWorkspace() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setData(emptyWorkspace);
+        setError("Your Vendor session has expired. Sign in again to edit the live business profile.");
         return;
       }
-      const { data: vendor, error: vendorError } = await supabase
+      let { data: vendor, error: vendorError } = await supabase
         .from("vendors").select("*, categories(name)").eq("profile_id", user.id).maybeSingle();
       if (vendorError) throw vendorError;
       if (!vendor) {
-        setData(emptyWorkspace);
-        return;
+        // An approved application can predate the authenticated workspace
+        // link. Claim it on first entry so deep-linked Vendor pages become
+        // usable instead of rendering an empty, unsavable editor.
+        const { error: claimError } = await supabase.rpc("claim_vendor_workspace");
+        if (claimError) {
+          throw new Error(
+            /no matching vendor application/i.test(claimError.message)
+              ? "No Vendor business is connected to this account. Sign in with your approved Vendor email."
+              : claimError.message,
+          );
+        }
+        const claimed = await supabase
+          .from("vendors").select("*, categories(name)").eq("profile_id", user.id).maybeSingle();
+        if (claimed.error) throw claimed.error;
+        vendor = claimed.data;
+        if (!vendor) throw new Error("Your Vendor business could not be activated. Please sign in again.");
       }
+      setData({ ...emptyWorkspace, vendor });
       const today = new Date().toISOString().slice(0, 10);
       const [albums, media, heroMedia, availability, enquiries, notifications, reviews, services, subscription] = await Promise.all([
         supabase.from("vendor_portfolio_albums").select("*").eq("vendor_id", vendor.id).order("display_order"),

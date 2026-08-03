@@ -47,11 +47,6 @@ Deno.serve(async (request) => {
         .eq("profile_id", user.id)
         .maybeSingle();
       if (!vendor) throw new Error("Vendor profile not found");
-      const { error: accessError } = await supabase.rpc("require_vendor_feature_access", {
-        target_vendor_id: vendor.id,
-        requested_feature_key: "edit_vendor_profile",
-      });
-      if (accessError) throw accessError;
       prefix = `royallagn/vendors/${vendor.id}/profile/`;
     } else {
       const { data: profile } = await supabase

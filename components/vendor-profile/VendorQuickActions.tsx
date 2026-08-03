@@ -54,7 +54,7 @@ function ActionItem({
   );
 }
 
-export default function VendorQuickActions({
+function VendorQuickActions({
   dark = false,
   onCall,
   onWhatsApp,
@@ -111,36 +111,37 @@ export default function VendorQuickActions({
   );
 }
 
+export default React.memo(VendorQuickActions);
+
 const styles = StyleSheet.create({
   row: {
     width: "100%",
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingTop: 22,
-    paddingBottom: 20,
+    paddingTop: 14,
+    paddingBottom: 14,
   },
   action: {
     width: "24%",
     maxWidth: 112,
     minWidth: 68,
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   circle: {
-    width: 48,
-    height: 48,
-    borderRadius: 18,
-    borderWidth: 0,
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#87455D",
-    shadowOpacity: 0.075,
-    shadowRadius: 7,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 1,
+    shadowOpacity: 0.035,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
-  label: { fontSize: 11.5, lineHeight: 15, fontWeight: "600", textAlign: "center" },
+  label: { fontSize: 11, lineHeight: 14, fontWeight: "600", textAlign: "center" },
   actionHovered: { transform: [{ translateY: -2 }] },
   actionPressed: { transform: [{ scale: 0.94 }], opacity: 0.88 },
   disabled: { opacity: 0.45 },

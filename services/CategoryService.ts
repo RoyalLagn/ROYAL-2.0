@@ -111,6 +111,9 @@ async function fetchCategories(): Promise<CategoryRecord[]> {
 }
 
 export const CategoryService = {
+  peek() {
+    return cache;
+  },
   async list(options: { force?: boolean } = {}) {
     if (options.force) cache = null;
     if (cache) return cache;

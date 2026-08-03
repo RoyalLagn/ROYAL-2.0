@@ -57,7 +57,7 @@ export default function CreatePasswordScreen() {
           preferredAreaId: preferredAreaId || null,
         }, password);
         await refreshProfile();
-        router.dismissAll();
+        if (router.canDismiss()) router.dismissAll();
         router.replace("/(tabs)");
       }}
       getError={(error) =>

@@ -15,7 +15,7 @@ export function useVendorLogout() {
       if (error) throw error;
     }
 
-    router.dismissAll();
+    if (router.canDismiss()) router.dismissAll();
     router.replace("/DashboardCenter");
   }, [clearPreviewMode, isPreviewMode, router]);
 }

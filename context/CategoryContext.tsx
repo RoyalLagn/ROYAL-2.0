@@ -22,8 +22,9 @@ type CategoryContextValue = {
 const CategoryContext = createContext<CategoryContextValue | null>(null);
 
 export function CategoryProvider({ children }: { children: React.ReactNode }) {
-  const [categories, setCategories] = useState<CategoryRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cachedCategories = useMemo(() => CategoryService.peek() ?? [], []);
+  const [categories, setCategories] = useState<CategoryRecord[]>(cachedCategories);
+  const [loading, setLoading] = useState(cachedCategories.length === 0);
 
   const refresh = async () => {
     try {
@@ -37,7 +38,7 @@ export function CategoryProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
-    CategoryService.list()
+    CategoryService.list({ force: cachedCategories.length > 0 })
       .then((items) => {
         if (active) setCategories(items);
       })
@@ -56,7 +57,7 @@ export function CategoryProvider({ children }: { children: React.ReactNode }) {
       active = false;
       unsubscribe();
     };
-  }, []);
+  }, [cachedCategories.length]);
 
   const value = useMemo<CategoryContextValue>(() => ({
     categories: MarketplaceConfig.visible(categories),

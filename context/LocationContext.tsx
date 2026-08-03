@@ -16,7 +16,6 @@ import {
   loadCustomerLocationPreference,
   loadGuestLocationPreference,
   loadLocationSettings,
-  saveCustomerLocationPreference,
   saveGuestLocationPreference,
   subscribeToLocationChanges,
 } from "@/services/locations";
@@ -66,9 +65,16 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       setStrictCityOnly(settings.strictCityOnly);
 
       const isCustomer = profile?.role === "public_user";
-      const stored = isCustomer && session?.user
-        ? await loadCustomerLocationPreference(session.user.id)
-        : await loadGuestLocationPreference();
+      let stored: LocationPreference | null;
+      if (isCustomer && session?.user) {
+        const [localPreference, customerPreference] = await Promise.all([
+          loadGuestLocationPreference(),
+          loadCustomerLocationPreference(session.user.id),
+        ]);
+        stored = localPreference ?? customerPreference;
+      } else {
+        stored = await loadGuestLocationPreference();
+      }
       const selected = findSupportedSelection(activeLocations, stored);
       if (selected && stored) {
         setPreference(stored);
@@ -101,17 +107,17 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     if (!selected) throw new Error("Choose an active RoyalLagn location.");
     setSaving(true);
     try {
-      if (profile?.role === "public_user" && session?.user) {
-        await saveCustomerLocationPreference(next);
-      } else {
-        await saveGuestLocationPreference(next);
-      }
+      // The local preference is the browsing source of truth on every client.
+      // Customer profiles may still provide an existing server preference on
+      // load, but location selection must not fail or repeatedly prompt when
+      // the remote profile write is unavailable.
+      await saveGuestLocationPreference(next);
       setPreference(next);
       setNeedsLocationSelection(false);
     } finally {
       setSaving(false);
     }
-  }, [locations, profile?.role, session?.user]);
+  }, [locations]);
 
   const claimLocationOnboardingPrompt = useCallback(() => {
     if (

@@ -13,7 +13,7 @@ export function AdminRouteGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (protectedRoute && !loading && !isAdminAuthenticated) {
       void signOut().finally(() => {
-        router.dismissAll();
+        if (router.canDismiss()) router.dismissAll();
         router.replace("/AdminLogin");
       });
     }

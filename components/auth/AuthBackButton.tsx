@@ -13,7 +13,7 @@ export function AuthBackButton({
   const router = useRouter();
 
   const goBack = useCallback(() => {
-    router.dismissAll();
+    if (router.canDismiss()) router.dismissAll();
     router.replace("/(tabs)");
   }, [router]);
 

@@ -8,25 +8,25 @@ export type ReviewFormProps = { initialValue?: Partial<ReviewDraft>; dark?: bool
 export default function ReviewForm({ initialValue, dark = false, submitting = false, error, onSubmit, onCancel, onAddPhotos, onRemovePhoto, photos, submitLabel }: ReviewFormProps) {
   const c = reviewPalette(dark);
   const [rating, setRating] = useState(initialValue?.rating ?? 0);
-  const [title, setTitle] = useState(initialValue?.title ?? "");
   const [text, setText] = useState(initialValue?.text ?? "");
   useEffect(() => {
     setRating(initialValue?.rating ?? 0);
-    setTitle(initialValue?.title ?? "");
     setText(initialValue?.text ?? "");
-  }, [initialValue?.rating, initialValue?.text, initialValue?.title]);
-  const valid = rating >= 1 && rating <= 5 && title.trim().length > 0 && text.trim().length > 0;
+  }, [initialValue?.rating, initialValue?.text]);
+  const valid = rating >= 1 && rating <= 5 && text.trim().length > 0;
   const input = [styles.input, { color: c.text, backgroundColor: c.soft, borderColor: c.border }];
   return <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
     <Text style={[styles.heading, { color: c.text }]}>{initialValue ? "Edit your review" : "Share your experience"}</Text>
     <Text style={[styles.label, { color: c.text }]}>Your rating</Text>
     <View accessibilityRole="radiogroup" style={styles.stars}>{([1,2,3,4,5] as const).map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: rating === value }} accessibilityLabel={`${value} stars`} onPress={() => setRating(value)} hitSlop={7}><Text style={[styles.star, { color: value <= rating ? c.gold : dark ? "#51484C" : "#E3D8DC" }]}>★</Text></Pressable>)}</View>
-    <TextInput value={title} onChangeText={setTitle} editable={!submitting} maxLength={100} placeholder="Review title" placeholderTextColor={c.muted} style={input} />
-    <TextInput value={text} onChangeText={setText} editable={!submitting} maxLength={2000} multiline placeholder="Tell couples what made your experience special…" placeholderTextColor={c.muted} style={[input, styles.textarea]} />
+    <TextInput value={text} onChangeText={setText} editable={!submitting} maxLength={2000} multiline placeholder="Write a comment…" placeholderTextColor={c.muted} style={[input, styles.textarea]} />
     <ReviewPhotoUploader photos={photos} dark={dark} disabled={submitting} onAdd={onAddPhotos} onRemove={onRemovePhoto} />
     {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
     <View style={styles.buttons}>{onCancel ? <Pressable disabled={submitting} onPress={onCancel} style={[styles.cancel, { borderColor: c.border }]}><Text style={[styles.cancelText, { color: c.muted }]}>Cancel</Text></Pressable> : null}
-      <Pressable disabled={!valid || submitting} onPress={() => onSubmit({ rating, title: title.trim(), text: text.trim(), photos })} style={({ pressed }) => [styles.submit, { backgroundColor: c.pink, opacity: valid && !submitting ? 1 : .45 }, pressed && styles.pressed]}>{submitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>{submitLabel ?? (initialValue ? "Update Review" : "Submit Review")}</Text>}</Pressable>
+      <Pressable disabled={!valid || submitting} onPress={() => {
+        const comment = text.trim();
+        onSubmit({ rating, title: initialValue?.title?.trim() || comment.slice(0, 100), text: comment, photos });
+      }} style={({ pressed }) => [styles.submit, { backgroundColor: c.pink, opacity: valid && !submitting ? 1 : .45 }, pressed && styles.pressed]}>{submitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>{submitLabel ?? (initialValue ? "Update Review" : "Submit Review")}</Text>}</Pressable>
     </View>
   </View>;
 }
