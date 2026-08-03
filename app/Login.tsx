@@ -33,7 +33,7 @@ import type { LocationPreference } from "@/locations/types";
 
 type AuthTab = "login" | "signup";
 
-const Input = forwardRef<TextInput, {
+type InputProps = {
   icon: React.ElementType;
   value: string;
   onChangeText: (value: string) => void;
@@ -42,16 +42,21 @@ const Input = forwardRef<TextInput, {
   returnKeyType?: "done" | "next" | "go";
   onSubmitEditing?: () => void;
   onFocus?: (event: unknown) => void;
-}>(function Input({
-  icon: Icon,
-  value,
-  onChangeText,
-  placeholder,
-  keyboardType,
-  returnKeyType,
-  onSubmitEditing,
-  onFocus,
-}, ref) {
+};
+
+const Input = forwardRef(function Input(
+  {
+    icon: Icon,
+    value,
+    onChangeText,
+    placeholder,
+    keyboardType,
+    returnKeyType,
+    onSubmitEditing,
+    onFocus,
+  }: InputProps,
+  ref: React.Ref<TextInput>
+) {
   return (
     <View className="flex-row items-center bg-card border border-border rounded-2xl px-4">
       <Icon size={20} className="text-muted-foreground" />

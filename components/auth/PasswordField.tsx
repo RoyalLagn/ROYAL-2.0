@@ -11,14 +11,17 @@ type PasswordFieldProps = {
   onFocus?: (event: unknown) => void;
 };
 
-export const PasswordField = forwardRef<TextInput, PasswordFieldProps>(function PasswordField({
-  value,
-  onChangeText,
-  placeholder,
-  onSubmitEditing,
-  returnKeyType = "done",
-  onFocus,
-}, ref) {
+export const PasswordField = forwardRef(function PasswordField(
+  {
+    value,
+    onChangeText,
+    placeholder,
+    onSubmitEditing,
+    returnKeyType = "done",
+    onFocus,
+  }: PasswordFieldProps,
+  ref: React.Ref<TextInput>
+) {
   const [visible, setVisible] = useState(false);
   return (
     <View className="flex-row items-center bg-card border border-border rounded-2xl px-4">
