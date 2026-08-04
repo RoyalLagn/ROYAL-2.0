@@ -12,6 +12,7 @@ import {
   MapPinned,
   Settings,
   Star,
+  Target,
   Users,
   WalletCards,
 } from "lucide-react-native";
@@ -26,6 +27,7 @@ export type AdminNavigationKey =
   | "reviews"
   | "subscriptions"
   | "payments"
+  | "crm"
   | "categories"
   | "locations"
   | "reports"
@@ -65,6 +67,12 @@ export const adminNavigationGroups: { label: string; items: AdminNavigationItem[
     ],
   },
   {
+    label: "Acquisition",
+    items: [
+      { key: "crm", label: "Vendor Acquisition CRM", route: "/AdminCrm", icon: Target },
+    ],
+  },
+  {
     label: "Platform",
     items: [
       { key: "categories", label: "Categories", route: "/AdminCategories", icon: FolderTree },
@@ -90,6 +98,16 @@ export const adminWorkspaceRoutes = new Set([
   "/AdminVendorDetails",
   "/VendorApplicationDetails",
   "/admin-dash-logout",
+  "/AdminCrmStates",
+  "/AdminCrmDistricts",
+  "/AdminCrmTalukas",
+  "/AdminCrmClusters",
+  "/AdminCrmCategories",
+  "/AdminCrmClusterCategories",
+  "/AdminCrmVendors",
+  "/AdminCrmVendorProfile",
+  "/AdminCrmTasks",
+  "/AdminCrmReports",
 ]);
 
 export function isAdminWorkspaceRoute(pathname: string) {
@@ -101,8 +119,22 @@ export function isProtectedAdminRoute(pathname: string) {
   return adminWorkspaceRoutes.has(pathname) || pathname.toLowerCase().includes("admin");
 }
 
+const crmDrillDownRoutes = new Set([
+  "/AdminCrmStates",
+  "/AdminCrmDistricts",
+  "/AdminCrmTalukas",
+  "/AdminCrmClusters",
+  "/AdminCrmCategories",
+  "/AdminCrmClusterCategories",
+  "/AdminCrmVendors",
+  "/AdminCrmVendorProfile",
+  "/AdminCrmTasks",
+  "/AdminCrmReports",
+]);
+
 export function adminNavigationKeyForPath(pathname: string): AdminNavigationKey {
   if (pathname === "/AdminVendorDetails") return "vendors";
   if (pathname === "/VendorApplicationDetails") return "approvals";
+  if (crmDrillDownRoutes.has(pathname)) return "crm";
   return adminNavigationItems.find((item) => item.route === pathname)?.key ?? "dashboard";
 }
