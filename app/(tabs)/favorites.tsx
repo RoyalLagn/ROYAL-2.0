@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import CategoryBadge from "@/components/categories/CategoryBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,14 +15,13 @@ import { useColorScheme } from "nativewind";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useFavorites, FavoriteVendor } from "@/context/FavoritesContext";
 
-const { width: W } = Dimensions.get("window");
-const CARD_W = (W - 48) / 2;
-
 export default function FavoritesScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
   const { favorites, markFavoritesViewed, removeFavorite } = useFavorites();
+  const { width: W } = useWindowDimensions();
+  const CARD_W = (W - 48) / 2;
 
   const [selectedCat, setSelectedCat] = useState("All");
   const [gridView, setGridView] = useState(true);
@@ -130,6 +129,7 @@ export default function FavoritesScreen() {
                   isDark={isDark}
                   text={text}
                   muted={muted}
+                  cardWidth={CARD_W}
                   onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category } })}
                   onRemove={() => setConfirmId(vendor.id)}
                 />
@@ -190,12 +190,12 @@ export default function FavoritesScreen() {
 }
 
 /* ── Grid Card ── */
-function GridCard({ vendor, isDark, text, muted, onPress, onRemove }: {
-  vendor: FavoriteVendor; isDark: boolean; text: string; muted: string;
+function GridCard({ vendor, isDark, text, muted, cardWidth, onPress, onRemove }: {
+  vendor: FavoriteVendor; isDark: boolean; text: string; muted: string; cardWidth: number;
   onPress: () => void; onRemove: () => void;
 }) {
   return (
-    <TouchableOpacity style={[s.gridCard, { width: CARD_W }]} onPress={onPress} activeOpacity={0.9}>
+    <TouchableOpacity style={[s.gridCard, { width: cardWidth }]} onPress={onPress} activeOpacity={0.9}>
       <View style={s.gridImgWrap}>
         <Image source={{ uri: vendor.image }} style={s.gridImg} resizeMode="cover" />
         {/* Gradient overlay */}

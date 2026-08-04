@@ -280,6 +280,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   headerGlowOne: { position: "absolute", width: 130, height: 130, borderRadius: 65, right: -38, top: -52, backgroundColor: "rgba(233,30,99,.07)" },
   headerGlowTwo: { position: "absolute", width: 88, height: 88, borderRadius: 44, left: -34, bottom: -47, backgroundColor: "rgba(214,151,59,.08)" },

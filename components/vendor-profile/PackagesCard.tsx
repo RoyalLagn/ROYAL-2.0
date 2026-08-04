@@ -109,6 +109,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.035,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   cardCompact: { padding: 14, gap: 10, flexDirection: "column", alignItems: "stretch" },
   details: {

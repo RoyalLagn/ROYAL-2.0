@@ -40,7 +40,7 @@ type HomeCategoryCardProps = {
   onPress: () => void;
 };
 
-export default function HomeCategoryCard({
+function HomeCategoryCard({
   name,
   image,
   itemWidth,
@@ -157,6 +157,8 @@ export default function HomeCategoryCard({
     </Pressable>
   );
 }
+
+export default React.memo(HomeCategoryCard);
 
 const styles = StyleSheet.create({
   pressable: {

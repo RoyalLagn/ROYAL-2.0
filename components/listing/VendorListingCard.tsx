@@ -28,7 +28,7 @@ type VendorListingCardProps = {
   onToggleFavorite: (source: FavoriteSourceRef) => void;
 };
 
-export default function VendorListingCard({
+function VendorListingCard({
   vendor,
   dark,
   compact,
@@ -112,6 +112,8 @@ export default function VendorListingCard({
     </View>
   );
 }
+
+export default React.memo(VendorListingCard);
 
 const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
 

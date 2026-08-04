@@ -87,7 +87,7 @@ function AccountOption({
       onHoverIn={() => setIsHovered(true)}
       onHoverOut={() => setIsHovered(false)}
       className={tile
-        ? "group bg-card border border-border/80 rounded-2xl p-5 h-[144px] justify-between hover:border-primary/35 hover:bg-muted/40 hover:-translate-y-0.5 hover:shadow-soft-1 active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-all duration-200 ease-out"
+        ? "group bg-card border border-border/80 rounded-2xl p-5 min-h-[144px] justify-between hover:border-primary/35 hover:bg-muted/40 hover:-translate-y-0.5 hover:shadow-soft-1 active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-all duration-200 ease-out"
         : "group min-h-[72px] px-4 py-3.5 flex-row items-center border-b border-border/70 last:border-b-0 hover:bg-muted/50 active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 transition-colors duration-200 ease-out"}
       style={({ pressed }) => [
         tile && tileWidth ? { width: tileWidth } : undefined,

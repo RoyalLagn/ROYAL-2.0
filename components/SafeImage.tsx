@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Image,
   type ImageProps,
@@ -18,7 +18,7 @@ type SafeImageProps = Omit<ImageProps, "source" | "defaultSource"> & {
   retryCount?: number;
 };
 
-export default function SafeImage({
+function SafeImage({
   source,
   fallbackSource,
   debugLabel = "image",
@@ -42,26 +42,33 @@ export default function SafeImage({
       : fallbackSource
     : resolveImageSource(source, fallbackSource);
 
+  const handleError = useCallback(
+    (event: Parameters<NonNullable<ImageProps["onError"]>>[0]) => {
+      if (__DEV__) {
+        console.warn(
+          `[SafeImage] Failed to render ${debugLabel}:`,
+          event.nativeEvent.error,
+        );
+      }
+      if (remoteUri && attempt < retryCount) {
+        setAttempt((current) => current + 1);
+      } else {
+        setFailed(true);
+      }
+      onError?.(event);
+    },
+    [debugLabel, remoteUri, attempt, retryCount, onError],
+  );
+
   return (
     <Image
       {...props}
       source={resolvedSource}
       defaultSource={fallbackSource}
       onLoad={onLoad}
-      onError={(event) => {
-        if (__DEV__) {
-          console.warn(
-            `[SafeImage] Failed to render ${debugLabel}:`,
-            event.nativeEvent.error,
-          );
-        }
-        if (remoteUri && attempt < retryCount) {
-          setAttempt((current) => current + 1);
-        } else {
-          setFailed(true);
-        }
-        onError?.(event);
-      }}
+      onError={handleError}
     />
   );
 }
+
+export default React.memo(SafeImage);

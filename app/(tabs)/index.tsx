@@ -528,7 +528,7 @@ const s = StyleSheet.create<Record<string, any>>({
   /* Trending */
   trendingSection:{ alignSelf: "center", marginBottom: 23 },
   trendingRow:     { gap: 10, paddingTop: 2, paddingRight: 2 },
-  trendingChip:    { minHeight: 43, minWidth: 190, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 9, shadowColor: "#7F5065", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  trendingChip:    { minHeight: 43, minWidth: 190, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 9, shadowColor: "#7F5065", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   trendingText:    { fontSize: 11, fontWeight: "600" },
 
   /* Popular Near You */
@@ -542,7 +542,7 @@ const s = StyleSheet.create<Record<string, any>>({
   vendorImg:       { width: "100%", height: "100%" },
   vendorNearby:    { position: "absolute", top: 8, left: 8, minHeight: 25, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,.94)" },
   vendorNearbyText:{ color: PINK, fontSize: 8.5, fontWeight: "800" },
-  heartBtn:        { position: "absolute", top: 8, right: 8, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(255,255,255,.94)", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } },
+  heartBtn:        { position: "absolute", top: 8, right: 8, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(255,255,255,.94)", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   heartBtnActive:  { backgroundColor: "rgba(255,255,255,.94)" },
   favoritePressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
   imgBottomRow:    { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", padding: 7 },

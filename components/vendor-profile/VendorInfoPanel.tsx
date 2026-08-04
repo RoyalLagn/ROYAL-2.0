@@ -159,6 +159,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.045,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: -4 },
+    elevation: 3,
   },
   panelEmbedded: { marginTop: 0 },
   headingRow: {

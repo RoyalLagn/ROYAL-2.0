@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { FlatList, type ListRenderItemInfo, Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -83,7 +83,7 @@ export default function VendorsListingScreen() {
   const { city, preference, strictCityOnly } = useCustomerLocation();
   const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ category?: string; query?: string }>();
-  const { isFavorite, toggleFavorite } = useFavorites();
+  const { favorites, isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
 
   const categoryParam = Array.isArray(params.category) ? params.category[0] : params.category;
@@ -194,7 +194,7 @@ export default function VendorsListingScreen() {
       ? "Lowest price"
       : "Popular";
 
-  const toggleVendorFavorite = (vendor: PublicVendorListing, source: FavoriteSourceRef) => {
+  const toggleVendorFavorite = useCallback((vendor: PublicVendorListing, source: FavoriteSourceRef) => {
     toggleFavorite({
       id: vendor.id,
       name: vendor.name,
@@ -207,7 +207,31 @@ export default function VendorsListingScreen() {
       tags: vendor.tags,
       image: vendor.image,
     }, source);
-  };
+  }, [displayCategory, toggleFavorite]);
+
+  const fallbackImage = useMemo(
+    () => resolveMarketplaceCategoryImage(displayCategory).fallbackSource,
+    [displayCategory],
+  );
+
+  const renderVendorCard = useCallback(({ item: vendor, index }: ListRenderItemInfo<PublicVendorListing>) => (
+    <HomeReveal delay={Math.min(index * 30, 210)}>
+      <VendorListingCard
+        vendor={vendor}
+        dark={isDark}
+        compact={compact}
+        favorite={isFavorite(vendor.id)}
+        fallbackImage={fallbackImage}
+        onOpen={() =>
+          router.push({
+            pathname: "/VendorsProfile",
+            params: { vendorId: vendor.id, category: displayCategory },
+          })
+        }
+        onToggleFavorite={(source) => toggleVendorFavorite(vendor, source)}
+      />
+    </HomeReveal>
+  ), [isDark, compact, isFavorite, fallbackImage, router, displayCategory, toggleVendorFavorite]);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "left", "right"]}>
@@ -257,38 +281,26 @@ export default function VendorsListingScreen() {
         </HomeReveal>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={filteredVendors}
+        keyExtractor={(vendor) => vendor.id}
+        renderItem={renderVendorCard}
+        extraData={favorites}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         style={styles.scroll}
         contentContainerStyle={[styles.list, { width: contentWidth, paddingBottom: 34 }]}
-      >
-        {filteredVendors.map((vendor, index) => (
-          <HomeReveal key={vendor.id} delay={Math.min(index * 30, 210)}>
-            <VendorListingCard
-              vendor={vendor}
-              dark={isDark}
-              compact={compact}
-              favorite={isFavorite(vendor.id)}
-              fallbackImage={resolveMarketplaceCategoryImage(displayCategory).fallbackSource}
-              onOpen={() =>
-                router.push({
-                  pathname: "/VendorsProfile",
-                  params: { vendorId: vendor.id, category: displayCategory },
-                })
-              }
-              onToggleFavorite={(source) => toggleVendorFavorite(vendor, source)}
-            />
-          </HomeReveal>
-        ))}
-
-        {!filteredVendors.length ? (
+        initialNumToRender={6}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS !== "web"}
+        ListEmptyComponent={
           <View style={[styles.empty, { borderColor: border }]}>
             <Text style={[styles.emptyTitle, { color: text }]}>No matching {displayCategory.toLowerCase()}</Text>
             <Text style={[styles.emptyText, { color: muted }]}>Try another keyword or reset the price and rating filters.</Text>
           </View>
-        ) : null}
-      </ScrollView>
+        }
+      />
 
       {!desktop ? <StandaloneMobileTabBar activeRoute="Categories" /> : null}
 

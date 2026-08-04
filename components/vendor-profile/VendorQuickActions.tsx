@@ -140,6 +140,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.035,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   label: { fontSize: 11, lineHeight: 14, fontWeight: "600", textAlign: "center" },
   actionHovered: { transform: [{ translateY: -2 }] },

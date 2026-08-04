@@ -854,7 +854,7 @@ export default function VendorGallery() {
 
     <Modal visible={Boolean(preview)} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
       <View style={styles.previewBackdrop}>
-        <Pressable onPress={() => setPreview(null)} style={styles.previewClose}><X size={24} color="#FFF" /></Pressable>
+        <Pressable onPress={() => setPreview(null)} style={[styles.previewClose, { top: insets.top + 12 }]}><X size={24} color="#FFF" /></Pressable>
         {previewIndex > 0 && <Pressable accessibilityLabel="Previous media" onPress={() => setPreview(previewMedia[previewIndex - 1])} style={[styles.previewNav, styles.previewNavLeft]}><ChevronLeft size={26} color="#FFF" /></Pressable>}
         {previewIndex >= 0 && previewIndex < previewMedia.length - 1 && <Pressable accessibilityLabel="Next media" onPress={() => setPreview(previewMedia[previewIndex + 1])} style={[styles.previewNav, styles.previewNavRight]}><ChevronRight size={26} color="#FFF" /></Pressable>}
         {preview?.resource_type === "video"

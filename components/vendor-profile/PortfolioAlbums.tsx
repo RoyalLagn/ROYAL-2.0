@@ -378,6 +378,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.025,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   tileFallbackWidth: { width: "48%" },
   tilePressable: { flex: 1, borderRadius: 14, overflow: "hidden" },

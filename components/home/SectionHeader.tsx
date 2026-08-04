@@ -12,7 +12,7 @@ type SectionHeaderProps = {
   accessory?: ReactNode;
 };
 
-export default function SectionHeader({
+function SectionHeader({
   title,
   dark,
   actionLabel,
@@ -42,6 +42,8 @@ export default function SectionHeader({
     </View>
   );
 }
+
+export default React.memo(SectionHeader);
 
 const styles = StyleSheet.create({
   header: {

@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   highlight: { color: "#FF2A73", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 20, lineHeight: 23, fontWeight: "700" },
   highlightNarrow: { fontSize: 17, lineHeight: 19 },
   highlightDesktop: { fontSize: 30, lineHeight: 34 },
-  cta: { minHeight: 29, alignSelf: "flex-start", marginTop: 10, paddingHorizontal: 10, borderRadius: 999, backgroundColor: PINK, flexDirection: "row", alignItems: "center", gap: 3, shadowColor: "#3D0D20", shadowOpacity: 0.16, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
+  cta: { minHeight: 29, alignSelf: "flex-start", marginTop: 10, paddingHorizontal: 10, borderRadius: 999, backgroundColor: PINK, flexDirection: "row", alignItems: "center", gap: 3, shadowColor: "#3D0D20", shadowOpacity: 0.16, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   ctaNarrow: { minHeight: 27, marginTop: 8, paddingHorizontal: 8 },
   ctaHover: { transform: [{ translateY: -1 }], backgroundColor: "#D81758" },
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
