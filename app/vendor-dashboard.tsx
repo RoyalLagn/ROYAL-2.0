@@ -17,6 +17,7 @@ import {
   CircleAlert,
   Clock3,
   Eye,
+  Globe,
   Images,
   MessageSquareText,
   Plus,
@@ -30,6 +31,7 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
 import SubscriptionDashboardCard from "@/components/vendor/SubscriptionDashboardCard";
+import PublicProfileCard from "@/components/vendor/PublicProfileCard";
 
 const completionMeta = {
   complete: { label: "Complete", icon: Check },
@@ -121,6 +123,26 @@ export default function VendorDashboard() {
           ) : null}
 
           {data.vendor ? <SubscriptionDashboardCard /> : null}
+          {data.vendor ? <PublicProfileCard vendor={data.vendor} /> : null}
+          {data.vendor ? (
+            <Pressable
+              onPress={() => router.push("/vendor-marketing-center")}
+              style={({ pressed }) => [
+                styles.marketingCenterButton,
+                { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow },
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={[styles.marketingCenterIcon, { backgroundColor: colors.pink }]}>
+                <Globe size={19} color="#FFF" />
+              </View>
+              <View style={styles.flex}>
+                <Text style={[styles.marketingCenterTitle, { color: colors.text }]}>Open Marketing Center</Text>
+                <Text style={[styles.marketingCenterHint, { color: colors.muted }]}>Share your website, QR, and track performance</Text>
+              </View>
+              <ChevronRight size={19} color={colors.pink} />
+            </Pressable>
+          ) : null}
 
           <View style={[styles.statsGrid, desktop && styles.statsDesktop]}>
             {stats.map(({ label, value, detail, icon: Icon }, index) => (
@@ -262,6 +284,10 @@ const styles = StyleSheet.create({
   notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   noticeTitle: { fontSize: 13, fontWeight: "800", marginBottom: 2 },
   noticeText: { fontSize: 11, lineHeight: 17 },
+  marketingCenterButton: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 20, padding: 15, marginBottom: 16, shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.045, shadowRadius: 16, elevation: 2 },
+  marketingCenterIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  marketingCenterTitle: { fontSize: 13, fontWeight: "800" },
+  marketingCenterHint: { fontSize: 10, marginTop: 2 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
   statsDesktop: { flexWrap: "nowrap" },
   statCard: { width: "48.4%", minHeight: 145, borderRadius: 22, borderWidth: 1, padding: 15, shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.045, shadowRadius: 16, elevation: 2 },

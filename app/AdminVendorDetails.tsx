@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Edit3, ExternalLink, MoreVertical, X } from "lucide-react-native";
+import { ArrowLeft, Edit3, ExternalLink, MessageCircle, MoreVertical, Phone, QrCode, RefreshCw, X } from "lucide-react-native";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { ResponsiveColumns } from "@/components/responsive/ResponsiveColumns";
 import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
@@ -13,6 +13,10 @@ import { DashboardWidget } from "@/components/admin/dashboard/DashboardWidget";
 import { AdminVendorService } from "@/services/adminVendorService";
 import type { AdminVendorRecord, VendorDetails } from "@/types/adminVendors";
 import { KPIChip } from "@/components/admin/ui/KPIChip";
+import { normalizeWhatsAppPhone } from "@/services/contactActions";
+import { buildVendorPublicProfileUrl, regenerateVendorSlug, setVendorPublicProfileEnabled } from "@/services/vendorPublicProfile";
+
+const PHONE_UNAVAILABLE_MESSAGE = "Phone number not available.";
 
 export default function AdminVendorDetailsScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -92,8 +96,25 @@ export default function AdminVendorDetailsScreen() {
               </View>
               <View className="flex-row flex-wrap gap-3 mt-4">
                 {vendor?.website ? <LinkButton label="Website" url={vendor.website} /> : null}
-                {record.vendor_id ? <Pressable className="min-h-11 px-4 rounded-full bg-primary items-center justify-center" onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: record.vendor_id } })}><Text className="text-white text-xs font-semibold">Public Profile</Text></Pressable> : null}
+                <CallButton phone={record.phone} />
+                <WhatsAppButton phone={record.phone} />
+                {record.vendor_id ? (
+                  <Pressable
+                    className="min-h-11 px-4 rounded-full bg-primary items-center justify-center flex-row"
+                    onPress={() =>
+                      vendor?.slug
+                        ? router.push({ pathname: "/vendors/[slug]", params: { slug: vendor.slug } })
+                        : router.push({ pathname: "/VendorsProfile", params: { vendorId: record.vendor_id } })
+                    }
+                  >
+                    <ExternalLink size={14} color="#FFFFFF" />
+                    <Text className="text-white text-xs font-semibold ml-2">View Public Profile</Text>
+                  </Pressable>
+                ) : null}
               </View>
+              {record.vendor_id ? (
+                <PublicProfileAdminControls vendorId={record.vendor_id} vendor={vendor} onChanged={() => void load()} />
+              ) : null}
             </View>
           </ResponsiveSection>
 
@@ -172,6 +193,115 @@ function Metric({ label, value }: { label: string; value: string }) { return <Vi
 function InfoRows({ rows }: { rows: [string, any][] }) { return <View>{rows.filter(([, value]) => value !== null && value !== undefined && value !== "").map(([label, value]) => <View key={label} className="py-3 border-b border-border"><Text className="text-muted-foreground text-[10px] uppercase tracking-wider">{label}</Text><Text className="text-foreground text-sm mt-1">{String(value)}</Text></View>)}</View>; }
 function Empty({ text }: { text: string }) { return <Text className="text-muted-foreground text-sm text-center py-5">{text}</Text>; }
 function LinkButton({ label, url }: { label: string; url: string }) { return <Pressable className="min-h-11 px-4 rounded-full border border-border flex-row items-center justify-center" onPress={() => void Linking.openURL(url)}><ExternalLink size={14} className="text-primary mr-2" /><Text className="text-primary text-xs font-semibold">{label}</Text></Pressable>; }
+
+function CallButton({ phone }: { phone: string | null }) {
+  const hasPhone = Boolean(phone);
+  return (
+    <Pressable
+      accessibilityLabel="Call vendor"
+      accessibilityState={{ disabled: !hasPhone }}
+      className="min-h-11 px-4 rounded-full items-center justify-center flex-row"
+      style={{ backgroundColor: "#16A34A", opacity: hasPhone ? 1 : 0.5 }}
+      onPress={() => (hasPhone ? void Linking.openURL(`tel:${phone}`) : Alert.alert(PHONE_UNAVAILABLE_MESSAGE))}
+    >
+      <Phone size={14} color="#FFFFFF" />
+      <Text className="text-white text-xs font-semibold ml-2">Call Vendor</Text>
+    </Pressable>
+  );
+}
+
+function WhatsAppButton({ phone }: { phone: string | null }) {
+  const hasPhone = Boolean(phone);
+  return (
+    <Pressable
+      accessibilityLabel="Message vendor on WhatsApp"
+      accessibilityState={{ disabled: !hasPhone }}
+      className="min-h-11 px-4 rounded-full items-center justify-center flex-row"
+      style={{ backgroundColor: "#25D366", opacity: hasPhone ? 1 : 0.5 }}
+      onPress={() => (hasPhone ? void Linking.openURL(`https://wa.me/${normalizeWhatsAppPhone(phone)}`) : Alert.alert(PHONE_UNAVAILABLE_MESSAGE))}
+    >
+      <MessageCircle size={14} color="#FFFFFF" />
+      <Text className="text-white text-xs font-semibold ml-2">WhatsApp</Text>
+    </Pressable>
+  );
+}
+
+function PublicProfileAdminControls({ vendorId, vendor, onChanged }: { vendorId: string; vendor: Record<string, any> | null; onChanged: () => void }) {
+  const [busy, setBusy] = useState<"regenerate" | "toggle" | null>(null);
+  const slug = vendor?.slug as string | undefined;
+  const enabled = vendor?.public_profile_enabled !== false;
+
+  const handleRegenerate = () => {
+    if (!slug) return;
+    Alert.alert(
+      "Regenerate slug?",
+      "The current public profile link will redirect to the new one, but any QR codes printed with the old link will need to be reprinted.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Regenerate",
+          style: "destructive",
+          onPress: async () => {
+            setBusy("regenerate");
+            try {
+              await regenerateVendorSlug(vendorId);
+              onChanged();
+            } catch (error) {
+              Alert.alert("Could not regenerate slug", error instanceof Error ? error.message : "Please try again.");
+            } finally {
+              setBusy(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleToggle = async () => {
+    setBusy("toggle");
+    try {
+      await setVendorPublicProfileEnabled(vendorId, !enabled);
+      onChanged();
+    } catch (error) {
+      Alert.alert("Could not update public profile", error instanceof Error ? error.message : "Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (!slug) {
+    return <Text className="text-muted-foreground text-xs mt-3">No public profile slug yet — assigned automatically on approval.</Text>;
+  }
+
+  return (
+    <View className="mt-4 pt-4 border-t border-border">
+      <Text className="text-muted-foreground text-[10px] uppercase tracking-wider mb-2">Public Profile</Text>
+      <Text className="text-foreground text-xs mb-3" numberOfLines={1}>{buildVendorPublicProfileUrl(slug)}</Text>
+      <View className="flex-row flex-wrap gap-3">
+        <Pressable
+          disabled={busy !== null}
+          className="min-h-11 px-4 rounded-full border border-border items-center justify-center flex-row"
+          style={{ opacity: busy ? 0.6 : 1 }}
+          onPress={handleRegenerate}
+        >
+          <RefreshCw size={14} className="text-primary mr-2" />
+          <Text className="text-primary text-xs font-semibold">{busy === "regenerate" ? "Regenerating…" : "Regenerate Slug"}</Text>
+        </Pressable>
+        <Pressable
+          disabled={busy !== null}
+          className="min-h-11 px-4 rounded-full items-center justify-center flex-row"
+          style={{ backgroundColor: enabled ? "#DC2626" : "#16A34A", opacity: busy ? 0.6 : 1 }}
+          onPress={handleToggle}
+        >
+          <QrCode size={14} color="#FFFFFF" />
+          <Text className="text-white text-xs font-semibold ml-2">
+            {busy === "toggle" ? "Updating…" : enabled ? "Disable Public Profile" : "Enable Public Profile"}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
 
 function buildTimeline(details: VendorDetails) {
   const result: { title: string; at: string; actor?: string }[] = [];

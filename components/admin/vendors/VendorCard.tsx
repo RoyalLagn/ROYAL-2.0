@@ -1,11 +1,14 @@
 import React from "react";
 import CategoryBadge from "@/components/categories/CategoryBadge";
-import { Image, Pressable, Text, View } from "react-native";
-import { Check, MoreVertical, Square } from "lucide-react-native";
+import { Alert, Image, Linking, Pressable, Text, View } from "react-native";
+import { Check, MessageCircle, MoreVertical, Phone, Square } from "lucide-react-native";
 import type { AdminVendorRecord, VendorHealthMetrics } from "@/types/adminVendors";
 import { ResponsiveCard } from "@/components/responsive/ResponsiveCard";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import { KPIChip } from "@/components/admin/ui/KPIChip";
+import { normalizeWhatsAppPhone } from "@/services/contactActions";
+
+const PHONE_UNAVAILABLE_MESSAGE = "Phone number not available.";
 
 export const VendorCard = React.memo(function VendorCard({
   item,
@@ -23,6 +26,15 @@ export const VendorCard = React.memo(function VendorCard({
   health?: VendorHealthMetrics;
 }) {
   const { isPhone } = useResponsiveLayout();
+  const hasPhone = Boolean(item.phone);
+  const callVendor = () => {
+    if (!item.phone) { Alert.alert(PHONE_UNAVAILABLE_MESSAGE); return; }
+    void Linking.openURL(`tel:${item.phone}`);
+  };
+  const whatsAppVendor = () => {
+    if (!item.phone) { Alert.alert(PHONE_UNAVAILABLE_MESSAGE); return; }
+    void Linking.openURL(`https://wa.me/${normalizeWhatsAppPhone(item.phone)}`);
+  };
   return (
     <ResponsiveCard>
       <View className="flex-row items-start">
@@ -36,6 +48,24 @@ export const VendorCard = React.memo(function VendorCard({
           <Text className="text-foreground font-bold" numberOfLines={1}>{item.business_name}</Text>
           <Text className="text-muted-foreground text-xs mt-0.5" numberOfLines={1}>{item.owner_name}</Text>
           <Text className="text-muted-foreground text-xs" numberOfLines={1}>{item.email || "No email"} · {item.phone || "No phone"}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Call vendor"
+          accessibilityState={{ disabled: !hasPhone }}
+          className="min-w-11 min-h-11 items-center justify-center"
+          style={{ opacity: hasPhone ? 1 : 0.4 }}
+          onPress={callVendor}
+        >
+          <Phone size={18} color="#16A34A" />
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Message vendor on WhatsApp"
+          accessibilityState={{ disabled: !hasPhone }}
+          className="min-w-11 min-h-11 items-center justify-center"
+          style={{ opacity: hasPhone ? 1 : 0.4 }}
+          onPress={whatsAppVendor}
+        >
+          <MessageCircle size={18} color="#25D366" />
         </Pressable>
         <Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={onActions}>
           <MoreVertical size={20} className="text-muted-foreground" />

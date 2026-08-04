@@ -1,12 +1,13 @@
 import { Platform, Share } from "react-native";
 import * as Linking from "expo-linking";
-import { buildVendorProfilePath } from "@/services/contactActions";
+import { buildVendorProfilePath, buildVendorProfilePathBySlug } from "@/services/contactActions";
 
 export type VendorShareInput = {
   vendorId: string;
   vendorName: string;
   category?: string | null;
   location?: string | null;
+  slug?: string | null;
 };
 
 export type VendorShareResult = "shared" | "copied" | "dismissed";
@@ -17,11 +18,14 @@ function configuredWebBase() {
   return /^https?:\/\//i.test(value) ? value.replace(/\/$/, "") : "";
 }
 
-export function buildVendorProfileUrl(input: Pick<VendorShareInput, "vendorId" | "category">) {
-  const path = buildVendorProfilePath(input.vendorId, input.category);
+export function buildVendorProfileUrl(input: Pick<VendorShareInput, "vendorId" | "category" | "slug">) {
+  const path = input.slug?.trim()
+    ? buildVendorProfilePathBySlug(input.slug.trim())
+    : buildVendorProfilePath(input.vendorId, input.category);
   const configured = configuredWebBase();
   if (configured) return `${configured}${path}`;
   if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin) return `${window.location.origin}${path}`;
+  if (input.slug?.trim()) return Linking.createURL(`/vendors/${input.slug.trim()}`);
   return Linking.createURL("/VendorsProfile", { queryParams: { vendorId: input.vendorId, ...(input.category?.trim() ? { category: input.category.trim() } : {}) } });
 }
 

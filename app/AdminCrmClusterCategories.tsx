@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft } from "lucide-react-native";
+import { ArrowLeft, Users } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/ui/AdminState";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
@@ -69,6 +69,14 @@ export default function AdminCrmClusterCategories() {
           <Text className="text-foreground text-xl font-bold" numberOfLines={1}>{clusterName || "Categories"}</Text>
           <Text className="text-muted-foreground text-xs" numberOfLines={1}>{totalVendors} vendors across categories</Text>
         </View>
+        <Pressable
+          accessibilityLabel="Create field workspace"
+          className="min-h-11 px-3 rounded-full bg-primary items-center justify-center flex-row"
+          onPress={() => router.push({ pathname: "/AdminCrmCreateWorkspace", params: { clusterId: clusterId ?? "", clusterName: clusterName ?? "" } })}
+        >
+          <Users size={16} color="#FFFFFF" />
+          <Text className="text-white text-xs font-bold ml-1.5">Create Workspace</Text>
+        </Pressable>
       </ResponsiveContainer>
 
       <ScrollView

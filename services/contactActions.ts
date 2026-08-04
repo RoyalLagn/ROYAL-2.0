@@ -10,3 +10,7 @@ export function buildVendorProfilePath(vendorId: string, category?: string | nul
   if (category?.trim()) entries.push(`category=${encodeURIComponent(category.trim())}`);
   return `/VendorsProfile?${entries.join("&")}`;
 }
+
+export function buildVendorProfilePathBySlug(slug: string) {
+  return `/vendors/${encodeURIComponent(slug)}`;
+}

@@ -17,14 +17,28 @@ export type PublicVendorAvailability = {
   status: "available" | "tentative" | "blocked";
 };
 
+export type VendorBusinessHourEntry = {
+  day: number;
+  opens: string;
+  closes: string;
+  closed: boolean;
+};
+
+export type VendorFaq = {
+  question: string;
+  answer: string;
+};
+
 export type PublicVendorListing = {
   id: string;
   name: string;
+  slug: string;
   category: string;
   rating: number;
   reviews: number;
   priceLevel: string;
   location: string;
+  address: string;
   tags: string[];
   services: string[];
   startingPrice: string;
@@ -46,21 +60,35 @@ export type PublicVendorListing = {
   primaryCityId: string | null;
   primaryAreaId: string | null;
   serviceLocations: VendorServiceLocation[];
+  managementStatus: string;
+  publicProfileEnabled: boolean;
+  awards: string[];
+  languages: string[];
+  businessHours: VendorBusinessHourEntry[] | null;
+  faqs: VendorFaq[];
 };
 
 const PUBLIC_VENDOR_LIST_SELECT = `
   id,
   business_name,
   description,
+  address,
   city,
   state,
   logo_url,
   tags,
   is_verified,
   is_featured,
+  slug,
+  management_status,
+  public_profile_enabled,
+  awards,
+  languages,
+  business_hours,
   categories(name),
   vendor_services(title,price,discounted_price,is_active,status,display_order),
-  vendor_availability(date,status)
+  vendor_availability(date,status),
+  vendor_faqs(question,answer,display_order)
 `;
 
 const PUBLIC_VENDOR_LOCATION_SELECT = `
@@ -230,14 +258,21 @@ function normalizeVendor(
     ? [primaryLocation.areaName, primaryLocation.cityName, primaryLocation.state].filter(Boolean).join(", ")
     : [row.city, row.state].filter(Boolean).join(", ");
 
+  const faqs: VendorFaq[] = (row.vendor_faqs ?? [])
+    .slice()
+    .sort((a: any, b: any) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0))
+    .map((faq: any) => ({ question: faq.question, answer: faq.answer }));
+
   return {
     id: row.id,
     name: row.business_name,
+    slug: row.slug ?? "",
     category,
     rating: reviewSummary?.average_rating ?? 0,
     reviews: reviewSummary?.review_count ?? 0,
     priceLevel: "₹ ₹",
     location,
+    address: row.address?.trim() || "",
     tags: Array.isArray(row.tags) ? row.tags : [],
     services: activeServices.map((service: any) => service.title).filter(Boolean),
     startingPrice: startingPriceValue
@@ -261,6 +296,12 @@ function normalizeVendor(
     primaryCityId: primaryLocation?.cityId ?? row.primary_city_id ?? null,
     primaryAreaId: primaryLocation?.areaId ?? row.primary_area_id ?? null,
     serviceLocations,
+    managementStatus: row.management_status ?? "active",
+    publicProfileEnabled: row.public_profile_enabled !== false,
+    awards: Array.isArray(row.awards) ? row.awards : [],
+    languages: Array.isArray(row.languages) ? row.languages : [],
+    businessHours: Array.isArray(row.business_hours) ? row.business_hours : null,
+    faqs,
   };
 }
 
@@ -365,6 +406,33 @@ export async function getApprovedPublicVendorById(
   }
   if (error) throw error;
   return data ? normalizeVendor(data, reviewSummaries[vendorId]) : null;
+}
+
+export async function getApprovedPublicVendorBySlug(
+  slug: string,
+): Promise<PublicVendorListing | null> {
+  const primaryResult = await supabase
+    .from("vendors")
+    .select(PUBLIC_VENDOR_DETAIL_SELECT)
+    .eq("slug", slug)
+    .eq("is_verified", true)
+    .maybeSingle();
+  let data: any = primaryResult.data;
+  let error: any = primaryResult.error;
+  if (canUseLegacyVendorQuery(error)) {
+    const legacy = await supabase
+      .from("vendors")
+      .select(PUBLIC_VENDOR_DETAIL_SELECT.replace(PUBLIC_VENDOR_LOCATION_SELECT, PUBLIC_VENDOR_LIST_SELECT))
+      .eq("slug", slug)
+      .eq("is_verified", true)
+      .maybeSingle();
+    data = legacy.data;
+    error = legacy.error;
+  }
+  if (error) throw error;
+  if (!data) return null;
+  const reviewSummaries = await listReviewSummaries([data.id]).catch(() => ({}));
+  return normalizeVendor(data, reviewSummaries[data.id]);
 }
 
 export function subscribeToPublicVendorChanges(onChange: () => void) {
