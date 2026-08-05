@@ -82,8 +82,7 @@ export default function FavoriteFlyOverlay({
   return (
     <Animated.View
       pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      aria-hidden
       style={[styles.heart, animatedStyle]}
     >
       <AnimatedHeart size={24} color={PINK} fill={PINK} strokeWidth={1.7} />

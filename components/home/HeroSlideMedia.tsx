@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Image, Platform, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Image, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 /**
@@ -124,13 +124,9 @@ export default function HeroSlideMedia({
         // blurRadius is the one blur API that exists on web, iOS and Android alike,
         // so the wash renders identically everywhere (a CSS `filter` would be web-only).
         blurRadius={24}
-        // RN-web forwards these two straight to the DOM and React warns; it wants aria-hidden.
-        {...(Platform.OS === "web"
-          ? { "aria-hidden": true }
-          : {
-              accessibilityElementsHidden: true,
-              importantForAccessibility: "no-hide-descendants" as const,
-            })}
+        // aria-hidden maps to accessibilityElementsHidden/importantForAccessibility
+        // on native and to the DOM attribute on web, so one prop covers both.
+        aria-hidden
         style={[styles.layer, styles.background, styles.transparentImage]}
       />
       <LinearGradient

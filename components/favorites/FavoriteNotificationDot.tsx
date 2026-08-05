@@ -49,8 +49,7 @@ export default function FavoriteNotificationDot({
   return (
     <Animated.View
       pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no"
+      aria-hidden
       style={[styles.dot, animatedStyle]}
     />
   );

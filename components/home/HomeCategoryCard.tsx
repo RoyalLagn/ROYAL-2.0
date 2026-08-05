@@ -42,7 +42,7 @@ type HomeCategoryCardProps = {
 
 function Sparkle({ color, size }: { color: string; size: number }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityElementsHidden>
+    <Svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
       <Path
         d="M12 1.2L13.85 10.15L22.8 12L13.85 13.85L12 22.8L10.15 13.85L1.2 12L10.15 10.15L12 1.2Z"
         fill={color}

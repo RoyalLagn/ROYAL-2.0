@@ -40,10 +40,11 @@ export const PushTokenService = {
     const token = tokenResponse.data?.trim();
     if (!token) return null;
 
+    // Platform.OS is typed without "web" in the native RN types, but
+    // react-native-web reports "web" at runtime, so widen before comparing.
+    const os = Platform.OS as string;
     const platform =
-      Platform.OS === "ios" || Platform.OS === "android" || Platform.OS === "web"
-        ? Platform.OS
-        : "unknown";
+      os === "ios" || os === "android" || os === "web" ? os : "unknown";
 
     const { error } = await supabase.from("push_tokens").upsert(
       {

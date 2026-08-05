@@ -103,7 +103,7 @@ export function VendorCardSkeleton({ width = 168, imageHeight = 114 }: { width?:
 /** A row of VendorCardSkeletons for horizontal vendor rails. */
 export function VendorCardSkeletonRow({ count = 3, width = 168, imageHeight = 114, gap = 10 }: { count?: number; width?: number; imageHeight?: number; gap?: number }) {
   return (
-    <View style={[styles.row, { gap }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    <View style={[styles.row, { gap }]} aria-hidden>
       {Array.from({ length: count }).map((_, index) => (
         <VendorCardSkeleton key={index} width={width} imageHeight={imageHeight} />
       ))}
