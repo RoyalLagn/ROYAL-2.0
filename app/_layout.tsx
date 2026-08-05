@@ -22,6 +22,11 @@ import { AdminWorkspaceShell } from '@/components/admin/AdminWorkspaceShell';
 import PushTokenRegistrar from '@/components/notifications/PushTokenRegistrar';
 import { SCREEN_TRANSITION } from '@/utils/motion';
 import { useWebNavigationFocusSafety } from '@/hooks/useWebNavigationFocusSafety';
+import { installWebAlert } from '@/utils/webAlert';
+
+// react-native-web leaves Alert unimplemented, which silences every
+// Alert.alert in the app on web. Supply it before any screen renders.
+installWebAlert();
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
