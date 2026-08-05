@@ -1,11 +1,20 @@
 import React from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { SkeletonBone, SkeletonLines } from "@/components/loading/Skeleton";
 
 export function DashboardSkeleton() {
+  // Content-shaped placeholder instead of a bare spinner -- most dashboard
+  // widgets render either a small stat row or a short list, so a stat-tile
+  // row plus a couple of text lines reads plausibly for either without
+  // needing a bespoke skeleton per widget.
   return (
-    <View className="bg-card border border-border rounded-2xl p-5 items-center">
-      <ActivityIndicator color="#E91E63" />
-      <Text className="text-muted-foreground text-sm mt-3">Loading live data…</Text>
+    <View className="gap-3">
+      <View className="flex-row gap-2">
+        <SkeletonBone width={64} height={44} radius={12} />
+        <SkeletonBone width={64} height={44} radius={12} />
+        <SkeletonBone width={64} height={44} radius={12} />
+      </View>
+      <SkeletonLines lines={2} lastLineWidth="50%" />
     </View>
   );
 }

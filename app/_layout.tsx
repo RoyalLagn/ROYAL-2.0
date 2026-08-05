@@ -19,6 +19,8 @@ import { CategoryProvider } from '@/context/CategoryContext';
 import { SubscriptionProvider } from '@/context/SubscriptionContext';
 import { VendorNotificationProvider } from '@/context/VendorNotificationContext';
 import { AdminWorkspaceShell } from '@/components/admin/AdminWorkspaceShell';
+import { SCREEN_TRANSITION } from '@/utils/motion';
+import { useWebNavigationFocusSafety } from '@/hooks/useWebNavigationFocusSafety';
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
@@ -58,9 +60,15 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+function WebNavigationFocusSafety() {
+  useWebNavigationFocusSafety();
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <ErrorBoundary>
+      <WebNavigationFocusSafety />
       <PublicAuthProvider>
           <CategoryProvider>
             <AdminAuthProvider>
@@ -79,7 +87,14 @@ export default function RootLayout() {
                                     <AdminWorkspaceShell>
                                       <View style={styles.stack}>
                                         <AdminRouteGuard>
-                                          <Stack screenOptions={{ headerShown: false }} />
+                                          {/* A single, app-wide transition preset instead of
+                                              per-screen configuration -- see utils/motion.ts
+                                              for why `fade_from_bottom` (soft fade + small
+                                              upward settle, native-driven) was chosen over a
+                                              custom reanimated screen wrapper. Every one of the
+                                              ~90 screens under app/ inherits this automatically;
+                                              back navigation reverses it natively. */}
+                                          <Stack screenOptions={{ headerShown: false, animation: SCREEN_TRANSITION }} />
                                         </AdminRouteGuard>
                                       </View>
                                     </AdminWorkspaceShell>

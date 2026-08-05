@@ -9,6 +9,7 @@ import { useVendorPackages } from "@/hooks/useVendorPackages";
 import PackageEditorModal from "@/components/packages/PackageEditorModal";
 import PackageDisplayCard, { packagePriceLabel } from "@/components/packages/PackageDisplayCard";
 import { VendorPackageService, type VendorPackage, type VendorPackageInput, type VendorPackageStatus } from "@/services/vendorPackages";
+import { SkeletonBone, SkeletonLines } from "@/components/loading/Skeleton";
 
 export default function VendorServices() {
   const { colorScheme } = useAppTheme();
@@ -71,7 +72,18 @@ export default function VendorServices() {
       <View style={styles.heading}><View style={styles.flex}><Text style={[styles.eyebrow, { color: colors.pink }]}>DIGITAL PACKAGES</Text><Text style={[styles.title, { color: colors.text }]}>Packages & pricing</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Create clear packages, publish the ones customers can book and keep drafts private.</Text></View><Pressable disabled={!vendorId} onPress={() => openEditor()} style={[styles.primary, { backgroundColor: colors.pink }, !vendorId && styles.disabled]}><PackagePlus size={18} color="#FFF" /><Text style={styles.primaryText}>New package</Text></Pressable></View>
       <View style={styles.summary}><Summary label="Total" value={packages.length} colors={colors} /><Summary label="Active" value={packages.filter((item) => item.status === "active").length} colors={colors} /><Summary label="Drafts" value={packages.filter((item) => item.status === "draft").length} colors={colors} /><Pressable accessibilityLabel="Refresh packages" onPress={() => void refresh()} style={[styles.refresh, { backgroundColor: colors.surface, borderColor: colors.border }]}><RefreshCw size={17} color={colors.pink} /></Pressable></View>
 
-      {loading ? <ActivityIndicator color={colors.pink} style={styles.loading} /> : null}
+      {loading ? <View style={{ gap: 10 }}>{[0, 1, 2].map((index) => (
+        <View key={index} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <SkeletonBone width={43} height={43} radius={14} />
+          <View style={styles.flex}>
+            <SkeletonLines lines={2} gap={7} lastLineWidth="70%" />
+            <View style={{ flexDirection: "row", gap: 6, marginTop: 11 }}>
+              <SkeletonBone width={70} height={20} radius={11} />
+              <SkeletonBone width={70} height={20} radius={11} />
+            </View>
+          </View>
+        </View>
+      ))}</View> : null}
       {!loading && error ? <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.emptyTitle, { color: colors.text }]}>Packages unavailable</Text><Text style={[styles.emptyText, { color: colors.muted }]}>{error}</Text><Pressable onPress={() => void refresh()} style={[styles.retry, { backgroundColor: colors.pink }]}><Text style={styles.primaryText}>Try again</Text></Pressable></View> : null}
       {!loading && !error && !packages.length ? <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><PackagePlus size={31} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.text }]}>Create your first package</Text><Text style={[styles.emptyText, { color: colors.muted }]}>Add pricing, coverage and included services once, then customers can enquire about that exact package.</Text><Pressable onPress={() => openEditor()} style={[styles.retry, { backgroundColor: colors.pink }]}><Text style={styles.primaryText}>Create package</Text></Pressable></View> : null}
 

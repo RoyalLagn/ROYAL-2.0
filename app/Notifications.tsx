@@ -10,7 +10,7 @@ import {
   WalletCards,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { AuthBackButton } from "@/components/auth/AuthBackButton";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -19,6 +19,7 @@ import {
   type RoyalLagnNotification,
   useNotifications,
 } from "@/context/NotificationContext";
+import { SkeletonList } from "@/components/loading/Skeleton";
 
 const notificationIcons: Record<NotificationType, React.ElementType> = {
   vendor_approval: BadgeCheck,
@@ -119,9 +120,8 @@ export default function NotificationsScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.empty}>
-          <ActivityIndicator size="large" color="#E91E63" />
-          <Text className="text-muted-foreground text-sm mt-3">Loading notifications…</Text>
+        <View style={{ padding: 16 }}>
+          <SkeletonList count={6} height={76} />
         </View>
       ) : !notifications.length ? (
         <View style={styles.empty}>

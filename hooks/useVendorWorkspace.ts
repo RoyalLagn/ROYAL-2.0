@@ -3,6 +3,15 @@ import { supabase } from "@/services/supabase";
 import { useVendorSession } from "@/context/VendorSessionContext";
 
 export type CompletionState = "complete" | "partial" | "missing" | "attention";
+// Single source of truth for how each CompletionState reads in the UI, so
+// the readiness checklist and every section form's own status badge always
+// show the same words for the same state.
+export const VendorReadinessLabels: Record<CompletionState, string> = {
+  complete: "Complete",
+  partial: "In progress",
+  missing: "Add details",
+  attention: "Needs attention",
+};
 export type CompletionItem = {
   id: string;
   label: string;
@@ -30,27 +39,90 @@ const emptyWorkspace: VendorWorkspace = {
 
 const hasText = (value?: string | null) => Boolean(value?.trim());
 
+// Centralized per-section readiness rules. Both the readiness checklist
+// (below) and each dedicated section form import these so the checklist
+// card and the form it opens can never disagree about what "complete"
+// means for that section. Keep every rule here -- do not re-derive
+// completion inline in a screen.
+export const VendorReadinessRules = {
+  businessInfo(vendor: any | null): CompletionState {
+    const v = vendor ?? {};
+    if (!hasText(v.business_name)) return "missing";
+    if (!hasText(v.owner_name) || !v.category_id) return "partial";
+    return "complete";
+  },
+  about(vendor: any | null): CompletionState {
+    const v = vendor ?? {};
+    if (!hasText(v.description)) return "missing";
+    if (v.description.trim().length < 80 || v.experience == null) return "partial";
+    return "complete";
+  },
+  location(vendor: any | null): CompletionState {
+    const v = vendor ?? {};
+    const hasPincode = /^[1-9][0-9]{5}$/.test(v.pincode ?? "");
+    const hasCity = Boolean(v.primary_city_id || hasText(v.city));
+    const hasArea = Boolean(v.primary_area_id);
+    const score = [hasPincode, hasCity, hasArea].filter(Boolean).length;
+    if (score === 0) return "missing";
+    if (score < 3) return "partial";
+    return "complete";
+  },
+  contact(vendor: any | null): CompletionState {
+    const v = vendor ?? {};
+    const hasPrimary = hasText(v.contact_email) || hasText(v.contact_phone);
+    const hasBonus = hasText(v.website) || hasText(v.instagram) || hasText(v.facebook);
+    if (hasPrimary) return "complete";
+    if (hasBonus) return "partial";
+    return "missing";
+  },
+  brand(vendor: any | null): CompletionState {
+    return hasText(vendor?.logo_url) ? "complete" : "missing";
+  },
+  services(services: any[]): CompletionState {
+    if (!services.length) return "missing";
+    return services.some((service) => service.status === "active") ? "complete" : "partial";
+  },
+  pricing(services: any[]): CompletionState {
+    const active = services.filter((service) => service.status === "active");
+    if (!active.length) return "missing";
+    const priced = active.some((service) => service.price_type !== "contact" && Number(service.price) > 0);
+    return priced ? "complete" : "partial";
+  },
+  portfolio(albums: any[], media: any[]): CompletionState {
+    if (!media.length) return "missing";
+    return media.length >= 6 && albums.length >= 1 ? "complete" : "partial";
+  },
+  availability(vendor: any | null, availability: any[]): CompletionState {
+    const v = vendor ?? {};
+    const hasHours = Array.isArray(v.business_hours) && v.business_hours.some((entry: any) => !entry?.closed);
+    const hasDates = availability.length >= 3;
+    if (!hasHours && !availability.length) return "attention";
+    if (hasHours && hasDates) return "complete";
+    return "partial";
+  },
+  tags(vendor: any | null): CompletionState {
+    const count = vendor?.tags?.length ?? 0;
+    if (!count) return "missing";
+    return count >= 3 ? "complete" : "partial";
+  },
+};
+
 export function calculateVendorCompletion(data: VendorWorkspace) {
   const v = data.vendor ?? {};
-  const hasLocation = [v.address, v.city, v.state].filter(hasText).length;
-  const hasContact = hasText(v.contact_email) || hasText(v.contact_phone);
-  const pricedServices = data.services.filter((service) => Number(service.price) > 0);
-  const albumMedia = data.media.length;
-  const upcomingAvailability = data.availability.length;
 
   const items: CompletionItem[] = [
-    { id: "business", label: "Business information", state: hasText(v.business_name) && v.category_id ? "complete" : hasText(v.business_name) ? "partial" : "missing", route: "/VendorEditProfile" },
-    { id: "about", label: "About the business", state: hasText(v.description) && v.description.trim().length >= 80 ? "complete" : hasText(v.description) ? "partial" : "missing", route: "/VendorEditProfile" },
-    { id: "location", label: "Location", state: hasLocation >= 3 ? "complete" : hasLocation ? "partial" : "missing", route: "/VendorEditProfile" },
-    { id: "contact", label: "Contact information", state: hasContact ? "complete" : "missing", route: "/VendorEditProfile" },
-    { id: "identity", label: "Logo and brand", state: hasText(v.logo_url) ? "complete" : "missing", route: "/VendorEditProfile" },
-    { id: "services", label: "Services", state: data.services.length >= 2 ? "complete" : data.services.length ? "partial" : "missing", route: "/VendorServices" },
-    { id: "pricing", label: "Pricing and packages", state: pricedServices.length >= 2 ? "complete" : pricedServices.length ? "partial" : "missing", route: "/VendorServices" },
-    { id: "portfolio", label: "Portfolio albums", state: albumMedia >= 6 && data.albums.length >= 1 ? "complete" : albumMedia ? "partial" : "missing", route: "/VendorGallery" },
-    { id: "availability", label: "Availability", state: upcomingAvailability >= 3 ? "complete" : upcomingAvailability ? "partial" : "attention", route: "/VendorCalendar" },
-    { id: "tags", label: "Search tags", state: (v.tags?.length ?? 0) >= 3 ? "complete" : (v.tags?.length ?? 0) ? "partial" : "missing", route: "/VendorEditProfile" },
+    { id: "business", label: "Business information", state: VendorReadinessRules.businessInfo(v), route: "/VendorEditBusinessInfo" },
+    { id: "about", label: "About the business", state: VendorReadinessRules.about(v), route: "/VendorEditAbout" },
+    { id: "location", label: "Location", state: VendorReadinessRules.location(v), route: "/VendorEditLocation" },
+    { id: "contact", label: "Contact information", state: VendorReadinessRules.contact(v), route: "/VendorEditContact" },
+    { id: "identity", label: "Logo and brand", state: VendorReadinessRules.brand(v), route: "/VendorEditBrand" },
+    { id: "services", label: "Services", state: VendorReadinessRules.services(data.services), route: "/VendorServices" },
+    { id: "pricing", label: "Pricing and packages", state: VendorReadinessRules.pricing(data.services), route: "/VendorServices" },
+    { id: "portfolio", label: "Portfolio albums", state: VendorReadinessRules.portfolio(data.albums, data.media), route: "/VendorGallery" },
+    { id: "availability", label: "Availability", state: VendorReadinessRules.availability(v, data.availability), route: "/VendorCalendar" },
+    { id: "tags", label: "Search tags", state: VendorReadinessRules.tags(v), route: "/VendorEditTags" },
   ];
-  const weights = { complete: 1, partial: 0.5, missing: 0, attention: 0.25 };
+  const weights: Record<CompletionState, number> = { complete: 1, partial: 0.5, missing: 0, attention: 0.25 };
   const percent = Math.round(items.reduce((sum, item) => sum + weights[item.state], 0) / items.length * 100);
   return { items, percent };
 }
@@ -65,19 +137,28 @@ export function useVendorWorkspace() {
   const realtimeInstanceId = useRef(
     `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   );
+  const mounted = useRef(true);
+  const requestId = useRef(0);
+
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const refresh = useCallback(async () => {
     void workspaceEpoch;
+    const thisRequest = ++requestId.current;
+    const isCurrent = () => mounted.current && requestId.current === thisRequest;
     setLoading(true);
     setError(null);
     setPortfolioError(null);
     if (isPreviewMode) {
-      setData(emptyWorkspace);
-      setLoading(false);
+      if (isCurrent()) {
+        setData(emptyWorkspace);
+        setLoading(false);
+      }
       return;
     }
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      if (!isCurrent()) return;
       if (!user) {
         setData(emptyWorkspace);
         setError("Your Vendor session has expired. Sign in again to edit the live business profile.");
@@ -85,12 +166,14 @@ export function useVendorWorkspace() {
       }
       let { data: vendor, error: vendorError } = await supabase
         .from("vendors").select("*, categories(name)").eq("profile_id", user.id).maybeSingle();
+      if (!isCurrent()) return;
       if (vendorError) throw vendorError;
       if (!vendor) {
         // An approved application can predate the authenticated workspace
         // link. Claim it on first entry so deep-linked Vendor pages become
         // usable instead of rendering an empty, unsavable editor.
         const { error: claimError } = await supabase.rpc("claim_vendor_workspace");
+        if (!isCurrent()) return;
         if (claimError) {
           throw new Error(
             /no matching vendor application/i.test(claimError.message)
@@ -100,11 +183,12 @@ export function useVendorWorkspace() {
         }
         const claimed = await supabase
           .from("vendors").select("*, categories(name)").eq("profile_id", user.id).maybeSingle();
+        if (!isCurrent()) return;
         if (claimed.error) throw claimed.error;
         vendor = claimed.data;
         if (!vendor) throw new Error("Your Vendor business could not be activated. Please sign in again.");
       }
-      setData({ ...emptyWorkspace, vendor });
+      if (isCurrent()) setData({ ...emptyWorkspace, vendor });
       const today = new Date().toISOString().slice(0, 10);
       const [albums, media, heroMedia, availability, enquiries, notifications, reviews, services, subscription] = await Promise.all([
         supabase.from("vendor_portfolio_albums").select("*").eq("vendor_id", vendor.id).order("display_order"),
@@ -117,6 +201,7 @@ export function useVendorWorkspace() {
         supabase.from("vendor_services").select("*").eq("vendor_id", vendor.id).order("display_order").order("created_at"),
         supabase.from("subscriptions").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
+      if (!isCurrent()) return;
       // Album, availability, enquiry and notification tables are additive. Keep
       // the existing Vendor UI usable while a deployment is still applying the
       // new migration instead of failing the whole workspace.
@@ -143,13 +228,13 @@ export function useVendorWorkspace() {
         subscription: subscription.data ?? null,
       });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to load your vendor workspace.");
+      if (isCurrent()) setError(caught instanceof Error ? caught.message : "Unable to load your vendor workspace.");
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, [isPreviewMode, workspaceEpoch]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh]);
 
   useEffect(() => {
     const vendorId = data.vendor?.id;

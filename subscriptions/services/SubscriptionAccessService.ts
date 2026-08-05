@@ -39,9 +39,20 @@ function mapPlan(row: any): SubscriptionPlan {
 
 export class SubscriptionAccessService {
   static async getCurrentAccess(): Promise<SubscriptionAccess | null> {
+    // Guard against calling the RPC without a session: it's revoked from
+    // `anon` and always 401s for a signed-out/not-yet-restored caller. Avoid
+    // the round trip entirely rather than surface a spurious auth error.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return null;
     const { data, error } = await supabase.rpc("get_my_subscription_access");
     if (error) {
       if (/does not exist|schema cache|PGRST202/i.test(error.message)) return null;
+      // A 401/expired-JWT here means the session lapsed between the check
+      // above and the request landing; treat it as "no access" rather than
+      // throwing, since retrying is handled by the caller's own refresh.
+      if (/PGRST301|JWT|401/i.test(error.message ?? "") || (error as { status?: number }).status === 401) {
+        return null;
+      }
       throw error;
     }
     return (Array.isArray(data) ? data[0] : data) as SubscriptionAccess | null;

@@ -2,7 +2,6 @@ import React from "react";
 import {
   type ImageURISource,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -10,6 +9,7 @@ import {
 import { Crown, MapPin, Star } from "lucide-react-native";
 import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
 import SafeImage from "@/components/SafeImage";
+import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
@@ -49,7 +49,7 @@ function VendorListingCard({
 
   return (
     <View style={[styles.card, compact ? styles.cardCompact : styles.cardWide, { backgroundColor: surface, borderColor: border }]}>
-      <Pressable
+      <AnimatedPressable
         accessibilityRole="button"
         accessibilityLabel={`Open ${vendor.name}`}
         onPress={onOpen}
@@ -95,7 +95,7 @@ function VendorListingCard({
             <Text numberOfLines={1} style={styles.priceText}>Starts from {vendor.startingPrice}</Text>
           </View>
         </View>
-      </Pressable>
+      </AnimatedPressable>
 
       <FavoriteHeartButton
         favorite={favorite}

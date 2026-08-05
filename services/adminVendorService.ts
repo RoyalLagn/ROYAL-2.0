@@ -15,6 +15,7 @@ const inFlight = new Map<string, Promise<{ rows: AdminVendorRecord[]; total: num
 const CACHE_MS = 20_000;
 const healthCache = new Map<string, { at: number; data: Record<string, VendorHealthMetrics> }>();
 let channelSequence = 0;
+let exportInFlight: Promise<void> | null = null;
 
 const cacheKey = (filters: VendorFilters) => JSON.stringify(filters);
 const today = () => {
@@ -294,16 +295,77 @@ export const AdminVendorService = {
     await Share.share({ title: "RoyalLagn Vendors CSV", message: csv });
   },
 
-  async exportFiltered(filters: VendorFilters) {
-    const rows: AdminVendorRecord[] = [];
-    let page = 1;
-    let total = 0;
-    do {
-      const result = await this.list({ ...filters, page, pageSize: 100 }, true);
-      rows.push(...result.rows);
-      total = result.total;
-      page += 1;
-    } while (rows.length < total);
-    await this.exportCsv(rows);
+  async exportFiltered(
+    filters: VendorFilters,
+    options?: { onProgress?: (loaded: number, total: number) => void; isCancelled?: () => boolean },
+  ) {
+    // Re-entrancy guard: a double-click (or the admin re-opening this
+    // screen while an export from the previous mount is still paginating)
+    // reuses the in-flight export instead of starting a second one that
+    // races the first and could produce two downloads.
+    if (exportInFlight) return exportInFlight;
+    const run = (async () => {
+      const pageSize = 100;
+      // A dataset that changes mid-export (vendors added/removed, a flaky
+      // RPC repeating a page) can make `rows.length < total` never
+      // resolve. Bound the loop with a hard page ceiling as a last-resort
+      // circuit breaker so the admin's browser can never spin forever --
+      // 500 pages x 100 rows covers 50,000 vendors, far beyond any
+      // realistic export.
+      const MAX_PAGES = 500;
+      const seen = new Set<string>();
+      const rows: AdminVendorRecord[] = [];
+      let page = 1;
+      let previousTotal: number | null = null;
+      let stagnantPages = 0;
+
+      while (page <= MAX_PAGES) {
+        if (options?.isCancelled?.()) break;
+        const result = await this.list({ ...filters, page, pageSize }, true);
+        const pageRows = result.rows ?? [];
+
+        // The server has nothing further to give us -- the definitive
+        // termination signal, independent of a possibly-shifting `total`.
+        if (pageRows.length === 0) break;
+
+        let addedThisPage = 0;
+        for (const row of pageRows) {
+          const id = String(row.vendor_id ?? row.record_id ?? "");
+          if (!id || seen.has(id)) continue;
+          seen.add(id);
+          rows.push(row);
+          addedThisPage += 1;
+        }
+        options?.onProgress?.(rows.length, result.total);
+
+        // A page that contributed nothing new means the offset/dataset
+        // isn't advancing (a flaky RPC repeating the same page, or rows
+        // shifting under offset pagination while records are added or
+        // removed mid-export). Stop after two stagnant pages instead of
+        // looping until MAX_PAGES.
+        if (addedThisPage === 0) {
+          stagnantPages += 1;
+          if (stagnantPages >= 2) break;
+        } else {
+          stagnantPages = 0;
+        }
+
+        // Fewer rows than requested means this was the last page.
+        if (pageRows.length < pageSize) break;
+
+        // `total` is treated as informational, not authoritative (the
+        // dataset can change mid-export) -- but once it has stopped
+        // moving and we've covered it, we're done.
+        if (previousTotal !== null && result.total === previousTotal && rows.length >= result.total) break;
+        previousTotal = result.total;
+
+        page += 1;
+      }
+
+      if (!options?.isCancelled?.()) await this.exportCsv(rows);
+      return rows.length;
+    })();
+    exportInFlight = run.then(() => undefined).finally(() => { exportInFlight = null; });
+    return exportInFlight;
   },
 };

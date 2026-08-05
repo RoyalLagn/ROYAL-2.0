@@ -70,9 +70,31 @@ export const ClipUploadOrchestrator = {
     const ensureActive = () => {
       if (shouldCancel()) throw new ClipModuleError("UPLOAD_ERROR", "Upload cancelled.");
     };
+    // Tracked so the catch block below can release the reservation (a
+    // no-op once finalize_clip_upload() has already completed it) if any
+    // later stage -- compression, thumbnail generation, the Cloudinary
+    // upload itself -- throws. Without this a failed upload after a
+    // successful reservation would otherwise hold the slot until its
+    // 15 minute expiry even though no Clip was created.
+    let reservationId: string | undefined;
+    const releaseReservation = async (id: string | undefined) => {
+      if (!id) return;
+      await Promise.resolve(supabase.rpc("cancel_clip_upload_reservation", { target_reservation_id: id })).catch(() => undefined);
+    };
     try {
       ensureActive();
       let stageStartedAt = Date.now();
+      // The per-plan Clip limit is enforced atomically in the database via
+      // reserve_clip_upload_slot() (see
+      // supabase/migrations/20260805120000_atomic_clip_upload_reservations.sql).
+      // A separate client-side "select count(*) ... then insert" is no
+      // longer used here because it cannot be made race-free: two
+      // concurrent uploads (two tabs, an automatic retry racing the
+      // original) could both read a count under the limit before either
+      // committed. The RPC below serializes that check per vendor with a
+      // Postgres advisory lock and is the sole source of truth; the
+      // client-configured limit resolver is kept only for the queue's
+      // fast, optimistic pre-flight UI check.
       ClipLogger.uploadDebug(uploadId, "LIMITS", "START");
       ClipLogger.info("upload", "Validating upload limits", { queueId: item.id });
       const limitsStartedAt = Date.now();
@@ -84,36 +106,40 @@ export const ClipUploadOrchestrator = {
         elapsedMs: Date.now() - stageStartedAt,
         maximumClips: limits.maximumClips,
       });
+
       stageStartedAt = Date.now();
-      ClipLogger.uploadDebug(uploadId, "CLIP_COUNT", "START", {
-        table: "clips", operation: "select/count",
-      });
-      const countStartedAt = Date.now();
-      const countController = new AbortController();
-      ClipLogger.info("database", "Supabase operation started", {
-        table: "clips", operation: "select/count", queueId: item.id,
-      });
-      const countRequest = supabase.from("clips").select("id", { count: "exact", head: true })
-        .eq("vendor_id", draft.vendorId).is("deleted_at", null)
-        .abortSignal(countController.signal);
-      const { count, error: countError } = await withTimeout<Awaited<typeof countRequest>>(
-        "Checking current Clip count",
-        countRequest,
-        () => countController.abort(),
+      ClipLogger.uploadDebug(uploadId, "RESERVE_SLOT", "START", { queueId: item.id });
+      ClipLogger.info("database", "Reserving Clip upload slot", { queueId: item.id, vendorId: draft.vendorId });
+      // The queue item id is stable across retries of the same queued
+      // upload (see ClipQueueService), so retries and double-taps that
+      // produce the same queue item reuse this reservation instead of
+      // consuming a second slot.
+      const idempotencyKey = uploadId;
+      const { data: reservationRows, error: reservationError } = await withTimeout(
+        "Reserving Clip upload slot",
+        supabase.rpc("reserve_clip_upload_slot", {
+          target_vendor_id: draft.vendorId,
+          request_idempotency_key: idempotencyKey,
+        }),
       );
-      ClipLogger.info("database", "Supabase operation completed", {
-        table: "clips", operation: "select/count", queueId: item.id,
-        data: { count }, error: countError?.message ?? null,
-        elapsedMs: Date.now() - countStartedAt,
+      ClipLogger.uploadDebug(uploadId, "RESERVE_SLOT", reservationError ? "ERROR" : "DONE", {
+        elapsedMs: Date.now() - stageStartedAt,
+        error: reservationError ?? null,
       });
-      ClipLogger.uploadDebug(uploadId, "CLIP_COUNT", "DONE", {
-        table: "clips", operation: "select/count", count,
-        error: countError ?? null, elapsedMs: Date.now() - stageStartedAt,
-      });
-      if (countError) throw new ClipModuleError("DATABASE_ERROR", countError.message, true, countError);
-      if ((count ?? 0) >= limits.maximumClips) {
-        throw new ClipModuleError("LIMIT_EXCEEDED", `You've reached your limit of ${limits.maximumClips} clips.`);
+      if (reservationError) {
+        if (reservationError.hint === "LIMIT_REACHED" || reservationError.code === "P0001") {
+          throw new ClipModuleError("LIMIT_EXCEEDED", `You've reached your limit of ${limits.maximumClips} clips.`);
+        }
+        if (reservationError.hint === "SUBSCRIPTION_REQUIRED") {
+          throw new ClipModuleError("PERMISSION_ERROR", "An active subscription is required to upload Clips.");
+        }
+        throw new ClipModuleError("DATABASE_ERROR", reservationError.message, true, reservationError);
       }
+      const reservation = Array.isArray(reservationRows) ? reservationRows[0] : reservationRows;
+      if (!reservation?.reservation_id) {
+        throw new ClipModuleError("DATABASE_ERROR", "Unable to reserve an upload slot. Please try again.", true);
+      }
+      reservationId = reservation.reservation_id as string;
 
       onProgress({ stage: "validating", progress: 0.03, bytesUploaded: 0, totalBytes: draft.source.fileSizeBytes, attempt: item.retryCount + 1 });
       stageStartedAt = Date.now();
@@ -187,13 +213,11 @@ export const ClipUploadOrchestrator = {
       }
       onProgress({ stage: "saving", progress: 0.95, bytesUploaded: prepared.fileSizeBytes, totalBytes: prepared.fileSizeBytes, attempt: item.retryCount + 1 });
       const insertStartedAt = Date.now();
-      const insertController = new AbortController();
       ClipLogger.info("database", "Supabase operation started", {
-        table: "clips", operation: "insert", queueId: item.id, clipId,
+        table: "clips", operation: "rpc/finalize_clip_upload", queueId: item.id, clipId,
       });
       const insertPayload = {
       id: clipId,
-      vendor_id: draft.vendorId,
       category_id: draft.categoryId,
       title: draft.title.trim(),
       caption: draft.caption?.trim() || null,
@@ -204,26 +228,30 @@ export const ClipUploadOrchestrator = {
       height: uploaded.resolution.height,
       file_size_bytes: uploaded.fileSizeBytes,
       cloudinary_public_id: uploaded.publicId,
-      status: "approved",
-      visibility: "public",
-      published_at: new Date().toISOString(),
       };
       ClipLogger.uploadDebug(uploadId, "DATABASE_INSERT", "START", {
-        table: "clips", operation: "insert", clipId, payload: insertPayload,
+        table: "clips", operation: "rpc/finalize_clip_upload", clipId, payload: insertPayload,
       });
-      const insertRequest = supabase.from("clips").insert(insertPayload)
-        .select("*").abortSignal(insertController.signal).single();
-      const { data, error } = await withTimeout<Awaited<typeof insertRequest>>(
+      // finalize_clip_upload() atomically inserts the Clip row and marks
+      // the reservation completed inside a single database transaction --
+      // this is what makes "reserve a slot, then insert after the
+      // Cloudinary upload" race-free instead of the old
+      // check-count-then-insert sequence. It is also idempotent: if this
+      // call is retried after a lost response, the already-inserted Clip
+      // is returned rather than duplicated.
+      const { data, error } = await withTimeout(
         "Saving Clip database record",
-        insertRequest,
-        () => insertController.abort(),
+        supabase.rpc("finalize_clip_upload", {
+          target_reservation_id: reservationId,
+          clip_row: insertPayload,
+        }),
       );
       ClipLogger.info("database", "Supabase operation completed", {
-        table: "clips", operation: "insert", queueId: item.id, clipId,
+        table: "clips", operation: "rpc/finalize_clip_upload", queueId: item.id, clipId,
         data, error: error?.message ?? null, elapsedMs: Date.now() - insertStartedAt,
       });
       ClipLogger.uploadDebug(uploadId, "DATABASE_INSERT", error ? "ERROR" : "DONE", {
-        table: "clips", operation: "insert", clipId, data,
+        table: "clips", operation: "rpc/finalize_clip_upload", clipId, data,
         error: error ? {
           message: error.message,
           code: error.code,
@@ -236,6 +264,9 @@ export const ClipUploadOrchestrator = {
         await withTimeout("Cleaning up failed upload", supabase.functions.invoke("clip-cloudinary-delete", {
           body: { vendorId: draft.vendorId, publicId: uploaded.publicId },
         })).catch(() => undefined);
+        if (error.hint === "RESERVATION_EXPIRED" || error.code === "P0003") {
+          throw new ClipModuleError("UPLOAD_ERROR", "This upload took too long and the reserved slot expired. Please try again.", true, error);
+        }
         throw new ClipModuleError("DATABASE_ERROR", error.message, true, error);
       }
       ClipLogger.info("database", "Database insert finished", {
@@ -268,6 +299,11 @@ export const ClipUploadOrchestrator = {
         queueId: item.id,
         error: error instanceof Error ? error.message : String(error),
       });
+      // Release the reservation on any failure after it was created (a
+      // no-op if finalize_clip_upload() already completed it) so a failed
+      // upload frees its slot immediately instead of holding it until the
+      // 15 minute expiry.
+      await releaseReservation(reservationId);
       throw error;
     } finally {
       ClipLogger.uploadDebug(uploadId, "PIPELINE", "FINALLY", {

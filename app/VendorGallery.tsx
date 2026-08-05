@@ -13,6 +13,7 @@ import { supabase } from "@/services/supabase";
 import PortfolioVideoPlayer from "@/components/vendor/PortfolioVideoPlayer";
 import { portfolioAssetFingerprint, portfolioMediaUrl, PORTFOLIO_LIMITS, replaceHeroMedia, updateMediaFocalPoint } from "@/services/vendorPortfolio";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
+import ImageFadeIn from "@/components/loading/ImageFadeIn";
 
 export default function VendorGallery() {
   const router = useRouter();
@@ -575,7 +576,7 @@ export default function VendorGallery() {
                 pressed && styles.pressScale,
               ]}
             >
-              <Image source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="cover" style={StyleSheet.absoluteFillObject} />
+              <ImageFadeIn source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="cover" style={StyleSheet.absoluteFillObject} />
               {selected ? <View style={[styles.heroOrder, { backgroundColor: colors.pink }]}>
                 <Text style={styles.heroOrderText}>{selectedIndex + 1}</Text>
                 <Check size={11} color="#FFF" strokeWidth={3} />
@@ -636,7 +637,7 @@ export default function VendorGallery() {
               style={({ pressed }) => [styles.albumSelectArea, pressed && styles.albumPressed]}
             >
               <View style={[styles.albumCover, { backgroundColor: colors.surfaceSoft }]}>
-                {cover ? <Image source={{ uri: portfolioMediaUrl(cover, "card") }} resizeMode="cover" style={StyleSheet.absoluteFillObject} /> : <Images size={31} color={colors.muted} />}
+                {cover ? <ImageFadeIn source={{ uri: portfolioMediaUrl(cover, "card") }} resizeMode="cover" style={StyleSheet.absoluteFillObject} /> : <Images size={31} color={colors.muted} />}
                 <LinearGradient colors={["transparent", "rgba(20,8,14,.62)"]} locations={[.48, 1]} style={StyleSheet.absoluteFillObject} />
                 <View style={styles.albumMediaBadge}><Images size={13} color="#FFF" /><Text style={styles.albumMediaBadgeText}>{albumMedia.length}</Text></View>
               </View>
@@ -693,7 +694,7 @@ export default function VendorGallery() {
         <View style={[styles.mediaGrid, { gap }]}>
           {media.map((item) => <Pressable key={item.id} onPress={() => setPreview(item)} style={{ width: tileWidth }}>
             <View style={[styles.tile, { height: tileWidth * 0.8 }]}>
-              <Image source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
+              <ImageFadeIn source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
               {item.resource_type === "video" && <View style={styles.play}><Play size={18} fill="#FFF" color="#FFF" /></View>}
               {item.resource_type === "video" && item.duration ? <View style={styles.durationBadge}><Text style={styles.durationText}>{Math.floor(item.duration / 60)}:{String(Math.round(item.duration % 60)).padStart(2, "0")}</Text></View> : null}
               {item.is_cover && <View style={[styles.coverBadge, { backgroundColor: colors.pink }]}><Star size={10} color="#FFF" fill="#FFF" /><Text style={styles.coverText}>Cover</Text></View>}
@@ -841,7 +842,7 @@ export default function VendorGallery() {
           <View style={[styles.mediaGrid, { gap }]}>
             {data.media.filter((item) => item.album_id === albumPreview?.id).map((item) => <Pressable key={item.id} onPress={() => { setAlbumPreview(null); setPreview(item); }} style={{ width: tileWidth }}>
               <View style={[styles.tile, { height: tileWidth * .8 }]}>
-                <Image source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
+                <ImageFadeIn source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
                 {item.resource_type === "video" && <View style={styles.play}><Play size={18} fill="#FFF" color="#FFF" /></View>}
                 {item.is_cover && <View style={[styles.coverBadge, { backgroundColor: colors.pink }]}><Star size={10} color="#FFF" fill="#FFF" /><Text style={styles.coverText}>Cover</Text></View>}
               </View>

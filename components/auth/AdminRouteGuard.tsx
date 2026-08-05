@@ -1,8 +1,8 @@
 import React, { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
 import { usePathname, useRouter } from "expo-router";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { isProtectedAdminRoute } from "@/admin/navigation";
+import BrandedLoader from "@/components/loading/BrandedLoader";
 
 export function AdminRouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -20,11 +20,11 @@ export function AdminRouteGuard({ children }: { children: React.ReactNode }) {
   }, [isAdminAuthenticated, loading, protectedRoute, router, signOut]);
 
   if (protectedRoute && (loading || !isAdminAuthenticated)) {
-    return (
-      <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator size="large" color="#E91E63" />
-      </View>
-    );
+    // Admin session restoration is exactly the "no usable screen can yet be
+    // displayed" case the branded loader is reserved for -- an admin table
+    // or dashboard can't render anything meaningful until we know whether
+    // this session is authenticated.
+    return <BrandedLoader message="Preparing your admin workspace..." />;
   }
   return <>{children}</>;
 }

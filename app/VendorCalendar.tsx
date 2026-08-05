@@ -1,11 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyhole } from "lucide-react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyhole, Save } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { supabase } from "@/services/supabase";
+import { updateVendorPublicProfile, type VendorBusinessHourEntry } from "@/services/vendorProfile";
+import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
+
+const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const defaultHours = (): VendorBusinessHourEntry[] =>
+  DAY_LABELS.map((_, day) => ({ day, opens: "09:00", closes: "18:00", closed: day === 0 }));
 
 const statuses = [
   { id: "available", label: "Available", icon: CircleCheck },
@@ -28,7 +34,52 @@ export default function VendorCalendar() {
   const [selected, setSelected] = useState(() => iso(new Date()));
   const [savedStatuses, setSavedStatuses] = useState<Record<string, AvailabilityStatus>>({});
   const [savingStatus, setSavingStatus] = useState<AvailabilityStatus | null>(null);
+  const [hours, setHours] = useState<VendorBusinessHourEntry[]>(defaultHours());
+  const [hoursSaving, setHoursSaving] = useState(false);
+  const [hoursSaved, setHoursSaved] = useState(false);
+  const [hoursError, setHoursError] = useState("");
+  const mounted = useRef(true);
   const today = iso(new Date());
+
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
+  useEffect(() => {
+    if (!data.vendor) return;
+    const existing = Array.isArray(data.vendor.business_hours) ? data.vendor.business_hours : null;
+    if (!existing?.length) { setHours(defaultHours()); return; }
+    setHours(DAY_LABELS.map((_, day) => {
+      const found = existing.find((entry: VendorBusinessHourEntry) => entry.day === day);
+      return found ?? { day, opens: "09:00", closes: "18:00", closed: true };
+    }));
+  }, [data.vendor]);
+
+  const updateHourEntry = (day: number, patch: Partial<VendorBusinessHourEntry>) => {
+    setHoursSaved(false);
+    setHoursError("");
+    setHours((current) => current.map((entry) => (entry.day === day ? { ...entry, ...patch } : entry)));
+  };
+
+  const saveHours = async () => {
+    if (hoursSaving || !data.vendor?.id) return;
+    setHoursSaving(true);
+    setHoursError("");
+    try {
+      await updateVendorPublicProfile({ business_hours: hours });
+      if (!mounted.current) return;
+      invalidatePublicVendorCache();
+      await refresh();
+      if (!mounted.current) return;
+      setHoursSaved(true);
+      setTimeout(() => { if (mounted.current) setHoursSaved(false); }, 2200);
+    } catch (caught) {
+      if (!mounted.current) return;
+      const message = caught instanceof Error ? caught.message : "Unable to update working hours.";
+      setHoursError(message);
+      Alert.alert("Working hours not saved", message);
+    } finally {
+      if (mounted.current) setHoursSaving(false);
+    }
+  };
   const days = useMemo(() => {
     const result: (Date | null)[] = Array(month.getDay()).fill(null);
     const count = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
@@ -172,6 +223,52 @@ export default function VendorCalendar() {
           <Text style={[styles.lockText, { color: colors.muted }]}>Past availability is read-only and cannot be changed.</Text>
         </View> : null}
       </View>
+
+      <View style={[styles.editor, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+        <Text style={[styles.editorTitle, { color: colors.text }]}>Weekly working hours</Text>
+        <Text style={[styles.subtitle, { color: colors.muted }]}>Shown to customers on your public profile as your regular schedule.</Text>
+        <View style={styles.hoursList}>
+          {hours.map((entry) => (
+            <View key={entry.day} style={[styles.hourRow, { borderColor: colors.border }]}>
+              <Text style={[styles.hourDay, { color: colors.text }]}>{DAY_LABELS[entry.day]}</Text>
+              {entry.closed ? (
+                <Text style={[styles.hourClosedText, { color: colors.muted }]}>Closed</Text>
+              ) : (
+                <View style={styles.hourInputs}>
+                  <TextInput
+                    value={entry.opens}
+                    onChangeText={(value) => updateHourEntry(entry.day, { opens: value })}
+                    placeholder="09:00"
+                    placeholderTextColor={colors.muted}
+                    style={[styles.hourInput, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
+                  />
+                  <Text style={[styles.hourSeparator, { color: colors.muted }]}>–</Text>
+                  <TextInput
+                    value={entry.closes}
+                    onChangeText={(value) => updateHourEntry(entry.day, { closes: value })}
+                    placeholder="18:00"
+                    placeholderTextColor={colors.muted}
+                    style={[styles.hourInput, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
+                  />
+                </View>
+              )}
+              <Switch
+                value={!entry.closed}
+                onValueChange={(open) => updateHourEntry(entry.day, { closed: !open })}
+                trackColor={{ true: colors.pink, false: colors.border }}
+              />
+            </View>
+          ))}
+        </View>
+        <View style={styles.hoursSaveRow}>
+          {hoursError ? <Text style={styles.hoursError}>{hoursError}</Text>
+            : hoursSaved ? <Text style={[styles.hoursSaved, { color: colors.success }]}>Working hours updated</Text>
+            : <Text style={[styles.hoursHint, { color: colors.muted }]}>Toggle a day off to mark it closed.</Text>}
+          <Pressable disabled={hoursSaving} onPress={() => void saveHours()} style={[styles.hoursSave, { backgroundColor: colors.pink }, hoursSaving && { opacity: 0.6 }]}>
+            {hoursSaving ? <ActivityIndicator color="#FFF" size="small" /> : <><Save size={14} color="#FFF" /><Text style={styles.hoursSaveText}>Save hours</Text></>}
+          </Pressable>
+        </View>
+      </View>
     </ScrollView>
   </View>;
 }
@@ -186,5 +283,18 @@ const styles = StyleSheet.create({
   legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13, paddingTop: 16 }, legendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, legendSwatch: { width: 10, height: 10, borderRadius: 3 }, legendText: { fontSize: 9, fontWeight: "700" },
   editor: { borderRadius: 22, padding: 16, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .07, shadowRadius: 18, elevation: 2 }, editorTitle: { fontSize: 16, fontWeight: "800" },
   statusGrid: { flexDirection: "row", gap: 8, marginTop: 16 }, status: { flex: 1, minHeight: 68, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 }, statusDisabled: { opacity: .45 }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
+  hoursList: { marginTop: 14, gap: 4 },
+  hourRow: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
+  hourDay: { width: 84, fontSize: 11, fontWeight: "800" },
+  hourClosedText: { flex: 1, fontSize: 11, fontStyle: "italic" },
+  hourInputs: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
+  hourInput: { flex: 1, minHeight: 38, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, fontSize: 11, textAlign: "center" },
+  hourSeparator: { fontSize: 11, fontWeight: "700" },
+  hoursSaveRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 16 },
+  hoursHint: { flex: 1, fontSize: 9 },
+  hoursSaved: { flex: 1, fontSize: 10, fontWeight: "800" },
+  hoursError: { flex: 1, color: "#D33B55", fontSize: 10, lineHeight: 15, fontWeight: "700" },
+  hoursSave: { minHeight: 40, minWidth: 118, borderRadius: 13, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  hoursSaveText: { color: "#FFF", fontSize: 10, fontWeight: "900" },
   lockNotice: { minHeight: 44, borderRadius: 14, marginTop: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 }, lockText: { flex: 1, fontSize: 10, lineHeight: 14 },
 });

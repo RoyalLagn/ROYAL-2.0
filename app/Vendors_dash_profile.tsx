@@ -36,7 +36,7 @@ export default function VendorProfile() {
   const vendor = data.vendor;
   const groups = [
     [
-      { label: "Edit business profile", detail: "Identity, description, contact and location", icon: Pencil, route: "/VendorEditProfile" },
+      { label: "Edit business profile", detail: "Identity, description, contact and location", icon: Pencil, route: "/vendor-dashboard" },
       { label: "Packages & pricing", detail: `${data.services.length} ${data.services.length === 1 ? "package" : "packages"} configured`, icon: BriefcaseBusiness, route: "/VendorServices" },
       { label: "Portfolio", detail: `${data.albums.length} albums · ${data.media.length} media`, icon: Images, route: "/VendorGallery" },
     ],
@@ -156,7 +156,7 @@ export default function VendorProfile() {
             {vendor?.logo_url ? <Image source={{ uri: vendor.logo_url }} style={StyleSheet.absoluteFillObject} /> : <Text style={[styles.largeInitial, { color: colors.pink }]}>{vendor?.business_name?.[0]?.toUpperCase() || "R"}</Text>}
           </View>
           <View style={styles.photoActions}>
-            <Pressable onPress={() => { setPhotoOpen(false); router.push("/VendorEditProfile"); }} style={[styles.photoAction, { backgroundColor: colors.surfaceSoft }]}><Pencil size={19} color={colors.pink} /><Text style={[styles.photoActionText, { color: colors.text }]}>Edit photo</Text></Pressable>
+            <Pressable onPress={() => { setPhotoOpen(false); router.push("/VendorEditBrand"); }} style={[styles.photoAction, { backgroundColor: colors.surfaceSoft }]}><Pencil size={19} color={colors.pink} /><Text style={[styles.photoActionText, { color: colors.text }]}>Edit photo</Text></Pressable>
             <Pressable onPress={removePhoto} style={[styles.photoAction, { backgroundColor: colors.surfaceSoft }]}><Trash2 size={19} color={colors.warning} /><Text style={[styles.photoActionText, { color: colors.text }]}>Delete photo</Text></Pressable>
           </View>
         </View>

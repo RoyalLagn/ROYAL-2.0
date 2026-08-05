@@ -51,6 +51,9 @@ import HomeCategoryCard from "@/components/home/HomeCategoryCard";
 import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
 import { shareRoyalLagnApp } from "@/services/AppShareService";
 import { useCategories } from "@/context/CategoryContext";
+import SafeImage from "@/components/SafeImage";
+import { VendorCardSkeletonRow } from "@/components/loading/Skeleton";
+import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 
 const PINK = "#E91E63";
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
@@ -65,6 +68,10 @@ export default function HomeScreen() {
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [filters, setFilters] = useState<HomeFilters>(DEFAULT_HOME_FILTERS);
   const [liveVendors, setLiveVendors] = useState<PublicVendorListing[]>([]);
+  // True only until the *first* vendor fetch settles -- background
+  // refreshes (realtime updates) never flip this back on, so previously
+  // loaded cards stay visible instead of being replaced by skeletons.
+  const [vendorsLoading, setVendorsLoading] = useState(true);
   const { isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
   const { city, preference, strictCityOnly } = useCustomerLocation();
@@ -99,6 +106,9 @@ export default function HomeScreen() {
         })
         .catch(() => {
           if (active) setLiveVendors([]);
+        })
+        .finally(() => {
+          if (active) setVendorsLoading(false);
         });
     };
     load();
@@ -374,6 +384,15 @@ export default function HomeScreen() {
             }
           />
 
+          {vendorsLoading ? (
+            <View style={s.vendorScroll}>
+              <VendorCardSkeletonRow
+                count={isDesktop ? 4 : 3}
+                width={vendorCardWidth}
+                imageHeight={Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68))}
+              />
+            </View>
+          ) : (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -400,7 +419,13 @@ export default function HomeScreen() {
                     activeOpacity={0.88}
                   >
                     <View style={[s.vendorImgWrap, { height: Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68)) }]}>
-                      <Image source={{ uri: v.image }} style={s.vendorImg} resizeMode="cover" />
+                      <SafeImage
+                        debugLabel={`home vendor card: ${v.name}`}
+                        source={{ uri: v.image }}
+                        fallbackSource={resolveMarketplaceCategoryImage(v.category).fallbackSource}
+                        style={s.vendorImg}
+                        resizeMode="cover"
+                      />
                       <View style={s.imgBottomRow}>
                         <View style={s.ratingBadge}>
                           <Star size={11} color="#FACC15" fill="#FACC15" />
@@ -438,7 +463,8 @@ export default function HomeScreen() {
               );
             })}
           </ScrollView>
-          {!nearbyVendors.length ? (
+          )}
+          {!vendorsLoading && !nearbyVendors.length ? (
             <Text style={[s.emptyVendors, { color: muted }]}>No vendors match these filters. Try clearing one filter.</Text>
           ) : null}
         </View>

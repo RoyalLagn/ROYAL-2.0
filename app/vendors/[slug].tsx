@@ -14,7 +14,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { ChevronRight } from "lucide-react-native";
+import { Briefcase, ChevronRight } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PublicClip } from "@/clips/types";
 import { PublicClipService } from "@/clips/services";
@@ -504,6 +504,14 @@ export default function VendorPublicProfileScreen() {
 
           <View style={[styles.sectionCard, sectionCardStyle]}>
             <SectionHeading dark={dark}>About</SectionHeading>
+            {vendor.experience != null ? (
+              <View style={styles.experienceRow}>
+                <Briefcase size={14} color={PINK} />
+                <Text style={[styles.experienceText, { color: muted }]}>
+                  {vendor.experience} {vendor.experience === 1 ? "year" : "years"} of experience
+                </Text>
+              </View>
+            ) : null}
             <Text style={[styles.aboutText, { color: muted }]}>{aboutCopy}</Text>
             {about.length > 180 ? (
               <Pressable
@@ -680,6 +688,8 @@ const styles = StyleSheet.create({
   ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#D6A054" },
   ornamentDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#D6A054" },
   aboutText: { maxWidth: 900, fontSize: 13, lineHeight: 20, fontWeight: "400" },
+  experienceRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+  experienceText: { fontSize: 12, fontWeight: "700" },
   directionsRow: { marginTop: 12 },
   readMore: {
     minHeight: 38,

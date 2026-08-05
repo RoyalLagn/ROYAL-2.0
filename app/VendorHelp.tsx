@@ -13,7 +13,7 @@ export default function VendorHelp() {
   const colors = vendorTheme[colorScheme];
   const { data } = useVendorWorkspace();
   const guides = [
-    { title: "Complete your profile", detail: "Business details, contact and search tags", icon: UserRoundPen, route: "/VendorEditProfile" },
+    { title: "Complete your profile", detail: "Business details, contact and search tags", icon: UserRoundPen, route: "/vendor-dashboard" },
     { title: "Manage services", detail: "Create packages and set prices", icon: Wrench, route: "/VendorServices" },
     { title: "Build your portfolio", detail: "Albums, covers, images and videos", icon: Images, route: "/VendorGallery" },
     { title: "Update availability", detail: "Show available, tentative and blocked dates", icon: CalendarDays, route: "/VendorCalendar" },

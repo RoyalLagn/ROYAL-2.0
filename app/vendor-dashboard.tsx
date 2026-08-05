@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -28,16 +28,26 @@ import {
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useAppTheme } from "@/components/ThemeProvider";
-import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
+import { useVendorWorkspace, VendorReadinessLabels, type CompletionState } from "@/hooks/useVendorWorkspace";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
 import SubscriptionDashboardCard from "@/components/vendor/SubscriptionDashboardCard";
 import PublicProfileCard from "@/components/vendor/PublicProfileCard";
+import ChecklistItem from "@/components/vendor/ChecklistItem";
 
+// Ordered worse -> better so a state "improving" can be detected with a
+// simple index comparison when the vendor returns from a section form.
+const STATE_RANK: Record<CompletionState, number> = { missing: 0, attention: 1, partial: 2, complete: 3 };
+const HIGHLIGHT_DURATION_MS = 1600;
+
+// Labels come from the centralized VendorReadinessLabels (see
+// hooks/useVendorWorkspace.ts) so the checklist and every section form's
+// own status badge always agree; only the icon choice is a local UI
+// concern.
 const completionMeta = {
-  complete: { label: "Complete", icon: Check },
-  partial: { label: "In progress", icon: Clock3 },
-  missing: { label: "Add details", icon: Plus },
-  attention: { label: "Needs attention", icon: CircleAlert },
+  complete: { label: VendorReadinessLabels.complete, icon: Check },
+  partial: { label: VendorReadinessLabels.partial, icon: Clock3 },
+  missing: { label: VendorReadinessLabels.missing, icon: Plus },
+  attention: { label: VendorReadinessLabels.attention, icon: CircleAlert },
 };
 
 export default function VendorDashboard() {
@@ -57,9 +67,40 @@ export default function VendorDashboard() {
   const completedItems = completion.items.filter((item) => item.state === "complete").length;
   const nextItem = completion.items.find((item) => item.state !== "complete");
 
+  // Tracks each checklist item's state across visits so that returning from
+  // a section form (e.g. VendorEditBusinessInfo -> back -> here) can
+  // highlight just the row that actually changed, instead of re-animating
+  // the whole list on every focus.
+  const previousStatesRef = useRef<Map<string, CompletionState> | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useFocusEffect(useCallback(() => {
-    refresh();
+    void refresh();
   }, [refresh]));
+
+  // Runs whenever the computed completion states change (including after
+  // the refresh above). Compares against the previous snapshot so only the
+  // section that actually improved gets a highlight -- not the whole list,
+  // and not on the very first render (no previous snapshot to compare to).
+  useEffect(() => {
+    const previous = previousStatesRef.current;
+    if (previous) {
+      const improved = completion.items.find(
+        (item) => STATE_RANK[item.state] > (STATE_RANK[previous.get(item.id) ?? "missing"] ?? 0),
+      );
+      if (improved) {
+        setHighlightedId(improved.id);
+        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = setTimeout(() => setHighlightedId(null), HIGHLIGHT_DURATION_MS);
+      }
+    }
+    previousStatesRef.current = new Map(completion.items.map((item) => [item.id, item.state]));
+  }, [completion.items]);
+
+  useEffect(() => () => {
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+  }, []);
 
   const stats = [
     { label: "Profile views", value: String(data.vendor?.profile_views ?? 0), detail: "Customer reach", icon: Eye },
@@ -230,32 +271,17 @@ export default function VendorDashboard() {
               <Text style={[styles.checklistHint, { color: colors.muted }]}>Tap any section to review it</Text>
             </View>
             <View style={styles.checklistGrid}>
-              {completion.items.map((item) => {
-                const meta = completionMeta[item.state];
-                const Icon = meta.icon;
-                const tint = item.state === "complete" ? colors.success : item.state === "attention" ? colors.warning : colors.pink;
-                return (
-                  <Pressable
-                    key={item.id}
-                    onPress={() => router.push(item.route as any)}
-                    style={({ pressed }) => [
-                      styles.completionItem,
-                      desktop && styles.completionItemDesktop,
-                      { backgroundColor: colors.background, borderColor: colors.border },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <View style={[styles.stateIcon, { backgroundColor: `${tint}16` }]}>
-                      <Icon size={16} color={tint} />
-                    </View>
-                    <View style={styles.flex}>
-                      <Text style={[styles.completionLabel, { color: colors.text }]} numberOfLines={1}>{item.label}</Text>
-                      <Text style={[styles.stateLabel, { color: tint }]}>{meta.label}</Text>
-                    </View>
-                    <ChevronRight size={15} color={colors.muted} />
-                  </Pressable>
-                );
-              })}
+              {completion.items.map((item) => (
+                <ChecklistItem
+                  key={item.id}
+                  item={item}
+                  meta={completionMeta[item.state]}
+                  colors={colors}
+                  desktop={desktop}
+                  highlighted={highlightedId === item.id}
+                  onPress={() => router.push(item.route as any)}
+                />
+              ))}
             </View>
           </View>
         </VendorDashboardReveal>
@@ -321,11 +347,6 @@ const styles = StyleSheet.create({
   checklistTitle: { fontSize: 12, fontWeight: "900" },
   checklistHint: { fontSize: 8 },
   checklistGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  completionItem: { width: "100%", minHeight: 61, borderWidth: 1, borderRadius: 16, padding: 10, flexDirection: "row", alignItems: "center", gap: 9 },
-  completionItemDesktop: { width: "49.4%" },
-  stateIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  completionLabel: { fontSize: 11, fontWeight: "800" },
-  stateLabel: { fontSize: 8, fontWeight: "800", marginTop: 3 },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
   loading: { position: "absolute", top: "50%", left: 0, right: 0, alignItems: "center", pointerEvents: "none" },
 });

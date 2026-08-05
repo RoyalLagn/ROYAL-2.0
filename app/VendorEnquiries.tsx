@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { BarChart3, CalendarDays, ChevronRight, Inbox, MessageCircle, Phone, Search, TrendingDown, TrendingUp, X } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -7,6 +7,7 @@ import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { useVendorEnquiries } from "@/hooks/useEnquiries";
 import { ENQUIRY_STATUSES, EnquiryService, enquirySourceLabel, enquiryStatusLabel, type EnquiryStatus, type TrackedEnquiry } from "@/services/enquiries";
+import { SkeletonList } from "@/components/loading/Skeleton";
 
 type Filter = "all" | EnquiryStatus;
 type Sort = "newest" | "oldest" | "follow_up";
@@ -49,7 +50,7 @@ export default function VendorEnquiries() {
       <View style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border }]}><Search size={17} color={colors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Search name, phone, reference or package" placeholderTextColor={colors.muted} style={[styles.searchInput, { color: colors.text }]} /></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{(["all", ...ENQUIRY_STATUSES] as Filter[]).map((item) => <Pressable key={item} onPress={() => setFilter(item)} style={[styles.filter, { borderColor: filter === item ? colors.pink : colors.border, backgroundColor: filter === item ? colors.surfaceSoft : colors.surface }]}><Text style={{ color: filter === item ? colors.pink : colors.muted, fontWeight: "700", fontSize: 10 }}>{item === "all" ? "All" : enquiryStatusLabel(item)}</Text></Pressable>)}</ScrollView>
       <View style={styles.sortRow}><Text style={[styles.resultCount, { color: colors.muted }]}>{visible.length} {visible.length === 1 ? "lead" : "leads"}</Text>{(["newest", "oldest", "follow_up"] as Sort[]).map((item) => <Pressable key={item} onPress={() => setSort(item)}><Text style={[styles.sortText, { color: sort === item ? colors.pink : colors.muted }]}>{item === "follow_up" ? "Follow-up" : item[0].toUpperCase() + item.slice(1)}</Text></Pressable>)}</View>
-      {loading ? <ActivityIndicator color={colors.pink} style={styles.loading} /> : null}
+      {loading ? <SkeletonList count={4} height={110} /> : null}
       {!loading && error ? <State title="Enquiries unavailable" body={error} colors={colors} action={() => void refresh()} /> : null}
       {!loading && !error ? visible.map((item) => <Pressable key={item.id} onPress={() => open(item)} style={({ pressed }) => [styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}>
         <View style={styles.cardTop}><View style={[styles.channelIcon, { backgroundColor: colors.surfaceSoft }]}>{item.enquiry_channel === "call" ? <Phone size={17} color={colors.pink} /> : <MessageCircle size={17} color={colors.pink} />}</View><View style={styles.flex}><Text style={[styles.name, { color: colors.text }]}>{item.customer_name}</Text><Text style={[styles.meta, { color: colors.muted }]}>{item.reference_code} · {item.enquiry_channel === "call" ? "Call Click" : item.enquiry_channel === "whatsapp" ? "WhatsApp Click" : "Form enquiry"}</Text></View><View style={[styles.status, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.statusText, { color: colors.pink }]}>{enquiryStatusLabel(item.status)}</Text></View></View>

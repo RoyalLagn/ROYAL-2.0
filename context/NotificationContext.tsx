@@ -104,17 +104,19 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<RoyalLagnNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const activeCustomerId = useRef<string | null>(null);
+  const mounted = useRef(true);
+
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const refreshNotifications = useCallback(async () => {
     if (!customerId) {
       activeCustomerId.current = null;
-      setNotifications([]);
-      setLoading(false);
+      if (mounted.current) { setNotifications([]); setLoading(false); }
       return;
     }
 
     activeCustomerId.current = customerId;
-    setLoading(true);
+    if (mounted.current) setLoading(true);
     const { data, error } = await supabase
       .from("customer_notifications")
       .select("id,type,title,message,target_path,is_read,read_at,created_at")
@@ -122,7 +124,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       .order("created_at", { ascending: false })
       .limit(100);
 
-    if (activeCustomerId.current !== customerId) return;
+    if (!mounted.current || activeCustomerId.current !== customerId) return;
     if (!error) setNotifications(((data ?? []) as CustomerNotificationRow[]).map(fromRow));
     setLoading(false);
   }, [customerId]);

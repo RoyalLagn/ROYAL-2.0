@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/services/supabase";
 import { SubscriptionAccessService } from "@/subscriptions/services/SubscriptionAccessService";
 import type { SubscriptionAccess, SubscriptionFeatureKey, SubscriptionOffer, SubscriptionPlan } from "@/subscriptions/types";
 import { ClipUploadService } from "@/clips/services";
@@ -29,6 +30,14 @@ export function SubscriptionProvider({ children }: React.PropsWithChildren) {
   const mounted = useRef(true);
   const refreshRequest = useRef(0);
 
+  // `get_my_subscription_access` requires an authenticated Supabase session
+  // (it's revoked from `anon`). Calling it before session restoration
+  // finishes, or while the visitor is signed out, produces a 401 on every
+  // app boot. Track session readiness locally and only ask for
+  // vendor-specific access once we know a session actually exists; public
+  // plans/offers/settings remain readable by anon and can load regardless.
+  const hasSession = useRef(false);
+
   const refresh = useCallback(async () => {
     const request = ++refreshRequest.current;
     setLoading(true);
@@ -41,7 +50,7 @@ export function SubscriptionProvider({ children }: React.PropsWithChildren) {
         return;
       }
       const [nextAccess, nextOffers, nextSettings] = await Promise.all([
-        SubscriptionAccessService.getCurrentAccess(),
+        hasSession.current ? SubscriptionAccessService.getCurrentAccess() : Promise.resolve(null),
         SubscriptionAccessService.listOffers(),
         SubscriptionAccessService.listPublicSettings(),
       ]);
@@ -53,7 +62,11 @@ export function SubscriptionProvider({ children }: React.PropsWithChildren) {
     } catch (caught) {
       if (!mounted.current || request !== refreshRequest.current) return;
       const message = subscriptionErrorMessage(caught, "Unable to load subscription access.");
-      if (!/does not exist|schema cache|PGRST20/i.test(message)) setError(message);
+      // A 401/PGRST301 here almost always means the session expired or was
+      // signed out between the readiness check above and the request
+      // landing (e.g. a concurrent logout). Treat it like "no access"
+      // instead of surfacing a scary error to a signed-out visitor.
+      if (!/does not exist|schema cache|PGRST20|PGRST301|JWT|401/i.test(message)) setError(message);
     } finally {
       if (mounted.current && request === refreshRequest.current) setLoading(false);
     }
@@ -65,12 +78,36 @@ export function SubscriptionProvider({ children }: React.PropsWithChildren) {
   }, []);
 
   useEffect(() => {
+    let active = true;
     setAccess(null);
     setPlans([]);
     setOffers([]);
     setSettings({});
     setError(null);
-    void refresh();
+
+    // Wait for the initial session check (session restore from
+    // SecureStore/localStorage is async on both native and web) before the
+    // first refresh, so the vendor-access RPC never fires with a
+    // not-yet-restored/anonymous request.
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      hasSession.current = Boolean(data.session);
+      void refresh();
+    }).catch(() => {
+      if (!active) return;
+      hasSession.current = false;
+      void refresh();
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      hasSession.current = Boolean(session);
+      void refresh();
+    });
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
   }, [refresh]);
 
   useEffect(() => {

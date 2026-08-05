@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { CalendarDays, CheckCircle2, MessageCircle, MessageSquareHeart, Phone, RefreshCw, X, XCircle } from "lucide-react-native";
@@ -7,6 +7,7 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { useCustomerEnquiries } from "@/hooks/useEnquiries";
 import { EnquiryExternalOpenError, EnquiryService, enquirySourceLabel, enquiryStatusLabel, type CustomerConfirmation, type TrackedEnquiry } from "@/services/enquiries";
+import { SkeletonList } from "@/components/loading/Skeleton";
 
 export default function EnquiryScreen() {
   const router = useRouter();
@@ -41,7 +42,7 @@ export default function EnquiryScreen() {
   return <SafeAreaView style={[styles.page, { backgroundColor: colors.background }]}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <View style={styles.heading}><View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>My Enquiries</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Tracked contact attempts and vendor progress</Text></View>{isPublicAuthenticated ? <Pressable accessibilityLabel="Refresh enquiries" onPress={() => void refresh()} style={[styles.refresh, { backgroundColor: colors.surface, borderColor: colors.border }]}><RefreshCw size={17} color="#E91E63" /></Pressable> : null}</View>
     <View style={styles.truthNote}><MessageSquareHeart size={17} color="#C52D60" /><Text style={styles.truthText}>Call Click means the dialler opened. WhatsApp Click means WhatsApp opened. Neither confirms a connected call or sent message.</Text></View>
-    {authLoading || loading ? <ActivityIndicator color="#E91E63" style={styles.loading} /> : null}
+    {authLoading || loading ? <SkeletonList count={4} height={128} /> : null}
     {!authLoading && !isPublicAuthenticated ? <Empty title="Sign in to view enquiries" message="Guest contact attempts will be linked to your account after you sign in." colors={colors} action="Sign in" onAction={() => router.push("/DashboardCenter")} /> : null}
     {!loading && isPublicAuthenticated && error ? <Empty title="Enquiries unavailable" message={error} colors={colors} action="Try again" onAction={() => void refresh()} /> : null}
     {!loading && isPublicAuthenticated && !error && !items.length ? <Empty title="No enquiries yet" message="Call, WhatsApp or send a package enquiry from any vendor profile. It will appear here." colors={colors} /> : null}

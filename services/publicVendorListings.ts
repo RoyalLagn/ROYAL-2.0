@@ -49,6 +49,7 @@ export type PublicVendorListing = {
   isAvailable: boolean;
   availability: PublicVendorAvailability[];
   description: string;
+  experience: number | null;
   contactPhone: string;
   contactEmail: string;
   website: string;
@@ -72,6 +73,7 @@ const PUBLIC_VENDOR_LIST_SELECT = `
   id,
   business_name,
   description,
+  experience,
   address,
   city,
   state,
@@ -285,6 +287,7 @@ function normalizeVendor(
     isAvailable,
     availability,
     description: row.description?.trim() || "",
+    experience: typeof row.experience === "number" ? row.experience : null,
     contactPhone: row.contact_phone?.trim() || "",
     contactEmail: row.contact_email?.trim() || "",
     website: row.website?.trim() || "",

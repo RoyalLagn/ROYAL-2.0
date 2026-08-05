@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert, Modal, Pressable, ScrollView,
   Text, TextInput, View,
@@ -21,7 +21,7 @@ import { AdminVendorService } from "@/services/adminVendorService";
 import type { AdminVendorRecord, VendorAction, VendorSort } from "@/types/adminVendors";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
-import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
+import { AdminEmptyState, AdminErrorState, AdminRefreshIndicator, AdminTableSkeleton } from "@/components/admin/ui/AdminState";
 import { ActionProgress } from "@/components/admin/ui/ActionProgress";
 import { UndoToast } from "@/components/admin/ui/UndoToast";
 import { AdminPreferences, type SavedVendorFilter } from "@/services/adminPreferences";
@@ -50,6 +50,9 @@ export default function VendorsAdminListing() {
   const [savedFilters, setSavedFilters] = useState<SavedVendorFilter[]>([]);
   const [saveOpen, setSaveOpen] = useState(false);
   const [presetName, setPresetName] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const exportCancelled = useRef(false);
   const pageCount = Math.max(1, Math.ceil(vendors.total / vendors.filters.pageSize));
   useEffect(() => { void AdminPreferences.listVendorFilters().then(setSavedFilters); }, []);
   useEffect(() => {
@@ -57,6 +60,27 @@ export default function VendorsAdminListing() {
     const timer = setTimeout(() => setUndo(null), 7000);
     return () => clearTimeout(timer);
   }, [undo]);
+  // Stop a still-paginating export from continuing to fetch pages (and
+  // eventually calling exportCsv on a screen the admin already left) once
+  // this screen unmounts.
+  useEffect(() => () => { exportCancelled.current = true; }, []);
+
+  const exportFilteredVendors = async () => {
+    if (exporting) return;
+    exportCancelled.current = false;
+    setExporting(true);
+    setExportProgress(0);
+    try {
+      await AdminVendorService.exportFiltered(vendors.filters, {
+        onProgress: (loaded) => setExportProgress(loaded),
+        isCancelled: () => exportCancelled.current,
+      });
+    } catch (error) {
+      Alert.alert("Export failed", error instanceof Error ? error.message : "Unable to export vendors. Try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const beginAction = (next: ManagementOperation, record?: AdminVendorRecord) => {
     if (record) setActionRecord(record);
@@ -168,25 +192,34 @@ export default function VendorsAdminListing() {
         <ResponsiveContainer>
           <View className="flex-row justify-between items-center mb-3">
             <Text className="text-foreground font-bold">{vendors.total.toLocaleString()} vendors</Text>
-            <Pressable className="min-h-11 px-3 items-center justify-center" onPress={() => void AdminVendorService.exportFiltered(vendors.filters)}>
-              <Text className="text-primary text-xs font-semibold">Export filtered</Text>
+            <Pressable
+              className="min-h-11 px-3 items-center justify-center"
+              disabled={exporting}
+              onPress={() => void exportFilteredVendors()}
+            >
+              <Text className="text-primary text-xs font-semibold">
+                {exporting ? `Exporting… ${exportProgress.toLocaleString()}` : "Export filtered"}
+              </Text>
             </Pressable>
           </View>
 
-          {vendors.loading ? <AdminLoadingState label="Loading live vendors…" />
+          {vendors.loading ? <AdminTableSkeleton />
             : vendors.error ? <AdminErrorState message={vendors.error} onRetry={() => void vendors.refresh()} />
               : !vendors.rows.length ? <AdminEmptyState title="No vendors found" message="Adjust the search or filters to find matching vendor records." />
-                : <View className="gap-3">{vendors.rows.map((item) => (
-                  <VendorCard
-                    key={item.record_id}
-                    item={item}
-                    selected={vendors.selected.has(item.record_id)}
-                    onSelect={() => vendors.toggle(item.record_id)}
-                    onView={() => router.push({ pathname: "/AdminVendorDetails", params: { id: item.record_id } })}
-                    onActions={() => { setActionRecord(item); setActionMenuOpen(true); }}
-                    health={item.vendor_id ? vendors.health[item.vendor_id] : undefined}
-                  />
-                ))}</View>}
+                : <>
+                  {vendors.refreshing ? <AdminRefreshIndicator label="Updating vendor list…" /> : null}
+                  <View className="gap-3">{vendors.rows.map((item) => (
+                    <VendorCard
+                      key={item.record_id}
+                      item={item}
+                      selected={vendors.selected.has(item.record_id)}
+                      onSelect={() => vendors.toggle(item.record_id)}
+                      onView={() => router.push({ pathname: "/AdminVendorDetails", params: { id: item.record_id } })}
+                      onActions={() => { setActionRecord(item); setActionMenuOpen(true); }}
+                      health={item.vendor_id ? vendors.health[item.vendor_id] : undefined}
+                    />
+                  ))}</View>
+                </>}
 
           <PaginationBar page={vendors.filters.page} pages={pageCount} onPage={(page) => vendors.updateFilters({ page })} />
         </ResponsiveContainer>

@@ -29,12 +29,21 @@ export function useAdminVendors() {
   const [statistics, setStatistics] = useState<VendorStatistics | null>(null);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  // Separate from `loading`: true for every fetch (including realtime-
+  // triggered background refreshes), so the UI can show a small inline
+  // indicator without swapping the already-rendered rows for a skeleton.
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [health, setHealth] = useState<Record<string, VendorHealthMetrics>>({});
 
   const load = useCallback(async (force = false) => {
-    setLoading(true);
+    // Only show the blocking skeleton state when there's no data on screen
+    // yet. A realtime update or filter change while rows are already
+    // rendered is a background refresh -- the existing rows stay visible
+    // and `refreshing` drives a small indicator instead.
+    setLoading(rowsRef.current.length === 0);
+    setRefreshing(true);
     setError(null);
     const [listResult, statsResult] = await Promise.allSettled([
       AdminVendorService.list(filters, force),
@@ -49,6 +58,7 @@ export function useAdminVendors() {
     } else setError(errorMessage(listResult.reason));
     if (statsResult.status === "fulfilled") setStatistics(statsResult.value);
     setLoading(false);
+    setRefreshing(false);
   }, [filters]);
 
   useEffect(() => { void load(); }, [load]);
@@ -75,7 +85,7 @@ export function useAdminVendors() {
 
   return {
     filters, updateFilters, rows, total, statistics, categories,
-    loading, error, selected, selectedRows, toggle, health, optimisticPatch,
+    loading, refreshing, error, selected, selectedRows, toggle, health, optimisticPatch,
     clearSelected: () => setSelected(new Set()), refresh: () => load(true),
   };
 }

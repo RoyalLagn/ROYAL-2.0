@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Check, SlidersHorizontal, X } from "lucide-react-native";
 import { useCategories } from "@/context/CategoryContext";
+import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 
 const PINK = "#E91E63";
 
@@ -72,13 +73,12 @@ export default function HomeFilterModal({ visible, dark, value, city, onClose, o
   });
 
   return (
-    <Modal visible={visible} transparent animationType={Platform.OS === "web" ? "fade" : "slide"} onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, Platform.OS !== "web" && styles.backdropMobile]} onPress={onClose}>
-        <Pressable
-          accessibilityViewIsModal
-          style={[styles.panel, Platform.OS !== "web" && styles.panelMobile, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={(event) => event.stopPropagation()}
-        >
+    <AnimatedBottomSheet
+      visible={visible}
+      onRequestClose={onClose}
+      variant={Platform.OS === "web" ? "center" : "sheet"}
+      sheetStyle={[styles.panel, Platform.OS !== "web" && styles.panelMobile, { backgroundColor: colors.surface, borderColor: colors.border }]}
+    >
           <View style={styles.header}>
             <View style={styles.headerIcon}><SlidersHorizontal size={18} color={PINK} /></View>
             <View style={styles.flex}>
@@ -166,16 +166,12 @@ export default function HomeFilterModal({ visible, dark, value, city, onClose, o
               <Text style={styles.applyText}>Apply filters</Text>
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </AnimatedBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
-  backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(27,14,21,.48)" },
-  backdropMobile: { padding: 0, justifyContent: "flex-end" },
   panel: { width: "100%", maxWidth: 560, maxHeight: "90%", borderWidth: 1, borderRadius: 24, padding: 20 },
   panelMobile: { maxWidth: "100%", borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 28 },
   header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },

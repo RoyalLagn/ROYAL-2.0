@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronDown, ChevronLeft, ImagePlus, Save } from "lucide-react-native";
@@ -20,6 +20,8 @@ export default function VendorClipEdit() {
   const colors = vendorTheme[colorScheme];
   const { registrationCategories: categories } = useCategories();
   const [clip, setClip] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -27,22 +29,67 @@ export default function VendorClipEdit() {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const selectedCategory = categories.find((item) => item.id === categoryId);
+  const mounted = useRef(true);
+  const requestId = useRef(0);
 
-  useEffect(() => {
-    supabase.from("clips").select("*").eq("id", id).single().then(({ data, error }) => {
-      if (error) return Alert.alert("Unable to load Clip", error.message);
-      setClip(data); setTitle(data.title); setCaption(data.caption || "");
-      setCategoryId(data.category_id); setVisibility(data.visibility);
-    });
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+
+  const loadClip = useCallback(async () => {
+    const thisRequest = ++requestId.current;
+    const isCurrent = () => mounted.current && requestId.current === thisRequest;
+    if (!id) {
+      if (isCurrent()) { setLoadError("This Clip link is missing an ID."); setLoading(false); }
+      return;
+    }
+    setLoading(true);
+    setLoadError(null);
+    try {
+      // .maybeSingle() (not .single()) so a missing/RLS-hidden/deleted row
+      // resolves to `data: null` instead of throwing a PGRST116 error --
+      // both cases are handled explicitly below rather than crashing on
+      // `data.title` when `data` is null.
+      const { data, error } = await supabase.from("clips").select("*").eq("id", id).maybeSingle();
+      if (!isCurrent()) return;
+      if (error) {
+        setLoadError(error.message);
+        return;
+      }
+      if (!data) {
+        setLoadError("This Clip could not be found. It may have been deleted or is no longer available.");
+        return;
+      }
+      setClip(data);
+      setTitle(data.title ?? "");
+      setCaption(data.caption ?? "");
+      setCategoryId(data.category_id ?? "");
+      setVisibility(data.visibility ?? "public");
+    } catch (caught) {
+      if (isCurrent()) setLoadError(caught instanceof Error ? caught.message : "Unable to load this Clip.");
+    } finally {
+      if (isCurrent()) setLoading(false);
+    }
   }, [id]);
 
+  useEffect(() => { void loadClip(); }, [loadClip]);
+
   const save = async () => {
+    if (!clip) return;
     if (!title.trim() || !categoryId) return Alert.alert("Title and category are required");
     setSaving(true);
     const result = await ClipManagementService.update(id, { title, caption, categoryId, visibility });
+    if (!mounted.current) return;
     setSaving(false);
-    if (result.error) Alert.alert("Clip not saved", result.error.message);
-    else router.back();
+    if (result.error) {
+      // A missing/already-deleted row surfaces here (PGRST116) instead of
+      // crashing -- .update().select().single() on zero matched rows
+      // returns an error rather than throwing.
+      const notFound = result.error.code === "PGRST116";
+      Alert.alert(
+        notFound ? "Clip no longer exists" : "Clip not saved",
+        notFound ? "This Clip was deleted or is no longer accessible." : result.error.message,
+        notFound ? [{ text: "OK", onPress: () => router.back() }] : undefined,
+      );
+    } else router.back();
   };
   const replaceThumbnail = async () => {
     const uri = await pickClipThumbnail();
@@ -51,13 +98,31 @@ export default function VendorClipEdit() {
     try {
       const result = await ClipManagementService.replaceThumbnail(clip.id, clip.vendor_id, uri);
       if (result.error) throw result.error;
-      setClip(result.data);
+      if (mounted.current) setClip(result.data);
     } catch (error) {
-      Alert.alert("Thumbnail not replaced", error instanceof Error ? error.message : "Try again.");
-    } finally { setSaving(false); }
+      if (mounted.current) Alert.alert("Thumbnail not replaced", error instanceof Error ? error.message : "Try again.");
+    } finally { if (mounted.current) setSaving(false); }
   };
 
-  if (!clip) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.pink} /></View>;
+  if (loading) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.pink} /></View>;
+
+  if (loadError || !clip) {
+    return (
+      <View style={[styles.center, { backgroundColor: colors.background, padding: 24, gap: 16 }]}>
+        <Text style={[styles.heading, { color: colors.text, textAlign: "center" }]}>Clip not found</Text>
+        <Text style={{ color: colors.muted, textAlign: "center", fontSize: 13 }}>
+          {loadError ?? "This Clip could not be found."}
+        </Text>
+        <Pressable
+          onPress={() => (router.canGoBack?.() ? router.back() : router.replace("/VendorClips"))}
+          style={[styles.primary, { backgroundColor: colors.pink, paddingHorizontal: 24, alignSelf: "center" }]}
+        >
+          <ChevronLeft size={17} color="#FFF" />
+          <Text style={styles.primaryText}>Back to Clips</Text>
+        </Pressable>
+      </View>
+    );
+  }
   return <PremiumRouteGate feature="upload_clips"><View style={[styles.root, { backgroundColor: colors.background }]}>
     <VendorHeader />
     <ScrollView contentContainerStyle={styles.scroll}>

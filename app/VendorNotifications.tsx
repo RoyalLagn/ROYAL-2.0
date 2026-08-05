@@ -1,11 +1,13 @@
 import React from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Bell, CheckCheck } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorNotifications, type VendorNotification } from "@/context/VendorNotificationContext";
+import { SkeletonList } from "@/components/loading/Skeleton";
+import AnimatedPressable from "@/components/animated/AnimatedPressable";
 
 const vendorNotificationDestination = (notification: VendorNotification) => {
   if (notification.target_path) return notification.target_path;
@@ -39,12 +41,12 @@ export default function VendorNotifications() {
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.heading}><View style={styles.flex}><Text style={[styles.eyebrow, { color: colors.pink }]}>STAY INFORMED</Text><Text style={[styles.title, { color: colors.text }]}>Notifications</Text><Text style={[styles.subtitle, { color: colors.muted }]}>{unread ? `${unread} unread updates` : "You are all caught up."}</Text></View>
         {unread > 0 && <Pressable onPress={readAll} style={[styles.mark, { backgroundColor: colors.surfaceSoft }]}><CheckCheck size={16} color={colors.pink} /><Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>Read all</Text></Pressable>}</View>
-      {loading ? <ActivityIndicator color={colors.pink} style={{ marginTop: 40 }} /> : notifications.map((item) => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${item.title}${item.is_read ? "" : ", unread"}`} onPress={() => openNotification(item)}
+      {loading ? <SkeletonList count={5} height={78} /> : notifications.map((item) => <AnimatedPressable key={item.id} accessibilityRole="button" accessibilityLabel={`${item.title}${item.is_read ? "" : ", unread"}`} onPress={() => openNotification(item)}
         style={[styles.card, { backgroundColor: colors.surface, borderColor: item.is_read ? colors.border : colors.pink }]}>
         <View style={[styles.icon, { backgroundColor: colors.surfaceSoft }]}><Bell size={18} color={item.is_read ? colors.muted : colors.pink} /></View>
         <View style={styles.flex}><Text style={[styles.cardTitle, { color: colors.text }]}>{item.title}</Text><Text style={[styles.body, { color: colors.muted }]}>{item.body || "Open to mark this notification as read."}</Text><Text style={[styles.date, { color: colors.muted }]}>{new Date(item.created_at).toLocaleString()}</Text></View>
         {!item.is_read && <View style={[styles.dot, { backgroundColor: colors.pink }]} />}
-      </Pressable>)}
+      </AnimatedPressable>)}
       {!loading && !notifications.length && <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><Bell size={29} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.text }]}>No notifications</Text><Text style={[styles.emptyBody, { color: colors.muted }]}>Enquiries, reviews and important account updates will appear here.</Text></View>}
     </ScrollView>
   </View>;
