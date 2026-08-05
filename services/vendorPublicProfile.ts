@@ -1,5 +1,6 @@
 import { supabase } from "@/services/supabase";
 import { EnquiryService } from "@/services/enquiries";
+import { vendorWebBase } from "@/services/contactActions";
 import {
   getApprovedPublicVendorBySlug,
   type PublicVendorListing,
@@ -43,14 +44,8 @@ export async function getVendorPublicProfileBySlug(slug: string): Promise<Vendor
   return { kind: "redirect", slug: currentVendor.slug };
 }
 
-function configuredWebBase() {
-  const value = process.env.EXPO_PUBLIC_WEB_APP_URL?.trim() || process.env.EXPO_PUBLIC_APP_URL?.trim() || "";
-  return /^https?:\/\//i.test(value) ? value.replace(/\/$/, "") : "";
-}
-
 export function buildVendorPublicProfileUrl(slug: string, source?: string) {
-  const base = configuredWebBase() || "https://royallagn.com";
-  const url = `${base}/vendors/${slug}`;
+  const url = `${vendorWebBase()}/vendors/${slug}`;
   return source ? `${url}?src=${encodeURIComponent(source)}` : url;
 }
 

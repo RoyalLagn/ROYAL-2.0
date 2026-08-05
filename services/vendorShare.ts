@@ -1,6 +1,9 @@
 import { Platform, Share } from "react-native";
-import * as Linking from "expo-linking";
-import { buildVendorProfilePath, buildVendorProfilePathBySlug } from "@/services/contactActions";
+import {
+  buildVendorProfilePath,
+  buildVendorProfilePathBySlug,
+  vendorWebBase,
+} from "@/services/contactActions";
 
 export type VendorShareInput = {
   vendorId: string;
@@ -13,20 +16,11 @@ export type VendorShareInput = {
 export type VendorShareResult = "shared" | "copied" | "dismissed";
 let activeShare: Promise<VendorShareResult> | null = null;
 
-function configuredWebBase() {
-  const value = process.env.EXPO_PUBLIC_WEB_APP_URL?.trim() || process.env.EXPO_PUBLIC_APP_URL?.trim() || "";
-  return /^https?:\/\//i.test(value) ? value.replace(/\/$/, "") : "";
-}
-
 export function buildVendorProfileUrl(input: Pick<VendorShareInput, "vendorId" | "category" | "slug">) {
   const path = input.slug?.trim()
     ? buildVendorProfilePathBySlug(input.slug.trim())
     : buildVendorProfilePath(input.vendorId, input.category);
-  const configured = configuredWebBase();
-  if (configured) return `${configured}${path}`;
-  if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin) return `${window.location.origin}${path}`;
-  if (input.slug?.trim()) return Linking.createURL(`/vendors/${input.slug.trim()}`);
-  return Linking.createURL("/VendorsProfile", { queryParams: { vendorId: input.vendorId, ...(input.category?.trim() ? { category: input.category.trim() } : {}) } });
+  return `${vendorWebBase()}${path}`;
 }
 
 function shareCopy(input: VendorShareInput, url: string) {
