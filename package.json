@@ -47,6 +47,8 @@
     "expo-video-thumbnails": "~10.0.8",
     "expo-web-browser": "~15.0.11",
     "gsap": "^3.15.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.4",
     "lucide-react-native": "0.510.0",
     "nativewind": "4.2.1",
     "qrcode": "^1.5.4",

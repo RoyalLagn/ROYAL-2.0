@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Download, ExternalLink, Link2, QrCode, Share2 } from "lucide-react-native";
+import { Download, ExternalLink, Link2, QrCode, Share2, Sparkles } from "lucide-react-native";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 
 type Action = {
@@ -17,6 +17,7 @@ export default function QuickActionsGrid({
   onShareProfile,
   onDownloadQr,
   onShareQr,
+  onMarketingCard,
 }: {
   colors: typeof vendorTheme.light;
   onOpenWebsite: () => void;
@@ -24,6 +25,7 @@ export default function QuickActionsGrid({
   onShareProfile: () => void;
   onDownloadQr: () => void;
   onShareQr: () => void;
+  onMarketingCard: () => void;
 }) {
   const actions: Action[] = [
     { key: "open", label: "Open Website", icon: <ExternalLink size={20} color="#FFF" />, onPress: onOpenWebsite },
@@ -31,6 +33,7 @@ export default function QuickActionsGrid({
     { key: "share", label: "Share Profile", icon: <Share2 size={20} color="#FFF" />, onPress: onShareProfile },
     { key: "qrdl", label: "Download QR", icon: <Download size={20} color="#FFF" />, onPress: onDownloadQr },
     { key: "qrshare", label: "Share QR", icon: <QrCode size={20} color="#FFF" />, onPress: onShareQr },
+    { key: "marketingcard", label: "Marketing Card", icon: <Sparkles size={20} color="#FFF" />, onPress: onMarketingCard },
   ];
 
   return (

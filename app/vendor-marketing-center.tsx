@@ -81,6 +81,10 @@ export default function VendorMarketingCenter() {
     void shareQrCode(vendor.id, vendor.business_name, slug, qrUrl, qrRef);
   }, [vendor?.id, vendor?.business_name, slug, qrUrl]);
 
+  const handleOpenMarketingCard = useCallback(() => {
+    router.push("/vendor-marketing-card");
+  }, [router]);
+
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <VendorHeader />
@@ -124,6 +128,7 @@ export default function VendorMarketingCenter() {
                 onShareProfile={handleShareProfile}
                 onDownloadQr={handleDownloadQr}
                 onShareQr={handleShareQr}
+                onMarketingCard={handleOpenMarketingCard}
               />
               <QrCodeSection
                 colors={colors}

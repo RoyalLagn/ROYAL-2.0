@@ -9,6 +9,7 @@ import {
   QrCode,
   Settings,
   Share2,
+  Sparkles,
 } from "lucide-react-native";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
@@ -147,6 +148,10 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
       </View>
 
       <View style={styles.footerRow}>
+        <Pressable onPress={() => router.push("/vendor-marketing-card")} style={({ pressed }) => [styles.footerButton, styles.footerButtonWide, { backgroundColor: colors.pink }, pressed && styles.pressed]}>
+          <Sparkles size={14} color="#FFF" />
+          <Text style={[styles.footerButtonText, { color: "#FFF" }]}>Marketing Card</Text>
+        </Pressable>
         <Pressable onPress={() => showComingSoon("Profile settings")} style={({ pressed }) => [styles.footerButton, styles.footerButtonWide, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressed]}>
           <Text style={[styles.footerButtonText, { color: colors.text }]}>Profile Settings</Text>
         </Pressable>
@@ -198,7 +203,7 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 15, fontWeight: "900" },
   statLabel: { fontSize: 9, fontWeight: "700", marginTop: 2 },
   footerRow: { flexDirection: "row", gap: 8, marginTop: 14 },
-  footerButton: { flex: 1, minHeight: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  footerButton: { flex: 1, minHeight: 36, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   footerButtonWide: { flex: 1 },
   footerButtonText: { fontSize: 11, fontWeight: "700" },
   analyticsNote: { fontSize: 9, marginTop: 8 },
