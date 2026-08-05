@@ -3,7 +3,9 @@ import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from "rea
 import { Smartphone, X } from "lucide-react-native";
 
 const PINK = "#E91E63";
-const PLAY_STORE_URL = process.env.EXPO_PUBLIC_PLAY_STORE_URL?.trim() || "https://play.google.com/store/apps";
+const PLAY_STORE_URL =
+  process.env.EXPO_PUBLIC_PLAY_STORE_URL?.trim() ||
+  "https://play.google.com/store/apps/details?id=com.royallagn.app";
 const APP_STORE_URL = process.env.EXPO_PUBLIC_APP_STORE_URL?.trim() || "https://apps.apple.com";
 
 export default function DownloadAppPopup({ dark }: { dark: boolean }) {
