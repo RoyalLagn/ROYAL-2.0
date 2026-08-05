@@ -56,7 +56,22 @@ export async function loginPublicUser(email: string, password: string) {
   if (!data.session || !data.user) throw new Error("Unable to restore your session.");
 
   try {
-    const profile = await getOwnProfile(data.user.id);
+    let profile = await getOwnProfile(data.user.id);
+
+    // Accounts stranded by the old two-step signup have a usable auth user
+    // but no profile row. The signup metadata carries everything needed to
+    // finish the job, so repair the account instead of locking the user out.
+    if (!profile && data.user.user_metadata?.role === "public_user") {
+      const metadata = data.user.user_metadata;
+      profile = await createPublicProfile({
+        email: normalizeEmail(data.user.email || ""),
+        fullName: String(metadata.full_name || "").trim(),
+        phone: String(metadata.phone || ""),
+        preferredCityId: metadata.preferred_city_id || "",
+        preferredAreaId: metadata.preferred_area_id || null,
+      });
+    }
+
     if (!profile || profile.role !== "public_user") {
       throw new Error("This account is not a Public User account.");
     }
@@ -147,12 +162,19 @@ export async function completePublicSignup(details: SignupDetails, password: str
   }
 
   const existing = await getOwnProfile(userData.user.id);
-  if (existing) {
+  if (existing && existing.role === "public_user") {
     await supabase.auth.signOut();
     throw new Error("An account already exists for this email. Please log in instead.");
   }
 
-  const { data, error } = await supabase.auth.updateUser({
+  // Create the profile before setting the password. If anything below fails
+  // the account is still reachable: the user has no password yet, so signup
+  // can be retried from the start and this RPC is idempotent. Doing it the
+  // other way round is what used to strand accounts with a working password
+  // and no profile row.
+  const profile = await createPublicProfile(details);
+
+  const { error } = await supabase.auth.updateUser({
     password,
     data: {
       role: "public_user",
@@ -163,23 +185,25 @@ export async function completePublicSignup(details: SignupDetails, password: str
       registration_pending: false,
     },
   });
-  if (error || !data.user) throw error ?? new Error("Unable to create your account.");
+  if (error) throw error;
+  return profile;
+}
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .insert({
-      id: data.user.id,
-      email: normalizeEmail(details.email),
-      full_name: details.fullName.trim(),
-      phone: normalizePhone(details.phone),
-      role: "public_user",
-      preferred_city_id: details.preferredCityId,
-      preferred_area_id: details.preferredAreaId,
-    })
-    .select(PROFILE_COLUMNS)
-    .single();
-  if (profileError) throw profileError;
-  return profile as PublicProfile;
+/**
+ * Creates (or repairs) the caller's public profile through the idempotent
+ * complete_public_registration RPC. Identity comes from the verified JWT
+ * server-side, so this is safe to retry.
+ */
+async function createPublicProfile(details: SignupDetails): Promise<PublicProfile> {
+  const { data, error } = await supabase.rpc("complete_public_registration", {
+    full_name: details.fullName.trim(),
+    phone: normalizePhone(details.phone),
+    preferred_city_id: details.preferredCityId || null,
+    preferred_area_id: details.preferredAreaId,
+  });
+  if (error) throw error;
+  if (!data) throw new Error("Your account could not be created. Please try again.");
+  return (Array.isArray(data) ? data[0] : data) as PublicProfile;
 }
 
 export async function updateRecoveredPassword(password: string) {
