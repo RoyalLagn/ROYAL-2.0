@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Image,
-  type ImageSourcePropType,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -13,14 +11,22 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
+import HeroSlideMedia from "@/components/home/HeroSlideMedia";
 import { HeroSlideService } from "@/services/heroSlides";
-import { heroSlideDestination } from "@/types/hero";
+import {
+  HERO_DESKTOP_ASPECT,
+  HERO_MOBILE_ASPECT,
+  heroSlideDestination,
+  heroSlideImageUrl,
+} from "@/types/hero";
 
 const PINK = "#E91E63";
+const DESKTOP_MAX_HEIGHT = 420;
+const DESKTOP_MIN_HEIGHT = 240;
 
 type HeroSlideView = {
   id: string;
-  image: ImageSourcePropType;
+  imageUri: string;
   ctaLabel: string;
   categorySlug: string;
   categoryName: string;
@@ -31,10 +37,16 @@ type HeroCarouselProps = {
   desktop: boolean;
 };
 
+function desktopHeroHeight(width: number) {
+  const ideal = Math.round(width / HERO_DESKTOP_ASPECT);
+  return Math.min(DESKTOP_MAX_HEIGHT, Math.max(DESKTOP_MIN_HEIGHT, ideal));
+}
+
 export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
-  const heroHeight = desktop
-    ? Math.min(320, Math.max(280, Math.round(width * 0.245)))
-    : Math.min(210, Math.max(185, Math.round(width * 0.54)));
+  // Desktop keeps its clamped height. Mobile is driven purely by HERO_MOBILE_ASPECT,
+  // so the shell scales with the viewport instead of snapping between clamp bounds —
+  // that clamping is what shifted the layout between small and large phones.
+  const desktopHeight = desktop ? desktopHeroHeight(width) : undefined;
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   const interactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -50,6 +62,7 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
     [heroSlides],
   );
   const narrow = !desktop && width < 340;
+  const radius = desktop ? 26 : 22;
 
   useEffect(() => {
     let active = true;
@@ -62,7 +75,7 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
         setHeroSlides(
           rows.map((row) => ({
             id: row.id,
-            image: { uri: row.image_url },
+            imageUri: heroSlideImageUrl(row, desktop),
             ctaLabel: row.cta_label,
             categorySlug: row.category_slug,
             categoryName: row.category_name,
@@ -86,7 +99,7 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
       active = false;
       unsubscribe();
     };
-  }, []);
+  }, [desktop]);
 
   useEffect(() => {
     activeIndexRef.current = 0;
@@ -174,7 +187,16 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
   if (loading || !heroSlides.length) return null;
 
   return (
-    <View style={[styles.shell, desktop && styles.shellDesktop, { width, height: heroHeight }]}>
+    <View
+      style={[
+        styles.shell,
+        desktop ? styles.shellDesktop : styles.shellMobile,
+        { width, maxWidth: width, borderRadius: radius },
+        desktop
+          ? { height: desktopHeight }
+          : { aspectRatio: HERO_MOBILE_ASPECT },
+      ]}
+    >
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -183,6 +205,8 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         scrollEventThrottle={16}
+        style={styles.scroller}
+        contentContainerStyle={styles.scrollerContent}
         onScrollBeginDrag={() => {
           interacting.current = true;
           if (interactionTimer.current) clearTimeout(interactionTimer.current);
@@ -191,11 +215,10 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
       >
         {slides.map((slide, index) => (
           <View key={`${slide.id}-${index}`} style={[styles.slide, { width }]}>
-            <Image
-              source={slide.image}
-              resizeMode="cover"
+            <HeroSlideMedia
+              uri={slide.imageUri}
               accessibilityLabel={`${slide.categoryName} hero slide`}
-              style={styles.image}
+              fill={desktop ? "blend" : "cover"}
             />
             <View style={[styles.ctaWrap, narrow && styles.ctaWrapNarrow, desktop && styles.ctaWrapDesktop]}>
               <Pressable
@@ -250,8 +273,23 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
 }
 
 const styles = StyleSheet.create({
-  shell: { borderRadius: 22, overflow: "hidden", position: "relative", backgroundColor: "#251B20" },
-  shellDesktop: { borderRadius: 26 },
+  shell: {
+    borderRadius: 22,
+    overflow: "hidden",
+    position: "relative",
+    // Dark fill only as a load fallback — never white (white shows as edge strips).
+    backgroundColor: "#141014",
+    margin: 0,
+    padding: 0,
+    borderWidth: 0,
+  },
+  shellDesktop: { borderRadius: 26, alignSelf: "center" },
+  // Radius lives on the shell, not on each slide image: the pager holds every slide
+  // side by side, so per-image corners would cut dark notches into the seam mid-swipe.
+  // The shell is the single clipping boundary and every layer inside it is square.
+  shellMobile: { borderRadius: 22, alignSelf: "center" },
+  scroller: { flex: 1, overflow: "hidden", margin: 0, padding: 0, backgroundColor: "transparent" },
+  scrollerContent: { alignItems: "stretch", margin: 0, padding: 0 },
   errorShell: {
     alignItems: "center",
     justifyContent: "center",
@@ -262,10 +300,18 @@ const styles = StyleSheet.create({
     borderColor: "#F3C7D4",
   },
   errorText: { color: "#B4234A", fontSize: 12, fontWeight: "600", textAlign: "center" },
-  slide: { height: "100%", position: "relative", overflow: "hidden", backgroundColor: "#251B20" },
-  image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+  slide: {
+    height: "100%",
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: "transparent",
+    margin: 0,
+    padding: 0,
+    borderWidth: 0,
+  },
   ctaWrap: {
     position: "absolute",
+    zIndex: 2,
     left: 0,
     bottom: 0,
     paddingHorizontal: 20,
@@ -288,10 +334,30 @@ const styles = StyleSheet.create({
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   ctaText: { color: "#FFFFFF", fontSize: 9.5, fontWeight: "800" },
   ctaTextNarrow: { fontSize: 8.5 },
-  indicators: { position: "absolute", zIndex: 4, left: 0, right: 0, bottom: 9, flexDirection: "row", justifyContent: "center", gap: 5 },
+  indicators: {
+    position: "absolute",
+    zIndex: 4,
+    left: 0,
+    right: 0,
+    bottom: 9,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 5,
+  },
   indicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(233,30,99,.28)" },
   indicatorActive: { width: 20, backgroundColor: PINK },
-  arrow: { position: "absolute", zIndex: 4, top: "50%", width: 38, height: 38, marginTop: -19, borderRadius: 19, backgroundColor: "rgba(25,12,18,.50)", alignItems: "center", justifyContent: "center" },
+  arrow: {
+    position: "absolute",
+    zIndex: 4,
+    top: "50%",
+    width: 38,
+    height: 38,
+    marginTop: -19,
+    borderRadius: 19,
+    backgroundColor: "rgba(25,12,18,.50)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   arrowLeft: { left: 14 },
   arrowRight: { right: 14 },
 });

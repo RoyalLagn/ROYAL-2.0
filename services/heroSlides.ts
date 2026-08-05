@@ -81,11 +81,17 @@ export const HeroSlideService = {
     const { data: authData } = await supabase.auth.getUser();
     const userId = authData.user?.id ?? null;
 
+    const desktopImageUrl = input.desktopImageUrl?.trim() || null;
+
     const { data, error } = await supabase
       .from("hero_slides")
       .insert({
         image_url: imageUrl,
         image_public_id: input.imagePublicId ?? null,
+        desktop_image_url: desktopImageUrl,
+        desktop_image_public_id: desktopImageUrl
+          ? (input.desktopImagePublicId ?? null)
+          : null,
         category_id: input.categoryId,
         category_slug: categorySlug,
         category_name: categoryName,
@@ -110,6 +116,14 @@ export const HeroSlideService = {
       payload.image_url = trimRequired(input.imageUrl, "Background image");
     }
     if (input.imagePublicId !== undefined) payload.image_public_id = input.imagePublicId;
+    if (input.desktopImageUrl !== undefined) {
+      const desktopImageUrl = input.desktopImageUrl?.trim() || null;
+      payload.desktop_image_url = desktopImageUrl;
+      if (!desktopImageUrl) payload.desktop_image_public_id = null;
+    }
+    if (input.desktopImagePublicId !== undefined) {
+      payload.desktop_image_public_id = input.desktopImagePublicId;
+    }
     if (input.categoryId !== undefined) {
       if (!input.categoryId.trim()) throw new Error("Category is required.");
       payload.category_id = input.categoryId;
