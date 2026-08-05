@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { MoreHorizontal } from "lucide-react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Path } from "react-native-svg";
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -22,11 +22,11 @@ import SafeImage from "@/components/SafeImage";
 const PINK = "#E91E63";
 
 const FRAME_TONES = [
-  { gradient: ["#FFF3E3", "#F9DFC2"] as const, border: "#EDC79C", shadow: "#DDAF7C" },
-  { gradient: ["#FFEAF3", "#F7D5E3"] as const, border: "#EAB5C9", shadow: "#DF91AF" },
-  { gradient: ["#EDF4FF", "#D9E7FA"] as const, border: "#BCD0EB", shadow: "#91AED6" },
-  { gradient: ["#EEF6EB", "#DDEBD8"] as const, border: "#BBD0B5", shadow: "#95B28E" },
-  { gradient: ["#F3EBFF", "#E5D7F6"] as const, border: "#CAB3E6", shadow: "#AA8DCE" },
+  { border: "#E8C49A", sparkle: "#F0D4B0", fill: "#FFF8F0" },
+  { border: "#E9B4C6", sparkle: "#F3CDD9", fill: "#FFF5F8" },
+  { border: "#A8C8A0", sparkle: "#C5DDBE", fill: "#F5FAF3" },
+  { border: "#A8C4E0", sparkle: "#C5D8EE", fill: "#F4F8FC" },
+  { border: "#C4B0E0", sparkle: "#D9CCED", fill: "#F8F5FC" },
 ] as const;
 
 type HomeCategoryCardProps = {
@@ -39,6 +39,17 @@ type HomeCategoryCardProps = {
   more?: boolean;
   onPress: () => void;
 };
+
+function Sparkle({ color, size }: { color: string; size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityElementsHidden>
+      <Path
+        d="M12 1.2L13.85 10.15L22.8 12L13.85 13.85L12 22.8L10.15 13.85L1.2 12L10.15 10.15L12 1.2Z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
 
 function HomeCategoryCard({
   name,
@@ -53,14 +64,17 @@ function HomeCategoryCard({
   const reducedMotion = useReducedMotion();
   const pressed = useSharedValue(1);
   const palette = FRAME_TONES[tone % FRAME_TONES.length];
-  const cardHeight = Math.round(cardWidth / 0.78);
-  const framePadding = Math.min(9, Math.max(6, Math.round(cardWidth * 0.11)));
-  const outerRadius = Math.min(24, Math.max(17, Math.round(cardWidth * 0.28)));
-  const innerRadius = Math.max(13, outerRadius - framePadding);
+  // Slightly taller portrait frame than the prior 0.78 ratio.
+  const cardHeight = Math.round(cardWidth / 0.70);
+  // Slimmer inset so the photo fills more of the frame.
+  const framePadding = Math.min(5, Math.max(3.5, Math.round(cardWidth * 0.055)));
+  const outerRadius = Math.min(22, Math.max(16, Math.round(cardWidth * 0.26)));
+  const innerRadius = Math.max(12, outerRadius - framePadding);
+  const sparkleSize = Math.min(11, Math.max(7, Math.round(cardWidth * 0.14)));
   const isLongSingleWord = !/\s/.test(name) && name.length > 10;
-  const frameColors = dark
-    ? (["#201B23", "#201B23"] as const)
-    : palette.gradient;
+  const borderColor = dark ? `${palette.border}99` : palette.border;
+  const sparkleColor = dark ? `${palette.sparkle}CC` : "#FFFFFF";
+  const frameFill = dark ? "#201B23" : palette.fill;
 
   const pressStyle = useAnimatedStyle<ViewStyle>(() => ({
     opacity: pressed.value,
@@ -89,10 +103,7 @@ function HomeCategoryCard({
       style={[styles.pressable, { width: itemWidth }]}
     >
       <Animated.View style={[styles.animatedItem, pressStyle]}>
-        <LinearGradient
-          colors={frameColors}
-          start={{ x: 0.08, y: 0 }}
-          end={{ x: 0.92, y: 1 }}
+        <View
           style={[
             styles.frame,
             {
@@ -100,8 +111,8 @@ function HomeCategoryCard({
               height: cardHeight,
               padding: framePadding,
               borderRadius: outerRadius,
-              borderColor: dark ? `${palette.shadow}66` : palette.border,
-              shadowColor: palette.shadow,
+              borderColor,
+              backgroundColor: frameFill,
             },
           ]}
         >
@@ -135,7 +146,61 @@ function HomeCategoryCard({
               />
             ) : null}
           </View>
-        </LinearGradient>
+
+          {/* Elegant sparkles centered on each side of the pastel border */}
+          <View
+            pointerEvents="none"
+            style={[
+              styles.sparkle,
+              {
+                top: -sparkleSize / 2,
+                left: "50%",
+                marginLeft: -sparkleSize / 2,
+              },
+            ]}
+          >
+            <Sparkle color={sparkleColor} size={sparkleSize} />
+          </View>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.sparkle,
+              {
+                bottom: -sparkleSize / 2,
+                left: "50%",
+                marginLeft: -sparkleSize / 2,
+              },
+            ]}
+          >
+            <Sparkle color={sparkleColor} size={sparkleSize} />
+          </View>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.sparkle,
+              {
+                left: -sparkleSize / 2,
+                top: "50%",
+                marginTop: -sparkleSize / 2,
+              },
+            ]}
+          >
+            <Sparkle color={sparkleColor} size={sparkleSize} />
+          </View>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.sparkle,
+              {
+                right: -sparkleSize / 2,
+                top: "50%",
+                marginTop: -sparkleSize / 2,
+              },
+            ]}
+          >
+            <Sparkle color={sparkleColor} size={sparkleSize} />
+          </View>
+        </View>
 
         <Text
           adjustsFontSizeToFit
@@ -170,20 +235,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   frame: {
-    borderWidth: 1,
+    borderWidth: 1.25,
     alignItems: "center",
     justifyContent: "center",
-    shadowOpacity: 0.13,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    position: "relative",
+    overflow: "visible",
   },
   imageShell: {
     width: "100%",
     flex: 1,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.94)",
   },
   image: {
     width: "100%",
@@ -191,6 +252,12 @@ const styles = StyleSheet.create({
   },
   moreIcon: {
     flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sparkle: {
+    position: "absolute",
+    zIndex: 2,
     alignItems: "center",
     justifyContent: "center",
   },

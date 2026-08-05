@@ -22,3 +22,25 @@ body {
     height: 100dvh;
   }
 }
+
+/* Vendor dashboard Profile Readiness checklist — keep card text from
+   collapsing letter-by-letter when flex widths miscalculate on web. */
+.readiness-checklist-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.readiness-checklist-card {
+  box-sizing: border-box;
+  flex-shrink: 0 !important;
+  max-width: 100%;
+}
+
+.readiness-checklist-card,
+.readiness-checklist-card * {
+  word-break: normal;
+  overflow-wrap: break-word;
+}

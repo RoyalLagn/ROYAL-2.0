@@ -258,6 +258,11 @@ verify_jwt = false
 [functions.submit-vendor-application]
 verify_jwt = false
 
+# Keep platform JWT verification on; the function also re-validates the user
+# access token and requires profiles.role in (admin, super_admin).
+[functions.send-admin-push]
+verify_jwt = true
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true

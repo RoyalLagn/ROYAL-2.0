@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useRef } from "react";
 import {
   Bell,
   BadgeCheck,
@@ -6,12 +6,13 @@ import {
   CalendarX,
   Megaphone,
   Percent,
+  Trash2,
   UserRoundCheck,
   WalletCards,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
 import { AuthBackButton } from "@/components/auth/AuthBackButton";
 import { useAppTheme } from "@/components/ThemeProvider";
 import {
@@ -42,57 +43,91 @@ const formatTimestamp = (timestamp: string) => {
 
 const notificationDestination = (notification: RoyalLagnNotification) => {
   if (notification.targetPath) return notification.targetPath;
-  if (notification.type === "booking_confirmed" || notification.type === "booking_cancelled" || notification.type === "payment_reminder") return "/(tabs)/enquiry";
+  if (
+    notification.type === "booking_confirmed" ||
+    notification.type === "booking_cancelled" ||
+    notification.type === "payment_reminder"
+  ) {
+    return "/(tabs)/enquiry";
+  }
   if (notification.type === "new_offer") return "/(tabs)/Categories";
   if (notification.type === "profile_updated") return "/(tabs)/profile";
   if (notification.type === "vendor_approval") return "/DashboardCenter";
   return null;
 };
 
+function openDestination(router: ReturnType<typeof useRouter>, path: string) {
+  const [pathname, query = ""] = path.split("?");
+  if (!query) {
+    router.push(pathname as never);
+    return;
+  }
+  const params = Object.fromEntries(new URLSearchParams(query).entries());
+  router.push({ pathname, params } as never);
+}
+
 function NotificationRow({
   notification,
   dark,
   onOpen,
+  onDelete,
 }: {
   notification: RoyalLagnNotification;
   dark: boolean;
   onOpen: () => void;
+  onDelete: () => void;
 }) {
   const Icon = notificationIcons[notification.type];
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${notification.title}${notification.read ? "" : ", unread"}`}
-      onPress={onOpen}
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.notification,
         {
           backgroundColor: notification.read
-            ? dark ? "#1E1E1E" : "#FFFFFF"
-            : dark ? "#2A2025" : "#FFF7FA",
+            ? dark
+              ? "#1E1E1E"
+              : "#FFFFFF"
+            : dark
+              ? "#2A2025"
+              : "#FFF7FA",
           borderColor: dark ? "#333333" : "#F0D9E4",
         },
-        pressed && styles.pressed,
       ]}
     >
-      <View style={[styles.notificationIcon, { backgroundColor: dark ? "#351D28" : "#FFF1F6" }]}>
-        <Icon size={20} color="#E91E63" strokeWidth={1.8} />
-      </View>
-      <View style={styles.notificationCopy}>
-        <View style={styles.titleRow}>
-          <Text className="text-foreground text-sm font-bold" style={styles.notificationTitle}>
-            {notification.title}
-          </Text>
-          {!notification.read ? <View style={styles.unreadDot} /> : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${notification.title}${notification.read ? "" : ", unread"}`}
+        onPress={onOpen}
+        style={({ pressed }) => [styles.notificationMain, pressed && styles.pressed]}
+      >
+        <View style={[styles.notificationIcon, { backgroundColor: dark ? "#351D28" : "#FFF1F6" }]}>
+          <Icon size={20} color="#E91E63" strokeWidth={1.8} />
         </View>
-        <Text className="text-muted-foreground text-xs leading-5">
-          {notification.message}
-        </Text>
-        <Text className="text-muted-foreground text-[10px] mt-2">
-          {formatTimestamp(notification.timestamp)}
-        </Text>
-      </View>
-    </Pressable>
+        <View style={styles.notificationCopy}>
+          <View style={styles.titleRow}>
+            <Text className="text-foreground text-sm font-bold" style={styles.notificationTitle}>
+              {notification.title}
+            </Text>
+            {!notification.read ? <View style={styles.unreadDot} /> : null}
+          </View>
+          <Text className="text-muted-foreground text-xs leading-5">
+            {notification.message}
+          </Text>
+          <Text className="text-muted-foreground text-[10px] mt-2">
+            {formatTimestamp(notification.timestamp)}
+          </Text>
+        </View>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Delete ${notification.title}`}
+        hitSlop={8}
+        onPress={onDelete}
+        style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
+      >
+        <Trash2 size={16} color={dark ? "#A3A3A3" : "#9CA3AF"} strokeWidth={1.8} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -104,20 +139,85 @@ export default function NotificationsScreen() {
     notifications,
     unreadCount,
     loading,
+    error,
     markAsRead,
     markAllAsRead,
+    deleteNotification,
     clearNotifications,
+    refreshNotifications,
   } = useNotifications();
+  const markedOnFocus = useRef(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      markedOnFocus.current = false;
+      if (!loading && unreadCount > 0) {
+        markedOnFocus.current = true;
+        void markAllAsRead();
+      }
+      return () => {
+        markedOnFocus.current = false;
+      };
+    }, [loading, markAllAsRead, unreadCount]),
+  );
+
+  const confirmClearAll = () => {
+    Alert.alert(
+      "Clear all notifications?",
+      "This removes notifications from your inbox only. Admin history is not affected.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear all",
+          style: "destructive",
+          onPress: () => {
+            void clearNotifications().then((success) => {
+              if (!success) {
+                Alert.alert("Could not clear", "Please check your connection and try again.");
+              }
+            });
+          },
+        },
+      ],
+    );
+  };
+
+  const confirmDelete = (notification: RoyalLagnNotification) => {
+    Alert.alert("Delete notification?", "This removes it from your inbox only.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          void deleteNotification(notification.id).then((success) => {
+            if (!success) {
+              Alert.alert("Could not delete", "Please check your connection and try again.");
+            }
+          });
+        },
+      },
+    ]);
+  };
 
   return (
-    <SafeAreaView
-      className="flex-1 bg-background"
-      edges={["top", "left", "right"]}
-    >
+    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <View style={[styles.header, { borderBottomColor: isDark ? "#333333" : "#F0D9E4" }]}>
         <AuthBackButton fallbackRoute="/(tabs)" />
         <Text className="text-foreground text-xl font-bold">Notifications</Text>
       </View>
+
+      {error ? (
+        <View style={[styles.errorBanner, { borderBottomColor: isDark ? "#333333" : "#F0D9E4" }]}>
+          <Text className="text-muted-foreground text-xs flex-1">{error}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void refreshNotifications()}
+            style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+          >
+            <Text className="text-primary text-xs font-bold">Retry</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {loading ? (
         <View style={{ padding: 16 }}>
@@ -149,7 +249,7 @@ export default function NotificationsScreen() {
           <View style={[styles.actions, { borderBottomColor: isDark ? "#333333" : "#F0D9E4" }]}>
             <Pressable
               accessibilityRole="button"
-              onPress={markAllAsRead}
+              onPress={() => void markAllAsRead()}
               disabled={unreadCount === 0}
               style={({ pressed }) => [
                 styles.action,
@@ -161,7 +261,7 @@ export default function NotificationsScreen() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              onPress={clearNotifications}
+              onPress={confirmClearAll}
               style={({ pressed }) => [styles.action, pressed && styles.pressed]}
             >
               <Text className="text-primary text-xs font-bold">Clear all</Text>
@@ -177,10 +277,11 @@ export default function NotificationsScreen() {
                 notification={notification}
                 dark={isDark}
                 onOpen={() => {
-                  markAsRead(notification.id);
+                  void markAsRead(notification.id);
                   const destination = notificationDestination(notification);
-                  if (destination) router.push(destination as never);
+                  if (destination) openDestination(router, destination);
                 }}
+                onDelete={() => confirmDelete(notification)}
               />
             ))}
           </ScrollView>
@@ -197,6 +298,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
+  },
+  errorBanner: {
+    minHeight: 44,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   empty: {
     flex: 1,
@@ -259,6 +368,13 @@ const styles = StyleSheet.create({
     padding: 14,
     flexDirection: "row",
     alignItems: "flex-start",
+    gap: 8,
+  },
+  notificationMain: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: 12,
   },
   notificationIcon: {
@@ -286,6 +402,14 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: 4,
     backgroundColor: "#E91E63",
+  },
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
   },
   pressed: {
     opacity: 0.72,

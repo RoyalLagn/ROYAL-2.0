@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, Text } from "react-native";
 import { Href, useRouter } from "expo-router";
-import { Building2, ClipboardList, FileBarChart, Folder, Settings, Users } from "lucide-react-native";
+import { Bell, Building2, ClipboardList, FileBarChart, Folder, PanelsTopLeft, Settings, Users } from "lucide-react-native";
 import { ResponsiveGrid } from "@/components/responsive/ResponsiveGrid";
 import { ResponsiveCard } from "@/components/responsive/ResponsiveCard";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
@@ -10,6 +10,8 @@ const actions = [
   ["Review Vendor Applications", "Approve or reject pending businesses", ClipboardList, "/VendorApplications"],
   ["View Vendors", "Open the current vendor directory", Building2, "/vendors-admin-listing"],
   ["View Public Users", "See registered customer accounts", Users, "/AdminUsers"],
+  ["Hero Section", "Manage home carousel slides", PanelsTopLeft, "/AdminHero"],
+  ["Push Notifications", "Send customer and vendor announcements", Bell, "/AdminPushNotifications"],
   ["View Categories", "Open marketplace categories", Folder, "/AdminCategories"],
   ["Open Reports", "Go to the reports workspace", FileBarChart, "/AdminReports"],
   ["Open Settings", "Manage administrator settings", Settings, "/AdminSettings"],

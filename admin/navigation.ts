@@ -1,6 +1,7 @@
 import type React from "react";
 import {
   BarChart3,
+  Bell,
   Building2,
   CircleHelp,
   ClipboardCheck,
@@ -10,6 +11,7 @@ import {
   FolderTree,
   MessageSquareText,
   MapPinned,
+  PanelsTopLeft,
   Settings,
   Star,
   Target,
@@ -28,6 +30,8 @@ export type AdminNavigationKey =
   | "subscriptions"
   | "payments"
   | "crm"
+  | "hero"
+  | "push"
   | "categories"
   | "locations"
   | "reports"
@@ -75,6 +79,8 @@ export const adminNavigationGroups: { label: string; items: AdminNavigationItem[
   {
     label: "Platform",
     items: [
+      { key: "hero", label: "Hero Section", route: "/AdminHero", icon: PanelsTopLeft },
+      { key: "push", label: "Push Notifications", route: "/AdminPushNotifications", icon: Bell },
       { key: "categories", label: "Categories", route: "/AdminCategories", icon: FolderTree },
       { key: "locations", label: "Locations", route: "/AdminLocations", icon: MapPinned },
       { key: "reports", label: "Reports", route: "/AdminReports", icon: FileBarChart },
@@ -97,6 +103,7 @@ export const adminWorkspaceRoutes = new Set([
   ...adminNavigationItems.map((item) => item.route),
   "/AdminVendorDetails",
   "/VendorApplicationDetails",
+  "/AdminProfile",
   "/admin-dash-logout",
   "/AdminCrmStates",
   "/AdminCrmDistricts",

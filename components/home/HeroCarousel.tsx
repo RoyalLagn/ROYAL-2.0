@@ -13,61 +13,18 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { HeroSlideService } from "@/services/heroSlides";
+import { heroSlideDestination } from "@/types/hero";
 
 const PINK = "#E91E63";
 
-type HeroSlide = {
+type HeroSlideView = {
   id: string;
   image: ImageSourcePropType;
-  eyebrow: string;
-  title: string;
-  highlightedText: string;
   ctaLabel: string;
-  route: "/(tabs)/Categories" | "/VendorsListing";
-  category?: string;
+  categorySlug: string;
+  categoryName: string;
 };
-
-const HERO_SLIDES: HeroSlide[] = [
-  {
-    id: "dream",
-    image: require("../../assets/hero-banner.png"),
-    eyebrow: "YOUR WEDDING, BEAUTIFULLY PLANNED",
-    title: "Plan Your",
-    highlightedText: "Dream Wedding",
-    ctaLabel: "Explore Vendors",
-    route: "/(tabs)/Categories",
-  },
-  {
-    id: "venues",
-    image: { uri: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=1600&auto=format&fit=crop&q=82" },
-    eyebrow: "CELEBRATE SOMEWHERE EXTRAORDINARY",
-    title: "Discover",
-    highlightedText: "Picture-Perfect Venues",
-    ctaLabel: "View Venues",
-    route: "/VendorsListing",
-    category: "Venues",
-  },
-  {
-    id: "photography",
-    image: { uri: "https://images.unsplash.com/photo-1606800052052-a08af7148866?w=1600&auto=format&fit=crop&q=82" },
-    eyebrow: "STORIES WORTH REMEMBERING",
-    title: "Capture Every",
-    highlightedText: "Beautiful Moment",
-    ctaLabel: "Find Photographers",
-    route: "/VendorsListing",
-    category: "Photographers",
-  },
-  {
-    id: "services",
-    image: { uri: "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=1600&auto=format&fit=crop&q=82" },
-    eyebrow: "MAKE THE CELEBRATION YOURS",
-    title: "Celebrate in",
-    highlightedText: "Your Own Style",
-    ctaLabel: "Browse Services",
-    route: "/(tabs)/Categories",
-  },
-];
 
 type HeroCarouselProps = {
   width: number;
@@ -85,8 +42,57 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
   const interacting = useRef(false);
   const activeIndexRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
-  const slides = useMemo(() => [...HERO_SLIDES, HERO_SLIDES[0]], []);
+  const [heroSlides, setHeroSlides] = useState<HeroSlideView[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const slides = useMemo(
+    () => (heroSlides.length ? [...heroSlides, heroSlides[0]] : []),
+    [heroSlides],
+  );
   const narrow = !desktop && width < 340;
+
+  useEffect(() => {
+    let active = true;
+
+    const mapRows = async (force = false) => {
+      try {
+        const rows = await HeroSlideService.listActivePublic(force);
+        if (!active) return;
+        setLoadError(null);
+        setHeroSlides(
+          rows.map((row) => ({
+            id: row.id,
+            image: { uri: row.image_url },
+            ctaLabel: row.cta_label,
+            categorySlug: row.category_slug,
+            categoryName: row.category_name,
+          })),
+        );
+      } catch (reason) {
+        if (!active) return;
+        setHeroSlides([]);
+        setLoadError(reason instanceof Error ? reason.message : "Unable to load hero slides.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void mapRows();
+    const unsubscribe = HeroSlideService.subscribe(() => {
+      void mapRows(true);
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    activeIndexRef.current = 0;
+    setActiveIndex(0);
+    scrollRef.current?.scrollTo({ x: 0, y: 0, animated: false });
+  }, [heroSlides]);
 
   const finishInteractionLater = useCallback(() => {
     if (interactionTimer.current) clearTimeout(interactionTimer.current);
@@ -96,9 +102,10 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
   }, []);
 
   const goTo = useCallback((index: number, animated = true) => {
-    const target = index < 0 ? HERO_SLIDES.length - 1 : index;
+    if (!heroSlides.length) return;
+    const target = index < 0 ? heroSlides.length - 1 : index;
     scrollRef.current?.scrollTo({ x: target * width, y: 0, animated });
-    if (target < HERO_SLIDES.length) {
+    if (target < heroSlides.length) {
       activeIndexRef.current = target;
       setActiveIndex(target);
     } else {
@@ -109,18 +116,19 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
         scrollRef.current?.scrollTo({ x: 0, y: 0, animated: false });
       }, 750);
     }
-  }, [width]);
+  }, [heroSlides.length, width]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ x: activeIndexRef.current * width, y: 0, animated: false });
-  }, [width]); // Keep the active slide aligned after a responsive resize.
+  }, [width]);
 
   useEffect(() => {
+    if (!heroSlides.length) return;
     const interval = setInterval(() => {
       if (!interacting.current) goTo(activeIndex + 1);
     }, 5000);
     return () => clearInterval(interval);
-  }, [activeIndex, goTo]);
+  }, [activeIndex, goTo, heroSlides.length]);
 
   useEffect(() => () => {
     if (interactionTimer.current) clearTimeout(interactionTimer.current);
@@ -128,8 +136,9 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
   }, []);
 
   const handleMomentumEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!heroSlides.length) return;
     const rawIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-    if (rawIndex === HERO_SLIDES.length) {
+    if (rawIndex === heroSlides.length) {
       activeIndexRef.current = 0;
       setActiveIndex(0);
       if (loopResetTimer.current) clearTimeout(loopResetTimer.current);
@@ -138,21 +147,31 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
         50,
       );
     } else {
-      activeIndexRef.current = Math.max(0, Math.min(rawIndex, HERO_SLIDES.length - 1));
+      activeIndexRef.current = Math.max(0, Math.min(rawIndex, heroSlides.length - 1));
       setActiveIndex(activeIndexRef.current);
     }
     finishInteractionLater();
   };
 
-  const openSlide = (slide: HeroSlide) => {
+  const openSlide = (slide: HeroSlideView) => {
     interacting.current = true;
     finishInteractionLater();
-    if (slide.route === "/VendorsListing") {
-      router.push({ pathname: slide.route, params: { category: slide.category } });
-    } else {
-      router.push(slide.route);
-    }
+    const destination = heroSlideDestination({
+      category_slug: slide.categorySlug,
+      category_name: slide.categoryName,
+    });
+    router.push(destination);
   };
+
+  if (loadError) {
+    return (
+      <View style={[styles.shell, desktop && styles.shellDesktop, styles.errorShell, { width, minHeight: 72 }]}>
+        <Text style={styles.errorText}>{loadError}</Text>
+      </View>
+    );
+  }
+
+  if (loading || !heroSlides.length) return null;
 
   return (
     <View style={[styles.shell, desktop && styles.shellDesktop, { width, height: heroHeight }]}>
@@ -175,24 +194,13 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
             <Image
               source={slide.image}
               resizeMode="cover"
-              accessibilityLabel={`${slide.highlightedText} wedding campaign`}
+              accessibilityLabel={`${slide.categoryName} hero slide`}
               style={styles.image}
             />
-            <LinearGradient
-              pointerEvents="none"
-              colors={["rgba(10,8,9,.78)", "rgba(10,8,9,.42)", "rgba(10,8,9,.02)"]}
-              locations={[0, 0.5, 0.86]}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              style={StyleSheet.absoluteFillObject}
-            />
-            <View style={[styles.copy, narrow && styles.copyNarrow, desktop && styles.copyDesktop]}>
-              <Text numberOfLines={1} style={[styles.eyebrow, narrow && styles.eyebrowNarrow]}>{slide.eyebrow}</Text>
-              <Text numberOfLines={1} style={[styles.title, narrow && styles.titleNarrow, desktop && styles.titleDesktop]}>{slide.title}</Text>
-              <Text numberOfLines={1} style={[styles.highlight, narrow && styles.highlightNarrow, desktop && styles.highlightDesktop]}>{slide.highlightedText}</Text>
+            <View style={[styles.ctaWrap, narrow && styles.ctaWrapNarrow, desktop && styles.ctaWrapDesktop]}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${slide.ctaLabel}: ${slide.highlightedText}`}
+                accessibilityLabel={`${slide.ctaLabel}: browse ${slide.categoryName}`}
                 onPress={() => openSlide(slide)}
                 style={({ pressed, hovered }) => [
                   styles.cta,
@@ -220,8 +228,8 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
         </>
       ) : null}
 
-      <View style={styles.indicators} accessibilityLabel={`Hero slide ${activeIndex + 1} of ${HERO_SLIDES.length}`}>
-        {HERO_SLIDES.map((slide, index) => (
+      <View style={styles.indicators} accessibilityLabel={`Hero slide ${activeIndex + 1} of ${heroSlides.length}`}>
+        {heroSlides.map((slide, index) => (
           <Pressable
             key={slide.id}
             accessibilityRole="button"
@@ -237,7 +245,6 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
           />
         ))}
       </View>
-
     </View>
   );
 }
@@ -245,21 +252,38 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
 const styles = StyleSheet.create({
   shell: { borderRadius: 22, overflow: "hidden", position: "relative", backgroundColor: "#251B20" },
   shellDesktop: { borderRadius: 26 },
+  errorShell: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    backgroundColor: "#FFF5F7",
+    borderWidth: 1,
+    borderColor: "#F3C7D4",
+  },
+  errorText: { color: "#B4234A", fontSize: 12, fontWeight: "600", textAlign: "center" },
   slide: { height: "100%", position: "relative", overflow: "hidden", backgroundColor: "#251B20" },
   image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
-  copy: { position: "absolute", left: 0, top: 0, bottom: 0, width: "69%", paddingHorizontal: 20, justifyContent: "center" },
-  copyNarrow: { width: "72%", paddingHorizontal: 14 },
-  copyDesktop: { width: "50%", paddingHorizontal: 42 },
-  eyebrow: { color: "#F5D7E2", fontSize: 7.5, lineHeight: 10, fontWeight: "900", letterSpacing: 1.05, marginBottom: 8 },
-  eyebrowNarrow: { fontSize: 6, lineHeight: 8, letterSpacing: 0.75, marginBottom: 6 },
-  title: { color: "#FFFFFF", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 19, lineHeight: 22, fontWeight: "700" },
-  titleNarrow: { fontSize: 16, lineHeight: 18 },
-  titleDesktop: { fontSize: 28, lineHeight: 32 },
-  highlight: { color: "#FF2A73", fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 20, lineHeight: 23, fontWeight: "700" },
-  highlightNarrow: { fontSize: 17, lineHeight: 19 },
-  highlightDesktop: { fontSize: 30, lineHeight: 34 },
-  cta: { minHeight: 29, alignSelf: "flex-start", marginTop: 10, paddingHorizontal: 10, borderRadius: 999, backgroundColor: PINK, flexDirection: "row", alignItems: "center", gap: 3, shadowColor: "#3D0D20", shadowOpacity: 0.16, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  ctaNarrow: { minHeight: 27, marginTop: 8, paddingHorizontal: 8 },
+  ctaWrap: {
+    position: "absolute",
+    left: 0,
+    bottom: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 18,
+  },
+  ctaWrapNarrow: { paddingHorizontal: 14, paddingBottom: 16 },
+  ctaWrapDesktop: { paddingHorizontal: 42, paddingBottom: 28 },
+  cta: {
+    minHeight: 29,
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: PINK,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  ctaNarrow: { minHeight: 27, paddingHorizontal: 8 },
   ctaHover: { transform: [{ translateY: -1 }], backgroundColor: "#D81758" },
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   ctaText: { color: "#FFFFFF", fontSize: 9.5, fontWeight: "800" },

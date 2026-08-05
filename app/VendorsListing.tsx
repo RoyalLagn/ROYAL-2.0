@@ -24,7 +24,10 @@ import {
   subscribeToPublicVendorChanges,
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
-import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
+import {
+  findMarketplaceCategory,
+  resolveMarketplaceCategoryImage,
+} from "@/data/marketplaceCategories";
 import { rankVendorsByLocation } from "@/services/locations";
 
 function getPriceOptions(category: string) {
@@ -72,7 +75,11 @@ const CATEGORY_ALIASES: Record<string, string> = {
 
 function resolveCategory(value?: string) {
   if (!value) return "Photographers";
-  const aliased = CATEGORY_ALIASES[value.trim().toLowerCase()] ?? value.trim();
+  const raw = value.trim();
+  const aliased = CATEGORY_ALIASES[raw.toLowerCase()] ?? raw;
+  // Accept marketplace names, DB names, and slugs (e.g. photographer / wedding-hall).
+  const matched = findMarketplaceCategory(aliased);
+  if (matched) return matched.name;
   return normalizeMarketplaceCategoryName(aliased);
 }
 

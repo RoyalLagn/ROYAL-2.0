@@ -65,15 +65,15 @@ function AdminSidebar({ compact }: { compact: boolean }) {
     <View style={[styles.account, compact && styles.accountCompact, { borderTopColor: border }]}>
       {!compact ? <View style={styles.accountCopy}><Text numberOfLines={1} style={[styles.accountName, { color: text }]}>{identity?.profile.full_name || "Administrator"}</Text><Text style={[styles.accountRole, { color: muted }]}>{identity?.profile.role === "super_admin" ? "Super admin" : "Admin"}</Text></View> : null}
       <ThemeToggle size={18} />
-      <Pressable accessibilityLabel="Open admin account" onPress={() => router.push("/admin-dash-logout")} style={styles.accountButton}><CircleUserRound size={18} color={muted} /></Pressable>
+      <Pressable accessibilityLabel="Open admin account" onPress={() => router.push("/AdminProfile")} style={styles.accountButton}><CircleUserRound size={18} color={muted} /></Pressable>
     </View>
   </View>;
 }
 
 const styles = StyleSheet.create({
   shell: { flex: 1, flexDirection: "row", minHeight: 0 },
-  content: { flex: 1, minWidth: 0 },
-  sidebar: { width: 236, borderRightWidth: StyleSheet.hairlineWidth, flexShrink: 0 },
+  content: { flex: 1, minWidth: 0, minHeight: 0, overflow: "hidden" },
+  sidebar: { width: 236, borderRightWidth: StyleSheet.hairlineWidth, flexShrink: 0, minHeight: 0 },
   sidebarCompact: { width: 76 },
   brand: { height: 72, borderBottomWidth: StyleSheet.hairlineWidth, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   compactBrand: { width: 42, height: 42, borderRadius: 13, backgroundColor: "rgba(233,30,99,.1)", alignItems: "center", justifyContent: "center" },

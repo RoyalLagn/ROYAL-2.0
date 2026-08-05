@@ -32,7 +32,7 @@ import { useVendorWorkspace, VendorReadinessLabels, type CompletionState } from 
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
 import SubscriptionDashboardCard from "@/components/vendor/SubscriptionDashboardCard";
 import PublicProfileCard from "@/components/vendor/PublicProfileCard";
-import ChecklistItem from "@/components/vendor/ChecklistItem";
+import ChecklistItem, { ReadinessChecklistGrid } from "@/components/vendor/ChecklistItem";
 
 // Ordered worse -> better so a state "improving" can be detected with a
 // simple index comparison when the vendor returns from a section form.
@@ -270,19 +270,21 @@ export default function VendorDashboard() {
               <Text style={[styles.checklistTitle, { color: colors.text }]}>Readiness checklist</Text>
               <Text style={[styles.checklistHint, { color: colors.muted }]}>Tap any section to review it</Text>
             </View>
-            <View style={styles.checklistGrid}>
-              {completion.items.map((item) => (
-                <ChecklistItem
-                  key={item.id}
-                  item={item}
-                  meta={completionMeta[item.state]}
-                  colors={colors}
-                  desktop={desktop}
-                  highlighted={highlightedId === item.id}
-                  onPress={() => router.push(item.route as any)}
-                />
-              ))}
-            </View>
+            <ReadinessChecklistGrid>
+              {(itemWidth) =>
+                completion.items.map((item) => (
+                  <ChecklistItem
+                    key={item.id}
+                    item={item}
+                    meta={completionMeta[item.state]}
+                    colors={colors}
+                    itemWidth={itemWidth}
+                    highlighted={highlightedId === item.id}
+                    onPress={() => router.push(item.route as any)}
+                  />
+                ))
+              }
+            </ReadinessChecklistGrid>
           </View>
         </VendorDashboardReveal>
       </ScrollView>
@@ -346,7 +348,6 @@ const styles = StyleSheet.create({
   checklistHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 21, marginBottom: 10 },
   checklistTitle: { fontSize: 12, fontWeight: "900" },
   checklistHint: { fontSize: 8 },
-  checklistGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
   loading: { position: "absolute", top: "50%", left: 0, right: 0, alignItems: "center", pointerEvents: "none" },
 });

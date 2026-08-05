@@ -19,6 +19,7 @@ import { CategoryProvider } from '@/context/CategoryContext';
 import { SubscriptionProvider } from '@/context/SubscriptionContext';
 import { VendorNotificationProvider } from '@/context/VendorNotificationContext';
 import { AdminWorkspaceShell } from '@/components/admin/AdminWorkspaceShell';
+import PushTokenRegistrar from '@/components/notifications/PushTokenRegistrar';
 import { SCREEN_TRANSITION } from '@/utils/motion';
 import { useWebNavigationFocusSafety } from '@/hooks/useWebNavigationFocusSafety';
 
@@ -82,6 +83,7 @@ export default function RootLayout() {
                             <ThemeProvider>
                               <SafeAreaProvider>
                                 <ResponsiveLayoutProvider>
+                                  <PushTokenRegistrar />
                                   <StatusBar style="dark" backgroundColor="#FFFFFF" translucent={false} />
                                   <View className="bg-background" style={styles.app}>
                                     <AdminWorkspaceShell>

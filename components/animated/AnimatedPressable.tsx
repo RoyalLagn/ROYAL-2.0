@@ -16,6 +16,9 @@ import { MotionPress, MotionTiming } from "@/utils/motion";
  * release, matching the "immediate, subtle" feedback spec everywhere
  * instead of every screen re-implementing its own Animated.Value.
  *
+ * Layout styles are applied on the Pressable itself (not a nested View) so
+ * percentage / measured widths participate correctly in flexWrap grids.
+ *
  * Deliberately does NOT delay onPress -- navigation fires immediately on a
  * valid press, the scale animation runs in parallel rather than gating it.
  */
@@ -30,6 +33,8 @@ export type AnimatedPressableProps = PressableProps & {
   /** Milliseconds to ignore repeat presses after a guarded press fires. */
   duplicatePressWindowMs?: number;
 };
+
+const AnimatedRNPressable = Animated.createAnimatedComponent(Pressable);
 
 export default function AnimatedPressable({
   children,
@@ -92,14 +97,15 @@ export default function AnimatedPressable({
   }));
 
   return (
-    <Pressable
+    <AnimatedRNPressable
       {...rest}
       disabled={disabled}
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      style={[style, !disabled ? animatedStyle : null]}
     >
-      <Animated.View style={[style, !disabled && animatedStyle]}>{children}</Animated.View>
-    </Pressable>
+      {children}
+    </AnimatedRNPressable>
   );
 }

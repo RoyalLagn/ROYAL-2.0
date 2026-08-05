@@ -27,7 +27,7 @@ const tabs: TabItem[] = [
   { key: "vendors", label: "Vendors", icon: Users, route: "/vendors-admin-listing" },
   { key: "subscriptions", label: "Subscriptions", shortLabel: "Plans", icon: Crown, route: "/subscriptions-admin" },
   { key: "payments", label: "Payments", icon: Wallet, route: "/payments-admin" },
-  { key: "profile", label: "Profile", icon: CircleUserRound, route: "/admin-dash-logout" },
+  { key: "profile", label: "Profile", icon: CircleUserRound, route: "/AdminProfile" },
 ];
 
 interface AdminFooterProps {

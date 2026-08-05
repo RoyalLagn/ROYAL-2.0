@@ -137,6 +137,12 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
   }, [session]);
 
   const signOut = useCallback(async () => {
+    try {
+      const { PushTokenService } = await import("@/services/pushTokens");
+      await PushTokenService.unregisterCurrentDevice();
+    } catch {
+      // Token cleanup is best-effort and must not block logout.
+    }
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setSession(null);

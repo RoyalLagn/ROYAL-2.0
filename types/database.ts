@@ -63,6 +63,62 @@ export type Database = {
         };
         Relationships: [];
       };
+      hero_slides: {
+        Row: {
+          category_id: string;
+          category_name: string;
+          category_slug: string;
+          created_at: string;
+          created_by: string | null;
+          cta_label: string;
+          display_order: number;
+          id: string;
+          image_public_id: string | null;
+          image_url: string;
+          is_active: boolean;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          category_id: string;
+          category_name: string;
+          category_slug: string;
+          created_at?: string;
+          created_by?: string | null;
+          cta_label: string;
+          display_order?: number;
+          id?: string;
+          image_public_id?: string | null;
+          image_url: string;
+          is_active?: boolean;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          category_id?: string;
+          category_name?: string;
+          category_slug?: string;
+          created_at?: string;
+          created_by?: string | null;
+          cta_label?: string;
+          display_order?: number;
+          id?: string;
+          image_public_id?: string | null;
+          image_url?: string;
+          is_active?: boolean;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "hero_slides_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       favorites: {
         Row: {
           created_at: string;

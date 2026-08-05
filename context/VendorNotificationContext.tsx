@@ -9,6 +9,10 @@ import React, {
 } from "react";
 import { supabase } from "@/services/supabase";
 import { useVendorSession } from "@/context/VendorSessionContext";
+import {
+  VendorInboxService,
+  type VendorInboxRow,
+} from "@/services/inboxNotifications";
 
 export type VendorNotification = {
   id: string;
@@ -26,25 +30,53 @@ type VendorNotificationContextValue = {
   notifications: VendorNotification[];
   unreadCount: number;
   loading: boolean;
+  error: string | null;
   refresh: () => Promise<void>;
   markAsRead: (id: string) => Promise<boolean>;
   markAllAsRead: () => Promise<boolean>;
+  deleteNotification: (id: string) => Promise<boolean>;
+  clearNotifications: () => Promise<boolean>;
 };
 
 const VendorNotificationContext = createContext<VendorNotificationContextValue | null>(null);
 let vendorNotificationChannelSequence = 0;
+
+const fromRow = (row: VendorInboxRow): VendorNotification => ({
+  id: row.id,
+  vendor_id: row.vendor_id,
+  title: row.title,
+  body: row.body,
+  kind: row.kind,
+  target_path: row.target_path,
+  is_read: row.is_read,
+  read_at: row.read_at,
+  created_at: row.created_at,
+});
+
+const sortByNewest = (items: VendorNotification[]) =>
+  [...items].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
+const upsertNotification = (current: VendorNotification[], next: VendorNotification) =>
+  sortByNewest([next, ...current.filter((item) => item.id !== next.id)]);
 
 export function VendorNotificationProvider({ children }: React.PropsWithChildren) {
   const { isPreviewMode, workspaceEpoch } = useVendorSession();
   const [vendorId, setVendorId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<VendorNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
   const refreshRequest = useRef(0);
+  const initialLoadDone = useRef(false);
+  const activeVendorId = useRef<string | null>(null);
 
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+    };
   }, []);
 
   const refresh = useCallback(async () => {
@@ -52,8 +84,11 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
     if (isPreviewMode) {
       if (mounted.current) {
         setVendorId(null);
+        activeVendorId.current = null;
         setNotifications([]);
         setLoading(false);
+        setError(null);
+        initialLoadDone.current = false;
       }
       return;
     }
@@ -62,17 +97,17 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
     if (authError || !authData.user) {
       if (mounted.current && request === refreshRequest.current) {
         setVendorId(null);
+        activeVendorId.current = null;
         setNotifications([]);
         setLoading(false);
+        setError(null);
+        initialLoadDone.current = false;
       }
       return;
     }
 
-    if (mounted.current) {
-      setVendorId(null);
-      setNotifications([]);
-      setLoading(true);
-    }
+    if (mounted.current && !initialLoadDone.current) setLoading(true);
+
     const { data: vendor, error: vendorError } = await supabase
       .from("vendors")
       .select("id")
@@ -83,81 +118,197 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
     if (vendorError || !vendor) {
       if (mounted.current) {
         setVendorId(null);
+        activeVendorId.current = null;
         setNotifications([]);
         setLoading(false);
+        setError(vendorError?.message ?? null);
+        initialLoadDone.current = false;
       }
       return;
     }
 
-    const { data: rows, error } = await supabase
-      .from("vendor_notifications")
-      .select("*")
-      .eq("vendor_id", vendor.id)
-      .order("created_at", { ascending: false })
-      .limit(100);
-
-    if (!mounted.current || request !== refreshRequest.current) return;
-    setVendorId(vendor.id);
-    if (!error) setNotifications((rows ?? []) as VendorNotification[]);
-    setLoading(false);
+    try {
+      const rows = await VendorInboxService.list(vendor.id);
+      if (!mounted.current || request !== refreshRequest.current) return;
+      setVendorId(vendor.id);
+      activeVendorId.current = vendor.id;
+      setNotifications(rows.map(fromRow));
+      setError(null);
+      initialLoadDone.current = true;
+    } catch (err) {
+      if (!mounted.current || request !== refreshRequest.current) return;
+      setVendorId(vendor.id);
+      activeVendorId.current = vendor.id;
+      setError(err instanceof Error ? err.message : "Failed to load notifications.");
+    } finally {
+      if (mounted.current && request === refreshRequest.current) {
+        setLoading(false);
+      }
+    }
   }, [isPreviewMode]);
 
-  useEffect(() => { void refresh(); }, [refresh, workspaceEpoch]);
+  useEffect(() => {
+    initialLoadDone.current = false;
+    void refresh();
+  }, [refresh, workspaceEpoch]);
 
   useEffect(() => {
     if (!vendorId) return;
+
     vendorNotificationChannelSequence += 1;
+    const channelName = `vendor-notifications-${vendorId}-${vendorNotificationChannelSequence}`;
+
     const channel = supabase
-      .channel(`vendor-notifications-${vendorId}-${vendorNotificationChannelSequence}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "vendor_notifications", filter: `vendor_id=eq.${vendorId}` },
-        () => { void refresh(); },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "vendor_notifications",
+          filter: `vendor_id=eq.${vendorId}`,
+        },
+        (payload) => {
+          if (!mounted.current || activeVendorId.current !== vendorId) return;
+          const row = payload.new as VendorInboxRow;
+          if (!row?.id) return;
+          setNotifications((current) => upsertNotification(current, fromRow(row)));
+          setError(null);
+        },
       )
-      .subscribe();
-    return () => { void supabase.removeChannel(channel); };
-  }, [refresh, vendorId]);
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "vendor_notifications",
+          filter: `vendor_id=eq.${vendorId}`,
+        },
+        (payload) => {
+          if (!mounted.current || activeVendorId.current !== vendorId) return;
+          const row = payload.new as VendorInboxRow;
+          if (!row?.id) return;
+          setNotifications((current) => upsertNotification(current, fromRow(row)));
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "vendor_notifications",
+          filter: `vendor_id=eq.${vendorId}`,
+        },
+        (payload) => {
+          if (!mounted.current || activeVendorId.current !== vendorId) return;
+          const row = payload.old as { id?: string };
+          if (!row?.id) return;
+          setNotifications((current) => current.filter((item) => item.id !== row.id));
+        },
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" && mounted.current) {
+          setError("Live updates unavailable. Pull to refresh.");
+        }
+      });
 
-  const markAsRead = useCallback(async (id: string) => {
-    const target = notifications.find((notification) => notification.id === id);
-    if (!target || target.is_read) return true;
-    if (!vendorId) return false;
-    const readAt = new Date().toISOString();
-    setNotifications((current) => current.map((notification) => {
-      if (notification.id !== id || notification.is_read) return notification;
-      return { ...notification, is_read: true, read_at: readAt };
-    }));
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [vendorId]);
 
-    const { error } = await supabase
-      .from("vendor_notifications")
-      .update({ is_read: true })
-      .eq("vendor_id", vendorId)
-      .eq("id", id);
-    if (!error) return true;
+  const markAsRead = useCallback(
+    async (id: string) => {
+      if (!vendorId) return false;
+      const target = notifications.find((item) => item.id === id);
+      if (!target || target.is_read) return true;
 
-    setNotifications((current) => current.map((notification) =>
-      notification.id === id ? { ...notification, is_read: false, read_at: null } : notification));
-    return false;
-  }, [notifications, vendorId]);
+      const previousReadAt = target.read_at;
+      const readAt = new Date().toISOString();
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === id ? { ...item, is_read: true, read_at: readAt } : item,
+        ),
+      );
+
+      try {
+        await VendorInboxService.markRead(vendorId, id);
+        return true;
+      } catch (err) {
+        setNotifications((current) =>
+          current.map((item) =>
+            item.id === id
+              ? { ...item, is_read: false, read_at: previousReadAt }
+              : item,
+          ),
+        );
+        setError(err instanceof Error ? err.message : "Could not mark as read.");
+        return false;
+      }
+    },
+    [notifications, vendorId],
+  );
 
   const markAllAsRead = useCallback(async () => {
     if (!vendorId) return false;
-    const unreadIds = new Set(notifications.filter((item) => !item.is_read).map((item) => item.id));
-    if (!unreadIds.size) return true;
+    const unreadIds = notifications.filter((item) => !item.is_read).map((item) => item.id);
+    if (!unreadIds.length) return true;
+
     const readAt = new Date().toISOString();
-    setNotifications((current) => current.map((notification) =>
-      unreadIds.has(notification.id) ? { ...notification, is_read: true, read_at: readAt } : notification));
+    setNotifications((current) =>
+      current.map((item) =>
+        item.is_read ? item : { ...item, is_read: true, read_at: readAt },
+      ),
+    );
 
-    const { error } = await supabase
-      .from("vendor_notifications")
-      .update({ is_read: true })
-      .eq("vendor_id", vendorId)
-      .eq("is_read", false);
-    if (!error) return true;
+    try {
+      await VendorInboxService.markAllRead(vendorId);
+      return true;
+    } catch (err) {
+      const unreadSet = new Set(unreadIds);
+      setNotifications((current) =>
+        current.map((item) =>
+          unreadSet.has(item.id)
+            ? { ...item, is_read: false, read_at: null }
+            : item,
+        ),
+      );
+      setError(err instanceof Error ? err.message : "Could not mark all as read.");
+      return false;
+    }
+  }, [notifications, vendorId]);
 
-    setNotifications((current) => current.map((notification) =>
-      unreadIds.has(notification.id) ? { ...notification, is_read: false, read_at: null } : notification));
-    return false;
+  const deleteNotification = useCallback(
+    async (id: string) => {
+      if (!vendorId) return false;
+      const previous = notifications;
+      setNotifications((current) => current.filter((item) => item.id !== id));
+
+      try {
+        await VendorInboxService.remove(vendorId, id);
+        return true;
+      } catch (err) {
+        setNotifications(previous);
+        setError(err instanceof Error ? err.message : "Could not delete notification.");
+        return false;
+      }
+    },
+    [notifications, vendorId],
+  );
+
+  const clearNotifications = useCallback(async () => {
+    if (!vendorId) return false;
+    const previous = notifications;
+    setNotifications([]);
+
+    try {
+      await VendorInboxService.clearAll(vendorId);
+      return true;
+    } catch (err) {
+      setNotifications(previous);
+      setError(err instanceof Error ? err.message : "Could not clear notifications.");
+      return false;
+    }
   }, [notifications, vendorId]);
 
   const unreadCount = useMemo(
@@ -165,20 +316,42 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
     [notifications],
   );
 
-  const value = useMemo<VendorNotificationContextValue>(() => ({
-    notifications,
-    unreadCount,
-    loading,
-    refresh,
-    markAsRead,
-    markAllAsRead,
-  }), [loading, markAllAsRead, markAsRead, notifications, refresh, unreadCount]);
+  const value = useMemo<VendorNotificationContextValue>(
+    () => ({
+      notifications,
+      unreadCount,
+      loading,
+      error,
+      refresh,
+      markAsRead,
+      markAllAsRead,
+      deleteNotification,
+      clearNotifications,
+    }),
+    [
+      clearNotifications,
+      deleteNotification,
+      error,
+      loading,
+      markAllAsRead,
+      markAsRead,
+      notifications,
+      refresh,
+      unreadCount,
+    ],
+  );
 
-  return <VendorNotificationContext.Provider value={value}>{children}</VendorNotificationContext.Provider>;
+  return (
+    <VendorNotificationContext.Provider value={value}>
+      {children}
+    </VendorNotificationContext.Provider>
+  );
 }
 
 export function useVendorNotifications() {
   const value = useContext(VendorNotificationContext);
-  if (!value) throw new Error("useVendorNotifications must be used inside VendorNotificationProvider.");
+  if (!value) {
+    throw new Error("useVendorNotifications must be used inside VendorNotificationProvider.");
+  }
   return value;
 }
