@@ -36,7 +36,7 @@ export default function VendorProfile() {
   const vendor = data.vendor;
   const groups = [
     [
-      { label: "Edit business profile", detail: "Identity, description, contact and location", icon: Pencil, route: "/vendor-dashboard" },
+      { label: "Edit business profile", detail: "Identity, description, contact and location", icon: Pencil, route: "/vendor-dashboard?focus=checklist" },
       { label: "Packages & pricing", detail: `${data.services.length} ${data.services.length === 1 ? "package" : "packages"} configured`, icon: BriefcaseBusiness, route: "/VendorServices" },
       { label: "Portfolio", detail: `${data.albums.length} albums · ${data.media.length} media`, icon: Images, route: "/VendorGallery" },
     ],

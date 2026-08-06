@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   Check,
   ChevronRight,
@@ -52,6 +52,7 @@ const completionMeta = {
 
 export default function VendorDashboard() {
   const router = useRouter();
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
@@ -74,6 +75,38 @@ export default function VendorDashboard() {
   const previousStatesRef = useRef<Map<string, CompletionState> | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // "Edit business profile" (Vendors_dash_profile.tsx) links here with
+  // ?focus=checklist so the vendor lands directly on the readiness
+  // checklist instead of the hero/business-overview at the top of this
+  // long scroll. The cards above the checklist (subscription, public
+  // profile, marketing button) only mount once data.vendor has loaded, so
+  // the checklist's true position isn't known until then -- and RN Web's
+  // onLayout is driven by a ResizeObserver on the element itself, which
+  // does not re-fire when the element merely shifts down because a
+  // sibling above it changed size. Using `.measure()` instead queries the
+  // live position at call time, so it can't go stale the way a cached
+  // onLayout value can.
+  const scrollRef = useRef<ScrollView>(null);
+  const checklistRef = useRef<View>(null);
+  const pendingScrollToChecklist = useRef(false);
+
+  useEffect(() => {
+    if (focus === "checklist") pendingScrollToChecklist.current = true;
+  }, [focus]);
+
+  useEffect(() => {
+    if (loading || !pendingScrollToChecklist.current) return;
+    pendingScrollToChecklist.current = false;
+    // The workspace fetch just resolved; give the newly-appeared cards one
+    // render + layout pass to commit before measuring.
+    const timer = setTimeout(() => {
+      checklistRef.current?.measure((_x, y) => {
+        scrollRef.current?.scrollTo({ y, animated: true });
+      });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   useFocusEffect(useCallback(() => {
     void refresh();
@@ -113,6 +146,7 @@ export default function VendorDashboard() {
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={unread} />
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll]}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.pink} />}
@@ -208,7 +242,7 @@ export default function VendorDashboard() {
             ))}
           </View>
 
-          <View style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+          <View ref={checklistRef} style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
             <View style={styles.profileHeader}>
               <View style={[styles.profileIcon, { backgroundColor: colors.pink }]}>
                 <Target size={23} color="#FFF" />
