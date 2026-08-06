@@ -27,17 +27,15 @@ import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
-import HeroSlideMedia from "@/components/home/HeroSlideMedia";
-import { pickAndUploadImage } from "@/services/cloudinary";
+import { pickImage, uploadImage as uploadToCloudinary } from "@/services/cloudinary";
 import { CategoryService, type CategoryRecord } from "@/services/CategoryService";
 import { HeroSlideService } from "@/services/heroSlides";
-import { HERO_MOBILE_ASPECT, HERO_SLIDES_MAX, type HeroSlide } from "@/types/hero";
+import { HERO_IMAGE_ASPECT, HERO_SLIDES_MAX, type HeroSlide } from "@/types/hero";
 
 const PINK = "#E91E63";
 
 type Draft = {
   imageUrl: string;
-  desktopImageUrl: string;
   categoryId: string;
   categorySlug: string;
   categoryName: string;
@@ -47,7 +45,6 @@ type Draft = {
 
 const emptyDraft = (): Draft => ({
   imageUrl: "",
-  desktopImageUrl: "",
   categoryId: "",
   categorySlug: "",
   categoryName: "",
@@ -67,12 +64,10 @@ function SlidePreviewCard({
   imageUrl,
   categoryName,
   ctaLabel,
-  wide = false,
 }: {
   imageUrl: string;
   categoryName: string;
   ctaLabel: string;
-  wide?: boolean;
 }) {
   const label = ctaLabel.trim() || (categoryName ? `Find ${categoryName}` : "Find Vendors");
 
@@ -80,28 +75,23 @@ function SlidePreviewCard({
     <View
       style={{
         width: "100%",
-        // Mirror the real shells: desktop is a fixed-height banner, mobile is
-        // locked to HERO_MOBILE_ASPECT so the preview crops exactly like the app.
-        ...(wide ? { height: 120 } : { aspectRatio: HERO_MOBILE_ASPECT }),
+        aspectRatio: HERO_IMAGE_ASPECT,
         borderRadius: 18,
         overflow: "hidden",
         backgroundColor: "#141014",
         position: "relative",
-        margin: 0,
-        padding: 0,
-        borderWidth: 0,
       }}
     >
       {imageUrl ? (
-        <HeroSlideMedia
-          uri={imageUrl}
+        <Image
+          source={{ uri: imageUrl }}
           accessibilityLabel={`${categoryName || "Hero"} preview`}
-          fill={wide ? "blend" : "cover"}
-          // Single image, no pager here, so the radius can ride on the image itself.
-          borderRadius={18}
+          // contain + matching 16:9 box = exact upload proportions, no stretch/crop.
+          resizeMode="contain"
+          style={{ width: "100%", height: "100%", backgroundColor: "transparent" }}
         />
       ) : null}
-      <View style={{ position: "absolute", zIndex: 2, left: 16, bottom: 16 }}>
+      <View style={{ position: "absolute", zIndex: 2, left: 16, bottom: 16, pointerEvents: "none" }}>
         <View
           style={{
             minHeight: 29,
@@ -129,7 +119,7 @@ export default function AdminHero() {
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState<"mobile" | "desktop" | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<HeroSlide | "new" | null>(null);
@@ -199,7 +189,6 @@ export default function AdminHero() {
     } else {
       setDraft({
         imageUrl: slide.image_url,
-        desktopImageUrl: slide.desktop_image_url ?? "",
         categoryId: slide.category_id,
         categorySlug: slide.category_slug,
         categoryName: slide.category_name,
@@ -223,32 +212,32 @@ export default function AdminHero() {
     setCategoryPickerOpen(false);
   };
 
-  const uploadImage = async (target: "mobile" | "desktop") => {
-    setUploading(target);
+  const uploadImage = async () => {
     setError(null);
     try {
-      const url = await pickAndUploadImage({
+      // Pick first — do not show a spinner until Cloudinary upload starts.
+      // (Previously the spinner started before the file picker, and web crop
+      // mode often never resolved, leaving "Uploading…" stuck forever.)
+      const asset = await pickImage({
         allowsEditing: true,
-        aspect: target === "desktop" ? [16, 6] : [16, 9],
+        aspect: [16, 9],
         quality: 0.9,
       });
-      if (url) {
-        setDraft((current) =>
-          target === "desktop"
-            ? { ...current, desktopImageUrl: url }
-            : { ...current, imageUrl: url },
-        );
-      }
+      if (!asset) return;
+
+      setUploading(true);
+      const url = await uploadToCloudinary(asset);
+      if (url) setDraft((current) => ({ ...current, imageUrl: url }));
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
-      setUploading(null);
+      setUploading(false);
     }
   };
 
   const save = async () => {
     if (!draft.imageUrl.trim()) {
-      setError("Upload a mobile/tablet background image for this slide.");
+      setError("Upload a hero image (16:9 landscape) for this slide.");
       return;
     }
     if (!draft.categoryId || !draft.categorySlug.trim() || !draft.categoryName.trim()) {
@@ -265,7 +254,8 @@ export default function AdminHero() {
     try {
       const payload = {
         imageUrl: draft.imageUrl.trim(),
-        desktopImageUrl: draft.desktopImageUrl.trim() || null,
+        // One image for all layouts — clear any legacy desktop banner.
+        desktopImageUrl: null,
         categoryId: draft.categoryId,
         categorySlug: draft.categorySlug.trim(),
         categoryName: draft.categoryName.trim(),
@@ -506,93 +496,51 @@ export default function AdminHero() {
               ) : null}
 
               <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
-                Mobile / tablet image
+                Hero image
+              </Text>
+              <Text className="text-muted-foreground text-[10px] mb-2">
+                One image for mobile, tablet, and desktop. Use a landscape 16:9 photo.
               </Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Upload mobile hero background image"
-                onPress={() => void uploadImage("mobile")}
-                disabled={Boolean(uploading) || saving}
+                accessibilityLabel="Upload hero image"
+                onPress={() => void uploadImage()}
+                disabled={uploading || saving}
                 className="border border-dashed border-border rounded-2xl overflow-hidden mb-2"
                 style={{ minHeight: 140, backgroundColor: "#FAF4F6" }}
               >
-                {draft.imageUrl ? (
-                  <Image source={{ uri: draft.imageUrl }} resizeMode="cover" style={{ width: "100%", height: 160 }} />
+                {draft.imageUrl && !uploading ? (
+                  <Image
+                    source={{ uri: draft.imageUrl }}
+                    resizeMode="contain"
+                    style={{ width: "100%", aspectRatio: HERO_IMAGE_ASPECT, backgroundColor: "#141014" }}
+                  />
                 ) : (
                   <View className="items-center justify-center py-10">
-                    {uploading === "mobile" ? (
-                      <ActivityIndicator color={PINK} />
+                    {uploading ? (
+                      <>
+                        <ActivityIndicator color={PINK} />
+                        <Text className="text-muted-foreground text-xs mt-3 font-semibold">Uploading…</Text>
+                      </>
                     ) : (
                       <>
                         <ImagePlus size={22} color={PINK} />
-                        <Text className="text-foreground text-sm font-semibold mt-2">Upload image</Text>
-                        <Text className="text-muted-foreground text-xs mt-1">16:9 landscape recommended</Text>
+                        <Text className="text-foreground text-sm font-semibold mt-2">Upload hero image</Text>
+                        <Text className="text-muted-foreground text-xs mt-1">16:9 landscape</Text>
                       </>
                     )}
                   </View>
                 )}
               </Pressable>
               {draft.imageUrl ? (
-                <Pressable onPress={() => void uploadImage("mobile")} disabled={Boolean(uploading) || saving} className="mb-4">
+                <Pressable onPress={() => void uploadImage()} disabled={uploading || saving} className="mb-4">
                   <Text className="text-primary text-sm font-semibold">
-                    {uploading === "mobile" ? "Uploading…" : "Replace mobile image"}
+                    {uploading ? "Uploading…" : "Replace image"}
                   </Text>
                 </Pressable>
               ) : (
                 <View className="mb-4" />
               )}
-
-              <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
-                Desktop hero image
-              </Text>
-              <Text className="text-muted-foreground text-[10px] mb-2">
-                Optional wide banner for web/desktop (~16:6). If empty, the mobile image is used.
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Upload desktop hero background image"
-                onPress={() => void uploadImage("desktop")}
-                disabled={Boolean(uploading) || saving}
-                className="border border-dashed border-border rounded-2xl overflow-hidden mb-2"
-                style={{ minHeight: 110, backgroundColor: "#FAF4F6" }}
-              >
-                {draft.desktopImageUrl ? (
-                  <Image
-                    source={{ uri: draft.desktopImageUrl }}
-                    resizeMode="contain"
-                    style={{ width: "100%", height: 120, backgroundColor: "#251B20" }}
-                  />
-                ) : (
-                  <View className="items-center justify-center py-8">
-                    {uploading === "desktop" ? (
-                      <ActivityIndicator color={PINK} />
-                    ) : (
-                      <>
-                        <ImagePlus size={22} color={PINK} />
-                        <Text className="text-foreground text-sm font-semibold mt-2">Upload desktop image</Text>
-                        <Text className="text-muted-foreground text-xs mt-1">16:6 wide banner recommended</Text>
-                      </>
-                    )}
-                  </View>
-                )}
-              </Pressable>
-              <View className="flex-row gap-4 mb-4">
-                {draft.desktopImageUrl ? (
-                  <Pressable onPress={() => void uploadImage("desktop")} disabled={Boolean(uploading) || saving}>
-                    <Text className="text-primary text-sm font-semibold">
-                      {uploading === "desktop" ? "Uploading…" : "Replace desktop image"}
-                    </Text>
-                  </Pressable>
-                ) : null}
-                {draft.desktopImageUrl ? (
-                  <Pressable
-                    onPress={() => setDraft((current) => ({ ...current, desktopImageUrl: "" }))}
-                    disabled={Boolean(uploading) || saving}
-                  >
-                    <Text className="text-muted-foreground text-sm font-semibold">Remove</Text>
-                  </Pressable>
-                ) : null}
-              </View>
 
               <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
                 Category destination
@@ -646,21 +594,12 @@ export default function AdminHero() {
               </View>
 
               <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
-                Mobile preview
+                Preview
               </Text>
               <SlidePreviewCard
                 imageUrl={draft.imageUrl}
                 categoryName={draft.categoryName}
                 ctaLabel={draft.ctaLabel}
-              />
-              <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2 mt-4">
-                Desktop preview
-              </Text>
-              <SlidePreviewCard
-                imageUrl={draft.desktopImageUrl || draft.imageUrl}
-                categoryName={draft.categoryName}
-                ctaLabel={draft.ctaLabel}
-                wide
               />
 
               <View className="flex-row gap-3 mt-5">
@@ -674,7 +613,7 @@ export default function AdminHero() {
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
-                  disabled={saving || Boolean(uploading)}
+                  disabled={saving || uploading}
                   onPress={() => void save()}
                   className="flex-1 min-h-12 rounded-2xl bg-primary items-center justify-center"
                   style={{ opacity: saving || uploading ? 0.6 : 1 }}
@@ -757,33 +696,11 @@ export default function AdminHero() {
               </Pressable>
             </View>
             {preview ? (
-              <View className="gap-4">
-                <View>
-                  <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
-                    Mobile / tablet
-                  </Text>
-                  <SlidePreviewCard
-                    imageUrl={"image_url" in preview ? preview.image_url : preview.imageUrl}
-                    categoryName={"category_name" in preview ? preview.category_name : preview.categoryName}
-                    ctaLabel={"cta_label" in preview ? preview.cta_label : preview.ctaLabel}
-                  />
-                </View>
-                <View>
-                  <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
-                    Desktop
-                  </Text>
-                  <SlidePreviewCard
-                    imageUrl={
-                      "desktop_image_url" in preview
-                        ? (preview.desktop_image_url || preview.image_url)
-                        : (preview.desktopImageUrl || preview.imageUrl)
-                    }
-                    categoryName={"category_name" in preview ? preview.category_name : preview.categoryName}
-                    ctaLabel={"cta_label" in preview ? preview.cta_label : preview.ctaLabel}
-                    wide
-                  />
-                </View>
-              </View>
+              <SlidePreviewCard
+                imageUrl={"image_url" in preview ? preview.image_url : preview.imageUrl}
+                categoryName={"category_name" in preview ? preview.category_name : preview.categoryName}
+                ctaLabel={"cta_label" in preview ? preview.cta_label : preview.ctaLabel}
+              />
             ) : null}
           </Pressable>
         </Pressable>

@@ -37,9 +37,12 @@ export const HERO_SLIDES_MAX = 8;
 /** Desktop/web hero banner aspect (width:height ≈ 16:6). */
 export const HERO_DESKTOP_ASPECT = 16 / 6;
 
+/** Recommended hero upload aspect (width:height = 16:9). */
+export const HERO_IMAGE_ASPECT = 16 / 9;
+
 /**
- * Mobile hero aspect (width:height = 15:8). The shell is locked to this on phones,
- * so the slide image fills it with `cover` and needs no blurred backing layer.
+ * Mobile hero shell aspect (width:height = 15:8). The home carousel shell may
+ * use this; admin preview always uses HERO_IMAGE_ASPECT so uploads are not stretched.
  */
 export const HERO_MOBILE_ASPECT = 15 / 8;
 
@@ -55,14 +58,10 @@ export function heroSlideDestination(slide: Pick<HeroSlide, "category_slug" | "c
   };
 }
 
-/** Resolve which image URL to show for the current layout. */
+/** Resolve which image URL to show. One hero image is used on every layout. */
 export function heroSlideImageUrl(
   slide: Pick<HeroSlide, "image_url" | "desktop_image_url">,
-  desktop: boolean,
+  _desktop?: boolean,
 ) {
-  if (desktop) {
-    const desktopUrl = slide.desktop_image_url?.trim();
-    if (desktopUrl) return desktopUrl;
-  }
   return slide.image_url;
 }

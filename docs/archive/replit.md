@@ -1,3 +1,7 @@
+> **Archived 2026-08-06.** Superseded by [PRD.md](../../PRD.md) (product spec) and [AGENTS.md](../../AGENTS.md) (dev/agent guide), which reflect the codebase as-built. Kept for historical reference only — do not treat as current.
+
+---
+
 # RoyalLagn
 
 A wedding vendor marketplace mobile/web app built with Expo + React Native and NativeWind v4 styling. Customers can browse vendors by category (Venues, Caterers, Photographers, etc.), make bookings, save favorites, and manage their profile. Admin and Vendor dashboards are also included.

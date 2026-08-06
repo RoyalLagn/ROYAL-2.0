@@ -37,7 +37,7 @@ export function cva<V extends VariantConfig>(
   return (props?: VariantProps<V> & { className?: string }) => {
     const { className, ...variantProps } = props || {};
 
-    const variants = config?.variants || {};
+    const variants = config?.variants;
     const defaultVariants = config?.defaultVariants || {};
     const compoundVariants = config?.compoundVariants || [];
 
@@ -45,11 +45,13 @@ export function cva<V extends VariantConfig>(
     const variantClasses: string[] = [];
 
     for (const variantKey in variants) {
+      const variantGroup = variants[variantKey];
       const variantValue = (variantProps as Record<string, unknown>)?.[variantKey]
         ?? defaultVariants[variantKey as keyof typeof defaultVariants];
 
-      if (variantValue && variants[variantKey]?.[variantValue as string]) {
-        variantClasses.push(variants[variantKey][variantValue as string]);
+      const resolvedClass = variantValue ? variantGroup?.[variantValue as string] : undefined;
+      if (resolvedClass) {
+        variantClasses.push(resolvedClass);
       }
     }
 

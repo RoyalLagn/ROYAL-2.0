@@ -85,7 +85,7 @@ export default function AdminLocations() {
         loadLocationSettings(),
       ]);
       setCities(nextCities);
-      setUsage(Object.fromEntries(counts.map((item) => [usageKey(item.kind, item.id), item])));
+      setUsage(Object.fromEntries(counts.map((item: LocationUsageCount) => [usageKey(item.kind, item.id), item])));
       setStrictCityOnly(settings.strictCityOnly);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to load Location Management.");

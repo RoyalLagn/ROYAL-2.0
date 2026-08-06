@@ -9,7 +9,7 @@ export default function HomeReveal({ children, direction = "up", delay = 0, ...p
   React.useEffect(() => {
     if (globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
     let mounted = true;
-    let cleanup = () => undefined;
+    let cleanup: () => void = () => undefined;
     import("gsap").then(({ default: gsap }) => {
       if (!mounted || !ref.current) return;
       const context = gsap.context(() => {

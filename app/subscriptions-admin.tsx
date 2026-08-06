@@ -10,6 +10,12 @@ import { formatSubscriptionPrice, subscriptionStatusLabel } from "@/subscription
 import { isSubscriptionSchemaMissing, subscriptionErrorMessage } from "@/subscriptions/error";
 
 type Tab = "overview" | "plans" | "vendors" | "offers" | "settings" | "audit";
+type SubscriptionSettingRow = {
+  key: string;
+  value: string | number | boolean | null;
+  value_type: string;
+  description: string | null;
+};
 const pink = "#E91E63";
 const emptyPlan: AdminPlanInput = { name: "", slug: "", description: "", price: 0, discounted_price: null, billing_interval: "custom", billing_interval_count: 1, duration_days: null, trial_enabled: false, trial_days: 0, grace_period_days: 0, is_active: true, is_featured: false };
 const emptyOffer = { name: "", code: "", description: "", discount_type: "percentage", discount_value: 0, start_date: "", end_date: "", is_global: true, is_active: true, applicable_plan_ids: [], applicable_vendor_ids: [], uses_per_vendor: 1 };
@@ -27,7 +33,7 @@ export default function SubscriptionsAdmin() {
   const [plans, setPlans] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [vendors, setVendors] = useState<AdminVendorSubscriptionRow[]>([]);
-  const [settings, setSettings] = useState<any[]>([]);
+  const [settings, setSettings] = useState<SubscriptionSettingRow[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -164,7 +170,7 @@ export default function SubscriptionsAdmin() {
 function EmptySection({ title, text }: { title: string; text: string }) { return <View style={styles.panel}><Text style={styles.panelTitle}>{title}</Text><Text style={styles.panelText}>{text}</Text></View>; }
 function ModalHeader({ title, close }: { title: string; close: () => void }) { return <View style={styles.modalHeader}><Text style={styles.modalTitle}>{title}</Text><Pressable onPress={close} style={styles.headerButton}><X size={20} color="#1D1720" /></Pressable></View>; }
 function Toggle({ label, value, onValueChange }: any) { return <View style={styles.toggle}><Text style={styles.toggleLabel}>{label}</Text><Switch value={value} onValueChange={onValueChange} trackColor={{ true: "#F7A5C1" }} thumbColor={value ? pink : "#EEE"} /></View>; }
-function SettingRow({ setting, onSave }: any) { const [value, setValue] = useState(setting.value === null ? "" : String(setting.value)); useEffect(() => setValue(setting.value === null ? "" : String(setting.value)), [setting.value]); const boolean = setting.value_type === "boolean"; return <View style={styles.card}><View style={styles.flex}><Text style={styles.cardTitle}>{setting.key.replace(/^subscription_/, "").replaceAll("_", " ")}</Text><Text style={styles.cardSub}>{setting.description}</Text></View>{boolean ? <Switch value={setting.value === true} onValueChange={(next) => void onSave(next)} trackColor={{ true: "#F7A5C1" }} thumbColor={setting.value === true ? pink : "#EEE"} /> : <View style={styles.settingEdit}><TextInput value={value} onChangeText={setValue} style={styles.settingInput} /><Pressable onPress={() => { let next: any = value; if (setting.value_type === "integer" || setting.value_type === "decimal") { next = Number(value); if (!Number.isFinite(next) || (setting.value_type === "integer" && !Number.isInteger(next))) return Alert.alert("Invalid value", "Enter a valid number."); } else if (setting.value_type === "json") { try { next = JSON.parse(value); } catch { return Alert.alert("Invalid JSON", "Correct the JSON value before saving."); } } void onSave(next).catch((cause: unknown) => Alert.alert("Setting not saved", cause instanceof Error ? cause.message : "Please try again.")); }}><Text style={styles.retry}>Save</Text></Pressable></View>}</View>; }
+function SettingRow({ setting, onSave }: { setting: SubscriptionSettingRow; onSave: (value: unknown) => Promise<void> }) { const [value, setValue] = useState(setting.value === null ? "" : String(setting.value)); useEffect(() => setValue(setting.value === null ? "" : String(setting.value)), [setting.value]); const boolean = setting.value_type === "boolean"; return <View style={styles.card}><View style={styles.flex}><Text style={styles.cardTitle}>{setting.key.replace(/^subscription_/, "").replaceAll("_", " ")}</Text><Text style={styles.cardSub}>{setting.description}</Text></View>{boolean ? <Switch value={setting.value === true} onValueChange={(next) => void onSave(next)} trackColor={{ true: "#F7A5C1" }} thumbColor={setting.value === true ? pink : "#EEE"} /> : <View style={styles.settingEdit}><TextInput value={value} onChangeText={setValue} style={styles.settingInput} /><Pressable onPress={() => { let next: unknown = value; if (setting.value_type === "integer" || setting.value_type === "decimal") { const numeric = Number(value); if (!Number.isFinite(numeric) || (setting.value_type === "integer" && !Number.isInteger(numeric))) return Alert.alert("Invalid value", "Enter a valid number."); next = numeric; } else if (setting.value_type === "json") { try { next = JSON.parse(value); } catch { return Alert.alert("Invalid JSON", "Correct the JSON value before saving."); } } void onSave(next).catch((cause: unknown) => Alert.alert("Setting not saved", cause instanceof Error ? cause.message : "Please try again.")); }}><Text style={styles.retry}>Save</Text></Pressable></View>}</View>; }
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: "#FFF9FB" }, header: { height: 62, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, backgroundColor: "rgba(255,255,255,.96)", borderBottomWidth: 1, borderBottomColor: "#F4E6EC" }, headerButton: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, logo: { position: "absolute", left: "50%", width: 155, height: 42, marginLeft: -77.5 }, content: { width: "100%", maxWidth: 1180, alignSelf: "center", padding: 18, paddingBottom: 110 }, flex: { flex: 1, minWidth: 0 },

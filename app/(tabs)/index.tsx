@@ -32,6 +32,7 @@ import HomeReveal from "@/components/home/HomeReveal";
 import LocationSelector from "@/components/home/LocationSelector";
 import SectionHeader from "@/components/home/SectionHeader";
 import HomeFilterModal, { DEFAULT_HOME_FILTERS, type HomeFilters } from "@/components/home/HomeFilterModal";
+import { HERO_IMAGE_ASPECT } from "@/types/hero";
 import { useCustomerLocation } from "@/context/LocationContext";
 import {
   rankVendorsByLocation,
@@ -54,10 +55,13 @@ import { useCategories } from "@/context/CategoryContext";
 import SafeImage from "@/components/SafeImage";
 import { VendorCardSkeletonRow } from "@/components/loading/Skeleton";
 import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
+import { BREAKPOINTS } from "@/utils/responsiveLayout";
 
 const PINK = "#E91E63";
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
 const PRIMARY_CATEGORY_COUNT = 9;
+/** Line-art floral corner. Drawn for a bottom-left corner, so it is rotated for other corners. */
+const FLOWER_ORNAMENT = require("../../assets/images/flowersvg.png");
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -97,6 +101,18 @@ export default function HomeScreen() {
       : Math.min(168, Math.max(136, screenWidth * 0.4));
   const listBannerHeight = Math.min(Math.round(featureWidth * (887 / 1774)), 220);
 
+  // Tablet + desktop: text/search left, 16:9 image right (image column larger).
+  // Image drives height via aspect-ratio — left panel stretches to match, never
+  // the other way around. Mobile stacks text above the same 16:9 image.
+  const isHeroSplit = screenWidth >= BREAKPOINTS.smallTablet;
+  // Image column ~62% so it stays larger than the text column on all desktop widths.
+  const heroSplitRightWidth = isHeroSplit
+    ? Math.round(Math.max(featureWidth * 0.62, featureWidth - 380))
+    : featureWidth;
+  const heroSplitLeftWidth = isHeroSplit
+    ? featureWidth - heroSplitRightWidth
+    : 0;
+
   useEffect(() => {
     let active = true;
     const load = () => {
@@ -129,6 +145,7 @@ export default function HomeScreen() {
   const text   = isDark ? "#F5F0F3" : "#111827";
   const muted  = isDark ? "#AAA0A5" : "#6B7280";
   const border = isDark ? "#232C3D" : "#E5E7EB";
+  const heroBorder = isDark ? "#3A2530" : "#FBCFE8";
 
   const catNameForNav = (name: string) => name;
   const openCategory = (name: string) => router.push({
@@ -271,42 +288,134 @@ export default function HomeScreen() {
           </HomeReveal>
         ) : null}
 
-        <HomeReveal delay={25} style={[s.greetingBlock, { width: featureWidth }]}>
-          <Text style={[s.greetingText, { color: muted }]}>
-            {greeting}, {firstName} 👋
-          </Text>
-          <Text style={[s.greetingTitle, isDesktop && s.greetingTitleDesktop, { color: text }]}>
-            Find your <Text style={s.greetingAccent}>perfect</Text>{"\n"}wedding team
-          </Text>
-        </HomeReveal>
-
-        {/* ── Global search ── */}
-        <HomeReveal delay={45} style={[s.searchPad, { width: featureWidth }]}>
-          <CompactSearchBar
-            accessibilityLabel="Search vendors, categories and services"
-            value={searchText}
-            onChangeText={setSearchText}
-            onSubmit={submitSearch}
-            placeholder="Search vendors, categories..."
-            dark={isDark}
-            style={s.searchBar}
-          />
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Open filters"
-            style={[s.filterBtn, screenWidth < 380 && s.filterBtnNarrow, { backgroundColor: isDark ? "#0E141F" : "#FFFFFF" }]}
-            onPress={() => setFiltersVisible(true)}
-            activeOpacity={0.76}
+        {isHeroSplit ? (
+          /* ── Tablet/desktop: text left, 16:9 image right ── */
+          <HomeReveal
+            delay={25}
+            style={[
+              s.heroSplitCard,
+              {
+                width: featureWidth,
+                borderColor: heroBorder,
+                backgroundColor: card,
+                // Breathing room from the web navbar above and Top Categories below.
+                marginTop: isDesktop ? 28 : 18,
+                marginBottom: isDesktop ? 40 : 30,
+              },
+            ]}
           >
-            <SlidersHorizontal size={16} color={PINK} />
-            {activeFilterCount ? <View style={s.filterCount}><Text style={s.filterCountText}>{activeFilterCount}</Text></View> : null}
-          </TouchableOpacity>
-        </HomeReveal>
+            <View style={[s.heroSplitLeft, { width: heroSplitLeftWidth }]}>
+              <LinearGradient
+                colors={isDark ? ["#1B1017", "#2A1421", "#3A1A2A"] : ["#FFFFFF", "#FFF7FA", "#FCE9F1"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Image
+                source={FLOWER_ORNAMENT}
+                resizeMode="contain"
+                style={[s.heroFlowerDesktop, isDark && s.heroFlowerDark]}
+              />
+              <Text style={[s.greetingText, { color: muted }]}>
+                {greeting}, {firstName} 👋
+              </Text>
+              <Text style={[s.greetingTitle, isDesktop && s.greetingTitleDesktop, { color: text }]}>
+                Find your <Text style={s.greetingAccent}>perfect</Text>{"\n"}wedding team
+              </Text>
+              <Text style={[s.heroSplitDescription, { color: muted }]}>
+                Explore handpicked wedding professionals to make your big day unforgettable.
+              </Text>
+              <View style={s.heroSplitSearchRow}>
+                <CompactSearchBar
+                  accessibilityLabel="Search vendors, categories and services"
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  onSubmit={submitSearch}
+                  placeholder="Search vendors, categories..."
+                  dark={isDark}
+                  style={s.searchBar}
+                />
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Open filters"
+                  style={[s.filterBtn, { backgroundColor: isDark ? "#0E141F" : "#FFFFFF" }]}
+                  onPress={() => setFiltersVisible(true)}
+                  activeOpacity={0.76}
+                >
+                  <SlidersHorizontal size={16} color={PINK} />
+                  {activeFilterCount ? <View style={s.filterCount}><Text style={s.filterCountText}>{activeFilterCount}</Text></View> : null}
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={[s.heroSplitRight, { width: heroSplitRightWidth }]}>
+              <HeroCarousel width={heroSplitRightWidth} desktop radius={0} />
+            </View>
+          </HomeReveal>
+        ) : (
+          /* ── Mobile: one bordered section from greeting through hero image ── */
+          <HomeReveal
+            delay={25}
+            style={[
+              s.heroMobileSection,
+              {
+                width: featureWidth,
+                borderColor: heroBorder,
+                backgroundColor: card,
+              },
+            ]}
+          >
+            <View style={s.heroMobileIntro}>
+              <LinearGradient
+                colors={isDark ? ["#1B1017", "#2A1421", "#3A1A2A"] : ["#FFFFFF", "#FFF7FA", "#FCE9F1"]}
+                start={{ x: 0, y: 1 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Image
+                source={FLOWER_ORNAMENT}
+                resizeMode="contain"
+                style={[s.heroFlowerMobile, isDark && s.heroFlowerDark]}
+              />
+              <Text style={[s.greetingText, { color: muted }]}>
+                {greeting}, {firstName} 👋
+              </Text>
+              <Text style={[s.greetingTitle, { color: text }]}>
+                Find your <Text style={s.greetingAccent}>perfect</Text>{"\n"}wedding team
+              </Text>
 
-        {/* ── Hero carousel ── */}
-        <HomeReveal delay={85} style={[s.heroPad, { width: featureWidth }]}>
-          <HeroCarousel width={featureWidth} desktop={isDesktop} />
-        </HomeReveal>
+              <View style={s.heroMobileSearchRow}>
+                <CompactSearchBar
+                  accessibilityLabel="Search vendors, categories and services"
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  onSubmit={submitSearch}
+                  placeholder="Search vendors, categories..."
+                  dark={isDark}
+                  style={s.searchBar}
+                />
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Open filters"
+                  style={[s.filterBtn, screenWidth < 380 && s.filterBtnNarrow, { backgroundColor: isDark ? "#0E141F" : "#FFFFFF" }]}
+                  onPress={() => setFiltersVisible(true)}
+                  activeOpacity={0.76}
+                >
+                  <SlidersHorizontal size={16} color={PINK} />
+                  {activeFilterCount ? <View style={s.filterCount}><Text style={s.filterCountText}>{activeFilterCount}</Text></View> : null}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Full-bleed 16:9 hero: spans to the section's left/right border edges */}
+            <View style={s.heroMobileImageWrap}>
+              <HeroCarousel
+                width={Math.max(featureWidth - 2, 0)}
+                desktop={false}
+                radius={0}
+              />
+            </View>
+          </HomeReveal>
+        )}
 
         {/* ── Top Categories ── */}
         <View style={[s.section, { width: featureWidth }]}>
@@ -527,22 +636,74 @@ const s = StyleSheet.create<Record<string, any>>({
   badgeTxt:        { color: "#FFF", fontSize: 8, fontWeight: "800" },
 
   /* Greeting */
-  greetingBlock:   { alignSelf: "center", marginTop: 5, marginBottom: 8 },
   greetingText:    { fontSize: 12, lineHeight: 17, fontWeight: "600", marginBottom: 2 },
   greetingTitle:   { fontFamily: "serif", fontSize: 22, lineHeight: 26, fontWeight: "800", letterSpacing: -0.5 },
   greetingTitleDesktop: { fontSize: 27, lineHeight: 31 },
   greetingAccent:  { color: PINK, fontStyle: "italic" },
 
+  /* Greeting */
+  greetingBlock:   { alignSelf: "center", marginTop: 5, marginBottom: 6 },
+
   /* Search and filters */
-  searchPad:       { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4, marginBottom: 14 },
+  searchPad:       { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 10, marginTop: 2, marginBottom: 12 },
   searchBar:       { flex: 1, minWidth: 0, height: 46 },
   filterBtn:       { width: 46, height: 46, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 18, borderWidth: 1, borderColor: "#F04478", shadowOpacity: 0, elevation: 0 },
   filterBtnNarrow: { width: 44 },
   filterCount:     { position: "absolute", top: 6, right: 6, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
   filterCountText: { color: "#FFF", fontSize: 8, fontWeight: "900" },
 
-  /* Hero */
-  heroPad:         { alignSelf: "center", marginBottom: 22 },
+  /* Mobile: one bordered section — greeting → search → 16:9 hero (ratio unchanged) */
+  heroMobileSection: {
+    alignSelf: "center",
+    marginTop: 6,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderRadius: 22,
+    overflow: "hidden",
+  },
+  heroMobileIntro: {
+    position: "relative",
+    overflow: "hidden",
+    paddingHorizontal: 14,
+    paddingTop: 16,
+    paddingBottom: 18,
+  },
+  /* Ornament sits in the top-right here, so the bottom-left artwork is rotated 180°. */
+  heroFlowerMobile: {
+    position: "absolute",
+    top: -34,
+    right: -34,
+    width: 270,
+    height: 270,
+    transform: [{ rotate: "180deg" }],
+    opacity: 0.9,
+  },
+  heroFlowerDesktop: {
+    position: "absolute",
+    left: -32,
+    bottom: -32,
+    width: 360,
+    height: 360,
+    opacity: 0.9,
+  },
+  heroFlowerDark: { opacity: 0.5 },
+  heroMobileSearchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 18,
+  },
+  heroMobileImageWrap: {
+    width: "100%",
+    overflow: "hidden",
+  },
+
+  /* Hero split (tablet/desktop): left text stretches to image height; image owns 16:9 */
+  heroSplitCard:     { alignSelf: "center", flexDirection: "row", alignItems: "stretch", marginTop: 6, marginBottom: 22, borderWidth: 1, borderRadius: 28, overflow: "hidden" },
+  heroSplitLeft:     { position: "relative", overflow: "hidden", justifyContent: "center", paddingHorizontal: 28, paddingVertical: 22, flexShrink: 0, minWidth: 0 },
+  heroSplitRight:    { flexShrink: 0, overflow: "hidden", aspectRatio: HERO_IMAGE_ASPECT },
+  heroSplitDescription:{ fontSize: 13, lineHeight: 19, marginTop: 8, maxWidth: 320 },
+  heroSplitSearchRow:{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 20 },
 
   /* Categories */
   section:         { alignSelf: "center", marginBottom: 12 },

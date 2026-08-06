@@ -14,15 +14,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import HeroSlideMedia from "@/components/home/HeroSlideMedia";
 import { HeroSlideService } from "@/services/heroSlides";
 import {
-  HERO_DESKTOP_ASPECT,
-  HERO_MOBILE_ASPECT,
+  HERO_IMAGE_ASPECT,
   heroSlideDestination,
   heroSlideImageUrl,
 } from "@/types/hero";
 
 const PINK = "#E91E63";
-const DESKTOP_MAX_HEIGHT = 420;
-const DESKTOP_MIN_HEIGHT = 240;
 
 type HeroSlideView = {
   id: string;
@@ -35,18 +32,16 @@ type HeroSlideView = {
 type HeroCarouselProps = {
   width: number;
   desktop: boolean;
+  /** Overrides the shell's own corner radius — pass 0 when an outer container already clips it. */
+  radius?: number;
 };
 
-function desktopHeroHeight(width: number) {
-  const ideal = Math.round(width / HERO_DESKTOP_ASPECT);
-  return Math.min(DESKTOP_MAX_HEIGHT, Math.max(DESKTOP_MIN_HEIGHT, ideal));
-}
-
-export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
-  // Desktop keeps its clamped height. Mobile is driven purely by HERO_MOBILE_ASPECT,
-  // so the shell scales with the viewport instead of snapping between clamp bounds —
-  // that clamping is what shifted the layout between small and large phones.
-  const desktopHeight = desktop ? desktopHeroHeight(width) : undefined;
+/**
+ * Homepage hero carousel.
+ * Shell is always a true 16:9 box driven by `width`. Media uses contain so the
+ * full creative stays visible. Pink CTA button is restored on each slide.
+ */
+export default function HeroCarousel({ width, desktop, radius: radiusOverride }: HeroCarouselProps) {
   const router = useRouter();
   const scrollRef = useRef<ScrollView>(null);
   const interactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,7 +57,7 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
     [heroSlides],
   );
   const narrow = !desktop && width < 340;
-  const radius = desktop ? 26 : 22;
+  const radius = radiusOverride ?? (desktop ? 26 : 22);
 
   useEffect(() => {
     let active = true;
@@ -178,7 +173,7 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
 
   if (loadError) {
     return (
-      <View style={[styles.shell, desktop && styles.shellDesktop, styles.errorShell, { width, minHeight: 72 }]}>
+      <View style={[styles.shell, { width, borderRadius: radius }, styles.errorShell]}>
         <Text style={styles.errorText}>{loadError}</Text>
       </View>
     );
@@ -190,11 +185,13 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
     <View
       style={[
         styles.shell,
-        desktop ? styles.shellDesktop : styles.shellMobile,
-        { width, maxWidth: width, borderRadius: radius },
-        desktop
-          ? { height: desktopHeight }
-          : { aspectRatio: HERO_MOBILE_ASPECT },
+        {
+          width,
+          maxWidth: width,
+          borderRadius: radius,
+          // Height comes only from 16:9 — never a fixed/min/max height.
+          aspectRatio: HERO_IMAGE_ASPECT,
+        },
       ]}
     >
       <ScrollView
@@ -218,7 +215,6 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
             <HeroSlideMedia
               uri={slide.imageUri}
               accessibilityLabel={`${slide.categoryName} hero slide`}
-              fill={desktop ? "blend" : "cover"}
             />
             <View style={[styles.ctaWrap, narrow && styles.ctaWrapNarrow, desktop && styles.ctaWrapDesktop]}>
               <Pressable
@@ -240,18 +236,32 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
         ))}
       </ScrollView>
 
-      {desktop ? (
+      {heroSlides.length > 1 ? (
         <>
-          <Pressable accessibilityRole="button" accessibilityLabel="Previous hero slide" onPress={() => goTo(activeIndex - 1)} style={({ pressed }) => [styles.arrow, styles.arrowLeft, pressed && styles.ctaPressed]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Previous hero slide"
+            onPress={() => goTo(activeIndex - 1)}
+            style={({ pressed }) => [styles.arrow, styles.arrowLeft, pressed && styles.arrowPressed]}
+          >
             <ChevronLeft size={20} color="#FFFFFF" />
           </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Next hero slide" onPress={() => goTo(activeIndex + 1)} style={({ pressed }) => [styles.arrow, styles.arrowRight, pressed && styles.ctaPressed]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Next hero slide"
+            onPress={() => goTo(activeIndex + 1)}
+            style={({ pressed }) => [styles.arrow, styles.arrowRight, pressed && styles.arrowPressed]}
+          >
             <ChevronRight size={20} color="#FFFFFF" />
           </Pressable>
         </>
       ) : null}
 
-      <View style={styles.indicators} accessibilityLabel={`Hero slide ${activeIndex + 1} of ${heroSlides.length}`}>
+      <View
+        style={styles.indicators}
+        pointerEvents="box-none"
+        accessibilityLabel={`Hero slide ${activeIndex + 1} of ${heroSlides.length}`}
+      >
         {heroSlides.map((slide, index) => (
           <Pressable
             key={slide.id}
@@ -274,22 +284,28 @@ export default function HeroCarousel({ width, desktop }: HeroCarouselProps) {
 
 const styles = StyleSheet.create({
   shell: {
-    borderRadius: 22,
     overflow: "hidden",
     position: "relative",
-    // Dark fill only as a load fallback — never white (white shows as edge strips).
     backgroundColor: "#141014",
     margin: 0,
     padding: 0,
     borderWidth: 0,
+    alignSelf: "center",
   },
-  shellDesktop: { borderRadius: 26, alignSelf: "center" },
-  // Radius lives on the shell, not on each slide image: the pager holds every slide
-  // side by side, so per-image corners would cut dark notches into the seam mid-swipe.
-  // The shell is the single clipping boundary and every layer inside it is square.
-  shellMobile: { borderRadius: 22, alignSelf: "center" },
-  scroller: { flex: 1, overflow: "hidden", margin: 0, padding: 0, backgroundColor: "transparent" },
-  scrollerContent: { alignItems: "stretch", margin: 0, padding: 0 },
+  scroller: {
+    width: "100%",
+    // flex:1 inside an aspect-ratio box stretches children on web — use 100% instead.
+    height: "100%",
+    overflow: "hidden",
+    margin: 0,
+    padding: 0,
+    backgroundColor: "transparent",
+  },
+  scrollerContent: {
+    alignItems: "stretch",
+    margin: 0,
+    padding: 0,
+  },
   errorShell: {
     alignItems: "center",
     justifyContent: "center",
@@ -298,6 +314,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF5F7",
     borderWidth: 1,
     borderColor: "#F3C7D4",
+    aspectRatio: undefined,
+    minHeight: 72,
   },
   errorText: { color: "#B4234A", fontSize: 12, fontWeight: "600", textAlign: "center" },
   slide: {
@@ -360,4 +378,5 @@ const styles = StyleSheet.create({
   },
   arrowLeft: { left: 14 },
   arrowRight: { right: 14 },
+  arrowPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
 });

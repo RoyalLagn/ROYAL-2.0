@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type TextInputProps,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -196,7 +197,19 @@ export default function EditProfile() {
   );
 }
 
-function Field({ icon: Icon, label, value, onChangeText, placeholder, keyboardType = "default", colors }: any) {
+type FieldColors = { text: string; muted: string; pink: string; soft: string; border: string };
+
+type FieldProps = {
+  icon: React.ComponentType<{ size?: number; color?: string }>;
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder?: string;
+  keyboardType?: TextInputProps["keyboardType"];
+  colors: FieldColors;
+};
+
+function Field({ icon: Icon, label, value, onChangeText, placeholder, keyboardType = "default", colors }: FieldProps) {
   return (
     <View style={styles.field}>
       <Text style={[styles.label, { color: colors.text }]}>{label}</Text>

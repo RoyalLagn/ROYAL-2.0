@@ -363,7 +363,7 @@ export async function getApprovedPublicVendors(
 
     const vendorIds = (data ?? []).map((row: any) => row.id);
     const reviewSummaries = vendorIds.length
-      ? await listReviewSummaries(vendorIds).catch(() => ({}))
+      ? await listReviewSummaries(vendorIds).catch((): Record<string, ReviewSummary> => ({}))
       : {};
     const uniqueVendors = new Map<string, PublicVendorListing>();
     (data ?? [])
@@ -393,7 +393,7 @@ export async function getApprovedPublicVendorById(
       .eq("id", vendorId)
       .eq("is_verified", true)
       .maybeSingle(),
-    listReviewSummaries([vendorId]).catch(() => ({})),
+    listReviewSummaries([vendorId]).catch((): Record<string, ReviewSummary> => ({})),
   ]);
   let data: any = locationResult.data;
   let error: any = locationResult.error;
@@ -434,7 +434,7 @@ export async function getApprovedPublicVendorBySlug(
   }
   if (error) throw error;
   if (!data) return null;
-  const reviewSummaries = await listReviewSummaries([data.id]).catch(() => ({}));
+  const reviewSummaries = await listReviewSummaries([data.id]).catch((): Record<string, ReviewSummary> => ({}));
   return normalizeVendor(data, reviewSummaries[data.id]);
 }
 

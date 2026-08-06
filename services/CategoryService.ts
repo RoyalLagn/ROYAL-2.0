@@ -85,16 +85,19 @@ function presentation(row: CategoryRow, vendorCount: number): CategoryRecord {
 }
 
 async function fetchCategories(): Promise<CategoryRecord[]> {
-  let result = await supabase
+  const primary = await supabase
     .from("categories")
     .select("id,slug,name,description,sort_order,icon_url,fallback_image_url,is_active,is_featured,show_on_home,show_in_search,show_in_vendor_registration,localization_key")
     .order("sort_order")
     .order("name");
 
-  if (result.error) {
+  let rows: CategoryRow[];
+  if (primary.error) {
     const legacy = await supabase.from("categories").select("id,name").order("name");
     if (legacy.error) throw legacy.error;
-    result = { ...legacy, data: legacy.data as CategoryRow[] } as typeof result;
+    rows = (legacy.data as CategoryRow[]) ?? [];
+  } else {
+    rows = (primary.data as CategoryRow[]) ?? [];
   }
 
   const { data: vendors } = await supabase
@@ -106,8 +109,7 @@ async function fetchCategories(): Promise<CategoryRecord[]> {
     counts.set(vendor.category_id, (counts.get(vendor.category_id) ?? 0) + 1);
   });
 
-  return (result.data as CategoryRow[] ?? [])
-    .map((row) => presentation(row, counts.get(row.id) ?? 0));
+  return rows.map((row) => presentation(row, counts.get(row.id) ?? 0));
 }
 
 export const CategoryService = {

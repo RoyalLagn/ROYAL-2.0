@@ -132,10 +132,15 @@ export async function pickImage(
       );
     }
 
+    // On web, allowsEditing opens an unreliable crop UI that often never
+    // resolves — leaving callers stuck on an "Uploading…" spinner.
+    const allowsEditing =
+      Platform.OS === "web" ? false : (options.allowsEditing ?? false);
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: options.allowsEditing ?? false,
-      aspect: options.aspect,
+      allowsEditing,
+      aspect: allowsEditing ? options.aspect : undefined,
       quality: options.quality ?? 0.9,
     });
 

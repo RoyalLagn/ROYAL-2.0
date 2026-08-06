@@ -18,7 +18,7 @@ import {
   type ManagementOperation,
 } from "@/components/admin/vendors/VendorActionDialog";
 import { AdminVendorService } from "@/services/adminVendorService";
-import type { AdminVendorRecord, VendorAction, VendorSort } from "@/types/adminVendors";
+import type { AdminVendorRecord, VendorAction, VendorFilters, VendorSort } from "@/types/adminVendors";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { AdminEmptyState, AdminErrorState, AdminRefreshIndicator, AdminTableSkeleton } from "@/components/admin/ui/AdminState";
@@ -253,7 +253,21 @@ function ActionMenu({ visible, record, onClose, onView, onAction }: { visible: b
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><Pressable className="flex-1 bg-black/60 justify-end" onPress={onClose}><View className="bg-card border-t border-border rounded-t-3xl p-5"><Text className="text-foreground text-lg font-bold mb-3" numberOfLines={1}>{record.business_name}</Text><Pressable className="min-h-11 justify-center border-b border-border" onPress={onView}><Text className="text-primary font-semibold">View profile</Text></Pressable>{actions.map((action) => <Pressable key={action} className="min-h-11 justify-center border-b border-border" onPress={() => onAction(action)}><Text className={`font-semibold capitalize ${action === "archive" || action === "soft_delete" ? "text-red-500" : "text-foreground"}`}>{action.replace("_", " ")}</Text></Pressable>)}</View></Pressable></Modal>;
 }
 
-function FilterModal({ visible, onClose, onApply, categories, filters, city, state, setCity, setState }: any) {
+type FilterModalCategory = { id: string; name: string };
+
+type FilterModalProps = {
+  visible: boolean;
+  onClose: () => void;
+  onApply: (values: Partial<VendorFilters>) => void;
+  categories: FilterModalCategory[];
+  filters: VendorFilters;
+  city: string;
+  state: string;
+  setCity: (value: string) => void;
+  setState: (value: string) => void;
+};
+
+function FilterModal({ visible, onClose, onApply, categories, filters, city, state, setCity, setState }: FilterModalProps) {
   const [categoryId, setCategoryId] = useState<string | null>(filters.categoryId);
   const [verification, setVerification] = useState(filters.verification);
   const [plan, setPlan] = useState(filters.plan);
