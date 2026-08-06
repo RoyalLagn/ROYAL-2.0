@@ -219,6 +219,17 @@ export default function HomeScreen() {
     return rankVendorsByLocation(eligible, preference, strictCityOnly || filters.nearbyOnly);
   }, [filters, getRating, liveVendors, preference, strictCityOnly]);
 
+  const topRatedVendors = useMemo(() => {
+    // Show every vendor, best rated first -- unrated vendors sink to the
+    // bottom instead of being hidden, so the row never looks sparse.
+    return liveVendors
+      .map((vendor) => {
+        const current = getRating(vendor.id, vendor.rating, 0);
+        return { ...vendor, rating: current.rating, reviews: current.reviews };
+      })
+      .sort((a, b) => b.rating - a.rating || b.reviews - a.reviews);
+  }, [liveVendors, getRating]);
+
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
       <ScrollView
@@ -575,6 +586,104 @@ export default function HomeScreen() {
           )}
           {!vendorsLoading && !nearbyVendors.length ? (
             <Text style={[s.emptyVendors, { color: muted }]}>No vendors match these filters. Try clearing one filter.</Text>
+          ) : null}
+        </View>
+
+        {/* ── Top Rated Vendors ── */}
+        <View style={[s.popularSection, { width: featureWidth }]}>
+          <SectionHeader
+            title="Top Rated Vendors"
+            dark={isDark}
+            actionLabel="View All"
+            onActionPress={() => router.push("/(tabs)/Categories")}
+            accessory={
+              <View style={[s.nearBadge, { backgroundColor: isDark ? "#3A2E12" : "#FFF8E1", borderColor: isDark ? "#5B4A1E" : "#F5DDA0" }]}>
+                <Star size={11} color="#FACC15" fill="#FACC15" />
+                <Text style={[s.nearBadgeText, { color: isDark ? "#FACC15" : "#B45309" }]}>Highest Rated</Text>
+              </View>
+            }
+          />
+
+          {vendorsLoading ? (
+            <View style={s.vendorScroll}>
+              <VendorCardSkeletonRow
+                count={isDesktop ? 4 : 3}
+                width={vendorCardWidth}
+                imageHeight={Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68))}
+              />
+            </View>
+          ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            snapToAlignment="start"
+            snapToInterval={vendorCardWidth + 10}
+            contentContainerStyle={s.vendorScroll}
+          >
+            {topRatedVendors.map((v) => {
+              const isFav = isFavorite(v.id);
+              return (
+                <View key={v.id} style={[s.vendorCard, { width: vendorCardWidth, backgroundColor: card, borderColor: border }]}>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${v.name}`}
+                    style={s.vendorMain}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/VendorsProfile",
+                        params: { vendorId: v.id, category: v.category },
+                      })
+                    }
+                    activeOpacity={0.88}
+                  >
+                    <View style={[s.vendorImgWrap, { height: Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68)) }]}>
+                      <SafeImage
+                        debugLabel={`home top rated vendor card: ${v.name}`}
+                        source={{ uri: v.image }}
+                        fallbackSource={resolveMarketplaceCategoryImage(v.category).fallbackSource}
+                        style={s.vendorImg}
+                        resizeMode="cover"
+                      />
+                      <View style={s.imgBottomRow}>
+                        <View style={s.ratingBadge}>
+                          <Star size={11} color="#FACC15" fill="#FACC15" />
+                          <Text style={s.ratingBadgeTxt}>{v.rating}</Text>
+                        </View>
+                        <View style={s.verifiedBadge}>
+                          <BadgeCheck size={11} color="#FFF" />
+                          <Text style={s.verifiedTxt}>Verified</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={s.vendorInfo}>
+                      <Text style={[s.vendorName, isDesktop && s.vendorNameDesktop, { color: text }]} numberOfLines={1}>{v.name}</Text>
+                      <Text style={[s.vendorCat, { color: muted }]} numberOfLines={1}>{v.category}</Text>
+                      <View style={s.vendorMeta}>
+                        <MapPin size={11} color={muted} />
+                        <Text style={[s.vendorLoc, { color: muted }]} numberOfLines={1}>{v.location}</Text>
+                        <Text style={[s.vendorPrice, { color: text }]} numberOfLines={1}>{v.startingPrice} onwards</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                  <FavoriteHeartButton
+                    favorite={isFav}
+                    accessibilityLabel={isFav ? `Remove ${v.name} from favorites` : `Add ${v.name} to favorites`}
+                    style={s.heartBtn}
+                    activeStyle={s.heartBtnActive}
+                    pressedStyle={s.favoritePressed}
+                    onToggle={(source) => toggleFavorite(v, source)}
+                    size={15}
+                    color="#3A3035"
+                    activeIconColor={PINK}
+                  />
+                </View>
+              );
+            })}
+          </ScrollView>
+          )}
+          {!vendorsLoading && !topRatedVendors.length ? (
+            <Text style={[s.emptyVendors, { color: muted }]}>No rated vendors yet.</Text>
           ) : null}
         </View>
 
