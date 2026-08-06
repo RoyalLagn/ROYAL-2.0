@@ -1,4 +1,5 @@
 import { Platform, Share } from "react-native";
+import { crmError } from "@/services/crm/errors";
 import { supabase } from "@/services/supabase";
 import type {
   CrmVendorFilters,
@@ -13,7 +14,7 @@ let channelSequence = 0;
 
 async function count(table: string, apply: (query: any) => any = (query) => query) {
   const result = await apply(supabase.from(table).select("id", { count: "exact", head: true }));
-  if (result.error) throw result.error;
+  if (result.error) throw crmError(result.error);
   return result.count ?? 0;
 }
 
@@ -71,20 +72,20 @@ export const CrmVendorService = {
     const { data, error, count: total } = await query
       .order("created_at", { ascending: false })
       .range(from, from + filters.pageSize - 1);
-    if (error) throw error;
+    if (error) throw crmError(error);
     return { rows: (data ?? []).map(toListItem), total: total ?? 0 };
   },
 
   async getRecord(id: string): Promise<CrmVendorListItem> {
     const { data, error } = await supabase.from("crm_vendors").select(LIST_SELECT).eq("id", id).maybeSingle();
-    if (error) throw error;
+    if (error) throw crmError(error);
     if (!data) throw new Error("Vendor not found.");
     return toListItem(data);
   },
 
   async create(input: CrmVendorInput) {
     const { data, error } = await supabase.from("crm_vendors").insert(payloadFromInput(input)).select().single();
-    if (error) throw error;
+    if (error) throw crmError(error);
     return data as CrmVendorRecord;
   },
 
@@ -109,7 +110,7 @@ export const CrmVendorService = {
     if (input.notes !== undefined) payload.notes = input.notes?.trim() || null;
     if (input.rating !== undefined) payload.rating = input.rating;
     const { error } = await supabase.from("crm_vendors").update(payload).eq("id", id);
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async updateStatus(id: string, status: CrmVendorStatus, note?: string) {
@@ -118,7 +119,7 @@ export const CrmVendorService = {
       new_status: status,
       note: note?.trim() || null,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async bulkUpdateStatus(ids: string[], status: CrmVendorStatus) {
@@ -129,12 +130,12 @@ export const CrmVendorService = {
 
   async bulkAssignExecutive(ids: string[], executiveId: string | null) {
     const { error } = await supabase.from("crm_vendors").update({ assigned_executive_id: executiveId }).in("id", ids);
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async bulkDelete(ids: string[]) {
     const { error } = await supabase.from("crm_vendors").delete().in("id", ids);
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async exportCsv(rows: CrmVendorListItem[]) {

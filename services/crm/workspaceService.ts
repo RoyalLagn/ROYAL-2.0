@@ -1,17 +1,30 @@
 import { supabase } from "@/services/supabase";
+import { crmError } from "@/services/crm/errors";
 import type { CrmFieldWorkspace, CrmWorkspaceCreateInput, CrmWorkspacePermissions, WorkspaceStatus } from "@/types/crm/workspace";
 
 let channelSequence = 0;
 
+export type CrmFieldWorkspaceWithNames = CrmFieldWorkspace & {
+  cluster_name: string | null;
+  campaign_name: string | null;
+};
+
 export const CrmWorkspaceService = {
-  async list(force = false): Promise<CrmFieldWorkspace[]> {
+  async list(force = false): Promise<CrmFieldWorkspaceWithNames[]> {
     void force;
     const { data, error } = await supabase
       .from("crm_field_workspaces")
-      .select("*")
+      .select("*, crm_clusters(name), crm_campaigns(name)")
       .order("created_at", { ascending: false });
-    if (error) throw error;
-    return (data ?? []) as CrmFieldWorkspace[];
+    if (error) throw crmError(error);
+    return ((data ?? []) as any[]).map((row) => {
+      const { crm_clusters, crm_campaigns, ...rest } = row;
+      return {
+        ...rest,
+        cluster_name: crm_clusters?.name ?? null,
+        campaign_name: crm_campaigns?.name ?? null,
+      } as CrmFieldWorkspaceWithNames;
+    });
   },
 
   async getPermissions(workspaceId: string): Promise<CrmWorkspacePermissions | null> {
@@ -20,7 +33,7 @@ export const CrmWorkspaceService = {
       .select("add_vendors, edit_own_vendors, add_notes, add_followups, upload_photos, call_vendor, whatsapp_vendor, view_assigned_vendors, delete_vendors, export_data, view_reports, view_analytics, view_settings, vendor_approval, subscription_access, other_clusters")
       .eq("workspace_id", workspaceId)
       .maybeSingle();
-    if (error) throw error;
+    if (error) throw crmError(error);
     return (data as CrmWorkspacePermissions | null) ?? null;
   },
 
@@ -34,7 +47,7 @@ export const CrmWorkspaceService = {
       target_expires_at: input.expiresAt,
       target_permissions: input.permissions ?? {},
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return data as CrmFieldWorkspace;
   },
 
@@ -42,7 +55,7 @@ export const CrmWorkspaceService = {
     const { data, error } = await supabase.rpc("admin_crm_regenerate_workspace_token", {
       target_workspace_id: workspaceId,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return data as CrmFieldWorkspace;
   },
 
@@ -51,7 +64,7 @@ export const CrmWorkspaceService = {
       target_workspace_id: workspaceId,
       target_status: status,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return data as CrmFieldWorkspace;
   },
 
@@ -60,7 +73,7 @@ export const CrmWorkspaceService = {
       target_workspace_id: workspaceId,
       new_expires_at: newExpiresAt,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return data as CrmFieldWorkspace;
   },
 
@@ -69,7 +82,7 @@ export const CrmWorkspaceService = {
       target_workspace_id: workspaceId,
       target_permissions: permissions,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   subscribe(onChange: () => void) {

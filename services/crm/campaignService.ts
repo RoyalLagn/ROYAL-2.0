@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { crmError } from "@/services/crm/errors";
 import type { CrmCampaign, CrmCampaignInput } from "@/types/crm/campaign";
 
 const CACHE_MS = 20_000;
@@ -16,7 +17,7 @@ export const CrmCampaignService = {
       .from("crm_campaigns")
       .select("*")
       .order("created_at", { ascending: false });
-    if (error) throw error;
+    if (error) throw crmError(error);
     const rows = (data ?? []) as CrmCampaign[];
     cache = { at: Date.now(), rows };
     return rows;
@@ -30,7 +31,7 @@ export const CrmCampaignService = {
       end_date: input.endDate || null,
       status: input.status ?? "active",
     }).select().single();
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
     return data as CrmCampaign;
   },
@@ -43,13 +44,13 @@ export const CrmCampaignService = {
     if (input.endDate !== undefined) payload.end_date = input.endDate || null;
     if (input.status !== undefined) payload.status = input.status;
     const { error } = await supabase.from("crm_campaigns").update(payload).eq("id", id);
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
   },
 
   async remove(id: string) {
     const { error } = await supabase.from("crm_campaigns").delete().eq("id", id);
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
   },
 

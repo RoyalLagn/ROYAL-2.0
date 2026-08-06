@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { crmError } from "@/services/crm/errors";
 
 export type CrmDocument = {
   id: string;
@@ -18,7 +19,7 @@ export const CrmDocumentService = {
       .select("*")
       .eq("vendor_id", vendorId)
       .order("created_at", { ascending: false });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return (data ?? []) as CrmDocument[];
   },
 };

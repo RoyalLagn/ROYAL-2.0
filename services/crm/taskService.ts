@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { crmError } from "@/services/crm/errors";
 import type { CrmFollowupPriority, CrmFollowupType } from "@/types/crm/followup";
 
 export type CrmTaskFollowupItem = {
@@ -32,7 +33,7 @@ export const CrmTaskService = {
       .eq("scheduled_date", todayISODate());
     if (type) query = query.eq("type", type);
     const { data, error } = await query.order("scheduled_time", { ascending: true, nullsFirst: false });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return (data ?? []).map((row: any) => ({
       id: row.id,
       vendor_id: row.vendor_id,
@@ -51,7 +52,7 @@ export const CrmTaskService = {
       .select("id, business_name, phone, crm_vendor_categories(name)")
       .eq("status", "documents_pending")
       .order("updated_at", { ascending: false });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return (data ?? []).map((row: any) => ({
       vendor_id: row.id,
       business_name: row.business_name,

@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { crmError } from "@/services/crm/errors";
 import type { CrmFollowup, CrmFollowupStatus, CrmFollowupType } from "@/types/crm/followup";
 
 export type CrmFollowupInput = {
@@ -16,7 +17,7 @@ export const CrmFollowupService = {
       .select("*")
       .eq("vendor_id", vendorId)
       .order("scheduled_date", { ascending: true });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return (data ?? []) as CrmFollowup[];
   },
 
@@ -29,11 +30,11 @@ export const CrmFollowupService = {
       priority: input.priority ?? "medium",
       notes: input.notes?.trim() || null,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async setStatus(id: string, status: CrmFollowupStatus) {
     const { error } = await supabase.from("crm_followups").update({ status }).eq("id", id);
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 };

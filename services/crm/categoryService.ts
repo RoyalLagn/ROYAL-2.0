@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { crmError } from "@/services/crm/errors";
 import type { CrmVendorCategory, CrmVendorCategoryInput } from "@/types/crm/category";
 
 const CACHE_MS = 20_000;
@@ -17,7 +18,7 @@ export const CrmCategoryService = {
       .select("*")
       .order("display_order", { ascending: true })
       .order("name", { ascending: true });
-    if (error) throw error;
+    if (error) throw crmError(error);
     const rows = (data ?? []) as CrmVendorCategory[];
     cache = { at: Date.now(), rows };
     return rows;
@@ -30,7 +31,7 @@ export const CrmCategoryService = {
       display_order: input.displayOrder ?? 0,
       is_active: input.isActive ?? true,
     }).select().single();
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
     return data as CrmVendorCategory;
   },
@@ -42,7 +43,7 @@ export const CrmCategoryService = {
     if (input.displayOrder !== undefined) payload.display_order = input.displayOrder;
     if (input.isActive !== undefined) payload.is_active = input.isActive;
     const { error } = await supabase.from("crm_vendor_categories").update(payload).eq("id", id);
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
   },
 
@@ -54,7 +55,7 @@ export const CrmCategoryService = {
 
   async remove(id: string) {
     const { error } = await supabase.from("crm_vendor_categories").delete().eq("id", id);
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
   },
 

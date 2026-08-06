@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { crmError } from "@/services/crm/errors";
 import type { CrmTerritoryNode } from "@/types/crm/territory";
 
 export type CategoryBreakdownItem = { categoryId: string; name: string; count: number };
@@ -19,7 +20,7 @@ export type ConversionRates = {
 
 async function count(table: string, apply: (query: any) => any = (query) => query) {
   const result = await apply(supabase.from(table).select("id", { count: "exact", head: true }));
-  if (result.error) throw result.error;
+  if (result.error) throw crmError(result.error);
   return result.count ?? 0;
 }
 
@@ -28,7 +29,7 @@ export const CrmReportService = {
     const { data, error } = await supabase
       .from("crm_vendors")
       .select("category_id, crm_vendor_categories(name)");
-    if (error) throw error;
+    if (error) throw crmError(error);
     const tally = new Map<string, CategoryBreakdownItem>();
     for (const row of (data ?? []) as any[]) {
       if (!row.category_id) continue;
@@ -41,7 +42,7 @@ export const CrmReportService = {
 
   async districtPerformance(): Promise<CrmTerritoryNode[]> {
     const { data, error } = await supabase.rpc("admin_crm_list_territory", { target_level: "district", parent_filter: null });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return ((data ?? []) as CrmTerritoryNode[]).filter((row) => row.vendor_count > 0).sort((a, b) => b.vendor_count - a.vendor_count);
   },
 
@@ -50,8 +51,8 @@ export const CrmReportService = {
       supabase.from("crm_sales_executives").select("id, name").eq("is_active", true),
       supabase.from("crm_vendors").select("assigned_executive_id, status"),
     ]);
-    if (executivesResult.error) throw executivesResult.error;
-    if (vendorsResult.error) throw vendorsResult.error;
+    if (executivesResult.error) throw crmError(executivesResult.error);
+    if (vendorsResult.error) throw crmError(vendorsResult.error);
     const byExecutive = new Map<string, ExecutivePerformanceItem>();
     for (const executive of executivesResult.data ?? []) {
       byExecutive.set(executive.id, { executiveId: executive.id, name: executive.name, total: 0, registered: 0, premium: 0 });
@@ -78,7 +79,7 @@ export const CrmReportService = {
       .select("created_at")
       .eq("to_status", "registered_on_royallagn")
       .gte("created_at", since.toISOString());
-    if (error) throw error;
+    if (error) throw crmError(error);
     const tally = new Map<string, number>();
     for (let i = 0; i < days; i += 1) {
       const day = new Date(since);
@@ -113,13 +114,13 @@ export const CrmReportService = {
 
   async getTarget(): Promise<number> {
     const { data, error } = await supabase.from("crm_settings").select("monthly_vendor_target").eq("id", true).maybeSingle();
-    if (error) throw error;
+    if (error) throw crmError(error);
     return data?.monthly_vendor_target ?? 50;
   },
 
   async setTarget(value: number) {
     const { error } = await supabase.from("crm_settings").update({ monthly_vendor_target: Math.max(0, Math.round(value)) }).eq("id", true);
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async registrationsThisMonth(): Promise<number> {

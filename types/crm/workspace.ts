@@ -3,6 +3,22 @@ import type { CrmFollowupPriority, CrmFollowupStatus, CrmFollowupType } from "@/
 
 export type WorkspaceStatus = "active" | "paused" | "expired" | "revoked";
 
+export const workspaceStatusLabels: Record<WorkspaceStatus, string> = {
+  active: "Active",
+  paused: "Paused",
+  expired: "Expired",
+  revoked: "Revoked",
+};
+
+// Tailwind color pair (background/foreground), same convention as
+// crmVendorStatusColors in types/crm/vendor.ts.
+export const workspaceStatusColors: Record<WorkspaceStatus, string> = {
+  active: "bg-emerald-500/10 text-emerald-500",
+  paused: "bg-amber-500/10 text-amber-500",
+  expired: "bg-slate-500/10 text-slate-500",
+  revoked: "bg-red-500/10 text-red-500",
+};
+
 export type CrmWorkspacePermissions = {
   add_vendors: boolean;
   edit_own_vendors: boolean;

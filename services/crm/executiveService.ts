@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { crmError } from "@/services/crm/errors";
 import type { CrmSalesExecutive, CrmSalesExecutiveInput } from "@/types/crm/executive";
 
 const CACHE_MS = 20_000;
@@ -16,7 +17,7 @@ export const CrmExecutiveService = {
       .from("crm_sales_executives")
       .select("*")
       .order("name", { ascending: true });
-    if (error) throw error;
+    if (error) throw crmError(error);
     const rows = (data ?? []) as CrmSalesExecutive[];
     cache = { at: Date.now(), rows };
     return rows;
@@ -29,7 +30,7 @@ export const CrmExecutiveService = {
       email: input.email?.trim() || null,
       is_active: input.isActive ?? true,
     }).select().single();
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
     return data as CrmSalesExecutive;
   },
@@ -41,13 +42,13 @@ export const CrmExecutiveService = {
     if (input.email !== undefined) payload.email = input.email?.trim() || null;
     if (input.isActive !== undefined) payload.is_active = input.isActive;
     const { error } = await supabase.from("crm_sales_executives").update(payload).eq("id", id);
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
   },
 
   async remove(id: string) {
     const { error } = await supabase.from("crm_sales_executives").delete().eq("id", id);
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
   },
 

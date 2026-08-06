@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { crmError } from "@/services/crm/errors";
 import type {
   CrmWorkspaceFollowup,
   CrmWorkspaceProgress,
@@ -44,7 +45,7 @@ function vendorPayload(input: CrmWorkspaceVendorInput) {
 export const CrmWorkspaceSessionService = {
   async authenticate(token: string): Promise<CrmWorkspaceSession> {
     const { data, error } = await supabase.rpc("workspace_authenticate", { target_token: token.trim() });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return firstRow<CrmWorkspaceSession>(data);
   },
 
@@ -56,7 +57,7 @@ export const CrmWorkspaceSessionService = {
       page_size: pageSize,
       page_offset: (page - 1) * pageSize,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
     const rows = (data ?? []) as (CrmWorkspaceVendor & { total_count: number })[];
     return { rows, total: Number(rows[0]?.total_count ?? 0) };
   },
@@ -66,7 +67,7 @@ export const CrmWorkspaceSessionService = {
       target_token: token,
       ...vendorPayload(input),
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return data;
   },
 
@@ -90,7 +91,7 @@ export const CrmWorkspaceSessionService = {
       target_vendor_id: vendorId,
       changes: payload,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async updateVendorStatus(token: string, vendorId: string, status: CrmVendorStatus) {
@@ -99,7 +100,7 @@ export const CrmWorkspaceSessionService = {
       target_vendor_id: vendorId,
       new_status: status,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async addNote(token: string, vendorId: string, body: string) {
@@ -108,7 +109,7 @@ export const CrmWorkspaceSessionService = {
       target_vendor_id: vendorId,
       body: body.trim(),
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async addFollowup(token: string, vendorId: string, input: {
@@ -124,7 +125,7 @@ export const CrmWorkspaceSessionService = {
       priority: input.priority ?? "medium",
       notes: input.notes?.trim() || null,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async listFollowups(token: string, status: CrmFollowupStatus | "all" = "pending", vendorId?: string) {
@@ -133,7 +134,7 @@ export const CrmWorkspaceSessionService = {
       status_filter: status,
       vendor_filter: vendorId ?? null,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return (data ?? []) as CrmWorkspaceFollowup[];
   },
 
@@ -142,7 +143,7 @@ export const CrmWorkspaceSessionService = {
       target_token: token,
       target_vendor_id: vendorId,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return data as CrmVendorRecord;
   },
 
@@ -151,7 +152,7 @@ export const CrmWorkspaceSessionService = {
       target_token: token,
       target_vendor_id: vendorId,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return (data ?? []) as CrmNote[];
   },
 
@@ -161,7 +162,7 @@ export const CrmWorkspaceSessionService = {
       target_followup_id: followupId,
       new_status: status,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async logActivity(token: string, vendorId: string, action: "call_started" | "whatsapp_opened") {
@@ -170,12 +171,12 @@ export const CrmWorkspaceSessionService = {
       target_vendor_id: vendorId,
       action,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
   },
 
   async progress(token: string): Promise<CrmWorkspaceProgress> {
     const { data, error } = await supabase.rpc("workspace_progress", { target_token: token });
-    if (error) throw error;
+    if (error) throw crmError(error);
     return firstRow<CrmWorkspaceProgress>(data);
   },
 };

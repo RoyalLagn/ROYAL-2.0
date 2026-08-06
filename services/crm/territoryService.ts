@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { crmError } from "@/services/crm/errors";
 import type { CrmTerritoryInput, CrmTerritoryNode, TerritoryLevel } from "@/types/crm/territory";
 import { territoryParentColumn, territoryTable } from "@/types/crm/territory";
 
@@ -21,7 +22,7 @@ export const CrmTerritoryService = {
       target_level: level,
       parent_filter: parentId,
     });
-    if (error) throw error;
+    if (error) throw crmError(error);
     const rows = (data ?? []) as CrmTerritoryNode[];
     listCache.set(key, { at: Date.now(), rows });
     return rows;
@@ -39,7 +40,7 @@ export const CrmTerritoryService = {
       payload[territoryParentColumn[level as Exclude<TerritoryLevel, "state">]] = parentId;
     }
     const { data, error } = await supabase.from(table).insert(payload).select().single();
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
     return data;
   },
@@ -52,7 +53,7 @@ export const CrmTerritoryService = {
     if (input.displayOrder !== undefined) payload.display_order = input.displayOrder;
     if (input.isActive !== undefined) payload.is_active = input.isActive;
     const { error } = await supabase.from(table).update(payload).eq("id", id);
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
   },
 
@@ -66,7 +67,7 @@ export const CrmTerritoryService = {
   async remove(level: TerritoryLevel, id: string) {
     const table = territoryTable[level];
     const { error } = await supabase.from(table).delete().eq("id", id);
-    if (error) throw error;
+    if (error) throw crmError(error);
     this.invalidate();
   },
 
