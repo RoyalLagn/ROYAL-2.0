@@ -76,7 +76,7 @@ export default function VendorClipEdit() {
     if (!clip) return;
     if (!title.trim() || !categoryId) return Alert.alert("Title and category are required");
     setSaving(true);
-    const result = await ClipManagementService.update(id, { title, caption, categoryId, visibility });
+    const result = await ClipManagementService.update(id, { title, caption, categoryId, visibility, currentStatus: clip.status });
     if (!mounted.current) return;
     setSaving(false);
     if (result.error) {

@@ -1,7 +1,7 @@
-import React, { useCallback, useRef } from "react";
+import React from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Bell, CheckCheck, Trash2 } from "lucide-react-native";
-import { useFocusEffect, useRouter } from "expo-router";
+import { Bell, CheckCheck, MailX, Trash2 } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
@@ -44,21 +44,9 @@ export default function VendorNotifications() {
     markAllAsRead,
     deleteNotification,
     clearNotifications,
+    clearReadNotifications,
   } = useVendorNotifications();
-  const markedOnFocus = useRef(false);
-
-  useFocusEffect(
-    useCallback(() => {
-      markedOnFocus.current = false;
-      if (!loading && unread > 0) {
-        markedOnFocus.current = true;
-        void markAllAsRead();
-      }
-      return () => {
-        markedOnFocus.current = false;
-      };
-    }, [loading, markAllAsRead, unread]),
-  );
+  const readCount = notifications.length - unread;
 
   const openNotification = (notification: VendorNotification) => {
     if (!notification.is_read) {
@@ -91,6 +79,27 @@ export default function VendorNotifications() {
           style: "destructive",
           onPress: () => {
             void clearNotifications().then((success) => {
+              if (!success) {
+                Alert.alert("Could not clear", "Please check your connection and try again.");
+              }
+            });
+          },
+        },
+      ],
+    );
+  };
+
+  const confirmClearRead = () => {
+    Alert.alert(
+      "Clear read notifications?",
+      "This removes notifications you've already read from your inbox. Unread notifications stay.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear read",
+          style: "destructive",
+          onPress: () => {
+            void clearReadNotifications().then((success) => {
               if (!success) {
                 Alert.alert("Could not clear", "Please check your connection and try again.");
               }
@@ -139,6 +148,17 @@ export default function VendorNotifications() {
                 <CheckCheck size={16} color={colors.pink} />
                 <Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>
                   Read all
+                </Text>
+              </Pressable>
+            ) : null}
+            {readCount > 0 ? (
+              <Pressable
+                onPress={confirmClearRead}
+                style={[styles.mark, { backgroundColor: colors.surfaceSoft }]}
+              >
+                <MailX size={14} color={colors.pink} />
+                <Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>
+                  Clear read
                 </Text>
               </Pressable>
             ) : null}

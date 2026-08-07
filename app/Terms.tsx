@@ -8,8 +8,8 @@ export default function Terms() {
       subtitle="Terms for using RoyalLagn"
       mode="info"
       content={[
-        "The current RoyalLagn application is a frontend demonstration. Vendor, price and profile information is sample content.",
-        "Users should independently confirm vendor availability, services and commercial terms before making external arrangements.",
+        "RoyalLagn connects couples with independent wedding vendors. Sending an enquiry does not create a confirmed booking with a vendor.",
+        "Users should independently confirm vendor availability, services, pricing and cancellation terms directly with the vendor before making arrangements.",
       ]}
     />
   );

@@ -49,6 +49,10 @@ export function useVendorClipOverview(vendorId?: string | null) {
     };
     const mostViewed = [...active].sort((a, b) => Number(b.views_count) - Number(a.views_count))[0] ?? null;
     const newest = [...active].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0] ?? null;
+    // Rejected and hidden Clips aren't live and shouldn't hold an upload
+    // slot -- only count Clips that are actually published or awaiting
+    // review toward the plan limit.
+    const slotsUsed = active.filter((clip) => clip.status !== "rejected" && clip.status !== "hidden").length;
     return {
       active,
       byStatus,
@@ -62,7 +66,7 @@ export function useVendorClipOverview(vendorId?: string | null) {
       mostViewed,
       newest,
       maximumClips: limits?.maximumClips ?? null,
-      limitReached: limits ? active.length >= limits.maximumClips : false,
+      limitReached: limits ? slotsUsed >= limits.maximumClips : false,
     };
   }, [clips, drafts, limits]);
 

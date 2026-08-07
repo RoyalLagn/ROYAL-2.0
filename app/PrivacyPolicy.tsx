@@ -8,8 +8,8 @@ export default function PrivacyPolicy() {
       subtitle="How RoyalLagn handles your information"
       mode="info"
       content={[
-        "RoyalLagn currently stores frontend changes only in temporary local component state. No account information is sent to a backend.",
-        "When backend services are introduced, this policy should be reviewed and expanded to describe data collection, retention, security and user rights.",
+        "RoyalLagn uses the account, profile and activity information you provide -- such as your name, contact details, favorites and enquiries -- to operate your account and connect you with wedding vendors.",
+        "Your information is not sold to third parties. It is used to run the marketplace, support your enquiries and improve your experience, and is retained only for as long as your account remains active.",
       ]}
     />
   );

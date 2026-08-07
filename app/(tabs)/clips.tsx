@@ -179,7 +179,11 @@ export default function ClipsScreen() {
   }, [searchQuery]);
 
   const loadMore = useCallback(async () => {
-    if (!cursor || !hasMore || loadingMore) return;
+    // Search filters the already-loaded feed client-side (there is no
+    // server-side search query yet), so paging further in can't surface more
+    // matches -- it would just keep silently pulling in the rest of the feed
+    // in the background every time the short filtered list hits its end.
+    if (!cursor || !hasMore || loadingMore || searchQuery.trim()) return;
     const requestSeed = feedSession.seed;
     setLoadingMore(true);
     try {
@@ -202,7 +206,7 @@ export default function ClipsScreen() {
       if (activeFeedSeed.current !== requestSeed) return;
       setLoadingMore(false);
     }
-  }, [clipId, cursor, feedSession, hasMore, hydrateEngagement, loadingMore]);
+  }, [clipId, cursor, feedSession, hasMore, hydrateEngagement, loadingMore, searchQuery]);
 
   const refreshFeed = useCallback(() => {
     setRefreshing(true);

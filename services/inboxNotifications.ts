@@ -119,4 +119,13 @@ export const VendorInboxService = {
       .eq("vendor_id", vendorId);
     if (error) throw error;
   },
+
+  async clearRead(vendorId: string) {
+    const { error } = await supabase
+      .from("vendor_notifications")
+      .delete()
+      .eq("vendor_id", vendorId)
+      .eq("is_read", true);
+    if (error) throw error;
+  },
 };

@@ -500,7 +500,7 @@ export default function HomeScreen() {
             title="Popular Near You"
             dark={isDark}
             actionLabel="View All"
-            onActionPress={() => router.push("/(tabs)/Categories")}
+            onActionPress={() => router.push({ pathname: "/Search", params: { location: city, nearby: "true" } })}
             accessory={
               <View style={[s.nearBadge, { backgroundColor: isDark ? "#351D28" : "#FFF1F6", borderColor: isDark ? "#5B2940" : "#F7C7D9" }]}>
                 <MapPin size={11} color={PINK} />
@@ -602,7 +602,7 @@ export default function HomeScreen() {
             title="Top Rated Vendors"
             dark={isDark}
             actionLabel="View All"
-            onActionPress={() => router.push("/(tabs)/Categories")}
+            onActionPress={() => router.push({ pathname: "/Search", params: { sort: "rating" } })}
             accessory={
               <View style={[s.nearBadge, { backgroundColor: isDark ? "#3A2E12" : "#FFF8E1", borderColor: isDark ? "#5B4A1E" : "#F5DDA0" }]}>
                 <Star size={11} color={STAR} fill={STAR} />

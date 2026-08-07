@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -10,6 +11,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePathname, useRouter } from "expo-router";
@@ -97,9 +99,46 @@ export default function FrontendScreen({
   const [settings, setSettings] = useState<Record<string, boolean>>(
     Object.fromEntries(items.map((item) => [item, true]))
   );
+  const settingsStorageKey = `royallagn.frontend-settings.${title}`;
+
+  // Preferences here have no backing account column yet -- persisting them
+  // locally at least means a toggle survives a reload instead of silently
+  // resetting to "on" every time this screen mounts.
+  useEffect(() => {
+    if (mode !== "settings") return;
+    let active = true;
+    AsyncStorage.getItem(settingsStorageKey)
+      .then((raw) => {
+        if (!active || !raw) return;
+        const stored = JSON.parse(raw) as Record<string, boolean>;
+        setSettings((current) => ({ ...current, ...stored }));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, settingsStorageKey]);
+
+  useEffect(() => {
+    if (mode !== "settings") return;
+    void AsyncStorage.setItem(settingsStorageKey, JSON.stringify(settings)).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, settings, settingsStorageKey]);
 
   const filtered = list.filter((item) => item.toLowerCase().includes(query.toLowerCase()));
   const save = () => Alert.alert(title, "Your changes were saved locally.");
+  const sendSupportMessage = async () => {
+    const body = message.trim();
+    if (!body) return Alert.alert("Add a message", "Let us know what you need help with first.");
+    const url = `mailto:support@royallagn.com?subject=${encodeURIComponent(`${title} support`)}&body=${encodeURIComponent(body)}`;
+    if (await Linking.canOpenURL(url)) {
+      Linking.openURL(url);
+      setMessage("");
+    } else {
+      Alert.alert("Email support", "Contact support@royallagn.com");
+    }
+  };
 
   const surfaceShadow = Platform.OS === "web"
     ? ({
@@ -405,10 +444,7 @@ export default function FrontendScreen({
                 <Pressable
                   accessibilityRole="button"
                   className="min-h-11 mt-4 px-6 self-end bg-primary rounded-full flex-row items-center justify-center hover:bg-primary/90 active:opacity-85"
-                  onPress={() => {
-                    Alert.alert("Support", "Your message was saved locally.");
-                    setMessage("");
-                  }}
+                  onPress={() => void sendSupportMessage()}
                 >
                   <Send size={17} color="#FFFFFF" />
                   <Text className="text-white font-semibold ml-2">Send Message</Text>

@@ -28,7 +28,7 @@ export default function VendorSettings() {
   const save = async () => {
     if (!data.vendor?.id) return Alert.alert("Vendor profile required");
     setSaving(true); setSaved(false);
-    const { error } = await supabase.from("vendors").update({ preferences: settings }).eq("id", data.vendor.id);
+    const { error } = await supabase.from("vendors").update({ preferences: { ...data.vendor.preferences, ...settings } }).eq("id", data.vendor.id);
     setSaving(false);
     if (error) return Alert.alert("Settings not saved", error.message);
     await refresh(); setSaved(true); setTimeout(() => setSaved(false), 2000);

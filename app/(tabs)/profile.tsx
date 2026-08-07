@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -328,6 +329,12 @@ export default function ProfileScreen() {
     }
   };
 
+  const openSupportEmail = async () => {
+    const url = "mailto:support@royallagn.com?subject=RoyalLagn%20support";
+    if (await Linking.canOpenURL(url)) Linking.openURL(url);
+    else Alert.alert("Email support", "Contact support@royallagn.com");
+  };
+
   const accountOptions = [
     {
       icon: Bookmark,
@@ -344,7 +351,7 @@ export default function ProfileScreen() {
     {
       icon: Shield,
       title: "Privacy & Security",
-      description: "Control privacy and account protection",
+      description: "Review how RoyalLagn handles your information",
       onPress: () => router.push("/PrivacyPolicy"),
     },
     {
@@ -372,7 +379,7 @@ export default function ProfileScreen() {
       icon: Mail,
       title: "Contact Us",
       description: "Reach the RoyalLagn support team",
-      onPress: () => router.push("/About"),
+      onPress: () => void openSupportEmail(),
     },
   ];
 

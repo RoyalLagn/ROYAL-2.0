@@ -177,16 +177,23 @@ export default function VendorGallery() {
     setDeletingAlbumId(album.id);
     try {
       const albumMedia = data.media.filter((item) => item.album_id === album.id);
-      for (const item of albumMedia) await deletePortfolioMedia(item.id);
+      const failures: unknown[] = [];
+      for (const item of albumMedia) {
+        try { await deletePortfolioMedia(item.id); }
+        catch (mediaError) { failures.push(mediaError); }
+      }
+      if (failures.length) {
+        showFailure("Some media could not be deleted", failures[0], `${failures.length} of ${albumMedia.length} item${albumMedia.length === 1 ? "" : "s"} could not be removed. The album was kept so you can retry.`);
+        return;
+      }
       const { error: removeError } = await supabase.from("vendor_portfolio_albums").delete().eq("id", album.id).eq("vendor_id", data.vendor?.id);
       if (removeError) throw removeError;
       setSelectedAlbumId(null);
       setAlbumPreview(null);
-      await refresh();
     } catch (caught) {
       showFailure("Album not deleted", caught, "Nothing was removed. Please check your connection and try again.");
-      await refresh();
     } finally {
+      await refresh();
       setDeletingAlbumId(null);
     }
   };
@@ -234,23 +241,34 @@ export default function VendorGallery() {
       return Alert.alert("Not enough room", `${target.title} has room for ${PORTFOLIO_LIMITS.mediaPerAlbum - targetCount} more items. Choose another album.`);
     }
     setDeletingAlbumId(moveAlbumSource.id);
+    const moved: typeof sourceItems = [];
     try {
       for (let index = 0; index < sourceItems.length; index += 1) {
         const { error: moveError } = await supabase.from("vendor_portfolio_media")
           .update({ album_id: target.id, display_order: targetCount + index, is_cover: targetCount === 0 && index === 0 })
           .eq("id", sourceItems[index].id).eq("vendor_id", data.vendor?.id);
         if (moveError) throw moveError;
+        moved.push(sourceItems[index]);
       }
       const { error: removeError } = await supabase.from("vendor_portfolio_albums")
         .delete().eq("id", moveAlbumSource.id).eq("vendor_id", data.vendor?.id);
       if (removeError) throw removeError;
       setMoveAlbumSource(null);
       setSelectedAlbumId(target.id);
-      await refresh();
     } catch (caught) {
+      if (moved.length && moved.length < sourceItems.length) {
+        // Roll the already-moved items back to the source album so a
+        // partial failure doesn't leave media split across both albums
+        // while the source album still exists.
+        await Promise.all(moved.map((item) =>
+          supabase.from("vendor_portfolio_media")
+            .update({ album_id: item.album_id, display_order: item.display_order, is_cover: item.is_cover })
+            .eq("id", item.id).eq("vendor_id", data.vendor?.id),
+        ));
+      }
       showFailure("Album not moved", caught);
-      await refresh();
     } finally {
+      await refresh();
       setDeletingAlbumId(null);
     }
   };

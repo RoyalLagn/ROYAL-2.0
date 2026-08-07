@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -29,6 +29,12 @@ export default function AdminCrmMarketingWorkspaceAssign() {
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState("");
   const [selectedVendorIds, setSelectedVendorIds] = useState<Set<string>>(new Set());
+  // Vendor ids we've confirmed are currently assigned in the database (across
+  // every page/category/search we've observed this session). Used on Save to
+  // diff against selectedVendorIds and unassign anything the admin unchecked
+  // — and to merge (not overwrite) selectedVendorIds on each reload, so an
+  // in-progress search or category toggle never wipes unsaved picks.
+  const knownAssignedIdsRef = useRef<Set<string>>(new Set());
 
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingVendors, setLoadingVendors] = useState(false);
@@ -56,7 +62,19 @@ export default function AdminCrmMarketingWorkspaceAssign() {
       const result = await CrmMarketingWorkspaceService.listAssignableVendors(workspaceId, ids.length ? ids : null, query, 1, 100);
       setVendors(result.rows);
       setTotal(result.total);
-      setSelectedVendorIds(new Set(result.rows.filter((row) => row.is_assigned).map((row) => row.id)));
+      // Merge, don't replace: seed the selection for any newly-observed
+      // already-assigned vendor, but never touch ids we've already accounted
+      // for — that would silently undo an in-progress check/uncheck.
+      setSelectedVendorIds((current) => {
+        const next = new Set(current);
+        for (const row of result.rows) {
+          if (row.is_assigned && !knownAssignedIdsRef.current.has(row.id)) {
+            knownAssignedIdsRef.current.add(row.id);
+            next.add(row.id);
+          }
+        }
+        return next;
+      });
     } catch (reason) {
       setError(errorMessage(reason));
     } finally {
@@ -78,7 +96,31 @@ export default function AdminCrmMarketingWorkspaceAssign() {
     return next;
   });
 
-  const selectAll = () => setSelectedVendorIds(new Set(vendors.map((vendor) => vendor.id)));
+  const selectAll = async () => {
+    if (!workspaceId) return;
+    setLoadingVendors(true);
+    setError(null);
+    try {
+      const ids = Array.from(selectedCategoryIds);
+      const collected = new Set<string>();
+      let page = 1;
+      const pageSize = 200;
+      // Loop every page matching the current filter — the vendor list on
+      // screen is capped to the first 100 for display, but "Select All"
+      // must mean every match, not just what's currently rendered.
+      for (let guard = 0; guard < 500; guard += 1) {
+        const result = await CrmMarketingWorkspaceService.listAssignableVendors(workspaceId, ids.length ? ids : null, query, page, pageSize);
+        for (const row of result.rows) collected.add(row.id);
+        if (!result.rows.length || collected.size >= result.total) break;
+        page += 1;
+      }
+      setSelectedVendorIds((current) => new Set([...current, ...collected]));
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setLoadingVendors(false);
+    }
+  };
   const unselectAll = () => setSelectedVendorIds(new Set());
 
   const grouped = useMemo(() => {
@@ -97,6 +139,10 @@ export default function AdminCrmMarketingWorkspaceAssign() {
     setError(null);
     try {
       await CrmMarketingWorkspaceService.setCategories(workspaceId, Array.from(selectedCategoryIds));
+      // Vendors we know were assigned but the admin has since unchecked need
+      // an explicit unassign — assignVendors() only ever inserts.
+      const toUnassign = Array.from(knownAssignedIdsRef.current).filter((id) => !selectedVendorIds.has(id));
+      await Promise.all(toUnassign.map((id) => CrmMarketingWorkspaceService.unassignVendor(workspaceId, id)));
       await CrmMarketingWorkspaceService.assignVendors(workspaceId, Array.from(selectedVendorIds));
       router.replace({ pathname: "/AdminCrmMarketingWorkspaceDetail", params: { workspaceId } });
     } catch (reason) {
@@ -155,7 +201,7 @@ export default function AdminCrmMarketingWorkspaceAssign() {
             <View className="flex-row items-center justify-between mb-2">
               <Text className="text-foreground text-sm font-bold">Vendors</Text>
               <View className="flex-row gap-3">
-                <Pressable onPress={selectAll}><Text className="text-primary text-xs font-bold">Select All</Text></Pressable>
+                <Pressable onPress={() => void selectAll()}><Text className="text-primary text-xs font-bold">Select All</Text></Pressable>
                 <Pressable onPress={unselectAll}><Text className="text-muted-foreground text-xs font-bold">Unselect</Text></Pressable>
               </View>
             </View>

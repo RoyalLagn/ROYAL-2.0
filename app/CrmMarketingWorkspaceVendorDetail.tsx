@@ -67,11 +67,15 @@ export default function CrmMarketingWorkspaceVendorDetail() {
     void Linking.openURL(`https://wa.me/${normalizeWhatsAppPhone(phone)}`);
   };
 
+  // Send the trimmed value as-is (including "" when the field was cleared)
+  // rather than folding "" to null — the RPC treats null as "leave
+  // unchanged" and "" as "clear this field", so collapsing them here would
+  // make a deliberate clear indistinguishable from an untouched field.
   const saveDetails = () => void updateProgress({
-    nextFollowupDate: followupDate.trim() || null,
-    notes: notes.trim() || null,
-    remarks: remarks.trim() || null,
-    callOutcome: callOutcome.trim() || null,
+    nextFollowupDate: followupDate.trim(),
+    notes: notes.trim(),
+    remarks: remarks.trim(),
+    callOutcome: callOutcome.trim(),
   });
 
   return (

@@ -8,6 +8,7 @@ import React, {
   useState,
 } from "react";
 import { StyleSheet, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useReducedMotion } from "react-native-reanimated";
 import FavoriteFlyOverlay, {
   type FavoriteFlight,
@@ -17,6 +18,30 @@ import {
   subscribeToPublicVendorChanges,
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
+import { supabase } from "@/services/supabase";
+import { usePublicAuth } from "@/context/PublicAuthContext";
+
+const GUEST_FAVORITES_STORAGE_KEY = "royallagn.favorites.guest.v1";
+const favoritesStorageKey = (profileId: string | null) =>
+  profileId ? `royallagn.favorites.${profileId}.v1` : GUEST_FAVORITES_STORAGE_KEY;
+
+async function loadStoredFavoriteIds(profileId: string | null): Promise<string[]> {
+  try {
+    const raw = await AsyncStorage.getItem(favoritesStorageKey(profileId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+async function persistFavoriteIds(profileId: string | null, ids: string[]) {
+  try {
+    await AsyncStorage.setItem(favoritesStorageKey(profileId), JSON.stringify(ids));
+  } catch {
+    // Best-effort local cache only -- Supabase (for signed-in users) remains the durable copy.
+  }
+}
 
 export type FavoriteVendor = {
   id: string;
@@ -68,6 +93,8 @@ const FavoritesContext = createContext<FavoritesContextType>({
 });
 
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
+  const { session } = usePublicAuth();
+  const profileId = session?.user.id ?? null;
   const [favorites, setFavorites] = useState<FavoriteVendor[]>([]);
   const [hasUnviewedFavorites, setHasUnviewedFavorites] = useState(false);
   const [favoriteIndicatorToken, setFavoriteIndicatorToken] = useState(0);
@@ -79,13 +106,75 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const flightActive = useRef(false);
   const flightId = useRef(0);
   const reducedMotion = useReducedMotion();
+  const profileIdRef = useRef<string | null>(profileId);
+  const hydratedRef = useRef(false);
+  profileIdRef.current = profileId;
 
+  // Hydrates favorites for the active identity (signed-in profile, or the
+  // shared guest bucket) from AsyncStorage, reconciles them against
+  // Supabase's `favorites` table when signed in (pushing up any ids that
+  // only exist locally -- e.g. favorites added as a guest before login),
+  // then resolves each id against the live marketplace so stale/unapproved
+  // vendors never show up. Re-runs whenever the signed-in identity changes.
   useEffect(() => {
     let active = true;
+    hydratedRef.current = false;
+    (async () => {
+      const storedIds = await loadStoredFavoriteIds(profileId);
+      if (!active) return;
+      let mergedIds = storedIds;
+
+      if (profileId) {
+        try {
+          const { data, error } = await supabase
+            .from("favorites")
+            .select("vendor_id")
+            .eq("profile_id", profileId);
+          if (!active) return;
+          if (!error) {
+            const remoteIds = (data ?? []).map((row) => row.vendor_id);
+            const remoteSet = new Set(remoteIds);
+            const localOnly = storedIds.filter((id) => !remoteSet.has(id));
+            if (localOnly.length) {
+              await supabase
+                .from("favorites")
+                .insert(localOnly.map((vendorId) => ({ profile_id: profileId, vendor_id: vendorId })))
+                .then(() => undefined, () => undefined);
+            }
+            mergedIds = Array.from(new Set([...remoteIds, ...storedIds]));
+          }
+        } catch {
+          // Supabase unreachable -- fall back to the locally cached ids.
+        }
+      }
+
+      try {
+        const vendors = await getApprovedPublicVendors();
+        if (!active) return;
+        const liveById = new Map(vendors.map((vendor) => [vendor.id, vendor]));
+        const next = mergedIds.flatMap((id) => {
+          const live = liveById.get(id);
+          return live ? [toFavoriteVendor(live)] : [];
+        });
+        favoritesRef.current = next;
+        setFavorites(next);
+      } catch {
+        // Live marketplace unavailable -- keep whatever was already showing.
+      } finally {
+        hydratedRef.current = true;
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [profileId]);
+
+  // Keeps favorites in sync as the live marketplace changes (e.g. a vendor
+  // is unapproved) without re-reading from storage/Supabase each time.
+  useEffect(() => {
     const synchronizeFavorites = () => {
       getApprovedPublicVendors()
         .then((vendors) => {
-          if (!active) return;
           const liveById = new Map(vendors.map((vendor) => [vendor.id, vendor]));
           setFavorites((current) => {
             const next = current.flatMap((favorite) => {
@@ -100,13 +189,18 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
           // Keep the last known favorites while the live marketplace is unavailable.
         });
     };
-    synchronizeFavorites();
     const unsubscribe = subscribeToPublicVendorChanges(synchronizeFavorites);
-    return () => {
-      active = false;
-      unsubscribe();
-    };
+    return unsubscribe;
   }, []);
+
+  // Persists the current favorite ids to the active identity's local bucket
+  // so they survive an app restart or page refresh -- Supabase remains the
+  // durable, cross-device copy for signed-in users, but local storage keeps
+  // things working offline and for guests who never sign in.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    void persistFavoriteIds(profileId, favorites.map((favorite) => favorite.id));
+  }, [favorites, profileId]);
 
   const isFavorite = useCallback(
     (id: string) => favorites.some((favorite) => favorite.id === id),
@@ -189,6 +283,14 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
+    const syncingProfileId = profileIdRef.current;
+    if (syncingProfileId) {
+      const write = exists
+        ? supabase.from("favorites").delete().eq("profile_id", syncingProfileId).eq("vendor_id", vendor.id)
+        : supabase.from("favorites").insert({ profile_id: syncingProfileId, vendor_id: vendor.id });
+      void write.then(() => undefined, () => undefined);
+    }
+
     setTimeout(() => {
       mutationLocks.current.delete(vendor.id);
     }, 450);
@@ -200,6 +302,12 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     const next = favoritesRef.current.filter((favorite) => favorite.id !== id);
     favoritesRef.current = next;
     setFavorites(next);
+
+    const syncingProfileId = profileIdRef.current;
+    if (syncingProfileId) {
+      void supabase.from("favorites").delete().eq("profile_id", syncingProfileId).eq("vendor_id", id)
+        .then(() => undefined, () => undefined);
+    }
   }, []);
 
   const markFavoritesViewed = useCallback(() => {

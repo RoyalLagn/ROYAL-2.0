@@ -36,6 +36,7 @@ type VendorNotificationContextValue = {
   markAllAsRead: () => Promise<boolean>;
   deleteNotification: (id: string) => Promise<boolean>;
   clearNotifications: () => Promise<boolean>;
+  clearReadNotifications: () => Promise<boolean>;
 };
 
 const VendorNotificationContext = createContext<VendorNotificationContextValue | null>(null);
@@ -311,6 +312,23 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
     }
   }, [notifications, vendorId]);
 
+  const clearReadNotifications = useCallback(async () => {
+    if (!vendorId) return false;
+    const previous = notifications;
+    const readIds = new Set(previous.filter((item) => item.is_read).map((item) => item.id));
+    if (!readIds.size) return true;
+    setNotifications((current) => current.filter((item) => !readIds.has(item.id)));
+
+    try {
+      await VendorInboxService.clearRead(vendorId);
+      return true;
+    } catch (err) {
+      setNotifications(previous);
+      setError(err instanceof Error ? err.message : "Could not clear read notifications.");
+      return false;
+    }
+  }, [notifications, vendorId]);
+
   const unreadCount = useMemo(
     () => notifications.reduce((count, notification) => count + Number(!notification.is_read), 0),
     [notifications],
@@ -327,9 +345,11 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
       markAllAsRead,
       deleteNotification,
       clearNotifications,
+      clearReadNotifications,
     }),
     [
       clearNotifications,
+      clearReadNotifications,
       deleteNotification,
       error,
       loading,
