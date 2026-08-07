@@ -117,13 +117,11 @@ export default function FrontendScreen({
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, settingsStorageKey]);
 
   useEffect(() => {
     if (mode !== "settings") return;
     void AsyncStorage.setItem(settingsStorageKey, JSON.stringify(settings)).catch(() => undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, settings, settingsStorageKey]);
 
   const filtered = list.filter((item) => item.toLowerCase().includes(query.toLowerCase()));
