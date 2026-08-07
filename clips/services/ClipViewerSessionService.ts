@@ -62,11 +62,20 @@ export const ClipViewerSessionService = {
   },
 
   async getAnonymousSessionHash() {
-    const existing = await AsyncStorage.getItem(VIEWER_SESSION_KEY);
-    if (existing) return existing;
-    const created = randomId();
-    await AsyncStorage.setItem(VIEWER_SESSION_KEY, created);
-    return created;
+    // AsyncStorage falls back to localStorage on web, which throws in
+    // Safari private browsing and in many in-app webviews (WhatsApp,
+    // Instagram, Facebook link previews). This hash only personalizes the
+    // feed — it must never be able to take the whole feed down, so any
+    // storage failure just yields an unpersisted id for this session.
+    try {
+      const existing = await AsyncStorage.getItem(VIEWER_SESSION_KEY);
+      if (existing) return existing;
+      const created = randomId();
+      await AsyncStorage.setItem(VIEWER_SESSION_KEY, created);
+      return created;
+    } catch {
+      return randomId();
+    }
   },
 
   getRecentlyViewed,
