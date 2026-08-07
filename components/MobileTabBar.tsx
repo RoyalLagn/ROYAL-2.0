@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -290,8 +291,12 @@ export function MobileTabBar({
 
   return (
     <View
-      // Landmark role is valid on web; RN's AccessibilityRole union omits it.
-      accessibilityRole={"navigation" as never}
+      // "navigation" is a valid ARIA landmark role on web but not a value
+      // RCTView's native accessibilityRole enum accepts -- passing it on
+      // Android/iOS crashes with "Invalid accessibility role value:
+      // navigation". Restrict it to web; native platforms just skip the
+      // role and keep the accessibilityLabel.
+      accessibilityRole={Platform.OS === "web" ? ("navigation" as never) : undefined}
       accessibilityLabel="Main"
       style={[
         styles.safeWrap,
@@ -406,7 +411,10 @@ export function StandaloneMobileTabBar({
 
   return (
     <View
-      accessibilityRole={"navigation" as never}
+      // See the identical comment on the other instance of this pattern
+      // above: "navigation" crashes RCTView's native accessibilityRole
+      // validation on Android/iOS, so it's web-only.
+      accessibilityRole={Platform.OS === "web" ? ("navigation" as never) : undefined}
       accessibilityLabel="Main"
       style={[
         styles.safeWrap,
