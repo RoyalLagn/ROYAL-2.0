@@ -112,5 +112,10 @@ const styles = StyleSheet.create({
   descriptionCompact: { fontSize: 10.5, lineHeight: 15 },
   imageWrap: { width: 132, height: 134, margin: 4, marginLeft: 0, borderRadius: 18, overflow: "hidden", backgroundColor: "#F8E9EE" },
   imageWrapCompact: { width: 106, height: 108, borderRadius: 17 },
-  image: StyleSheet.absoluteFillObject,
+  // react-native-web falls back to a local image asset's own intrinsic
+  // pixel size whenever the style doesn't set explicit width/height
+  // (StyleSheet.absoluteFillObject only sets inset, not width/height), so a
+  // small fallback asset would render at its native size instead of filling
+  // imageWrap. Force fill sizing explicitly so inset alone can't be beaten.
+  image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
 });
