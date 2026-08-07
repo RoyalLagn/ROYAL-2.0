@@ -72,15 +72,15 @@ export function AuthScreenLayout({
             <View className="items-center mb-7">
               <RoyalLagnLogo width={340} height={102} scale={2.2} />
               {eyebrow ? (
-                <Text className="text-primary text-[11px] font-bold uppercase tracking-[2px] mt-3">
+                <Text className="text-primary text-metadata font-bold uppercase tracking-[2px] mt-3">
                   {eyebrow}
                 </Text>
               ) : null}
-              <Text className="text-foreground text-[22px] font-bold text-center mt-3">
+              <Text className="text-foreground text-section-title font-bold text-center mt-3">
                 {title}
               </Text>
               {subtitle ? (
-                <Text className="text-muted-foreground text-[13px] leading-5 text-center mt-2">
+                <Text className="text-muted-foreground text-body leading-5 text-center mt-2">
                   {subtitle}
                 </Text>
               ) : null}

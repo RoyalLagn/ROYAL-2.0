@@ -1,14 +1,8 @@
 import React from "react";
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import { Tag } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -97,8 +91,6 @@ export default function StickyQuoteBar({
   );
 }
 
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
-
 const styles = StyleSheet.create({
   safeWrap: {
     position: "absolute",
@@ -144,16 +136,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   priceCopy: { flex: 1, minWidth: 0 },
-  label: { fontSize: 12, lineHeight: 16, fontWeight: "500" },
+  label: { ...typeStyles.metadata },
   price: {
     marginTop: 1,
-    fontFamily: serif,
-    fontSize: 19,
-    lineHeight: 24,
-    fontWeight: "700",
-    letterSpacing: -0.2,
+    ...typeStyles.cardTitle,
   },
-  priceCompact: { fontSize: 16, lineHeight: 21 },
+  priceCompact: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle },
   button: {
     width: "46%",
     maxWidth: 360,
@@ -178,10 +166,7 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.5 },
   buttonText: {
     color: "#FFFFFF",
-    fontFamily: serif,
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "700",
+    ...typeStyles.button,
   },
-  buttonTextCompact: { fontSize: 16 },
+  buttonTextCompact: { fontSize: typeScale.cardTitle },
 });

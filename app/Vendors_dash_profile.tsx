@@ -25,6 +25,7 @@ import { useVendorLogout } from "@/hooks/useVendorLogout";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { supabase } from "@/services/supabase";
 import { deleteManagedProfileImage } from "@/services/cloudinary";
+import { decorativeType, fonts, typeScale, typeLeading } from "@/constants/typography";
 
 export default function VendorProfile() {
   const router = useRouter();
@@ -98,7 +99,7 @@ export default function VendorProfile() {
     <ScrollView contentContainerStyle={styles.content}>
       <View style={styles.hero}>
         <Pressable accessibilityLabel="Open profile photo options" onPress={() => setPhotoOpen(true)} style={[styles.photoRing, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-          {vendor?.logo_url ? <Image source={{ uri: vendor.logo_url }} style={styles.photo} /> : <Text style={[styles.initial, { color: colors.pink }]}>{vendor?.business_name?.[0]?.toUpperCase() || "R"}</Text>}
+          {vendor?.logo_url ? <Image source={{ uri: vendor.logo_url }} resizeMode="contain" style={styles.photo} /> : <Text style={[styles.initial, { color: colors.pink }]}>{vendor?.business_name?.[0]?.toUpperCase() || "R"}</Text>}
           <View style={[styles.editBadge, { backgroundColor: colors.pink, borderColor: colors.background }]}><Pencil size={13} color="#FFF" /></View>
         </Pressable>
         <Text style={[styles.name, { color: colors.text }]}>{vendor?.business_name || "Your vendor business"}</Text>
@@ -153,7 +154,7 @@ export default function VendorProfile() {
         <View style={[styles.photoSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.sheetTop}><Text style={[styles.sheetTitle, { color: colors.text }]}>Profile photo</Text><Pressable onPress={() => setPhotoOpen(false)}><X size={21} color={colors.text} /></Pressable></View>
           <View style={[styles.largePhoto, { backgroundColor: colors.surfaceSoft }]}>
-            {vendor?.logo_url ? <Image source={{ uri: vendor.logo_url }} style={StyleSheet.absoluteFillObject} /> : <Text style={[styles.largeInitial, { color: colors.pink }]}>{vendor?.business_name?.[0]?.toUpperCase() || "R"}</Text>}
+            {vendor?.logo_url ? <Image source={{ uri: vendor.logo_url }} resizeMode="contain" style={StyleSheet.absoluteFillObject} /> : <Text style={[styles.largeInitial, { color: colors.pink }]}>{vendor?.business_name?.[0]?.toUpperCase() || "R"}</Text>}
           </View>
           <View style={styles.photoActions}>
             <Pressable onPress={() => { setPhotoOpen(false); router.push("/VendorEditBrand"); }} style={[styles.photoAction, { backgroundColor: colors.surfaceSoft }]}><Pencil size={19} color={colors.pink} /><Text style={[styles.photoActionText, { color: colors.text }]}>Edit photo</Text></Pressable>
@@ -168,14 +169,14 @@ export default function VendorProfile() {
 const styles = StyleSheet.create({
   page: { flex: 1 }, content: { padding: 16, paddingTop: 24, paddingBottom: 24, width: "100%", maxWidth: 760, alignSelf: "center" },
   hero: { alignItems: "center", paddingBottom: 23 }, photoRing: { width: 116, height: 116, borderRadius: 58, borderWidth: 4, alignItems: "center", justifyContent: "center", marginBottom: 15 },
-  photo: { width: 104, height: 104, borderRadius: 52 }, initial: { fontSize: 42, fontWeight: "800" }, editBadge: { position: "absolute", right: 0, bottom: 4, width: 32, height: 32, borderRadius: 16, borderWidth: 3, alignItems: "center", justifyContent: "center" },
-  name: { fontSize: 22, lineHeight: 28, fontWeight: "800", textAlign: "center", letterSpacing: -0.45 }, category: { fontSize: 12, marginTop: 4 }, location: { flexDirection: "row", gap: 4, alignItems: "center", marginTop: 8 }, locationText: { fontSize: 11 },
-  completion: { borderRadius: 15, width: "100%", maxWidth: 420, padding: 12, marginTop: 16 }, completionText: { fontSize: 11, fontWeight: "800", textAlign: "center" }, track: { height: 5, borderRadius: 4, marginTop: 8, overflow: "hidden" }, fill: { height: "100%", borderRadius: 4 },
+  photo: { width: 104, height: 104, borderRadius: 52 }, initial: { fontFamily: fonts.sans.bold, fontSize: decorativeType.avatarInitial }, editBadge: { position: "absolute", right: 0, bottom: 4, width: 32, height: 32, borderRadius: 16, borderWidth: 3, alignItems: "center", justifyContent: "center" },
+  name: { fontSize: typeScale.metric, lineHeight: typeLeading.metric, fontWeight: "700", textAlign: "center", letterSpacing: -0.45 }, category: { fontSize: typeScale.bodyCompact, marginTop: 4 }, location: { flexDirection: "row", gap: 4, alignItems: "center", marginTop: 8 }, locationText: { fontSize: typeScale.metadata },
+  completion: { borderRadius: 15, width: "100%", maxWidth: 420, padding: 12, marginTop: 16 }, completionText: { fontSize: typeScale.metadata, fontWeight: "700", textAlign: "center" }, track: { height: 5, borderRadius: 4, marginTop: 8, overflow: "hidden" }, fill: { height: "100%", borderRadius: 4 },
   group: { borderRadius: 22, borderWidth: 1, overflow: "hidden", marginBottom: 13 }, row: { minHeight: 75, flexDirection: "row", alignItems: "center", padding: 13, gap: 11 },
   logout: { minHeight: 75, borderRadius: 22, borderWidth: 1, flexDirection: "row", alignItems: "center", padding: 13, gap: 11 },
-  rowIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, rowLabel: { fontSize: 13, fontWeight: "750" as any }, rowDetail: { fontSize: 10, marginTop: 4 },
+  rowIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, rowLabel: { fontSize: typeScale.body, fontWeight: "700" }, rowDetail: { fontSize: typeScale.caption, marginTop: 4 },
   overlay: { flex: 1, backgroundColor: "rgba(20,10,15,.48)", justifyContent: "flex-end" }, photoSheet: { borderWidth: 1, borderRadius: 28, padding: 20, paddingBottom: 34, width: "100%", maxWidth: 520, alignSelf: "center" },
-  sheetTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, sheetTitle: { fontSize: 18, fontWeight: "800" },
-  largePhoto: { width: 190, height: 190, borderRadius: 95, overflow: "hidden", alignSelf: "center", marginVertical: 24, alignItems: "center", justifyContent: "center" }, largeInitial: { fontSize: 70, fontWeight: "800" },
-  photoActions: { flexDirection: "row", gap: 10 }, photoAction: { flex: 1, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 4 }, photoActionText: { fontSize: 10, fontWeight: "700" },
+  sheetTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, sheetTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
+  largePhoto: { width: 190, height: 190, borderRadius: 95, overflow: "hidden", alignSelf: "center", marginVertical: 24, alignItems: "center", justifyContent: "center" }, largeInitial: { fontFamily: fonts.sans.bold, fontSize: decorativeType.avatarInitialLarge },
+  photoActions: { flexDirection: "row", gap: 10 }, photoAction: { flex: 1, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 4 }, photoActionText: { fontSize: typeScale.caption, fontWeight: "700" },
 });

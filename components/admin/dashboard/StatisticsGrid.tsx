@@ -9,6 +9,7 @@ import type { DashboardStatistics } from "@/types/adminDashboard";
 import { ResponsiveGrid } from "@/components/responsive/ResponsiveGrid";
 import { ResponsiveCard } from "@/components/responsive/ResponsiveCard";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
+import { typeStyles } from "@/constants/typography";
 
 const definitions = [
   ["publicUsers", "Public Users", "Users", Users, "/AdminUsers"],
@@ -45,7 +46,7 @@ export function StatisticsGrid({ statistics, updatedAt }: { statistics: Dashboar
             </View>
             <Text
               className="text-foreground font-bold"
-              style={{ fontSize: responsive.isPhone ? 24 : 28 }}
+              style={typeStyles.metric}
               numberOfLines={1}
               adjustsFontSizeToFit
             >
@@ -53,14 +54,14 @@ export function StatisticsGrid({ statistics, updatedAt }: { statistics: Dashboar
                 ? statistics[key].toFixed(2)
                 : statistics[key].toLocaleString()}
             </Text>
-            <Text className="text-muted-foreground mt-1" style={{ fontSize: responsive.bodySize }} numberOfLines={1} ellipsizeMode="tail">
+            <Text className="text-muted-foreground mt-1" style={typeStyles.bodyCompact} numberOfLines={1} ellipsizeMode="tail">
               {responsive.isPhone ? mobileTitle : title}
             </Text>
             <Text className="text-emerald-500 text-xs mt-1.5" numberOfLines={1}>
               {key.startsWith("today") ? "Today" : `Today +${key === "publicUsers" ? statistics.todayPublicRegistrations : key === "totalVendors" ? statistics.todayVendorRegistrations : key === "reviews" ? statistics.todayReviews : 0}`}
             </Text>
             {!responsive.isPhone ? (
-              <Text className="text-muted-foreground text-[10px] mt-1" numberOfLines={1}>
+              <Text className="text-muted-foreground text-metadata mt-1" numberOfLines={1}>
                 Updated {new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </Text>
             ) : null}

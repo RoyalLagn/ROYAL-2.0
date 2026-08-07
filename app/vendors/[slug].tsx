@@ -1,22 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Linking, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { Briefcase, ChevronRight } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PublicClip } from "@/clips/types";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { PublicClipService } from "@/clips/services";
 import { useFavorites } from "@/context/FavoritesContext";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
@@ -241,8 +231,8 @@ export default function VendorPublicProfileScreen() {
     });
   }, [vendor]);
 
-  const background = dark ? "#070B14" : "#FFF8FA";
-  const surface = dark ? "#0E141F" : "#FFFFFF";
+  const background = dark ? "#070B14" : "#FFFFFF";
+  const surface = dark ? "#0E141F" : "#FDF2F8";
   const text = dark ? "#FFF8FB" : "#1D1519";
   const muted = dark ? "#C6BAC0" : "#62575D";
   const sectionDivider = dark ? "#303846" : "#ECE7EA";
@@ -400,6 +390,7 @@ export default function VendorPublicProfileScreen() {
             images={heroImages}
             fallbackImage={fallbackImage}
             vendorName={vendor.name}
+            containMedia={!vendor.heroMedia.length}
             height={heroHeight}
             onBack={() => router.replace("/")}
             focalPoints={heroFocalPoints}
@@ -656,8 +647,6 @@ export default function VendorPublicProfileScreen() {
   );
 }
 
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
   centered: { alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
@@ -678,18 +667,14 @@ const styles = StyleSheet.create({
   reviewsSection: { marginBottom: 16 },
   sectionHeadingWrap: { alignSelf: "flex-start", marginBottom: 10 },
   sectionHeading: {
-    fontFamily: serif,
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: "700",
-    letterSpacing: -0.15,
+    ...typeStyles.editorialCardTitle,
   },
   ornament: { width: 64, height: 7, flexDirection: "row", alignItems: "center", gap: 4 },
-  ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#D6A054" },
-  ornamentDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#D6A054" },
-  aboutText: { maxWidth: 900, fontSize: 13, lineHeight: 20, fontWeight: "400" },
+  ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#FACC15" },
+  ornamentDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#FACC15" },
+  aboutText: { maxWidth: 900, ...typeStyles.body },
   experienceRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
-  experienceText: { fontSize: 12, fontWeight: "700" },
+  experienceText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
   directionsRow: { marginTop: 12 },
   readMore: {
     minHeight: 38,
@@ -701,10 +686,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   readMoreHover: { transform: [{ translateX: 2 }] },
-  readMoreText: { color: PINK, fontSize: 13, fontWeight: "800" },
+  readMoreText: { color: PINK, ...typeStyles.button },
   pressed: { opacity: 0.7 },
-  notFoundTitle: { fontFamily: serif, fontSize: 23, fontWeight: "700" },
-  loadError: { maxWidth: 480, marginTop: 8, textAlign: "center", fontSize: 13, lineHeight: 19 },
+  notFoundTitle: { ...typeStyles.editorialSectionTitle },
+  loadError: { maxWidth: 480, marginTop: 8, textAlign: "center", fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact },
   goBack: {
     minHeight: 44,
     marginTop: 16,
@@ -714,12 +699,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  goBackText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
-  enquiryInput: { minHeight: 88, borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 13, textAlignVertical: "top" },
-  enquiryErrorText: { color: "#DC2626", fontSize: 12, marginTop: 6 },
+  goBackText: { color: "#FFFFFF", fontSize: typeScale.body, fontWeight: "700" },
+  enquiryInput: { minHeight: 88, borderWidth: 1, borderRadius: 12, padding: 12, fontSize: typeScale.body, textAlignVertical: "top" },
+  enquiryErrorText: { color: "#DC2626", fontSize: typeScale.bodyCompact, marginTop: 6 },
   enquirySubmit: { marginTop: 12, minHeight: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  enquirySubmitText: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
+  enquirySubmitText: { color: "#FFFFFF", fontWeight: "700", fontSize: typeScale.body },
   linksRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
   linkChip: { minHeight: 38, paddingHorizontal: 14, borderRadius: 19, borderWidth: 1, borderColor: PINK, alignItems: "center", justifyContent: "center" },
-  linkChipText: { color: PINK, fontSize: 12, fontWeight: "700" },
+  linkChipText: { color: PINK, fontSize: typeScale.bodyCompact, fontWeight: "700" },
 });

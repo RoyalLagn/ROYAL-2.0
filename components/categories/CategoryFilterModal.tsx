@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Check, X } from "lucide-react-native";
 import type { CategoryCardItem } from "./CategoryCard";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -97,16 +98,16 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(31,16,23,.48)" },
   sheet: { width: "100%", maxWidth: 520, maxHeight: "82%", borderWidth: 1, borderRadius: 26, padding: 20 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 15 },
-  title: { fontSize: 20, lineHeight: 26, fontWeight: "800", letterSpacing: -0.3 },
-  subtitle: { marginTop: 3, fontSize: 10.5, lineHeight: 15 },
+  title: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700", letterSpacing: -0.3 },
+  subtitle: { marginTop: 3, fontSize: typeScale.metadata, lineHeight: typeLeading.label },
   close: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   optionsScroll: { flexGrow: 0 },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingBottom: 4 },
   option: { minHeight: 44, maxWidth: "100%", borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 7 },
-  optionText: { maxWidth: 220, fontSize: 11, fontWeight: "700" },
+  optionText: { maxWidth: 220, fontSize: typeScale.metadata, fontWeight: "700" },
   actions: { flexDirection: "row", gap: 9, marginTop: 18 },
   reset: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" },
-  resetText: { fontSize: 11, fontWeight: "800" },
+  resetText: { fontSize: typeScale.metadata, fontWeight: "700" },
   apply: { flex: 1.35, minHeight: 48, borderRadius: 15, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
-  applyText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
+  applyText: { color: "#FFFFFF", fontSize: typeScale.metadata, fontWeight: "700" },
 });

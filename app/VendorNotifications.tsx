@@ -8,6 +8,7 @@ import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorNotifications, type VendorNotification } from "@/context/VendorNotificationContext";
 import { SkeletonList } from "@/components/loading/Skeleton";
 import AnimatedPressable from "@/components/animated/AnimatedPressable";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 const vendorNotificationDestination = (notification: VendorNotification) => {
   if (notification.target_path) return notification.target_path;
@@ -146,7 +147,7 @@ export default function VendorNotifications() {
                 style={[styles.mark, { backgroundColor: colors.surfaceSoft }]}
               >
                 <CheckCheck size={16} color={colors.pink} />
-                <Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>
+                <Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>
                   Read all
                 </Text>
               </Pressable>
@@ -157,7 +158,7 @@ export default function VendorNotifications() {
                 style={[styles.mark, { backgroundColor: colors.surfaceSoft }]}
               >
                 <MailX size={14} color={colors.pink} />
-                <Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>
+                <Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>
                   Clear read
                 </Text>
               </Pressable>
@@ -168,7 +169,7 @@ export default function VendorNotifications() {
                 style={[styles.mark, { backgroundColor: colors.surfaceSoft }]}
               >
                 <Trash2 size={14} color={colors.pink} />
-                <Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>
+                <Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>
                   Clear all
                 </Text>
               </Pressable>
@@ -180,7 +181,7 @@ export default function VendorNotifications() {
           <View style={[styles.errorBanner, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.errorText, { color: colors.muted }]}>{error}</Text>
             <Pressable onPress={() => void refresh()}>
-              <Text style={{ color: colors.pink, fontSize: 11, fontWeight: "800" }}>Retry</Text>
+              <Text style={{ color: colors.pink, fontSize: typeScale.metadata, fontWeight: "700" }}>Retry</Text>
             </Pressable>
           </View>
         ) : null}
@@ -271,9 +272,9 @@ const styles = StyleSheet.create({
   },
   headingActions: { gap: 8, alignItems: "flex-end" },
   flex: { flex: 1, minWidth: 0 },
-  eyebrow: { fontSize: 10, letterSpacing: 1.5, fontWeight: "800", marginBottom: 5 },
-  title: { fontSize: 28, fontWeight: "800", letterSpacing: -0.8 },
-  subtitle: { fontSize: 12, marginTop: 4 },
+  eyebrow: { fontSize: typeScale.caption, letterSpacing: 1.5, fontWeight: "700", marginBottom: 5 },
+  title: { ...typeStyles.pageTitle },
+  subtitle: { ...typeStyles.bodyCompact, marginTop: 4 },
   mark: {
     height: 39,
     borderRadius: 13,
@@ -292,7 +293,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  errorText: { flex: 1, fontSize: 11, lineHeight: 16 },
+  errorText: { flex: 1, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   card: {
     borderWidth: 1,
     borderRadius: 20,
@@ -316,9 +317,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cardTitle: { fontSize: 12, fontWeight: "800" },
-  body: { fontSize: 11, lineHeight: 16, marginTop: 4 },
-  date: { fontSize: 9, marginTop: 7 },
+  cardTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  body: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 4 },
+  date: { fontSize: typeScale.caption, marginTop: 7 },
   dot: { width: 7, height: 7, borderRadius: 4, marginTop: 5 },
   deleteButton: {
     width: 28,
@@ -328,10 +329,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   empty: { borderWidth: 1, borderRadius: 23, alignItems: "center", padding: 32 },
-  emptyTitle: { fontSize: 17, fontWeight: "800", marginTop: 11 },
+  emptyTitle: { fontSize: typeScale.cardTitle, fontWeight: "700", marginTop: 11 },
   emptyBody: {
-    fontSize: 11,
-    lineHeight: 17,
+    fontSize: typeScale.metadata,
+    lineHeight: typeLeading.tab,
     textAlign: "center",
     maxWidth: 380,
     marginTop: 5,

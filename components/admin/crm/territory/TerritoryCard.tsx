@@ -32,7 +32,7 @@ export function TerritoryCard({
               <Text className="text-foreground text-base font-bold" numberOfLines={1}>{node.name}</Text>
               {!node.is_active ? (
                 <View className="px-2 py-0.5 rounded-full bg-muted">
-                  <Text className="text-muted-foreground text-[9px] font-bold">INACTIVE</Text>
+                  <Text className="text-muted-foreground text-caption font-bold">INACTIVE</Text>
                 </View>
               ) : null}
             </View>
@@ -45,8 +45,8 @@ export function TerritoryCard({
 
         <View className="mt-3">
           <View className="flex-row items-center justify-between mb-1">
-            <Text className="text-muted-foreground text-[10px] font-semibold">COMPLETION</Text>
-            <Text className="text-primary text-[10px] font-bold">{completion}%</Text>
+            <Text className="text-muted-foreground text-metadata font-semibold">COMPLETION</Text>
+            <Text className="text-primary text-metadata font-bold">{completion}%</Text>
           </View>
           <View className="h-1.5 rounded-full bg-muted overflow-hidden">
             <View className="h-1.5 rounded-full bg-primary" style={{ width: `${completion}%` }} />

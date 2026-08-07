@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Globe } from "lucide-react-native";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
+import { typeScale } from "@/constants/typography";
 
 export default function WebsiteStatusCard({
   colors,
@@ -60,13 +61,13 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", gap: 13, alignItems: "center" },
   icon: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   flex: { flex: 1, minWidth: 0 },
-  title: { fontSize: 19, fontWeight: "900" },
+  title: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 12, fontWeight: "800" },
-  url: { fontSize: 12, fontWeight: "700", marginTop: 14 },
+  statusText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  url: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginTop: 14 },
   metaRow: { flexDirection: "row", marginTop: 16, paddingTop: 16, borderTopWidth: 1 },
   metaItem: { flex: 1, alignItems: "center" },
-  metaValue: { fontSize: 15, fontWeight: "900" },
-  metaLabel: { fontSize: 9, fontWeight: "700", marginTop: 3, textAlign: "center" },
+  metaValue: { fontSize: typeScale.body, fontWeight: "700" },
+  metaLabel: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 3, textAlign: "center" },
 });

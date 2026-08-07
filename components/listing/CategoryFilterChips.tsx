@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
 import { ArrowUpDown, ChevronDown, Star, Tag } from "lucide-react-native";
+import { brandColors } from "@/constants/brandPalette";
+import { fonts, typeScale } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -21,9 +23,11 @@ const CHIPS = [
 ];
 
 export default function CategoryFilterChips({ dark, active, onPress }: CategoryFilterChipsProps) {
-  const surface = dark ? "#211E20" : "#FFFFFF";
-  const text = dark ? "#F8F2F5" : "#2C2228";
-  const border = dark ? "#44343A" : "#F0D5DF";
+  const [interactiveChip, setInteractiveChip] = useState<string | null>(null);
+  const colors = brandColors(dark);
+  const surface = colors.card;
+  const text = dark ? "#F8F2F5" : colors.foreground;
+  const border = colors.border;
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
@@ -37,12 +41,17 @@ export default function CategoryFilterChips({ dark, active, onPress }: CategoryF
             accessibilityState={{ selected }}
             accessibilityLabel={`${chip.label} listing options`}
             onPress={() => onPress(chip.key)}
-            style={[
+            onHoverIn={() => setInteractiveChip(chip.key)}
+            onHoverOut={() => setInteractiveChip(null)}
+            onFocus={() => setInteractiveChip(chip.key)}
+            onBlur={() => setInteractiveChip(null)}
+            style={({ pressed }) => [
               styles.chip,
               {
-                backgroundColor: selected ? (dark ? "#3A222C" : "#FFF0F6") : surface,
-                borderColor: selected ? PINK : border,
+                backgroundColor: selected || interactiveChip === chip.key ? (dark ? "#3A222C" : "#FFF0F6") : surface,
+                borderColor: selected || interactiveChip === chip.key ? colors.primary : border,
               },
+              pressed && styles.pressed,
             ]}
           >
             <Icon size={15} color={selected || chip.key !== "rating" ? PINK : "#F2A91F"} strokeWidth={1.9} />
@@ -56,7 +65,8 @@ export default function CategoryFilterChips({ dark, active, onPress }: CategoryF
 }
 
 const styles = StyleSheet.create({
-  row: { gap: 4, paddingRight: 2 },
-  chip: { minWidth: 72, height: 42, borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 },
-  label: { fontSize: 10.5, fontWeight: "700" },
+  row: { gap: 7, paddingRight: 2 },
+  chip: { minWidth: 76, height: 42, borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 },
+  label: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
+  pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
 });

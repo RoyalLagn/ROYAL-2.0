@@ -1,6 +1,7 @@
 import React from "react";
 import { Linking, Pressable, StyleSheet, Text } from "react-native";
 import { MapPin } from "lucide-react-native";
+import { typeScale } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -42,5 +43,5 @@ const styles = StyleSheet.create({
     borderColor: PINK,
   },
   pressed: { opacity: 0.75 },
-  text: { color: PINK, fontSize: 13, fontWeight: "700" },
+  text: { color: PINK, fontSize: typeScale.body, fontWeight: "700" },
 });

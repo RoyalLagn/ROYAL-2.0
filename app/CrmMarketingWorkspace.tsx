@@ -142,19 +142,19 @@ export default function CrmMarketingWorkspace() {
                       <View className="flex-row items-center gap-3 mt-3 pt-3 border-t border-border">
                         <View className="flex-row items-center">
                           <CheckCircle2 size={13} className={vendor.contacted ? "text-emerald-500" : "text-muted-foreground"} />
-                          <Text className={`text-[10px] ml-1 ${vendor.contacted ? "text-emerald-500" : "text-muted-foreground"}`}>Contacted</Text>
+                          <Text className={`text-metadata ml-1 ${vendor.contacted ? "text-emerald-500" : "text-muted-foreground"}`}>Contacted</Text>
                         </View>
                         <View className="flex-row items-center">
                           <CheckCircle2 size={13} className={vendor.meeting_done ? "text-emerald-500" : "text-muted-foreground"} />
-                          <Text className={`text-[10px] ml-1 ${vendor.meeting_done ? "text-emerald-500" : "text-muted-foreground"}`}>Meeting</Text>
+                          <Text className={`text-metadata ml-1 ${vendor.meeting_done ? "text-emerald-500" : "text-muted-foreground"}`}>Meeting</Text>
                         </View>
                         <View className="flex-row items-center">
                           <CheckCircle2 size={13} className={vendor.interest_status === "interested" ? "text-emerald-500" : "text-muted-foreground"} />
-                          <Text className={`text-[10px] ml-1 ${vendor.interest_status === "interested" ? "text-emerald-500" : "text-muted-foreground"}`}>Interested</Text>
+                          <Text className={`text-metadata ml-1 ${vendor.interest_status === "interested" ? "text-emerald-500" : "text-muted-foreground"}`}>Interested</Text>
                         </View>
                         <View className="flex-row items-center">
                           <CheckCircle2 size={13} className={vendor.registered ? "text-emerald-500" : "text-muted-foreground"} />
-                          <Text className={`text-[10px] ml-1 ${vendor.registered ? "text-emerald-500" : "text-muted-foreground"}`}>Registered</Text>
+                          <Text className={`text-metadata ml-1 ${vendor.registered ? "text-emerald-500" : "text-muted-foreground"}`}>Registered</Text>
                         </View>
                       </View>
                     </CRMCard>

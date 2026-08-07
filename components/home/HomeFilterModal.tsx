@@ -4,7 +4,7 @@ import { Check, SlidersHorizontal, X } from "lucide-react-native";
 import { useCategories } from "@/context/CategoryContext";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 import { brandColors, brandPalette } from "@/constants/brandPalette";
-import { fonts } from "@/constants/typography";
+import { fonts, typeScale, typeLeading, typeStyles } from "@/constants/typography";
 
 const PINK = brandPalette.light.primary;
 
@@ -178,21 +178,21 @@ const styles = StyleSheet.create({
   panelMobile: { maxWidth: "100%", borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 28 },
   header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
   headerIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: brandPalette.light.muted, alignItems: "center", justifyContent: "center" },
-  title: { fontFamily: fonts.serif.bold, fontSize: 19, lineHeight: 24 },
-  subtitle: { fontFamily: fonts.sans.regular, fontSize: 10, marginTop: 2 },
+  title: { ...typeStyles.cardTitle },
+  subtitle: { fontFamily: fonts.sans.regular, fontSize: typeScale.caption, marginTop: 2 },
   close: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
-  label: { fontFamily: fonts.sans.bold, fontSize: 12, marginBottom: 9 },
+  label: { fontFamily: fonts.sans.bold, fontSize: typeScale.bodyCompact, marginBottom: 9 },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 18 },
   pill: { minHeight: 40, borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, alignItems: "center", justifyContent: "center" },
-  pillText: { fontFamily: fonts.sans.bold, fontSize: 10 },
+  pillText: { fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
   nearby: { minHeight: 66, borderWidth: 1, borderRadius: 16, padding: 11, flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 12 },
   checkbox: { width: 24, height: 24, borderWidth: 1.5, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   checkboxActive: { backgroundColor: PINK, borderColor: PINK },
-  nearbyTitle: { fontFamily: fonts.sans.bold, fontSize: 11 },
-  nearbyDescription: { fontFamily: fonts.sans.regular, fontSize: 9, lineHeight: 13, marginTop: 2 },
+  nearbyTitle: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
+  nearbyDescription: { fontFamily: fonts.sans.regular, fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14, flexDirection: "row", gap: 9 },
   reset: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" },
-  resetText: { fontFamily: fonts.sans.bold, fontSize: 11 },
+  resetText: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   apply: { flex: 1.4, minHeight: 48, borderRadius: 15, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
-  applyText: { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 11 },
+  applyText: { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
 });

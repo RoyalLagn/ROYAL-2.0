@@ -14,6 +14,7 @@ import { Heart, Star, MapPin, Grid2x2, List } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useFavorites, FavoriteVendor } from "@/context/FavoritesContext";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 export default function FavoritesScreen() {
   const { colorScheme } = useColorScheme();
@@ -27,8 +28,8 @@ export default function FavoritesScreen() {
   const [gridView, setGridView] = useState(true);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  const bg    = isDark ? "#070B14" : "#F8F4F8";
-  const card  = isDark ? "#0E141F" : "#FFFFFF";
+  const bg    = isDark ? "#070B14" : "#FFFFFF";
+  const card  = isDark ? "#0E141F" : "#FDF2F8";
   const text  = isDark ? "#F5F0F3" : "#141414";
   const muted = isDark ? "#AAA0A5" : "#787178";
   const border= isDark ? "#2A2A2A" : "#EEE4F0";
@@ -197,7 +198,7 @@ function GridCard({ vendor, isDark, text, muted, cardWidth, onPress, onRemove }:
   return (
     <TouchableOpacity style={[s.gridCard, { width: cardWidth }]} onPress={onPress} activeOpacity={0.9}>
       <View style={s.gridImgWrap}>
-        <Image source={{ uri: vendor.image }} style={s.gridImg} resizeMode="cover" />
+        <Image source={{ uri: vendor.image }} style={s.gridImg} resizeMode="contain" />
         {/* Gradient overlay */}
         <View style={s.gridOverlay} />
         {/* Top heart */}
@@ -239,7 +240,7 @@ function ListCard({ vendor, card, text, muted, border, isDark, onPress, onRemove
     >
       {/* Image */}
       <View style={s.listImgWrap}>
-        <Image source={{ uri: vendor.image }} style={s.listImg} resizeMode="cover" />
+        <Image source={{ uri: vendor.image }} style={s.listImg} resizeMode="contain" />
         <View style={s.listCatBadge}>
           <CategoryBadge name={vendor.category} style={s.listCatTxt} />
         </View>
@@ -318,58 +319,58 @@ const s = StyleSheet.create({
 
   /* Header */
   header:         { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14 },
-  pageTitle:      { fontSize: 20, fontWeight: "800", letterSpacing: -0.3 },
-  pageSubtitle:   { fontSize: 13, marginTop: 2 },
+  pageTitle:      { fontSize: typeScale.sectionTitle, fontWeight: "700", letterSpacing: -0.3 },
+  pageSubtitle:   { fontSize: typeScale.body, marginTop: 2 },
   headerRight:    { flexDirection: "row", alignItems: "center", gap: 10 },
   viewToggle:     { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   heartBadge:     { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#E91E6318", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50 },
-  heartBadgeNum:  { color: "#E91E63", fontWeight: "800", fontSize: 14 },
+  heartBadgeNum:  { color: "#E91E63", fontWeight: "700", fontSize: typeScale.body },
 
   /* Chips */
   chipsWrap:      { paddingVertical: 10 },
   chipsRow:       { paddingHorizontal: 16, gap: 8, alignItems: "center" },
   chip:           { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 50, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5 },
   chipActive:     { backgroundColor: "#E91E63", borderColor: "#E91E63" },
-  chipTxt:        { fontSize: 12, fontWeight: "600" },
+  chipTxt:        { fontSize: typeScale.bodyCompact, fontWeight: "600" },
   chipCount:      { borderRadius: 50, paddingHorizontal: 5, paddingVertical: 1 },
-  chipCountTxt:   { fontSize: 10, fontWeight: "700" },
+  chipCountTxt:   { fontSize: typeScale.caption, fontWeight: "700" },
 
   /* Grid */
   gridList:       { paddingHorizontal: 16 },
   grid:           { flexDirection: "row", flexWrap: "wrap", gap: 14 },
   gridCard:       { borderRadius: 16, overflow: "hidden", elevation: 3, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-  gridImgWrap:    { height: 160, position: "relative" },
+  gridImgWrap:    { aspectRatio: 1, position: "relative", backgroundColor: "#FFFFFF" },
   gridImg:        { width: "100%", height: "100%" },
   gridOverlay:    { position: "absolute", bottom: 0, left: 0, right: 0, height: 80, backgroundColor: "rgba(0,0,0,0.35)" },
   gridHeart:      { position: "absolute", top: 8, right: 8, width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" },
   gridCatBadge:   { position: "absolute", bottom: 8, left: 8, backgroundColor: "#E91E63CC", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 50 },
-  gridCatTxt:     { color: "#FFF", fontSize: 9, fontWeight: "700" },
+  gridCatTxt:     { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
   gridRatingBadge:{ position: "absolute", top: 8, left: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 50 },
-  gridRatingTxt:  { color: "#FFF", fontSize: 11, fontWeight: "700" },
+  gridRatingTxt:  { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
   gridBody:       { padding: 10 },
-  gridName:       { fontSize: 13, fontWeight: "700", lineHeight: 18, marginBottom: 4 },
+  gridName:       { fontSize: typeScale.body, fontWeight: "700", lineHeight: typeLeading.bodyCompact, marginBottom: 4 },
   gridMeta:       { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  gridLocation:   { fontSize: 11, fontWeight: "500" },
-  gridPrice:      { fontSize: 12, fontWeight: "700" },
+  gridLocation:   { fontSize: typeScale.metadata, fontWeight: "500" },
+  gridPrice:      { fontSize: typeScale.bodyCompact, fontWeight: "700" },
 
   /* List */
   listCard:       { flexDirection: "row", marginHorizontal: 16, marginBottom: 12, borderRadius: 16, overflow: "hidden", elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 1 } },
-  listImgWrap:    { width: 110, height: 140, position: "relative" },
+  listImgWrap:    { width: 110, height: 110, position: "relative", backgroundColor: "#FFFFFF" },
   listImg:        { width: "100%", height: "100%" },
   listCatBadge:   { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.55)", paddingVertical: 4, alignItems: "center" },
-  listCatTxt:     { color: "#FFF", fontSize: 9, fontWeight: "700" },
+  listCatTxt:     { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
   listBody:       { flex: 1, padding: 12, justifyContent: "space-between" },
   listNameRow:    { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 5 },
-  listName:       { fontSize: 14, fontWeight: "700", flex: 1, marginRight: 6, lineHeight: 19 },
+  listName:       { fontSize: typeScale.body, fontWeight: "700", flex: 1, marginRight: 6, lineHeight: typeLeading.bodyCompact },
   listHeartBtn:   { padding: 2 },
   listRatingRow:  { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  listRatingVal:  { fontSize: 12, fontWeight: "600" },
-  listRatingCount:{ fontSize: 11 },
+  listRatingVal:  { fontSize: typeScale.bodyCompact, fontWeight: "600" },
+  listRatingCount:{ fontSize: typeScale.metadata },
   listMetaRow:    { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  listLocation:   { fontSize: 11, flex: 1 },
-  listTags:       { fontSize: 11, marginBottom: 6 },
+  listLocation:   { fontSize: typeScale.metadata, flex: 1 },
+  listTags:       { fontSize: typeScale.metadata, marginBottom: 6 },
   listPriceBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 50 },
-  listPriceTxt:   { color: "#E91E63", fontSize: 11, fontWeight: "700" },
+  listPriceTxt:   { color: "#E91E63", fontSize: typeScale.metadata, fontWeight: "700" },
 
   /* Empty */
   empty:          { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40, paddingBottom: 40 },
@@ -379,20 +380,20 @@ const s = StyleSheet.create({
   decorHeart2:    { width: 64, height: 64, top: 8, left: 48 },
   decorHeart3:    { width: 36, height: 36, top: 4, right: 16 },
   emptyIconWrap:  { width: 90, height: 90, borderRadius: 45, alignItems: "center", justifyContent: "center", marginBottom: 18 },
-  emptyTitle:     { fontSize: 20, fontWeight: "800", marginBottom: 10, textAlign: "center" },
-  emptyDesc:      { fontSize: 14, textAlign: "center", lineHeight: 22, marginBottom: 28 },
+  emptyTitle:     { fontSize: typeScale.sectionTitle, fontWeight: "700", marginBottom: 10, textAlign: "center" },
+  emptyDesc:      { fontSize: typeScale.body, textAlign: "center", lineHeight: typeLeading.cardTitle, marginBottom: 28 },
   exploreBtn:     { flexDirection: "row", alignItems: "center", backgroundColor: "#E91E63", paddingHorizontal: 28, paddingVertical: 14, borderRadius: 50 },
-  exploreTxt:     { color: "#FFF", fontWeight: "700", fontSize: 15 },
+  exploreTxt:     { color: "#FFF", fontWeight: "700", fontSize: typeScale.body },
 
   /* Modal */
   overlay:        { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", paddingHorizontal: 24 },
   modal:          { width: "100%", borderRadius: 24, padding: 24 },
   modalIconWrap:  { width: 56, height: 56, borderRadius: 28, backgroundColor: "#FFF0F7", alignItems: "center", justifyContent: "center", alignSelf: "center", marginBottom: 16 },
-  modalTitle:     { fontSize: 18, fontWeight: "800", textAlign: "center", marginBottom: 8 },
-  modalDesc:      { fontSize: 13, textAlign: "center", marginBottom: 24, lineHeight: 20 },
+  modalTitle:     { fontSize: typeScale.editorialCardTitle, fontWeight: "700", textAlign: "center", marginBottom: 8 },
+  modalDesc:      { fontSize: typeScale.body, textAlign: "center", marginBottom: 24, lineHeight: typeLeading.body },
   modalBtns:      { flexDirection: "row", gap: 12 },
   cancelBtn:      { flex: 1, paddingVertical: 13, borderRadius: 50, alignItems: "center" },
-  cancelTxt:      { fontWeight: "600", fontSize: 14 },
+  cancelTxt:      { fontWeight: "600", fontSize: typeScale.body },
   removeBtn:      { flex: 1, paddingVertical: 13, borderRadius: 50, alignItems: "center", backgroundColor: "#E91E63" },
-  removeTxt:      { color: "#FFF", fontWeight: "700", fontSize: 14 },
+  removeTxt:      { color: "#FFF", fontWeight: "700", fontSize: typeScale.body },
 });

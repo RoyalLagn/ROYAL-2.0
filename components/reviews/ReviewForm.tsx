@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import ReviewPhotoUploader from "./ReviewPhotoUploader";
 import type { ReviewDraft } from "./types";
 import { reviewPalette } from "./types";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 export type ReviewFormProps = { initialValue?: Partial<ReviewDraft>; dark?: boolean; submitting?: boolean; error?: string | null; onSubmit: (draft: ReviewDraft) => void | Promise<void>; onCancel?: () => void; onAddPhotos: () => void; onRemovePhoto: (uri: string, index: number) => void; photos: string[]; submitLabel?: string };
 export default function ReviewForm({ initialValue, dark = false, submitting = false, error, onSubmit, onCancel, onAddPhotos, onRemovePhoto, photos, submitLabel }: ReviewFormProps) {
@@ -30,10 +31,9 @@ export default function ReviewForm({ initialValue, dark = false, submitting = fa
     </View>
   </View>;
 }
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 20, padding: 17, gap: 12 }, heading: { fontFamily: serif, fontSize: 22, fontWeight: "600" }, label: { fontSize: 13, fontWeight: "600" }, stars: { flexDirection: "row", gap: 8 }, star: { fontSize: 31, lineHeight: 35 },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 14, fontSize: 14 }, textarea: { minHeight: 116, paddingTop: 13, textAlignVertical: "top" },
-  error: { color: "#D94B55", fontSize: 12 }, buttons: { flexDirection: "row", justifyContent: "flex-end", gap: 10 }, cancel: { minHeight: 44, borderWidth: 1, borderRadius: 23, paddingHorizontal: 18, justifyContent: "center" }, cancelText: { fontWeight: "600" },
-  submit: { minWidth: 140, minHeight: 44, borderRadius: 23, paddingHorizontal: 19, alignItems: "center", justifyContent: "center" }, submitText: { color: "#FFF", fontSize: 13, fontWeight: "700" }, pressed: { transform: [{ scale: .98 }], opacity: .86 },
+  card: { borderWidth: 1, borderRadius: 20, padding: 17, gap: 12 }, heading: { ...typeStyles.editorialSectionTitle }, label: { ...typeStyles.label }, stars: { flexDirection: "row", gap: 8 }, star: { fontSize: typeScale.editorialPageTitle, lineHeight: typeLeading.editorialPageTitle },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 14, fontSize: typeScale.body }, textarea: { minHeight: 116, paddingTop: 13, textAlignVertical: "top" },
+  error: { color: "#D94B55", fontSize: typeScale.bodyCompact }, buttons: { flexDirection: "row", justifyContent: "flex-end", gap: 10 }, cancel: { minHeight: 44, borderWidth: 1, borderRadius: 23, paddingHorizontal: 18, justifyContent: "center" }, cancelText: { fontWeight: "600" },
+  submit: { minWidth: 140, minHeight: 44, borderRadius: 23, paddingHorizontal: 19, alignItems: "center", justifyContent: "center" }, submitText: { color: "#FFF", fontSize: typeScale.body, fontWeight: "700" }, pressed: { transform: [{ scale: .98 }], opacity: .86 },
 });

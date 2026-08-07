@@ -12,6 +12,7 @@ import { ClipManagementService, pickClipThumbnail } from "@/clips/services";
 import type { ClipVisibility } from "@/clips/types";
 import { ClipStatusBadge } from "@/clips/components";
 import PremiumRouteGate from "@/components/subscriptions/PremiumRouteGate";
+import { typeScale } from "@/constants/typography";
 
 export default function VendorClipEdit() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -110,7 +111,7 @@ export default function VendorClipEdit() {
     return (
       <View style={[styles.center, { backgroundColor: colors.background, padding: 24, gap: 16 }]}>
         <Text style={[styles.heading, { color: colors.text, textAlign: "center" }]}>Clip not found</Text>
-        <Text style={{ color: colors.muted, textAlign: "center", fontSize: 13 }}>
+        <Text style={{ color: colors.muted, textAlign: "center", fontSize: typeScale.body }}>
           {loadError ?? "This Clip could not be found."}
         </Text>
         <Pressable
@@ -136,7 +137,7 @@ export default function VendorClipEdit() {
         <Text style={[styles.label, { color: colors.text }]}>Caption</Text><TextInput value={caption} onChangeText={setCaption} maxLength={2200} multiline style={[styles.input, styles.caption, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSoft }]} />
         <Text style={[styles.label, { color: colors.text }]}>Category</Text><Pressable onPress={() => setCategoryOpen((value) => !value)} style={[styles.input, styles.select, { borderColor: colors.border, backgroundColor: colors.surfaceSoft }]}><Text style={{ color: colors.text }}>{selectedCategory?.name}</Text><ChevronDown size={18} color={colors.muted} /></Pressable>
         {categoryOpen && <View style={[styles.options, { borderColor: colors.border }]}>{categories.map((category) => <Pressable key={category.id} onPress={() => { setCategoryId(category.id); setCategoryOpen(false); }} style={[styles.option, { borderBottomColor: colors.border }]}><Text style={{ color: colors.text }}>{category.name}</Text></Pressable>)}</View>}
-        <Text style={[styles.label, { color: colors.text }]}>Visibility</Text><View style={styles.visibility}>{(["public", "unlisted", "private"] as ClipVisibility[]).map((value) => <Pressable key={value} onPress={() => setVisibility(value)} style={[styles.visibilityChoice, { borderColor: visibility === value ? colors.pink : colors.border, backgroundColor: visibility === value ? `${colors.pink}14` : colors.surfaceSoft }]}><Text style={{ color: visibility === value ? colors.pink : colors.muted, fontWeight: "700", fontSize: 11 }}>{value}</Text></Pressable>)}</View>
+        <Text style={[styles.label, { color: colors.text }]}>Visibility</Text><View style={styles.visibility}>{(["public", "unlisted", "private"] as ClipVisibility[]).map((value) => <Pressable key={value} onPress={() => setVisibility(value)} style={[styles.visibilityChoice, { borderColor: visibility === value ? colors.pink : colors.border, backgroundColor: visibility === value ? `${colors.pink}14` : colors.surfaceSoft }]}><Text style={{ color: visibility === value ? colors.pink : colors.muted, fontWeight: "700", fontSize: typeScale.metadata }}>{value}</Text></Pressable>)}</View>
         <Pressable disabled={saving} onPress={save} style={[styles.primary, { backgroundColor: colors.pink }]}>{saving ? <ActivityIndicator color="#FFF" /> : <><Save size={17} color="#FFF" /><Text style={styles.primaryText}>Save Changes</Text></>}</Pressable>
       </View>
     </ScrollView>
@@ -145,11 +146,11 @@ export default function VendorClipEdit() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 }, center: { flex: 1, alignItems: "center", justifyContent: "center" }, scroll: { width: "100%", maxWidth: 760, alignSelf: "center", padding: 18, paddingBottom: 60 },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 16 }, back: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" }, flex: { flex: 1 }, heading: { fontSize: 22, fontWeight: "900" }, subheading: { fontSize: 9, marginTop: 3 },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 16 }, back: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" }, flex: { flex: 1 }, heading: { fontSize: typeScale.metric, fontWeight: "700" }, subheading: { fontSize: typeScale.caption, marginTop: 3 },
   card: { borderWidth: 1, borderRadius: 22, padding: 16, marginBottom: 16 }, video: { height: 300, borderRadius: 16, overflow: "hidden", backgroundColor: "#000", marginBottom: 16 },
-  label: { fontSize: 12, fontWeight: "800", marginBottom: 7, marginTop: 4 }, thumbnail: { height: 180, borderRadius: 16, overflow: "hidden" }, image: { width: "100%", height: "100%" }, overlay: { position: "absolute", right: 10, bottom: 10, borderRadius: 12, paddingHorizontal: 11, height: 36, backgroundColor: "rgba(0,0,0,.68)", flexDirection: "row", alignItems: "center", gap: 6 }, overlayText: { color: "#FFF", fontSize: 10, fontWeight: "800" },
-  input: { borderWidth: 1, minHeight: 50, borderRadius: 15, paddingHorizontal: 14, fontSize: 12, marginBottom: 15 }, caption: { minHeight: 110, paddingTop: 13, textAlignVertical: "top" }, select: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  label: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginBottom: 7, marginTop: 4 }, thumbnail: { height: 180, borderRadius: 16, overflow: "hidden" }, image: { width: "100%", height: "100%" }, overlay: { position: "absolute", right: 10, bottom: 10, borderRadius: 12, paddingHorizontal: 11, height: 36, backgroundColor: "rgba(0,0,0,.68)", flexDirection: "row", alignItems: "center", gap: 6 }, overlayText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
+  input: { borderWidth: 1, minHeight: 50, borderRadius: 15, paddingHorizontal: 14, fontSize: typeScale.bodyCompact, marginBottom: 15 }, caption: { minHeight: 110, paddingTop: 13, textAlignVertical: "top" }, select: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   options: { borderWidth: 1, borderRadius: 14, marginTop: -10, marginBottom: 15, maxHeight: 220, overflow: "hidden" }, option: { padding: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   visibility: { flexDirection: "row", gap: 8, marginBottom: 20 }, visibilityChoice: { flex: 1, borderWidth: 1, borderRadius: 13, paddingVertical: 12, alignItems: "center" },
-  primary: { height: 50, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }, primaryText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
+  primary: { height: 50, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }, primaryText: { color: "#FFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
 });

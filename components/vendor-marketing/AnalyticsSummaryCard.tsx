@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { BarChart3 } from "lucide-react-native";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import type { VendorProfileAnalytics } from "@/services/vendorPublicProfile";
+import { typeScale } from "@/constants/typography";
 
 const TILES: { key: keyof VendorProfileAnalytics; label: string; field: "count" | "uniqueVisitors" }[] = [
   { key: "view", label: "Profile Views", field: "count" },
@@ -73,14 +74,14 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 14 },
   icon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 15, fontWeight: "900" },
+  title: { fontSize: typeScale.body, fontWeight: "700" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   tile: { minWidth: "22%", flexGrow: 1, borderRadius: 16, paddingVertical: 14, alignItems: "center" },
-  tileValue: { fontSize: 18, fontWeight: "900" },
-  tileLabel: { fontSize: 9, fontWeight: "700", marginTop: 4, textAlign: "center" },
+  tileValue: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
+  tileLabel: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 4, textAlign: "center" },
   sourcesWrap: { marginTop: 16, paddingTop: 16, borderTopWidth: 1 },
-  sourcesTitle: { fontSize: 12, fontWeight: "800", marginBottom: 8 },
+  sourcesTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginBottom: 8 },
   sourceRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5 },
-  sourceLabel: { fontSize: 11, fontWeight: "600" },
-  sourceValue: { fontSize: 11, fontWeight: "800" },
+  sourceLabel: { fontSize: typeScale.metadata, fontWeight: "600" },
+  sourceValue: { fontSize: typeScale.metadata, fontWeight: "700" },
 });

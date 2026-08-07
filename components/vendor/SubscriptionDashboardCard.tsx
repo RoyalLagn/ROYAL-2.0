@@ -7,6 +7,7 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { subscriptionAccessSourceLabel, subscriptionDateCopy, subscriptionStateCopy } from "@/subscriptions/presentation";
+import { typeScale } from "@/constants/typography";
 
 export default function SubscriptionDashboardCard() {
   const router = useRouter();
@@ -61,10 +62,10 @@ export default function SubscriptionDashboardCard() {
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 24, padding: 16, marginBottom: 16, flexDirection: "row", gap: 13, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 18, elevation: 2 },
   icon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  content: { flex: 1, minWidth: 0 }, eyebrow: { fontSize: 8, fontWeight: "900", letterSpacing: 1.2 },
-  title: { fontSize: 17, fontWeight: "900", marginTop: 3 }, metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 5, marginTop: 7 },
-  meta: { fontSize: 9 }, days: { fontSize: 9, fontWeight: "800", marginLeft: 3 }, actions: { flexDirection: "row", gap: 8, marginTop: 11 },
+  content: { flex: 1, minWidth: 0 }, eyebrow: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.2 },
+  title: { fontSize: typeScale.cardTitle, fontWeight: "700", marginTop: 3 }, metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 5, marginTop: 7 },
+  meta: { fontSize: typeScale.caption }, days: { fontSize: typeScale.caption, fontWeight: "700", marginLeft: 3 }, actions: { flexDirection: "row", gap: 8, marginTop: 11 },
   primary: { flex: 1, minHeight: 40, borderRadius: 14, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
-  primaryText: { color: "#FFF", fontSize: 10, fontWeight: "800" }, history: { width: 42, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  primaryText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" }, history: { width: 42, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
 });

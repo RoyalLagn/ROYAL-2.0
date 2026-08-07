@@ -219,8 +219,8 @@ export default function FrontendScreen({
                   {modeLabels[mode]}
                 </Text>
                 <Text className={isDesktop
-                  ? "text-foreground text-[30px] font-bold tracking-tight mb-1"
-                  : "text-foreground text-2xl font-bold tracking-tight mb-1"}
+                  ? "text-foreground font-inter-bold text-page-title mb-1"
+                  : "text-foreground font-inter-bold text-page-title mb-1"}
                 >
                   {title}
                 </Text>
@@ -353,7 +353,7 @@ export default function FrontendScreen({
                       )}
                     </View>
                     <View className="flex-1 min-w-0">
-                      <Text className="text-foreground text-[15px] font-semibold">{item}</Text>
+                      <Text className="text-foreground text-body font-semibold">{item}</Text>
                       <Text className="text-xs text-muted-foreground mt-0.5">
                         {settings[item] ? "Enabled" : "Disabled"}
                       </Text>

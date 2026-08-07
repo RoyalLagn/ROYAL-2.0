@@ -155,7 +155,7 @@ export default function AdminCrmCreateWorkspace() {
                 <View className="mt-5 p-3 bg-white rounded-2xl">
                   <QRCode value={buildWorkspaceUrl(created.token)} size={180} />
                 </View>
-                <Text className="text-muted-foreground text-[10px] mt-3 text-center" numberOfLines={2} selectable>
+                <Text className="text-muted-foreground text-metadata mt-3 text-center" numberOfLines={2} selectable>
                   {buildWorkspaceUrl(created.token)}
                 </Text>
                 <View className="flex-row gap-3 mt-5 w-full">
@@ -232,7 +232,7 @@ export default function AdminCrmCreateWorkspace() {
                     <Text className="text-foreground text-sm font-bold">Permissions</Text>
                     <Text className="text-primary text-xs font-semibold">{showAdvanced ? "Hide advanced" : "Show advanced"}</Text>
                   </Pressable>
-                  <Text className="text-muted-foreground text-[10px] mt-1">Add vendors, notes, follow-ups, photos, calls and WhatsApp are on by default.</Text>
+                  <Text className="text-muted-foreground text-metadata mt-1">Add vendors, notes, follow-ups, photos, calls and WhatsApp are on by default.</Text>
                   {showAdvanced ? (
                     <View className="mt-3 pt-3 border-t border-border">
                       {advancedPermissions.map((item) => (

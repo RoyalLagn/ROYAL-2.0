@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { CalendarDays, MessageCircle, MessageSquareText, Phone } from "lucide-react-native";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { fonts, typeScale, typeLeading } from "@/constants/typography";
 
 export type VendorQuickActionsProps = {
   dark?: boolean;
@@ -34,6 +35,7 @@ function ActionItem({
   labelColor,
   borderColor,
 }: ActionItemProps) {
+  const [focused, setFocused] = useState(false);
   return (
     <Pressable
       accessibilityRole="button"
@@ -41,9 +43,11 @@ function ActionItem({
       accessibilityState={{ disabled: Boolean(disabled) }}
       disabled={disabled}
       onPress={onPress}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       style={({ pressed, hovered }) => [
         styles.action,
-        hovered && Platform.OS === "web" && !disabled && styles.actionHovered,
+        (hovered || focused) && Platform.OS === "web" && !disabled && styles.actionHovered,
         pressed && !disabled && styles.actionPressed,
         disabled && styles.disabled,
       ]}
@@ -67,7 +71,7 @@ function VendorQuickActions({
   const labelColor = dark ? "#E4DADF" : "#4F454A";
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, { borderTopColor: dark ? "#232C3D" : "#F2DDE5" }]}>
       <ActionItem
         label="Call"
         accessibilityLabel="Call vendor"
@@ -116,6 +120,10 @@ export default React.memo(VendorQuickActions);
 const styles = StyleSheet.create({
   row: {
     width: "100%",
+    maxWidth: 680,
+    alignSelf: "center",
+    marginTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
@@ -130,9 +138,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   circle: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
+    width: 46,
+    height: 46,
+    borderRadius: 15,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -142,7 +150,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
-  label: { fontSize: 11, lineHeight: 14, fontWeight: "600", textAlign: "center" },
+  label: { fontFamily: fonts.sans.semibold, fontSize: typeScale.metadata, lineHeight: typeLeading.caption, textAlign: "center" },
   actionHovered: { transform: [{ translateY: -2 }] },
   actionPressed: { transform: [{ scale: 0.94 }], opacity: 0.88 },
   disabled: { opacity: 0.45 },

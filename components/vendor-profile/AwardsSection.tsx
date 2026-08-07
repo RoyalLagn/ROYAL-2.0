@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Award } from "lucide-react-native";
+import { typeScale } from "@/constants/typography";
 
 export default function AwardsSection({ awards, dark }: { awards: string[]; dark: boolean }) {
   if (!awards.length) return null;
@@ -22,5 +23,5 @@ export default function AwardsSection({ awards, dark }: { awards: string[]; dark
 const styles = StyleSheet.create({
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  chipText: { fontSize: 12, fontWeight: "600" },
+  chipText: { fontSize: typeScale.bodyCompact, fontWeight: "600" },
 });

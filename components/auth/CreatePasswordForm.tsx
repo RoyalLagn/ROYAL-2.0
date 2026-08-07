@@ -108,7 +108,7 @@ export function CreatePasswordForm({
                 <View className={`w-5 h-5 rounded-full items-center justify-center ${passed ? "bg-primary" : "bg-muted"}`}>
                   {passed ? <Check size={13} color="#FFFFFF" strokeWidth={3} /> : null}
                 </View>
-                <Text className={passed ? "text-foreground text-[13px]" : "text-muted-foreground text-[13px]"}>
+                <Text className={passed ? "text-foreground text-body" : "text-muted-foreground text-body"}>
                   {label}
                 </Text>
               </View>
@@ -127,7 +127,7 @@ export function CreatePasswordForm({
             <View className={`w-6 h-6 rounded-md border items-center justify-center ${acceptedTerms ? "bg-primary border-primary" : "border-border bg-card"}`}>
               {acceptedTerms ? <Check size={15} color="#FFFFFF" strokeWidth={3} /> : null}
             </View>
-            <Text className="text-muted-foreground text-[13px] leading-5 flex-1">
+            <Text className="text-muted-foreground text-body leading-5 flex-1">
               I agree to the{" "}
               <Text className="text-primary font-semibold" onPress={() => router.push("/Terms")}>Terms &amp; Conditions</Text>
               {" "}and{" "}

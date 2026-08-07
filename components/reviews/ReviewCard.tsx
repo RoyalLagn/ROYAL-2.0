@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { CheckCircle2, Pencil, ThumbsUp, Trash2 } from "lucide-react-native";
 import type { Review } from "./types";
 import { reviewImageSource, reviewPalette } from "./types";
+import { fonts, typeScale, typeLeading } from "@/constants/typography";
 
 export type ReviewCardProps = { review: Review; dark?: boolean; onHelpful?: (review: Review) => void; onEdit?: (review: Review) => void; onDelete?: (review: Review) => void; helpfulBusy?: boolean };
 const formatDate = (value: string | Date) => new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" }).format(new Date(value));
@@ -33,10 +34,10 @@ export default function ReviewCard({ review, dark = false, onHelpful, onEdit, on
 }
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 18, padding: 16, gap: 8, shadowColor: "#94546C", shadowOpacity: .045, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
-  authorRow: { flexDirection: "row", alignItems: "center", gap: 10 }, avatar: { width: 42, height: 42, borderRadius: 21 }, fallback: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" }, initial: { fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 19, fontWeight: "700" },
-  authorCopy: { flex: 1, minWidth: 0 }, name: { fontSize: 14, fontWeight: "700" }, verified: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }, verifiedText: { fontSize: 10, fontWeight: "600" }, date: { fontSize: 10 },
-  stars: { fontSize: 14, letterSpacing: 1 }, body: { fontSize: 14, lineHeight: 21 },
+  authorRow: { flexDirection: "row", alignItems: "center", gap: 10 }, avatar: { width: 42, height: 42, borderRadius: 21 }, fallback: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" }, initial: { fontFamily: fonts.serif.bold, fontSize: typeScale.editorialCardTitle },
+  authorCopy: { flex: 1, minWidth: 0 }, name: { fontSize: typeScale.body, fontWeight: "700" }, verified: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }, verifiedText: { fontSize: typeScale.caption, fontWeight: "600" }, date: { fontSize: typeScale.caption },
+  stars: { fontSize: typeScale.body, letterSpacing: 1 }, body: { fontSize: typeScale.body, lineHeight: typeLeading.cardTitle },
   photos: { gap: 8, paddingTop: 3 }, photo: { width: 108, height: 90, borderRadius: 12 },
   actions: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11, marginTop: 5, flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
-  action: { minHeight: 32, flexDirection: "row", alignItems: "center", gap: 6 }, actionText: { fontSize: 11, fontWeight: "600" }, ownerActions: { flexDirection: "row", gap: 14 },
+  action: { minHeight: 32, flexDirection: "row", alignItems: "center", gap: 6 }, actionText: { fontSize: typeScale.metadata, fontWeight: "600" }, ownerActions: { flexDirection: "row", gap: 14 },
 });

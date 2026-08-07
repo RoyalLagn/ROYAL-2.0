@@ -46,7 +46,7 @@ function FollowupRow({ item, onComplete }: { item: CrmTaskFollowupItem; onComple
         </View>
       </Pressable>
       <Pressable onPress={onComplete} className="mt-3 pt-3 border-t border-border self-start">
-        <Text className="text-emerald-500 text-[11px] font-bold">Mark done</Text>
+        <Text className="text-emerald-500 text-metadata font-bold">Mark done</Text>
       </Pressable>
     </CRMCard>
   );

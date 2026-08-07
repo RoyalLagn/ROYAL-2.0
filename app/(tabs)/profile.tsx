@@ -41,11 +41,14 @@ import {
 import {
   CloudinaryError,
   deleteManagedProfileImage,
-  pickAndUploadProfileImage,
+  pickProfileImage,
+  uploadProfileImage,
+  type ProfileImageAsset,
 } from "@/services/cloudinary";
 import { getPublicAuthError, updatePublicProfile } from "@/services/publicAuth";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { usePublicAuth } from "@/context/PublicAuthContext";
+import SquareImageEditor from "@/components/vendor/SquareImageEditor";
 
 type AccountOptionProps = {
   icon: React.ElementType;
@@ -123,8 +126,8 @@ function AccountOption({
         </View>
         <View className="flex-1 min-w-0">
           <Text className={tile
-            ? "text-foreground text-[15px] font-semibold mb-1"
-            : "text-foreground text-[15px] font-semibold"}
+            ? "text-foreground text-body font-semibold mb-1"
+            : "text-foreground text-body font-semibold"}
           >
             {title}
           </Text>
@@ -192,6 +195,7 @@ export default function ProfileScreen() {
   const pagePadding = width >= 768 ? 32 : 20;
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(profile?.profile_image ?? null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoEditorAsset, setPhotoEditorAsset] = useState<ProfileImageAsset | null>(null);
   const [isPhotoViewerVisible, setIsPhotoViewerVisible] = useState(false);
   const [isConfirmingPhotoRemoval, setIsConfirmingPhotoRemoval] = useState(false);
   const entryProgress = useSharedValue(0);
@@ -259,31 +263,46 @@ export default function ProfileScreen() {
 
     setIsUploadingPhoto(true);
     try {
-      const previousUrl = profileImageUrl;
-      const uploadedUrl = await pickAndUploadProfileImage({ kind: "customer" });
+      const asset = await pickProfileImage();
+      if (asset) setPhotoEditorAsset(asset);
+    } catch (error) {
+      Alert.alert(
+        "Photo selection failed",
+        error instanceof CloudinaryError
+          ? error.message
+          : getPublicAuthError(error, "Unable to open the selected photo. Please try again.")
+      );
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
-      if (uploadedUrl) {
-        if (!session?.user.id) throw new Error("Your session expired. Sign in again.");
-        try {
-          await updatePublicProfile(session.user.id, { profileImage: uploadedUrl });
-        } catch (error) {
-          await deleteManagedProfileImage({ kind: "customer" }, uploadedUrl).catch(() => undefined);
-          throw error;
-        }
-        await refreshProfile();
-        setProfileImageUrl(uploadedUrl);
-        if (previousUrl && previousUrl !== uploadedUrl) {
-          await deleteManagedProfileImage({ kind: "customer" }, previousUrl).catch(() => {
-            Alert.alert("Photo updated", "Your new photo is saved, but the previous image could not be cleaned up yet.");
-          });
-        }
+  const saveEditedProfilePhoto = async (asset: ProfileImageAsset) => {
+    if (!session?.user.id) return;
+    const previousUrl = profileImageUrl;
+    setIsUploadingPhoto(true);
+    try {
+      const uploadedUrl = await uploadProfileImage({ kind: "customer" }, asset);
+      try {
+        await updatePublicProfile(session.user.id, { profileImage: uploadedUrl });
+      } catch (error) {
+        await deleteManagedProfileImage({ kind: "customer" }, uploadedUrl).catch(() => undefined);
+        throw error;
+      }
+      await refreshProfile();
+      setProfileImageUrl(uploadedUrl);
+      setPhotoEditorAsset(null);
+      if (previousUrl && previousUrl !== uploadedUrl) {
+        await deleteManagedProfileImage({ kind: "customer" }, previousUrl).catch(() => {
+          Alert.alert("Photo updated", "Your new photo is saved, but the previous image could not be cleaned up yet.");
+        });
       }
     } catch (error) {
       Alert.alert(
         "Photo upload failed",
         error instanceof CloudinaryError
           ? error.message
-          : getPublicAuthError(error, "Unable to save the selected photo. Please try again.")
+          : getPublicAuthError(error, "Unable to save the edited photo. Please try again.")
       );
     } finally {
       setIsUploadingPhoto(false);
@@ -521,7 +540,7 @@ export default function ProfileScreen() {
               <Text className="text-muted-foreground text-xs font-medium mb-2">
                 Account  /  Profile
               </Text>
-              <Text className="text-foreground text-[32px] font-bold tracking-tight mb-1.5">
+              <Text className="text-foreground font-inter-bold text-page-title mb-1.5">
                 My Account
               </Text>
               <Text className="text-muted-foreground text-sm">
@@ -749,6 +768,13 @@ export default function ProfileScreen() {
           </View>
         </View>
       </Modal>
+      <SquareImageEditor
+        kind="profile"
+        asset={photoEditorAsset}
+        busy={isUploadingPhoto}
+        onCancel={() => setPhotoEditorAsset(null)}
+        onSave={saveEditedProfilePhoto}
+      />
     </SafeAreaView>
   );
 }

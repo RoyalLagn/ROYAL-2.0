@@ -19,6 +19,7 @@ import {
   portfolioMediaUrl,
   type VendorPortfolioMedia,
 } from "@/services/vendorPortfolio";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 type Props = {
   visible: boolean;
@@ -185,8 +186,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(7,7,9,.6)",
   },
   titleWrap: { flex: 1, minWidth: 0 },
-  title: { color: "#FFF", fontSize: 14, lineHeight: 19, fontWeight: "800" },
-  count: { color: "rgba(255,255,255,.72)", fontSize: 11, marginTop: 2 },
+  title: { color: "#FFF", fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, fontWeight: "700" },
+  count: { color: "rgba(255,255,255,.72)", fontSize: typeScale.metadata, marginTop: 2 },
   control: { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,.14)", alignItems: "center", justifyContent: "center" },
   arrow: { position: "absolute", top: "48%", width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(20,18,20,.6)", alignItems: "center", justifyContent: "center" },
   left: { left: 10 },

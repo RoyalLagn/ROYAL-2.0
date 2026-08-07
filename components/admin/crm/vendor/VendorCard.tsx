@@ -39,7 +39,7 @@ export function VendorCard({
               {vendor.area ? (
                 <View className="flex-row items-center mt-1">
                   <MapPin size={11} className="text-muted-foreground" />
-                  <Text className="text-muted-foreground text-[11px] ml-1" numberOfLines={1}>{vendor.area}</Text>
+                  <Text className="text-muted-foreground text-metadata ml-1" numberOfLines={1}>{vendor.area}</Text>
                 </View>
               ) : null}
             </View>
@@ -56,7 +56,7 @@ export function VendorCard({
           {vendor.phone ? (
             <View className="flex-row items-center">
               <Phone size={12} className="text-muted-foreground" />
-              <Text className="text-muted-foreground text-[11px] ml-1">{vendor.phone}</Text>
+              <Text className="text-muted-foreground text-metadata ml-1">{vendor.phone}</Text>
             </View>
           ) : null}
         </View>

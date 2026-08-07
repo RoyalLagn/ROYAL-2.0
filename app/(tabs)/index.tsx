@@ -1,28 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  View,
-  Text,
-  ScrollView,
-  Image,
-  Pressable,
-  TouchableOpacity,
-  StyleSheet,
-  useWindowDimensions,
-} from "react-native";
+import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  MapPin,
-  Bell,
-  MessageSquareText,
-  Share2,
-  Search,
-  ChevronRight,
-  Star,
-  SlidersHorizontal,
-  BadgeCheck,
-} from "lucide-react-native";
+  MapPin, Bell, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useFavorites } from "@/context/FavoritesContext";
@@ -35,32 +16,25 @@ import HomeFilterModal, { DEFAULT_HOME_FILTERS, type HomeFilters } from "@/compo
 import { HERO_IMAGE_ASPECT } from "@/types/hero";
 import { useCustomerLocation } from "@/context/LocationContext";
 import {
-  rankVendorsByLocation,
-  vendorLocationPriority,
-  vendorNearbyLabel,
-} from "@/services/locations";
+  rankVendorsByLocation, vendorLocationPriority, vendorNearbyLabel, } from "@/services/locations";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { useNotifications } from "@/context/NotificationContext";
 import {
-  getApprovedPublicVendors,
-  subscribeToPublicVendorChanges,
-  type PublicVendorListing,
-} from "@/services/publicVendorListings";
+  getApprovedPublicVendors, subscribeToPublicVendorChanges, type PublicVendorListing, } from "@/services/publicVendorListings";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import HomeCategoryCard from "@/components/home/HomeCategoryCard";
-import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
+import HomeVendorCard from "@/components/home/HomeVendorCard";
 import { shareRoyalLagnApp } from "@/services/AppShareService";
 import { useCategories } from "@/context/CategoryContext";
-import SafeImage from "@/components/SafeImage";
 import { VendorCardSkeletonRow } from "@/components/loading/Skeleton";
 import { BREAKPOINTS } from "@/utils/responsiveLayout";
 import { brandColors, brandPalette } from "@/constants/brandPalette";
-import { fonts } from "@/constants/typography";
+import { fonts, typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = brandPalette.light.primaryStrong;
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
-const PRIMARY_CATEGORY_COUNT = 9;
+const PRIMARY_CATEGORY_COUNT = 10;
 /** Optimized WebP floral corner (was 1.4MB PNG). */
 const FLOWER_ORNAMENT = require("../../assets/images/optimized/flowersvg.webp");
 /** Lightweight vendor-card fallback — avoids bundling multi‑MB category-fallback PNGs on Home. */
@@ -91,19 +65,23 @@ export default function HomeScreen() {
   const isDesktop = screenWidth >= 1100;
   const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
   const featureWidth = Math.min(screenWidth - horizontalInset * 2, 1280);
-  const categoryColumns = isDesktop ? 6 : screenWidth < 360 ? 4 : 5;
+  const categoryColumns = screenWidth < 360 ? 4 : 5;
   const categoryItemWidth = featureWidth / categoryColumns;
   const categoryCardWidth = isDesktop
-    ? Math.min(120, categoryItemWidth - 26)
+    ? Math.min(176, categoryItemWidth - 32)
     : screenWidth >= 600
       ? Math.min(102, categoryItemWidth - 20)
       : Math.min(70, Math.max(54, categoryItemWidth - 10));
+  const vendorCardGap = screenWidth >= BREAKPOINTS.smallTablet ? 14 : 12;
   const vendorCardWidth = isDesktop
     ? 360
     : screenWidth >= 600
-      ? 230
-      : Math.min(168, Math.max(136, screenWidth * 0.4));
+      ? 260
+      : Math.max(130, (featureWidth - vendorCardGap) / 2);
+  const vendorImageHeight = Math.round(vendorCardWidth);
   const listBannerHeight = Math.min(Math.round(featureWidth * (887 / 1774)), 220);
+  const sectionSpacing = isDesktop ? 48 : screenWidth >= 600 ? 42 : 36;
+  const compactSectionSpacing = isDesktop ? 40 : screenWidth >= 600 ? 36 : 30;
 
   // Tablet + desktop: text/search left, 16:9 image right (image column larger).
   // Image drives height via aspect-ratio — left panel stretches to match, never
@@ -436,9 +414,10 @@ export default function HomeScreen() {
         )}
 
         {/* ── Top Categories ── */}
-        <View style={[s.section, { width: featureWidth }]}>
+        <View style={[s.section, { width: featureWidth, marginBottom: compactSectionSpacing }]}>
           <SectionHeader
             title="Top Categories"
+            subtitle="Everything you need for the celebration"
             dark={isDark}
             actionLabel="View All"
             onActionPress={() => router.push("/(tabs)/Categories")}
@@ -456,27 +435,32 @@ export default function HomeScreen() {
                 onPress={() => openCategory(cat.name)}
               />
             ))}
-            {!showAllCategories ? (
-              <HomeCategoryCard
-                name="More Categories"
-                itemWidth={categoryItemWidth}
-                cardWidth={categoryCardWidth}
-                dark={isDark}
-                more
-                onPress={() => setShowAllCategories(true)}
-              />
-            ) : null}
           </View>
-          {showAllCategories ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Show fewer categories" onPress={() => setShowAllCategories(false)} style={({ pressed }) => [s.showLessBtn, pressed && s.showLessPressed]}>
-              <Text style={s.showLessText}>Show Less</Text>
-            </Pressable>
-          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={showAllCategories ? "Show fewer categories" : "Show more categories"}
+            accessibilityState={{ expanded: showAllCategories }}
+            onPress={() => setShowAllCategories((current) => !current)}
+            style={({ pressed }) => [
+              s.categoryToggle,
+              { backgroundColor: isDark ? colors.card : colors.background, borderColor: colors.frameBorder },
+              pressed && s.categoryTogglePressed,
+            ]}
+          >
+            <LayoutGrid size={17} color={PINK} strokeWidth={2.2} />
+            <Text style={[s.categoryToggleText, { color: PINK }]}>
+              {showAllCategories ? "Fewer Categories" : "More Categories"}
+            </Text>
+          </Pressable>
         </View>
 
         {/* ── Trending searches ── */}
-        <View style={[s.trendingSection, { width: featureWidth }]}>
-          <SectionHeader title="Trending Searches" dark={isDark} />
+        <View style={[s.trendingSection, { width: featureWidth, marginBottom: sectionSpacing }]}>
+          <SectionHeader
+            title="Trending Searches"
+            subtitle="Popular ways to start your search"
+            dark={isDark}
+          />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.trendingRow}>
             {TRENDING_SEARCHES.map((term) => (
               <TouchableOpacity
@@ -495,9 +479,10 @@ export default function HomeScreen() {
         </View>
 
         {/* ── Popular Near You ── */}
-        <View style={[s.popularSection, { width: featureWidth }]}>
+        <View style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}>
           <SectionHeader
             title="Popular Near You"
+            subtitle="Reviewed professionals close to your celebration"
             dark={isDark}
             actionLabel="View All"
             onActionPress={() => router.push({ pathname: "/Search", params: { location: city, nearby: "true" } })}
@@ -514,7 +499,7 @@ export default function HomeScreen() {
               <VendorCardSkeletonRow
                 count={isDesktop ? 4 : 3}
                 width={vendorCardWidth}
-                imageHeight={Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68))}
+                imageHeight={vendorImageHeight}
               />
             </View>
           ) : (
@@ -523,70 +508,30 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"
             snapToAlignment="start"
-            snapToInterval={vendorCardWidth + 10}
-            contentContainerStyle={s.vendorScroll}
+            snapToInterval={vendorCardWidth + vendorCardGap}
+            contentContainerStyle={[s.vendorScroll, { gap: vendorCardGap }]}
           >
             {nearbyVendors.map((v) => {
               const isFav = isFavorite(v.id);
               const nearbyLabel = vendorNearbyLabel(v, preference);
               return (
-                <View key={v.id} style={[s.vendorCard, { width: vendorCardWidth, backgroundColor: card, borderColor: border }]}>
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open ${v.name}`}
-                    style={s.vendorMain}
-                    onPress={() =>
+                <HomeVendorCard
+                  key={v.id}
+                  vendor={v}
+                  width={vendorCardWidth}
+                  imageHeight={vendorImageHeight}
+                  dark={isDark}
+                  nearbyLabel={nearbyLabel}
+                  favorite={isFav}
+                  fallbackSource={VENDOR_CARD_PLACEHOLDER}
+                  onOpen={() =>
                       router.push({
                         pathname: "/VendorsProfile",
                         params: { vendorId: v.id, category: v.category },
                       })
-                    }
-                    activeOpacity={0.88}
-                  >
-                    <View style={[s.vendorImgWrap, { height: Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68)) }]}>
-                      <SafeImage
-                        debugLabel={`home vendor card: ${v.name}`}
-                        source={{ uri: v.image }}
-                        fallbackSource={VENDOR_CARD_PLACEHOLDER}
-                        deliveryWidth={Math.round(vendorCardWidth)}
-                        deliveryHeight={Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68))}
-                        style={s.vendorImg}
-                        resizeMode="cover"
-                      />
-                      <View style={s.imgBottomRow}>
-                        <View style={s.ratingBadge}>
-                          <Star size={11} color={STAR} fill={STAR} />
-                          <Text style={s.ratingBadgeTxt}>{v.rating}</Text>
-                        </View>
-                        <View style={s.verifiedBadge}>
-                          <BadgeCheck size={11} color="#FFF" />
-                          <Text style={s.verifiedTxt}>Verified</Text>
-                        </View>
-                      </View>
-                      {nearbyLabel ? <View style={s.vendorNearby}><MapPin size={10} color={PINK} /><Text style={s.vendorNearbyText}>{nearbyLabel}</Text></View> : null}
-                    </View>
-                    <View style={s.vendorInfo}>
-                      <Text style={[s.vendorName, isDesktop && s.vendorNameDesktop, { color: text }]} numberOfLines={1}>{v.name}</Text>
-                      <Text style={[s.vendorCat, { color: muted }]} numberOfLines={1}>{v.category}</Text>
-                      <View style={s.vendorMeta}>
-                        <MapPin size={11} color={muted} />
-                        <Text style={[s.vendorLoc, { color: muted }]} numberOfLines={1}>{v.location}</Text>
-                        <Text style={[s.vendorPrice, { color: text }]} numberOfLines={1}>{v.startingPrice} onwards</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                  <FavoriteHeartButton
-                    favorite={isFav}
-                    accessibilityLabel={isFav ? `Remove ${v.name} from favorites` : `Add ${v.name} to favorites`}
-                    style={s.heartBtn}
-                    activeStyle={s.heartBtnActive}
-                    pressedStyle={s.favoritePressed}
-                    onToggle={(source) => toggleFavorite(v, source)}
-                    size={15}
-                    color="#3A3035"
-                    activeIconColor={PINK}
-                  />
-                </View>
+                  }
+                  onToggleFavorite={(source) => toggleFavorite(v, source)}
+                />
               );
             })}
           </ScrollView>
@@ -597,18 +542,19 @@ export default function HomeScreen() {
         </View>
 
         {/* ── Top Rated Vendors ── */}
-        <View style={[s.popularSection, { width: featureWidth }]}>
+        <View style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}>
           <SectionHeader
             title="Top Rated Vendors"
+            subtitle="Browse vendors ordered by customer ratings"
             dark={isDark}
             actionLabel="View All"
             onActionPress={() => router.push({ pathname: "/Search", params: { sort: "rating" } })}
-            accessory={
+            accessory={screenWidth >= BREAKPOINTS.normalPhone ? (
               <View style={[s.nearBadge, { backgroundColor: isDark ? "#3A2E12" : "#FFF8E1", borderColor: isDark ? "#5B4A1E" : "#F5DDA0" }]}>
                 <Star size={11} color={STAR} fill={STAR} />
                 <Text style={[s.nearBadgeText, { color: colors.ratingForeground }]}>Highest Rated</Text>
               </View>
-            }
+            ) : null}
           />
 
           {vendorsLoading ? (
@@ -616,7 +562,7 @@ export default function HomeScreen() {
               <VendorCardSkeletonRow
                 count={isDesktop ? 4 : 3}
                 width={vendorCardWidth}
-                imageHeight={Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68))}
+                imageHeight={vendorImageHeight}
               />
             </View>
           ) : (
@@ -625,68 +571,28 @@ export default function HomeScreen() {
             showsHorizontalScrollIndicator={false}
             decelerationRate="fast"
             snapToAlignment="start"
-            snapToInterval={vendorCardWidth + 10}
-            contentContainerStyle={s.vendorScroll}
+            snapToInterval={vendorCardWidth + vendorCardGap}
+            contentContainerStyle={[s.vendorScroll, { gap: vendorCardGap }]}
           >
             {topRatedVendors.map((v) => {
               const isFav = isFavorite(v.id);
               return (
-                <View key={v.id} style={[s.vendorCard, { width: vendorCardWidth, backgroundColor: card, borderColor: border }]}>
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open ${v.name}`}
-                    style={s.vendorMain}
-                    onPress={() =>
+                <HomeVendorCard
+                  key={v.id}
+                  vendor={v}
+                  width={vendorCardWidth}
+                  imageHeight={vendorImageHeight}
+                  dark={isDark}
+                  favorite={isFav}
+                  fallbackSource={VENDOR_CARD_PLACEHOLDER}
+                  onOpen={() =>
                       router.push({
                         pathname: "/VendorsProfile",
                         params: { vendorId: v.id, category: v.category },
                       })
-                    }
-                    activeOpacity={0.88}
-                  >
-                    <View style={[s.vendorImgWrap, { height: Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68)) }]}>
-                      <SafeImage
-                        debugLabel={`home top rated vendor card: ${v.name}`}
-                        source={{ uri: v.image }}
-                        fallbackSource={VENDOR_CARD_PLACEHOLDER}
-                        deliveryWidth={Math.round(vendorCardWidth)}
-                        deliveryHeight={Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68))}
-                        style={s.vendorImg}
-                        resizeMode="cover"
-                      />
-                      <View style={s.imgBottomRow}>
-                        <View style={s.ratingBadge}>
-                          <Star size={11} color={STAR} fill={STAR} />
-                          <Text style={s.ratingBadgeTxt}>{v.rating}</Text>
-                        </View>
-                        <View style={s.verifiedBadge}>
-                          <BadgeCheck size={11} color="#FFF" />
-                          <Text style={s.verifiedTxt}>Verified</Text>
-                        </View>
-                      </View>
-                    </View>
-                    <View style={s.vendorInfo}>
-                      <Text style={[s.vendorName, isDesktop && s.vendorNameDesktop, { color: text }]} numberOfLines={1}>{v.name}</Text>
-                      <Text style={[s.vendorCat, { color: muted }]} numberOfLines={1}>{v.category}</Text>
-                      <View style={s.vendorMeta}>
-                        <MapPin size={11} color={muted} />
-                        <Text style={[s.vendorLoc, { color: muted }]} numberOfLines={1}>{v.location}</Text>
-                        <Text style={[s.vendorPrice, { color: text }]} numberOfLines={1}>{v.startingPrice} onwards</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                  <FavoriteHeartButton
-                    favorite={isFav}
-                    accessibilityLabel={isFav ? `Remove ${v.name} from favorites` : `Add ${v.name} to favorites`}
-                    style={s.heartBtn}
-                    activeStyle={s.heartBtnActive}
-                    pressedStyle={s.favoritePressed}
-                    onToggle={(source) => toggleFavorite(v, source)}
-                    size={15}
-                    color="#3A3035"
-                    activeIconColor={PINK}
-                  />
-                </View>
+                  }
+                  onToggleFavorite={(source) => toggleFavorite(v, source)}
+                />
               );
             })}
           </ScrollView>
@@ -751,12 +657,12 @@ const s = StyleSheet.create<Record<string, any>>({
   headerActions:   { zIndex: 2, marginLeft: "auto", flexDirection: "row", flexShrink: 0, alignItems: "center" },
   headerAction:    { width: 36, height: 44, borderRadius: 18, alignItems: "center", justifyContent: "center", position: "relative" },
   badge:           { position: "absolute", top: 2, right: 1, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: PINK, borderWidth: 2, borderColor: brandPalette.light.primaryForeground, alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
-  badgeTxt:        { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 8 },
+  badgeTxt:        { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
 
   /* Greeting */
-  greetingText:    { fontFamily: fonts.sans.semibold, fontSize: 12, lineHeight: 17, marginBottom: 2 },
-  greetingTitle:   { fontFamily: fonts.serif.bold, fontSize: 22, lineHeight: 26, letterSpacing: -0.5 },
-  greetingTitleDesktop: { fontSize: 27, lineHeight: 31 },
+  greetingText:    { fontFamily: fonts.sans.semibold, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.tab, marginBottom: 2 },
+  greetingTitle:   { fontFamily: fonts.serif.bold, fontSize: typeScale.metric, lineHeight: typeLeading.sectionTitle, letterSpacing: -0.5 },
+  greetingTitleDesktop: { fontSize: typeScale.editorialPageTitle, lineHeight: typeLeading.pageTitle },
   greetingAccent:  { color: PINK, fontFamily: fonts.serif.boldItalic },
 
   /* Greeting */
@@ -768,7 +674,7 @@ const s = StyleSheet.create<Record<string, any>>({
   filterBtn:       { width: 58, height: 58, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 22, borderWidth: 1, borderColor: brandPalette.light.border, shadowOpacity: 0, elevation: 0 },
   filterBtnNarrow: { width: 56 },
   filterCount:     { position: "absolute", top: 6, right: 6, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
-  filterCountText: { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 8 },
+  filterCountText: { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
 
   /* Mobile: one bordered section — greeting → search → 16:9 hero (ratio unchanged) */
   heroMobileSection: {
@@ -823,57 +729,36 @@ const s = StyleSheet.create<Record<string, any>>({
   heroSplitCard:     { alignSelf: "center", flexDirection: "row", alignItems: "stretch", marginTop: 6, marginBottom: 22, borderWidth: 1, borderRadius: 28, overflow: "hidden" },
   heroSplitLeft:     { position: "relative", overflow: "hidden", justifyContent: "center", paddingHorizontal: 28, paddingVertical: 22, flexShrink: 0, minWidth: 0 },
   heroSplitRight:    { flexShrink: 0, overflow: "hidden", aspectRatio: HERO_IMAGE_ASPECT },
-  heroSplitDescription:{ fontSize: 13, lineHeight: 19, marginTop: 8, maxWidth: 320 },
+  heroSplitDescription:{ fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, marginTop: 8, maxWidth: 320 },
   heroSplitSearchRow:{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 20 },
 
   /* Categories */
-  section:         { alignSelf: "center", marginBottom: 12 },
+  section:         { alignSelf: "center" },
   catGrid:         { flexDirection: "row", flexWrap: "wrap" },
-  showLessBtn:     { alignSelf: "center", minHeight: 38, marginTop: 1, marginBottom: 8, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1, borderColor: "rgba(233,30,99,.25)", backgroundColor: "rgba(233,30,99,.07)", alignItems: "center", justifyContent: "center" },
-  showLessPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
-  showLessText:    { color: PINK, fontFamily: fonts.sans.bold, fontSize: 11 },
+  categoryToggle:  { alignSelf: "center", minHeight: 44, marginTop: 6, paddingHorizontal: 22, borderRadius: 999, borderWidth: 1.25, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  categoryTogglePressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
+  categoryToggleText: { fontFamily: fonts.sans.bold, fontSize: typeScale.bodyCompact },
 
   /* Trending */
-  trendingSection:{ alignSelf: "center", marginBottom: 23 },
-  trendingRow:     { gap: 10, paddingTop: 2, paddingRight: 2 },
-  trendingChip:    { minHeight: 43, minWidth: 190, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 9, shadowColor: "#7F5065", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  trendingText:    { fontFamily: fonts.sans.semibold, fontSize: 11 },
+  trendingSection:{ alignSelf: "center" },
+  trendingRow:     { gap: 12, paddingTop: 2, paddingRight: 4, paddingBottom: 2 },
+  trendingChip:    { minHeight: 48, minWidth: 190, borderWidth: 1, borderRadius: 14, paddingHorizontal: 17, flexDirection: "row", alignItems: "center", gap: 10, shadowColor: "#7F5065", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  trendingText:    { fontFamily: fonts.sans.semibold, fontSize: typeScale.metadata },
 
   /* Popular Near You */
-  popularSection:  { alignSelf: "center", marginBottom: 23 },
+  popularSection:  { alignSelf: "center" },
   nearBadge:       { minHeight: 26, maxWidth: 120, borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 3 },
-  nearBadgeText:   { flexShrink: 1, color: PINK, fontFamily: fonts.sans.bold, fontSize: 9 },
-  vendorScroll:    { gap: 10, paddingHorizontal: 2, paddingRight: 18, paddingBottom: 10 },
-  vendorCard:      { borderWidth: 1, borderRadius: 16, overflow: "hidden", shadowColor: "#55303F", shadowOpacity: 0.10, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
-  vendorMain:      { flex: 1 },
-  vendorImgWrap:   { position: "relative", overflow: "hidden" },
-  vendorImg:       { width: "100%", height: "100%" },
-  vendorNearby:    { position: "absolute", top: 8, left: 8, minHeight: 25, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,.94)" },
-  vendorNearbyText:{ color: PINK, fontFamily: fonts.sans.bold, fontSize: 8.5 },
-  heartBtn:        { position: "absolute", top: 8, right: 8, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(255,255,255,.94)", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
-  heartBtnActive:  { backgroundColor: "rgba(255,255,255,.94)" },
-  favoritePressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
-  imgBottomRow:    { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", padding: 7 },
-  ratingBadge:     { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: brandPalette.light.overlayInk, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 20 },
-  ratingBadgeTxt:  { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 9.5 },
-  verifiedBadge:   { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: PINK, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.9)" },
-  verifiedTxt:     { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 8 },
-  vendorInfo:      { paddingHorizontal: 10, paddingVertical: 9 },
-  vendorName:      { fontFamily: fonts.serif.bold, fontSize: 13, marginBottom: 2 },
-  vendorNameDesktop:{ fontSize: 16 },
-  vendorCat:       { fontFamily: fonts.sans.regular, fontSize: 9.5, marginBottom: 5 },
-  vendorMeta:      { flexDirection: "row", alignItems: "center", gap: 3 },
-  vendorLoc:       { fontFamily: fonts.sans.regular, fontSize: 8.5, flex: 1 },
-  vendorPrice:     { maxWidth: "52%", fontFamily: fonts.sans.bold, fontSize: 8.5, color: PINK },
-  emptyVendors:    { fontFamily: fonts.sans.regular, paddingVertical: 20, textAlign: "center", fontSize: 11 },
+  nearBadgeText:   { flexShrink: 1, color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
+  vendorScroll:    { paddingHorizontal: 2, paddingRight: 22, paddingBottom: 16 },
+  emptyVendors:    { fontFamily: fonts.sans.regular, paddingVertical: 20, textAlign: "center", fontSize: typeScale.metadata },
 
   /* List Your Business */
   listBanner:      { alignSelf: "center", borderRadius: 20, overflow: "hidden", marginBottom: 20 },
   listBannerImg:   { width: "100%" },
   listOverlay:     { justifyContent: "center" },
   listLeft:        { width: "55%", paddingLeft: 18, paddingVertical: 18 },
-  listTitle:       { fontFamily: fonts.sans.bold, fontSize: 17, color: PINK, marginBottom: 4 },
-  listSub:         { fontFamily: fonts.sans.regular, fontSize: 12, lineHeight: 18, marginBottom: 14 },
+  listTitle:       { fontFamily: fonts.sans.bold, fontSize: typeScale.cardTitle, color: PINK, marginBottom: 4 },
+  listSub:         { fontFamily: fonts.sans.regular, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginBottom: 14 },
   registerBtn:     { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: PINK, alignSelf: "flex-start", paddingHorizontal: 16, paddingVertical: 9, borderRadius: 50 },
-  registerTxt:     { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 13 },
+  registerTxt:     { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: typeScale.body },
 });

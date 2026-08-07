@@ -72,7 +72,7 @@ export const AuthField = forwardRef(function AuthField(
 
   return (
     <View>
-      <Text className="text-foreground text-[13px] font-semibold mb-1.5">
+      <Text className="text-foreground text-body font-semibold mb-1.5">
         {label}
         {required ? <Text className="text-primary"> *</Text> : null}
       </Text>
@@ -84,7 +84,7 @@ export const AuthField = forwardRef(function AuthField(
         {Icon ? <Icon size={19} className="text-muted-foreground" /> : null}
         <TextInput
           ref={ref}
-          className={`flex-1 text-foreground text-[15px] py-3.5 ${Icon ? "ml-3" : ""}`}
+          className={`flex-1 text-foreground text-body py-3.5 ${Icon ? "ml-3" : ""}`}
           placeholder={placeholder}
           placeholderTextColor={authPlaceholderColor(colorScheme === "dark")}
           value={value}

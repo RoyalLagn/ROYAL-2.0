@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Clapperboard, Eye, Play } from "lucide-react-native";
 import type { PublicClip } from "@/clips/types";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 function compactCount(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M`;
@@ -150,9 +151,9 @@ const styles = StyleSheet.create({
   },
   viewsText: {
     color: "#FFFFFF",
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: "800",
+    fontSize: typeScale.metadata,
+    lineHeight: typeLeading.caption,
+    fontWeight: "700",
     textShadowColor: "rgba(0,0,0,.45)",
     textShadowRadius: 3,
   },
@@ -173,8 +174,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#FFE2EC",
   },
-  stateTitle: { fontSize: 16, lineHeight: 21, fontWeight: "800" },
-  stateText: { maxWidth: 280, textAlign: "center", fontSize: 12, lineHeight: 18 },
+  stateTitle: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, fontWeight: "700" },
+  stateText: { maxWidth: 280, textAlign: "center", fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact },
   retry: { minHeight: 38, marginTop: 4, paddingHorizontal: 18, borderRadius: 19, backgroundColor: "#E91E63", alignItems: "center", justifyContent: "center" },
-  retryText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
+  retryText: { color: "#FFFFFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
 });

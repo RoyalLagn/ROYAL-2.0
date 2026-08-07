@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { ChevronRight, HeartPulse } from "lucide-react-native";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import type { CompletionItem } from "@/hooks/useVendorWorkspace";
+import { typeScale } from "@/constants/typography";
 
 export default function ProfileHealthCard({
   colors,
@@ -53,12 +54,12 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 11 },
   icon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  title: { flex: 1, fontSize: 15, fontWeight: "900" },
+  title: { flex: 1, fontSize: typeScale.body, fontWeight: "700" },
   percentBadge: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
-  percent: { fontSize: 13, fontWeight: "900" },
+  percent: { fontSize: typeScale.body, fontWeight: "700" },
   list: { gap: 8, marginTop: 14 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 13, paddingHorizontal: 12, paddingVertical: 11 },
-  rowText: { fontSize: 12, fontWeight: "700" },
+  rowText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
   pressed: { opacity: 0.88 },
-  doneText: { fontSize: 12, fontWeight: "700", marginTop: 14 },
+  doneText: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginTop: 14 },
 });

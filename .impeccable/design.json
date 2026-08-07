@@ -1,0 +1,260 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T16:27:26Z",
+  "title": "Design System: RoyalLagn",
+  "extensions": {
+    "colorMeta": {
+      "bridal-pink": {
+        "role": "primary",
+        "displayName": "Bridal Pink",
+        "canonical": "#E91E63",
+        "tonalRamp": ["#4B071F", "#761033", "#A31549", "#CB1958", "#E91E63", "#F36F9D", "#FAB6CE", "#FDEAF1"]
+      },
+      "bridal-pink-strong": {
+        "role": "primary",
+        "displayName": "Editorial Rose",
+        "canonical": "#BE185D",
+        "tonalRamp": ["#3F061E", "#66102F", "#8E1544", "#BE185D", "#DC3B78", "#ED7EAA", "#F7BFD4", "#FCECF3"]
+      },
+      "blush": {
+        "role": "secondary",
+        "displayName": "Blush Veil",
+        "canonical": "#FCE7F3",
+        "tonalRamp": ["#3A1729", "#663047", "#92506B", "#BD7894", "#DFA8C0", "#F0C8DA", "#FCE7F3", "#FFF7FB"]
+      },
+      "petal-mist": {
+        "role": "secondary",
+        "displayName": "Petal Mist",
+        "canonical": "#FDF2F8",
+        "tonalRamp": ["#321C29", "#5E3B50", "#886378", "#B08D9F", "#D3B7C5", "#E9D6E0", "#FDF2F8", "#FFFAFC"]
+      },
+      "warm-paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "#FFFFFF",
+        "tonalRamp": ["#292426", "#4D4749", "#746C6F", "#9E9598", "#C8BEC1", "#E4DBDE", "#F4ECEF", "#FFFFFF"]
+      },
+      "porcelain": {
+        "role": "neutral",
+        "displayName": "Porcelain",
+        "canonical": "#FDF2F8",
+        "tonalRamp": ["#321C29", "#5E3B50", "#886378", "#B08D9F", "#D3B7C5", "#E9D6E0", "#FDF2F8", "#FFFFFF"]
+      },
+      "warm-ink": {
+        "role": "neutral",
+        "displayName": "Warm Ink",
+        "canonical": "#1F191C",
+        "tonalRamp": ["#1F191C", "#40373B", "#62585D", "#857B80", "#AAA1A5", "#CEC7CA", "#E9E4E6", "#FAF8F9"]
+      },
+      "warm-muted": {
+        "role": "neutral",
+        "displayName": "Warm Muted",
+        "canonical": "#787178",
+        "tonalRamp": ["#282326", "#494348", "#686168", "#878087", "#AAA4AA", "#CDC8CD", "#E8E4E8", "#F9F7F9"]
+      },
+      "petal-border": {
+        "role": "neutral",
+        "displayName": "Petal Border",
+        "canonical": "#FBCFE8",
+        "tonalRamp": ["#3A142A", "#662C49", "#914B6A", "#BC728F", "#DEA2BB", "#EFC2D5", "#FBCFE8", "#FFF5FA"]
+      },
+      "profile-dark-rose": {
+        "role": "neutral",
+        "displayName": "Profile Dark Rose Border",
+        "canonical": "#4B3440",
+        "tonalRamp": ["#4B3440", "rgba(236,72,153,0.08)", "rgba(236,72,153,0.15)"]
+      },
+      "media-scrims": {
+        "role": "neutral",
+        "displayName": "Media Scrims",
+        "canonical": "rgba(0,0,0,0.5)",
+        "tonalRamp": ["rgba(0,0,0,0.35)", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.5)", "rgba(0,0,0,0.55)", "rgba(20,10,15,.48)"]
+      },
+      "marketing-print-tints": {
+        "role": "secondary",
+        "displayName": "Marketing Print Tints",
+        "canonical": "#F4D8E5",
+        "tonalRamp": ["#F4D8E5", "#F7DCE8", "#F3DCE7", "rgba(240,140,185,0.055)"]
+      },
+      "whatsapp": {
+        "role": "tertiary",
+        "displayName": "WhatsApp Green",
+        "canonical": "#25D366",
+        "tonalRamp": ["#25D366"]
+      },
+      "midnight": {
+        "role": "neutral",
+        "displayName": "Midnight Canvas",
+        "canonical": "#070B14",
+        "tonalRamp": ["#070B14", "#121A2A", "#243149", "#46536B", "#727E94", "#A8B0C0", "#D9DDE5", "#F4F6F9"]
+      },
+      "midnight-surface": {
+        "role": "neutral",
+        "displayName": "Midnight Surface",
+        "canonical": "#0E141F",
+        "tonalRamp": ["#0E141F", "#1A2637", "#2F3D52", "#505F75", "#7B899E", "#AFB8C7", "#DCE1E8", "#F5F7FA"]
+      },
+      "midnight-raised": {
+        "role": "neutral",
+        "displayName": "Midnight Raised",
+        "canonical": "#161E2E",
+        "tonalRamp": ["#101621", "#263147", "#3C4A62", "#5C6A80", "#838FA1", "#B1B9C5", "#DDE1E7", "#F5F7F9"]
+      },
+      "midnight-border": {
+        "role": "neutral",
+        "displayName": "Midnight Border",
+        "canonical": "#232C3D",
+        "tonalRamp": ["#111720", "#232C3D", "#3B4659", "#5B6679", "#818B9B", "#ADB5C1", "#D9DDE3", "#F4F6F8"]
+      },
+      "dark-foreground": {
+        "role": "neutral",
+        "displayName": "Moonlight Text",
+        "canonical": "#F5F5F5",
+        "tonalRamp": ["#252525", "#494949", "#707070", "#989898", "#C0C0C0", "#DCDCDC", "#EEEEEE", "#F5F5F5"]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Success Green",
+        "canonical": "#16A34A",
+        "tonalRamp": ["#052D16", "#075C29", "#0B7C38", "#16A34A", "#4CC477", "#88DDA8", "#C6F1D6", "#EFFCF4"]
+      },
+      "destructive": {
+        "role": "tertiary",
+        "displayName": "Destructive Red",
+        "canonical": "#DC2626",
+        "tonalRamp": ["#420707", "#7A1010", "#A71818", "#DC2626", "#EB6565", "#F4A3A3", "#FAD4D4", "#FEF2F2"]
+      },
+      "celebration-gold": {
+        "role": "tertiary",
+        "displayName": "Celebration Gold",
+        "canonical": "#FACC15",
+        "tonalRamp": ["#3A2B02", "#6D5205", "#9B7608", "#C69A0D", "#FACC15", "#F9DC62", "#FBEBA8", "#FEF9DF"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Editorial Page Title", "purpose": "Playfair Bold 26/32 for public discovery titles and vendor identity only." },
+      "pageTitle": { "displayName": "Functional Page Title", "purpose": "Inter Bold 24/30 across Public, Vendor, and Admin task surfaces." },
+      "headline": { "displayName": "Section Heading", "purpose": "Inter Bold 20/26; Playfair at the same size only for intentional public editorial emphasis." },
+      "title": { "displayName": "Card Title", "purpose": "Inter Bold 16/21, with Playfair 18/23 reserved for media-led vendor identity." },
+      "body": { "displayName": "Interface Body", "purpose": "Inter Regular 13/20, or 12/18 in dense operational layouts." },
+      "metadata": { "displayName": "Metadata", "purpose": "Inter Regular 11/16 for dates, locations, counts, prices, and secondary facts." },
+      "label": { "displayName": "Compact Label", "purpose": "Inter Semibold 11/15 for fields, chips, badges, and compact controls." },
+      "button": { "displayName": "Button", "purpose": "Inter Bold 12/16 for actions." },
+      "tab": { "displayName": "Tab", "purpose": "Inter Semibold 12/17 for navigation and segmented controls." },
+      "caption": { "displayName": "Caption", "purpose": "Inter Medium 10/14; the minimum functional text size." },
+      "hierarchyRule": { "displayName": "Restrained Hierarchy", "purpose": "Prefer spacing, weight, color, and grouping before size; functional titles max at 24px and editorial titles at 26px." }
+    },
+    "shadows": [
+      { "name": "ambient-card", "value": "0 5px 12px rgba(99,55,74,0.08)", "purpose": "Gentle separation for media and listing cards." },
+      { "name": "quiet-dashboard-lift", "value": "0 8px 18px rgba(125,61,88,0.05)", "purpose": "Low lift for pink-tinted operational cards on white page canvases." },
+      { "name": "floating-chrome", "value": "0 4px 14px rgba(0,0,0,0.13)", "purpose": "Bottom navigation and transient floating UI." }
+    ],
+    "motion": [
+      { "name": "instant", "value": "120ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Press states, icon swaps, and badge changes." },
+      { "name": "fast", "value": "200ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Focus transitions, fades, and card entrances." },
+      { "name": "base", "value": "260ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Screen content and sheet entrances." },
+      { "name": "slow", "value": "320ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "Larger surfaces and branded loader transitions." },
+      { "name": "press-feedback", "value": "scale(0.98), opacity 0.92", "purpose": "Immediate tactile feedback without delaying navigation." }
+    ],
+    "breakpoints": [
+      { "name": "small-phone", "value": "360px" },
+      { "name": "normal-phone", "value": "480px" },
+      { "name": "small-tablet", "value": "768px" },
+      { "name": "large-tablet", "value": "900px" },
+      { "name": "desktop", "value": "1024px" },
+      { "name": "large-desktop", "value": "1440px" },
+      { "name": "ultrawide", "value": "1920px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The main action: Bridal Pink, white label, generous rounded shape, and restrained press feedback.",
+      "html": "<button class=\"ds-btn-primary\">SAVE CHANGES</button>",
+      "css": ".ds-btn-primary { min-height: 48px; padding: 0 18px; border: 0; border-radius: 16px; background: #E91E63; color: #FFFFFF; font: 700 12px/16px Inter, system-ui, sans-serif; transition: opacity 120ms ease, transform 120ms ease; } .ds-btn-primary:hover { background: #D81B60; } .ds-btn-primary:active { opacity: .9; transform: scale(.98); } .ds-btn-primary:focus-visible { outline: 3px solid rgba(233,30,99,.28); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A quiet action on blush with strong rose text and the same tactile geometry.",
+      "html": "<button class=\"ds-btn-secondary\">TRY AGAIN</button>",
+      "css": ".ds-btn-secondary { min-height: 44px; padding: 0 18px; border: 1px solid #FBCFE8; border-radius: 14px; background: #FCE7F3; color: #BE185D; font: 700 12px/16px Inter, system-ui, sans-serif; transition: opacity 120ms ease, transform 120ms ease; } .ds-btn-secondary:hover { background: #FBCFE8; } .ds-btn-secondary:active { opacity: .9; transform: scale(.98); } .ds-btn-secondary:focus-visible { outline: 3px solid rgba(233,30,99,.24); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Warm paper field with a petal border that resolves to Bridal Pink on focus.",
+      "html": "<label class=\"ds-field\"><span>BUSINESS NAME</span><input value=\"The Wedding Atelier\" /></label>",
+      "css": ".ds-field { display: grid; gap: 7px; color: #1F191C; font: 700 10px/1.4 Inter, system-ui, sans-serif; } .ds-field input { min-height: 49px; padding: 0 14px; border: 1px solid #FBCFE8; border-radius: 14px; background: #FFFBFC; color: #1F191C; font: 400 13px/1.5 Inter, system-ui, sans-serif; outline: none; transition: border-color 200ms ease, box-shadow 200ms ease; } .ds-field input:hover { border-color: #F3A7C8; } .ds-field input:focus-visible { border-color: #E91E63; box-shadow: 0 0 0 3px rgba(233,30,99,.12); }"
+    },
+    {
+      "name": "Selection Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Compact fully rounded metadata or filtering control; selected state becomes decisively pink.",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"true\">PHOTOGRAPHERS</button>",
+      "css": ".ds-chip { min-height: 32px; padding: 6px 10px; border: 1px solid #FBCFE8; border-radius: 999px; background: #E91E63; color: #FFFFFF; font: 700 10px/1.4 Inter, system-ui, sans-serif; transition: opacity 120ms ease, transform 120ms ease; } .ds-chip:hover { opacity: .92; } .ds-chip:active { transform: scale(.98); } .ds-chip:focus-visible { outline: 3px solid rgba(233,30,99,.24); outline-offset: 2px; }"
+    },
+    {
+      "name": "Editorial Vendor Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Image-first vendor discovery with serif identity, compact metadata, fine border, and ambient lift.",
+      "html": "<article class=\"ds-vendor-card\"><div class=\"ds-vendor-media\">WEDDING IMAGE</div><div class=\"ds-vendor-copy\"><strong>The Wedding Atelier</strong><span>Photographer · Pune</span></div></article>",
+      "css": ".ds-vendor-card { width: 300px; overflow: hidden; border: 1px solid #FBCFE8; border-radius: 16px; background: #FDF2F8; color: #1F191C; box-shadow: 0 5px 12px rgba(99,55,74,.08); transition: transform 200ms cubic-bezier(.22,1,.36,1), box-shadow 200ms ease; } .ds-vendor-card:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(99,55,74,.12); } .ds-vendor-card:focus-within { outline: 3px solid rgba(233,30,99,.2); outline-offset: 2px; } .ds-vendor-media { height: 160px; display: grid; place-items: center; background: linear-gradient(145deg,#FCE7F3,#FBCFE8); color: #BE185D; font: 700 10px Inter,system-ui,sans-serif; letter-spacing: .08em; } .ds-vendor-copy { display: grid; gap: 5px; padding: 14px; } .ds-vendor-copy strong { font: 700 18px/23px \"Playfair Display\",serif; } .ds-vendor-copy span { color: #787178; font: 400 11px/15px Inter,system-ui,sans-serif; }"
+    },
+    {
+      "name": "Operational Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A denser vendor/admin surface with Inter hierarchy, a fine border, and quiet depth.",
+      "html": "<section class=\"ds-ops-card\"><span>PROFILE READINESS</span><strong>Complete your business details</strong><p>Keep your public listing accurate and ready for couples.</p></section>",
+      "css": ".ds-ops-card { width: 320px; padding: 16px; border: 1px solid #FBCFE8; border-radius: 24px; background: #FDF2F8; color: #1F191C; box-shadow: 0 8px 18px rgba(125,61,88,.05); font-family: Inter,system-ui,sans-serif; transition: transform 200ms cubic-bezier(.22,1,.36,1); } .ds-ops-card:hover { transform: translateY(-1px); } .ds-ops-card:focus-within { outline: 3px solid rgba(233,30,99,.2); outline-offset: 2px; } .ds-ops-card span { color: #BE185D; font-size: 10px; line-height: 14px; font-weight: 700; letter-spacing: .12em; } .ds-ops-card strong { display: block; margin-top: 8px; font-size: 16px; line-height: 21px; } .ds-ops-card p { margin: 6px 0 0; color: #787178; font-size: 12px; line-height: 17px; }"
+    },
+    {
+      "name": "Mobile Navigation",
+      "kind": "nav",
+      "description": "Rounded icon-led customer navigation with a pink selected state and elevated center destination.",
+      "html": "<nav class=\"ds-mobile-nav\" aria-label=\"Primary\"><a href=\"#\" aria-current=\"page\">HOME</a><a href=\"#\">CATEGORIES</a><a class=\"ds-nav-center\" href=\"#\">DISCOVER</a><a href=\"#\">FAVORITES</a><a href=\"#\">PROFILE</a></nav>",
+      "css": ".ds-mobile-nav { display: flex; align-items: center; justify-content: space-around; width: 360px; min-height: 68px; padding: 8px 10px; border: 1px solid #FBCFE8; border-radius: 24px 24px 0 0; background: #FFFFFF; box-shadow: 0 4px 14px rgba(0,0,0,.13); } .ds-mobile-nav a { min-width: 52px; padding: 10px 5px; border-radius: 14px; color: #787178; text-align: center; text-decoration: none; font: 700 10px/14px Inter,system-ui,sans-serif; transition: color 200ms ease, background 200ms ease, transform 120ms ease; } .ds-mobile-nav a:hover { color: #BE185D; background: #FDF2F8; } .ds-mobile-nav a:active { transform: scale(.96); } .ds-mobile-nav a:focus-visible { outline: 3px solid rgba(233,30,99,.24); outline-offset: 1px; } .ds-mobile-nav a[aria-current=page] { color: #E91E63; } .ds-mobile-nav .ds-nav-center { margin-top: -24px; padding: 17px 7px; border-radius: 999px; background: #E91E63; color: #FFFFFF; box-shadow: 0 5px 11px rgba(233,30,99,.3); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Modern Wedding Editorial",
+    "overview": "RoyalLagn pairs the romance and visual confidence of a contemporary wedding publication with the clarity of a trusted marketplace. Photography and video lead on discovery surfaces; blush framing, precise pink accents, and selective Playfair Display typography give that media an unmistakably wedding-focused setting without competing with it. Operational surfaces for vendors and administrators are denser and primarily Inter-led. They retain the same warm palette, rounded geometry, and tactile feedback, but reduce decoration so profiles, enquiries, billing, moderation, and CRM work remain fast to scan. The public, vendor, and admin experiences are related members of one family, not identical skins. Depth is softly layered: clean white or midnight page canvases support pink-tinted cards, tonal inset surfaces, and restrained ambient shadows. Controls feel refined and tactile through clear states and short press responses rather than ornamental animation.",
+    "keyCharacteristics": [
+      "Media-forward public discovery with an editorial serif accent.",
+      "Bridal pink used as a deliberate action and selection signal.",
+      "Warm blush neutrals in light mode and midnight blue-black surfaces in dark mode.",
+      "Rounded, approachable silhouettes with fine borders and restrained elevation.",
+      "Compact operational density for vendor and admin workflows.",
+      "Brief, reduced-motion-aware interaction feedback."
+    ],
+    "rules": [
+      { "name": "The Pink Signal Rule", "body": "Bridal Pink identifies actions, selection, focus, and meaningful brand moments; avoid washing entire screens in saturated pink.", "section": "colors" },
+      { "name": "The Media Leads Rule", "body": "On discovery surfaces, photographs and video carry the emotional color. UI colors frame the media rather than compete with it.", "section": "colors" },
+      { "name": "The Editorial Accent Rule", "body": "Use Playfair selectively on public discovery and vendor storytelling; use Inter for transactional and operational clarity. Never set dense forms or dashboards primarily in the serif.", "section": "typography" },
+      { "name": "The Soft Layer Rule", "body": "Establish hierarchy with canvas, surface, border, and inset tint first; add a shadow only when a surface must visibly float.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do preserve the semantic light/dark palette and use Bridal Pink as a meaningful signal.",
+      "Do let wedding photography and Clips provide the emotional richness on public surfaces.",
+      "Do use Playfair for selective editorial emphasis and Inter for UI clarity.",
+      "Do keep public, vendor, and admin surfaces visibly related while respecting their different densities and jobs.",
+      "Do use fine borders, tonal layers, and brief tactile states before adding stronger shadows or motion.",
+      "Do preserve minimum touch targets, safe areas, keyboard behavior, accessibility state, and reduced-motion behavior."
+    ],
+    "donts": [
+      "Don't introduce generic Material blue, cool gray defaults, or an unrelated component-library theme.",
+      "Don't make every surface pink; saturated pink loses authority when it becomes background noise.",
+      "Don't flatten vendor/admin tools into decorative consumer cards or make public discovery feel like a back-office dashboard.",
+      "Don't use Playfair for dense forms, metadata, tables, or small operational labels.",
+      "Don't introduce bouncy, long-distance, looping, or navigation-blocking motion.",
+      "Don't replace the rounded editorial identity with sharp enterprise geometry or excessively pill-shaped containers."
+    ]
+  }
+}

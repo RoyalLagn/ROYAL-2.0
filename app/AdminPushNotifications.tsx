@@ -29,6 +29,7 @@ import {
   type PushAudience,
   type PushCampaign,
 } from "@/types/pushNotifications";
+import { typeScale } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -304,7 +305,7 @@ export default function AdminPushNotifications() {
               </View>
             </View>
 
-            <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+            <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
               Audience
             </Text>
             <View className="gap-2 mb-4">
@@ -343,7 +344,7 @@ export default function AdminPushNotifications() {
                     </View>
                     <View className="flex-1">
                       <Text className="text-foreground text-sm font-semibold">{option.label}</Text>
-                      <Text className="text-muted-foreground text-[10px]">{option.hint}</Text>
+                      <Text className="text-muted-foreground text-metadata">{option.hint}</Text>
                     </View>
                   </Pressable>
                 );
@@ -352,7 +353,7 @@ export default function AdminPushNotifications() {
 
             {draft.audience === "vendor" ? (
               <View className="mb-4">
-                <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+                <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
                   Vendor Category
                 </Text>
                 <Pressable
@@ -427,7 +428,7 @@ export default function AdminPushNotifications() {
                   </View>
                 ) : null}
 
-                <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+                <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
                   Find vendor
                 </Text>
                 <TextInput
@@ -517,7 +518,7 @@ export default function AdminPushNotifications() {
                             <Text className="text-foreground text-sm font-semibold" numberOfLines={1}>
                               {name}
                             </Text>
-                            <Text className="text-muted-foreground text-[10px]" numberOfLines={1}>
+                            <Text className="text-muted-foreground text-metadata" numberOfLines={1}>
                               {vendorSecondaryLine(vendor)}
                             </Text>
                           </Pressable>
@@ -529,7 +530,7 @@ export default function AdminPushNotifications() {
               </View>
             ) : null}
 
-            <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+            <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
               Title
             </Text>
             <TextInput
@@ -540,7 +541,7 @@ export default function AdminPushNotifications() {
               className="min-h-12 px-4 rounded-2xl border border-border bg-background text-foreground text-sm mb-4"
             />
 
-            <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+            <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
               Message
             </Text>
             <TextInput
@@ -553,7 +554,7 @@ export default function AdminPushNotifications() {
               className="min-h-28 px-4 py-3 rounded-2xl border border-border bg-background text-foreground text-sm mb-4"
             />
 
-            <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+            <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
               Destination
             </Text>
             <View className="flex-row flex-wrap gap-2 mb-3">
@@ -656,7 +657,7 @@ export default function AdminPushNotifications() {
             </Pressable>
           </View>
 
-          <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+          <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
             Send history
           </Text>
           {loading ? (
@@ -680,23 +681,23 @@ export default function AdminPushNotifications() {
                       </Text>
                     </View>
                     <View className="px-2 py-1 rounded-full" style={{ backgroundColor: `${statusColor(campaign.status)}22` }}>
-                      <Text style={{ color: statusColor(campaign.status), fontSize: 10, fontWeight: "700" }}>
+                      <Text style={{ color: statusColor(campaign.status), fontSize: typeScale.caption, fontWeight: "700" }}>
                         {campaign.status.toUpperCase()}
                       </Text>
                     </View>
                   </View>
-                  <Text className="text-muted-foreground text-[10px] mt-3">
+                  <Text className="text-muted-foreground text-metadata mt-3">
                     Audience: {campaign.audience}
                     {campaign.target_path ? ` · ${campaign.target_path}` : ""}
                   </Text>
-                  <Text className="text-muted-foreground text-[10px] mt-1">
+                  <Text className="text-muted-foreground text-metadata mt-1">
                     Inbox {campaign.inbox_count} · Sent {campaign.sent_count} · Failed {campaign.failed_count}
                   </Text>
-                  <Text className="text-muted-foreground text-[10px] mt-1">
+                  <Text className="text-muted-foreground text-metadata mt-1">
                     {formatWhen(campaign.created_at)}
                   </Text>
                   {campaign.error_summary ? (
-                    <Text className="text-red-500 text-[10px] mt-2">{campaign.error_summary}</Text>
+                    <Text className="text-red-500 text-metadata mt-2">{campaign.error_summary}</Text>
                   ) : null}
                 </View>
               ))}

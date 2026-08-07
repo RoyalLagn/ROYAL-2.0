@@ -267,7 +267,7 @@ export default function TabsWebLayout() {
                 <Bell size={20} className="text-foreground/75" />
                 {unreadCount > 0 ? (
                   <View className="absolute top-1.5 right-1.5 min-w-[15px] h-[15px] rounded-full bg-primary border-2 border-card items-center justify-center px-0.5">
-                    <Text className="text-white text-[7px] font-bold">
+                    <Text className="text-white text-caption font-bold">
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </Text>
                   </View>

@@ -116,7 +116,7 @@ export default function OtpVerificationScreen() {
       }
       footer={
         <AuthLinkButton onPress={() => void resend()} disabled={countdown > 0 || resending}>
-          <Text className="text-primary font-semibold text-[13px]">
+          <Text className="text-primary font-semibold text-body">
             {resending ? "Sending…" : countdown > 0 ? `Resend code in ${countdown}s` : "Resend code"}
           </Text>
         </AuthLinkButton>

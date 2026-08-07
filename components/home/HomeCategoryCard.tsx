@@ -1,25 +1,11 @@
 import React from "react";
-import {
-  type ImageURISource,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  type TextStyle,
-  type ViewStyle,
-  View,
-} from "react-native";
-import { MoreHorizontal } from "lucide-react-native";
+import { type ImageURISource, Platform, Pressable, StyleSheet, Text, type TextStyle, type ViewStyle, View, } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+  useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, } from "react-native-reanimated";
 import SafeImage from "@/components/SafeImage";
 import { brandColors } from "@/constants/brandPalette";
-import { fonts } from "@/constants/typography";
+import { fonts, typeScale, typeLeading } from "@/constants/typography";
 
 type HomeCategoryCardProps = {
   name: string;
@@ -27,7 +13,6 @@ type HomeCategoryCardProps = {
   itemWidth: number;
   cardWidth: number;
   dark: boolean;
-  more?: boolean;
   onPress: () => void;
 };
 
@@ -48,7 +33,6 @@ function HomeCategoryCard({
   itemWidth,
   cardWidth,
   dark,
-  more = false,
   onPress,
 }: HomeCategoryCardProps) {
   const reducedMotion = useReducedMotion();
@@ -86,7 +70,7 @@ function HomeCategoryCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={more ? "Show more categories" : `Browse ${name}`}
+      accessibilityLabel={`Browse ${name}`}
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
@@ -111,21 +95,11 @@ function HomeCategoryCard({
               styles.imageShell,
               {
                 borderRadius: innerRadius,
-                backgroundColor: more
-                  ? (dark ? "#311E28" : colors.muted)
-                  : (dark ? "#17131A" : colors.card),
+                backgroundColor: dark ? "#17131A" : colors.card,
               },
             ]}
           >
-            {more ? (
-              <View style={styles.moreIcon}>
-                <MoreHorizontal
-                  size={Math.max(20, Math.round(cardWidth * 0.38))}
-                  color={colors.primary}
-                  strokeWidth={2}
-                />
-              </View>
-            ) : image ? (
+            {image ? (
               <SafeImage
                 accessibilityLabel={`${name} category`}
                 source={image}
@@ -240,11 +214,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  moreIcon: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   sparkle: {
     position: "absolute",
     zIndex: 2,
@@ -257,15 +226,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 1,
     fontFamily: fonts.sans.bold,
-    fontSize: 10,
-    lineHeight: 12.5,
+    fontSize: typeScale.caption,
+    lineHeight: typeLeading.caption,
     letterSpacing: -0.16,
     textAlign: "center",
     includeFontPadding: false,
   },
   labelNarrow: {
-    fontSize: 9.4,
-    lineHeight: 12,
+    fontSize: typeScale.caption,
+    lineHeight: typeLeading.caption,
   },
-  singleWordLabel: { fontSize: 8.8, letterSpacing: -0.32 },
+  singleWordLabel: { fontSize: typeScale.caption, letterSpacing: -0.32 },
 });

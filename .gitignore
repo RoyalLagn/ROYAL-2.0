@@ -34,3 +34,7 @@ dist/
 .expo-web.log
 .expo-web.stdout.log
 .expo-web.stderr.log
+
+# Impeccable local session state
+.impeccable/hook.cache.json
+.impeccable/config.local.json

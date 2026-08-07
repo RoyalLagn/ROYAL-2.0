@@ -8,11 +8,16 @@ import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorks
 import {
   CloudinaryError,
   deleteManagedProfileImage,
-  pickAndUploadProfileImage,
+  pickProfileImage,
+  uploadProfileImage,
+  type ProfileImageAsset,
 } from "@/services/cloudinary";
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { typeScale } from "@/constants/typography";
+import SquareImageEditor from "@/components/vendor/SquareImageEditor";
+import { brandPalette } from "@/constants/brandPalette";
 
 // Logo and brand: the vendor's logo image, the only brand-media field on
 // the vendor record itself (portfolio photos/videos and Clips each have
@@ -27,6 +32,7 @@ export default function VendorEditBrand() {
   const [logoUrl, setLogoUrl] = useState("");
   const [persistedLogoUrl, setPersistedLogoUrl] = useState("");
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoEditorAsset, setLogoEditorAsset] = useState<ProfileImageAsset | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -44,14 +50,27 @@ export default function VendorEditBrand() {
     if (uploadingLogo || !data.vendor?.id) return;
     setUploadingLogo(true);
     try {
-      const url = await pickAndUploadProfileImage({ kind: "vendor", vendorId: data.vendor.id });
-      if (url) {
-        setSaved(false);
-        setSaveError("");
-        setLogoUrl(url);
-      }
+      const asset = await pickProfileImage();
+      if (asset) setLogoEditorAsset(asset);
     } catch (uploadError) {
-      Alert.alert("Logo not uploaded", uploadError instanceof CloudinaryError ? uploadError.message : "Unable to upload the selected image.");
+      Alert.alert("Logo not selected", uploadError instanceof CloudinaryError ? uploadError.message : "Unable to open the selected image.");
+    } finally {
+      if (mounted.current) setUploadingLogo(false);
+    }
+  };
+
+  const saveEditedLogo = async (asset: ProfileImageAsset) => {
+    if (!data.vendor?.id) return;
+    setUploadingLogo(true);
+    try {
+      const url = await uploadProfileImage({ kind: "vendor", vendorId: data.vendor.id }, asset);
+      if (!mounted.current) return;
+      setSaved(false);
+      setSaveError("");
+      setLogoUrl(url);
+      setLogoEditorAsset(null);
+    } catch (uploadError) {
+      Alert.alert("Logo not uploaded", uploadError instanceof CloudinaryError ? uploadError.message : "Unable to upload the edited logo.");
     } finally {
       if (mounted.current) setUploadingLogo(false);
     }
@@ -110,15 +129,15 @@ export default function VendorEditBrand() {
 
         <VendorWorkspaceGate colors={colors} loading={loading} vendor={data.vendor} error={error} onRetry={() => void refresh()}>
           <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <SectionTitle icon={Palette} title="Business logo" detail="Shown on your public profile, search results and shared links." colors={colors} />
+            <SectionTitle icon={Palette} title="Business logo" detail="Square 1024 × 1024 logo shown on your public profile, search results and shared links." colors={colors} />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Upload business logo"
               disabled={uploadingLogo}
               onPress={uploadLogo}
-              style={[styles.logoPicker, { backgroundColor: colors.surfaceSoft, borderColor: colors.border }]}
+              style={[styles.logoPicker, { backgroundColor: brandPalette.light.background, borderColor: colors.border }]}
             >
-              {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.logoImage} /> : null}
+              {logoUrl ? <Image source={{ uri: logoUrl }} resizeMode="contain" style={styles.logoImage} /> : null}
               <View style={[styles.logoOverlay, Boolean(logoUrl) && styles.logoOverlayFloating]}>
                 {uploadingLogo ? <ActivityIndicator color={colors.pink} /> : <ImagePlus size={21} color={logoUrl ? "#FFF" : colors.pink} />}
                 {!logoUrl ? <Text style={[styles.logoText, { color: colors.text }]}>Add logo</Text> : null}
@@ -137,6 +156,13 @@ export default function VendorEditBrand() {
           />
         </VendorWorkspaceGate>
       </ScrollView>
+      <SquareImageEditor
+        asset={logoEditorAsset}
+        busy={uploadingLogo}
+        kind="logo"
+        onCancel={() => setLogoEditorAsset(null)}
+        onSave={saveEditedLogo}
+      />
     </View>
   );
 }
@@ -145,6 +171,6 @@ const styles = StyleSheet.create({
   logoPicker: { width: 140, height: 140, borderRadius: 24, borderWidth: 1, borderStyle: "dashed", alignItems: "center", justifyContent: "center", overflow: "hidden", alignSelf: "center" },
   logoImage: { width: "100%", height: "100%" },
   logoOverlay: { alignItems: "center", gap: 6 },
-  logoOverlayFloating: { position: "absolute", right: 8, bottom: 8, width: 40, height: 40, borderRadius: 13, backgroundColor: "rgba(20,12,16,.72)", justifyContent: "center" },
-  logoText: { fontSize: 10, fontWeight: "800" },
+  logoOverlayFloating: { position: "absolute", right: 8, bottom: 8, width: 40, height: 40, borderRadius: 13, backgroundColor: brandPalette.light.overlayInk, justifyContent: "center" },
+  logoText: { fontSize: typeScale.caption, fontWeight: "700" },
 });

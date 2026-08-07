@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ChevronDown } from "lucide-react-native";
 import type { VendorFaq } from "@/services/publicVendorListings";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 export default function FaqSection({ faqs, dark }: { faqs: VendorFaq[]; dark: boolean }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -34,6 +35,6 @@ export default function FaqSection({ faqs, dark }: { faqs: VendorFaq[]; dark: bo
 const styles = StyleSheet.create({
   item: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 10 },
   question: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
-  questionText: { flex: 1, fontSize: 13, fontWeight: "700" },
-  answerText: { fontSize: 13, lineHeight: 19, marginTop: 8 },
+  questionText: { flex: 1, fontSize: typeScale.body, fontWeight: "700" },
+  answerText: { fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, marginTop: 8 },
 });

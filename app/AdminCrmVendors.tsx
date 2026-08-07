@@ -244,15 +244,15 @@ export default function AdminCrmVendors() {
             <View className="flex-row gap-2">
               <Pressable onPress={() => setBulkStatusOpen(true)} className="flex-1 h-11 rounded-2xl bg-primary/10 items-center justify-center flex-row">
                 <RefreshCcw size={14} className="text-primary" />
-                <Text className="text-primary text-[11px] font-bold ml-1.5">Status</Text>
+                <Text className="text-primary text-metadata font-bold ml-1.5">Status</Text>
               </Pressable>
               <Pressable onPress={() => setBulkAssignOpen(true)} className="flex-1 h-11 rounded-2xl bg-primary/10 items-center justify-center flex-row">
                 <UserCog size={14} className="text-primary" />
-                <Text className="text-primary text-[11px] font-bold ml-1.5">Assign</Text>
+                <Text className="text-primary text-metadata font-bold ml-1.5">Assign</Text>
               </Pressable>
               <Pressable onPress={() => setBulkDeleteOpen(true)} className="flex-1 h-11 rounded-2xl items-center justify-center flex-row" style={{ backgroundColor: "#FEE2E2" }}>
                 <Trash2 size={14} color="#DC3545" />
-                <Text className="text-[11px] font-bold ml-1.5" style={{ color: "#DC3545" }}>Delete</Text>
+                <Text className="text-metadata font-bold ml-1.5" style={{ color: "#DC3545" }}>Delete</Text>
               </Pressable>
             </View>
           </ResponsiveContainer>

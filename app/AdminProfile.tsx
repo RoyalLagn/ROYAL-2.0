@@ -82,7 +82,7 @@ export default function AdminProfile() {
             <Text className="text-muted-foreground text-xs mt-1">
               {identity?.profile.email || identity?.user.email}
             </Text>
-            <Text className="text-primary text-[10px] font-bold uppercase tracking-wider mt-2">
+            <Text className="text-primary text-metadata font-bold uppercase tracking-wider mt-2">
               {(identity?.profile.role || "admin").replace("_", " ")}
             </Text>
           </View>
@@ -101,7 +101,7 @@ export default function AdminProfile() {
             <View className="mt-5">
               {adminNavigationGroups.map((group) => (
                 <View key={group.label} className="mb-4">
-                  <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+                  <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
                     {group.label}
                   </Text>
                   <View className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -149,7 +149,7 @@ export default function AdminProfile() {
             </Text>
           </Pressable>
 
-          <Text className="text-muted-foreground text-[10px] text-center mt-6">
+          <Text className="text-muted-foreground text-metadata text-center mt-6">
             RoyalLagn Admin
           </Text>
         </ResponsiveContainer>

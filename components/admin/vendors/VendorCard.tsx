@@ -7,6 +7,7 @@ import { ResponsiveCard } from "@/components/responsive/ResponsiveCard";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import { KPIChip } from "@/components/admin/ui/KPIChip";
 import { normalizeWhatsAppPhone } from "@/services/contactActions";
+import { typeScale } from "@/constants/typography";
 
 const PHONE_UNAVAILABLE_MESSAGE = "Phone number not available.";
 
@@ -42,7 +43,7 @@ export const VendorCard = React.memo(function VendorCard({
           {selected ? <View className="w-6 h-6 rounded-md bg-primary items-center justify-center"><Check size={15} color="#FFF" /></View> : <Square size={23} className="text-muted-foreground" />}
         </Pressable>
         {item.logo_url
-          ? <Image source={{ uri: item.logo_url }} className="w-14 h-14 rounded-2xl bg-muted" resizeMode="cover" />
+          ? <Image source={{ uri: item.logo_url }} className="w-14 h-14 rounded-2xl bg-white" resizeMode="contain" />
           : <View className="w-14 h-14 rounded-2xl bg-primary/10 items-center justify-center"><Text className="text-primary font-bold">{item.business_name.slice(0, 2).toUpperCase()}</Text></View>}
         <Pressable className="flex-1 min-w-0 ml-3" onPress={onView}>
           <Text className="text-foreground font-bold" numberOfLines={1}>{item.business_name}</Text>
@@ -82,7 +83,7 @@ export const VendorCard = React.memo(function VendorCard({
         <View className="flex-row items-center">
           <CategoryBadge
             name={item.category_name || "Uncategorized"}
-            style={{ color: "#787178", fontSize: 12 }}
+            style={{ color: "#787178", fontSize: typeScale.bodyCompact }}
           />
           <Text className="text-muted-foreground text-xs" numberOfLines={1}>
             {" "}· {item.city}, {item.state}
@@ -98,14 +99,14 @@ export const VendorCard = React.memo(function VendorCard({
           <KPIChip label="Rating" value={health.rating.toFixed(1)} />
         </View>
         <View className="flex-row justify-between mt-3">
-          <Text className="text-muted-foreground text-[10px]">Profile {health.completeness}% · {health.healthLabel}</Text>
-          {health.missing.length ? <Text className="text-amber-500 text-[10px]" numberOfLines={1}>Missing: {health.missing.slice(0, 2).join(", ")}</Text> : null}
+          <Text className="text-muted-foreground text-metadata">Profile {health.completeness}% · {health.healthLabel}</Text>
+          {health.missing.length ? <Text className="text-amber-500 text-metadata" numberOfLines={1}>Missing: {health.missing.slice(0, 2).join(", ")}</Text> : null}
         </View>
         <View className="h-1.5 rounded-full bg-muted overflow-hidden mt-1"><View className={`h-full rounded-full ${health.completeness >= 80 ? "bg-emerald-500" : health.completeness >= 50 ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${health.completeness}%` }} /></View>
       </View> : null}
       <View className="border-t border-border mt-3 pt-3 flex-row justify-between">
-        <Text className="text-muted-foreground text-[10px]">Registered {new Date(item.registered_at).toLocaleDateString()}</Text>
-        <Text className="text-muted-foreground text-[10px]">Updated {new Date(item.updated_at).toLocaleDateString()}</Text>
+        <Text className="text-muted-foreground text-metadata">Registered {new Date(item.registered_at).toLocaleDateString()}</Text>
+        <Text className="text-muted-foreground text-metadata">Updated {new Date(item.updated_at).toLocaleDateString()}</Text>
       </View>
     </ResponsiveCard>
   );
@@ -119,5 +120,5 @@ function Badge({ text, tone }: { text: string; tone: "success" | "warning" | "da
     neutral: "bg-muted text-muted-foreground",
     premium: "bg-primary/10 text-primary",
   };
-  return <View className={`px-2 py-1 rounded-full ${colors[tone]}`}><Text className={`text-[10px] font-semibold capitalize ${colors[tone].split(" ")[1]}`}>{text}</Text></View>;
+  return <View className={`px-2 py-1 rounded-full ${colors[tone]}`}><Text className={`text-metadata font-semibold capitalize ${colors[tone].split(" ")[1]}`}>{text}</Text></View>;
 }

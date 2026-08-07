@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/ThemeProvider";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { useVendorNotifications } from "@/context/VendorNotificationContext";
+import { typeStyles } from "@/constants/typography";
 import { vendorTheme } from "./VendorTheme";
 
 const desktopNav = [
@@ -146,13 +147,13 @@ const styles = StyleSheet.create({
   desktopBrand: { width: 182, height: 56, alignItems: "flex-start", justifyContent: "center" },
   desktopNav: { flex: 1, height: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 2 },
   desktopNavItem: { position: "relative", height: "100%", minWidth: 92, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
-  desktopNavText: { fontSize: 13, lineHeight: 18, fontWeight: "600" },
-  desktopNavTextActive: { fontWeight: "800" },
+  desktopNavText: { ...typeStyles.tab },
+  desktopNavTextActive: { fontFamily: typeStyles.button.fontFamily },
   desktopActiveLine: { position: "absolute", left: 12, right: 12, bottom: 0, height: 3, borderTopLeftRadius: 3, borderTopRightRadius: 3 },
   desktopActions: { width: 182, flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 8 },
   desktopIconButton: { position: "relative", width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   iconButton: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.88 },
   badge: { position: "absolute", top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  badgeText: { color: "#FFF", fontSize: 9, lineHeight: 12, fontWeight: "800" },
+  badgeText: { color: "#FFF", ...typeStyles.caption },
 });

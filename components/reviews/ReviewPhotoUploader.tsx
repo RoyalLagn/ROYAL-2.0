@@ -2,6 +2,7 @@ import React from "react";
 import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Camera, X } from "lucide-react-native";
 import { reviewPalette } from "./types";
+import { typeScale } from "@/constants/typography";
 
 export type ReviewPhotoUploaderProps = { photos: string[]; dark?: boolean; disabled?: boolean; maxPhotos?: number; onAdd: () => void; onRemove: (uri: string, index: number) => void };
 export default function ReviewPhotoUploader({ photos, dark = false, disabled = false, maxPhotos = 6, onAdd, onRemove }: ReviewPhotoUploaderProps) {
@@ -21,9 +22,9 @@ export default function ReviewPhotoUploader({ photos, dark = false, disabled = f
   </View>;
 }
 const styles = StyleSheet.create({
-  wrap: { gap: 8 }, label: { fontSize: 13, fontWeight: "600" }, row: { gap: 9 },
+  wrap: { gap: 8 }, label: { fontSize: typeScale.body, fontWeight: "600" }, row: { gap: 9 },
   photoWrap: { width: 78, height: 78, borderRadius: 13, borderWidth: 1, overflow: "hidden" }, photo: { width: "100%", height: "100%" },
   remove: { position: "absolute", top: 4, right: 4, width: 24, height: 24, borderRadius: 12, backgroundColor: "rgba(24,15,19,.72)", alignItems: "center", justifyContent: "center" },
   add: { width: 92, height: 78, borderRadius: 13, borderWidth: 1, borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 5 },
-  addText: { fontSize: 11, fontWeight: "600" }, hint: { fontSize: 11 }, pressed: { opacity: .8 }, hovered: { transform: [{ translateY: -1 }] },
+  addText: { fontSize: typeScale.metadata, fontWeight: "600" }, hint: { fontSize: typeScale.metadata }, pressed: { opacity: .8 }, hovered: { transform: [{ translateY: -1 }] },
 });

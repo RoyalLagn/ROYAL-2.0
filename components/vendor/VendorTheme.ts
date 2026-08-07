@@ -1,8 +1,8 @@
 export const vendorTheme = {
   light: {
-    background: "#FFF9FB", surface: "#FFFFFF", surfaceSoft: "#FFF0F5",
-    text: "#191418", muted: "#776A71", border: "#F0DDE5", pink: "#E91E63",
-    success: "#168A5B", warning: "#B76A00", shadow: "#7D3D58",
+    background: "#FFFFFF", surface: "#FDF2F8", surfaceSoft: "#FFF0F5",
+    text: "#191418", muted: "#787178", border: "#FBCFE8", pink: "#E91E63",
+    success: "#16A34A", warning: "#B76A00", shadow: "#7D3D58",
   },
   dark: {
     background: "#171417", surface: "#211D20", surfaceSoft: "#2A2025",

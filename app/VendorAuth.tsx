@@ -133,7 +133,7 @@ export default function VendorAuthScreen() {
           onPress={() => { setTab(tab === "login" ? "signup" : "login"); setError(""); }}
           disabled={loading}
         >
-          <Text className="text-muted-foreground text-[13px]">
+          <Text className="text-muted-foreground text-body">
             {tab === "login" ? "New vendor? " : "Already registered? "}
             <Text className="text-primary font-bold">{tab === "login" ? "Sign Up" : "Login"}</Text>
           </Text>
@@ -226,7 +226,7 @@ export default function VendorAuthScreen() {
               onSubmitEditing={() => void login()}
             />
             <AuthLinkButton align="end" onPress={() => router.replace("/VendorForgotPassword")} disabled={loading}>
-              <Text className="text-primary font-semibold text-[13px]">Forgot password?</Text>
+              <Text className="text-primary font-semibold text-body">Forgot password?</Text>
             </AuthLinkButton>
           </>
         ) : null}

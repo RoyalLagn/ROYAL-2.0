@@ -1,29 +1,15 @@
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  type TextInputProps,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, type TextInputProps, View, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Camera, Check, Mail, Phone, Save, UserRound } from "lucide-react-native";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import {
-  CloudinaryError,
-  deleteManagedProfileImage,
-  pickAndUploadProfileImage,
-} from "@/services/cloudinary";
+  CloudinaryError, deleteManagedProfileImage, pickProfileImage, uploadProfileImage, type ProfileImageAsset, } from "@/services/cloudinary";
 import { getPublicAuthError, updatePublicProfile } from "@/services/publicAuth";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import SquareImageEditor from "@/components/vendor/SquareImageEditor";
 
 export default function EditProfile() {
   const router = useRouter();
@@ -33,11 +19,12 @@ export default function EditProfile() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [photoEditorAsset, setPhotoEditorAsset] = useState<ProfileImageAsset | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const surface = dark ? "#211D20" : "#FFFFFF";
-  const background = dark ? "#171417" : "#FFF9FB";
+  const background = dark ? "#171417" : "#FFFFFF";
   const soft = dark ? "#2A2025" : "#FFF0F5";
   const border = dark ? "#3D3036" : "#F0DDE5";
   const text = dark ? "#FFF8FB" : "#191418";
@@ -58,24 +45,36 @@ export default function EditProfile() {
     if (uploading || !session?.user.id) return;
     setUploading(true);
     try {
-      const previousUrl = profileImage;
-      const url = await pickAndUploadProfileImage({ kind: "customer" });
-      if (url) {
-        try {
-          await updatePublicProfile(session.user.id, { profileImage: url });
-        } catch (error) {
-          await deleteManagedProfileImage({ kind: "customer" }, url).catch(() => undefined);
-          throw error;
-        }
-        setProfileImage(url);
-        await refreshProfile();
-        if (previousUrl && previousUrl !== url) {
-          await deleteManagedProfileImage({ kind: "customer" }, previousUrl).catch(() => {
-            Alert.alert("Photo updated", "Your new photo is saved, but the previous image could not be cleaned up yet.");
-          });
-        }
-        setSaved(false);
+      const asset = await pickProfileImage();
+      if (asset) setPhotoEditorAsset(asset);
+    } catch (error) {
+      Alert.alert("Photo not selected", error instanceof CloudinaryError ? error.message : "Unable to open this photo.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const saveEditedPhoto = async (asset: ProfileImageAsset) => {
+    if (!session?.user.id) return;
+    setUploading(true);
+    const previousUrl = profileImage;
+    try {
+      const url = await uploadProfileImage({ kind: "customer" }, asset);
+      try {
+        await updatePublicProfile(session.user.id, { profileImage: url });
+      } catch (error) {
+        await deleteManagedProfileImage({ kind: "customer" }, url).catch(() => undefined);
+        throw error;
       }
+      setProfileImage(url);
+      setPhotoEditorAsset(null);
+      await refreshProfile();
+      if (previousUrl && previousUrl !== url) {
+        await deleteManagedProfileImage({ kind: "customer" }, previousUrl).catch(() => {
+          Alert.alert("Photo updated", "Your new photo is saved, but the previous image could not be cleaned up yet.");
+        });
+      }
+      setSaved(false);
     } catch (error) {
       Alert.alert("Photo not uploaded", error instanceof CloudinaryError ? error.message : "Unable to upload this photo.");
     } finally {
@@ -203,7 +202,7 @@ export default function EditProfile() {
 
         <View style={[styles.saveBar, { backgroundColor: surface, borderColor: border }]}>
           <View style={styles.status}>
-            {saved ? <><Check size={16} color="#168A5B" /><Text style={styles.savedText}>Profile updated</Text></> : <Text style={[styles.saveHint, { color: muted }]}>Saved changes update your account everywhere.</Text>}
+            {saved ? <><Check size={16} color="#16A34A" /><Text style={styles.savedText}>Profile updated</Text></> : <Text style={[styles.saveHint, { color: muted }]}>Saved changes update your account everywhere.</Text>}
           </View>
           <Pressable
             accessibilityRole="button"
@@ -218,6 +217,13 @@ export default function EditProfile() {
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
+      <SquareImageEditor
+        kind="profile"
+        asset={photoEditorAsset}
+        busy={uploading}
+        onCancel={() => setPhotoEditorAsset(null)}
+        onSave={saveEditedPhoto}
+      />
     </SafeAreaView>
   );
 }
@@ -252,33 +258,33 @@ const styles = StyleSheet.create({
   header: { minHeight: 66, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 12 },
   back: { width: 41, height: 41, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   flex: { flex: 1, minWidth: 0 },
-  headerTitle: { fontSize: 16, fontWeight: "900" },
-  headerHint: { fontSize: 9, marginTop: 2 },
+  headerTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
+  headerHint: { fontSize: typeScale.caption, marginTop: 2 },
   content: { width: "100%", maxWidth: 760, alignSelf: "center", padding: 16, paddingTop: 23, paddingBottom: 45 },
   intro: { marginBottom: 18 },
-  eyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.5, marginBottom: 6 },
-  title: { fontSize: 27, lineHeight: 33, fontWeight: "900", letterSpacing: -0.7 },
-  subtitle: { fontSize: 11, lineHeight: 18, marginTop: 5, maxWidth: 600 },
+  eyebrow: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.5, marginBottom: 6 },
+  title: { ...typeStyles.pageTitle },
+  subtitle: { fontSize: typeScale.metadata, lineHeight: typeLeading.bodyCompact, marginTop: 5, maxWidth: 600 },
   card: { borderWidth: 1, borderRadius: 24, padding: 17 },
   photoRow: { flexDirection: "row", alignItems: "center", gap: 15 },
   avatar: { width: 88, height: 88, borderRadius: 44, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   avatarImage: { width: "100%", height: "100%", borderRadius: 42 },
   camera: { position: "absolute", right: -1, bottom: 0, width: 30, height: 30, borderRadius: 15, borderWidth: 3, alignItems: "center", justifyContent: "center" },
-  photoTitle: { fontSize: 13, fontWeight: "900" },
-  photoHint: { fontSize: 9, lineHeight: 14, marginTop: 4 },
-  removePhoto: { fontSize: 9, fontWeight: "800", marginTop: 7 },
+  photoTitle: { fontSize: typeScale.body, fontWeight: "700" },
+  photoHint: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 4 },
+  removePhoto: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 7 },
   divider: { height: StyleSheet.hairlineWidth, marginVertical: 18 },
   field: { marginBottom: 15 },
-  label: { fontSize: 10, fontWeight: "800", marginBottom: 7 },
+  label: { fontSize: typeScale.caption, fontWeight: "700", marginBottom: 7 },
   inputWrap: { minHeight: 51, borderWidth: 1, borderRadius: 15, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 10 },
-  input: { flex: 1, minWidth: 0, height: 49, fontSize: 13 },
+  input: { flex: 1, minWidth: 0, height: 49, fontSize: typeScale.body },
   readOnly: { minHeight: 51, borderWidth: 1, borderRadius: 15, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 10 },
-  readOnlyText: { flex: 1, fontSize: 13 },
-  helper: { fontSize: 8, marginTop: 5 },
+  readOnlyText: { flex: 1, fontSize: typeScale.body },
+  helper: { fontSize: typeScale.caption, marginTop: 5 },
   saveBar: { borderWidth: 1, borderRadius: 20, padding: 12, marginTop: 12, flexDirection: "row", alignItems: "center", gap: 12 },
   status: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },
-  saveHint: { fontSize: 9 },
-  savedText: { color: "#168A5B", fontSize: 10, fontWeight: "800" },
+  saveHint: { fontSize: typeScale.caption },
+  savedText: { color: "#16A34A", fontSize: typeScale.caption, fontWeight: "700" },
   save: { minWidth: 154, minHeight: 47, paddingHorizontal: 17, borderRadius: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
-  saveText: { color: "#FFF", fontSize: 11, fontWeight: "900" },
+  saveText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
 });

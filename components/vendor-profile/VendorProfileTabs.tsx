@@ -1,12 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Animated, Platform, Pressable, StyleSheet, Text, View, } from "react-native";
+import { fonts, typeScale, typeLeading } from "@/constants/typography";
 
 export type VendorProfileTab = "portfolio" | "clips";
 
@@ -20,6 +14,7 @@ function VendorProfileTabs({
   onChange: (tab: VendorProfileTab) => void;
 }) {
   const [width, setWidth] = useState(0);
+  const [focusedTab, setFocusedTab] = useState<VendorProfileTab | null>(null);
   const progress = useRef(new Animated.Value(selected === "clips" ? 1 : 0)).current;
 
   useEffect(() => {
@@ -73,17 +68,19 @@ function VendorProfileTabs({
             accessibilityLabel={`${tab === "portfolio" ? "Portfolio" : "Clips"} tab`}
             accessibilityState={{ selected: active }}
             onPress={() => onChange(tab)}
+            onFocus={() => setFocusedTab(tab)}
+            onBlur={() => setFocusedTab(null)}
             style={({ pressed, hovered }) => [
               styles.tab,
               Platform.OS === "web" && styles.tabWeb,
               pressed && styles.tabPressed,
-              hovered && Platform.OS === "web" && styles.tabHovered,
+              (hovered || focusedTab === tab) && Platform.OS === "web" && styles.tabHovered,
             ]}
           >
             <Text
               style={[
                 styles.label,
-                { color: active ? "#E91E63" : dark ? "#D5C4CB" : "#79666E" },
+                { color: active ? "#E91E63" : dark ? "#A0A0A5" : "#787178" },
                 active && styles.labelActive,
               ]}
             >
@@ -132,6 +129,6 @@ const styles = StyleSheet.create({
   tabWeb: { outlineStyle: "none" } as any,
   tabPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
   tabHovered: { backgroundColor: "rgba(233,30,99,.035)" },
-  label: { fontSize: 14, lineHeight: 19, fontWeight: "600", letterSpacing: 0.05 },
-  labelActive: { fontWeight: "800" },
+  label: { fontFamily: fonts.sans.semibold, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.tab, letterSpacing: 0.05 },
+  labelActive: { fontFamily: fonts.sans.bold },
 });

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Check, X } from "lucide-react-native";
+import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -45,7 +47,9 @@ export default function ListingFilterModal({
   onClose,
   onApply,
 }: ListingFilterModalProps) {
+  const { width } = useWindowDimensions();
   const [draft, setDraft] = useState(value);
+  const [focusedControl, setFocusedControl] = useState("");
 
   useEffect(() => {
     if (visible) setDraft(value);
@@ -67,12 +71,16 @@ export default function ListingFilterModal({
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[
+      onFocus={() => setFocusedControl(label)}
+      onBlur={() => setFocusedControl("")}
+      style={({ hovered, pressed }) => [
         styles.option,
         {
           backgroundColor: selected ? (dark ? "#39242D" : "#FFF0F6") : soft,
-          borderColor: selected ? PINK : border,
+          borderColor: selected || hovered || focusedControl === label ? PINK : border,
         },
+        (hovered || focusedControl === label) && styles.controlHovered,
+        pressed && styles.controlPressed,
       ]}
     >
       <Text style={[styles.optionText, { color: selected ? PINK : text }]}>{label}</Text>
@@ -85,19 +93,18 @@ export default function ListingFilterModal({
     : [initialSection] as const;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable
-          accessibilityViewIsModal
-          onPress={(event) => event.stopPropagation()}
-          style={[styles.sheet, { backgroundColor: surface, borderColor: border }]}
-        >
+    <AnimatedBottomSheet
+      visible={visible}
+      onRequestClose={onClose}
+      variant={width < 600 ? "sheet" : "center"}
+      sheetStyle={[styles.sheet, { backgroundColor: surface, borderColor: border }]}
+    >
           <View style={styles.header}>
             <View style={styles.flex}>
               <Text style={[styles.title, { color: text }]}>Refine vendors</Text>
               <Text style={[styles.subtitle, { color: muted }]}>Sort and filter this category without changing your route.</Text>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="Close listing filters" onPress={onClose} style={styles.close}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close listing filters" onPress={onClose} onFocus={() => setFocusedControl("close")} onBlur={() => setFocusedControl("")} style={({ hovered, pressed }) => [styles.close, (hovered || focusedControl === "close") && { backgroundColor: soft }, pressed && styles.controlPressed]}>
               <X size={20} color={text} />
             </Pressable>
           </View>
@@ -130,36 +137,36 @@ export default function ListingFilterModal({
           </ScrollView>
 
           <View style={styles.actions}>
-            <Pressable accessibilityRole="button" onPress={() => setDraft({ sort: "popular", maximumPrice: 0, minimumRating: 0 })} style={[styles.reset, { borderColor: border }]}>
+            <Pressable accessibilityRole="button" onPress={() => setDraft({ sort: "popular", maximumPrice: 0, minimumRating: 0 })} onFocus={() => setFocusedControl("reset")} onBlur={() => setFocusedControl("")} style={({ hovered, pressed }) => [styles.reset, { borderColor: hovered || focusedControl === "reset" ? PINK : border }, (hovered || focusedControl === "reset") && styles.controlHovered, pressed && styles.controlPressed]}>
               <Text style={[styles.resetText, { color: text }]}>Reset</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" onPress={() => onApply(draft)} style={styles.apply}>
+            <Pressable accessibilityRole="button" onPress={() => onApply(draft)} onFocus={() => setFocusedControl("apply")} onBlur={() => setFocusedControl("")} style={({ hovered, pressed }) => [styles.apply, (hovered || focusedControl === "apply") && styles.applyHovered, pressed && styles.controlPressed]}>
               <Text style={styles.applyText}>Apply</Text>
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    </AnimatedBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
-  backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(31,16,23,.50)" },
-  sheet: { width: "100%", maxWidth: 520, maxHeight: "82%", borderWidth: 1, borderRadius: 26, padding: 20 },
+  sheet: { width: "100%", maxWidth: 520, maxHeight: "88%", borderWidth: 1, borderRadius: 26, padding: 20 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 8 },
-  title: { fontSize: 20, lineHeight: 26, fontWeight: "800" },
-  subtitle: { marginTop: 3, fontSize: 10.5, lineHeight: 15 },
-  close: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  title: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700" },
+  subtitle: { marginTop: 3, fontSize: typeScale.metadata, lineHeight: typeLeading.label },
+  close: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   scroll: { flexGrow: 0 },
   content: { gap: 18, paddingTop: 8, paddingBottom: 4 },
-  label: { marginBottom: 8, fontSize: 8.5, lineHeight: 12, letterSpacing: 1, fontWeight: "900" },
+  label: { marginBottom: 8, fontSize: typeScale.caption, lineHeight: typeLeading.caption, letterSpacing: 1, fontWeight: "700" },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   option: { minHeight: 43, borderWidth: 1, borderRadius: 14, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 6 },
-  optionText: { fontSize: 10.5, fontWeight: "700" },
+  optionText: { fontSize: typeScale.metadata, fontWeight: "700" },
+  controlHovered: { transform: [{ translateY: -1 }] },
+  controlPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
   actions: { flexDirection: "row", gap: 9, marginTop: 18 },
   reset: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" },
-  resetText: { fontSize: 11, fontWeight: "800" },
+  resetText: { fontSize: typeScale.metadata, fontWeight: "700" },
   apply: { flex: 1.35, minHeight: 48, borderRadius: 15, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
-  applyText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
+  applyHovered: { backgroundColor: "#D91858", transform: [{ translateY: -1 }] },
+  applyText: { color: "#FFFFFF", fontSize: typeScale.metadata, fontWeight: "700" },
 });

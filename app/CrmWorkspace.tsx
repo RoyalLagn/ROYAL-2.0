@@ -83,16 +83,16 @@ export default function CrmWorkspace() {
             <CRMCard className="p-4">
               <View className="flex-row items-center justify-between">
                 <View>
-                  <Text className="text-muted-foreground text-[10px] font-bold uppercase">Assigned Cluster</Text>
+                  <Text className="text-muted-foreground text-metadata font-bold uppercase">Assigned Cluster</Text>
                   <Text className="text-foreground text-base font-bold mt-0.5">{session.cluster_name}</Text>
                 </View>
                 <View className="items-end">
-                  <Text className="text-muted-foreground text-[10px] font-bold uppercase">Expires</Text>
+                  <Text className="text-muted-foreground text-metadata font-bold uppercase">Expires</Text>
                   <Text className="text-primary text-sm font-bold mt-0.5">{formatCountdown(session.expires_at)}</Text>
                 </View>
               </View>
               <View className="mt-4 pt-4 border-t border-border">
-                <Text className="text-muted-foreground text-[10px] font-bold uppercase mb-1">Today&apos;s Progress</Text>
+                <Text className="text-muted-foreground text-metadata font-bold uppercase mb-1">Today&apos;s Progress</Text>
                 <Text className="text-foreground text-xl font-bold">{progress?.vendors_added ?? 0} Vendors Added</Text>
                 <Text className="text-muted-foreground text-xs mt-1">
                   {progress?.interested ?? 0} interested · {progress?.meetings ?? 0} meetings · {progress?.registered ?? 0} registered

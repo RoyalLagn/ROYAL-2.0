@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Download, ExternalLink, Link2, QrCode, Share2, Sparkles } from "lucide-react-native";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
+import { typeScale } from "@/constants/typography";
 
 type Action = {
   key: string;
@@ -57,9 +58,9 @@ export default function QuickActionsGrid({
 
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
-  title: { fontSize: 15, fontWeight: "900", marginBottom: 12 },
+  title: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 12 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   button: { minWidth: "31%", flexGrow: 1, minHeight: 78, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 12 },
-  buttonLabel: { color: "#FFF", fontSize: 11, fontWeight: "800", textAlign: "center" },
+  buttonLabel: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700", textAlign: "center" },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
 });

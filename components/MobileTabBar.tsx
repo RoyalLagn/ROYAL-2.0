@@ -26,6 +26,7 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import FavoriteNotificationDot from "@/components/favorites/FavoriteNotificationDot";
 import { useFavorites } from "@/context/FavoritesContext";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 import { brandPalette } from "@/constants/brandPalette";
 
@@ -539,8 +540,8 @@ const styles = StyleSheet.create({
     width: "100%",
     marginTop: 0,
     paddingHorizontal: 1,
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: typeScale.caption,
+    lineHeight: typeLeading.caption,
     fontWeight: "600",
     textAlign: "center",
     includeFontPadding: false,

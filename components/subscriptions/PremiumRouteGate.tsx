@@ -19,4 +19,4 @@ export default function PremiumRouteGate({ feature, children }: React.PropsWithC
   if (!allowed) return <View style={styles.loading}><ActivityIndicator color="#E91E63" /></View>;
   return <>{children}</>;
 }
-const styles = StyleSheet.create({ loading: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF9FB" } });
+const styles = StyleSheet.create({ loading: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF" } });

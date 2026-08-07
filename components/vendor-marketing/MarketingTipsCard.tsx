@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { CheckCircle2, Lightbulb } from "lucide-react-native";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
+import { typeScale } from "@/constants/typography";
 
 const TIPS = [
   "Add this website to your Instagram Bio",
@@ -37,8 +38,8 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 14 },
   icon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 15, fontWeight: "900" },
+  title: { fontSize: typeScale.body, fontWeight: "700" },
   list: { gap: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: 9 },
-  tipText: { flex: 1, fontSize: 12, fontWeight: "600" },
+  tipText: { flex: 1, fontSize: typeScale.bodyCompact, fontWeight: "600" },
 });

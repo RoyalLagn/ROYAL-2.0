@@ -1,30 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
-  Check,
-  ChevronRight,
-  CircleAlert,
-  Clock3,
-  Eye,
-  Globe,
-  Images,
-  MessageSquareText,
-  Plus,
-  Sparkles,
-  Star,
-  Target,
-} from "lucide-react-native";
+  Check, ChevronRight, CircleAlert, Clock3, Eye, Globe, Images, MessageSquareText, Plus, Sparkles, Star, Target, } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -33,6 +12,7 @@ import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
 import SubscriptionDashboardCard from "@/components/vendor/SubscriptionDashboardCard";
 import PublicProfileCard from "@/components/vendor/PublicProfileCard";
 import ChecklistItem, { ReadinessChecklistGrid } from "@/components/vendor/ChecklistItem";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 // Ordered worse -> better so a state "improving" can be detected with a
 // simple index comparison when the vendor returns from a section form.
@@ -337,51 +317,51 @@ const styles = StyleSheet.create({
   heroCard: { position: "relative", overflow: "hidden", borderWidth: 1, borderRadius: 26, padding: 20, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.06, shadowRadius: 22, elevation: 2 },
   heroGlow: { position: "absolute", width: 180, height: 180, borderRadius: 90, right: -62, top: -92 },
   heroContent: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  eyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.7, marginBottom: 7 },
-  greeting: { fontSize: 29, lineHeight: 35, fontWeight: "900", letterSpacing: -0.9 },
-  businessName: { fontSize: 14, lineHeight: 20, marginTop: 3, fontWeight: "600" },
-  heroHint: { fontSize: 11, lineHeight: 17, marginTop: 15, maxWidth: 560 },
+  eyebrow: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.7, marginBottom: 7 },
+  greeting: { ...typeStyles.pageTitle },
+  businessName: { fontSize: typeScale.body, lineHeight: typeLeading.body, marginTop: 3, fontWeight: "600" },
+  heroHint: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab, marginTop: 15, maxWidth: 560 },
   verified: { flexDirection: "row", gap: 5, alignItems: "center", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
-  verifiedText: { fontSize: 10, fontWeight: "800" },
+  verifiedText: { fontSize: typeScale.caption, fontWeight: "700" },
   notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
-  noticeTitle: { fontSize: 13, fontWeight: "800", marginBottom: 2 },
-  noticeText: { fontSize: 11, lineHeight: 17 },
+  noticeTitle: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 2 },
+  noticeText: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
   marketingCenterButton: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 20, padding: 15, marginBottom: 16, shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.045, shadowRadius: 16, elevation: 2 },
   marketingCenterIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  marketingCenterTitle: { fontSize: 13, fontWeight: "800" },
-  marketingCenterHint: { fontSize: 10, marginTop: 2 },
+  marketingCenterTitle: { fontSize: typeScale.body, fontWeight: "700" },
+  marketingCenterHint: { fontSize: typeScale.caption, marginTop: 2 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
   statsDesktop: { flexWrap: "nowrap" },
   statCard: { width: "48.4%", minHeight: 145, borderRadius: 22, borderWidth: 1, padding: 15, shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.045, shadowRadius: 16, elevation: 2 },
   statDesktop: { flex: 1, width: "auto" },
   statTop: { flexDirection: "row", alignItems: "center", marginBottom: 11 },
   statIcon: { width: 37, height: 37, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  statValue: { fontSize: 25, lineHeight: 30, fontWeight: "900", letterSpacing: -0.6 },
-  statLabel: { fontSize: 11, fontWeight: "800", marginTop: 2 },
-  statDetail: { fontSize: 9, marginTop: 4 },
+  statValue: { fontSize: typeScale.pageTitle, lineHeight: typeLeading.pageTitle, fontWeight: "700", letterSpacing: -0.6 },
+  statLabel: { fontSize: typeScale.metadata, fontWeight: "700", marginTop: 2 },
+  statDetail: { fontSize: typeScale.caption, marginTop: 4 },
   profileCard: { borderWidth: 1, borderRadius: 26, padding: 18, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
   profileHeader: { flexDirection: "row", alignItems: "center", gap: 11 },
   profileIcon: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  sectionTitle: { fontSize: 17, lineHeight: 22, fontWeight: "900", letterSpacing: -0.3 },
-  sectionSubtitle: { fontSize: 10, lineHeight: 15, marginTop: 3 },
+  sectionTitle: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, fontWeight: "700", letterSpacing: -0.3 },
+  sectionSubtitle: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 3 },
   percentBadge: { width: 65, height: 58, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  percent: { fontSize: 20, lineHeight: 24, fontWeight: "900" },
-  percentLabel: { fontSize: 7, fontWeight: "900", letterSpacing: 1 },
+  percent: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700" },
+  percentLabel: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1 },
   progressSummary: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 21 },
-  progressLabel: { fontSize: 11, fontWeight: "800" },
-  progressCount: { fontSize: 9 },
+  progressLabel: { fontSize: typeScale.metadata, fontWeight: "700" },
+  progressCount: { fontSize: typeScale.caption },
   progressTrack: { height: 9, borderRadius: 7, overflow: "hidden", marginTop: 9 },
   progressFill: { height: "100%", borderRadius: 7 },
   nextStep: { minHeight: 82, borderWidth: 1, borderRadius: 19, padding: 13, marginTop: 17, flexDirection: "row", alignItems: "center", gap: 11 },
   nextStepIcon: { width: 39, height: 39, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  nextEyebrow: { fontSize: 7, fontWeight: "900", letterSpacing: 1.2 },
-  nextTitle: { fontSize: 12, fontWeight: "900", marginTop: 3 },
-  nextHint: { fontSize: 9, lineHeight: 13, marginTop: 2 },
+  nextEyebrow: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.2 },
+  nextTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginTop: 3 },
+  nextHint: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },
   completeBanner: { minHeight: 58, borderRadius: 17, paddingHorizontal: 14, marginTop: 17, flexDirection: "row", alignItems: "center", gap: 9 },
-  completeBannerText: { flex: 1, fontSize: 11, fontWeight: "800" },
+  completeBannerText: { flex: 1, fontSize: typeScale.metadata, fontWeight: "700" },
   checklistHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 21, marginBottom: 10 },
-  checklistTitle: { fontSize: 12, fontWeight: "900" },
-  checklistHint: { fontSize: 8 },
+  checklistTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  checklistHint: { fontSize: typeScale.caption },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
   loading: { position: "absolute", top: "50%", left: 0, right: 0, alignItems: "center", pointerEvents: "none" },
 });

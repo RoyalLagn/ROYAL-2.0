@@ -308,7 +308,7 @@ export default function AdminCrmMarketingWorkspaceAssign() {
               <View className="gap-4">
                 {grouped.map(([categoryName, categoryVendors]) => (
                   <View key={categoryName}>
-                    <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">{categoryName}</Text>
+                    <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">{categoryName}</Text>
                     <View className="gap-2">
                       {categoryVendors.map((vendor) => {
                         const checked = selectedVendorIds.has(vendor.id);

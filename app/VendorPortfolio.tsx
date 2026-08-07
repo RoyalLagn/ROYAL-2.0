@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
 import PortfolioAlbums from "@/components/vendor-profile/PortfolioAlbums";
 import { getApprovedPublicVendorById, type PublicVendorListing } from "@/services/publicVendorListings";
+import { fonts, typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 export default function VendorPortfolio() {
   const router = useRouter();
@@ -74,16 +75,15 @@ export default function VendorPortfolio() {
   );
 }
 
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#FFF9FB" },
+  root: { flex: 1, backgroundColor: "#FFFFFF" },
   header: { minHeight: 58, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 11 },
-  back: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: "#F0DCE4", backgroundColor: "#FFF", alignItems: "center", justifyContent: "center" },
+  back: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: "#FBCFE8", backgroundColor: "#FDF2F8", alignItems: "center", justifyContent: "center" },
   copy: { flex: 1, minWidth: 0 },
-  title: { color: "#24181E", fontFamily: serif, fontSize: 24, lineHeight: 30, fontWeight: "700" },
-  subtitle: { color: "#796A72", fontSize: 11, lineHeight: 15, marginTop: 1 },
+  title: { color: "#24181E", ...typeStyles.pageTitle, fontFamily: fonts.serif.bold },
+  subtitle: { color: "#796A72", fontSize: typeScale.metadata, lineHeight: typeLeading.label, marginTop: 1 },
   loader: { marginTop: 80 },
-  empty: { margin: 16, minHeight: 190, borderWidth: 1, borderColor: "#F0DCE4", borderRadius: 20, backgroundColor: "#FFF", alignItems: "center", justifyContent: "center", padding: 24 },
-  emptyTitle: { color: "#24181E", fontFamily: serif, fontSize: 20, fontWeight: "700" },
-  emptyText: { color: "#796A72", fontSize: 12, lineHeight: 18, textAlign: "center", marginTop: 6 },
+  empty: { margin: 16, minHeight: 190, borderWidth: 1, borderColor: "#FBCFE8", borderRadius: 20, backgroundColor: "#FDF2F8", alignItems: "center", justifyContent: "center", padding: 24 },
+  emptyTitle: { color: "#24181E", ...typeStyles.editorialSectionTitle },
+  emptyText: { color: "#796A72", fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, textAlign: "center", marginTop: 6 },
 });

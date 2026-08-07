@@ -10,6 +10,7 @@ import {
 } from "lucide-react-native";
 import {
   CloudinaryError, pickAndUploadBusinessDocument, pickAndUploadImage,
+  pickProfileImage, uploadImage as uploadCloudinaryImage, type ProfileImageAsset,
   type UploadedBusinessDocument,
 } from "@/services/cloudinary";
 import { useCategories } from "@/context/CategoryContext";
@@ -21,6 +22,7 @@ import { useCustomerLocation } from "@/context/LocationContext";
 import { submitVendorApplication } from "@/services/vendorApplications";
 import { logSupabaseError, resolveVendorDestination } from "@/services/vendorAuth";
 import { supabase } from "@/services/supabase";
+import SquareImageEditor from "@/components/vendor/SquareImageEditor";
 
 type RejectedApplicationRecord = {
   id: string;
@@ -136,6 +138,7 @@ export default function BecomeVendor() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [uploading, setUploading] = useState<"logo" | "cover" | "document" | null>(null);
+  const [logoEditorAsset, setLogoEditorAsset] = useState<ProfileImageAsset | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -235,13 +238,28 @@ export default function BecomeVendor() {
     if (uploading) return;
     setUploading(kind);
     try {
-      const url = await pickAndUploadImage({
-        allowsEditing: true,
-        aspect: kind === "logo" ? [1, 1] : [16, 9],
-      });
-      if (url) update(kind === "logo" ? "logoUrl" : "coverImageUrl", url);
+      if (kind === "logo") {
+        const asset = await pickProfileImage();
+        if (asset) setLogoEditorAsset(asset);
+      } else {
+        const url = await pickAndUploadImage({ allowsEditing: true, aspect: [16, 9] });
+        if (url) update("coverImageUrl", url);
+      }
     } catch (error) {
       Alert.alert("Upload failed", error instanceof CloudinaryError ? error.message : "Unable to upload image.");
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const saveEditedLogo = async (asset: ProfileImageAsset) => {
+    setUploading("logo");
+    try {
+      const url = await uploadCloudinaryImage(asset);
+      update("logoUrl", url);
+      setLogoEditorAsset(null);
+    } catch (error) {
+      Alert.alert("Upload failed", error instanceof CloudinaryError ? error.message : "Unable to upload the edited logo.");
     } finally {
       setUploading(null);
     }
@@ -398,15 +416,16 @@ export default function BecomeVendor() {
             return (
               <View key={kind} className="mb-4">
                 <Text className="text-foreground text-sm font-semibold mb-2">{kind === "logo" ? "Logo" : "Cover Image"}</Text>
+                {kind === "logo" ? <Text className="text-muted-foreground text-xs mb-2">Square logo · 1024 × 1024 · maximum 8 MB</Text> : null}
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel={url ? `Change ${kind === "logo" ? "logo" : "cover image"}` : `Upload ${kind === "logo" ? "logo" : "cover image"}`}
                   accessibilityState={{ disabled: !!uploading, busy: uploading === kind }}
-                  className={`rounded-2xl border border-dashed border-primary/50 bg-primary/5 items-center justify-center overflow-hidden ${kind === "logo" ? "h-36" : "h-44"}`}
+                  className={`rounded-2xl border border-dashed border-primary/50 items-center justify-center overflow-hidden ${kind === "logo" ? "w-36 h-36 self-center bg-white" : "h-44 bg-primary/5"}`}
                   onPress={() => uploadImage(kind)}
                   disabled={!!uploading}
                 >
-                  {url ? <Image source={{ uri: url }} className="w-full h-full" resizeMode="cover" /> :
+                  {url ? <Image source={{ uri: url }} className="w-full h-full" resizeMode={kind === "logo" ? "contain" : "cover"} /> :
                     uploading === kind ? <ActivityIndicator color="#EC4899" /> :
                     <><ImagePlus size={27} className="text-primary mb-2" /><Text className="text-foreground font-medium">Upload {kind === "logo" ? "Logo" : "Cover Image"}</Text></>}
                 </TouchableOpacity>
@@ -486,6 +505,13 @@ export default function BecomeVendor() {
           </Pressable>
         </Pressable>
       </Modal>
+      <SquareImageEditor
+        asset={logoEditorAsset}
+        busy={uploading === "logo"}
+        kind="logo"
+        onCancel={() => setLogoEditorAsset(null)}
+        onSave={saveEditedLogo}
+      />
     </SafeAreaView>
   );
 }

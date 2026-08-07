@@ -96,8 +96,8 @@ export default function DashboardCenter() {
         <View style={{ width: "100%", maxWidth: 440 }}>
           <View className="items-center mb-9">
             <RoyalLagnLogo width={340} height={102} scale={2.2} />
-            <Text className="text-foreground text-[22px] font-bold mt-3">Choose your login</Text>
-            <Text className="text-muted-foreground text-[13px] text-center mt-2">
+            <Text className="text-foreground text-section-title font-bold mt-3">Choose your login</Text>
+            <Text className="text-muted-foreground text-body text-center mt-2">
               Select how you want to continue on RoyalLagn.
             </Text>
           </View>
@@ -140,7 +140,7 @@ export default function DashboardCenter() {
                       <Text className="text-foreground font-bold text-base mb-1">
                         {busy ? "Checking session…" : option.title}
                       </Text>
-                      <Text className="text-muted-foreground text-[12.5px] leading-tight" numberOfLines={2}>
+                      <Text className="text-muted-foreground text-body leading-tight" numberOfLines={2}>
                         {option.description}
                       </Text>
                     </View>
@@ -160,7 +160,7 @@ export default function DashboardCenter() {
                         router.replace({ pathname: option.signup!.pathname, params: { tab: "signup" } });
                       }}
                     >
-                      <Text className="text-primary font-semibold text-[13px]">{option.signup.label}</Text>
+                      <Text className="text-primary font-semibold text-body">{option.signup.label}</Text>
                     </Pressable>
                   ) : null}
                 </View>

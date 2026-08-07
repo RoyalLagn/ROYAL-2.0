@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Platform, Pressable, View, Text, StyleSheet } from 'react-native';
 import React, { useEffect } from 'react';
 import { useFonts } from 'expo-font';
+import { typeScale } from "@/constants/typography";
 // Import each weight from its own submodule rather than the package barrel
 // (`@expo-google-fonts/inter`/`@expo-google-fonts/playfair-display`). The
 // barrel's index.js unconditionally `require()`s every weight file it
@@ -192,7 +193,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFBFC',
+    backgroundColor: '#FFFFFF',
   },
   errorContainer: {
     flex: 1,
@@ -202,13 +203,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   errorTitle: {
-    fontSize: 20,
+    fontSize: typeScale.sectionTitle,
     fontWeight: 'bold',
     marginBottom: 10,
     color: '#000',
   },
   errorText: {
-    fontSize: 14,
+    fontSize: typeScale.body,
     color: '#666',
     textAlign: 'center',
   },
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
   },
   errorRetryText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: typeScale.body,
     fontWeight: '700',
   },
 });

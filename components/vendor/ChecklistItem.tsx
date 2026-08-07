@@ -22,6 +22,7 @@ import type { CompletionItem } from "@/hooks/useVendorWorkspace";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { MotionDuration } from "@/utils/motion";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 type Colors = typeof vendorTheme.light;
 
@@ -248,14 +249,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   completionLabel: {
-    fontSize: 11,
-    fontWeight: "800",
-    lineHeight: 14,
+    fontSize: typeScale.metadata,
+    fontWeight: "700",
+    lineHeight: typeLeading.caption,
   },
   stateLabel: {
-    fontSize: 8,
-    fontWeight: "800",
+    fontSize: typeScale.caption,
+    fontWeight: "700",
     marginTop: 3,
-    lineHeight: 11,
+    lineHeight: typeLeading.caption,
   },
 });

@@ -1,15 +1,6 @@
 import React, { useState } from "react";
-import {
-  Image,
-  type ImageSourcePropType,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Image, type ImageSourcePropType, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -156,8 +147,6 @@ export default function PortfolioGallery({
   );
 }
 
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
-
 const styles = StyleSheet.create({
   section: { width: "100%", paddingVertical: 4 },
   headingRow: {
@@ -169,11 +158,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     flexShrink: 1,
-    fontFamily: serif,
-    fontSize: 21,
-    lineHeight: 27,
-    fontWeight: "700",
-    letterSpacing: -0.15,
+    ...typeStyles.editorialSectionTitle,
   },
   viewAll: {
     minHeight: 38,
@@ -184,8 +169,8 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   viewAllHovered: { opacity: 0.76, transform: [{ translateX: 2 }] },
-  viewAllText: { color: PINK, fontSize: 13, fontWeight: "800" },
-  chevron: { color: PINK, fontSize: 26, lineHeight: 28, fontWeight: "300" },
+  viewAllText: { color: PINK, ...typeStyles.button },
+  chevron: { color: PINK, fontSize: typeScale.editorialPageTitle, lineHeight: typeLeading.metric, fontWeight: "300" },
   ornamentRow: { width: 88, height: 8, flexDirection: "row", alignItems: "center", gap: 4 },
   ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#D8A55B" },
   ornamentDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#D8A55B" },
@@ -217,6 +202,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 20,
   },
-  emptyText: { fontSize: 14, lineHeight: 20, textAlign: "center" },
+  emptyText: { fontSize: typeScale.body, lineHeight: typeLeading.body, textAlign: "center" },
   pressed: { opacity: 0.66 },
 });

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Smartphone, X } from "lucide-react-native";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = "#E91E63";
 const PLAY_STORE_URL =
@@ -68,10 +69,10 @@ const styles = StyleSheet.create({
   card: { width: "100%", maxWidth: 360, borderRadius: 24, padding: 24, alignItems: "center" },
   closeButton: { position: "absolute", top: 14, right: 14, padding: 6 },
   icon: { width: 56, height: 56, borderRadius: 28, backgroundColor: PINK, alignItems: "center", justifyContent: "center", marginBottom: 14 },
-  title: { fontSize: 18, fontWeight: "800", textAlign: "center" },
-  message: { fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 8, marginBottom: 18 },
+  title: { fontSize: typeScale.editorialCardTitle, fontWeight: "700", textAlign: "center" },
+  message: { fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, textAlign: "center", marginTop: 8, marginBottom: 18 },
   storeButton: { width: "100%", minHeight: 46, borderRadius: 23, alignItems: "center", justifyContent: "center", marginBottom: 10 },
-  storeButtonText: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
+  storeButtonText: { color: "#FFFFFF", fontWeight: "700", fontSize: typeScale.body },
   continueButton: { marginTop: 4, minHeight: 40, alignItems: "center", justifyContent: "center" },
-  continueText: { fontSize: 13, fontWeight: "600", textDecorationLine: "underline" },
+  continueText: { fontSize: typeScale.body, fontWeight: "600", textDecorationLine: "underline" },
 });

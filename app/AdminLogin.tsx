@@ -90,7 +90,7 @@ export default function AdminLoginScreen() {
           onSubmitEditing={() => void handleLogin()}
         />
         <AuthLinkButton align="end" onPress={() => router.replace("/AdminForgotPassword")} disabled={loading}>
-          <Text className="text-primary font-semibold text-[13px]">Forgot password?</Text>
+          <Text className="text-primary font-semibold text-body">Forgot password?</Text>
         </AuthLinkButton>
 
         {error ? <AuthAlert tone="error" message={error} /> : null}

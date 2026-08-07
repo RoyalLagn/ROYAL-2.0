@@ -31,6 +31,7 @@ import { pickImage, uploadImage as uploadToCloudinary } from "@/services/cloudin
 import { CategoryService, type CategoryRecord } from "@/services/CategoryService";
 import { HeroSlideService } from "@/services/heroSlides";
 import { HERO_IMAGE_ASPECT, HERO_SLIDES_MAX, type HeroSlide } from "@/types/hero";
+import { typeScale } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -103,7 +104,7 @@ function SlidePreviewCard({
             gap: 3,
           }}
         >
-          <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "800" }}>{label}</Text>
+          <Text style={{ color: "#FFFFFF", fontSize: typeScale.caption, fontWeight: "700" }}>{label}</Text>
           <ChevronRight size={12} color="#FFFFFF" />
         </View>
       </View>
@@ -354,11 +355,11 @@ export default function AdminHero() {
 
           <View className="flex-row gap-3 mb-5">
             <View className="flex-1 bg-card border border-border rounded-2xl p-4">
-              <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">Slides</Text>
+              <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest">Slides</Text>
               <Text className="text-foreground text-xl font-bold mt-1">{slides.length}/{HERO_SLIDES_MAX}</Text>
             </View>
             <View className="flex-1 bg-card border border-border rounded-2xl p-4">
-              <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">Active</Text>
+              <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest">Active</Text>
               <Text className="text-foreground text-xl font-bold mt-1">{activeCount}</Text>
             </View>
           </View>
@@ -393,14 +394,14 @@ export default function AdminHero() {
                         </Text>
                         {!slide.is_active ? (
                           <View className="px-2 py-0.5 rounded-full bg-muted">
-                            <Text className="text-muted-foreground text-[9px] font-bold">DISABLED</Text>
+                            <Text className="text-muted-foreground text-caption font-bold">DISABLED</Text>
                           </View>
                         ) : null}
                       </View>
                       <Text className="text-muted-foreground text-xs mt-1" numberOfLines={1}>
                         Button: {slide.cta_label}
                       </Text>
-                      <Text className="text-muted-foreground text-[10px] mt-1">
+                      <Text className="text-muted-foreground text-metadata mt-1">
                         Order {index + 1} · /VendorsListing?category={slide.category_slug}
                       </Text>
                     </View>
@@ -495,10 +496,10 @@ export default function AdminHero() {
                 </View>
               ) : null}
 
-              <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+              <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
                 Hero image
               </Text>
-              <Text className="text-muted-foreground text-[10px] mb-2">
+              <Text className="text-muted-foreground text-metadata mb-2">
                 One image for mobile, tablet, and desktop. Use a landscape 16:9 photo.
               </Text>
               <Pressable
@@ -542,7 +543,7 @@ export default function AdminHero() {
                 <View className="mb-4" />
               )}
 
-              <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+              <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
                 Category destination
               </Text>
               <Pressable
@@ -560,14 +561,14 @@ export default function AdminHero() {
                 <ChevronDown size={16} className="text-muted-foreground" />
               </Pressable>
               {draft.categorySlug ? (
-                <Text className="text-muted-foreground text-[10px] mb-4">
+                <Text className="text-muted-foreground text-metadata mb-4">
                   Routes to /VendorsListing?category={draft.categorySlug}
                 </Text>
               ) : (
                 <View className="mb-4" />
               )}
 
-              <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+              <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
                 Button text
               </Text>
               <TextInput
@@ -593,7 +594,7 @@ export default function AdminHero() {
                 />
               </View>
 
-              <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">
+              <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
                 Preview
               </Text>
               <SlidePreviewCard
@@ -671,7 +672,7 @@ export default function AdminHero() {
                       <Text className="text-foreground text-sm font-semibold" numberOfLines={1}>
                         {category.name}
                       </Text>
-                      <Text className="text-muted-foreground text-[10px]" numberOfLines={1}>
+                      <Text className="text-muted-foreground text-metadata" numberOfLines={1}>
                         {category.slug}{category.isActive ? "" : " · inactive"}
                       </Text>
                     </View>

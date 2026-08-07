@@ -71,7 +71,7 @@ export default function AdminVendorDetailsScreen() {
           <ResponsiveSection>
             <View className="bg-card border border-border rounded-3xl p-5">
               <View className="flex-row items-center">
-                {record.logo_url ? <Image source={{ uri: record.logo_url }} className="w-20 h-20 rounded-3xl bg-muted" /> : <View className="w-20 h-20 rounded-3xl bg-primary/10 items-center justify-center"><Text className="text-primary text-xl font-bold">{record.business_name.slice(0, 2).toUpperCase()}</Text></View>}
+                {record.logo_url ? <Image source={{ uri: record.logo_url }} className="w-20 h-20 rounded-3xl bg-white" resizeMode="contain" /> : <View className="w-20 h-20 rounded-3xl bg-primary/10 items-center justify-center"><Text className="text-primary text-xl font-bold">{record.business_name.slice(0, 2).toUpperCase()}</Text></View>}
                 <View className="flex-1 min-w-0 ml-4"><Text className="text-foreground text-xl font-bold" numberOfLines={2}>{record.business_name}</Text><Text className="text-muted-foreground mt-1">{record.owner_name}</Text><Text className="text-primary text-xs font-semibold capitalize mt-2">{record.application_status} · {record.management_status} · {record.is_verified ? "Verified" : "Unverified"}</Text></View>
               </View>
               <View className="flex-row flex-wrap gap-3 mt-5">
@@ -190,7 +190,7 @@ export default function AdminVendorDetailsScreen() {
 }
 
 function Metric({ label, value }: { label: string; value: string }) { return <View className="bg-muted/60 rounded-2xl p-3 min-w-24"><Text className="text-foreground font-bold text-lg">{value}</Text><Text className="text-muted-foreground text-xs">{label}</Text></View>; }
-function InfoRows({ rows }: { rows: [string, any][] }) { return <View>{rows.filter(([, value]) => value !== null && value !== undefined && value !== "").map(([label, value]) => <View key={label} className="py-3 border-b border-border"><Text className="text-muted-foreground text-[10px] uppercase tracking-wider">{label}</Text><Text className="text-foreground text-sm mt-1">{String(value)}</Text></View>)}</View>; }
+function InfoRows({ rows }: { rows: [string, any][] }) { return <View>{rows.filter(([, value]) => value !== null && value !== undefined && value !== "").map(([label, value]) => <View key={label} className="py-3 border-b border-border"><Text className="text-muted-foreground text-metadata uppercase tracking-wider">{label}</Text><Text className="text-foreground text-sm mt-1">{String(value)}</Text></View>)}</View>; }
 function Empty({ text }: { text: string }) { return <Text className="text-muted-foreground text-sm text-center py-5">{text}</Text>; }
 function LinkButton({ label, url }: { label: string; url: string }) { return <Pressable className="min-h-11 px-4 rounded-full border border-border flex-row items-center justify-center" onPress={() => void Linking.openURL(url)}><ExternalLink size={14} className="text-primary mr-2" /><Text className="text-primary text-xs font-semibold">{label}</Text></Pressable>; }
 
@@ -275,7 +275,7 @@ function PublicProfileAdminControls({ vendorId, vendor, onChanged }: { vendorId:
 
   return (
     <View className="mt-4 pt-4 border-t border-border">
-      <Text className="text-muted-foreground text-[10px] uppercase tracking-wider mb-2">Public Profile</Text>
+      <Text className="text-muted-foreground text-metadata uppercase tracking-wider mb-2">Public Profile</Text>
       <Text className="text-foreground text-xs mb-3" numberOfLines={1}>{buildVendorPublicProfileUrl(slug)}</Text>
       <View className="flex-row flex-wrap gap-3">
         <Pressable

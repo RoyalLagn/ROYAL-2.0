@@ -27,7 +27,7 @@ export function QuickActions() {
           <ResponsiveCard className="items-center" style={responsive.isPhone ? { padding: 12 } : undefined}>
           <Icon size={responsive.iconSize} className="text-primary" />
           <Text className="text-foreground text-xs text-center mt-2" numberOfLines={2}>{title}</Text>
-          <Text className="text-muted-foreground text-[10px] text-center mt-1" numberOfLines={2}>{description}</Text>
+          <Text className="text-muted-foreground text-metadata text-center mt-1" numberOfLines={2}>{description}</Text>
           </ResponsiveCard>
         </Pressable>
       ))}

@@ -39,7 +39,7 @@ export default function VendorForgotPassword() {
       subtitle="We’ll send a verification code to your registered business email."
       footer={
         <AuthLinkButton onPress={() => router.replace("/VendorAuth")} disabled={loading}>
-          <Text className="text-muted-foreground text-[13px]">
+          <Text className="text-muted-foreground text-body">
             Remembered it? <Text className="text-primary font-bold">Back to login</Text>
           </Text>
         </AuthLinkButton>

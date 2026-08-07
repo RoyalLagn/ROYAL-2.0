@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import type { VendorBusinessHourEntry } from "@/services/publicVendorListings";
+import { typeScale } from "@/constants/typography";
 
 const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -32,6 +33,6 @@ export default function BusinessHoursSection({
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  day: { fontSize: 13, fontWeight: "600" },
-  time: { fontSize: 13 },
+  day: { fontSize: typeScale.body, fontWeight: "600" },
+  time: { fontSize: typeScale.body },
 });

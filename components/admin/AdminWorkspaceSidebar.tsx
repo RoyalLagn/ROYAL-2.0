@@ -10,6 +10,7 @@ import {
   adminNavigationGroups,
   adminNavigationKeyForPath,
 } from "@/admin/navigation";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 export function AdminWorkspaceSidebar({ compact }: { compact: boolean }) {
   const pathname = usePathname();
@@ -70,16 +71,16 @@ const styles = StyleSheet.create({
   compactBrand: { width: 42, height: 42, borderRadius: 13, backgroundColor: "rgba(233,30,99,.1)", alignItems: "center", justifyContent: "center" },
   navigation: { paddingHorizontal: 12, paddingVertical: 14, gap: 16 },
   group: { gap: 4 },
-  groupLabel: { paddingHorizontal: 10, marginBottom: 4, fontSize: 9, lineHeight: 13, fontWeight: "800", letterSpacing: 1.2, textTransform: "uppercase" },
+  groupLabel: { paddingHorizontal: 10, marginBottom: 4, fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700", letterSpacing: 1.2, textTransform: "uppercase" },
   navItem: { minHeight: 42, borderRadius: 11, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 11 },
   navItemCompact: { justifyContent: "center", paddingHorizontal: 0 },
   navItemActive: { backgroundColor: "rgba(233,30,99,.09)" },
-  navLabel: { fontSize: 12, lineHeight: 17, fontWeight: "650" as never },
+  navLabel: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.tab, fontWeight: "600" },
   pressed: { opacity: .72 },
   account: { minHeight: 68, borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 7 },
   accountCompact: { justifyContent: "center", flexWrap: "wrap", paddingVertical: 7 },
   accountCopy: { flex: 1, minWidth: 0 },
-  accountName: { fontSize: 11, fontWeight: "700" },
-  accountRole: { fontSize: 9, marginTop: 2, textTransform: "capitalize" },
+  accountName: { fontSize: typeScale.metadata, fontWeight: "700" },
+  accountRole: { fontSize: typeScale.caption, marginTop: 2, textTransform: "capitalize" },
   accountButton: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 });

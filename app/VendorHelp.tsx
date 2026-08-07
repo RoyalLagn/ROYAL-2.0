@@ -5,6 +5,7 @@ import { CalendarDays, ChevronRight, CircleHelp, Images, Mail, MessageCircle, Us
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 
 export default function VendorHelp() {
@@ -40,11 +41,11 @@ export default function VendorHelp() {
   </View>;
 }
 const styles = StyleSheet.create({
-  page: { flex: 1 }, content: { width: "100%", maxWidth: 780, alignSelf: "center", padding: 16, paddingTop: 22, paddingBottom: 24 }, eyebrow: { fontSize: 10, letterSpacing: 1.5, fontWeight: "800", marginBottom: 5 },
-  title: { fontSize: 28, fontWeight: "800", letterSpacing: -.8 }, subtitle: { fontSize: 12, lineHeight: 18, marginTop: 4, marginBottom: 20 }, contact: { borderWidth: 1, borderRadius: 22, padding: 15, flexDirection: "row", alignItems: "center", gap: 11 },
-  contactIcon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, contactTitle: { fontSize: 13, fontWeight: "800" }, contactText: { fontSize: 10, lineHeight: 15, marginTop: 3 },
-  email: { height: 40, paddingHorizontal: 13, borderRadius: 13, flexDirection: "row", alignItems: "center", gap: 6 }, emailText: { color: "#FFF", fontSize: 10, fontWeight: "800" },
-  section: { fontSize: 15, fontWeight: "800", marginTop: 20, marginBottom: 10 }, card: { borderWidth: 1, borderRadius: 22, overflow: "hidden" }, row: { minHeight: 70, padding: 13, flexDirection: "row", alignItems: "center", gap: 11 },
-  icon: { width: 41, height: 41, borderRadius: 14, alignItems: "center", justifyContent: "center" }, rowTitle: { fontSize: 12, fontWeight: "800" }, rowDetail: { fontSize: 10, marginTop: 4 },
-  note: { borderWidth: 1, borderStyle: "dashed", borderRadius: 18, padding: 14, marginTop: 12, flexDirection: "row", alignItems: "center", gap: 9 }, noteText: { flex: 1, fontSize: 10, lineHeight: 15 },
+  page: { flex: 1 }, content: { width: "100%", maxWidth: 780, alignSelf: "center", padding: 16, paddingTop: 22, paddingBottom: 24 }, eyebrow: { fontSize: typeScale.caption, letterSpacing: 1.5, fontWeight: "700", marginBottom: 5 },
+  title: { ...typeStyles.pageTitle }, subtitle: { ...typeStyles.bodyCompact, marginTop: 4, marginBottom: 20 }, contact: { borderWidth: 1, borderRadius: 22, padding: 15, flexDirection: "row", alignItems: "center", gap: 11 },
+  contactIcon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, contactTitle: { fontSize: typeScale.body, fontWeight: "700" }, contactText: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 3 },
+  email: { height: 40, paddingHorizontal: 13, borderRadius: 13, flexDirection: "row", alignItems: "center", gap: 6 }, emailText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
+  section: { fontSize: typeScale.body, fontWeight: "700", marginTop: 20, marginBottom: 10 }, card: { borderWidth: 1, borderRadius: 22, overflow: "hidden" }, row: { minHeight: 70, padding: 13, flexDirection: "row", alignItems: "center", gap: 11 },
+  icon: { width: 41, height: 41, borderRadius: 14, alignItems: "center", justifyContent: "center" }, rowTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700" }, rowDetail: { fontSize: typeScale.caption, marginTop: 4 },
+  note: { borderWidth: 1, borderStyle: "dashed", borderRadius: 18, padding: 14, marginTop: 12, flexDirection: "row", alignItems: "center", gap: 9 }, noteText: { flex: 1, fontSize: typeScale.caption, lineHeight: typeLeading.label },
 });

@@ -66,9 +66,18 @@ type SignedUpload = {
   remainingCapacity: number;
 };
 
-type ProfileImageTarget =
+export type ProfileImageTarget =
   | { kind: "customer" }
   | { kind: "vendor"; vendorId: string };
+
+export type ProfileImageAsset = Pick<
+  ImagePicker.ImagePickerAsset,
+  "uri" | "width" | "height" | "fileName" | "mimeType" | "fileSize"
+>;
+
+export const PROFILE_IMAGE_SIZE = 1024;
+export const PROFILE_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+const PROFILE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
 
 type SignedProfileImage = {
   uploadMode: "signed" | "unsigned";
@@ -259,16 +268,38 @@ export async function pickAndUploadImage(
   return image ? uploadImage(image) : null;
 }
 
-export async function pickAndUploadProfileImage(
-  target: ProfileImageTarget,
-): Promise<string | null> {
-  const asset = await pickImage({ allowsEditing: true, aspect: [1, 1], quality: 0.88 });
-  if (!asset) return null;
+async function profileImageFileSize(asset: ProfileImageAsset) {
   let fileSize = asset.fileSize;
   if (!fileSize) {
     fileSize = (await fetch(asset.uri).then((response) => response.blob())).size;
   }
+  return fileSize;
+}
+
+export async function validateProfileImage(asset: ProfileImageAsset) {
   const mimeType = asset.mimeType || "image/jpeg";
+  const fileSize = await profileImageFileSize(asset);
+  if (!PROFILE_IMAGE_TYPES.has(mimeType.toLowerCase())) {
+    throw new CloudinaryError("Choose a JPG, PNG, WebP, HEIC or HEIF image.", "UPLOAD_ERROR");
+  }
+  if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > PROFILE_IMAGE_MAX_BYTES) {
+    throw new CloudinaryError("Profile images must be 8 MB or smaller.", "UPLOAD_ERROR");
+  }
+  return { fileSize, mimeType };
+}
+
+export async function pickProfileImage(): Promise<ProfileImageAsset | null> {
+  const asset = await pickImage({ allowsEditing: false, quality: 1 });
+  if (!asset) return null;
+  await validateProfileImage(asset);
+  return asset;
+}
+
+export async function uploadProfileImage(
+  target: ProfileImageTarget,
+  asset: ProfileImageAsset,
+): Promise<string> {
+  const { fileSize, mimeType } = await validateProfileImage(asset);
   const { data, error } = await supabase.functions.invoke<SignedProfileImage>("profile-image", {
     body: { ...target, action: "sign", mimeType, fileSize },
   });

@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, TextInput, type ViewStyle, View } from
 import { Search, X } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { brandColors } from "@/constants/brandPalette";
-import { fonts } from "@/constants/typography";
+import { fonts, typeScale } from "@/constants/typography";
 
 type CompactSearchBarProps = {
   value: string;
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingVertical: 0,
     fontFamily: fonts.sans.regular,
-    fontSize: 14,
+    fontSize: typeScale.body,
     outlineStyle: "none",
   } as never,
   clear: { width: 30, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },

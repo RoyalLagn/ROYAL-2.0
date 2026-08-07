@@ -35,7 +35,7 @@ export function ProgressRing({ value, total, size = 120, label }: ProgressRingPr
         </Svg>
         <View className="absolute inset-0 items-center justify-center">
           <Text className="text-foreground text-2xl font-bold">{percent}%</Text>
-          <Text className="text-muted-foreground text-[10px]">{value} / {total}</Text>
+          <Text className="text-muted-foreground text-metadata">{value} / {total}</Text>
         </View>
       </View>
       {label ? <Text className="text-muted-foreground text-xs mt-2 text-center">{label}</Text> : null}

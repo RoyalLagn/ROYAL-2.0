@@ -33,7 +33,7 @@ export function AuthSubmitButton({
       }`}
     >
       {loading ? <ActivityIndicator size="small" color="#FFFFFF" /> : null}
-      <Text className="text-primary-foreground font-semibold text-[15px]">
+      <Text className="text-primary-foreground font-semibold text-body">
         {loading ? loadingLabel ?? label : label}
       </Text>
     </Pressable>
@@ -61,7 +61,7 @@ export function AuthAlert({ tone, message }: AuthAlertProps) {
       {error
         ? <TriangleAlert size={17} className="text-destructive mt-px" />
         : <CircleCheckBig size={17} color="#16A34A" style={{ marginTop: 1 }} />}
-      <Text className={`flex-1 text-[13px] leading-5 ${error ? "text-destructive" : "text-green-600"}`}>
+      <Text className={`flex-1 text-body leading-5 ${error ? "text-destructive" : "text-green-600"}`}>
         {message}
       </Text>
     </View>
@@ -90,7 +90,7 @@ export function AuthTabs<T extends string>({ tabs, active, onChange, disabled }:
             onPress={() => onChange(tab.id)}
             disabled={disabled}
           >
-            <Text className={selected ? "text-primary font-bold text-[14px]" : "text-muted-foreground font-semibold text-[14px]"}>
+            <Text className={selected ? "text-primary font-bold text-body" : "text-muted-foreground font-semibold text-body"}>
               {tab.label}
             </Text>
           </Pressable>

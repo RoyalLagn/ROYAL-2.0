@@ -23,7 +23,7 @@ export default function AdminChart({ labels, datasets, currency, height = 240 }:
     <View className="flex-1 flex-row items-end gap-2 px-2 pt-5">
       {labels.map((label, index) => {
         const value = datasets.reduce((sum, dataset) => sum + Number(dataset.data[index] ?? 0), 0);
-        return <View key={`${label}-${index}`} className="flex-1 min-w-0 items-center justify-end"><Text className="text-muted-foreground text-[8px] mb-1" numberOfLines={1}>{currency ? `₹${value.toLocaleString("en-IN")}` : value}</Text><View className="w-full max-w-8 bg-primary rounded-t-md" style={{ height: `${Math.max(2, value / max * 75)}%` }} /><Text className="text-muted-foreground text-[8px] mt-2" numberOfLines={1}>{label}</Text></View>;
+        return <View key={`${label}-${index}`} className="flex-1 min-w-0 items-center justify-end"><Text className="text-muted-foreground text-caption mb-1" numberOfLines={1}>{currency ? `₹${value.toLocaleString("en-IN")}` : value}</Text><View className="w-full max-w-8 bg-primary rounded-t-md" style={{ height: `${Math.max(2, value / max * 75)}%` }} /><Text className="text-muted-foreground text-caption mt-2" numberOfLines={1}>{label}</Text></View>;
       })}
     </View>
   </View>;

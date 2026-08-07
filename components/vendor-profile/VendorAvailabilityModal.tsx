@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { CalendarDays, ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyhole, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PublicVendorAvailability } from "@/services/publicVendorListings";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 type AvailabilityStatus = PublicVendorAvailability["status"];
 
@@ -212,31 +213,31 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "flex-start", gap: 11, marginBottom: 18 },
   headerIcon: { width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   flex: { flex: 1, minWidth: 0 },
-  eyebrow: { color: "#E91E63", fontSize: 8, lineHeight: 11, letterSpacing: 1.4, fontWeight: "900", marginBottom: 3 },
-  title: { fontSize: 19, lineHeight: 24, fontWeight: "800", letterSpacing: -.35 },
-  subtitle: { fontSize: 10, lineHeight: 15, marginTop: 2 },
+  eyebrow: { color: "#E91E63", fontSize: typeScale.caption, lineHeight: typeLeading.caption, letterSpacing: 1.4, fontWeight: "700", marginBottom: 3 },
+  title: { fontSize: typeScale.editorialCardTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700", letterSpacing: -.35 },
+  subtitle: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 2 },
   close: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   summaryRow: { flexDirection: "row", gap: 7, marginBottom: 12 },
   summaryPill: { flex: 1, minHeight: 48, borderRadius: 15, paddingHorizontal: 9, alignItems: "center", justifyContent: "center" },
-  summaryValue: { color: "#272027", fontSize: 15, lineHeight: 18, fontWeight: "900" },
-  summaryGreen: { color: "#168342", fontSize: 8, fontWeight: "800", marginTop: 2 },
-  summaryYellow: { color: "#8A6500", fontSize: 8, fontWeight: "800", marginTop: 2 },
-  summaryRed: { color: "#C12C29", fontSize: 8, fontWeight: "800", marginTop: 2 },
+  summaryValue: { color: "#272027", fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, fontWeight: "700" },
+  summaryGreen: { color: "#168342", fontSize: typeScale.caption, fontWeight: "700", marginTop: 2 },
+  summaryYellow: { color: "#8A6500", fontSize: typeScale.caption, fontWeight: "700", marginTop: 2 },
+  summaryRed: { color: "#C12C29", fontSize: typeScale.caption, fontWeight: "700", marginTop: 2 },
   calendar: { borderRadius: 22, padding: 13 },
   monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  month: { fontSize: 15, lineHeight: 20, fontWeight: "800" },
+  month: { fontSize: typeScale.body, lineHeight: typeLeading.body, fontWeight: "700" },
   arrow: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   disabled: { opacity: .28 },
   grid: { flexDirection: "row", flexWrap: "wrap" },
-  weekday: { width: "14.285%", paddingVertical: 8, textAlign: "center", fontSize: 9, fontWeight: "800" },
+  weekday: { width: "14.285%", paddingVertical: 8, textAlign: "center", fontSize: typeScale.caption, fontWeight: "700" },
   day: { width: "14.285%", aspectRatio: 1, borderRadius: 11, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] },
-  dayText: { fontSize: 11, lineHeight: 15, fontWeight: "800" },
+  dayText: { fontSize: typeScale.metadata, lineHeight: typeLeading.label, fontWeight: "700" },
   pastDay: { opacity: .64 },
   legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 14, paddingVertical: 14 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legendText: { fontSize: 9, lineHeight: 13, fontWeight: "700" },
+  legendText: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700" },
   selectedCard: { minHeight: 74, borderRadius: 18, padding: 12, flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 8 },
   selectedSwatch: { width: 10, alignSelf: "stretch", borderRadius: 999 },
-  selectedDate: { fontSize: 12, lineHeight: 17, fontWeight: "800" },
-  selectedStatus: { fontSize: 9, lineHeight: 14, marginTop: 3 },
+  selectedDate: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.tab, fontWeight: "700" },
+  selectedStatus: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3 },
 });

@@ -20,6 +20,7 @@ import {
   type VendorProfileAnalytics,
 } from "@/services/vendorPublicProfile";
 import { shareVendorProfile } from "@/services/vendorShare";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 export default function PublicProfileCard({ vendor }: { vendor: any }) {
   const { colorScheme } = useAppTheme();
@@ -187,25 +188,25 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", gap: 13, alignItems: "flex-start" },
   icon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   content: { flex: 1, minWidth: 0 },
-  title: { fontSize: 17, fontWeight: "900" },
-  hint: { fontSize: 11, lineHeight: 16, marginTop: 4 },
-  url: { fontSize: 11, fontWeight: "700", marginTop: 3 },
+  title: { fontSize: typeScale.cardTitle, fontWeight: "700" },
+  hint: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 4 },
+  url: { fontSize: typeScale.metadata, fontWeight: "700", marginTop: 3 },
   qrRow: { flexDirection: "row", gap: 14, marginTop: 14, alignItems: "flex-start" },
   qrWrap: { padding: 8, borderRadius: 14, borderWidth: 1, backgroundColor: "#FFFFFF" },
   actionsCol: { flex: 1, gap: 8 },
   actionButton: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
-  actionLabel: { fontSize: 11, fontWeight: "700" },
-  copiedText: { fontSize: 10, fontWeight: "700", marginTop: 8 },
+  actionLabel: { fontSize: typeScale.metadata, fontWeight: "700" },
+  copiedText: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 8 },
   settingsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, paddingTop: 14, borderTopWidth: 1 },
-  settingsLabel: { flex: 1, fontSize: 11, fontWeight: "700" },
+  settingsLabel: { flex: 1, fontSize: typeScale.metadata, fontWeight: "700" },
   statsRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14, paddingTop: 14, borderTopWidth: 1 },
   statTile: { minWidth: 62, alignItems: "center" },
-  statValue: { fontSize: 15, fontWeight: "900" },
-  statLabel: { fontSize: 9, fontWeight: "700", marginTop: 2 },
+  statValue: { fontSize: typeScale.body, fontWeight: "700" },
+  statLabel: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 2 },
   footerRow: { flexDirection: "row", gap: 8, marginTop: 14 },
   footerButton: { flex: 1, minHeight: 36, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   footerButtonWide: { flex: 1 },
-  footerButtonText: { fontSize: 11, fontWeight: "700" },
-  analyticsNote: { fontSize: 9, marginTop: 8 },
+  footerButtonText: { fontSize: typeScale.metadata, fontWeight: "700" },
+  analyticsNote: { fontSize: typeScale.caption, marginTop: 8 },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
 });

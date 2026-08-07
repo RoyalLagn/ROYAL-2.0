@@ -1,4 +1,5 @@
 import type { Breakpoint, ResponsiveLayout } from "@/types/responsive";
+import { typeScale } from "@/constants/typography";
 
 export const BREAKPOINTS = {
   smallPhone: 360,
@@ -50,8 +51,8 @@ export function createResponsiveLayout(
     cardPadding: breakpoint === "xs" ? 14 : isPhone ? 16 : 20,
     cardRadius: isPhone ? 20 : 24,
     iconSize: isPhone ? 18 : isTablet ? 20 : 22,
-    titleSize: isPhone ? 17 : isTablet ? 18 : 20,
-    bodySize: isPhone ? 12 : 14,
+    titleSize: typeScale.cardTitle,
+    bodySize: typeScale.bodyCompact,
     statisticColumns,
     widgetColumns: isPhone ? 1 : 2,
   };

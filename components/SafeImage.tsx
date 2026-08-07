@@ -33,6 +33,8 @@ type SafeImageProps = Omit<ImageProps, "source" | "defaultSource"> & {
   /** Cap Cloudinary delivery width (CSS px). Applied with dpr≈2. */
   deliveryWidth?: number;
   deliveryHeight?: number;
+  /** Cloudinary fit mode. Use fit for logos so the full square asset remains visible. */
+  deliveryCrop?: "fill" | "limit" | "fit";
   /** Web: lazy-load below-the-fold images. Defaults to true. */
   lazy?: boolean;
 };
@@ -45,6 +47,7 @@ function SafeImage({
   fadeIn = true,
   deliveryWidth,
   deliveryHeight,
+  deliveryCrop = "fill",
   lazy = true,
   onError,
   onLoad,
@@ -58,11 +61,11 @@ function SafeImage({
     return cloudinaryDeliveryUrl(rawRemoteUri, {
       width: deliveryWidth,
       height: deliveryHeight,
-      crop: "fill",
+      crop: deliveryCrop,
       dpr: 2,
       quality: "auto",
     });
-  }, [deliveryHeight, deliveryWidth, rawRemoteUri]);
+  }, [deliveryCrop, deliveryHeight, deliveryWidth, rawRemoteUri]);
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
   const reducedMotion = useReducedMotion();

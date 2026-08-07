@@ -1,25 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, View, } from "react-native";
 import { useRouter } from "expo-router";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import HeroSlideMedia, { heroDeliveryUrl } from "@/components/home/HeroSlideMedia";
 import { HeroSlideService } from "@/services/heroSlides";
 import {
-  HERO_IMAGE_ASPECT,
-  heroSlideDestination,
-  heroSlideImageUrl,
-} from "@/types/hero";
+  HERO_IMAGE_ASPECT, heroSlideDestination, heroSlideImageUrl, } from "@/types/hero";
 import { brandPalette } from "@/constants/brandPalette";
-import { fonts } from "@/constants/typography";
+import { fonts, typeScale } from "@/constants/typography";
 
 /** Darker brand pink for small CTA text (WCAG AA on white text). */
 const PINK = brandPalette.light.primaryStrong;
@@ -349,7 +337,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: brandPalette.light.destructive,
     fontFamily: fonts.sans.semibold,
-    fontSize: 12,
+    fontSize: typeScale.bodyCompact,
     textAlign: "center",
   },
   slide: {
@@ -387,9 +375,9 @@ const styles = StyleSheet.create({
   ctaText: {
     color: brandPalette.light.primaryForeground,
     fontFamily: fonts.sans.bold,
-    fontSize: 12,
+    fontSize: typeScale.bodyCompact,
   },
-  ctaTextNarrow: { fontSize: 11 },
+  ctaTextNarrow: { fontSize: typeScale.metadata },
   indicators: {
     position: "absolute",
     zIndex: 4,

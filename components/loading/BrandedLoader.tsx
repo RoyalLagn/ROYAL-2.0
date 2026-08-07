@@ -12,6 +12,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useAppTheme } from "@/components/ThemeProvider";
+import { typeScale } from "@/constants/typography";
 
 // The bride-and-groom emblem is a single flat illustration (ring + couple
 // baked into one PNG, see assets/images/loader.png) -- there is no separate
@@ -74,7 +75,7 @@ export default function BrandedLoader({
     opacity: 0.35 + pulse.value * 0.25,
   }));
 
-  const background = isDark ? "#0B0710" : "#FFF8FA";
+  const background = isDark ? "#0B0710" : "#FFFFFF";
   const textColor = isDark ? "#F3E4EC" : "#5B3446";
 
   const content = (
@@ -128,7 +129,7 @@ const styles = StyleSheet.create({
   },
   message: {
     marginTop: 18,
-    fontSize: 12,
+    fontSize: typeScale.bodyCompact,
     fontWeight: "700",
     letterSpacing: 0.2,
   },

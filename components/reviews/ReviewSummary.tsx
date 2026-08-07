@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import StarDistribution from "./StarDistribution";
 import type { StarCounts } from "./types";
 import { reviewPalette } from "./types";
+import { typeStyles, typeScale } from "@/constants/typography";
 
 export type ReviewSummaryProps = {
   average: number; total: number; counts: StarCounts; dark?: boolean;
@@ -30,15 +31,14 @@ export default function ReviewSummary({ average, total, counts, dark = false, on
     </View>
   );
 }
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 20, padding: 18, flexDirection: "row", flexWrap: "wrap", gap: 22, shadowColor: "#9E5870", shadowOpacity: .07, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 2 },
   score: { width: 152, alignItems: "flex-start" },
-  average: { fontFamily: serif, fontSize: 42, lineHeight: 48, fontWeight: "600" },
-  stars: { fontSize: 15, letterSpacing: 2 },
-  count: { fontSize: 12, marginTop: 5, marginBottom: 14 },
+  average: { ...typeStyles.metric },
+  stars: { fontSize: typeScale.body, letterSpacing: 2 },
+  count: { fontSize: typeScale.bodyCompact, marginTop: 5, marginBottom: 14 },
   button: { minHeight: 42, borderRadius: 22, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" },
-  buttonText: { color: "#FFF", fontSize: 13, fontWeight: "700" },
+  buttonText: { color: "#FFF", fontSize: typeScale.body, fontWeight: "700" },
   pressed: { opacity: .86, transform: [{ scale: .98 }] },
   hovered: { transform: [{ translateY: -1 }] },
 });

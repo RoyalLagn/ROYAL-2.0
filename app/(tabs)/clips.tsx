@@ -22,6 +22,7 @@ import type {
   ClipEngagementState, PublicClip, PublicClipCursor,
 } from "@/clips/types";
 import { EnquiryExternalOpenError, EnquiryService } from "@/services/enquiries";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 const EMPTY_ENGAGEMENT: ClipEngagementState = { liked: false, saved: false };
 
@@ -493,7 +494,7 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: "rgba(7,5,7,.38)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.38)", shadowColor: "#000", shadowOpacity: 0.24, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
   backButtonPressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
   searchShell: { flex: 1, minWidth: 0, height: 46, borderRadius: 23, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(7,5,7,.30)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.46)", shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  searchInput: { flex: 1, minWidth: 0, height: "100%", paddingVertical: 0, color: "#FFFFFF", fontSize: 14, fontWeight: "500", textShadowColor: "rgba(0,0,0,.4)", textShadowRadius: 4 },
+  searchInput: { flex: 1, minWidth: 0, height: "100%", paddingVertical: 0, color: "#FFFFFF", fontSize: typeScale.body, fontWeight: "500", textShadowColor: "rgba(0,0,0,.4)", textShadowRadius: 4 },
   feedFrame: { flex: 1, minHeight: 0, alignSelf: "center", backgroundColor: "#080608", overflow: "hidden" },
   feed: { flex: 1, width: "100%" },
   feedWeb: { scrollSnapType: "y mandatory", overscrollBehavior: "contain", scrollbarWidth: "none" } as any,
@@ -502,7 +503,7 @@ const styles = StyleSheet.create({
   skeleton: { overflow: "hidden", borderRadius: 18 }, skeletonVideo: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(233,30,99,.08)" },
   skeletonBottom: { position: "absolute", left: 18, right: 70, bottom: 25, flexDirection: "row", alignItems: "center" }, skeletonAvatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: "rgba(233,30,99,.24)" }, skeletonLines: { flex: 1, marginLeft: 10, gap: 7 }, skeletonLine: { height: 9, borderRadius: 5, backgroundColor: "rgba(233,30,99,.18)" },
   state: { flex: 1, padding: 28, alignItems: "center", justifyContent: "center" }, emptyIllustration: { width: 128, height: 128, borderRadius: 42, alignItems: "center", justifyContent: "center", gap: 3, backgroundColor: "rgba(233,30,99,.1)", marginBottom: 18 },
-  stateTitle: { color: "#FFF", fontSize: 20, fontWeight: "900", textAlign: "center", marginTop: 14 }, stateText: { color: "#CBBBC3", maxWidth: 380, textAlign: "center", fontSize: 12, lineHeight: 19, marginTop: 7 },
-  retry: { height: 46, borderRadius: 23, backgroundColor: "#E91E63", paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 7, marginTop: 18 }, retryText: { color: "#FFF", fontSize: 11, fontWeight: "900" },
+  stateTitle: { color: "#FFF", fontSize: typeScale.sectionTitle, fontWeight: "700", textAlign: "center", marginTop: 14 }, stateText: { color: "#CBBBC3", maxWidth: 380, textAlign: "center", fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 7 },
+  retry: { height: 46, borderRadius: 23, backgroundColor: "#E91E63", paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 7, marginTop: 18 }, retryText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
   loadingMore: { position: "absolute", right: 14, bottom: 14, width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(16,10,14,.74)" },
 });

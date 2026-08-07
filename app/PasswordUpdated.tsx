@@ -34,10 +34,10 @@ export default function PasswordUpdatedScreen() {
           <View className="w-20 h-20 rounded-full bg-primary items-center justify-center mt-7 mb-6">
             <Check size={40} color="#FFFFFF" strokeWidth={2.5} />
           </View>
-          <Text className="text-foreground text-[22px] font-bold text-center">
+          <Text className="text-foreground text-section-title font-bold text-center">
             Password updated
           </Text>
-          <Text className="text-muted-foreground text-[13px] leading-5 text-center mt-2">
+          <Text className="text-muted-foreground text-body leading-5 text-center mt-2">
             Your password has been changed successfully.{"\n"}
             Please sign in using your new password.
           </Text>
@@ -46,7 +46,7 @@ export default function PasswordUpdatedScreen() {
             className="w-full h-14 bg-primary rounded-2xl items-center justify-center mt-8 active:opacity-90"
             onPress={goToLogin}
           >
-            <Text className="text-primary-foreground font-semibold text-[15px]">Go to login</Text>
+            <Text className="text-primary-foreground font-semibold text-body">Go to login</Text>
           </Pressable>
         </View>
       </View>

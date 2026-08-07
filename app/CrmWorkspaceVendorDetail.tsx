@@ -170,7 +170,7 @@ export default function CrmWorkspaceVendorDetail() {
                   {notes.map((note) => (
                     <CRMCard key={note.id} className="p-3">
                       <Text className="text-foreground text-sm">{note.body}</Text>
-                      <Text className="text-muted-foreground text-[10px] mt-1.5">{formatDateTime(note.created_at)}</Text>
+                      <Text className="text-muted-foreground text-metadata mt-1.5">{formatDateTime(note.created_at)}</Text>
                     </CRMCard>
                   ))}
                 </View>
@@ -189,7 +189,7 @@ export default function CrmWorkspaceVendorDetail() {
                       onPress={() => setFollowupType(type)}
                       className={`px-3 py-1.5 rounded-full border ${followupType === type ? "bg-primary border-primary" : "border-border"}`}
                     >
-                      <Text className={`text-[11px] font-semibold ${followupType === type ? "text-white" : "text-foreground"}`}>{crmFollowupTypeLabels[type]}</Text>
+                      <Text className={`text-metadata font-semibold ${followupType === type ? "text-white" : "text-foreground"}`}>{crmFollowupTypeLabels[type]}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -225,11 +225,11 @@ export default function CrmWorkspaceVendorDetail() {
                       <View className="flex-1 min-w-0">
                         <Text className="text-foreground text-sm font-semibold">{crmFollowupTypeLabels[followup.type]} · {followup.scheduled_date}{followup.scheduled_time ? ` · ${followup.scheduled_time}` : ""}</Text>
                         {followup.notes ? <Text className="text-muted-foreground text-xs mt-1" numberOfLines={2}>{followup.notes}</Text> : null}
-                        <Text className={`text-[10px] font-bold mt-1 capitalize ${followup.status === "completed" ? "text-emerald-500" : followup.status === "cancelled" ? "text-muted-foreground" : "text-amber-500"}`}>{followup.status}</Text>
+                        <Text className={`text-metadata font-bold mt-1 capitalize ${followup.status === "completed" ? "text-emerald-500" : followup.status === "cancelled" ? "text-muted-foreground" : "text-amber-500"}`}>{followup.status}</Text>
                       </View>
                       {followup.status === "pending" ? (
                         <Pressable onPress={() => void completeFollowup(followup.id)} className="px-3 py-2 rounded-full bg-emerald-500/10">
-                          <Text className="text-emerald-500 text-[10px] font-bold">Mark done</Text>
+                          <Text className="text-emerald-500 text-metadata font-bold">Mark done</Text>
                         </Pressable>
                       ) : null}
                     </CRMCard>

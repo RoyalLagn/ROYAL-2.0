@@ -73,7 +73,7 @@ export default function AdminFooter({ activeTab }: AdminFooterProps) {
               <Icon size={22} className="text-muted-foreground mb-1" />
             )}
             <Text
-              className={`${responsive.isPhone ? "text-[10px]" : "text-xs"} ${active ? "text-primary" : "text-muted-foreground"}`}
+              className={`${responsive.isPhone ? "text-metadata" : "text-xs"} ${active ? "text-primary" : "text-muted-foreground"}`}
               numberOfLines={1}
             >
               {responsive.isPhone && tab.shortLabel ? tab.shortLabel : tab.label}

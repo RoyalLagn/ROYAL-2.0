@@ -12,6 +12,7 @@ import { usePublicAuth } from "@/context/PublicAuthContext";
 import {
   ClipViewerHandoff, SavedClipEvents, SavedClipService, type SavedClipItem,
 } from "@/clips/services";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 function Skeleton({ width }: { width: number }) {
   return <View style={{ width }}>
@@ -118,7 +119,7 @@ export default function SavedClipsScreen() {
     router.push({ pathname: "/(tabs)/clips", params: { clipId: item.clip.id } });
   }, [router]);
 
-  return <SafeAreaView style={[styles.root, { backgroundColor: dark ? "#0A0809" : "#FFF9FC" }]} edges={["top"]}>
+  return <SafeAreaView style={[styles.root, { backgroundColor: dark ? "#0A0809" : "#FFFFFF" }]} edges={["top"]}>
     <View style={[styles.header, { borderBottomColor: dark ? "#2C2227" : "#F1DCE5" }]}>
       <Pressable accessibilityLabel="Back" onPress={() => router.back()} style={styles.back}><ChevronLeft size={23} color={dark ? "#FFF" : "#21151B"} /></Pressable>
       <View style={styles.headerText}><Text style={[styles.title, { color: dark ? "#FFF" : "#21151B" }]}>Saved Clips</Text><Text style={styles.subtitle}>{items.length ? `${items.length} wedding inspiration${items.length === 1 ? "" : "s"}` : "Your wedding inspiration collection"}</Text></View>
@@ -149,15 +150,15 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   header: { minHeight: 72, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth },
   back: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  headerText: { flex: 1, paddingRight: 44 }, title: { fontSize: 22, fontWeight: "900", letterSpacing: -0.4 }, subtitle: { color: "#9A7D8A", fontSize: 10, marginTop: 2 },
+  headerText: { flex: 1, paddingRight: 44 }, title: { fontSize: typeScale.metric, fontWeight: "700", letterSpacing: -0.4 }, subtitle: { color: "#9A7D8A", fontSize: typeScale.caption, marginTop: 2 },
   row: { gap: 12 }, card: { marginTop: 14 }, imageWrap: { borderRadius: 16, overflow: "hidden", backgroundColor: "#21151B" },
   savedBadge: { position: "absolute", top: 9, right: 9, width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(12,8,10,.58)" },
   playBadge: { position: "absolute", left: 9, bottom: 9, width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(233,30,99,.86)" },
-  vendor: { color: "#E91E63", fontSize: 10, fontWeight: "900", marginTop: 8 }, caption: { color: "#604D56", fontSize: 11, lineHeight: 15, fontWeight: "700", marginTop: 2 },
-  meta: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 5 }, metaText: { flexShrink: 1, color: "#9A7D8A", fontSize: 8 }, savedDate: { marginLeft: "auto", color: "#A8949D", fontSize: 8 },
+  vendor: { color: "#E91E63", fontSize: typeScale.caption, fontWeight: "700", marginTop: 8 }, caption: { color: "#604D56", fontSize: typeScale.metadata, lineHeight: typeLeading.label, fontWeight: "700", marginTop: 2 },
+  meta: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 5 }, metaText: { flexShrink: 1, color: "#9A7D8A", fontSize: typeScale.caption }, savedDate: { marginLeft: "auto", color: "#A8949D", fontSize: typeScale.caption },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 28 }, emptyIcon: { width: 94, height: 94, borderRadius: 47, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(233,30,99,.1)" },
-  emptyTitle: { fontSize: 20, fontWeight: "900", marginTop: 18 }, emptyText: { maxWidth: 330, color: "#8C7580", textAlign: "center", fontSize: 11, lineHeight: 18, marginTop: 7 },
-  explore: { height: 46, borderRadius: 23, paddingHorizontal: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#E91E63", marginTop: 18 }, exploreText: { color: "#FFF", fontSize: 11, fontWeight: "900" },
+  emptyTitle: { fontSize: typeScale.sectionTitle, fontWeight: "700", marginTop: 18 }, emptyText: { maxWidth: 330, color: "#8C7580", textAlign: "center", fontSize: typeScale.metadata, lineHeight: typeLeading.bodyCompact, marginTop: 7 },
+  explore: { height: 46, borderRadius: 23, paddingHorizontal: 22, alignItems: "center", justifyContent: "center", backgroundColor: "#E91E63", marginTop: 18 }, exploreText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
   skeletonGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, paddingTop: 14 }, skeletonImage: { borderRadius: 16, backgroundColor: "rgba(233,30,99,.1)" }, skeletonLine: { height: 8, borderRadius: 4, backgroundColor: "rgba(154,125,138,.16)", marginTop: 7 },
   loader: { marginVertical: 24 },
 });

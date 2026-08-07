@@ -27,8 +27,8 @@ export function LineChart({ data, height = 140 }: LineChartProps) {
         ))}
       </Svg>
       <View className="flex-row justify-between mt-1">
-        <Text className="text-muted-foreground text-[9px]">{data[0]?.date.slice(5)}</Text>
-        <Text className="text-muted-foreground text-[9px]">{data[data.length - 1]?.date.slice(5)}</Text>
+        <Text className="text-muted-foreground text-caption">{data[0]?.date.slice(5)}</Text>
+        <Text className="text-muted-foreground text-caption">{data[data.length - 1]?.date.slice(5)}</Text>
       </View>
     </View>
   );

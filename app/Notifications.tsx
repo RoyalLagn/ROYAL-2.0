@@ -113,7 +113,7 @@ function NotificationRow({
           <Text className="text-muted-foreground text-xs leading-5">
             {notification.message}
           </Text>
-          <Text className="text-muted-foreground text-[10px] mt-2">
+          <Text className="text-muted-foreground text-metadata mt-2">
             {formatTimestamp(notification.timestamp)}
           </Text>
         </View>

@@ -1,8 +1,8 @@
-import React from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ChevronDown } from "lucide-react-native";
-
-const PINK = "#E91E63";
+import { brandColors } from "@/constants/brandPalette";
+import { fonts, typeScale, typeStyles } from "@/constants/typography";
 
 type ResultsSummaryProps = {
   count: number;
@@ -13,13 +13,29 @@ type ResultsSummaryProps = {
 };
 
 export default function ResultsSummary({ count, category, sortLabel, dark, onSort }: ResultsSummaryProps) {
-  const text = dark ? "#F8F2F5" : "#241B21";
+  const [sortFocused, setSortFocused] = useState(false);
+  const colors = brandColors(dark);
+  const text = dark ? "#F8F2F5" : colors.foreground;
+  const countLabel = count === 1 ? category.replace(/s$/, "") : category;
   return (
     <View style={styles.row}>
-      <Text numberOfLines={1} style={[styles.count, { color: text }]}>{count} {category} Found</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="Change result sorting" onPress={onSort} style={styles.sort}>
-        <Text numberOfLines={1} style={styles.sortText}>{sortLabel}</Text>
-        <ChevronDown size={13} color={PINK} />
+      <Text numberOfLines={1} style={[styles.count, { color: text }]}>{count} {countLabel} found</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Sort results, currently ${sortLabel}`}
+        onPress={onSort}
+        onHoverIn={() => setSortFocused(true)}
+        onHoverOut={() => setSortFocused(false)}
+        onFocus={() => setSortFocused(true)}
+        onBlur={() => setSortFocused(false)}
+        style={({ pressed }) => [
+          styles.sort,
+          sortFocused && { backgroundColor: colors.muted },
+          pressed && styles.pressed,
+        ]}
+      >
+        <Text numberOfLines={1} style={[styles.sortText, { color: colors.primaryStrong }]}>{sortLabel}</Text>
+        <ChevronDown size={13} color={colors.primaryStrong} />
       </Pressable>
     </View>
   );
@@ -27,7 +43,8 @@ export default function ResultsSummary({ count, category, sortLabel, dark, onSor
 
 const styles = StyleSheet.create({
   row: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  count: { flex: 1, minWidth: 0, fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }), fontSize: 16, lineHeight: 21, fontWeight: "700" },
-  sort: { maxWidth: "42%", minHeight: 36, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 3 },
-  sortText: { flexShrink: 1, color: PINK, fontSize: 11, fontWeight: "700" },
+  count: { flex: 1, minWidth: 0, ...typeStyles.cardTitle },
+  sort: { maxWidth: "42%", minHeight: 36, paddingHorizontal: 9, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 3 },
+  sortText: { flexShrink: 1, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
+  pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
 });

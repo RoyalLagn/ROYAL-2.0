@@ -149,11 +149,11 @@ export default function CrmMarketingWorkspaceVendorDetail() {
                   <View key={step} className={index === pipelineSteps.length - 1 ? "items-center" : "items-center flex-1"}>
                     <View className="flex-row items-center w-full">
                       <View className={`w-6 h-6 rounded-full items-center justify-center ${index <= currentStepIndex ? "bg-primary" : "bg-muted"}`}>
-                        {index <= currentStepIndex ? <Check size={12} color="#FFFFFF" /> : <Text className="text-[10px] text-muted-foreground font-bold">{index + 1}</Text>}
+                        {index <= currentStepIndex ? <Check size={12} color="#FFFFFF" /> : <Text className="text-metadata text-muted-foreground font-bold">{index + 1}</Text>}
                       </View>
                       {index < pipelineSteps.length - 1 ? <View className={`flex-1 h-0.5 ${index < currentStepIndex ? "bg-primary" : "bg-border"}`} /> : null}
                     </View>
-                    <Text className="text-[9px] mt-1 text-muted-foreground text-center">{step}</Text>
+                    <Text className="text-caption mt-1 text-muted-foreground text-center">{step}</Text>
                   </View>
                 ))}
               </View>

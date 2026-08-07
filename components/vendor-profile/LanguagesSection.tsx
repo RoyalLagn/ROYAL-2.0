@@ -1,5 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { typeScale } from "@/constants/typography";
 
 export default function LanguagesSection({ languages, dark }: { languages: string[]; dark: boolean }) {
   if (!languages.length) return null;
@@ -20,5 +21,5 @@ export default function LanguagesSection({ languages, dark }: { languages: strin
 const styles = StyleSheet.create({
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  chipText: { fontSize: 12, fontWeight: "600" },
+  chipText: { fontSize: typeScale.bodyCompact, fontWeight: "600" },
 });

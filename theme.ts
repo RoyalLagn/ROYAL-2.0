@@ -65,10 +65,10 @@ export const lightTheme = vars({
 "--radius": "12", // 0.75rem = 12px
 
 // Core semantic colors - Wedding Pink Theme
-"--background": "255 251 252", // Soft pink white
+"--background": "255 255 255", // Clean white canvas
 "--foreground": "31 25 28", // Dark warm gray
 
-"--card": "255 255 255", // White cards
+"--card": "253 242 248", // Pink-50 tinted cards
 "--card-foreground": "31 25 28", // Dark text
 
 "--popover": "255 255 255", // White

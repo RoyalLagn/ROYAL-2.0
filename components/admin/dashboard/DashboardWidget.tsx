@@ -4,6 +4,7 @@ import { RefreshCw } from "lucide-react-native";
 import { DashboardEmpty, DashboardError, DashboardSkeleton } from "./DashboardStates";
 import { ResponsiveCard } from "@/components/responsive/ResponsiveCard";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
+import { typeStyles } from "@/constants/typography";
 
 type Props = {
   title: string;
@@ -28,14 +29,14 @@ export function DashboardWidget({
   onRefresh,
   children,
 }: Props) {
-  const { iconSize, titleSize, bodySize } = useResponsiveLayout();
+  const { iconSize, isPhone } = useResponsiveLayout();
   return (
     <ResponsiveCard className="overflow-hidden">
-      <View className={`flex-row items-center ${bodySize <= 12 ? "mb-3" : "mb-4"}`}>
+      <View className={`flex-row items-center ${isPhone ? "mb-3" : "mb-4"}`}>
         {Icon ? <View className="min-w-11 min-h-11 rounded-xl bg-primary/10 items-center justify-center mr-3"><Icon size={iconSize} className="text-primary" /></View> : null}
         <View className="flex-1">
-          <Text className="text-foreground font-bold" style={{ fontSize: titleSize }} numberOfLines={2}>{title}</Text>
-          {subtitle ? <Text className="text-muted-foreground mt-0.5" style={{ fontSize: bodySize }} numberOfLines={2}>{subtitle}</Text> : null}
+          <Text className="text-foreground font-bold" style={typeStyles.cardTitle} numberOfLines={2}>{title}</Text>
+          {subtitle ? <Text className="text-muted-foreground mt-0.5" style={typeStyles.bodyCompact} numberOfLines={2}>{subtitle}</Text> : null}
         </View>
         {onRefresh ? (
           <Pressable accessibilityRole="button" accessibilityLabel={`Refresh ${title}`} className="min-w-11 min-h-11 items-center justify-center" onPress={onRefresh}>

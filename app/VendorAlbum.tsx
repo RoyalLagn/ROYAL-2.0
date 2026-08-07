@@ -1,15 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Animated,
-  FlatList,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { ActivityIndicator, Animated, FlatList, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Film, Images, Play, Sparkles } from "lucide-react-native";
@@ -18,6 +8,7 @@ import FullscreenMediaViewer from "@/components/vendor-profile/FullscreenMediaVi
 import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
 import { getApprovedPublicVendorById, type PublicVendorListing } from "@/services/publicVendorListings";
 import { portfolioMediaUrl, type VendorPortfolioMedia } from "@/services/vendorPortfolio";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
 
@@ -265,9 +256,8 @@ export default function VendorAlbum() {
   );
 }
 
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#FFF9FB" },
+  root: { flex: 1, backgroundColor: "#FFFFFF" },
   header: { paddingBottom: 14 },
   headerCard: {
     minHeight: 150,
@@ -290,14 +280,14 @@ const styles = StyleSheet.create({
   backPressed: { opacity: 0.76, transform: [{ scale: 0.94 }] },
   headerCopy: { flex: 1, minWidth: 0 },
   eyebrowRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 2 },
-  eyebrow: { color: "#A54768", fontSize: 8, lineHeight: 12, fontWeight: "900", letterSpacing: 1.25 },
-  albumName: { color: "#24141C", fontFamily: serif, fontSize: 23, lineHeight: 28, fontWeight: "700", letterSpacing: -0.25 },
-  vendorName: { color: "#7A626D", fontSize: 10, lineHeight: 14, fontWeight: "700", marginTop: 2 },
-  description: { color: "#66545D", maxWidth: 760, fontSize: 12, lineHeight: 18, marginTop: 7 },
+  eyebrow: { color: "#A54768", fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700", letterSpacing: 1.25 },
+  albumName: { color: "#24141C", ...typeStyles.editorialSectionTitle },
+  vendorName: { color: "#7A626D", fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700", marginTop: 2 },
+  description: { color: "#66545D", maxWidth: 760, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 7 },
   statsRow: { minHeight: 29, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 7, marginTop: 11 },
   statChip: { minHeight: 28, paddingHorizontal: 9, borderRadius: 14, borderWidth: 1, borderColor: "#EFC8D6", backgroundColor: "rgba(255,255,255,.65)", flexDirection: "row", alignItems: "center", gap: 5 },
-  statText: { color: "#81314E", fontSize: 9, lineHeight: 12, fontWeight: "800" },
-  openHint: { color: "#987B87", fontSize: 9, lineHeight: 13, fontWeight: "700", marginLeft: "auto" },
+  statText: { color: "#81314E", fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700" },
+  openHint: { color: "#987B87", fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700", marginLeft: "auto" },
   tileShell: {
     borderRadius: 16,
     borderWidth: 1,
@@ -313,12 +303,12 @@ const styles = StyleSheet.create({
   mediaSkeleton: { backgroundColor: "#291C22" },
   tileGradient: { position: "absolute", left: 0, right: 0, bottom: 0, height: "38%" },
   itemNumber: { position: "absolute", top: 7, left: 7, minWidth: 26, height: 22, paddingHorizontal: 6, borderRadius: 11, backgroundColor: "rgba(18,9,13,.62)", alignItems: "center", justifyContent: "center" },
-  itemNumberText: { color: "#FFF3F7", fontSize: 8, lineHeight: 10, fontWeight: "900", letterSpacing: 0.5 },
+  itemNumberText: { color: "#FFF3F7", fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700", letterSpacing: 0.5 },
   play: { position: "absolute", top: "50%", left: "50%", width: 42, height: 42, marginLeft: -21, marginTop: -21, borderRadius: 21, backgroundColor: "rgba(20,13,17,.58)", alignItems: "center", justifyContent: "center" },
   duration: { position: "absolute", right: 7, bottom: 7, paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7, backgroundColor: "rgba(20,13,17,.68)" },
-  durationText: { color: "#FFF", fontSize: 9, fontWeight: "800" },
+  durationText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  emptyTitle: { color: "#24181E", fontFamily: serif, fontSize: 22, fontWeight: "700" },
+  emptyTitle: { color: "#24181E", ...typeStyles.editorialSectionTitle },
   backHome: { marginTop: 16, minHeight: 42, paddingHorizontal: 20, borderRadius: 21, backgroundColor: "#E91E63", alignItems: "center", justifyContent: "center" },
-  backHomeText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
+  backHomeText: { color: "#FFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
 });

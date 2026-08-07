@@ -1,26 +1,13 @@
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, } from "react-native";
 import { useRouter } from "expo-router";
 import { Check, ChevronDown, Save } from "lucide-react-native";
 import Animated, {
-  Easing,
-  interpolateColor,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
+  Easing, interpolateColor, useAnimatedStyle, useReducedMotion, useSharedValue, withSequence, withTiming, } from "react-native-reanimated";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { VendorReadinessLabels, type CompletionState } from "@/hooks/useVendorWorkspace";
 import { MotionDuration, MotionEasing } from "@/utils/motion";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 // Shared building blocks for the focused, section-specific vendor profile
 // forms (Business information, About the business, Location, Contact
@@ -362,38 +349,38 @@ export const kitStyles = StyleSheet.create({
   heading: { marginBottom: 19 },
   headingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   readinessBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, alignSelf: "flex-start" },
-  readinessBadgeText: { fontSize: 9, fontWeight: "900" },
-  eyebrow: { fontSize: 9, letterSpacing: 1.6, fontWeight: "900", marginBottom: 6 },
-  title: { fontSize: 27, lineHeight: 33, fontWeight: "900", letterSpacing: -0.8 },
-  subtitle: { fontSize: 11, lineHeight: 18, marginTop: 5, maxWidth: 680 },
+  readinessBadgeText: { fontSize: typeScale.caption, fontWeight: "700" },
+  eyebrow: { fontSize: typeScale.caption, letterSpacing: 1.6, fontWeight: "700", marginBottom: 6 },
+  title: { ...typeStyles.pageTitle },
+  subtitle: { fontSize: typeScale.metadata, lineHeight: typeLeading.bodyCompact, marginTop: 5, maxWidth: 680 },
   section: { borderWidth: 1, borderRadius: 23, padding: 17, marginBottom: 12 },
   workspaceError: { borderWidth: 1, borderRadius: 23, padding: 22, marginTop: 10 },
-  workspaceErrorTitle: { fontSize: 16, fontWeight: "900" },
-  workspaceErrorText: { fontSize: 11, lineHeight: 18, marginTop: 7 },
+  workspaceErrorTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
+  workspaceErrorText: { fontSize: typeScale.metadata, lineHeight: typeLeading.bodyCompact, marginTop: 7 },
   workspaceErrorActions: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginTop: 16 },
   workspaceErrorButton: { minHeight: 44, borderRadius: 14, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
-  workspaceErrorButtonText: { fontSize: 10, fontWeight: "900" },
+  workspaceErrorButtonText: { fontSize: typeScale.caption, fontWeight: "700" },
   sectionTitle: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 17 },
   sectionIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  sectionHeading: { fontSize: 14, fontWeight: "900" },
-  sectionDetail: { fontSize: 9, lineHeight: 14, marginTop: 3 },
+  sectionHeading: { fontSize: typeScale.body, fontWeight: "700" },
+  sectionDetail: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3 },
   flex: { flex: 1, minWidth: 0 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   field: { marginBottom: 13 },
-  label: { fontSize: 10, fontWeight: "800", marginBottom: 7 },
-  input: { minHeight: 49, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, fontSize: 13 },
+  label: { fontSize: typeScale.caption, fontWeight: "700", marginBottom: 7 },
+  input: { minHeight: 49, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, fontSize: typeScale.body },
   select: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   textarea: { minHeight: 126, paddingTop: 13 },
-  helper: { fontSize: 8, lineHeight: 12, marginTop: 5 },
+  helper: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 5 },
   helperError: { fontWeight: "700" },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: -3 },
-  tag: { overflow: "hidden", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 6, fontSize: 8, fontWeight: "800" },
+  tag: { overflow: "hidden", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 6, fontSize: typeScale.caption, fontWeight: "700" },
   saveBar: { borderWidth: 1, borderRadius: 20, padding: 12, flexDirection: "row", alignItems: "center", gap: 12, marginTop: 3 },
   saveMessage: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },
-  saveHint: { fontSize: 9 },
-  savedText: { fontSize: 10, fontWeight: "800" },
-  saveErrorText: { color: "#D33B55", fontSize: 10, lineHeight: 15, fontWeight: "700" },
+  saveHint: { fontSize: typeScale.caption },
+  savedText: { fontSize: typeScale.caption, fontWeight: "700" },
+  saveErrorText: { color: "#D33B55", fontSize: typeScale.caption, lineHeight: typeLeading.label, fontWeight: "700" },
   save: { minWidth: 130, minHeight: 47, paddingHorizontal: 18, borderRadius: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  saveText: { color: "#FFF", fontSize: 11, fontWeight: "900" },
+  saveText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
 });

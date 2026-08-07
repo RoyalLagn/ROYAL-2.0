@@ -134,7 +134,7 @@ export default function LoginScreen() {
       }
       footer={
         <AuthLinkButton onPress={() => changeTab(tab === "login" ? "signup" : "login")} disabled={loading}>
-          <Text className="text-muted-foreground text-[13px]">
+          <Text className="text-muted-foreground text-body">
             {tab === "login" ? "New to RoyalLagn? " : "Already have an account? "}
             <Text className="text-primary font-bold">{tab === "login" ? "Sign Up" : "Login"}</Text>
           </Text>
@@ -214,7 +214,7 @@ export default function LoginScreen() {
               onSubmitEditing={() => void login()}
             />
             <AuthLinkButton align="end" onPress={() => router.replace("/ForgotPassword")} disabled={loading}>
-              <Text className="text-primary font-semibold text-[13px]">Forgot password?</Text>
+              <Text className="text-primary font-semibold text-body">Forgot password?</Text>
             </AuthLinkButton>
           </>
         ) : null}

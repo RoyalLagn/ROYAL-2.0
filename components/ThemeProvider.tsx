@@ -88,7 +88,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       <View
         style={[
           themeVars,
-          { flex: 1, backgroundColor: colorScheme === 'dark' ? '#070B14' : '#FFFBFC' },
+          { flex: 1, backgroundColor: colorScheme === 'dark' ? '#070B14' : '#FFFFFF' },
         ]}
         className={`${colorScheme} flex-1 bg-background`}
       >

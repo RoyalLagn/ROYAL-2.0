@@ -23,6 +23,7 @@ import MarketingCardForm, {
   type MarketingCardFormValues,
 } from "@/components/vendor-marketing-card/MarketingCardForm";
 import { HiddenExportCard, exportMarketingCardPdf } from "@/components/vendor-marketing-card/MarketingCardPdf";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9]{10,15}$/;
@@ -281,19 +282,19 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 40, width: "100%", alignSelf: "center" },
   desktopScroll: { maxWidth: 720, paddingHorizontal: 0, paddingTop: 24, paddingBottom: 56 },
-  pageTitle: { fontSize: 22, fontWeight: "900" },
-  pageSubtitle: { fontSize: 12.5, lineHeight: 18, marginTop: 4, marginBottom: 16 },
+  pageTitle: { fontSize: typeScale.metric, fontWeight: "700" },
+  pageSubtitle: { fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, marginTop: 4, marginBottom: 16 },
   notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
-  noticeText: { flex: 1, fontSize: 11, lineHeight: 17 },
+  noticeText: { flex: 1, fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
   emptyCard: { borderWidth: 1, borderRadius: 26, padding: 32, alignItems: "center", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.06, shadowRadius: 22, elevation: 2 },
   emptyIcon: { width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: "900", marginBottom: 8 },
-  emptyText: { fontSize: 13, lineHeight: 19, textAlign: "center" },
+  emptyTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700", marginBottom: 8 },
+  emptyText: { fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, textAlign: "center" },
   previewWrap: { alignItems: "center", marginBottom: 18 },
-  downloadedText: { fontSize: 11.5, fontWeight: "700", textAlign: "center", marginBottom: 10 },
+  downloadedText: { fontSize: typeScale.metadata, fontWeight: "700", textAlign: "center", marginBottom: 10 },
   downloadButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 54, borderRadius: 18, marginTop: 4 },
   downloadButtonDisabled: { opacity: 0.55 },
-  downloadButtonText: { color: "#FFF", fontSize: 14, fontWeight: "800" },
+  downloadButtonText: { color: "#FFF", fontSize: typeScale.body, fontWeight: "700" },
   pressed: { opacity: 0.88 },
   loading: { position: "absolute", top: "50%", left: 0, right: 0, alignItems: "center", pointerEvents: "none" },
 });

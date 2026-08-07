@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, type ListRenderItemInfo, Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { FlatList, Pressable, type ListRenderItemInfo, Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { RefreshCw, SearchX } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -7,8 +8,7 @@ import CategoryFilterChips from "@/components/listing/CategoryFilterChips";
 import CategoryListingHeader from "@/components/listing/CategoryListingHeader";
 import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import ListingFilterModal, {
-  type ListingFilters,
-} from "@/components/listing/ListingFilterModal";
+  type ListingFilters, } from "@/components/listing/ListingFilterModal";
 import ResultsSummary from "@/components/listing/ResultsSummary";
 import VendorListingCard from "@/components/listing/VendorListingCard";
 import HomeReveal from "@/components/home/HomeReveal";
@@ -19,16 +19,13 @@ import { useFavorites } from "@/context/FavoritesContext";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import {
-  getApprovedPublicVendors,
-  normalizeMarketplaceCategoryName,
-  subscribeToPublicVendorChanges,
-  type PublicVendorListing,
-} from "@/services/publicVendorListings";
+  getApprovedPublicVendors, normalizeMarketplaceCategoryName, subscribeToPublicVendorChanges, type PublicVendorListing, } from "@/services/publicVendorListings";
 import {
-  findMarketplaceCategory,
-  resolveMarketplaceCategoryImage,
-} from "@/data/marketplaceCategories";
+  findMarketplaceCategory, resolveMarketplaceCategoryImage, } from "@/data/marketplaceCategories";
 import { rankVendorsByLocation } from "@/services/locations";
+import { SkeletonList } from "@/components/loading/Skeleton";
+import { brandColors } from "@/constants/brandPalette";
+import { fonts, typeScale, typeLeading } from "@/constants/typography";
 
 function getPriceOptions(category: string) {
   if (category === "Caterers") {
@@ -101,29 +98,53 @@ export default function VendorsListingScreen() {
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [filterSection, setFilterSection] = useState<"sort" | "price" | "rating" | "filters">("filters");
   const [approvedVendors, setApprovedVendors] = useState<PublicVendorListing[]>([]);
+  const [vendorsLoading, setVendorsLoading] = useState(true);
+  const [vendorsError, setVendorsError] = useState("");
 
-  const compact = width < 600;
+  const compact = width < 1100;
   const desktop = width >= 1100;
-  const contentWidth = Math.min(width - (width >= 1100 ? 48 : 32), 980);
-  const background = isDark ? "#141214" : "#FFFAFC";
-  const text = isDark ? "#F8F2F5" : "#231A20";
-  const muted = isDark ? "#AAA0A5" : "#786D73";
-  const border = isDark ? "#3D3036" : "#F1D9E1";
+  const contentWidth = Math.min(width - (width >= 1100 ? 96 : 32), 1120);
+  const colors = brandColors(isDark);
+  const background = colors.background;
+  const text = isDark ? "#F8F2F5" : colors.foreground;
+  const muted = colors.mutedForeground;
+  const border = colors.border;
   const locationSubtitle = city;
 
   useEffect(() => {
     setQuery(initialQuery);
   }, [initialQuery]);
 
+  const loadVendors = useCallback(() => {
+    setVendorsLoading(true);
+    setVendorsError("");
+    return getApprovedPublicVendors()
+      .then((items) => setApprovedVendors(items))
+      .catch(() => {
+        setApprovedVendors([]);
+        setVendorsError("We couldn’t load vendors right now. Check your connection and try again.");
+      })
+      .finally(() => setVendorsLoading(false));
+  }, []);
+
   useEffect(() => {
     let active = true;
     const load = () => {
       getApprovedPublicVendors()
         .then((items) => {
-          if (active) setApprovedVendors(items);
+          if (active) {
+            setApprovedVendors(items);
+            setVendorsError("");
+          }
         })
         .catch(() => {
-          if (active) setApprovedVendors([]);
+          if (active) {
+            setApprovedVendors([]);
+            setVendorsError("We couldn’t load vendors right now. Check your connection and try again.");
+          }
+        })
+        .finally(() => {
+          if (active) setVendorsLoading(false);
         });
     };
     load();
@@ -133,6 +154,11 @@ export default function VendorsListingScreen() {
       unsubscribe();
     };
   }, []);
+
+  const clearSearchAndFilters = () => {
+    setQuery("");
+    setFilters(DEFAULT_FILTERS);
+  };
 
   const vendors = useMemo(
     () => approvedVendors
@@ -301,12 +327,33 @@ export default function VendorsListingScreen() {
         maxToRenderPerBatch={8}
         windowSize={7}
         removeClippedSubviews={Platform.OS !== "web"}
-        ListEmptyComponent={
-          <View style={[styles.empty, { borderColor: border }]}>
-            <Text style={[styles.emptyTitle, { color: text }]}>No matching {displayCategory.toLowerCase()}</Text>
-            <Text style={[styles.emptyText, { color: muted }]}>Try another keyword or reset the price and rating filters.</Text>
+        ListEmptyComponent={vendorsLoading ? (
+          <SkeletonList count={compact ? 3 : 4} height={compact ? 172 : 220} gap={14} />
+        ) : vendorsError ? (
+          <View style={[styles.empty, { borderColor: border, backgroundColor: colors.card }]}>
+            <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
+              <RefreshCw size={22} color={colors.primaryStrong} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: text }]}>Vendors are taking a moment</Text>
+            <Text style={[styles.emptyText, { color: muted }]}>{vendorsError}</Text>
+            <Pressable accessibilityRole="button" onPress={() => void loadVendors()} style={({ pressed }) => [styles.emptyAction, pressed && styles.emptyActionPressed]}>
+              <Text style={styles.emptyActionText}>Try again</Text>
+            </Pressable>
           </View>
-        }
+        ) : (
+          <View style={[styles.empty, { borderColor: border, backgroundColor: colors.card }]}>
+            <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
+              <SearchX size={24} color={colors.primaryStrong} />
+            </View>
+            <Text style={[styles.emptyTitle, { color: text }]}>No matching {displayCategory.toLowerCase()}</Text>
+            <Text style={[styles.emptyText, { color: muted }]}>Try another keyword or clear the price and rating filters.</Text>
+            {(query || activeFilterCount > 0) ? (
+              <Pressable accessibilityRole="button" onPress={clearSearchAndFilters} style={({ pressed }) => [styles.emptyAction, pressed && styles.emptyActionPressed]}>
+                <Text style={styles.emptyActionText}>Clear search and filters</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        )}
       />
 
       {!desktop ? <StandaloneMobileTabBar activeRoute="Categories" /> : null}
@@ -332,8 +379,12 @@ const styles = StyleSheet.create({
   top: { alignSelf: "center", paddingBottom: 8 },
   chips: { marginBottom: 4 },
   scroll: { flex: 1 },
-  list: { alignSelf: "center", gap: 12, paddingTop: 4 },
-  empty: { minHeight: 190, marginTop: 4, borderWidth: 1, borderStyle: "dashed", borderRadius: 22, paddingHorizontal: 24, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontFamily: "serif", fontSize: 20, lineHeight: 25, fontWeight: "700", textAlign: "center" },
-  emptyText: { maxWidth: 340, marginTop: 6, fontSize: 11, lineHeight: 17, textAlign: "center" },
+  list: { alignSelf: "center", gap: 14, paddingTop: 6 },
+  empty: { minHeight: 250, marginTop: 6, borderWidth: 1, borderRadius: 20, paddingHorizontal: 28, alignItems: "center", justifyContent: "center" },
+  emptyIcon: { width: 54, height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  emptyTitle: { marginTop: 15, fontFamily: fonts.serif.bold, fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, textAlign: "center" },
+  emptyText: { maxWidth: 380, marginTop: 7, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata, lineHeight: typeLeading.tab, textAlign: "center" },
+  emptyAction: { minHeight: 44, marginTop: 16, paddingHorizontal: 18, borderRadius: 14, backgroundColor: "#E91E63", alignItems: "center", justifyContent: "center" },
+  emptyActionPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
+  emptyActionText: { color: "#FFFFFF", fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
 });

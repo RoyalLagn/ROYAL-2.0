@@ -1,17 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Alert,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { Alert, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight, Images, RefreshCw } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PublicClip } from "@/clips/types";
 import { PublicClipService } from "@/clips/services";
@@ -31,24 +23,22 @@ import VendorAvailabilityModal from "@/components/vendor-profile/VendorAvailabil
 import VendorClipsGrid from "@/components/vendor-profile/VendorClipsGrid";
 import VendorClipsReelViewer from "@/components/vendor-profile/VendorClipsReelViewer";
 import VendorProfileTabs, {
-  type VendorProfileTab,
-} from "@/components/vendor-profile/VendorProfileTabs";
+  type VendorProfileTab, } from "@/components/vendor-profile/VendorProfileTabs";
 import { StandaloneMobileTabBar, useMobileTabBarHeight } from "@/components/MobileTabBar";
 import PublicWebNavbar from "@/components/PublicWebNavbar";
 import ConnectedVendorReviews from "@/components/reviews/ConnectedVendorReviews";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import {
-  getApprovedPublicVendorById,
-  recordPublicVendorProfileView,
-  subscribeToPublicVendorChanges,
-  type PublicVendorListing,
-} from "@/services/publicVendorListings";
+  getApprovedPublicVendorById, recordPublicVendorProfileView, subscribeToPublicVendorChanges, type PublicVendorListing, } from "@/services/publicVendorListings";
 import { portfolioMediaUrl } from "@/services/vendorPortfolio";
 import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 import type { VendorPackage } from "@/services/vendorPackages";
 import { EnquiryExternalOpenError, EnquiryService, type EnquiryChannel } from "@/services/enquiries";
 import { shareVendorProfile } from "@/services/vendorShare";
 import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
+import { SkeletonBone, SkeletonList } from "@/components/loading/Skeleton";
+import { brandColors } from "@/constants/brandPalette";
+import { fonts, typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -83,6 +73,7 @@ export default function VendorsProfile() {
   const [vendor, setVendor] = useState<PublicVendorListing | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [vendorReloadKey, setVendorReloadKey] = useState(0);
   const category = vendor?.category ?? paramCategory ?? "Photographers";
   const { isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
@@ -130,7 +121,7 @@ export default function VendorsProfile() {
       active = false;
       unsubscribe();
     };
-  }, [vendorId]);
+  }, [vendorId, vendorReloadKey]);
 
   useEffect(() => {
     if (!vendor?.id) return;
@@ -177,11 +168,12 @@ export default function VendorsProfile() {
     };
   }, [clipsReloadKey, vendor?.id]);
 
-  const background = dark ? "#070B14" : "#FFF8FA";
-  const surface = dark ? "#0E141F" : "#FFFFFF";
-  const text = dark ? "#FFF8FB" : "#1D1519";
-  const muted = dark ? "#C6BAC0" : "#62575D";
-  const sectionDivider = dark ? "#303846" : "#ECE7EA";
+  const colors = brandColors(dark);
+  const background = colors.background;
+  const surface = colors.card;
+  const text = colors.foreground;
+  const muted = colors.mutedForeground;
+  const sectionDivider = colors.border;
   const contentWidth = Math.min(width, 1120);
   const heroHeight = useMemo(() => {
     const usableHeight = Math.max(520, height - insets.top - insets.bottom);
@@ -221,19 +213,34 @@ export default function VendorsProfile() {
     return (
       <View style={[styles.root, { backgroundColor: background }]}>
         <PublicWebNavbar activeRoute="Categories" />
-        <View style={styles.notFound}>
-          <Text style={[styles.notFoundTitle, { color: text }]}>
-            {loading ? "Loading vendor…" : "Vendor is currently unavailable"}
-          </Text>
-          {!loading ? (
-            <>
-              {loadError ? <Text style={[styles.loadError, { color: muted }]}>{loadError}</Text> : null}
-              <Pressable accessibilityRole="button" onPress={goBack} style={styles.goBack}>
-                <Text style={styles.goBackText}>Go back</Text>
+        {loading ? (
+          <View accessibilityLabel="Loading vendor profile" style={styles.loadingWrap}>
+            <SkeletonBone width="100%" height={desktop ? 430 : 320} radius={0} />
+            <View style={[styles.loadingContent, width < 600 && styles.contentCompact]}>
+              <SkeletonBone width="62%" height={28} radius={8} />
+              <SkeletonBone width="42%" height={12} radius={5} style={{ marginTop: 12 }} />
+              <SkeletonList count={3} height={86} gap={14} />
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.notFound, { backgroundColor: surface, borderColor: sectionDivider }]}>
+            <View style={[styles.notFoundIcon, { backgroundColor: colors.muted }]}>
+              <RefreshCw size={24} color={colors.primaryStrong} />
+            </View>
+            <Text style={[styles.notFoundTitle, { color: text }]}>Vendor is currently unavailable</Text>
+            <Text style={[styles.loadError, { color: muted }]}>{loadError || "This profile may have been paused or is no longer public."}</Text>
+            <View style={styles.recoveryActions}>
+              {loadError ? (
+                <Pressable accessibilityRole="button" onPress={() => setVendorReloadKey((current) => current + 1)} style={({ pressed, hovered }) => [styles.retry, hovered && Platform.OS === "web" && styles.retryHovered, pressed && styles.pressed]}>
+                  <Text style={styles.retryText}>Try again</Text>
+                </Pressable>
+              ) : null}
+              <Pressable accessibilityRole="button" onPress={goBack} style={({ pressed }) => [styles.goBack, pressed && styles.pressed]}>
+                <Text style={[styles.goBackText, { color: colors.primaryStrong }]}>Back to vendors</Text>
               </Pressable>
-            </>
-          ) : null}
-        </View>
+            </View>
+          </View>
+        )}
         {!desktop ? <StandaloneMobileTabBar activeRoute="Categories" /> : null}
       </View>
     );
@@ -309,6 +316,7 @@ export default function VendorsProfile() {
             images={heroImages}
             fallbackImage={fallbackImage}
             vendorName={vendor.name}
+            containMedia={!vendor.heroMedia.length}
             height={heroHeight}
             onBack={goBack}
             focalPoints={heroFocalPoints}
@@ -344,7 +352,7 @@ export default function VendorsProfile() {
             <PackagesCard
               price={vendor.startingPrice}
               dark={dark}
-              subtitle={vendor.services.length ? `${vendor.services.length} active ${vendor.services.length === 1 ? "package" : "packages"} available` : "Request a custom package"}
+              subtitle="Compare available pricing or request a custom package"
               onPress={() => setPackagesVisible(true)}
             />
 
@@ -367,7 +375,15 @@ export default function VendorsProfile() {
                     })}
                   />
                 </SectionErrorBoundary>
-              </View> : null
+              </View> : (
+                <View style={[styles.portfolioEmpty, sectionCardStyle]}>
+                  <View style={[styles.portfolioEmptyIcon, { backgroundColor: colors.muted }]}>
+                    <Images size={23} color={colors.primaryStrong} />
+                  </View>
+                  <Text style={[styles.portfolioEmptyTitle, { color: text }]}>Portfolio coming soon</Text>
+                  <Text style={[styles.portfolioEmptyText, { color: muted }]}>This vendor has not published any portfolio albums yet. Explore their services or contact them for recent work.</Text>
+                </View>
+              )
             ) : (
               <SectionErrorBoundary label="Clips" key={`clips-${vendor.id}`}>
                 <VendorClipsGrid
@@ -469,37 +485,36 @@ export default function VendorsProfile() {
   );
 }
 
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { width: "100%", maxWidth: 960, alignSelf: "center", paddingHorizontal: 20, paddingTop: 16 },
+  content: { width: "100%", maxWidth: 980, alignSelf: "center", paddingHorizontal: 20, paddingTop: 18 },
   contentCompact: { paddingHorizontal: 14, paddingTop: 14 },
   sectionCard: {
     marginTop: 14,
     padding: 16,
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 20,
     shadowColor: "#6F3048",
-    shadowOpacity: 0.025,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   portfolioSection: { marginTop: 2 },
+  portfolioEmpty: { minHeight: 210, marginTop: 14, borderWidth: 1, borderRadius: 20, alignItems: "center", justifyContent: "center", padding: 24 },
+  portfolioEmptyIcon: { width: 52, height: 52, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  portfolioEmptyTitle: { marginTop: 13, fontFamily: fonts.serif.bold, fontSize: typeScale.editorialCardTitle, lineHeight: typeLeading.sectionTitle, textAlign: "center" },
+  portfolioEmptyText: { maxWidth: 430, marginTop: 6, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata, lineHeight: typeLeading.tab, textAlign: "center" },
   reviewsSection: { marginBottom: 16 },
   sectionHeadingWrap: { alignSelf: "flex-start", marginBottom: 10 },
   sectionHeading: {
-    fontFamily: serif,
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: "700",
+    fontFamily: fonts.serif.bold,
+    fontSize: typeScale.editorialCardTitle,
+    lineHeight: typeLeading.editorialCardTitle,
     letterSpacing: -0.15,
   },
   ornament: { width: 64, height: 7, flexDirection: "row", alignItems: "center", gap: 4 },
-  ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#D6A054" },
-  ornamentDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#D6A054" },
-  aboutText: { maxWidth: 900, fontSize: 13, lineHeight: 20, fontWeight: "400" },
+  ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#FACC15" },
+  ornamentDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#FACC15" },
+  aboutText: { maxWidth: 900, fontFamily: fonts.sans.regular, fontSize: typeScale.body, lineHeight: typeLeading.body },
   readMore: {
     minHeight: 38,
     alignSelf: "flex-end",
@@ -510,19 +525,25 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   readMoreHover: { transform: [{ translateX: 2 }] },
-  readMoreText: { color: PINK, fontSize: 13, fontWeight: "800" },
+  readMoreText: { color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.bodyCompact },
   pressed: { opacity: 0.7 },
-  notFound: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
-  notFoundTitle: { fontFamily: serif, fontSize: 23, fontWeight: "700" },
-  loadError: { maxWidth: 480, marginTop: 8, textAlign: "center", fontSize: 13, lineHeight: 19 },
+  loadingWrap: { flex: 1, width: "100%", maxWidth: 1120, alignSelf: "center" },
+  loadingContent: { width: "100%", maxWidth: 980, alignSelf: "center", gap: 14, padding: 20 },
+  notFound: { width: "90%", maxWidth: 520, minHeight: 300, alignSelf: "center", marginVertical: "auto", borderWidth: 1, borderRadius: 24, alignItems: "center", justifyContent: "center", padding: 28 },
+  notFoundIcon: { width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 16 },
+  notFoundTitle: { fontFamily: fonts.serif.bold, fontSize: typeScale.metric, lineHeight: typeLeading.metric, textAlign: "center" },
+  loadError: { maxWidth: 420, marginTop: 8, textAlign: "center", fontFamily: fonts.sans.regular, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact },
+  recoveryActions: { marginTop: 18, flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10 },
+  retry: { minHeight: 44, borderRadius: 14, paddingHorizontal: 20, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
+  retryHovered: { backgroundColor: "#BE185D", transform: [{ translateY: -1 }] },
+  retryText: { color: "#FFFFFF", fontFamily: fonts.sans.bold, fontSize: typeScale.bodyCompact },
   goBack: {
     minHeight: 44,
-    marginTop: 16,
-    borderRadius: 22,
-    paddingHorizontal: 22,
-    backgroundColor: PINK,
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },
-  goBackText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
+  goBackText: { fontFamily: fonts.sans.bold, fontSize: typeScale.bodyCompact },
 });

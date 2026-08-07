@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Check, ChevronDown, MapPin, Search, X } from "lucide-react-native";
 import type { LocationPreference, SupportedCity } from "@/locations/types";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 type Props = {
   label: string;
@@ -88,26 +89,26 @@ export function SupportedLocationField({
 const styles = StyleSheet.create({
   field: { marginBottom: 16 },
   flex: { flex: 1, minWidth: 0 },
-  label: { color: "#241D21", fontSize: 14, fontWeight: "600", marginBottom: 8 },
+  label: { color: "#241D21", fontSize: typeScale.body, fontWeight: "600", marginBottom: 8 },
   required: { color: "#E91E63" },
   control: { height: 56, borderWidth: 1, borderColor: "#E7E1E4", borderRadius: 16, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF" },
-  value: { flex: 1, minWidth: 0, color: "#241D21", fontSize: 14 },
+  value: { flex: 1, minWidth: 0, color: "#241D21", fontSize: typeScale.body },
   placeholder: { color: "#8A8589" },
-  helper: { color: "#786D73", fontSize: 11, lineHeight: 16, marginTop: 6 },
+  helper: { color: "#786D73", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 6 },
   pressed: { opacity: 0.75 },
   backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(25,15,20,.5)" },
   sheet: { width: "100%", maxWidth: 540, maxHeight: "78%", alignSelf: "center", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28, backgroundColor: "#FFFFFF" },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 16 },
-  title: { color: "#241D21", fontSize: 20, fontWeight: "800" },
-  subtitle: { color: "#786D73", fontSize: 11, lineHeight: 16, marginTop: 3 },
+  title: { color: "#241D21", fontSize: typeScale.sectionTitle, fontWeight: "700" },
+  subtitle: { color: "#786D73", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 3 },
   close: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF1F6" },
   search: { height: 48, borderRadius: 15, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: "#FFF8FB" },
-  searchInput: { flex: 1, minWidth: 0, color: "#241D21", fontSize: 13 },
+  searchInput: { flex: 1, minWidth: 0, color: "#241D21", fontSize: typeScale.body },
   list: { marginTop: 12 },
   option: { minHeight: 58, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#F0D9E4", paddingHorizontal: 6, flexDirection: "row", alignItems: "center" },
   optionSelected: { backgroundColor: "#FFF3F8" },
-  optionTitle: { color: "#241D21", fontSize: 13, fontWeight: "700" },
-  optionDetail: { color: "#786D73", fontSize: 10, marginTop: 3 },
-  empty: { color: "#786D73", fontSize: 12, textAlign: "center", paddingVertical: 26 },
+  optionTitle: { color: "#241D21", fontSize: typeScale.body, fontWeight: "700" },
+  optionDetail: { color: "#786D73", fontSize: typeScale.caption, marginTop: 3 },
+  empty: { color: "#786D73", fontSize: typeScale.bodyCompact, textAlign: "center", paddingVertical: 26 },
 });
 

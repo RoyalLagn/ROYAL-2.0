@@ -194,8 +194,8 @@ export default function AdminCrmReports() {
                         const percent = territoryCompletion(district);
                         return (
                           <View key={district.id} className="px-3 py-2 rounded-xl" style={{ backgroundColor: `${coverageColor(percent)}22` }}>
-                            <Text className="text-[11px] font-bold" style={{ color: coverageColor(percent) }}>{district.name}</Text>
-                            <Text className="text-[9px] mt-0.5" style={{ color: coverageColor(percent) }}>{percent}% registered</Text>
+                            <Text className="text-metadata font-bold" style={{ color: coverageColor(percent) }}>{district.name}</Text>
+                            <Text className="text-caption mt-0.5" style={{ color: coverageColor(percent) }}>{percent}% registered</Text>
                           </View>
                         );
                       })}
@@ -214,7 +214,7 @@ export default function AdminCrmReports() {
                         onPress={() => setPeriod(value)}
                         className={`px-2.5 py-1 rounded-full border ${period === value ? "bg-primary border-primary" : "border-border"}`}
                       >
-                        <Text className={`text-[10px] font-bold ${period === value ? "text-white" : "text-foreground"}`}>{value}d</Text>
+                        <Text className={`text-metadata font-bold ${period === value ? "text-white" : "text-foreground"}`}>{value}d</Text>
                       </Pressable>
                     ))}
                   </View>

@@ -50,7 +50,7 @@ export default function AdminForgotPassword() {
       subtitle="We’ll send a verification code to your registered administrator email."
       footer={
         <AuthLinkButton onPress={() => router.replace("/AdminLogin")} disabled={loading}>
-          <Text className="text-muted-foreground text-[13px]">
+          <Text className="text-muted-foreground text-body">
             Remembered it? <Text className="text-primary font-bold">Back to login</Text>
           </Text>
         </AuthLinkButton>

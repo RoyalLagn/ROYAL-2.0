@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { BadgeCheck, Crown, MapPin, Share2, Star } from "lucide-react-native";
 import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
+import { brandColors } from "@/constants/brandPalette";
+import { fonts, typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -38,11 +40,13 @@ export default function VendorInfoPanel({
   overlap = true,
 }: VendorInfoPanelProps) {
   const { width } = useWindowDimensions();
+  const [shareFocused, setShareFocused] = useState(false);
   const compact = width < 440;
+  const brand = brandColors(dark);
   const colors = {
-    surface: dark ? "#141922" : "#FFFFFF",
-    text: dark ? "#FFF8FB" : "#1B1418",
-    muted: dark ? "#C8BCC2" : "#62575D",
+    surface: brand.card,
+    text: brand.foreground,
+    muted: brand.mutedForeground,
     badge: dark ? "#35262C" : "#FFF5F7",
     badgeBorder: dark ? "#553642" : "#F4D8E1",
     actionSurface: dark ? "#202632" : "#FFFFFF",
@@ -58,13 +62,10 @@ export default function VendorInfoPanel({
         <View style={styles.nameLine}>
           <Text style={[styles.name, compact && styles.nameCompact, { color: colors.text }]}>{name}</Text>
           {verified ? (
-            <BadgeCheck
-              accessibilityLabel="Verified vendor"
-              size={21}
-              color={PINK}
-              fill={PINK}
-              stroke="#FFFFFF"
-            />
+            <View accessibilityLabel="Verified vendor" style={[styles.verifiedBadge, { backgroundColor: dark ? "#39242D" : "#FFF0F6" }]}>
+              <BadgeCheck size={14} color={dark ? "#FF8AB2" : PINK} strokeWidth={2.2} />
+              {!compact ? <Text style={[styles.verifiedText, { color: dark ? "#FFB0CA" : "#BE185D" }]}>Verified</Text> : null}
+            </View>
           ) : null}
         </View>
         {topRated || hasActions ? (
@@ -85,6 +86,7 @@ export default function VendorInfoPanel({
                   styles.actionButton,
                   { backgroundColor: colors.actionSurface, borderColor: colors.actionBorder },
                 ]}
+                hoveredStyle={styles.actionButtonHovered}
                 pressedStyle={styles.actionButtonPressed}
                 size={18}
               />
@@ -95,9 +97,12 @@ export default function VendorInfoPanel({
                 accessibilityLabel="Share vendor profile"
                 hitSlop={8}
                 onPress={onShare}
-                style={({ pressed }) => [
+                onFocus={() => setShareFocused(true)}
+                onBlur={() => setShareFocused(false)}
+                style={({ pressed, hovered }) => [
                   styles.actionButton,
                   { backgroundColor: colors.actionSurface, borderColor: colors.actionBorder },
+                  (hovered || shareFocused) && Platform.OS === "web" && styles.actionButtonHovered,
                   pressed && styles.actionButtonPressed,
                 ]}
               >
@@ -142,8 +147,6 @@ export default function VendorInfoPanel({
   );
 }
 
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
-
 const styles = StyleSheet.create({
   panel: {
     width: "100%",
@@ -161,7 +164,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     elevation: 3,
   },
-  panelEmbedded: { marginTop: 0 },
+  panelEmbedded: { maxWidth: 980, alignSelf: "center", marginTop: 0, paddingTop: 22, paddingHorizontal: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
   headingRow: {
     width: "100%",
     flexDirection: "row",
@@ -179,13 +182,14 @@ const styles = StyleSheet.create({
   },
   name: {
     flexShrink: 1,
-    fontFamily: serif,
-    fontSize: 26,
-    lineHeight: 32,
-    fontWeight: "700",
+    fontFamily: fonts.serif.bold,
+    fontSize: typeScale.editorialPageTitle,
+    lineHeight: typeLeading.editorialPageTitle,
     letterSpacing: -0.35,
   },
-  nameCompact: { fontSize: 21, lineHeight: 26 },
+  nameCompact: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle },
+  verifiedBadge: { flexShrink: 0, minHeight: 28, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 4 },
+  verifiedText: { fontFamily: fonts.sans.bold, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
   topRated: {
     flexShrink: 0,
     minHeight: 34,
@@ -197,10 +201,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   topRatedText: {
-    color: "#C34D71",
-    fontFamily: serif,
-    fontSize: 12,
-    fontWeight: "600",
+    color: "#BE185D",
+    fontFamily: fonts.serif.semibold,
+    fontSize: typeScale.bodyCompact,
   },
   headingActions: {
     flexShrink: 0,
@@ -226,6 +229,7 @@ const styles = StyleSheet.create({
     opacity: 0.78,
     transform: [{ scale: 0.97 }],
   },
+  actionButtonHovered: { transform: [{ translateY: -1 }], borderColor: "#E91E63" },
   metaRow: {
     marginTop: 7,
     minHeight: 25,
@@ -235,11 +239,11 @@ const styles = StyleSheet.create({
     columnGap: 6,
     rowGap: 4,
   },
-  rating: { fontSize: 14, fontWeight: "800" },
-  metaText: { fontSize: 13 },
-  separator: { fontSize: 14, paddingHorizontal: 1 },
-  location: { minWidth: 0, flexShrink: 1, fontSize: 13, lineHeight: 18 },
+  rating: { fontFamily: fonts.sans.bold, fontSize: typeScale.body },
+  metaText: { fontFamily: fonts.sans.regular, fontSize: typeScale.bodyCompact },
+  separator: { fontSize: typeScale.body, paddingHorizontal: 1 },
+  location: { minWidth: 0, flexShrink: 1, fontFamily: fonts.sans.regular, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact },
   specialties: { marginTop: 9, flexDirection: "row", flexWrap: "wrap", gap: 6 },
   specialtyChip: { maxWidth: "48%", minHeight: 25, borderRadius: 12, borderWidth: 0, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" },
-  specialtyText: { maxWidth: "100%", fontSize: 10.5, lineHeight: 14, fontWeight: "700" },
+  specialtyText: { maxWidth: "100%", fontFamily: fonts.sans.semibold, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
 });

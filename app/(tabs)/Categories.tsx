@@ -1,30 +1,16 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { FlatList, Image, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { useRouter } from "expo-router";
 import Animated, {
-  Easing,
-  Extrapolation,
-  interpolate,
-  type SharedValue,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+  Easing, Extrapolation, interpolate, type SharedValue, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, } from "react-native-reanimated";
 import CategoryCard, { type CategoryCardItem } from "@/components/categories/CategoryCard";
 import CategoryFilterModal from "@/components/categories/CategoryFilterModal";
 import CategoryPageHeader from "@/components/categories/CategoryPageHeader";
 import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import { useCategories } from "@/context/CategoryContext";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 const INITIAL_ANIMATED_CARDS = 8;
 const SKELETON_DELAY_MS = 200;
@@ -269,6 +255,6 @@ const s = StyleSheet.create({
   skeletonImage: { width: 132, height: 134, margin: 4, marginLeft: 0, borderRadius: 18 },
   skeletonImageCompact: { width: 106, height: 108, borderRadius: 17 },
   empty: { marginTop: 12, borderWidth: 1, borderStyle: "dashed", borderRadius: 20, paddingVertical: 34, paddingHorizontal: 20, alignItems: "center" },
-  emptyTitle: { fontFamily: "serif", fontSize: 20, fontWeight: "700", marginBottom: 5 },
-  emptyText: { maxWidth: 330, textAlign: "center", fontSize: 11, lineHeight: 17 },
+  emptyTitle: { ...typeStyles.editorialSectionTitle, marginBottom: 5 },
+  emptyText: { maxWidth: 330, textAlign: "center", fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
 });

@@ -91,7 +91,7 @@ export default function VendorOtpVerification() {
       }
       footer={
         <AuthLinkButton onPress={() => void resend()} disabled={Boolean(countdown) || resending}>
-          <Text className="text-primary font-semibold text-[13px]">
+          <Text className="text-primary font-semibold text-body">
             {resending ? "Sending…" : countdown ? `Resend code in ${countdown}s` : "Resend code"}
           </Text>
         </AuthLinkButton>

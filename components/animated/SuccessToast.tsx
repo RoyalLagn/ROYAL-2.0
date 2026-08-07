@@ -11,6 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { MotionDistance } from "@/utils/motion";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 /**
  * Lightweight, non-blocking confirmation toast for "ordinary edit saved"
@@ -108,5 +109,5 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   icon: { width: 26, height: 26, borderRadius: 9, alignItems: "center", justifyContent: "center" },
-  text: { flex: 1, fontSize: 12, fontWeight: "700", lineHeight: 16 },
+  text: { flex: 1, fontSize: typeScale.bodyCompact, fontWeight: "700", lineHeight: typeLeading.metadata },
 });

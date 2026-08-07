@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { Download, Maximize2, Share2, X } from "lucide-react-native";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
+import { typeScale } from "@/constants/typography";
 
 export default function QrCodeSection({
   colors,
@@ -58,12 +59,12 @@ function QrButton({ label, icon, colors, onPress }: { label: string; icon: React
 
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
-  title: { fontSize: 15, fontWeight: "900", marginBottom: 14 },
+  title: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 14 },
   qrWrap: { alignItems: "center", marginBottom: 16 },
   qrBox: { padding: 14, borderRadius: 18, borderWidth: 1, backgroundColor: "#FFFFFF" },
   actionsRow: { flexDirection: "row", gap: 8 },
   qrButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, paddingVertical: 10 },
-  qrButtonLabel: { fontSize: 10, fontWeight: "800" },
+  qrButtonLabel: { fontSize: typeScale.caption, fontWeight: "700" },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },
   modalClose: { position: "absolute", top: 50, right: 24, width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.12)" },

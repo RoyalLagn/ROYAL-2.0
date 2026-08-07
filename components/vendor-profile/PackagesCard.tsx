@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Tag } from "lucide-react-native";
+import { fonts, typeScale, typeLeading, typeStyles } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -24,11 +25,12 @@ function PackagesCard({
   accessibilityLabel = "View vendor packages",
 }: PackagesCardProps) {
   const { width } = useWindowDimensions();
+  const [focused, setFocused] = useState(false);
   const compact = width < 360;
   const palette = dark
     ? {
-        surface: "#302127",
-        border: "#583541",
+        surface: "#161E2E",
+        border: "#232C3D",
         text: "#FFF8FB",
         muted: "#CFBBC4",
         eyebrow: "#F0AFC6",
@@ -75,11 +77,13 @@ function PackagesCard({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         onPress={onPress}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         style={({ pressed, hovered }) => [
           styles.button,
           compact && styles.buttonCompact,
-          { backgroundColor: dark ? "#F0437E" : "#D92D63" },
-          hovered && Platform.OS === "web" && styles.buttonHovered,
+          { backgroundColor: PINK },
+          (hovered || focused) && Platform.OS === "web" && styles.buttonHovered,
           pressed && styles.buttonPressed,
         ]}
       >
@@ -91,16 +95,13 @@ function PackagesCard({
 
 export default React.memo(PackagesCard);
 
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
-const sans = Platform.select({ ios: "System", android: "sans-serif", web: "system-ui, sans-serif" });
-
 const styles = StyleSheet.create({
   card: {
     width: "100%",
     minHeight: 112,
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: 20,
+    padding: 16,
     overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
@@ -130,15 +131,15 @@ const styles = StyleSheet.create({
   },
   iconWrapCompact: { width: 42, height: 42, borderRadius: 14 },
   copy: { flex: 1, minWidth: 0 },
-  eyebrow: { fontSize: 12, lineHeight: 17, fontWeight: "600", letterSpacing: 0.15 },
-  eyebrowCompact: { fontSize: 10.5, lineHeight: 14 },
-  price: { marginTop: 1, fontFamily: serif, fontSize: 20, lineHeight: 25, fontWeight: "700" },
-  priceCompact: { fontSize: 21, lineHeight: 26 },
-  subtitle: { marginTop: 3, fontSize: 12, lineHeight: 17 },
+  eyebrow: { fontFamily: fonts.sans.semibold, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, letterSpacing: 0.1 },
+  eyebrowCompact: { fontSize: typeScale.metadata, lineHeight: typeLeading.caption },
+  price: { marginTop: 1, ...typeStyles.metric },
+  priceCompact: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle },
+  subtitle: { marginTop: 3, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   button: {
     minWidth: 110,
-    minHeight: 42,
-    borderRadius: 12,
+    minHeight: 46,
+    borderRadius: 14,
     paddingHorizontal: 11,
     alignItems: "center",
     justifyContent: "center",
@@ -148,8 +149,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
   },
   buttonCompact: { width: "100%", minWidth: 0, minHeight: 44, paddingHorizontal: 14 },
-  buttonHovered: { transform: [{ translateY: -1 }], backgroundColor: "#C92559" },
+  buttonHovered: { transform: [{ translateY: -1 }], backgroundColor: "#BE185D" },
   buttonPressed: { opacity: 0.92, transform: [{ scale: 0.98 }] },
-  buttonText: { color: "#FFFFFF", fontFamily: sans, fontSize: 13, fontWeight: "800" },
-  buttonTextCompact: { fontFamily: sans, fontSize: 13, fontWeight: "800" },
+  buttonText: { color: "#FFFFFF", fontFamily: fonts.sans.bold, fontSize: typeScale.bodyCompact },
+  buttonTextCompact: { fontFamily: fonts.sans.bold, fontSize: typeScale.bodyCompact },
 });

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyhole, Save } fro
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { supabase } from "@/services/supabase";
 import { updateVendorPublicProfile, type VendorBusinessHourEntry } from "@/services/vendorProfile";
@@ -215,7 +216,7 @@ export default function VendorCalendar() {
             {savingStatus === id
               ? <ActivityIndicator size="small" color={active ? palette.text : colors.pink} />
               : <Icon size={19} color={active ? palette.text : colors.muted} />}
-            <Text style={{ color: active ? palette.text : colors.text, fontSize: 11, fontWeight: "800" }}>{label}</Text>
+            <Text style={{ color: active ? palette.text : colors.text, fontSize: typeScale.metadata, fontWeight: "700" }}>{label}</Text>
           </Pressable>;
         })}</View>
         {selected < today ? <View style={[styles.lockNotice, { backgroundColor: colors.surfaceSoft }]}>
@@ -275,26 +276,26 @@ export default function VendorCalendar() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 }, content: { padding: 16, paddingTop: 22, paddingBottom: 24, width: "100%", maxWidth: 780, alignSelf: "center" },
-  eyebrow: { fontSize: 10, letterSpacing: 1.5, fontWeight: "800", marginBottom: 5 }, title: { fontSize: 29, fontWeight: "800", letterSpacing: -0.8 },
-  subtitle: { fontSize: 12, lineHeight: 18, marginTop: 4 }, calendar: { borderRadius: 24, padding: 15, marginTop: 20, shadowOffset: { width: 0, height: 9 }, shadowOpacity: .08, shadowRadius: 22, elevation: 3 },
-  monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }, month: { fontSize: 16, fontWeight: "800" }, arrow: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
-  grid: { flexDirection: "row", flexWrap: "wrap" }, weekday: { width: "14.285%", textAlign: "center", fontSize: 10, fontWeight: "800", paddingVertical: 8 },
-  day: { width: "14.285%", aspectRatio: 1, borderRadius: 12, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] }, dayText: { fontSize: 12, lineHeight: 16, fontWeight: "800" }, pastDay: { opacity: .6 },
-  legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13, paddingTop: 16 }, legendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, legendSwatch: { width: 10, height: 10, borderRadius: 3 }, legendText: { fontSize: 9, fontWeight: "700" },
-  editor: { borderRadius: 22, padding: 16, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .07, shadowRadius: 18, elevation: 2 }, editorTitle: { fontSize: 16, fontWeight: "800" },
+  eyebrow: { ...typeStyles.caption, letterSpacing: 1.1, marginBottom: 5 }, title: { ...typeStyles.pageTitle },
+  subtitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 4 }, calendar: { borderRadius: 24, padding: 15, marginTop: 20, shadowOffset: { width: 0, height: 9 }, shadowOpacity: .08, shadowRadius: 22, elevation: 3 },
+  monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }, month: { fontSize: typeScale.cardTitle, fontWeight: "700" }, arrow: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
+  grid: { flexDirection: "row", flexWrap: "wrap" }, weekday: { width: "14.285%", textAlign: "center", fontSize: typeScale.caption, fontWeight: "700", paddingVertical: 8 },
+  day: { width: "14.285%", aspectRatio: 1, borderRadius: 12, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] }, dayText: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" }, pastDay: { opacity: .6 },
+  legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13, paddingTop: 16 }, legendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, legendSwatch: { width: 10, height: 10, borderRadius: 3 }, legendText: { fontSize: typeScale.caption, fontWeight: "700" },
+  editor: { borderRadius: 22, padding: 16, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .07, shadowRadius: 18, elevation: 2 }, editorTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
   statusGrid: { flexDirection: "row", gap: 8, marginTop: 16 }, status: { flex: 1, minHeight: 68, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 }, statusDisabled: { opacity: .45 }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
   hoursList: { marginTop: 14, gap: 4 },
   hourRow: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
-  hourDay: { width: 84, fontSize: 11, fontWeight: "800" },
-  hourClosedText: { flex: 1, fontSize: 11, fontStyle: "italic" },
+  hourDay: { width: 84, fontSize: typeScale.metadata, fontWeight: "700" },
+  hourClosedText: { flex: 1, fontSize: typeScale.metadata, fontStyle: "italic" },
   hourInputs: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
-  hourInput: { flex: 1, minHeight: 38, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, fontSize: 11, textAlign: "center" },
-  hourSeparator: { fontSize: 11, fontWeight: "700" },
+  hourInput: { flex: 1, minHeight: 38, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, fontSize: typeScale.metadata, textAlign: "center" },
+  hourSeparator: { fontSize: typeScale.metadata, fontWeight: "700" },
   hoursSaveRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 16 },
-  hoursHint: { flex: 1, fontSize: 9 },
-  hoursSaved: { flex: 1, fontSize: 10, fontWeight: "800" },
-  hoursError: { flex: 1, color: "#D33B55", fontSize: 10, lineHeight: 15, fontWeight: "700" },
+  hoursHint: { flex: 1, fontSize: typeScale.caption },
+  hoursSaved: { flex: 1, fontSize: typeScale.caption, fontWeight: "700" },
+  hoursError: { flex: 1, color: "#D33B55", fontSize: typeScale.caption, lineHeight: typeLeading.label, fontWeight: "700" },
   hoursSave: { minHeight: 40, minWidth: 118, borderRadius: 13, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  hoursSaveText: { color: "#FFF", fontSize: 10, fontWeight: "900" },
-  lockNotice: { minHeight: 44, borderRadius: 14, marginTop: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 }, lockText: { flex: 1, fontSize: 10, lineHeight: 14 },
+  hoursSaveText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
+  lockNotice: { minHeight: 44, borderRadius: 14, marginTop: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 }, lockText: { flex: 1, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
 });

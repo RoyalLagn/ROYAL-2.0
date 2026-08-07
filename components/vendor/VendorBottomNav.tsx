@@ -24,6 +24,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { CalendarDays, Clapperboard, Images, LayoutDashboard, UserRound } from "lucide-react-native";
 import { useAppTheme } from "@/components/ThemeProvider";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = "#E91E63";
 const CENTER_ROUTE = "/VendorClips";
@@ -288,7 +289,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
     elevation: 9,
   },
-  label: { width: "100%", paddingHorizontal: 1, fontSize: 9.5, lineHeight: 12, fontWeight: "500", textAlign: "center", includeFontPadding: false },
+  label: { width: "100%", paddingHorizontal: 1, fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "500", textAlign: "center", includeFontPadding: false },
   centerLabel: { marginTop: 0 },
   activeLabel: { fontWeight: "700" },
 });

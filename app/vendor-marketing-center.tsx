@@ -21,6 +21,7 @@ import {
   type VendorProfileAnalytics,
 } from "@/services/vendorPublicProfile";
 import { copyProfileLink, downloadQrCode, shareProfileLink, shareQrCode } from "@/components/vendor-marketing/shareActions";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 export default function VendorMarketingCenter() {
   const router = useRouter();
@@ -156,10 +157,10 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 28, width: "100%", alignSelf: "center" },
   desktopScroll: { maxWidth: 720, paddingHorizontal: 0, paddingTop: 24, paddingBottom: 48 },
   notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
-  noticeText: { flex: 1, fontSize: 11, lineHeight: 17 },
+  noticeText: { flex: 1, fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
   emptyCard: { borderWidth: 1, borderRadius: 26, padding: 32, alignItems: "center", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.06, shadowRadius: 22, elevation: 2 },
   emptyIcon: { width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: "900", marginBottom: 8 },
-  emptyText: { fontSize: 13, lineHeight: 19, textAlign: "center" },
+  emptyTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700", marginBottom: 8 },
+  emptyText: { fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, textAlign: "center" },
   loading: { position: "absolute", top: "50%", left: 0, right: 0, alignItems: "center", pointerEvents: "none" },
 });

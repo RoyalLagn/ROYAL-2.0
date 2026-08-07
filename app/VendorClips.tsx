@@ -17,6 +17,7 @@ import { ClipStatusBadge } from "@/clips/components";
 import { useVendorClipOverview } from "@/clips/hooks";
 import type { ClipStatus } from "@/clips/types";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 type ClipGroup = "approved" | "pending" | "draft" | "hidden" | "rejected";
 
@@ -137,8 +138,8 @@ export default function VendorClips() {
           ].map(([label, value, Icon]: any) => <View key={label} style={[styles.overviewMetric, { backgroundColor: colors.surfaceSoft }]}><Icon size={16} color={colors.pink} /><Text style={[styles.overviewValue, { color: colors.text }]}>{value}</Text><Text style={[styles.overviewLabel, { color: colors.muted }]}>{label}</Text></View>)}
         </View>
         <View style={[styles.analyticsRows, { borderTopColor: colors.border }]}>
-          <Text numberOfLines={1} style={[styles.analyticsRow, { color: colors.muted }]}>Most viewed: <Text style={{ color: colors.text, fontWeight: "800" }}>{overview.mostViewed ? `${overview.mostViewed.caption?.trim() || "Wedding Clip"} (${overview.mostViewed.views_count})` : "—"}</Text></Text>
-          <Text numberOfLines={1} style={[styles.analyticsRow, { color: colors.muted }]}>Newest Clip: <Text style={{ color: colors.text, fontWeight: "800" }}>{overview.newest?.caption?.trim() || (overview.newest ? "Wedding Clip" : "—")}</Text></Text>
+          <Text numberOfLines={1} style={[styles.analyticsRow, { color: colors.muted }]}>Most viewed: <Text style={{ color: colors.text, fontWeight: "700" }}>{overview.mostViewed ? `${overview.mostViewed.caption?.trim() || "Wedding Clip"} (${overview.mostViewed.views_count})` : "—"}</Text></Text>
+          <Text numberOfLines={1} style={[styles.analyticsRow, { color: colors.muted }]}>Newest Clip: <Text style={{ color: colors.text, fontWeight: "700" }}>{overview.newest?.caption?.trim() || (overview.newest ? "Wedding Clip" : "—")}</Text></Text>
         </View>
       </View> : null}
 
@@ -168,13 +169,13 @@ export default function VendorClips() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
         {groupTabs.map((tab) => {
           const selected = group === tab.key;
-          return <Pressable key={tab.key} onPress={() => setGroup(tab.key)} style={[styles.tab, { borderColor: selected ? colors.pink : colors.border, backgroundColor: selected ? `${colors.pink}14` : colors.surface }]}><Text style={{ color: selected ? colors.pink : colors.muted, fontWeight: "800", fontSize: 11 }}>{tab.label}</Text><View style={[styles.countBadge, { backgroundColor: selected ? colors.pink : colors.surfaceSoft }]}><Text style={{ color: selected ? "#FFF" : colors.muted, fontSize: 9, fontWeight: "900" }}>{tab.count}</Text></View></Pressable>;
+          return <Pressable key={tab.key} onPress={() => setGroup(tab.key)} style={[styles.tab, { borderColor: selected ? colors.pink : colors.border, backgroundColor: selected ? `${colors.pink}14` : colors.surface }]}><Text style={{ color: selected ? colors.pink : colors.muted, fontWeight: "700", fontSize: typeScale.metadata }}>{tab.label}</Text><View style={[styles.countBadge, { backgroundColor: selected ? colors.pink : colors.surfaceSoft }]}><Text style={{ color: selected ? "#FFF" : colors.muted, fontSize: typeScale.caption, fontWeight: "700" }}>{tab.count}</Text></View></Pressable>;
         })}
       </ScrollView>
 
       {group === "draft" && drafts.length > 0 && <View style={[styles.draftBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Saved drafts</Text>
-        {drafts.map((draft) => <Pressable key={draft.id} onPress={() => openUpload(draft.id)} style={styles.draftRow}><Save size={16} color={colors.pink} /><Text numberOfLines={1} style={[styles.draftText, { color: colors.text }]}>{draft.title || "Untitled Clip"}</Text><Text style={{ color: colors.pink, fontSize: 10, fontWeight: "800" }}>Resume</Text></Pressable>)}
+        {drafts.map((draft) => <Pressable key={draft.id} onPress={() => openUpload(draft.id)} style={styles.draftRow}><Save size={16} color={colors.pink} /><Text numberOfLines={1} style={[styles.draftText, { color: colors.text }]}>{draft.title || "Untitled Clip"}</Text><Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>Resume</Text></Pressable>)}
       </View>}
 
       {!visibleClips.length && !(group === "draft" && drafts.length) ? <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -210,20 +211,20 @@ const styles = StyleSheet.create({
   root: { flex: 1 }, flex: { flex: 1 }, center: { flex: 1, alignItems: "center", justifyContent: "center" },
   scroll: { width: "100%", maxWidth: 1120, alignSelf: "center", padding: 18, paddingBottom: 110 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12 },
-  heading: { fontSize: 24, fontWeight: "900" }, subheading: { fontSize: 11, marginTop: 4 },
-  primary: { height: 44, paddingHorizontal: 15, borderRadius: 15, flexDirection: "row", alignItems: "center", gap: 7 }, primaryText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
-  notice: { borderWidth: 1, borderRadius: 16, padding: 13, marginBottom: 14 }, noticeText: { fontSize: 10, lineHeight: 15 },
+  heading: { fontSize: typeScale.pageTitle, fontWeight: "700" }, subheading: { fontSize: typeScale.metadata, marginTop: 4 },
+  primary: { height: 44, paddingHorizontal: 15, borderRadius: 15, flexDirection: "row", alignItems: "center", gap: 7 }, primaryText: { color: "#FFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  notice: { borderWidth: 1, borderRadius: 16, padding: 13, marginBottom: 14 }, noticeText: { fontSize: typeScale.caption, lineHeight: typeLeading.label },
   overviewCard: { borderWidth: 1, borderRadius: 22, padding: 16, marginBottom: 13 },
-  sectionHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, sectionTitle: { fontSize: 15, fontWeight: "900" }, sectionSubtitle: { fontSize: 10, marginTop: 3 },
-  metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 }, overviewMetric: { width: "48%", flexGrow: 1, borderRadius: 15, padding: 11 }, overviewValue: { fontSize: 18, fontWeight: "900", marginTop: 6 }, overviewLabel: { fontSize: 9, marginTop: 2 },
-  analyticsRows: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 14, paddingTop: 11, gap: 5 }, analyticsRow: { fontSize: 10 },
-  limitCard: { borderWidth: 1, borderRadius: 18, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 13 }, limitTitle: { fontSize: 13, fontWeight: "900" }, limitText: { fontSize: 9, lineHeight: 14, marginTop: 3 }, manageButton: { minHeight: 38, borderRadius: 13, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" }, manageText: { color: "#FFF", fontSize: 10, fontWeight: "900" },
-  tipsCard: { borderWidth: 1, borderRadius: 20, padding: 15, marginBottom: 14 }, tipsTitle: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 9 }, tipRow: { flexDirection: "row", alignItems: "center", minHeight: 25 }, tipDot: { width: 5, height: 5, borderRadius: 3, marginRight: 9 }, tipText: { fontSize: 10 },
+  sectionHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, sectionTitle: { fontSize: typeScale.body, fontWeight: "700" }, sectionSubtitle: { fontSize: typeScale.caption, marginTop: 3 },
+  metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 }, overviewMetric: { width: "48%", flexGrow: 1, borderRadius: 15, padding: 11 }, overviewValue: { fontSize: typeScale.editorialCardTitle, fontWeight: "700", marginTop: 6 }, overviewLabel: { fontSize: typeScale.caption, marginTop: 2 },
+  analyticsRows: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 14, paddingTop: 11, gap: 5 }, analyticsRow: { fontSize: typeScale.caption },
+  limitCard: { borderWidth: 1, borderRadius: 18, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 13 }, limitTitle: { fontSize: typeScale.body, fontWeight: "700" }, limitText: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3 }, manageButton: { minHeight: 38, borderRadius: 13, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" }, manageText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
+  tipsCard: { borderWidth: 1, borderRadius: 20, padding: 15, marginBottom: 14 }, tipsTitle: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 9 }, tipRow: { flexDirection: "row", alignItems: "center", minHeight: 25 }, tipDot: { width: 5, height: 5, borderRadius: 3, marginRight: 9 }, tipText: { fontSize: typeScale.caption },
   tabs: { gap: 8, paddingBottom: 14 }, tab: { height: 40, borderRadius: 15, borderWidth: 1, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 7 }, countBadge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: "center", justifyContent: "center" },
-  draftBox: { borderWidth: 1, borderRadius: 20, padding: 15, marginBottom: 16 }, draftRow: { minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10 }, draftText: { flex: 1, fontSize: 12, fontWeight: "600" },
+  draftBox: { borderWidth: 1, borderRadius: 20, padding: 15, marginBottom: 16 }, draftRow: { minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10 }, draftText: { flex: 1, fontSize: typeScale.bodyCompact, fontWeight: "600" },
   grid: { flexDirection: "row", flexWrap: "wrap" }, card: { borderWidth: 1, borderRadius: 22, overflow: "hidden" }, thumb: { width: "100%", aspectRatio: 16 / 9, backgroundColor: "#111" }, cardBody: { padding: 14 },
-  row: { flexDirection: "row", alignItems: "center", gap: 8 }, cardTitle: { flex: 1, fontSize: 14, fontWeight: "800" }, analytics: { flexDirection: "row", gap: 16, marginTop: 13 }, metric: { flexDirection: "row", gap: 5, alignItems: "center" }, metricText: { fontSize: 11, fontWeight: "700" }, date: { fontSize: 9, marginTop: 10 },
-  actions: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 12, paddingTop: 10, flexDirection: "row", flexWrap: "wrap", gap: 11 }, action: { minHeight: 34, flexDirection: "row", alignItems: "center", gap: 4 }, actionDisabled: { opacity: 0.5 }, actionLabel: { fontSize: 9, fontWeight: "800" },
-  empty: { borderWidth: 1, borderRadius: 24, padding: 34, alignItems: "center" }, emptyIllustration: { width: 88, height: 88, borderRadius: 30, alignItems: "center", justifyContent: "center" }, emptyTitle: { maxWidth: 460, fontSize: 18, fontWeight: "800", marginTop: 12, textAlign: "center" }, emptyText: { maxWidth: 430, fontSize: 12, textAlign: "center", marginTop: 6, lineHeight: 18 }, emptyButton: { minHeight: 46, borderRadius: 16, paddingHorizontal: 17, marginTop: 16, flexDirection: "row", alignItems: "center", gap: 7 },
-  floatingUpload: { position: "absolute", right: 18, bottom: 18, minHeight: 52, borderRadius: 19, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", gap: 8, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.22, shadowRadius: 16, elevation: 8 }, floatingText: { color: "#FFF", fontSize: 12, fontWeight: "900" },
+  row: { flexDirection: "row", alignItems: "center", gap: 8 }, cardTitle: { flex: 1, fontSize: typeScale.body, fontWeight: "700" }, analytics: { flexDirection: "row", gap: 16, marginTop: 13 }, metric: { flexDirection: "row", gap: 5, alignItems: "center" }, metricText: { fontSize: typeScale.metadata, fontWeight: "700" }, date: { fontSize: typeScale.caption, marginTop: 10 },
+  actions: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 12, paddingTop: 10, flexDirection: "row", flexWrap: "wrap", gap: 11 }, action: { minHeight: 34, flexDirection: "row", alignItems: "center", gap: 4 }, actionDisabled: { opacity: 0.5 }, actionLabel: { fontSize: typeScale.caption, fontWeight: "700" },
+  empty: { borderWidth: 1, borderRadius: 24, padding: 34, alignItems: "center" }, emptyIllustration: { width: 88, height: 88, borderRadius: 30, alignItems: "center", justifyContent: "center" }, emptyTitle: { maxWidth: 460, fontSize: typeScale.editorialCardTitle, fontWeight: "700", marginTop: 12, textAlign: "center" }, emptyText: { maxWidth: 430, fontSize: typeScale.bodyCompact, textAlign: "center", marginTop: 6, lineHeight: typeLeading.bodyCompact }, emptyButton: { minHeight: 46, borderRadius: 16, paddingHorizontal: 17, marginTop: 16, flexDirection: "row", alignItems: "center", gap: 7 },
+  floatingUpload: { position: "absolute", right: 18, bottom: 18, minHeight: 52, borderRadius: 19, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", gap: 8, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.22, shadowRadius: 16, elevation: 8 }, floatingText: { color: "#FFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
 });

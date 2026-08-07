@@ -37,7 +37,7 @@ function WorkspaceRow({ workspace, completion, assigned, deleting, onPress, onDe
         </View>
         <View className="flex-row items-center gap-1.5">
           <View className={`px-2.5 py-1 rounded-full ${background}`}>
-            <Text className={`text-[10px] font-bold capitalize ${foreground}`}>{workspace.status}</Text>
+            <Text className={`text-metadata font-bold capitalize ${foreground}`}>{workspace.status}</Text>
           </View>
           {deletableStatuses.has(workspace.status) ? (
             <Pressable
@@ -54,8 +54,8 @@ function WorkspaceRow({ workspace, completion, assigned, deleting, onPress, onDe
       </View>
       <View className="mt-3">
         <View className="flex-row items-center justify-between mb-1">
-          <Text className="text-muted-foreground text-[10px] font-semibold">{assigned} VENDORS ASSIGNED</Text>
-          <Text className="text-primary text-[10px] font-bold">{completion}%</Text>
+          <Text className="text-muted-foreground text-metadata font-semibold">{assigned} VENDORS ASSIGNED</Text>
+          <Text className="text-primary text-metadata font-bold">{completion}%</Text>
         </View>
         <View className="h-1.5 rounded-full bg-muted overflow-hidden">
           <View className="h-1.5 rounded-full bg-primary" style={{ width: `${completion}%` }} />

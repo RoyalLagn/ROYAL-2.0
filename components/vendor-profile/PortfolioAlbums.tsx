@@ -1,18 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Animated,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Animated, Platform, Pressable, StyleSheet, Text, View, } from "react-native";
 import { ArrowUpRight, Images, Play } from "lucide-react-native";
 import {
-  portfolioMediaUrl,
-  type PublicPortfolioAlbum,
-  type VendorPortfolioMedia,
-} from "@/services/vendorPortfolio";
+  portfolioMediaUrl, type PublicPortfolioAlbum, type VendorPortfolioMedia, } from "@/services/vendorPortfolio";
+import { fonts, typeScale, typeLeading } from "@/constants/typography";
+import { brandPalette } from "@/constants/brandPalette";
 
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
 
@@ -293,7 +285,6 @@ function PortfolioAlbums({
       {showHeading ? (
         <View style={styles.headingRow}>
           <View>
-            <Text style={[styles.eyebrow, { color: dark ? "#F4A7C1" : "#B84B71" }]}>CURATED MOMENTS</Text>
             <Text style={[styles.heading, { color: text }]}>Portfolio</Text>
           </View>
           {onViewAll ? (
@@ -343,7 +334,6 @@ function PortfolioAlbums({
 
 export default React.memo(PortfolioAlbums);
 
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
 const styles = StyleSheet.create({
   root: { width: "100%", paddingVertical: 16 },
   headingRow: {
@@ -354,8 +344,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 12,
   },
-  eyebrow: { fontSize: 8, lineHeight: 12, fontWeight: "900", letterSpacing: 1.35, marginBottom: 1 },
-  heading: { fontFamily: serif, fontSize: 19, lineHeight: 24, fontWeight: "700", letterSpacing: -0.2 },
+  heading: { fontFamily: fonts.serif.bold, fontSize: typeScale.editorialCardTitle, lineHeight: typeLeading.sectionTitle, letterSpacing: -0.2 },
   viewAllButton: {
     minHeight: 34,
     paddingHorizontal: 11,
@@ -367,10 +356,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
   },
-  viewAllButtonDark: { backgroundColor: "#251B23" },
+  viewAllButtonDark: { backgroundColor: "#161E2E" },
   viewAllHovered: { transform: [{ translateY: -1 }] },
   viewAllPressed: { opacity: 0.76, transform: [{ scale: 0.97 }] },
-  viewAll: { color: "#E91E63", fontSize: 11, lineHeight: 15, fontWeight: "900" },
+  viewAll: { color: "#E91E63", fontFamily: fonts.sans.bold, fontSize: typeScale.metadata, lineHeight: typeLeading.label },
   grid: { width: "100%", maxWidth: 590, alignSelf: "center", flexDirection: "row", flexWrap: "wrap" },
   tileOuter: {
     borderWidth: 0,
@@ -385,7 +374,7 @@ const styles = StyleSheet.create({
   card: { flex: 1, overflow: "hidden", borderRadius: 14 },
   coverFrame: { width: "100%", aspectRatio: 1.08, overflow: "hidden", backgroundColor: "#F8E9EF" },
   coverFill: { height: "100%", flex: 1, aspectRatio: undefined },
-  skeleton: { backgroundColor: "#F3D6E1" },
+  skeleton: { backgroundColor: "#FCE7F3" },
   emptyCover: { alignItems: "center", justifyContent: "center", backgroundColor: "#FBEFF4" },
   imageTint: {
     position: "absolute",
@@ -407,11 +396,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
-  videoBadgeText: { color: "#FFF", fontSize: 8, lineHeight: 11, fontWeight: "900" },
+  videoBadgeText: { color: "#FFF", fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700" },
   albumCopy: { height: 72, paddingHorizontal: 11, paddingTop: 8, paddingBottom: 8, justifyContent: "space-between" },
-  albumName: { minHeight: 32, fontSize: 12, lineHeight: 16, fontWeight: "900" },
+  albumName: { minHeight: 32, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   albumMetaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
-  albumMeta: { fontSize: 9, lineHeight: 12, fontWeight: "700" },
+  albumMeta: { fontFamily: fonts.sans.semibold, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
   miniArrow: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   moreOuter: {
     overflow: "hidden",
@@ -422,7 +411,7 @@ const styles = StyleSheet.create({
   moreCard: { flex: 1, overflow: "hidden", borderRadius: 17 },
   moreCollage: { ...StyleSheet.absoluteFillObject, flexDirection: "row" },
   collagePanel: { flex: 1, overflow: "hidden" },
-  moreOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(31,8,18,0.57)" },
+  moreOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: brandPalette.light.overlayInk },
   moreContent: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", padding: 12 },
   moreIcon: {
     width: 34,
@@ -435,6 +424,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 7,
   },
-  moreCount: { color: "#FFF", fontFamily: serif, fontSize: 16, lineHeight: 21, fontWeight: "700", textAlign: "center" },
-  moreLabel: { color: "#FFD9E5", fontSize: 9, lineHeight: 13, fontWeight: "900", letterSpacing: 0.7, marginTop: 2, textTransform: "uppercase" },
+  moreCount: { color: "#FFF", fontFamily: fonts.serif.bold, fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, textAlign: "center" },
+  moreLabel: { color: "#FBCFE8", fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700", letterSpacing: 0.7, marginTop: 2, textTransform: "uppercase" },
 });

@@ -15,6 +15,7 @@ import {
   lookupIndianPincode,
   PincodeLookupUnavailableError,
 } from "@/services/locations";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 export type VendorLocationValue = {
   pincode: string;
@@ -175,25 +176,25 @@ export function VendorServiceLocationEditor({
 }
 
 const styles = StyleSheet.create({
-  label: { color: "#241D21", fontSize: 14, fontWeight: "600", marginBottom: 8 },
+  label: { color: "#241D21", fontSize: typeScale.body, fontWeight: "600", marginBottom: 8 },
   required: { color: "#E91E63" },
   pincodeRow: { flexDirection: "row", gap: 9, marginBottom: 8 },
   pincodeControl: { flex: 1, minWidth: 0, height: 56, borderWidth: 1, borderColor: "#E7E1E4", borderRadius: 16, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 9, backgroundColor: "#FFFFFF" },
-  pincodeInput: { flex: 1, minWidth: 0, color: "#241D21", fontSize: 14, letterSpacing: 1.2 },
+  pincodeInput: { flex: 1, minWidth: 0, color: "#241D21", fontSize: typeScale.body, letterSpacing: 1.2 },
   lookupButton: { width: 104, height: 56, borderRadius: 16, backgroundColor: "#E91E63", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  lookupText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
+  lookupText: { color: "#FFFFFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
   message: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 14, backgroundColor: "#FFF2F2", flexDirection: "row", alignItems: "center", gap: 7 },
-  messageText: { flex: 1, color: "#B42318", fontSize: 11, lineHeight: 16 },
+  messageText: { flex: 1, color: "#B42318", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   verifiedMessage: { backgroundColor: "#ECFDF5" },
   verifiedText: { color: "#16845B" },
-  error: { color: "#B42318", fontSize: 11, marginBottom: 12 },
+  error: { color: "#B42318", fontSize: typeScale.metadata, marginBottom: 12 },
   locationLoader: { marginVertical: 12 },
-  helper: { color: "#786D73", fontSize: 11, lineHeight: 16, marginTop: -3, marginBottom: 10 },
+  helper: { color: "#786D73", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: -3, marginBottom: 10 },
   areasSection: { marginTop: 2, marginBottom: 8 },
   areaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   areaChip: { minHeight: 38, paddingHorizontal: 12, borderRadius: 19, borderWidth: 1, borderColor: "#E7E1E4", flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#FFFFFF" },
   areaChipSelected: { borderColor: "#F4A9C4", backgroundColor: "#FFF1F6" },
-  areaText: { color: "#655C61", fontSize: 11, fontWeight: "600" },
+  areaText: { color: "#655C61", fontSize: typeScale.metadata, fontWeight: "600" },
   areaTextSelected: { color: "#E91E63" },
   pressed: { opacity: 0.75 },
   disabled: { opacity: 0.48 },

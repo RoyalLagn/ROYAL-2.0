@@ -157,9 +157,9 @@ export default function VendorsAdminListing() {
         </ResponsiveContainer>
         <ResponsiveContainer className="bg-background pt-1">
           {vendors.statistics ? <View className="flex-row gap-2 mb-2">
-            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-foreground font-bold">{vendors.statistics.total}</Text><Text className="text-muted-foreground text-[10px]">Total</Text></View>
-            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-amber-500 font-bold">{vendors.statistics.pending}</Text><Text className="text-muted-foreground text-[10px]">Pending</Text></View>
-            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-red-500 font-bold">{vendors.statistics.suspended}</Text><Text className="text-muted-foreground text-[10px]">Suspended</Text></View>
+            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-foreground font-bold">{vendors.statistics.total}</Text><Text className="text-muted-foreground text-metadata">Total</Text></View>
+            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-amber-500 font-bold">{vendors.statistics.pending}</Text><Text className="text-muted-foreground text-metadata">Pending</Text></View>
+            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-red-500 font-bold">{vendors.statistics.suspended}</Text><Text className="text-muted-foreground text-metadata">Suspended</Text></View>
           </View> : null}
           <ResponsiveSection>
             <VendorFilterBar filters={vendors.filters} categories={vendors.categories} onChange={vendors.updateFilters} onMore={() => setFiltersOpen(true)} />

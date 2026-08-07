@@ -6,6 +6,7 @@ import ReviewForm from "./ReviewForm";
 import ReviewSummary from "./ReviewSummary";
 import type { Review, ReviewDraft, ReviewSort, StarCounts, StarFilter } from "./types";
 import { reviewPalette } from "./types";
+import { typeStyles, typeScale } from "@/constants/typography";
 
 export type VendorReviewsSectionProps = {
   average: number; total: number; counts: StarCounts; reviews: Review[];
@@ -56,18 +57,17 @@ export default function VendorReviewsSection(props: VendorReviewsSectionProps) {
     {props.hasMore && props.onLoadMore ? <Pressable disabled={props.loadingMore} onPress={props.onLoadMore} style={[styles.loadMore, { borderColor: c.border, backgroundColor: c.surface }]}>{props.loadingMore ? <ActivityIndicator color={c.pink} /> : <Text style={[styles.loadMoreText, { color: c.pink }]}>Load more reviews</Text>}</Pressable> : null}
   </View>;
 }
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
 const styles = StyleSheet.create({
   section: { width: "100%", gap: 16, paddingTop: 5 },
   headingRow: { width: "100%", flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  headingWrap: { alignItems: "flex-start" }, heading: { fontFamily: serif, fontSize: 21, lineHeight: 27, fontWeight: "700" },
+  headingWrap: { alignItems: "flex-start" }, heading: { ...typeStyles.editorialSectionTitle },
   writeButton: { minHeight: 42, borderRadius: 22, paddingHorizontal: 17, alignItems: "center", justifyContent: "center", shadowColor: "#A32E59", shadowOpacity: 0.12, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  writeButtonText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
+  writeButtonText: { color: "#FFFFFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
   writeButtonHover: { transform: [{ translateY: -1 }], backgroundColor: "#CF2E65" },
   writeButtonPressed: { transform: [{ scale: 0.98 }], opacity: 0.86 },
   ornament: { width: 88, height: 8, flexDirection: "row", alignItems: "center", gap: 4 }, line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#D8A55B" }, dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#D8A55B" },
   list: { gap: 12 }, state: { minHeight: 130, alignItems: "center", justifyContent: "center", gap: 10 }, stateCard: { minHeight: 130, borderWidth: 1, borderRadius: 18, alignItems: "center", justifyContent: "center", padding: 22, gap: 7 },
-  stateTitle: { fontFamily: serif, fontSize: 18, fontWeight: "600", textAlign: "center" }, stateText: { fontSize: 13, lineHeight: 19, textAlign: "center" },
-  smallButton: { marginTop: 5, minHeight: 38, paddingHorizontal: 16, borderWidth: 1, borderRadius: 20, justifyContent: "center" }, smallButtonText: { fontSize: 12, fontWeight: "700" },
-  loadMore: { alignSelf: "center", minWidth: 180, minHeight: 44, borderWidth: 1, borderRadius: 23, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, loadMoreText: { fontSize: 13, fontWeight: "700" },
+  stateTitle: { ...typeStyles.editorialCardTitle, textAlign: "center" }, stateText: { ...typeStyles.body, textAlign: "center" },
+  smallButton: { marginTop: 5, minHeight: 38, paddingHorizontal: 16, borderWidth: 1, borderRadius: 20, justifyContent: "center" }, smallButtonText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  loadMore: { alignSelf: "center", minWidth: 180, minHeight: 44, borderWidth: 1, borderRadius: 23, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, loadMoreText: { fontSize: typeScale.body, fontWeight: "700" },
 });

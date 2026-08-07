@@ -1,12 +1,6 @@
-import React from "react";
-import {
-  type ImageURISource,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { Crown, MapPin, Star } from "lucide-react-native";
+import React, { useState } from "react";
+import { type ImageURISource, StyleSheet, Text, View, } from "react-native";
+import { BadgeCheck, ChevronRight, Crown, MapPin, Star } from "lucide-react-native";
 import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
 import SafeImage from "@/components/SafeImage";
 import AnimatedPressable from "@/components/animated/AnimatedPressable";
@@ -15,6 +9,8 @@ import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import { useCustomerLocation } from "@/context/LocationContext";
 import { vendorNearbyLabel } from "@/services/locations";
+import { brandColors } from "@/constants/brandPalette";
+import { fonts, typeScale, typeLeading, typeStyles } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -37,22 +33,40 @@ function VendorListingCard({
   onOpen,
   onToggleFavorite,
 }: VendorListingCardProps) {
+  const [interactive, setInteractive] = useState(false);
   const { getRating } = useReviewRatings();
   const { preference } = useCustomerLocation();
   const nearbyLabel = vendorNearbyLabel(vendor, preference);
   const displayedRating = getRating(vendor.id, vendor.rating, vendor.reviews);
-  const surface = dark ? "#201D1F" : "#FFFFFF";
-  const text = dark ? "#F8F2F5" : "#181118";
-  const muted = dark ? "#B3A8AE" : "#776C73";
-  const border = dark ? "#3D3036" : "#F2D9E1";
+  const colors = brandColors(dark);
+  const surface = colors.card;
+  const text = dark ? "#F8F2F5" : colors.foreground;
+  const muted = colors.mutedForeground;
+  const border = colors.border;
   const imageUri = vendor.image.replace(/([?&])w=\d+/, "$1w=900");
 
   return (
-    <View style={[styles.card, compact ? styles.cardCompact : styles.cardWide, { backgroundColor: surface, borderColor: border }]}>
+    <View
+      style={[
+        styles.card,
+        compact ? styles.cardCompact : styles.cardWide,
+        {
+          backgroundColor: surface,
+          borderColor: interactive ? colors.primary : border,
+          shadowColor: dark ? "#000000" : "#63374A",
+          shadowOpacity: interactive ? 0.14 : 0.08,
+        },
+      ]}
+    >
       <AnimatedPressable
         accessibilityRole="button"
         accessibilityLabel={`Open ${vendor.name}`}
         onPress={onOpen}
+        onHoverIn={() => setInteractive(true)}
+        onHoverOut={() => setInteractive(false)}
+        onFocus={() => setInteractive(true)}
+        onBlur={() => setInteractive(false)}
+        pressScale={0.99}
         style={styles.main}
       >
         <View style={[styles.imageWrap, compact ? styles.imageCompact : styles.imageWide]}>
@@ -61,7 +75,10 @@ function VendorListingCard({
             source={imageUri}
             fallbackSource={fallbackImage}
             debugLabel={`${vendor.name} listing`}
-            resizeMode="cover"
+            deliveryWidth={compact ? 146 : 216}
+            deliveryHeight={compact ? 146 : 216}
+            deliveryCrop="fit"
+            resizeMode="contain"
             style={styles.image}
           />
           {vendor.isTopRated ? (
@@ -71,6 +88,10 @@ function VendorListingCard({
             </View>
           ) : null}
           {nearbyLabel ? <View style={styles.nearby}><MapPin size={10} color={PINK} /><Text style={styles.nearbyText}>{nearbyLabel}</Text></View> : null}
+          <View style={[styles.verified, { backgroundColor: colors.primaryStrong }]}>
+            <BadgeCheck size={11} color="#FFFFFF" strokeWidth={2.2} />
+            <Text style={styles.verifiedText}>Verified</Text>
+          </View>
         </View>
 
         <View style={[styles.body, compact && styles.bodyCompact]}>
@@ -84,15 +105,28 @@ function VendorListingCard({
             <MapPin size={13} color={PINK} />
             <Text numberOfLines={1} style={[styles.location, { color: muted }]}>{vendor.location}</Text>
           </View>
-          <View style={styles.tags}>
-            {vendor.tags.slice(0, 3).map((tag) => (
-              <View key={tag} style={[styles.tag, { backgroundColor: dark ? "#34272D" : "#FFF2F6" }]}>
-                <Text numberOfLines={1} style={[styles.tagText, { color: dark ? "#E7C9D5" : "#96536B" }]}>{tag}</Text>
+          {!compact && vendor.description ? (
+            <Text numberOfLines={2} style={[styles.description, { color: muted }]}>{vendor.description}</Text>
+          ) : null}
+          {!compact ? (
+            <View style={styles.tags}>
+              {[...vendor.tags, ...vendor.services].filter((tag, index, all) => all.indexOf(tag) === index).slice(0, 3).map((tag) => (
+                <View key={tag} style={[styles.tag, { backgroundColor: dark ? "#34272D" : "#FFF2F6" }]}>
+                  <Text numberOfLines={1} style={[styles.tagText, { color: dark ? "#E7C9D5" : "#96536B" }]}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+          <View style={[styles.bottomRow, compact && styles.bottomRowCompact]}>
+            <View style={[styles.price, compact && styles.priceCompact, { backgroundColor: dark ? "#38242D" : "#FFF0F6" }]}>
+              <Text numberOfLines={1} style={styles.priceText}>Starts from {vendor.startingPrice}</Text>
+            </View>
+            {!compact ? (
+              <View style={styles.viewProfile}>
+                <Text style={[styles.viewProfileText, { color: colors.primaryStrong }]}>View profile</Text>
+                <ChevronRight size={14} color={colors.primaryStrong} />
               </View>
-            ))}
-          </View>
-          <View style={[styles.price, { backgroundColor: dark ? "#38242D" : "#FFF0F6" }]}>
-            <Text numberOfLines={1} style={styles.priceText}>Starts from {vendor.startingPrice}</Text>
+            ) : null}
           </View>
         </View>
       </AnimatedPressable>
@@ -101,6 +135,7 @@ function VendorListingCard({
         favorite={favorite}
         accessibilityLabel={favorite ? `Remove ${vendor.name} from favorites` : `Add ${vendor.name} to favorites`}
         onToggle={onToggleFavorite}
+        hitSlop={5}
         style={[
           styles.favorite,
           { backgroundColor: dark ? "rgba(30,27,29,.92)" : "rgba(255,255,255,.94)", borderColor: border },
@@ -115,34 +150,45 @@ function VendorListingCard({
 
 export default React.memo(VendorListingCard);
 
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
-
 const styles = StyleSheet.create({
-  card: { width: "100%", borderWidth: 1, overflow: "hidden", position: "relative", shadowColor: "#63374A", shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  card: { width: "100%", borderWidth: 1, overflow: "hidden", position: "relative", shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   cardCompact: { height: 172, borderRadius: 20 },
-  cardWide: { height: 220, borderRadius: 24 },
+  cardWide: { height: 232, borderRadius: 24 },
   main: { flex: 1, flexDirection: "row", padding: 8, gap: 13 },
   imageWrap: { position: "relative", flexShrink: 0, borderRadius: 16, overflow: "hidden", backgroundColor: "#F8E9EE" },
-  imageCompact: { width: 146, height: 154 },
-  imageWide: { width: 340, height: 202 },
-  image: StyleSheet.absoluteFillObject,
+  imageCompact: { width: 146, height: 146 },
+  imageWide: { width: 216, height: 216 },
+  // react-native-web falls back to a local image asset's own intrinsic
+  // pixel size whenever the style doesn't set explicit width/height
+  // (StyleSheet.absoluteFillObject only sets inset, not width/height), so a
+  // small fallback asset would render at its native size instead of filling
+  // imageWrap. Force fill sizing explicitly so inset alone can't be beaten.
+  image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
   topRated: { position: "absolute", top: 10, left: 0, minHeight: 29, borderTopRightRadius: 999, borderBottomRightRadius: 999, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: PINK },
-  topRatedText: { color: "#FFFFFF", fontSize: 10, fontWeight: "800" },
+  topRatedText: { color: "#FFFFFF", fontSize: typeScale.caption, fontWeight: "700" },
   nearby: { position: "absolute", left: 8, bottom: 8, minHeight: 27, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,.94)" },
-  nearbyText: { color: PINK, fontSize: 9, fontWeight: "800" },
+  nearbyText: { color: PINK, fontSize: typeScale.caption, fontWeight: "700" },
+  verified: { position: "absolute", right: 8, bottom: 8, minHeight: 27, borderRadius: 999, paddingHorizontal: 8, borderWidth: 1, borderColor: "rgba(255,255,255,.86)", flexDirection: "row", alignItems: "center", gap: 3 },
+  verifiedText: { color: "#FFFFFF", fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
   body: { flex: 1, minWidth: 0, paddingVertical: 10, paddingRight: 42, justifyContent: "center" },
   bodyCompact: { paddingVertical: 5, paddingRight: 34 },
-  name: { fontFamily: serif, fontSize: 23, lineHeight: 28, fontWeight: "700", letterSpacing: -0.35, marginBottom: 9 },
-  nameCompact: { fontSize: 17, lineHeight: 21, marginBottom: 6 },
+  name: { ...typeStyles.editorialCardTitle, marginBottom: 7 },
+  nameCompact: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, marginBottom: 5 },
   meta: { minHeight: 22, flexDirection: "row", alignItems: "center", gap: 5 },
-  rating: { fontSize: 11.5, fontWeight: "700" },
-  reviews: { fontSize: 10.5 },
-  location: { flex: 1, minWidth: 0, fontSize: 10.5 },
-  tags: { marginTop: 7, flexDirection: "row", flexWrap: "wrap", gap: 5 },
+  rating: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
+  reviews: { fontFamily: fonts.sans.regular, fontSize: typeScale.metadata },
+  location: { flex: 1, minWidth: 0, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata },
+  description: { maxWidth: 580, marginTop: 5, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
+  tags: { marginTop: 6, flexDirection: "row", flexWrap: "wrap", gap: 5 },
   tag: { maxWidth: "46%", minHeight: 25, borderRadius: 999, paddingHorizontal: 9, alignItems: "center", justifyContent: "center" },
-  tagText: { maxWidth: "100%", fontSize: 9, fontWeight: "600" },
-  price: { maxWidth: "100%", alignSelf: "flex-start", minHeight: 31, marginTop: 8, borderRadius: 999, paddingHorizontal: 11, alignItems: "center", justifyContent: "center" },
-  priceText: { maxWidth: "100%", color: PINK, fontSize: 10.5, fontWeight: "800" },
+  tagText: { maxWidth: "100%", fontFamily: fonts.sans.semibold, fontSize: typeScale.caption },
+  bottomRow: { marginTop: 7, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  bottomRowCompact: { marginTop: 5 },
+  price: { maxWidth: "62%", alignSelf: "flex-start", minHeight: 31, borderRadius: 999, paddingHorizontal: 11, alignItems: "center", justifyContent: "center" },
+  priceCompact: { maxWidth: "100%", paddingHorizontal: 9 },
+  priceText: { maxWidth: "100%", color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
+  viewProfile: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 2 },
+  viewProfileText: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   favorite: { position: "absolute", zIndex: 3, top: 12, right: 12, width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   favoriteHovered: { transform: [{ translateY: -1 }] },
   favoritePressed: { opacity: 0.72, transform: [{ scale: 0.94 }] },

@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { Field, kitStyles } from "@/components/vendor/VendorProfileFormKit";
+import { typeScale } from "@/constants/typography";
 
 export type MarketingCardFormValues = {
   mobileNumber: string;
@@ -132,6 +133,6 @@ export default function MarketingCardForm({
 
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
-  sectionLabel: { fontSize: 11, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6, marginTop: 2 },
+  sectionLabel: { fontSize: typeScale.metadata, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6, marginTop: 2 },
   twoUp: { flexDirection: "row", gap: 12 },
 });

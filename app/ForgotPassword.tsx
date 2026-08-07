@@ -46,7 +46,7 @@ export default function ForgotPasswordScreen() {
       subtitle="Enter your registered email and we’ll send you a verification code to reset your password."
       footer={
         <AuthLinkButton onPress={() => router.replace("/Login")} disabled={loading}>
-          <Text className="text-muted-foreground text-[13px]">
+          <Text className="text-muted-foreground text-body">
             Remembered it? <Text className="text-primary font-bold">Back to login</Text>
           </Text>
         </AuthLinkButton>

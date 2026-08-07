@@ -41,7 +41,7 @@ export function ProgressStepper({ status }: { status: CrmVendorStatus }) {
                 {done ? (
                   <Check size={12} color="#FFFFFF" />
                 ) : (
-                  <Text className={`text-[10px] font-bold ${active ? "text-primary" : "text-muted-foreground"}`}>
+                  <Text className={`text-metadata font-bold ${active ? "text-primary" : "text-muted-foreground"}`}>
                     {index + 1}
                   </Text>
                 )}
@@ -49,7 +49,7 @@ export function ProgressStepper({ status }: { status: CrmVendorStatus }) {
               {!isLast ? <View className={`flex-1 h-0.5 ${done ? "bg-primary" : "bg-border"}`} /> : null}
             </View>
             <Text
-              className={`text-[9px] mt-1 text-center ${active ? "text-primary font-semibold" : "text-muted-foreground"}`}
+              className={`text-caption mt-1 text-center ${active ? "text-primary font-semibold" : "text-muted-foreground"}`}
               numberOfLines={1}
             >
               {stage.label}

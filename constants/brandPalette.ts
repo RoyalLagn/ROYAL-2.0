@@ -5,9 +5,9 @@
  */
 export const brandPalette = {
   light: {
-    background: "#FFFBFC",
+    background: "#FFFFFF",
     foreground: "#1F191C",
-    card: "#FFFFFF",
+    card: "#FDF2F8",
     cardForeground: "#1F191C",
     primary: "#E91E63",
     /** Darker pink for small text / AA contrast on light backgrounds (~5.1:1 on white). */

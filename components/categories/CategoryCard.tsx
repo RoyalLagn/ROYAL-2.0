@@ -1,13 +1,7 @@
 import React from "react";
-import {
-  type ImageURISource,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { type ImageURISource, Pressable, StyleSheet, Text, View, } from "react-native";
 import SafeImage from "@/components/SafeImage";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 export type CategoryCardItem = {
   id: string;
@@ -84,8 +78,6 @@ function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
 
 export default React.memo(CategoryCard);
 
-const serif = Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" });
-
 const styles = StyleSheet.create({
   card: {
     width: "100%",
@@ -106,10 +98,10 @@ const styles = StyleSheet.create({
   iconCircle: { width: 68, height: 68, borderRadius: 34, borderWidth: 1, alignItems: "center", justifyContent: "center", flexShrink: 0 },
   iconCircleCompact: { width: 58, height: 58, borderRadius: 29 },
   copy: { flex: 1, minWidth: 0 },
-  name: { fontFamily: serif, fontSize: 20, lineHeight: 25, fontWeight: "700", letterSpacing: -0.3, marginBottom: 5 },
-  nameCompact: { fontSize: 17, lineHeight: 21, marginBottom: 3 },
-  description: { fontSize: 12, lineHeight: 18, fontWeight: "400" },
-  descriptionCompact: { fontSize: 10.5, lineHeight: 15 },
+  name: { ...typeStyles.editorialCardTitle, marginBottom: 5 },
+  nameCompact: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, marginBottom: 3 },
+  description: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, fontWeight: "400" },
+  descriptionCompact: { fontSize: typeScale.metadata, lineHeight: typeLeading.label },
   imageWrap: { width: 132, height: 134, margin: 4, marginLeft: 0, borderRadius: 18, overflow: "hidden", backgroundColor: "#F8E9EE" },
   imageWrapCompact: { width: 106, height: 108, borderRadius: 17 },
   // react-native-web falls back to a local image asset's own intrinsic

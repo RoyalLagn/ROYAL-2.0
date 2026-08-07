@@ -10,6 +10,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { MotionDistance, MotionDuration } from "@/utils/motion";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 /**
  * Shared empty/error-state block. Distinguishes "nothing here yet" from
@@ -68,8 +69,8 @@ export default function EmptyState({ icon: Icon, title, message, tone = "empty",
 const styles = StyleSheet.create({
   wrap: { borderWidth: 1, borderRadius: 22, padding: 26, alignItems: "center" },
   icon: { width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 12 },
-  title: { fontSize: 15, fontWeight: "800", textAlign: "center" },
-  message: { fontSize: 11, lineHeight: 17, textAlign: "center", marginTop: 6, maxWidth: 320 },
+  title: { fontSize: typeScale.body, fontWeight: "700", textAlign: "center" },
+  message: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab, textAlign: "center", marginTop: 6, maxWidth: 320 },
   action: { minHeight: 42, borderRadius: 13, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", marginTop: 16 },
-  actionText: { color: "#FFF", fontSize: 11, fontWeight: "800" },
+  actionText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
 });

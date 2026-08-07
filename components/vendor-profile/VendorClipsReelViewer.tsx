@@ -30,6 +30,7 @@ import {
 import type { ClipEngagementState, PublicClip } from "@/clips/types";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { cloudinaryDeliveryUrl } from "@/utils/cloudinaryDelivery";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 type ViewerItem = {
   key: string;
@@ -401,7 +402,7 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: "rgba(12,7,10,.28)",
   },
-  vendorName: { color: "#FFFFFF", fontSize: 14, lineHeight: 19, fontWeight: "800" },
+  vendorName: { color: "#FFFFFF", fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, fontWeight: "700" },
   topSpacer: { width: 44, height: 44 },
   bottomOverlay: {
     position: "absolute",
@@ -416,16 +417,16 @@ const styles = StyleSheet.create({
   captionWrap: { flex: 1, paddingBottom: 4, gap: 5 },
   clipTitle: {
     color: "#FFFFFF",
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "800",
+    fontSize: typeScale.body,
+    lineHeight: typeLeading.body,
+    fontWeight: "700",
     textShadowColor: "rgba(0,0,0,.55)",
     textShadowRadius: 4,
   },
   clipCaption: {
     color: "rgba(255,255,255,.88)",
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: typeScale.bodyCompact,
+    lineHeight: typeLeading.tab,
     fontWeight: "500",
     textShadowColor: "rgba(0,0,0,.55)",
     textShadowRadius: 4,
@@ -434,9 +435,9 @@ const styles = StyleSheet.create({
   action: { minWidth: 48, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 3 },
   actionText: {
     color: "#FFFFFF",
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: "800",
+    fontSize: typeScale.caption,
+    lineHeight: typeLeading.caption,
+    fontWeight: "700",
     textShadowColor: "rgba(0,0,0,.7)",
     textShadowRadius: 3,
   },

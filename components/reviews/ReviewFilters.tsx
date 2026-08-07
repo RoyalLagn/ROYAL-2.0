@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { ReviewSort, StarFilter } from "./types";
 import { reviewPalette } from "./types";
+import { typeScale } from "@/constants/typography";
 
 export type ReviewFiltersProps = { sort: ReviewSort; star: StarFilter; dark?: boolean; onSortChange: (sort: ReviewSort) => void; onStarChange: (star: StarFilter) => void };
 const sorts: { key: ReviewSort; label: string }[] = [{ key: "recent", label: "Most Recent" }, { key: "highest", label: "Highest Rated" }, { key: "lowest", label: "Lowest Rated" }, { key: "helpful", label: "Most Helpful" }];
@@ -22,5 +23,5 @@ export default function ReviewFilters({ sort, star, dark = false, onSortChange, 
 const styles = StyleSheet.create({
   wrap: { gap: 9 }, row: { gap: 8, paddingRight: 2 },
   chip: { borderWidth: 1, borderRadius: 20, minHeight: 37, paddingHorizontal: 14, alignItems: "center", justifyContent: "center" },
-  text: { fontSize: 12, fontWeight: "600" },
+  text: { fontSize: typeScale.bodyCompact, fontWeight: "600" },
 });

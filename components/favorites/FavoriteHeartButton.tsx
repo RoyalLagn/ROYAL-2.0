@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Pressable,
   type Insets,
@@ -41,6 +41,8 @@ export default function FavoriteHeartButton({
   accessibilityLabel,
   onToggle,
   style,
+  hoveredStyle,
+  pressedStyle,
   activeStyle,
   size = 18,
   color = PINK,
@@ -49,6 +51,7 @@ export default function FavoriteHeartButton({
   hitSlop,
 }: FavoriteHeartButtonProps) {
   const sourceRef = useRef<View>(null);
+  const [focused, setFocused] = useState(false);
   const scale = useSharedValue(1);
   const reducedMotion = useReducedMotion();
   const previousFavorite = useRef(favorite);
@@ -85,10 +88,14 @@ export default function FavoriteHeartButton({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: favorite }}
       hitSlop={hitSlop}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       onPress={() => onToggle(sourceRef)}
-      style={[
+      style={({ hovered, pressed }) => [
         style,
         favorite && activeStyle,
+        (hovered || focused) && hoveredStyle,
+        pressed && pressedStyle,
       ]}
     >
       <Animated.View style={iconStyle}>

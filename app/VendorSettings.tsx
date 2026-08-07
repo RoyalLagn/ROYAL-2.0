@@ -4,6 +4,7 @@ import { Check, Moon, Save, Sun } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
+import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { supabase } from "@/services/supabase";
 
@@ -50,16 +51,16 @@ export default function VendorSettings() {
           <View style={styles.flex}><Text style={[styles.rowTitle, { color: colors.text }]}>{item.title}</Text><Text style={[styles.detail, { color: colors.muted }]}>{item.detail}</Text></View>
           <Switch value={settings[item.key] ?? false} onValueChange={(value) => setSettings((current) => ({ ...current, [item.key]: value }))} trackColor={{ false: colors.border, true: `${colors.pink}70` }} thumbColor={settings[item.key] ? colors.pink : colors.muted} />
         </View>)}
-        <View style={[styles.footer, { borderTopColor: colors.border }]}>{saved && <View style={styles.saved}><Check size={15} color={colors.success} /><Text style={{ color: colors.success, fontSize: 10, fontWeight: "700" }}>Saved</Text></View>}<Pressable disabled={saving || loading} onPress={save} style={[styles.save, { backgroundColor: colors.pink }]}>{saving ? <ActivityIndicator color="#FFF" /> : <><Save size={16} color="#FFF" /><Text style={styles.saveText}>Save settings</Text></>}</Pressable></View>
+        <View style={[styles.footer, { borderTopColor: colors.border }]}>{saved && <View style={styles.saved}><Check size={15} color={colors.success} /><Text style={{ color: colors.success, fontSize: typeScale.caption, fontWeight: "700" }}>Saved</Text></View>}<Pressable disabled={saving || loading} onPress={save} style={[styles.save, { backgroundColor: colors.pink }]}>{saving ? <ActivityIndicator color="#FFF" /> : <><Save size={16} color="#FFF" /><Text style={styles.saveText}>Save settings</Text></>}</Pressable></View>
       </View>
     </ScrollView>
   </View>;
 }
 const styles = StyleSheet.create({
-  page: { flex: 1 }, content: { width: "100%", maxWidth: 780, alignSelf: "center", padding: 16, paddingTop: 22, paddingBottom: 24 }, eyebrow: { fontSize: 10, letterSpacing: 1.5, fontWeight: "800", marginBottom: 5 },
-  title: { fontSize: 28, fontWeight: "800", letterSpacing: -.8 }, subtitle: { fontSize: 12, lineHeight: 18, marginTop: 4, marginBottom: 20 }, card: { borderWidth: 1, borderRadius: 22, overflow: "hidden", marginBottom: 12 },
-  section: { fontSize: 13, fontWeight: "800", padding: 15 }, row: { minHeight: 74, borderTopWidth: StyleSheet.hairlineWidth, padding: 14, flexDirection: "row", alignItems: "center", gap: 11 },
-  icon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, rowTitle: { fontSize: 12, fontWeight: "800" }, detail: { fontSize: 10, lineHeight: 15, marginTop: 4 },
+  page: { flex: 1 }, content: { width: "100%", maxWidth: 780, alignSelf: "center", padding: 16, paddingTop: 22, paddingBottom: 24 }, eyebrow: { fontSize: typeScale.caption, letterSpacing: 1.5, fontWeight: "700", marginBottom: 5 },
+  title: { ...typeStyles.pageTitle }, subtitle: { ...typeStyles.bodyCompact, marginTop: 4, marginBottom: 20 }, card: { borderWidth: 1, borderRadius: 22, overflow: "hidden", marginBottom: 12 },
+  section: { fontSize: typeScale.body, fontWeight: "700", padding: 15 }, row: { minHeight: 74, borderTopWidth: StyleSheet.hairlineWidth, padding: 14, flexDirection: "row", alignItems: "center", gap: 11 },
+  icon: { width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, rowTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700" }, detail: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 4 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, minHeight: 68, padding: 12, flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 10 }, saved: { flexDirection: "row", alignItems: "center", gap: 4 },
-  save: { minWidth: 145, minHeight: 44, paddingHorizontal: 16, borderRadius: 14, flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center" }, saveText: { color: "#FFF", fontSize: 11, fontWeight: "800" },
+  save: { minWidth: 145, minHeight: 44, paddingHorizontal: 16, borderRadius: 14, flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center" }, saveText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
 });

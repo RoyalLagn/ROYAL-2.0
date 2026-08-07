@@ -17,6 +17,7 @@ import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { DropdownArrow, Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
+import { typeScale } from "@/constants/typography";
 
 // Business information: business_name, owner_name, category_id. Everything
 // else on the vendor record (description, contact, location, brand, tags,
@@ -128,7 +129,7 @@ export default function VendorEditBusinessInfo() {
             />
             <Text style={[kitStyles.label, { color: colors.text }]}>Business category<Text style={{ color: colors.pink }}> *</Text></Text>
             <Pressable onPress={() => setCategoryOpen(true)} style={[kitStyles.input, kitStyles.select, inputStyle]}>
-              <Text style={{ color: selectedCategory ? colors.text : colors.muted, fontSize: 13 }}>
+              <Text style={{ color: selectedCategory ? colors.text : colors.muted, fontSize: typeScale.body }}>
                 {selectedCategory?.name ?? "Choose a category"}
               </Text>
               <DropdownArrow open={categoryOpen} color={colors.muted} />
@@ -179,10 +180,10 @@ export default function VendorEditBusinessInfo() {
 const styles = StyleSheet.create({
   categorySheet: { width: "100%", maxWidth: 560, maxHeight: "78%", alignSelf: "center", borderWidth: 1, borderRadius: 27, padding: 18, paddingBottom: 28 },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 },
-  sheetTitle: { fontSize: 17, fontWeight: "900" },
-  sheetSubtitle: { fontSize: 9, marginTop: 3 },
+  sheetTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
+  sheetSubtitle: { fontSize: typeScale.caption, marginTop: 3 },
   close: { width: 37, height: 37, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   categoryList: { maxHeight: 430 },
   categoryOption: { minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  categoryName: { fontSize: 12, fontWeight: "700" },
+  categoryName: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
 });

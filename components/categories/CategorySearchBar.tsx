@@ -1,7 +1,9 @@
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import React, { useState } from "react";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { SlidersHorizontal } from "lucide-react-native";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import { brandColors } from "@/constants/brandPalette";
+import { fonts, typeScale } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -24,7 +26,9 @@ export default function CategorySearchBar({
   onChangeQuery,
   onOpenFilters,
 }: CategorySearchBarProps) {
+  const [filterFocused, setFilterFocused] = useState(false);
   const { width } = useWindowDimensions();
+  const colors = brandColors(dark);
 
   return (
     <View style={styles.row}>
@@ -37,15 +41,22 @@ export default function CategorySearchBar({
         style={styles.search}
       />
 
-      <TouchableOpacity
+      <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open category filters"
         onPress={onOpenFilters}
-        activeOpacity={0.76}
-        style={[
+        onHoverIn={() => setFilterFocused(true)}
+        onHoverOut={() => setFilterFocused(false)}
+        onFocus={() => setFilterFocused(true)}
+        onBlur={() => setFilterFocused(false)}
+        style={({ pressed }) => [
           styles.filter,
           width < 380 && styles.filterNarrow,
-          { backgroundColor: dark ? "#0E141F" : "#FFFFFF" },
+          {
+            backgroundColor: filterFocused ? colors.muted : colors.card,
+            borderColor: activeFilterCount || filterFocused ? colors.primary : colors.border,
+          },
+          pressed && styles.filterPressed,
         ]}
       >
         <SlidersHorizontal size={16} color={PINK} />
@@ -54,7 +65,7 @@ export default function CategorySearchBar({
             <Text style={styles.filterCountText}>{activeFilterCount}</Text>
           </View>
         ) : null}
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }
@@ -74,13 +85,13 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#F04478",
     alignItems: "center",
     justifyContent: "center",
     shadowOpacity: 0,
     elevation: 0,
   },
   filterNarrow: { width: 44 },
+  filterPressed: { opacity: 0.78, transform: [{ scale: 0.97 }] },
   filterCount: {
     position: "absolute",
     top: 6,
@@ -93,5 +104,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  filterCountText: { color: "#FFFFFF", fontSize: 8, fontWeight: "900" },
+  filterCountText: { color: "#FFFFFF", fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
 });

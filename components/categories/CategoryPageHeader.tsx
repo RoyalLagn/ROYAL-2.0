@@ -2,6 +2,7 @@ import React from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { ChevronLeft, Crown } from "lucide-react-native";
 import Animated, { Extrapolation, interpolate, type SharedValue, useAnimatedStyle } from "react-native-reanimated";
+import { typeStyles } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -61,11 +62,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.74, transform: [{ scale: 0.97 }] },
   titleBlock: { flex: 1, minWidth: 0, alignItems: "center", paddingHorizontal: 8 },
   title: {
-    fontFamily: Platform.select({ ios: "Georgia", android: "serif", web: "Georgia, serif" }),
-    fontSize: 27,
-    lineHeight: 34,
-    fontWeight: "700",
-    letterSpacing: -0.65,
+    ...typeStyles.editorialPageTitle,
     textAlign: "center",
   },
   ornament: { marginTop: 3, flexDirection: "row", alignItems: "center", gap: 6 },

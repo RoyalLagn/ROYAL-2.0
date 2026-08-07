@@ -2,6 +2,7 @@ import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import QRCode from "react-native-qrcode-svg";
+import { fonts } from "@/constants/typography";
 import {
   Brush,
   CalendarCheck,
@@ -84,7 +85,6 @@ const PINK_PILL = "#FDE7EF";
 const PINK_TINT = "#FBD5E4";
 const BOX_BG = "#FEF7FA";
 const BOX_BORDER = "#F6DEE9";
-const serif = "Georgia, 'Times New Roman', serif";
 
 export type MarketingCardData = {
   businessName: string;
@@ -273,7 +273,7 @@ export default function MarketingCardPreview({
         ]}
       >
         {data.logoUrl ? (
-          <Image source={{ uri: data.logoUrl }} style={{ width: "100%", height: "100%", borderRadius: s(168) }} resizeMode="cover" />
+          <Image source={{ uri: data.logoUrl }} style={{ width: "100%", height: "100%", borderRadius: s(168) }} resizeMode="contain" />
         ) : (
           <BrandEmblem size={s(336)} />
         )}
@@ -521,13 +521,13 @@ const styles = StyleSheet.create({
 
   medallion: { overflow: "hidden", backgroundColor: "#FFFFFF", borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
 
-  businessName: { color: INK, fontWeight: "900", fontFamily: serif },
+  businessName: { color: INK, fontFamily: fonts.serif.bold },
   categoryPill: { flexDirection: "row", alignItems: "center", backgroundColor: PINK_PILL },
-  categoryText: { color: ROSE, fontWeight: "800" },
+  categoryText: { color: ROSE, fontWeight: "700" },
   metaDivider: { backgroundColor: "#EFD3DF" },
   metaText: { color: INK_SOFT, fontWeight: "600" },
-  ratingText: { color: INK, fontWeight: "900" },
-  tagline: { color: INK, fontWeight: "700", fontFamily: serif, fontStyle: "italic", flexShrink: 1 },
+  ratingText: { color: INK, fontWeight: "700" },
+  tagline: { color: INK, fontFamily: fonts.serif.boldItalic, flexShrink: 1 },
   flourishLine: { backgroundColor: GOLD_SOFT },
 
   box: { flexDirection: "row", alignItems: "center", backgroundColor: BOX_BG, borderColor: BOX_BORDER },
@@ -537,12 +537,12 @@ const styles = StyleSheet.create({
   cellLabel: { color: INK, fontWeight: "700" },
 
   qrCard: { backgroundColor: "#FFFFFF", borderColor: BOX_BORDER },
-  qrTitle: { color: INK, fontWeight: "900", textAlign: "center" },
+  qrTitle: { color: INK, fontWeight: "700", textAlign: "center" },
   qrBox: { backgroundColor: "#FFFFFF", borderColor: ROSE, alignItems: "center", justifyContent: "center" },
   qrEmblem: { position: "absolute", backgroundColor: "#FFFFFF", borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center", overflow: "hidden" },
   qrLead: { color: INK_SOFT, fontWeight: "700", textAlign: "center" },
   whatsappButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: ROSE },
-  whatsappText: { color: "#FFFFFF", fontWeight: "800" },
+  whatsappText: { color: "#FFFFFF", fontWeight: "700" },
 
   contactItem: { flex: 1, flexDirection: "row", alignItems: "center" },
   contactIcon: { backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
@@ -552,5 +552,5 @@ const styles = StyleSheet.create({
   footerRule: { backgroundColor: "rgba(255,255,255,0.55)" },
   footerText: { color: "#FFFFFF", fontWeight: "700" },
   footerPill: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF" },
-  footerPillText: { color: INK, fontWeight: "800" },
+  footerPillText: { color: INK, fontWeight: "700" },
 });

@@ -16,7 +16,7 @@ export function WorkspaceVendorCard({ vendor, onPress }: { vendor: CrmWorkspaceV
           <Text className="text-foreground text-base font-bold flex-1" numberOfLines={1}>{vendor.business_name}</Text>
           {vendor.is_own ? (
             <View className="px-2 py-0.5 rounded-full bg-primary/10">
-              <Text className="text-primary text-[9px] font-bold">MINE</Text>
+              <Text className="text-primary text-caption font-bold">MINE</Text>
             </View>
           ) : null}
         </View>
@@ -26,7 +26,7 @@ export function WorkspaceVendorCard({ vendor, onPress }: { vendor: CrmWorkspaceV
         {vendor.area ? (
           <View className="flex-row items-center mt-1">
             <MapPin size={11} className="text-muted-foreground" />
-            <Text className="text-muted-foreground text-[11px] ml-1" numberOfLines={1}>{vendor.area}</Text>
+            <Text className="text-muted-foreground text-metadata ml-1" numberOfLines={1}>{vendor.area}</Text>
           </View>
         ) : null}
         <View className="mt-3 pt-3 border-t border-border">

@@ -29,6 +29,7 @@ import {
   vendorLocationPriority,
   vendorNearbyLabel,
 } from "@/services/locations";
+import { typeScale } from "@/constants/typography";
 
 const GLOBAL_PAGES = [
   { label: "Categories", detail: "Browse every wedding service", keywords: "categories services vendors browse", route: "/(tabs)/Categories" as const },
@@ -237,12 +238,15 @@ export default function SearchScreen() {
               source={{ uri: vendor.image }}
               fallbackSource={resolveMarketplaceCategoryImage(vendor.category).fallbackSource}
               debugLabel={`search result: ${vendor.name}`}
-              resizeMode="cover"
+              deliveryWidth={80}
+              deliveryHeight={80}
+              deliveryCrop="fit"
+              resizeMode="contain"
               style={styles.resultImage}
             />
             <View className="ml-3 flex-1 justify-center">
               <Text className="text-foreground font-semibold">{vendor.name}</Text>
-              {vendorNearbyLabel(vendor, preference) ? <Text className="text-primary text-[10px] font-bold mt-0.5">{vendorNearbyLabel(vendor, preference)}</Text> : null}
+              {vendorNearbyLabel(vendor, preference) ? <Text className="text-primary text-metadata font-bold mt-0.5">{vendorNearbyLabel(vendor, preference)}</Text> : null}
               <View style={styles.categoryMeta}>
                 <CategoryBadge name={vendor.category} style={styles.categoryBadge} />
                 <Text className="text-primary text-xs">· {vendor.rating} ★</Text>
@@ -279,9 +283,9 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  resultImage: { width: 80, height: 80, borderRadius: 12 },
+  resultImage: { width: 80, height: 80, borderRadius: 12, backgroundColor: "#FFFFFF" },
   categoryMeta: { marginTop: 4, flexDirection: "row", alignItems: "center", gap: 3 },
-  categoryBadge: { color: "#E91E63", fontSize: 12 },
+  categoryBadge: { color: "#E91E63", fontSize: typeScale.bodyCompact },
   scroll: { flex: 1 },
   results: {
     alignSelf: "center",

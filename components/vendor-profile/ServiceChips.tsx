@@ -1,6 +1,7 @@
 import React from "react";
 import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Sparkles, type LucideIcon } from "lucide-react-native";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = "#E91E63";
 
@@ -94,8 +95,8 @@ const styles = StyleSheet.create({
   label: {
     flexShrink: 1,
     textAlign: "left",
-    fontSize: 11.5,
-    lineHeight: 16,
+    fontSize: typeScale.metadata,
+    lineHeight: typeLeading.metadata,
     fontWeight: "600",
   },
 });

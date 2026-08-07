@@ -184,7 +184,7 @@ export default function AdminCrmCategories() {
                           <Text className="text-foreground text-base font-bold" numberOfLines={1}>{category.name}</Text>
                           {!category.is_active ? (
                             <View className="px-2 py-0.5 rounded-full bg-muted">
-                              <Text className="text-muted-foreground text-[9px] font-bold">INACTIVE</Text>
+                              <Text className="text-muted-foreground text-caption font-bold">INACTIVE</Text>
                             </View>
                           ) : null}
                         </View>

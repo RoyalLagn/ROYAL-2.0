@@ -20,7 +20,7 @@ export function WorkspaceHomeTile({ label, icon: Icon, badge, onPress }: Workspa
       <Text className="text-foreground text-sm font-bold mt-3 text-center">{label}</Text>
       {badge !== undefined ? (
         <View className="absolute top-3 right-3 min-w-6 h-6 px-1.5 rounded-full bg-primary items-center justify-center">
-          <Text className="text-white text-[11px] font-bold">{badge}</Text>
+          <Text className="text-white text-metadata font-bold">{badge}</Text>
         </View>
       ) : null}
     </CRMCard>

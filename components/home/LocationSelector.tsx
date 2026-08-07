@@ -1,20 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, } from "react-native";
 import { Check, ChevronDown, MapPin, X } from "lucide-react-native";
 import { useCustomerLocation } from "@/context/LocationContext";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import type { LocationPreference } from "@/locations/types";
 import { brandColors, brandPalette } from "@/constants/brandPalette";
-import { fonts } from "@/constants/typography";
+import { fonts, typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = brandPalette.light.primary;
 
@@ -209,32 +200,32 @@ const styles = StyleSheet.create({
   trigger: { minWidth: 0, maxWidth: 190, flexShrink: 1, height: 36, borderWidth: 1, borderRadius: 14, paddingHorizontal: 8, paddingVertical: 0, flexDirection: "row", alignItems: "center", gap: 3 },
   triggerCompact: { maxWidth: 150, height: 30, paddingHorizontal: 6, borderRadius: 11 },
   triggerFilter: { minHeight: 42, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12 },
-  triggerText: { flexShrink: 1, minWidth: 0, fontSize: 11, lineHeight: 14, fontWeight: "700", includeFontPadding: false },
-  triggerTextCompact: { fontSize: 10, lineHeight: 12 },
-  triggerFilterText: { fontSize: 11 },
+  triggerText: { flexShrink: 1, minWidth: 0, fontSize: typeScale.metadata, lineHeight: typeLeading.caption, fontWeight: "700", includeFontPadding: false },
+  triggerTextCompact: { fontSize: typeScale.caption, lineHeight: typeLeading.caption },
+  triggerFilterText: { fontSize: typeScale.metadata },
   backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(27,14,21,.48)" },
   backdropMobile: { padding: 0, justifyContent: "flex-end" },
   sheet: { width: "100%", maxWidth: 480, borderWidth: 1, borderRadius: 24, padding: 20 },
   sheetMobile: { maxWidth: "100%", borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 28 },
   sheetHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 16 },
-  title: { fontSize: 19, lineHeight: 25, fontWeight: "800", letterSpacing: -0.3 },
-  subtitle: { fontSize: 10, lineHeight: 15, marginTop: 3 },
+  title: { fontSize: typeScale.editorialCardTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700", letterSpacing: -0.3 },
+  subtitle: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 3 },
   closeButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
-  groupLabel: { fontSize: 8, fontWeight: "900", letterSpacing: 1.1, marginTop: 18, marginBottom: 9 },
+  groupLabel: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.1, marginTop: 18, marginBottom: 9 },
   options: { gap: 8 },
   optionScroll: { maxHeight: 330 },
   loader: { paddingVertical: 24 },
   option: { minHeight: 54, borderWidth: 1, borderRadius: 15, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 10 },
   optionIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   optionCopy: { flex: 1, minWidth: 0 },
-  optionText: { fontSize: 12, fontWeight: "700" },
-  optionDetail: { fontSize: 9, marginTop: 2 },
-  emptyText: { textAlign: "center", paddingVertical: 18, fontSize: 11 },
-  saveError: { color: brandPalette.light.destructive, fontFamily: fonts.sans.regular, fontSize: 10, lineHeight: 15, marginTop: 10 },
+  optionText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  optionDetail: { fontSize: typeScale.caption, marginTop: 2 },
+  emptyText: { textAlign: "center", paddingVertical: 18, fontSize: typeScale.metadata },
+  saveError: { color: brandPalette.light.destructive, fontFamily: fonts.sans.regular, fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 10 },
   actions: { flexDirection: "row", gap: 9, marginTop: 18 },
   cancel: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" },
-  cancelText: { fontSize: 11, fontWeight: "800" },
+  cancelText: { fontSize: typeScale.metadata, fontWeight: "700" },
   confirm: { flex: 1.4, minHeight: 48, borderRadius: 15, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
-  confirmText: { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 11 },
+  confirmText: { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   disabled: { opacity: 0.48 },
 });

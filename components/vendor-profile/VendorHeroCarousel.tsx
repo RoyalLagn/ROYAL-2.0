@@ -12,8 +12,10 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Camera, ChevronLeft } from "lucide-react-native";
+import { Camera, ChevronLeft, Maximize2 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { brandPalette } from "@/constants/brandPalette";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 type CarouselImage = number | ImageURISource;
 
@@ -27,6 +29,7 @@ export type VendorHeroCarouselProps = {
   paused?: boolean;
   intervalMs?: number;
   height?: number;
+  containMedia?: boolean;
 };
 
 const DEFAULT_INTERVAL = 3500;
@@ -46,6 +49,7 @@ function VendorHeroCarousel({
   paused = false,
   intervalMs = DEFAULT_INTERVAL,
   height,
+  containMedia = false,
 }: VendorHeroCarouselProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -152,9 +156,14 @@ function VendorHeroCarousel({
   }, [manuallyShow, pauseTemporarily, sources.length]);
 
   const currentSource = failed.has(index) && fallbackImage ? fallbackImage : sources[index];
+  const currentFocalPoint = focalPoints[index] ?? { x: 0.5, y: 0.5 };
+  const focalStyle = Platform.OS === "web"
+    ? ({ objectPosition: `${Math.round(currentFocalPoint.x * 100)}% ${Math.round(currentFocalPoint.y * 100)}%` } as object)
+    : ({ transform: [{ scale: 1.04 }, { translateX: (0.5 - currentFocalPoint.x) * 16 }, { translateY: (0.5 - currentFocalPoint.y) * 16 }] } as object);
 
   return (
-    <Pressable
+    <View style={[styles.root, { height: heroHeight, backgroundColor: containMedia ? "#FFFFFF" : "#050505" }]}>
+      <Pressable
       onPress={(event) => {
         event.stopPropagation();
         pauseTemporarily();
@@ -169,24 +178,27 @@ function VendorHeroCarousel({
       onHoverOut={() => {
         if (Platform.OS === "web") pauseTemporarily(1800);
       }}
-      style={[styles.root, { height: heroHeight }]}
+      accessibilityRole={onOpen ? "button" : undefined}
+      accessibilityLabel={onOpen ? `Open ${vendorName} gallery image ${index + 1}` : undefined}
+      style={styles.galleryTarget}
       {...panResponder.panHandlers}
-    >
-      {currentSource ? (
-        <Animated.Image
-          source={currentSource}
-          defaultSource={fallbackImage}
-          resizeMode="contain"
-          accessibilityLabel={`${vendorName} gallery image ${index + 1}`}
-          onError={() => setFailed((current) => new Set(current).add(index))}
-          style={[
-            styles.image,
-            {
-              opacity,
-            } as any,
-          ]}
-        />
-      ) : null}
+      >
+        {currentSource ? (
+          <Animated.Image
+            source={currentSource}
+            defaultSource={fallbackImage}
+            resizeMode={containMedia ? "contain" : "cover"}
+            accessibilityLabel={`${vendorName} gallery image ${index + 1}`}
+            onError={() => setFailed((current) => new Set(current).add(index))}
+            style={[
+              styles.image,
+              focalStyle,
+              { opacity } as any,
+            ]}
+          />
+        ) : null}
+        <View pointerEvents="none" style={styles.mediaShade} />
+      </Pressable>
 
       <View pointerEvents="box-none" style={[styles.topControls, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
         <Pressable
@@ -214,12 +226,19 @@ function VendorHeroCarousel({
         </View>
       ) : null}
 
+      {onOpen ? (
+        <View pointerEvents="none" style={styles.expandHint}>
+          <Maximize2 size={13} color="#FFFFFF" strokeWidth={1.9} />
+          <Text style={styles.expandHintText}>View gallery</Text>
+        </View>
+      ) : null}
+
       {sources.length > 1 ? <>
         <View style={styles.dots}>
           {sources.map((_source, dotIndex) => <View key={dotIndex} style={[styles.dot, dotIndex === index && styles.dotActive]} />)}
         </View>
       </> : null}
-    </Pressable>
+    </View>
   );
 }
 
@@ -230,11 +249,13 @@ const styles = StyleSheet.create({
     width: "100%",
     position: "relative",
     overflow: "hidden",
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
     backgroundColor: "#050505",
   },
+  galleryTarget: StyleSheet.absoluteFillObject,
   image: { width: "100%", height: "100%" },
+  mediaShade: { ...StyleSheet.absoluteFillObject, backgroundColor: brandPalette.light.overlayInk, opacity: 0.12 },
   topControls: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 18 },
   backButton: {
     width: 46,
@@ -258,7 +279,9 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: "rgba(28,20,23,.66)",
   },
-  counterText: { color: "#FFFFFF", fontSize: 12, lineHeight: 16, fontWeight: "700" },
+  counterText: { color: "#FFFFFF", fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" },
+  expandHint: { position: "absolute", right: 18, bottom: 27, minHeight: 32, borderRadius: 16, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(28,20,23,.68)" },
+  expandHintText: { color: "#FFFFFF", fontSize: typeScale.metadata, lineHeight: typeLeading.caption, fontWeight: "700" },
   dots: { position: "absolute", bottom: 13, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 5 },
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,.5)" },
   dotActive: { width: 16, backgroundColor: "#FFF" },

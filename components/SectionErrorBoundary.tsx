@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { typeScale, typeLeading } from "@/constants/typography";
 
 type Props = React.PropsWithChildren<{
   /** Shown above the error message so it's obvious which section failed. */
@@ -61,8 +62,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF7FA",
     gap: 8,
   },
-  title: { fontSize: 13, fontWeight: "800", color: "#7A1E3C" },
-  message: { fontSize: 12, lineHeight: 17, color: "#8A6470" },
+  title: { fontSize: typeScale.body, fontWeight: "700", color: "#7A1E3C" },
+  message: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.tab, color: "#8A6470" },
   retry: {
     alignSelf: "flex-start",
     minHeight: 34,
@@ -72,5 +73,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  retryText: { color: "#FFFFFF", fontSize: 12, fontWeight: "800" },
+  retryText: { color: "#FFFFFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
 });

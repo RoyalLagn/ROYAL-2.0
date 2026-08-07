@@ -125,19 +125,19 @@ function UserCard({ user }: { user: AdminPublicUser }) {
         )}
         <View className="flex-1 min-w-0 ml-3">
           <View className="flex-row items-center gap-2">
-            <Text className="text-foreground text-[15px] font-bold flex-1" numberOfLines={1}>{user.full_name}</Text>
-            <Text className={user.is_active ? "text-emerald-600 bg-emerald-500/10 text-[9px] font-bold px-2 py-1 rounded-full" : "text-muted-foreground bg-muted text-[9px] font-bold px-2 py-1 rounded-full"}>
+            <Text className="text-foreground text-body font-bold flex-1" numberOfLines={1}>{user.full_name}</Text>
+            <Text className={user.is_active ? "text-emerald-600 bg-emerald-500/10 text-caption font-bold px-2 py-1 rounded-full" : "text-muted-foreground bg-muted text-caption font-bold px-2 py-1 rounded-full"}>
               {user.is_active ? "ACTIVE" : "INACTIVE"}
             </Text>
           </View>
-          <Text className="text-muted-foreground text-[9px] mt-1" numberOfLines={1}>Updated {new Date(user.updated_at).toLocaleString()}</Text>
+          <Text className="text-muted-foreground text-caption mt-1" numberOfLines={1}>Updated {new Date(user.updated_at).toLocaleString()}</Text>
         </View>
       </View>
       <View className="mt-3 pt-3 border-t border-border/70 gap-2">
         <View className="flex-row items-center"><Mail size={14} className="text-primary" /><Text className="text-foreground text-xs ml-2 flex-1" numberOfLines={1}>{user.email}</Text></View>
         <View className="flex-row items-center"><Phone size={14} className="text-primary" /><Text className="text-foreground text-xs ml-2">{user.phone || "No phone number"}</Text></View>
       </View>
-      <Text className="text-muted-foreground text-[8px] mt-3" numberOfLines={1}>ID: {user.id}</Text>
+      <Text className="text-muted-foreground text-caption mt-3" numberOfLines={1}>ID: {user.id}</Text>
     </View>
   );
 }

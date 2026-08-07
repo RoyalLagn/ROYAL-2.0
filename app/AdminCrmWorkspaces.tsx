@@ -149,16 +149,16 @@ function WorkspaceRow({
             <Text className="text-muted-foreground text-xs mt-1" numberOfLines={1}>
               {workspace.employee_name}{workspace.employee_phone ? ` · ${workspace.employee_phone}` : ""}
             </Text>
-            <Text className="text-muted-foreground text-[10px] mt-1" numberOfLines={1}>
+            <Text className="text-muted-foreground text-metadata mt-1" numberOfLines={1}>
               {workspace.cluster_name ?? "Unknown cluster"}{workspace.campaign_name ? ` · ${workspace.campaign_name}` : ""}
             </Text>
-            <Text className={`text-[10px] mt-1 ${isExpired ? "text-red-500" : "text-muted-foreground"}`}>
+            <Text className={`text-metadata mt-1 ${isExpired ? "text-red-500" : "text-muted-foreground"}`}>
               {formatExpiry(workspace.expires_at)}
             </Text>
           </View>
           <View className="items-end gap-2">
             <View className={`px-2.5 py-1.5 rounded-full ${background}`}>
-              <Text className={`text-[10px] font-semibold ${foreground}`}>{workspaceStatusLabels[display]}</Text>
+              <Text className={`text-metadata font-semibold ${foreground}`}>{workspaceStatusLabels[display]}</Text>
             </View>
             <ChevronDown size={16} className="text-muted-foreground" style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }} />
           </View>
@@ -169,7 +169,7 @@ function WorkspaceRow({
         <View className="mt-4 pt-4 border-t border-border">
           {isExpired ? (
             <View className="bg-red-500/10 rounded-2xl px-3 py-2 mb-3">
-              <Text className="text-red-500 text-[11px] font-semibold">
+              <Text className="text-red-500 text-metadata font-semibold">
                 This link stopped working when it expired. Extend the expiry below to reactivate it — the employee can use the same link once you do.
               </Text>
             </View>
@@ -177,30 +177,30 @@ function WorkspaceRow({
           <View className="flex-row flex-wrap gap-2">
             {workspace.status === "paused" ? (
               <Pressable disabled={busy} onPress={() => onSetStatus("active")} className="px-3 py-2 rounded-full border border-emerald-500/40 bg-emerald-500/10">
-                <Text className="text-emerald-500 text-[11px] font-bold">Activate</Text>
+                <Text className="text-emerald-500 text-metadata font-bold">Activate</Text>
               </Pressable>
             ) : null}
             {workspace.status === "active" && !isExpired ? (
               <Pressable disabled={busy} onPress={() => onSetStatus("paused")} className="px-3 py-2 rounded-full border border-amber-500/40 bg-amber-500/10">
-                <Text className="text-amber-500 text-[11px] font-bold">Pause</Text>
+                <Text className="text-amber-500 text-metadata font-bold">Pause</Text>
               </Pressable>
             ) : null}
             {workspace.status !== "revoked" ? (
               <Pressable disabled={busy} onPress={() => onSetStatus("revoked")} className="px-3 py-2 rounded-full border border-red-500/40 bg-red-500/10">
-                <Text className="text-red-500 text-[11px] font-bold">Revoke</Text>
+                <Text className="text-red-500 text-metadata font-bold">Revoke</Text>
               </Pressable>
             ) : null}
             <Pressable disabled={busy} onPress={onCopy} className="px-3 py-2 rounded-full border border-border flex-row items-center">
               <Copy size={12} className="text-primary" />
-              <Text className="text-foreground text-[11px] font-bold ml-1.5">Copy Link</Text>
+              <Text className="text-foreground text-metadata font-bold ml-1.5">Copy Link</Text>
             </Pressable>
             <Pressable disabled={busy} onPress={onShare} className="px-3 py-2 rounded-full border border-border flex-row items-center">
               <Share2 size={12} className="text-primary" />
-              <Text className="text-foreground text-[11px] font-bold ml-1.5">Share</Text>
+              <Text className="text-foreground text-metadata font-bold ml-1.5">Share</Text>
             </Pressable>
             <Pressable disabled={busy} onPress={onRegenerate} className="px-3 py-2 rounded-full border border-border flex-row items-center">
               <RefreshCw size={12} className="text-primary" />
-              <Text className="text-foreground text-[11px] font-bold ml-1.5">Regenerate</Text>
+              <Text className="text-foreground text-metadata font-bold ml-1.5">Regenerate</Text>
             </Pressable>
           </View>
 
@@ -208,13 +208,13 @@ function WorkspaceRow({
           <View className="flex-row flex-wrap gap-2">
             {extendPresets.map((preset) => (
               <Pressable key={preset.label} disabled={busy} onPress={() => onExtend(preset.hours)} className="px-3 py-2 rounded-full border border-border">
-                <Text className="text-foreground text-[11px] font-bold">{preset.label}</Text>
+                <Text className="text-foreground text-metadata font-bold">{preset.label}</Text>
               </Pressable>
             ))}
           </View>
 
           <Text className="text-foreground text-xs font-semibold mt-4 mb-1.5">Permissions</Text>
-          {permissionsError ? <Text className="text-red-500 text-[11px] mb-2">{permissionsError}</Text> : null}
+          {permissionsError ? <Text className="text-red-500 text-metadata mb-2">{permissionsError}</Text> : null}
           {permissionsLoading ? (
             <ActivityIndicator color="#E91E63" />
           ) : permissions ? (
