@@ -6,19 +6,21 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, Platform, Pressable, View, Text, StyleSheet } from 'react-native';
 import React, { useEffect } from 'react';
 import { useFonts } from 'expo-font';
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter';
-import {
-  PlayfairDisplay_400Regular,
-  PlayfairDisplay_500Medium,
-  PlayfairDisplay_600SemiBold,
-  PlayfairDisplay_700Bold,
-  PlayfairDisplay_700Bold_Italic,
-} from '@expo-google-fonts/playfair-display';
+// Import each weight from its own submodule rather than the package barrel
+// (`@expo-google-fonts/inter`/`@expo-google-fonts/playfair-display`). The
+// barrel's index.js unconditionally `require()`s every weight file it
+// exports, so destructuring from it still bundles all 18 Inter + 12
+// Playfair .ttf assets into production output even though only 9 weights
+// are ever used. Per-weight imports pull in only the files below.
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
+import { PlayfairDisplay_400Regular } from '@expo-google-fonts/playfair-display/400Regular';
+import { PlayfairDisplay_500Medium } from '@expo-google-fonts/playfair-display/500Medium';
+import { PlayfairDisplay_600SemiBold } from '@expo-google-fonts/playfair-display/600SemiBold';
+import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display/700Bold';
+import { PlayfairDisplay_700Bold_Italic } from '@expo-google-fonts/playfair-display/700Bold_Italic';
 import * as SplashScreen from 'expo-splash-screen';
 import { FavoritesProvider } from '@/context/FavoritesContext';
 import VendorBottomNav from '@/components/vendor/VendorBottomNav';
