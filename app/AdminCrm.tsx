@@ -15,6 +15,7 @@ import {
   Sparkles,
   UserCheck,
   Users,
+  Users2,
 } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
@@ -100,6 +101,19 @@ export default function AdminCrm() {
               <View className="flex-1 min-w-0 ml-3">
                 <Text className="text-foreground text-sm font-bold">Workspaces</Text>
                 <Text className="text-muted-foreground text-xs mt-0.5">Manage field workspace links, expiry and permissions</Text>
+              </View>
+              <ChevronRight size={18} className="text-muted-foreground" />
+            </CRMCard>
+          </ResponsiveSection>
+
+          <ResponsiveSection>
+            <CRMCard onPress={() => router.push("/AdminCrmMarketingWorkspaces")} className="p-4 flex-row items-center">
+              <View className="w-10 h-10 rounded-xl bg-primary/10 items-center justify-center">
+                <Users2 size={18} className="text-primary" />
+              </View>
+              <View className="flex-1 min-w-0 ml-3">
+                <Text className="text-foreground text-sm font-bold">Marketing Workspaces</Text>
+                <Text className="text-muted-foreground text-xs mt-0.5">Assign vendors to a team and track campaign progress</Text>
               </View>
               <ChevronRight size={18} className="text-muted-foreground" />
             </CRMCard>

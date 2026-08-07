@@ -1,0 +1,213 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ArrowLeft, Check, Square } from "lucide-react-native";
+import { AdminEmptyState, AdminErrorState } from "@/components/admin/ui/AdminState";
+import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
+import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
+import { CRMCard } from "@/components/admin/crm/ui/CRMCard";
+import { CrmSearchBar } from "@/components/admin/crm/ui/SearchBar";
+import { CrmSkeletonGrid } from "@/components/admin/crm/ui/SkeletonLoader";
+import { CrmCategoryService } from "@/services/crm/categoryService";
+import { CrmMarketingWorkspaceService } from "@/services/crm/marketingWorkspaceService";
+import type { CrmVendorCategory } from "@/types/crm/category";
+import type { CrmAssignableVendor } from "@/types/crm/marketingWorkspace";
+
+function errorMessage(reason: unknown) {
+  if (reason instanceof Error) return reason.message;
+  return "Something went wrong.";
+}
+
+export default function AdminCrmMarketingWorkspaceAssign() {
+  const router = useRouter();
+  const { workspaceId } = useLocalSearchParams<{ workspaceId: string }>();
+
+  const [categories, setCategories] = useState<CrmVendorCategory[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set());
+  const [vendors, setVendors] = useState<CrmAssignableVendor[]>([]);
+  const [total, setTotal] = useState(0);
+  const [query, setQuery] = useState("");
+  const [selectedVendorIds, setSelectedVendorIds] = useState<Set<string>>(new Set());
+
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    void Promise.all([
+      CrmCategoryService.list().then((rows) => rows.filter((row) => row.is_active)),
+      CrmMarketingWorkspaceService.getCategoryIds(workspaceId),
+    ]).then(([categoryRows, existingIds]) => {
+      setCategories(categoryRows);
+      setSelectedCategoryIds(new Set(existingIds));
+    }).catch((reason) => setError(errorMessage(reason)))
+      .finally(() => setLoadingCategories(false));
+  }, [workspaceId]);
+
+  const loadVendors = useCallback(async () => {
+    if (!workspaceId) return;
+    setLoadingVendors(true);
+    setError(null);
+    try {
+      const ids = Array.from(selectedCategoryIds);
+      const result = await CrmMarketingWorkspaceService.listAssignableVendors(workspaceId, ids.length ? ids : null, query, 1, 100);
+      setVendors(result.rows);
+      setTotal(result.total);
+      setSelectedVendorIds(new Set(result.rows.filter((row) => row.is_assigned).map((row) => row.id)));
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setLoadingVendors(false);
+    }
+  }, [workspaceId, selectedCategoryIds, query]);
+
+  useEffect(() => { void loadVendors(); }, [loadVendors]);
+
+  const toggleCategory = (id: string) => setSelectedCategoryIds((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const toggleVendor = (id: string) => setSelectedVendorIds((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const selectAll = () => setSelectedVendorIds(new Set(vendors.map((vendor) => vendor.id)));
+  const unselectAll = () => setSelectedVendorIds(new Set());
+
+  const grouped = useMemo(() => {
+    const groups = new Map<string, CrmAssignableVendor[]>();
+    for (const vendor of vendors) {
+      const key = vendor.category_name ?? "Uncategorized";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(vendor);
+    }
+    return Array.from(groups.entries());
+  }, [vendors]);
+
+  const save = async () => {
+    if (!workspaceId) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await CrmMarketingWorkspaceService.setCategories(workspaceId, Array.from(selectedCategoryIds));
+      await CrmMarketingWorkspaceService.assignVendors(workspaceId, Array.from(selectedVendorIds));
+      router.replace({ pathname: "/AdminCrmMarketingWorkspaceDetail", params: { workspaceId } });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+      <ResponsiveContainer className="flex-row items-center py-2">
+        <Pressable
+          accessibilityLabel="Go back"
+          className="min-w-11 min-h-11 items-center justify-center"
+          onPress={() => (router.canGoBack() ? router.back() : router.replace("/AdminCrmMarketingWorkspaces"))}
+        >
+          <ArrowLeft size={21} className="text-foreground" />
+        </Pressable>
+        <View className="flex-1 px-2 min-w-0">
+          <Text className="text-foreground text-xl font-bold" numberOfLines={1}>Assign Categories &amp; Vendors</Text>
+          <Text className="text-muted-foreground text-xs" numberOfLines={1}>{selectedVendorIds.size} of {total} selected</Text>
+        </View>
+      </ResponsiveContainer>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        <ResponsiveContainer>
+          {error ? <ResponsiveSection><AdminErrorState message={error} onRetry={() => void loadVendors()} /></ResponsiveSection> : null}
+
+          <ResponsiveSection>
+            <Text className="text-foreground text-sm font-bold mb-2">Categories</Text>
+            {loadingCategories ? <CrmSkeletonGrid count={2} /> : (
+              <View className="flex-row flex-wrap gap-2">
+                {categories.map((category) => {
+                  const checked = selectedCategoryIds.has(category.id);
+                  return (
+                    <Pressable
+                      key={category.id}
+                      onPress={() => toggleCategory(category.id)}
+                      className={`flex-row items-center px-3 py-2 rounded-full border ${checked ? "bg-primary border-primary" : "border-border"}`}
+                    >
+                      {checked ? <Check size={13} color="#FFFFFF" /> : <Square size={13} className="text-muted-foreground" />}
+                      <Text className={`text-xs font-semibold ml-1.5 ${checked ? "text-white" : "text-foreground"}`}>{category.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </ResponsiveSection>
+
+          <ResponsiveSection>
+            <CrmSearchBar value={query} placeholder="Search vendors" onChangeText={setQuery} />
+          </ResponsiveSection>
+
+          <ResponsiveSection>
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-foreground text-sm font-bold">Vendors</Text>
+              <View className="flex-row gap-3">
+                <Pressable onPress={selectAll}><Text className="text-primary text-xs font-bold">Select All</Text></Pressable>
+                <Pressable onPress={unselectAll}><Text className="text-muted-foreground text-xs font-bold">Unselect</Text></Pressable>
+              </View>
+            </View>
+
+            {loadingVendors ? (
+              <CrmSkeletonGrid count={4} />
+            ) : !vendors.length ? (
+              <AdminEmptyState
+                title={selectedCategoryIds.size ? "No vendors in these categories" : "Select a category to see vendors"}
+                message={selectedCategoryIds.size ? "Try different categories or clear your search." : "Vendors are grouped by the categories you pick above."}
+              />
+            ) : (
+              <View className="gap-4">
+                {grouped.map(([categoryName, categoryVendors]) => (
+                  <View key={categoryName}>
+                    <Text className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mb-2">{categoryName}</Text>
+                    <View className="gap-2">
+                      {categoryVendors.map((vendor) => {
+                        const checked = selectedVendorIds.has(vendor.id);
+                        return (
+                          <Pressable key={vendor.id} onPress={() => toggleVendor(vendor.id)}>
+                            <CRMCard className="p-3 flex-row items-center">
+                              {checked ? <Check size={16} className="text-primary" /> : <Square size={16} className="text-muted-foreground" />}
+                              <View className="flex-1 min-w-0 ml-3">
+                                <Text className="text-foreground text-sm font-bold" numberOfLines={1}>{vendor.business_name}</Text>
+                                <Text className="text-muted-foreground text-xs mt-0.5" numberOfLines={1}>
+                                  {vendor.area ?? vendor.cluster_name ?? "No location"} · {vendor.phone ?? "No phone"}
+                                </Text>
+                              </View>
+                            </CRMCard>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+          </ResponsiveSection>
+        </ResponsiveContainer>
+      </ScrollView>
+
+      <View className="absolute left-0 right-0 bottom-0 bg-card border-t border-border p-4">
+        <Pressable
+          disabled={saving}
+          onPress={() => void save()}
+          className="h-12 rounded-2xl bg-primary items-center justify-center"
+          style={{ opacity: saving ? 0.6 : 1 }}
+        >
+          {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text className="text-white text-sm font-bold">Assign {selectedVendorIds.size} Vendors</Text>}
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}

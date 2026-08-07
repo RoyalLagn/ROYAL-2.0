@@ -117,6 +117,10 @@ export const adminWorkspaceRoutes = new Set([
   "/AdminCrmReports",
   "/AdminCrmCreateWorkspace",
   "/AdminCrmWorkspaces",
+  "/AdminCrmMarketingWorkspaces",
+  "/AdminCrmMarketingWorkspaceCreate",
+  "/AdminCrmMarketingWorkspaceAssign",
+  "/AdminCrmMarketingWorkspaceDetail",
 ]);
 
 export function isAdminWorkspaceRoute(pathname: string) {
@@ -141,6 +145,10 @@ const crmDrillDownRoutes = new Set([
   "/AdminCrmReports",
   "/AdminCrmCreateWorkspace",
   "/AdminCrmWorkspaces",
+  "/AdminCrmMarketingWorkspaces",
+  "/AdminCrmMarketingWorkspaceCreate",
+  "/AdminCrmMarketingWorkspaceAssign",
+  "/AdminCrmMarketingWorkspaceDetail",
 ]);
 
 export function adminNavigationKeyForPath(pathname: string): AdminNavigationKey {
