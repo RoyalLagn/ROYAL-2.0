@@ -327,6 +327,7 @@ export default function BecomeVendor() {
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Go back"
+          hitSlop={4}
           className="w-10 h-10 rounded-full bg-card border border-border items-center justify-center"
           onPress={goBack}
         >
@@ -343,7 +344,7 @@ export default function BecomeVendor() {
       </View>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 66 : 0}
       >
       <ScrollView
@@ -363,7 +364,13 @@ export default function BecomeVendor() {
           <Field label="Email" required value={form.email} onChangeText={(v) => update("email", v)} keyboardType="email-address" autoCapitalize="none" />
           <Field label="Mobile Number" required value={form.mobile} onChangeText={(v) => update("mobile", v)} keyboardType="phone-pad" />
           <Text className="text-foreground text-sm font-semibold mb-2">Business Category <Text className="text-primary">*</Text></Text>
-          <TouchableOpacity className="border border-border bg-background rounded-2xl px-4 h-14 mb-4 flex-row items-center justify-between" onPress={() => setCategoryOpen(true)}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={selectedCategory ? `Business category, ${selectedCategory.name}` : "Select business category"}
+            accessibilityState={{ expanded: categoryOpen }}
+            className="border border-border bg-background rounded-2xl px-4 h-14 mb-4 flex-row items-center justify-between"
+            onPress={() => setCategoryOpen(true)}
+          >
             <Text className={selectedCategory ? "text-foreground" : "text-muted-foreground"}>{selectedCategory?.name ?? "Select business category"}</Text>
             <ChevronDown size={18} className="text-muted-foreground" />
           </TouchableOpacity>
@@ -391,7 +398,14 @@ export default function BecomeVendor() {
             return (
               <View key={kind} className="mb-4">
                 <Text className="text-foreground text-sm font-semibold mb-2">{kind === "logo" ? "Logo" : "Cover Image"}</Text>
-                <TouchableOpacity className={`rounded-2xl border border-dashed border-primary/50 bg-primary/5 items-center justify-center overflow-hidden ${kind === "logo" ? "h-36" : "h-44"}`} onPress={() => uploadImage(kind)} disabled={!!uploading}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={url ? `Change ${kind === "logo" ? "logo" : "cover image"}` : `Upload ${kind === "logo" ? "logo" : "cover image"}`}
+                  accessibilityState={{ disabled: !!uploading, busy: uploading === kind }}
+                  className={`rounded-2xl border border-dashed border-primary/50 bg-primary/5 items-center justify-center overflow-hidden ${kind === "logo" ? "h-36" : "h-44"}`}
+                  onPress={() => uploadImage(kind)}
+                  disabled={!!uploading}
+                >
                   {url ? <Image source={{ uri: url }} className="w-full h-full" resizeMode="cover" /> :
                     uploading === kind ? <ActivityIndicator color="#EC4899" /> :
                     <><ImagePlus size={27} className="text-primary mb-2" /><Text className="text-foreground font-medium">Upload {kind === "logo" ? "Logo" : "Cover Image"}</Text></>}
@@ -404,22 +418,47 @@ export default function BecomeVendor() {
             <View key={`${document.url}-${index}`} className="flex-row items-center bg-background border border-border rounded-2xl p-3 mb-2">
               <FileText size={20} className="text-primary" />
               <Text className="text-foreground text-sm flex-1 ml-3" numberOfLines={1}>{document.name}</Text>
-              <TouchableOpacity onPress={() => setDocuments((current) => current.filter((_, i) => i !== index))}><Trash2 size={18} className="text-destructive" /></TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={`Remove document ${document.name}`}
+                hitSlop={12}
+                onPress={() => setDocuments((current) => current.filter((_, i) => i !== index))}
+              ><Trash2 size={18} className="text-destructive" /></TouchableOpacity>
             </View>
           ))}
-          <TouchableOpacity className="h-14 rounded-2xl border border-dashed border-primary/50 items-center justify-center flex-row" onPress={uploadDocument} disabled={!!uploading || documents.length >= 5}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`Add PDF or image document, ${documents.length} of 5 used`}
+            accessibilityState={{ disabled: !!uploading || documents.length >= 5, busy: uploading === "document" }}
+            className="h-14 rounded-2xl border border-dashed border-primary/50 items-center justify-center flex-row"
+            onPress={uploadDocument}
+            disabled={!!uploading || documents.length >= 5}
+          >
             {uploading === "document" ? <ActivityIndicator color="#EC4899" /> : <><FileText size={19} className="text-primary mr-2" /><Text className="text-primary font-semibold">Add PDF or Image ({documents.length}/5)</Text></>}
           </TouchableOpacity>
         </View>
 
-        <Pressable className="flex-row items-start mb-6" onPress={() => setTermsAccepted((value) => !value)}>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: termsAccepted }}
+          accessibilityLabel="I agree to the Terms & Conditions and confirm that the information provided is accurate."
+          className="flex-row items-start mb-6"
+          onPress={() => setTermsAccepted((value) => !value)}
+        >
           <View className={`w-6 h-6 rounded-md border items-center justify-center mr-3 mt-0.5 ${termsAccepted ? "bg-primary border-primary" : "border-border bg-card"}`}>
             {termsAccepted ? <Check size={16} color="#FFF" /> : null}
           </View>
           <Text className="text-foreground flex-1 leading-5">I agree to the Terms & Conditions and confirm that the information provided is accurate.</Text>
         </Pressable>
 
-        <TouchableOpacity className={`rounded-2xl py-4 items-center ${requiredComplete && termsAccepted ? "bg-primary" : "bg-muted"}`} disabled={!requiredComplete || !termsAccepted || submitting || !!uploading} onPress={submit}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Submit application"
+          accessibilityState={{ disabled: !requiredComplete || !termsAccepted || submitting || !!uploading, busy: submitting }}
+          className={`rounded-2xl py-4 items-center ${requiredComplete && termsAccepted ? "bg-primary" : "bg-muted"}`}
+          disabled={!requiredComplete || !termsAccepted || submitting || !!uploading}
+          onPress={submit}
+        >
           {submitting ? <ActivityIndicator color="#FFF" /> : <Text className={requiredComplete && termsAccepted ? "text-white font-bold" : "text-muted-foreground font-bold"}>Submit Application</Text>}
         </TouchableOpacity>
       </ScrollView>
@@ -430,10 +469,17 @@ export default function BecomeVendor() {
           <Pressable className="bg-card rounded-t-3xl p-5 max-h-[70%]" onPress={(event) => event.stopPropagation()}>
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-foreground text-lg font-bold">Select Category</Text>
-              <TouchableOpacity onPress={() => setCategoryOpen(false)}><X className="text-foreground" /></TouchableOpacity>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close category selector" hitSlop={10} onPress={() => setCategoryOpen(false)}><X className="text-foreground" /></TouchableOpacity>
             </View>
             <ScrollView>{categories.map((category) => (
-              <TouchableOpacity key={category.id} className="py-4 border-b border-border" onPress={() => { update("categoryId", category.id); setCategoryOpen(false); }}>
+              <TouchableOpacity
+                key={category.id}
+                accessibilityRole="radio"
+                accessibilityLabel={category.name}
+                accessibilityState={{ selected: category.id === form.categoryId }}
+                className="py-4 border-b border-border"
+                onPress={() => { update("categoryId", category.id); setCategoryOpen(false); }}
+              >
                 <Text className="text-foreground">{category.name}</Text>
               </TouchableOpacity>
             ))}</ScrollView>
