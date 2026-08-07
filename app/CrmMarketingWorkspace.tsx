@@ -1,7 +1,7 @@
 import React from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { CheckCircle2, Phone, ShieldAlert } from "lucide-react-native";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/ui/AdminState";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
@@ -23,11 +23,24 @@ const interestFilters: { key: "all" | MarketingInterestStatus; label: string }[]
 export default function CrmMarketingWorkspace() {
   const router = useRouter();
   const { token } = useLocalSearchParams<{ token?: string }>();
-  const { session, progress, loading, error, refresh } = useMarketingWorkspaceSession(token ?? null);
+  const { session, progress, loading, error, refresh, refreshProgress } = useMarketingWorkspaceSession(token ?? null);
   const {
     query, setQuery, interestFilter, setInterestFilter, rows, total, loading: vendorsLoading,
     refreshing, error: vendorsError, setError: setVendorsError, refresh: refreshVendors,
   } = useMarketingWorkspaceVendors(token ?? null, Boolean(session));
+
+  // Re-pull progress + the vendor list every time this screen regains focus
+  // — most notably when coming back from the vendor detail screen after a
+  // Save, so "Overall Progress" and each vendor's pipeline badges reflect
+  // the just-saved values immediately, without requiring a manual
+  // pull-to-refresh. Uses the lightweight refreshProgress() (progress only)
+  // rather than the full session refresh() (which re-authenticates), since
+  // a focus event isn't a reason to re-validate the token.
+  useFocusEffect(React.useCallback(() => {
+    if (!session) return;
+    void refreshProgress();
+    void refreshVendors();
+  }, [session, refreshProgress, refreshVendors]));
 
   if (loading) {
     return (

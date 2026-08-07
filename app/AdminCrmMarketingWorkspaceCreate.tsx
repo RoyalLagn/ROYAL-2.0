@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
 import { CRMCard } from "@/components/admin/crm/ui/CRMCard";
+import { DateField } from "@/components/admin/crm/ui/DateField";
 import { CrmMarketingWorkspaceService } from "@/services/crm/marketingWorkspaceService";
 import type { MarketingWorkspacePriority, MarketingWorkspaceStatus } from "@/types/crm/marketingWorkspace";
 
@@ -41,6 +42,17 @@ export default function AdminCrmMarketingWorkspaceCreate() {
   const [status, setStatus] = useState<MarketingWorkspaceStatus>("active");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // If Start Date moves past the currently selected End Date, the range is
+  // no longer valid — clear End Date rather than silently keeping an
+  // impossible range, and tell the admin to pick it again.
+  const handleStartDateChange = (nextStartDate: string) => {
+    setStartDate(nextStartDate);
+    if (endDate && nextStartDate && endDate < nextStartDate) {
+      setEndDate("");
+      Alert.alert("End date cleared", "The end date was before the new start date, so it was cleared. Please select a new end date.");
+    }
+  };
 
   const create = async () => {
     if (!name.trim() || !teamName.trim()) {
@@ -91,8 +103,8 @@ export default function AdminCrmMarketingWorkspaceCreate() {
               <Field label="Workspace Name *" value={name} onChangeText={setName} placeholder="e.g. Pune Banquet Hall Campaign" />
               <Field label="Assign Team *" value={teamName} onChangeText={setTeamName} placeholder="e.g. Team Alpha" />
               <Field label="Description" value={description} onChangeText={setDescription} placeholder="e.g. Target Banquet Halls in Pune" multiline />
-              <Field label="Start Date" value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" />
-              <Field label="End Date" value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD" />
+              <DateField label="Start Date" value={startDate} onChange={handleStartDateChange} />
+              <DateField label="End Date" value={endDate} onChange={setEndDate} minimumDate={startDate || undefined} />
 
               <Text className="text-foreground text-xs font-semibold mb-1.5">Priority</Text>
               <View className="flex-row gap-2 mb-3">

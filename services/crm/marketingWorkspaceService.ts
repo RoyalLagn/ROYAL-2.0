@@ -74,6 +74,13 @@ export const CrmMarketingWorkspaceService = {
     return data as CrmMarketingWorkspace;
   },
 
+  async remove(id: string): Promise<void> {
+    const { error } = await supabase.rpc("admin_crm_delete_marketing_workspace", {
+      target_workspace_id: id,
+    });
+    if (error) throw crmError(error);
+  },
+
   async getCategoryIds(workspaceId: string): Promise<string[]> {
     const { data, error } = await supabase
       .from("crm_marketing_workspace_categories")
@@ -97,6 +104,7 @@ export const CrmMarketingWorkspaceService = {
     query = "",
     page = 1,
     pageSize = 50,
+    clusterIds: string[] | null = null,
   ): Promise<{ rows: CrmAssignableVendor[]; total: number }> {
     const { data, error } = await supabase.rpc("admin_crm_list_assignable_vendors", {
       target_workspace_id: workspaceId,
@@ -104,6 +112,7 @@ export const CrmMarketingWorkspaceService = {
       search_text: query.trim() || null,
       page_size: pageSize,
       page_offset: (page - 1) * pageSize,
+      target_cluster_ids: clusterIds && clusterIds.length ? clusterIds : null,
     });
     if (error) throw crmError(error);
     const rows = (data ?? []) as (CrmAssignableVendor & { total_count: number })[];

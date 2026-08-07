@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -7,11 +7,26 @@ import { AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminS
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
 import { CRMCard } from "@/components/admin/crm/ui/CRMCard";
+import SuccessToast, { type SuccessToastHandle } from "@/components/animated/SuccessToast";
 import { useMarketingWorkspaceVendorDetail } from "@/hooks/crm/useMarketingWorkspaceVendorDetail";
 import { normalizeWhatsAppPhone } from "@/services/contactActions";
-import { notInterestedReasons } from "@/types/crm/marketingWorkspace";
+import { notInterestedReasons, type MarketingInterestStatus } from "@/types/crm/marketingWorkspace";
 
 const pipelineSteps = ["Contacted", "Meeting", "Interested", "Registered"];
+
+// Every editable field on this screen, held as one local draft so a single
+// Save button can submit the full pipeline state in one atomic RPC call.
+type ProgressDraft = {
+  contacted: boolean;
+  meetingDone: boolean;
+  interestStatus: MarketingInterestStatus;
+  notInterestedReason: string;
+  registered: boolean;
+  followupDate: string;
+  notes: string;
+  remarks: string;
+  callOutcome: string;
+};
 
 function CheckboxRow({ label, checked, onToggle }: { label: string; checked: boolean; onToggle: () => void }) {
   return (
@@ -28,17 +43,33 @@ export default function CrmMarketingWorkspaceVendorDetail() {
   const { vendor, loading, saving, error, setError, updateProgress, logActivity } = useMarketingWorkspaceVendorDetail(token ?? null, vendorId ?? null);
 
   const [notInterestedOpen, setNotInterestedOpen] = useState(false);
-  const [followupDate, setFollowupDate] = useState("");
-  const [notes, setNotes] = useState("");
-  const [remarks, setRemarks] = useState("");
-  const [callOutcome, setCallOutcome] = useState("");
+  const [draft, setDraft] = useState<ProgressDraft | null>(null);
+  // Which vendor id the draft was last seeded from. Reseed only when we
+  // actually navigate to a different vendor — never on a post-Save reload of
+  // the *same* vendor. Re-seeding on every `vendor` reference change was the
+  // root cause of "Save does nothing": previously every checkbox/interest
+  // toggle fired its own immediate save + reload, and that reload silently
+  // overwrote whatever the team member had just typed into Notes/Remarks/
+  // Call Outcome/Follow-up Date before they got a chance to press Save.
+  // Consolidating everything into one draft, submitted once, removes that
+  // failure mode entirely rather than papering over it.
+  const seededVendorIdRef = useRef<string | null>(null);
+  const toastRef = useRef<SuccessToastHandle>(null);
 
   useEffect(() => {
-    if (!vendor) return;
-    setFollowupDate(vendor.next_followup_date ?? "");
-    setNotes(vendor.notes ?? "");
-    setRemarks(vendor.remarks ?? "");
-    setCallOutcome(vendor.call_outcome ?? "");
+    if (!vendor || seededVendorIdRef.current === vendor.vendor_id) return;
+    seededVendorIdRef.current = vendor.vendor_id;
+    setDraft({
+      contacted: vendor.contacted,
+      meetingDone: vendor.meeting_done,
+      interestStatus: vendor.interest_status,
+      notInterestedReason: vendor.not_interested_reason ?? "",
+      registered: vendor.registered,
+      followupDate: vendor.next_followup_date ?? "",
+      notes: vendor.notes ?? "",
+      remarks: vendor.remarks ?? "",
+      callOutcome: vendor.call_outcome ?? "",
+    });
   }, [vendor]);
 
   if (loading && !vendor) {
@@ -51,9 +82,9 @@ export default function CrmMarketingWorkspaceVendorDetail() {
       </SafeAreaView>
     );
   }
-  if (!vendor) return null;
+  if (!vendor || !draft) return null;
 
-  const currentStepIndex = vendor.registered ? 3 : vendor.interest_status === "interested" ? 2 : vendor.meeting_done ? 1 : vendor.contacted ? 0 : -1;
+  const currentStepIndex = draft.registered ? 3 : draft.interestStatus === "interested" ? 2 : draft.meetingDone ? 1 : draft.contacted ? 0 : -1;
 
   const callVendor = () => {
     if (!vendor.phone) { Alert.alert("Phone number not available."); return; }
@@ -67,16 +98,31 @@ export default function CrmMarketingWorkspaceVendorDetail() {
     void Linking.openURL(`https://wa.me/${normalizeWhatsAppPhone(phone)}`);
   };
 
-  // Send the trimmed value as-is (including "" when the field was cleared)
-  // rather than folding "" to null — the RPC treats null as "leave
-  // unchanged" and "" as "clear this field", so collapsing them here would
-  // make a deliberate clear indistinguishable from an untouched field.
-  const saveDetails = () => void updateProgress({
-    nextFollowupDate: followupDate.trim(),
-    notes: notes.trim(),
-    remarks: remarks.trim(),
-    callOutcome: callOutcome.trim(),
-  });
+  const patchDraft = (patch: Partial<ProgressDraft>) => setDraft((current) => (current ? { ...current, ...patch } : current));
+
+  // Single Save button → one RPC call → one Postgres transaction. Every
+  // editable field is sent together so the whole edit either fully persists
+  // (assignment row + crm_vendors status sync + activity log, all inside
+  // marketing_workspace_update_vendor_progress) or fully rolls back — never
+  // a partially-saved vendor.
+  const saveDetails = () => {
+    if (!draft || saving) return;
+    void updateProgress({
+      contacted: draft.contacted,
+      meetingDone: draft.meetingDone,
+      interestStatus: draft.interestStatus,
+      notInterestedReason: draft.interestStatus === "not_interested" ? draft.notInterestedReason.trim() : null,
+      registered: draft.registered,
+      nextFollowupDate: draft.followupDate.trim(),
+      notes: draft.notes.trim(),
+      remarks: draft.remarks.trim(),
+      callOutcome: draft.callOutcome.trim(),
+    }).then(() => {
+      toastRef.current?.show("Progress saved");
+    }).catch((reason) => {
+      toastRef.current?.showError(reason instanceof Error ? reason.message : "Unable to save. Please try again.");
+    });
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
@@ -129,35 +175,35 @@ export default function CrmMarketingWorkspaceVendorDetail() {
 
           <ResponsiveSection>
             <CRMCard className="p-4">
-              <CheckboxRow label="Contacted" checked={vendor.contacted} onToggle={() => void updateProgress({ contacted: !vendor.contacted })} />
-              <CheckboxRow label="Meeting Done" checked={vendor.meeting_done} onToggle={() => void updateProgress({ meetingDone: !vendor.meeting_done })} />
+              <CheckboxRow label="Contacted" checked={draft.contacted} onToggle={() => patchDraft({ contacted: !draft.contacted })} />
+              <CheckboxRow label="Meeting Done" checked={draft.meetingDone} onToggle={() => patchDraft({ meetingDone: !draft.meetingDone })} />
 
               <View className="py-3 border-b border-border">
                 <Text className="text-foreground text-sm font-semibold mb-2">Interest</Text>
                 <View className="flex-row gap-2">
                   <Pressable
-                    onPress={() => void updateProgress({ interestStatus: "interested" })}
-                    className={`flex-1 h-10 rounded-xl items-center justify-center border ${vendor.interest_status === "interested" ? "bg-emerald-500 border-emerald-500" : "border-border"}`}
+                    onPress={() => patchDraft({ interestStatus: "interested", notInterestedReason: "" })}
+                    className={`flex-1 h-10 rounded-xl items-center justify-center border ${draft.interestStatus === "interested" ? "bg-emerald-500 border-emerald-500" : "border-border"}`}
                   >
-                    <Text className={`text-xs font-bold ${vendor.interest_status === "interested" ? "text-white" : "text-foreground"}`}>Interested</Text>
+                    <Text className={`text-xs font-bold ${draft.interestStatus === "interested" ? "text-white" : "text-foreground"}`}>Interested</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => setNotInterestedOpen(true)}
-                    className={`flex-1 h-10 rounded-xl items-center justify-center border ${vendor.interest_status === "not_interested" ? "border-red-500" : "border-border"}`}
-                    style={vendor.interest_status === "not_interested" ? { backgroundColor: "#FEE2E2" } : undefined}
+                    className={`flex-1 h-10 rounded-xl items-center justify-center border ${draft.interestStatus === "not_interested" ? "border-red-500" : "border-border"}`}
+                    style={draft.interestStatus === "not_interested" ? { backgroundColor: "#FEE2E2" } : undefined}
                   >
-                    <Text className="text-xs font-bold" style={{ color: vendor.interest_status === "not_interested" ? "#DC3545" : undefined }}>Not Interested</Text>
+                    <Text className="text-xs font-bold" style={{ color: draft.interestStatus === "not_interested" ? "#DC3545" : undefined }}>Not Interested</Text>
                   </Pressable>
                 </View>
-                {vendor.interest_status === "not_interested" && vendor.not_interested_reason ? (
-                  <Text className="text-muted-foreground text-xs mt-2">Reason: {vendor.not_interested_reason}</Text>
+                {draft.interestStatus === "not_interested" && draft.notInterestedReason ? (
+                  <Text className="text-muted-foreground text-xs mt-2">Reason: {draft.notInterestedReason}</Text>
                 ) : null}
                 {notInterestedOpen ? (
                   <View className="flex-row flex-wrap gap-2 mt-3">
                     {notInterestedReasons.map((reason) => (
                       <Pressable
                         key={reason}
-                        onPress={() => { void updateProgress({ interestStatus: "not_interested", notInterestedReason: reason }); setNotInterestedOpen(false); }}
+                        onPress={() => { patchDraft({ interestStatus: "not_interested", notInterestedReason: reason }); setNotInterestedOpen(false); }}
                         className="px-3 py-2 rounded-full border border-border"
                       >
                         <Text className="text-foreground text-xs">{reason}</Text>
@@ -167,7 +213,7 @@ export default function CrmMarketingWorkspaceVendorDetail() {
                 ) : null}
               </View>
 
-              <CheckboxRow label="Registered" checked={vendor.registered} onToggle={() => void updateProgress({ registered: !vendor.registered })} />
+              <CheckboxRow label="Registered" checked={draft.registered} onToggle={() => patchDraft({ registered: !draft.registered })} />
             </CRMCard>
           </ResponsiveSection>
 
@@ -175,24 +221,24 @@ export default function CrmMarketingWorkspaceVendorDetail() {
             <CRMCard className="p-4">
               <Text className="text-foreground text-xs font-semibold mb-1.5">Next Follow-up Date</Text>
               <TextInput
-                value={followupDate}
-                onChangeText={setFollowupDate}
+                value={draft.followupDate}
+                onChangeText={(text) => patchDraft({ followupDate: text })}
                 placeholder="YYYY-MM-DD"
                 placeholderTextColor="#9CA3AF"
                 className="h-11 border border-border rounded-2xl px-3 text-foreground bg-background mb-3"
               />
               <Text className="text-foreground text-xs font-semibold mb-1.5">Call Outcome</Text>
               <TextInput
-                value={callOutcome}
-                onChangeText={setCallOutcome}
+                value={draft.callOutcome}
+                onChangeText={(text) => patchDraft({ callOutcome: text })}
                 placeholder="e.g. Spoke to owner, will follow up"
                 placeholderTextColor="#9CA3AF"
                 className="h-11 border border-border rounded-2xl px-3 text-foreground bg-background mb-3"
               />
               <Text className="text-foreground text-xs font-semibold mb-1.5">Notes</Text>
               <TextInput
-                value={notes}
-                onChangeText={setNotes}
+                value={draft.notes}
+                onChangeText={(text) => patchDraft({ notes: text })}
                 placeholder="Notes about this vendor"
                 placeholderTextColor="#9CA3AF"
                 multiline
@@ -200,8 +246,8 @@ export default function CrmMarketingWorkspaceVendorDetail() {
               />
               <Text className="text-foreground text-xs font-semibold mb-1.5">Remarks</Text>
               <TextInput
-                value={remarks}
-                onChangeText={setRemarks}
+                value={draft.remarks}
+                onChangeText={(text) => patchDraft({ remarks: text })}
                 placeholder="Any remarks"
                 placeholderTextColor="#9CA3AF"
                 className="h-11 border border-border rounded-2xl px-3 text-foreground bg-background"
@@ -218,6 +264,7 @@ export default function CrmMarketingWorkspaceVendorDetail() {
           </ResponsiveSection>
         </ResponsiveContainer>
       </ScrollView>
+      <SuccessToast ref={toastRef} />
     </SafeAreaView>
   );
 }

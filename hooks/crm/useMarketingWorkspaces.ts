@@ -35,5 +35,15 @@ export function useMarketingWorkspaces() {
   useEffect(() => { void load(); }, [load]);
   useEffect(() => CrmMarketingWorkspaceService.subscribe(() => void load(true)), [load]);
 
-  return { rows, stats, loading, refreshing, error, refresh: () => load(true) };
+  const remove = useCallback(async (id: string) => {
+    await CrmMarketingWorkspaceService.remove(id);
+    setRows((prev) => prev.filter((row) => row.id !== id));
+    setStats((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  return { rows, stats, loading, refreshing, error, refresh: () => load(true), remove };
 }

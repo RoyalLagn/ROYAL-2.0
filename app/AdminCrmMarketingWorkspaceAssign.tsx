@@ -11,8 +11,10 @@ import { CrmSearchBar } from "@/components/admin/crm/ui/SearchBar";
 import { CrmSkeletonGrid } from "@/components/admin/crm/ui/SkeletonLoader";
 import { CrmCategoryService } from "@/services/crm/categoryService";
 import { CrmMarketingWorkspaceService } from "@/services/crm/marketingWorkspaceService";
+import { CrmTerritoryService } from "@/services/crm/territoryService";
 import type { CrmVendorCategory } from "@/types/crm/category";
 import type { CrmAssignableVendor } from "@/types/crm/marketingWorkspace";
+import type { CrmTerritoryNode } from "@/types/crm/territory";
 
 function errorMessage(reason: unknown) {
   if (reason instanceof Error) return reason.message;
@@ -25,6 +27,8 @@ export default function AdminCrmMarketingWorkspaceAssign() {
 
   const [categories, setCategories] = useState<CrmVendorCategory[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<string>>(new Set());
+  const [clusters, setClusters] = useState<CrmTerritoryNode[]>([]);
+  const [selectedClusterIds, setSelectedClusterIds] = useState<Set<string>>(new Set());
   const [vendors, setVendors] = useState<CrmAssignableVendor[]>([]);
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState("");
@@ -37,6 +41,7 @@ export default function AdminCrmMarketingWorkspaceAssign() {
   const knownAssignedIdsRef = useRef<Set<string>>(new Set());
 
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [loadingClusters, setLoadingClusters] = useState(true);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,13 +58,35 @@ export default function AdminCrmMarketingWorkspaceAssign() {
       .finally(() => setLoadingCategories(false));
   }, [workspaceId]);
 
+  useEffect(() => {
+    // Flat list of every cluster in the CRM (not scoped to a taluka/district)
+    // — admin_crm_list_territory('cluster', null) returns all of them when
+    // no parent is given, which is exactly the "load from the database, no
+    // hardcoding" behaviour this filter needs.
+    void CrmTerritoryService.list("cluster")
+      .then((rows) => setClusters(rows.filter((row) => row.is_active)))
+      .catch((reason) => setError(errorMessage(reason)))
+      .finally(() => setLoadingClusters(false));
+  }, []);
+
+  // Server-side filter args shared by loadVendors / selectAll / unselectAll,
+  // so "select all" / "unselect" always act on exactly what's on screen.
+  const activeCategoryIds = useMemo(() => Array.from(selectedCategoryIds), [selectedCategoryIds]);
+  const activeClusterIds = useMemo(() => Array.from(selectedClusterIds), [selectedClusterIds]);
+
   const loadVendors = useCallback(async () => {
     if (!workspaceId) return;
     setLoadingVendors(true);
     setError(null);
     try {
-      const ids = Array.from(selectedCategoryIds);
-      const result = await CrmMarketingWorkspaceService.listAssignableVendors(workspaceId, ids.length ? ids : null, query, 1, 100);
+      const result = await CrmMarketingWorkspaceService.listAssignableVendors(
+        workspaceId,
+        activeCategoryIds.length ? activeCategoryIds : null,
+        query,
+        1,
+        100,
+        activeClusterIds.length ? activeClusterIds : null,
+      );
       setVendors(result.rows);
       setTotal(result.total);
       // Merge, don't replace: seed the selection for any newly-observed
@@ -80,11 +107,41 @@ export default function AdminCrmMarketingWorkspaceAssign() {
     } finally {
       setLoadingVendors(false);
     }
-  }, [workspaceId, selectedCategoryIds, query]);
+  }, [workspaceId, activeCategoryIds, activeClusterIds, query]);
 
   useEffect(() => { void loadVendors(); }, [loadVendors]);
 
+  // Walks every page of the current category + cluster + search filter and
+  // returns the full matching id set — the basis for both "Select All" and
+  // "Unselect", so both only ever touch what's currently filtered on screen.
+  const collectFilteredVendorIds = useCallback(async () => {
+    if (!workspaceId) return new Set<string>();
+    const collected = new Set<string>();
+    let page = 1;
+    const pageSize = 200;
+    for (let guard = 0; guard < 500; guard += 1) {
+      const result = await CrmMarketingWorkspaceService.listAssignableVendors(
+        workspaceId,
+        activeCategoryIds.length ? activeCategoryIds : null,
+        query,
+        page,
+        pageSize,
+        activeClusterIds.length ? activeClusterIds : null,
+      );
+      for (const row of result.rows) collected.add(row.id);
+      if (!result.rows.length || collected.size >= result.total) break;
+      page += 1;
+    }
+    return collected;
+  }, [workspaceId, activeCategoryIds, activeClusterIds, query]);
+
   const toggleCategory = (id: string) => setSelectedCategoryIds((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  const toggleCluster = (id: string) => setSelectedClusterIds((current) => {
     const next = new Set(current);
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
@@ -97,23 +154,14 @@ export default function AdminCrmMarketingWorkspaceAssign() {
   });
 
   const selectAll = async () => {
-    if (!workspaceId) return;
+    // Loop every page matching the current category + cluster + search
+    // filter — the vendor list on screen is capped to the first 100 for
+    // display, but "Select All" must mean every match, not just what's
+    // currently rendered, and never anything outside the active filter.
     setLoadingVendors(true);
     setError(null);
     try {
-      const ids = Array.from(selectedCategoryIds);
-      const collected = new Set<string>();
-      let page = 1;
-      const pageSize = 200;
-      // Loop every page matching the current filter — the vendor list on
-      // screen is capped to the first 100 for display, but "Select All"
-      // must mean every match, not just what's currently rendered.
-      for (let guard = 0; guard < 500; guard += 1) {
-        const result = await CrmMarketingWorkspaceService.listAssignableVendors(workspaceId, ids.length ? ids : null, query, page, pageSize);
-        for (const row of result.rows) collected.add(row.id);
-        if (!result.rows.length || collected.size >= result.total) break;
-        page += 1;
-      }
+      const collected = await collectFilteredVendorIds();
       setSelectedVendorIds((current) => new Set([...current, ...collected]));
     } catch (reason) {
       setError(errorMessage(reason));
@@ -121,7 +169,25 @@ export default function AdminCrmMarketingWorkspaceAssign() {
       setLoadingVendors(false);
     }
   };
-  const unselectAll = () => setSelectedVendorIds(new Set());
+  const unselectAll = async () => {
+    // Scoped the same way as Select All: only the vendors matching the
+    // current filter are removed from the selection, so a pick made under a
+    // different category/cluster combination survives.
+    setLoadingVendors(true);
+    setError(null);
+    try {
+      const collected = await collectFilteredVendorIds();
+      setSelectedVendorIds((current) => {
+        const next = new Set(current);
+        for (const id of collected) next.delete(id);
+        return next;
+      });
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setLoadingVendors(false);
+    }
+  };
 
   const grouped = useMemo(() => {
     const groups = new Map<string, CrmAssignableVendor[]>();
@@ -194,6 +260,31 @@ export default function AdminCrmMarketingWorkspaceAssign() {
           </ResponsiveSection>
 
           <ResponsiveSection>
+            <Text className="text-foreground text-sm font-bold mb-2">
+              Clusters {selectedClusterIds.size ? `(${selectedClusterIds.size} selected)` : "(All)"}
+            </Text>
+            {loadingClusters ? <CrmSkeletonGrid count={2} /> : !clusters.length ? (
+              <Text className="text-muted-foreground text-xs">No clusters found.</Text>
+            ) : (
+              <View className="flex-row flex-wrap gap-2">
+                {clusters.map((cluster) => {
+                  const checked = selectedClusterIds.has(cluster.id);
+                  return (
+                    <Pressable
+                      key={cluster.id}
+                      onPress={() => toggleCluster(cluster.id)}
+                      className={`flex-row items-center px-3 py-2 rounded-full border ${checked ? "bg-primary border-primary" : "border-border"}`}
+                    >
+                      {checked ? <Check size={13} color="#FFFFFF" /> : <Square size={13} className="text-muted-foreground" />}
+                      <Text className={`text-xs font-semibold ml-1.5 ${checked ? "text-white" : "text-foreground"}`}>{cluster.name}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </ResponsiveSection>
+
+          <ResponsiveSection>
             <CrmSearchBar value={query} placeholder="Search vendors" onChangeText={setQuery} />
           </ResponsiveSection>
 
@@ -202,7 +293,7 @@ export default function AdminCrmMarketingWorkspaceAssign() {
               <Text className="text-foreground text-sm font-bold">Vendors</Text>
               <View className="flex-row gap-3">
                 <Pressable onPress={() => void selectAll()}><Text className="text-primary text-xs font-bold">Select All</Text></Pressable>
-                <Pressable onPress={unselectAll}><Text className="text-muted-foreground text-xs font-bold">Unselect</Text></Pressable>
+                <Pressable onPress={() => void unselectAll()}><Text className="text-muted-foreground text-xs font-bold">Unselect</Text></Pressable>
               </View>
             </View>
 
@@ -211,7 +302,7 @@ export default function AdminCrmMarketingWorkspaceAssign() {
             ) : !vendors.length ? (
               <AdminEmptyState
                 title={selectedCategoryIds.size ? "No vendors in these categories" : "Select a category to see vendors"}
-                message={selectedCategoryIds.size ? "Try different categories or clear your search." : "Vendors are grouped by the categories you pick above."}
+                message={selectedCategoryIds.size ? "Try different categories, clusters, or clear your search." : "Vendors are grouped by the categories you pick above."}
               />
             ) : (
               <View className="gap-4">
