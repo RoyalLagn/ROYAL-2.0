@@ -49,7 +49,7 @@ npm run lint
 npm run test:smoke
 ```
 
-`npm run test:smoke` runs every safe, non-credentialed check (`test:profile-smoke`, `test:subscriptions`, `test:packages`, `test:contacts`, `test:locations`) in one command via `scripts/run-smoke-tests.mjs`; each can still be run individually.
+`npm run test:smoke` runs every safe, non-credentialed check (`test:profile-smoke`, `test:subscriptions`, `test:packages`, `test:contacts`, `test:locations`, `test:auth-validation`, `test:marketing-card-pdf`, `test:regression-guards`) in one command via `scripts/run-smoke-tests.mjs`; each can still be run individually.
 
 `test:subscriptions`/`test:packages`/`test:contacts`/`test:locations` run their `.ts` scripts directly via `node --experimental-strip-types`, which requires **Node >= 22.6.0** (see `engines.node` in `package.json`) — that flag doesn't exist on Node 20. If you're on an older Node, use `nvm`/`fnm` to switch before running them.
 

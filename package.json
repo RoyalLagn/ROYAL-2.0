@@ -21,6 +21,7 @@
     "test:locations": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-location-domain.mjs",
     "test:regression-guards": "node scripts/test-regression-guards.mjs",
     "test:auth-validation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-auth-validation.mjs",
+    "test:marketing-card-pdf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-marketing-card-pdf.mjs",
     "test:smoke": "node scripts/run-smoke-tests.mjs",
     "sitemap:generate": "node --env-file=.env scripts/generate-sitemap.mjs"
   },

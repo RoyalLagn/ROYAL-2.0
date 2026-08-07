@@ -9,6 +9,14 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const exists = (path) =>
   access(new URL(`../${path}`, import.meta.url)).then(() => true, () => false);
 
+// --- Clean checkouts must load Expo's React Native type augmentations -----
+const expoTypeSource = await read("types/expo.d.ts");
+assert.match(
+  expoTypeSource,
+  /^\/\/\/ <reference types="expo\/types" \/>/m,
+  "types/expo.d.ts must keep Expo's tracked type reference for clean-checkout tsc runs.",
+);
+
 // --- Debug route must stay removed -------------------------------------
 assert.equal(
   await exists("app/DebugModalTest 2.tsx"),
@@ -76,6 +84,43 @@ KEYBOARD_SURFACES.forEach((path, index) => {
   );
 });
 
+// --- Selection controls must expose radio state without overlapping taps --
+const becomeVendorSource = keyboardSources[1];
+assert.match(
+  becomeVendorSource,
+  /accessibilityRole=["']radio["'][\s\S]*?accessibilityState=\{\{ checked:/,
+  "BecomeVendor categories must expose checked radio semantics.",
+);
+const enquiriesSource = keyboardSources[0];
+assert.ok(
+  (enquiriesSource.match(/accessibilityRole=["']radio["']/g) ?? []).length >= 3,
+  "VendorEnquiries filters, sorting, and lead statuses must remain radio groups.",
+);
+assert.match(
+  enquiriesSource,
+  /filterTouchTarget: \{ minWidth: 44, minHeight: 44/,
+  "VendorEnquiries filter targets must remain at least 44x44.",
+);
+assert.match(
+  enquiriesSource,
+  /sortTouchTarget: \{ minWidth: 44, minHeight: 44/,
+  "VendorEnquiries sort targets must remain at least 44x44.",
+);
+
+// --- Native PDF exports must stay independent from browser-only libraries --
+const [nativePdfSource, webPdfSource, sharedPdfSource] = await Promise.all([
+  read("components/vendor-marketing-card/MarketingCardPdf.native.tsx"),
+  read("components/vendor-marketing-card/MarketingCardPdf.tsx"),
+  read("components/vendor-marketing-card/MarketingCardPdf.shared.tsx"),
+]);
+assert.doesNotMatch(nativePdfSource, /jspdf|html2canvas|dompurify/i, "Native PDF export must not bundle browser PDF dependencies.");
+assert.match(nativePdfSource, /buildSingleImagePdfBase64/, "Native PDF export must use the tested native PDF builder.");
+assert.match(nativePdfSource, /width: PDF_EXPORT_WIDTH/, "Native capture width must stay pinned to 3000 pixels.");
+assert.match(nativePdfSource, /height: PDF_EXPORT_HEIGHT/, "Native capture height must stay pinned to 2000 pixels.");
+assert.match(webPdfSource, /import\("jspdf"\)/, "Web PDF export must retain its proven jsPDF path.");
+assert.match(webPdfSource, /import\("html2canvas"\)/, "Web PDF export must retain its DOM capture path.");
+assert.match(sharedPdfSource, /PDF_EXPORT_WIDTH \/ PixelRatio\.get\(\)/, "Native hidden capture layout must compensate for device density.");
+
 // --- Aggregate runner must still register every non-credentialed check --
 const runnerSource = await read("scripts/run-smoke-tests.mjs");
 const expectedChecks = [
@@ -85,6 +130,7 @@ const expectedChecks = [
   "scripts/test-contact-actions.mjs",
   "scripts/test-location-domain.mjs",
   "scripts/test-auth-validation.mjs",
+  "scripts/test-marketing-card-pdf.mjs",
 ];
 for (const script of expectedChecks) {
   assert.match(

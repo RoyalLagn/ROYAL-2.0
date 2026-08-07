@@ -476,7 +476,7 @@ export default function BecomeVendor() {
                 key={category.id}
                 accessibilityRole="radio"
                 accessibilityLabel={category.name}
-                accessibilityState={{ selected: category.id === form.categoryId }}
+                accessibilityState={{ checked: category.id === form.categoryId }}
                 className="py-4 border-b border-border"
                 onPress={() => { update("categoryId", category.id); setCategoryOpen(false); }}
               >
