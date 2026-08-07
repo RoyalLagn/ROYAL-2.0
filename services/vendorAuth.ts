@@ -55,18 +55,27 @@ export type VendorResolution = {
 // ---------------------------------------------------------------------------
 // Safe error logging. Never logs tokens, passwords, or session contents --
 // only the fields PostgREST/Postgres put on a query error.
+//
+// console.warn, not console.error: most callers of this (wrong password,
+// an expired OTP, a rejected application) are expected, already-handled
+// failures that also set a proper inline UI message via getVendorAuthError
+// -- this call exists purely for support/debugging visibility. In
+// Expo Go / dev builds, console.error promotes to a blocking full-screen
+// "Console Error" overlay (LogBox), which turned every routine "wrong
+// password" attempt into what looked like an app crash. console.warn keeps
+// the same structured log without hijacking the screen.
 // ---------------------------------------------------------------------------
 export function logSupabaseError(context: string, error: unknown) {
   const e = error as { code?: string; message?: string; details?: string; hint?: string } | null;
   if (e && typeof e === "object" && ("code" in e || "message" in e)) {
-    console.error(`[vendorAuth] ${context}`, {
+    console.warn(`[vendorAuth] ${context}`, {
       code: e.code ?? null,
       message: e.message ?? null,
       details: e.details ?? null,
       hint: e.hint ?? null,
     });
   } else {
-    console.error(`[vendorAuth] ${context}`, {
+    console.warn(`[vendorAuth] ${context}`, {
       message: error instanceof Error ? error.message : String(error),
     });
   }
