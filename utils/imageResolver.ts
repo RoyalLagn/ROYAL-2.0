@@ -3,9 +3,21 @@ import type { ImageSourcePropType } from "react-native";
 export type SafeImageCandidate = ImageSourcePropType | string | null | undefined;
 
 export function remoteImageUri(candidate: SafeImageCandidate): string | null {
-  if (typeof candidate !== "string") return null;
-  const uri = candidate.trim();
-  return /^https?:\/\//i.test(uri) ? uri : null;
+  if (typeof candidate === "string") {
+    const uri = candidate.trim();
+    return /^https?:\/\//i.test(uri) ? uri : null;
+  }
+  if (
+    candidate
+    && typeof candidate === "object"
+    && !Array.isArray(candidate)
+    && "uri" in candidate
+    && typeof (candidate as { uri?: unknown }).uri === "string"
+  ) {
+    const uri = ((candidate as { uri: string }).uri || "").trim();
+    return /^https?:\/\//i.test(uri) ? uri : null;
+  }
+  return null;
 }
 
 export function resolveImageSource(

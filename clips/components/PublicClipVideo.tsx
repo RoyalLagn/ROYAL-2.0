@@ -1,18 +1,21 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Image, PixelRatio, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useEvent } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import Animated, {
   useAnimatedStyle, useReducedMotion, useSharedValue, withSequence,
   withSpring, withTiming,
 } from "react-native-reanimated";
-import { Heart, Play, RefreshCw, Volume2, VolumeX } from "lucide-react-native";
+import { Heart, Play, RefreshCw, TriangleAlert, Volume2, VolumeX } from "lucide-react-native";
+import { cloudinaryDeliveryUrl, cloudinaryVideoDeliveryUrl } from "@/utils/cloudinaryDelivery";
+import { CLIP_VIDEO_DELIVERY } from "../constants";
 
 const DOUBLE_TAP_MS = 260;
+const VALID_URI = /^https?:\/\//i;
 
 export const PublicClipVideo = React.memo(function PublicClipVideo({
   uri, thumbnailUrl, sourceWidth, sourceHeight, active, muted, onToggleMuted, onDoubleTapLike,
-  onHoldChange, showMuteControl = true,
+  onHoldChange, showMuteControl = true, width, height,
 }: {
   uri: string;
   thumbnailUrl: string;
@@ -24,6 +27,9 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   onDoubleTapLike: () => void;
   onHoldChange?: (holding: boolean) => void;
   showMuteControl?: boolean;
+  /** Rendered pixel size — used to request a device-appropriate Cloudinary derivative. */
+  width?: number;
+  height?: number;
 }) {
   const [manuallyPaused, setManuallyPaused] = useState(false);
   const [firstFrameRendered, setFirstFrameRendered] = useState(false);
@@ -42,10 +48,41 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     : 9 / 16;
   const isReelAspectRatio = sourceAspectRatio >= 0.46 && sourceAspectRatio <= 0.72;
   const contentFit = isReelAspectRatio ? "cover" : "contain";
-  const source = React.useMemo(() => ({
-    uri,
-    useCaching: Platform.OS !== "web",
-  }), [uri]);
+
+  const hasValidSource = typeof uri === "string" && VALID_URI.test(uri.trim());
+
+  const deliveryUri = useMemo(() => {
+    if (!hasValidSource) return null;
+    const dpr = Math.min(2, Math.max(1, PixelRatio.get()));
+    const targetWidth = Math.min(
+      CLIP_VIDEO_DELIVERY.maxWidth,
+      Math.round((width && width > 0 ? width : 720) * dpr),
+    );
+    return cloudinaryVideoDeliveryUrl(uri, {
+      width: targetWidth,
+      crop: "limit",
+      quality: Platform.OS === "web"
+        ? CLIP_VIDEO_DELIVERY.webQuality as any
+        : CLIP_VIDEO_DELIVERY.nativeQuality as any,
+    });
+  }, [hasValidSource, uri, width]);
+
+  const posterUri = useMemo(() => {
+    if (!thumbnailUrl) return thumbnailUrl;
+    const dpr = Math.min(2, Math.max(1, PixelRatio.get()));
+    return cloudinaryDeliveryUrl(thumbnailUrl, {
+      width: width && width > 0 ? width : undefined,
+      height: height && height > 0 ? height : undefined,
+      crop: "fill",
+      dpr,
+      quality: "auto",
+    });
+  }, [thumbnailUrl, width, height]);
+
+  const source = useMemo(() => (
+    deliveryUri ? { uri: deliveryUri, useCaching: Platform.OS !== "web" } : null
+  ), [deliveryUri]);
+
   const player = useVideoPlayer(source, (instance) => {
     instance.loop = true;
     instance.muted = muted || !active;
@@ -59,21 +96,31 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const status = useEvent(player, "statusChange", { status: player.status });
 
   useEffect(() => {
+    if (!hasValidSource) return;
     player.muted = muted || !active;
-  }, [active, muted, player]);
+  }, [active, hasValidSource, muted, player]);
   useEffect(() => {
+    if (!hasValidSource) return;
     if (!active) {
       player.pause();
       setManuallyPaused(false);
       return;
     }
     if (!manuallyPaused) player.play();
-  }, [active, manuallyPaused, player]);
+  }, [active, hasValidSource, manuallyPaused, player]);
   useEffect(() => () => {
     if (tapTimer.current) clearTimeout(tapTimer.current);
     if (holdReleaseTimer.current) clearTimeout(holdReleaseTimer.current);
     onHoldChange?.(false);
-  }, [onHoldChange]);
+    // Stop playback immediately — the underlying player is released
+    // asynchronously by useVideoPlayer's useReleasingSharedObject, but audio
+    // must stop the instant this card leaves the viewport/unmounts.
+    try {
+      player.pause();
+    } catch {
+      // Player may already be torn down.
+    }
+  }, [onHoldChange, player]);
 
   const showPauseState = useCallback((paused: boolean) => {
     playOpacity.value = withTiming(paused ? 1 : 0, { duration: reduced ? 0 : 180 });
@@ -81,7 +128,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   }, [playOpacity, playScale, reduced]);
 
   const togglePlayback = useCallback(() => {
-    if (!active) return;
+    if (!active || !hasValidSource) return;
     setManuallyPaused((current) => {
       const next = !current;
       if (next) player.pause();
@@ -89,7 +136,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
       showPauseState(next);
       return next;
     });
-  }, [active, player, showPauseState]);
+  }, [active, hasValidSource, player, showPauseState]);
 
   const burstHeart = useCallback(() => {
     if (reduced) {
@@ -134,11 +181,18 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     transform: [{ scale: heartScale.value }],
   }));
   const videoStyle = useAnimatedStyle(() => ({ opacity: videoOpacity.value }));
-  const failed = status?.status === "error";
+  const failed = hasValidSource && status?.status === "error";
+  const unavailable = !hasValidSource;
+
+  const retry = useCallback(() => {
+    if (!deliveryUri) return;
+    player.replace({ uri: deliveryUri }, true);
+    player.play();
+  }, [deliveryUri, player]);
 
   return <View style={StyleSheet.absoluteFill}>
-    <Image source={{ uri: thumbnailUrl }} style={styles.mediaFill} resizeMode={contentFit} />
-    {!failed && <Animated.View pointerEvents="none" style={[styles.mediaFill, videoStyle]}>
+    {posterUri ? <Image source={{ uri: posterUri }} style={styles.mediaFill} resizeMode={contentFit} /> : null}
+    {!failed && !unavailable && <Animated.View pointerEvents="none" style={[styles.mediaFill, videoStyle]}>
       <VideoView
         player={player}
         style={styles.mediaFill}
@@ -173,10 +227,11 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
       }}
       style={styles.mediaFill}
     />
-    {failed && <View style={styles.center}><Text style={styles.errorTitle}>This Clip couldn&apos;t play</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry video" onPress={() => { player.replace(uri); player.play(); }} style={styles.retry}><RefreshCw size={17} color="#FFF" /><Text style={styles.retryText}>Retry</Text></Pressable></View>}
+    {failed && <View style={styles.center}><Text style={styles.errorTitle}>This Clip couldn&apos;t play</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry video" onPress={retry} style={styles.retry}><RefreshCw size={17} color="#FFF" /><Text style={styles.retryText}>Retry</Text></Pressable></View>}
+    {unavailable && <View style={styles.center}><TriangleAlert size={28} color="#FFB0CD" /><Text style={styles.errorTitle}>This Clip is unavailable</Text></View>}
     <Animated.View pointerEvents="none" style={[styles.playBurst, playStyle]}><Play size={44} color="#FFF" fill="#FFF" /></Animated.View>
     <Animated.View pointerEvents="none" style={[styles.heartBurst, heartStyle]}><Heart size={94} color="#FFF" fill="#E91E63" strokeWidth={1.5} /></Animated.View>
-    {showMuteControl && manuallyPaused ? <Pressable
+    {showMuteControl && manuallyPaused && !unavailable ? <Pressable
       accessibilityRole="button"
       accessibilityLabel={muted ? "Turn Clip sound on" : "Mute Clip"}
       onPress={onToggleMuted}

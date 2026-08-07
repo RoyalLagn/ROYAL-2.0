@@ -235,7 +235,7 @@ export function VendorWorkspaceGate({
           <Pressable onPress={onRetry} style={[kitStyles.workspaceErrorButton, { backgroundColor: colors.surfaceSoft }]}>
             <Text style={[kitStyles.workspaceErrorButtonText, { color: colors.text }]}>Try again</Text>
           </Pressable>
-          <Pressable onPress={() => router.replace("/VendorLogin")} style={[kitStyles.workspaceErrorButton, { backgroundColor: colors.pink }]}>
+          <Pressable onPress={() => router.replace("/VendorAuth")} style={[kitStyles.workspaceErrorButton, { backgroundColor: colors.pink }]}>
             <Text style={[kitStyles.workspaceErrorButtonText, { color: "#FFF" }]}>Vendor sign in</Text>
           </Pressable>
         </View>

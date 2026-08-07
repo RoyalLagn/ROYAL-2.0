@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator, Alert, Image, Pressable, RefreshControl, ScrollView,
   StyleSheet, Text, useWindowDimensions, View,
@@ -41,6 +41,14 @@ export default function VendorClips() {
     { key: "rejected", label: "Rejected", count: overview.byStatus.rejected.length },
   ];
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  // A ref, not just `deletingId`, gates re-entrancy into the Cloudinary/RPC
+  // call: two dispatches landing in the same tick (e.g. a web Alert polyfill
+  // registering a fast double-tap on its "Delete" button before React
+  // commits the setDeletingId update) can both read `deletingId` as null.
+  // The ref is set synchronously before any await runs, closing that window;
+  // `deletingId` still drives the visible disabled/spinner state.
+  const deletingRef = useRef<string | null>(null);
   const openUpload = (draftId?: string) => requireFeature("upload_clips", () => {
     if (draftId) router.push({ pathname: "/VendorClipUpload", params: { draftId } });
     else router.push("/VendorClipUpload");
@@ -50,11 +58,31 @@ export default function VendorClips() {
   });
   const remove = (clip: any) => {
     if (!requireFeature("upload_clips")) return;
+    // Guards against a double-tap (or a second tap while the confirm alert is
+    // still opening) dispatching two deletes for the same Clip: the RPC behind
+    // ClipManagementService.remove() can only ever succeed once per Clip, so a
+    // second in-flight call would just fail with a confusing "not found" error.
+    if (deletingRef.current) return;
     Alert.alert("Delete Clip?", "The video and thumbnail will be removed. This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete", style: "destructive", onPress: async () => {
-        try { await ClipManagementService.remove(clip.id); await refresh(); }
-        catch (caught) { Alert.alert("Delete failed", caught instanceof Error ? caught.message : "Try again."); }
+        if (deletingRef.current) return;
+        deletingRef.current = clip.id;
+        setDeletingId(clip.id);
+        try {
+          await ClipManagementService.remove(clip.id);
+        } catch (caught) {
+          Alert.alert("Delete failed", caught instanceof Error ? caught.message : "Try again.");
+        } finally {
+          // Always refresh, even on failure: vendor_soft_delete_clip() is a
+          // one-shot RPC, so by the time any error surfaces here the Clip has
+          // very likely already been removed from the database. Skipping this
+          // on error would leave the list showing a Clip that is already gone,
+          // inviting a retry that is now guaranteed to fail.
+          deletingRef.current = null;
+          setDeletingId(null);
+          await refresh();
+        }
       } },
     ]);
   };
@@ -163,7 +191,7 @@ export default function VendorClips() {
           <Text style={[styles.date, { color: colors.muted }]}>Uploaded {new Date(clip.created_at).toLocaleDateString()}{clip.published_at ? ` · Published ${new Date(clip.published_at).toLocaleDateString()}` : ""}</Text>
           <View style={[styles.actions, { borderTopColor: colors.border }]}>
             <Pressable accessibilityLabel="Edit Clip" onPress={() => openEdit(clip.id)} style={styles.action}><Edit3 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Edit</Text></Pressable>
-            <Pressable accessibilityLabel="Delete Clip" onPress={() => remove(clip)} style={styles.action}><Trash2 size={16} color="#DC2626" /><Text style={[styles.actionLabel, { color: "#DC2626" }]}>Delete</Text></Pressable>
+            <Pressable accessibilityLabel="Delete Clip" disabled={deletingId === clip.id} onPress={() => remove(clip)} style={[styles.action, deletingId === clip.id && styles.actionDisabled]}>{deletingId === clip.id ? <ActivityIndicator size="small" color="#DC2626" /> : <Trash2 size={16} color="#DC2626" />}<Text style={[styles.actionLabel, { color: "#DC2626" }]}>{deletingId === clip.id ? "Deleting…" : "Delete"}</Text></Pressable>
             <Pressable accessibilityLabel="Share Clip" onPress={() => void share(clip)} style={styles.action}><Share2 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Share</Text></Pressable>
             <Pressable accessibilityLabel="Copy Clip link coming soon" disabled style={[styles.action, { opacity: 0.45 }]}><Link2 size={16} color={colors.muted} /><Text style={[styles.actionLabel, { color: colors.muted }]}>Copy Link</Text></Pressable>
             <Pressable accessibilityLabel="View Clip analytics" onPress={() => showAnalytics(clip)} style={styles.action}><BarChart3 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Analytics</Text></Pressable>
@@ -195,7 +223,7 @@ const styles = StyleSheet.create({
   draftBox: { borderWidth: 1, borderRadius: 20, padding: 15, marginBottom: 16 }, draftRow: { minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10 }, draftText: { flex: 1, fontSize: 12, fontWeight: "600" },
   grid: { flexDirection: "row", flexWrap: "wrap" }, card: { borderWidth: 1, borderRadius: 22, overflow: "hidden" }, thumb: { width: "100%", aspectRatio: 16 / 9, backgroundColor: "#111" }, cardBody: { padding: 14 },
   row: { flexDirection: "row", alignItems: "center", gap: 8 }, cardTitle: { flex: 1, fontSize: 14, fontWeight: "800" }, analytics: { flexDirection: "row", gap: 16, marginTop: 13 }, metric: { flexDirection: "row", gap: 5, alignItems: "center" }, metricText: { fontSize: 11, fontWeight: "700" }, date: { fontSize: 9, marginTop: 10 },
-  actions: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 12, paddingTop: 10, flexDirection: "row", flexWrap: "wrap", gap: 11 }, action: { minHeight: 34, flexDirection: "row", alignItems: "center", gap: 4 }, actionLabel: { fontSize: 9, fontWeight: "800" },
+  actions: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 12, paddingTop: 10, flexDirection: "row", flexWrap: "wrap", gap: 11 }, action: { minHeight: 34, flexDirection: "row", alignItems: "center", gap: 4 }, actionDisabled: { opacity: 0.5 }, actionLabel: { fontSize: 9, fontWeight: "800" },
   empty: { borderWidth: 1, borderRadius: 24, padding: 34, alignItems: "center" }, emptyIllustration: { width: 88, height: 88, borderRadius: 30, alignItems: "center", justifyContent: "center" }, emptyTitle: { maxWidth: 460, fontSize: 18, fontWeight: "800", marginTop: 12, textAlign: "center" }, emptyText: { maxWidth: 430, fontSize: 12, textAlign: "center", marginTop: 6, lineHeight: 18 }, emptyButton: { minHeight: 46, borderRadius: 16, paddingHorizontal: 17, marginTop: 16, flexDirection: "row", alignItems: "center", gap: 7 },
   floatingUpload: { position: "absolute", right: 18, bottom: 18, minHeight: 52, borderRadius: 19, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", gap: 8, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.22, shadowRadius: 16, elevation: 8 }, floatingText: { color: "#FFF", fontSize: 12, fontWeight: "900" },
 });

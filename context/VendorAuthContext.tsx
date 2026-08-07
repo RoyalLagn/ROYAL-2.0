@@ -1,0 +1,125 @@
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "@/services/supabase";
+import {
+  logSupabaseError,
+  resolveVendorDestination,
+  type VendorResolution,
+} from "@/services/vendorAuth";
+import { isRecoverySessionActive } from "@/services/authRecoverySession";
+
+type VendorAuthContextValue = {
+  resolution: VendorResolution | null;
+  loading: boolean;
+  /** True only once the workspace is linked and verified -- the one state
+   * that should ever see /vendor-dashboard. */
+  isVendorAuthenticated: boolean;
+  refresh: () => Promise<VendorResolution | null>;
+  signOut: () => Promise<void>;
+};
+
+const VendorAuthContext = createContext<VendorAuthContextValue | null>(null);
+
+/**
+ * The single owner of resolveVendorDestination(). Every Vendor screen and
+ * the Vendor route guard read from this context instead of calling the
+ * resolver themselves -- that is what keeps claim_vendor_workspace() (only
+ * invoked from inside the resolver, and only when a workspace genuinely
+ * needs claiming) from being hit repeatedly across mounts, focuses and
+ * unrelated re-renders.
+ */
+export function VendorAuthProvider({ children }: { children: React.ReactNode }) {
+  const [resolution, setResolution] = useState<VendorResolution | null>(null);
+  const [loading, setLoading] = useState(true);
+  const resolutionRef = useRef<VendorResolution | null>(null);
+  resolutionRef.current = resolution;
+
+  const refresh = useCallback(async (session?: Session | null) => {
+    if (isRecoverySessionActive()) {
+      setResolution(null);
+      setLoading(false);
+      return null;
+    }
+    // A background silent token refresh (tab regains focus, etc.) must not
+    // flash the branded loader over an already-resolved vendor session.
+    if (!resolutionRef.current) setLoading(true);
+    try {
+      const currentSession = session === undefined ? (await supabase.auth.getSession()).data.session : session;
+      const next = await resolveVendorDestination(currentSession?.user ?? null);
+      setResolution(next);
+      return next;
+    } catch (error) {
+      logSupabaseError("VendorAuthContext.refresh", error);
+      // A transient failure (network blip, dropped request) must not throw
+      // away an already-known-good resolution -- only a real "not signed
+      // in" / "not a vendor" result (resolved above, not thrown) does that.
+      return resolutionRef.current;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        if (!mounted) return;
+        void refresh(data.session);
+      })
+      .catch((error) => {
+        if (!mounted) return;
+        logSupabaseError("VendorAuthContext.init", error);
+        setResolution(null);
+        setLoading(false);
+      });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (event === "SIGNED_OUT" || !session) {
+        setResolution(null);
+        setLoading(false);
+        return;
+      }
+      // Deferred like AdminAuthContext: avoids re-entrant Supabase client
+      // calls from directly inside the onAuthStateChange callback.
+      setTimeout(() => {
+        if (mounted) void refresh(session);
+      }, 0);
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [refresh]);
+
+  const signOut = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    setResolution(null);
+  }, []);
+
+  const value = useMemo<VendorAuthContextValue>(() => ({
+    resolution,
+    loading,
+    isVendorAuthenticated: resolution?.state === "approved_verified",
+    refresh,
+    signOut,
+  }), [loading, refresh, resolution, signOut]);
+
+  return <VendorAuthContext.Provider value={value}>{children}</VendorAuthContext.Provider>;
+}
+
+export function useVendorAuth() {
+  const value = useContext(VendorAuthContext);
+  if (!value) throw new Error("useVendorAuth must be used inside VendorAuthProvider.");
+  return value;
+}

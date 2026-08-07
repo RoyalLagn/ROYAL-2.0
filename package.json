@@ -8,6 +8,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "export:web": "expo export --platform web --output-dir dist-web",
+    "serve:web": "npx --yes serve -l 5055 dist-web",
     "prebuild:android": "expo prebuild --platform android --clean",
     "build:apk": "cd android && node -e \"process.env.NODE_ENV='production';require('child_process').execSync((process.platform==='win32'?'gradlew.bat':'./gradlew')+' assembleRelease',{stdio:'inherit',env:process.env})\"",
     "lint": "expo lint",
@@ -20,6 +22,8 @@
     "sitemap:generate": "node --env-file=.env scripts/generate-sitemap.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/playfair-display": "^0.4.2",
     "@expo/metro-runtime": "6.1.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "11.4.1",

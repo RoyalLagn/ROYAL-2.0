@@ -37,6 +37,21 @@ Deno.serve(async (request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
+
+    // Identify the caller (if any) from this request's own Authorization
+    // header -- supabase.functions.invoke() forwards the caller's access
+    // token automatically, so an authenticated Vendor Login -> BecomeVendor
+    // submission always carries one. An unauthenticated caller (legacy /
+    // direct API use) still works: the application is matched to a profile
+    // later, by email, in claim_vendor_workspace() once they sign in.
+    let callerId: string | null = null;
+    const authHeader = request.headers.get("Authorization") || "";
+    const bearerToken = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (bearerToken) {
+      const { data: callerData } = await service.auth.getUser(bearerToken);
+      callerId = callerData?.user?.id ?? null;
+    }
+
     const [{ data: city, error: cityError }, { data: category, error: categoryError }] = await Promise.all([
       service.from("supported_cities").select("id,name,state,is_active").eq("id", required.cityId).eq("is_active", true).maybeSingle(),
       service.from("categories").select("id").eq("id", required.categoryId).maybeSingle(),
@@ -95,49 +110,88 @@ Deno.serve(async (request) => {
       throw new Error(`This PIN code belongs to ${lookup.city?.name || lookup.detected?.district || "another city"}, not the selected city.`);
     }
 
-    const { data: existing, error: existingError } = await service
+    // A vendor is identified first by their authenticated profile (stable
+    // across email changes), falling back to email for the legacy
+    // unauthenticated-submission path. This single lookup decides whether
+    // this is a fresh application or a resubmission.
+    const existingQuery = service
       .from("vendor_applications")
-      .select("id")
-      .eq("email", required.email)
-      .eq("status", "pending")
+      .select("id,status,profile_id")
+      .order("submitted_at", { ascending: false })
       .limit(1);
+    const { data: existingRows, error: existingError } = await (
+      callerId
+        ? existingQuery.or(`profile_id.eq.${callerId},email.eq.${required.email}`)
+        : existingQuery.eq("email", required.email)
+    );
     if (existingError) throw existingError;
-    if (existing?.length) return Response.json({ error: "A pending application already exists for this email." }, { status: 409, headers: cors });
+    const existing = existingRows?.[0] ?? null;
+
+    if (existing?.status === "pending") {
+      return Response.json({ error: "A pending application already exists for this email." }, { status: 409, headers: cors });
+    }
+    if (existing?.status === "approved") {
+      return Response.json({ error: "An approved Vendor account already exists for this email. Sign in instead." }, { status: 409, headers: cors });
+    }
 
     const selectedArea = areaId
       ? await service.from("supported_areas").select("name").eq("id", areaId).single()
       : { data: null, error: null };
     if (selectedArea.error) throw selectedArea.error;
     const address = optionalText(body.address) || selectedArea.data?.name || city.name;
+    const record = {
+      profile_id: callerId,
+      full_name: required.fullName,
+      email: required.email,
+      phone: required.phone,
+      business_name: required.businessName,
+      category_id: required.categoryId,
+      description: required.description,
+      experience,
+      address,
+      area: selectedArea.data?.name || city.name,
+      city: city.name,
+      state: city.state,
+      country: "India",
+      pincode: required.pincode,
+      city_id: city.id,
+      area_id: areaId,
+      service_area_ids: serviceAreaIds,
+      instagram: optionalText(body.instagram),
+      facebook: optionalText(body.facebook),
+      website: optionalText(body.website),
+      logo_url: optionalText(body.logo_url),
+      cover_image_url: optionalText(body.cover_image_url),
+      business_documents: Array.isArray(body.business_documents) ? body.business_documents.slice(0, 5) : [],
+      terms_accepted_at: new Date().toISOString(),
+    };
+
+    // Rejected vendors resubmitting must update their existing row, never
+    // create a second one -- a second row would leave a stale rejected
+    // application and a new pending one both matching this vendor, which
+    // corrupts claim_vendor_workspace()'s "most recent matching
+    // application" lookup and the admin approvals queue.
+    if (existing?.status === "rejected") {
+      const { data: updated, error: updateError } = await service
+        .from("vendor_applications")
+        .update({
+          ...record,
+          status: "pending",
+          submitted_at: new Date().toISOString(),
+          reviewed_at: null,
+          reviewed_by: null,
+          rejection_reason: null,
+        })
+        .eq("id", existing.id)
+        .select("id,status,submitted_at")
+        .single();
+      if (updateError) throw updateError;
+      return Response.json({ application: updated }, { status: 200, headers: cors });
+    }
+
     const { data: application, error: insertError } = await service
       .from("vendor_applications")
-      .insert({
-        profile_id: null,
-        full_name: required.fullName,
-        email: required.email,
-        phone: required.phone,
-        business_name: required.businessName,
-        category_id: required.categoryId,
-        description: required.description,
-        experience,
-        address,
-        area: selectedArea.data?.name || city.name,
-        city: city.name,
-        state: city.state,
-        country: "India",
-        pincode: required.pincode,
-        city_id: city.id,
-        area_id: areaId,
-        service_area_ids: serviceAreaIds,
-        instagram: optionalText(body.instagram),
-        facebook: optionalText(body.facebook),
-        website: optionalText(body.website),
-        logo_url: optionalText(body.logo_url),
-        cover_image_url: optionalText(body.cover_image_url),
-        business_documents: Array.isArray(body.business_documents) ? body.business_documents.slice(0, 5) : [],
-        terms_accepted_at: new Date().toISOString(),
-        status: "pending",
-      })
+      .insert({ ...record, status: "pending" })
       .select("id,status,submitted_at")
       .single();
     if (insertError) throw insertError;

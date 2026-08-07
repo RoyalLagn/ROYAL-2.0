@@ -31,11 +31,23 @@ export const CLIP_PAGINATION = Object.freeze({
 });
 
 export const CLIP_FEED_SETTINGS = Object.freeze({
-  prefetchAhead: 2,
+  // Only the active clip mounts a real video player/decoder. This is how far
+  // ahead we still prefetch a lightweight poster image for — NOT a second
+  // video player — so a single phone-class Android decoder is never asked
+  // to run more than one Clip at once (matches Instagram-style "one clip
+  // plays at a time" behaviour and avoids decoder-exhaustion jank/crashes).
+  prefetchAhead: 1,
   cacheTtlMs: 5 * 60 * 1000,
   staleWhileRevalidateMs: 60 * 1000,
   autoAdvanceOnEnd: true,
   minimumViewDurationMs: 3_000,
+});
+
+/** Mobile-friendly Cloudinary video delivery caps (device px, pre-dpr). */
+export const CLIP_VIDEO_DELIVERY = Object.freeze({
+  maxWidth: 1080,
+  nativeQuality: "auto:eco",
+  webQuality: "auto:good",
 });
 
 export const DEFAULT_CLIP_PLAN_LIMITS = Object.freeze({

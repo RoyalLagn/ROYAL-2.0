@@ -28,15 +28,16 @@ weights: Record<string, string>;
 };
 }
 
-// Default theme fonts: Inter for clean, modern typography
+// Headings: Playfair Display (loaded in app/_layout.tsx).
+// Body/UI: Inter. Mono stays declared for future code surfaces.
 export const themeFonts: ThemeFonts = {
 heading: {
-family: 'Inter',
+family: 'PlayfairDisplay',
 weights: {
-normal: 'Inter_400Regular',
-medium: 'Inter_500Medium',
-semibold: 'Inter_600SemiBold',
-bold: 'Inter_700Bold',
+normal: 'PlayfairDisplay_400Regular',
+medium: 'PlayfairDisplay_500Medium',
+semibold: 'PlayfairDisplay_600SemiBold',
+bold: 'PlayfairDisplay_700Bold',
 },
 },
 body: {
@@ -45,6 +46,7 @@ weights: {
 normal: 'Inter_400Regular',
 medium: 'Inter_500Medium',
 semibold: 'Inter_600SemiBold',
+bold: 'Inter_700Bold',
 },
 },
 mono: {

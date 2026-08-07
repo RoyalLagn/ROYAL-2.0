@@ -18,23 +18,14 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import SafeImage from "@/components/SafeImage";
-
-const PINK = "#E91E63";
-
-const FRAME_TONES = [
-  { border: "#E8C49A", sparkle: "#F0D4B0", fill: "#FFF8F0" },
-  { border: "#E9B4C6", sparkle: "#F3CDD9", fill: "#FFF5F8" },
-  { border: "#A8C8A0", sparkle: "#C5DDBE", fill: "#F5FAF3" },
-  { border: "#A8C4E0", sparkle: "#C5D8EE", fill: "#F4F8FC" },
-  { border: "#C4B0E0", sparkle: "#D9CCED", fill: "#F8F5FC" },
-] as const;
+import { brandColors } from "@/constants/brandPalette";
+import { fonts } from "@/constants/typography";
 
 type HomeCategoryCardProps = {
   name: string;
   image?: number | ImageURISource;
   itemWidth: number;
   cardWidth: number;
-  tone: number;
   dark: boolean;
   more?: boolean;
   onPress: () => void;
@@ -56,14 +47,13 @@ function HomeCategoryCard({
   image,
   itemWidth,
   cardWidth,
-  tone,
   dark,
   more = false,
   onPress,
 }: HomeCategoryCardProps) {
   const reducedMotion = useReducedMotion();
   const pressed = useSharedValue(1);
-  const palette = FRAME_TONES[tone % FRAME_TONES.length];
+  const colors = brandColors(dark);
   // Slightly taller portrait frame than the prior 0.78 ratio.
   const cardHeight = Math.round(cardWidth / 0.70);
   // Slimmer inset so the photo fills more of the frame.
@@ -72,9 +62,9 @@ function HomeCategoryCard({
   const innerRadius = Math.max(12, outerRadius - framePadding);
   const sparkleSize = Math.min(11, Math.max(7, Math.round(cardWidth * 0.14)));
   const isLongSingleWord = !/\s/.test(name) && name.length > 10;
-  const borderColor = dark ? `${palette.border}99` : palette.border;
-  const sparkleColor = dark ? `${palette.sparkle}CC` : "#FFFFFF";
-  const frameFill = dark ? "#201B23" : palette.fill;
+  const borderColor = dark ? `${colors.frameBorder}CC` : colors.frameBorder;
+  const sparkleColor = dark ? "#FFFFFFCC" : colors.primaryForeground;
+  const frameFill = colors.frameFill;
 
   const pressStyle = useAnimatedStyle<ViewStyle>(() => ({
     opacity: pressed.value,
@@ -122,8 +112,8 @@ function HomeCategoryCard({
               {
                 borderRadius: innerRadius,
                 backgroundColor: more
-                  ? (dark ? "#311E28" : "#FFF8FB")
-                  : (dark ? "#17131A" : "#FFFFFF"),
+                  ? (dark ? "#311E28" : colors.muted)
+                  : (dark ? "#17131A" : colors.card),
               },
             ]}
           >
@@ -131,7 +121,7 @@ function HomeCategoryCard({
               <View style={styles.moreIcon}>
                 <MoreHorizontal
                   size={Math.max(20, Math.round(cardWidth * 0.38))}
-                  color={PINK}
+                  color={colors.primary}
                   strokeWidth={2}
                 />
               </View>
@@ -147,7 +137,7 @@ function HomeCategoryCard({
             ) : null}
           </View>
 
-          {/* Elegant sparkles centered on each side of the pastel border */}
+          {/* Soft sparkles on the shared pink frame border */}
           <View
             pointerEvents="none"
             style={[
@@ -206,13 +196,13 @@ function HomeCategoryCard({
           adjustsFontSizeToFit
           ellipsizeMode="tail"
           maxFontSizeMultiplier={1.15}
-          minimumFontScale={0.84}
+          minimumFontScale={0.62}
           numberOfLines={2}
           style={[
             styles.label,
             cardWidth < 60 && styles.labelNarrow,
             isLongSingleWord && styles.singleWordLabel,
-            { color: dark ? "#E5DCE1" : "#30323A" },
+            { color: dark ? "#E5DCE1" : colors.foreground },
             labelWebStyle,
           ]}
         >
@@ -263,12 +253,12 @@ const styles = StyleSheet.create({
   },
   label: {
     width: "100%",
-    height: 27,
+    height: 30,
     marginTop: 8,
-    paddingHorizontal: 2,
+    paddingHorizontal: 1,
+    fontFamily: fonts.sans.bold,
     fontSize: 10,
     lineHeight: 12.5,
-    fontWeight: "700",
     letterSpacing: -0.16,
     textAlign: "center",
     includeFontPadding: false,
@@ -277,5 +267,5 @@ const styles = StyleSheet.create({
     fontSize: 9.4,
     lineHeight: 12,
   },
-  singleWordLabel: { fontSize: 9.2, letterSpacing: -0.28 },
+  singleWordLabel: { fontSize: 8.8, letterSpacing: -0.32 },
 });

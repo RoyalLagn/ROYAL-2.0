@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text,
+  ActivityIndicator, Alert, BackHandler, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text,
   TextInput, TouchableOpacity, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ArrowLeft, Check, ChevronDown, FileText, ImagePlus, Trash2, X,
 } from "lucide-react-native";
@@ -19,6 +19,39 @@ import {
 } from "@/components/locations/VendorServiceLocationEditor";
 import { useCustomerLocation } from "@/context/LocationContext";
 import { submitVendorApplication } from "@/services/vendorApplications";
+import { logSupabaseError, resolveVendorDestination } from "@/services/vendorAuth";
+import { supabase } from "@/services/supabase";
+
+type RejectedApplicationRecord = {
+  id: string;
+  business_name: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  category_id: string;
+  description: string;
+  experience: number;
+  pincode: string;
+  city_id: string | null;
+  area_id: string | null;
+  service_area_ids: string[] | null;
+  instagram: string | null;
+  facebook: string | null;
+  website: string | null;
+  logo_url: string | null;
+  cover_image_url: string | null;
+  business_documents: UploadedBusinessDocument[] | null;
+};
+
+/** Where the header back button / Android hardware back go from this
+ * screen. Matches how the vendor arrived here -- never a blind
+ * router.back(), since Become Vendor is always reached via replace(). */
+function backRouteFor(source: string | undefined) {
+  if (source === "rejected") {
+    return { pathname: "/VendorAuthStatus", params: { status: "rejected" } } as const;
+  }
+  return { pathname: "/VendorAuth" } as const;
+}
 
 type FormState = {
   businessName: string; ownerName: string; email: string; mobile: string;
@@ -66,6 +99,8 @@ function Field({
 
 export default function BecomeVendor() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ source?: string }>();
+  const source = Array.isArray(params.source) ? params.source[0] : params.source;
   const { registrationCategories: categories } = useCategories();
   const { locations } = useCustomerLocation();
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -78,11 +113,115 @@ export default function BecomeVendor() {
   const [locationValid, setLocationValid] = useState(false);
   const [locationSource, setLocationSource] = useState<"verified" | "manual_fallback" | null>(null);
   const [documents, setDocuments] = useState<UploadedBusinessDocument[]>([]);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  // Resubmission (a rejected application, prefilled for editing) skips the
+  // pincode re-verification step -- that location was already accepted once.
+  const [isResubmission, setIsResubmission] = useState(false);
+  const [backTarget, setBackTarget] = useState(() => backRouteFor(source));
+
+  const goBack = useCallback(() => {
+    if (router.canDismiss()) router.dismissAll();
+    router.replace(backTarget as never);
+  }, [backTarget, router]);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      goBack();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [goBack]);
+
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
   const [uploading, setUploading] = useState<"logo" | "cover" | "document" | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser();
+        if (!active) return;
+        if (error || !data.user) {
+          if (router.canDismiss()) router.dismissAll();
+          router.replace({ pathname: "/VendorAuth" });
+          return;
+        }
+        const resolution = await resolveVendorDestination(data.user);
+        if (!active) return;
+
+        if (resolution.state === "not_vendor") {
+          if (router.canDismiss()) router.dismissAll();
+          router.replace({ pathname: "/VendorAuth" });
+          return;
+        }
+
+        // A rejected vendor may resubmit from here — load their existing
+        // application into the form so resubmitting edits it in place
+        // instead of risking a second, duplicate application row.
+        if (resolution.state === "rejected" && resolution.application) {
+          const { data: existing, error: existingError } = await supabase
+            .from("vendor_applications")
+            .select(
+              "id,business_name,full_name,email,phone,category_id,description,experience,pincode,city_id,area_id,service_area_ids,instagram,facebook,website,logo_url,cover_image_url,business_documents"
+            )
+            .eq("id", resolution.application.id)
+            .maybeSingle();
+          if (!active) return;
+          if (existingError) {
+            logSupabaseError("BecomeVendor.loadRejectedApplication", existingError);
+          } else if (existing) {
+            const record = existing as RejectedApplicationRecord;
+            setForm({
+              businessName: record.business_name || "",
+              ownerName: record.full_name || "",
+              email: record.email || "",
+              mobile: record.phone || "",
+              categoryId: record.category_id || "",
+              experience: record.experience != null ? String(record.experience) : "",
+              description: record.description || "",
+              instagram: record.instagram || "",
+              facebook: record.facebook || "",
+              website: record.website || "",
+              logoUrl: record.logo_url || "",
+              coverImageUrl: record.cover_image_url || "",
+            });
+            setVendorLocation({
+              pincode: record.pincode || "",
+              primaryCityId: record.city_id || "",
+              primaryAreaId: record.area_id || null,
+              serviceAreaIds: record.service_area_ids || [],
+            });
+            setDocuments(record.business_documents || []);
+            setIsResubmission(true);
+          }
+          setBackTarget(backRouteFor("rejected"));
+          return; // stay on this screen with the form open for editing.
+        }
+
+        // Otherwise, only "no application yet" belongs on this screen.
+        // Every other state (pending / approved / already verified) has
+        // already applied — send the vendor to their real destination
+        // instead of re-opening the form.
+        if (resolution.state !== "no_application") {
+          if (router.canDismiss()) router.dismissAll();
+          router.replace(resolution.destination as never);
+          return;
+        }
+      } catch (caught) {
+        if (!active) return;
+        logSupabaseError("BecomeVendor.checkAccess", caught);
+        if (router.canDismiss()) router.dismissAll();
+        router.replace({ pathname: "/VendorAuth" });
+        return;
+      } finally {
+        if (active) setCheckingAccess(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [router]);
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -161,7 +300,12 @@ export default function BecomeVendor() {
         cover_image_url: form.coverImageUrl.trim() || null,
         business_documents: documents,
       });
-      setSubmitted(true);
+      // replace (not push) so the browser/back-stack can't return to the
+      // just-submitted form -- the vendor now has a real pending
+      // application, and VendorAuthStatus fetches its real DB status
+      // itself; the ?status=pending param is only for the first paint.
+      if (router.canDismiss()) router.dismissAll();
+      router.replace({ pathname: "/VendorAuthStatus", params: { status: "pending" } });
     } catch (caught) {
       Alert.alert("Submission failed", caught instanceof Error ? caught.message : "Unable to submit the Vendor application.");
     } finally {
@@ -169,25 +313,10 @@ export default function BecomeVendor() {
     }
   };
 
-  if (submitted) {
+  if (checkingAccess) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center px-7">
-        <View className="w-20 h-20 rounded-full bg-primary/15 items-center justify-center mb-6">
-          <Check size={38} className="text-primary" />
-        </View>
-        <Text className="text-foreground text-2xl font-bold text-center mb-3">Application Submitted Successfully</Text>
-        <Text className="text-muted-foreground text-center leading-6">
-          Thank you for registering with RoyalLagn.{"\n\n"}
-          Your application has been received and is under review.{"\n\n"}
-          Our team will review your application and notify you by email after approval.
-        </Text>
-        <View className="bg-card border border-border rounded-2xl px-6 py-4 my-7 w-full">
-          <Text className="text-muted-foreground text-xs text-center uppercase tracking-wider">Estimated review time</Text>
-          <Text className="text-foreground text-lg font-bold text-center mt-1">24–48 hours</Text>
-        </View>
-        <TouchableOpacity className="bg-primary px-9 py-4 rounded-2xl" onPress={() => router.replace("/(tabs)")}>
-          <Text className="text-white font-bold">Back to Home</Text>
-        </TouchableOpacity>
+      <SafeAreaView className="flex-1 bg-background items-center justify-center">
+        <ActivityIndicator color="#E91E63" />
       </SafeAreaView>
     );
   }
@@ -195,12 +324,21 @@ export default function BecomeVendor() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <View className="flex-row items-center px-5 py-4 border-b border-border">
-        <TouchableOpacity className="w-10 h-10 rounded-full bg-card border border-border items-center justify-center" onPress={() => router.back()}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          className="w-10 h-10 rounded-full bg-card border border-border items-center justify-center"
+          onPress={goBack}
+        >
           <ArrowLeft size={20} className="text-foreground" />
         </TouchableOpacity>
         <View className="ml-4">
-          <Text className="text-foreground text-xl font-bold">Register Your Business</Text>
-          <Text className="text-muted-foreground text-xs">Apply to join RoyalLagn</Text>
+          <Text className="text-foreground text-xl font-bold">
+            {isResubmission ? "Edit Your Application" : "Register Your Business"}
+          </Text>
+          <Text className="text-muted-foreground text-xs">
+            {isResubmission ? "Update the details below and resubmit for review" : "Apply to join RoyalLagn"}
+          </Text>
         </View>
       </View>
       <KeyboardAvoidingView
@@ -232,6 +370,7 @@ export default function BecomeVendor() {
           <VendorServiceLocationEditor
             value={vendorLocation}
             onChange={setVendorLocation}
+            requireLookup={!isResubmission}
             onValidationChange={(valid, source) => { setLocationValid(valid); setLocationSource(source); }}
           />
           <Field label="Years of Experience" required value={form.experience} onChangeText={(v) => update("experience", v)} keyboardType="number-pad" />

@@ -27,10 +27,13 @@ import FavoriteNotificationDot from "@/components/favorites/FavoriteNotification
 import { useFavorites } from "@/context/FavoritesContext";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
 
-const PINK = "#E91E63";
-const ACTIVE_DARK = "#EC4899";
-const INACTIVE_LIGHT = "#6B6B73";
-const INACTIVE_DARK = "#AAA0A5";
+import { brandPalette } from "@/constants/brandPalette";
+
+/** AA-friendly active pink for small tab labels on light backgrounds. */
+const PINK = brandPalette.light.primaryStrong;
+const ACTIVE_DARK = "#F9A8D4";
+const INACTIVE_LIGHT = "#52525B";
+const INACTIVE_DARK = "#A0A0A5";
 const CENTER_ROUTE = "clips";
 const TAB_COUNT = 5;
 const CUSTOMER_TAB_ROUTES = new Set([
@@ -170,13 +173,17 @@ function AnimatedTab({
       : withSpring(1, { damping: 15, stiffness: 260, mass: 0.55 });
   };
 
+  const labelText = accessibilityLabel || label;
+
   return (
     <Pressable
-      accessibilityRole="tab"
-      accessibilityState={focused ? { selected: true } : {}}
+      // Route destinations — use link semantics, not tablist/tab (those are for
+      // in-page panels). Selected route is exposed via accessibilityState.selected.
+      accessibilityRole="link"
+      accessibilityState={{ selected: focused }}
       accessibilityLabel={isFavorites && hasUnviewedFavorites
-        ? `${accessibilityLabel ?? "Favorites"}, new favorites available`
-        : accessibilityLabel}
+        ? `${labelText}, new favorites available`
+        : labelText}
       testID={testID}
       onPress={onPress}
       onLongPress={onLongPress}
@@ -282,6 +289,9 @@ export function MobileTabBar({
 
   return (
     <View
+      // Landmark role is valid on web; RN's AccessibilityRole union omits it.
+      accessibilityRole={"navigation" as never}
+      accessibilityLabel="Main"
       style={[
         styles.safeWrap,
         {
@@ -343,7 +353,7 @@ export function MobileTabBar({
                 reducedMotion={reducedMotion}
                 onPress={onPress}
                 onLongPress={() => navigation.emit({ type: "tabLongPress", target: route.key })}
-                accessibilityLabel={options.tabBarAccessibilityLabel}
+                accessibilityLabel={options.tabBarAccessibilityLabel || label}
                 testID={options.tabBarButtonTestID}
               />
             );
@@ -395,6 +405,8 @@ export function StandaloneMobileTabBar({
 
   return (
     <View
+      accessibilityRole={"navigation" as never}
+      accessibilityLabel="Main"
       style={[
         styles.safeWrap,
         {
@@ -443,7 +455,7 @@ export function StandaloneMobileTabBar({
                 router.replace(tab.href);
               }}
               onLongPress={() => undefined}
-              accessibilityLabel={`${tab.label} tab`}
+              accessibilityLabel={tab.label}
             />
           ))}
         </View>
@@ -527,9 +539,9 @@ const styles = StyleSheet.create({
     width: "100%",
     marginTop: 0,
     paddingHorizontal: 1,
-    fontSize: 9.5,
+    fontSize: 10,
     lineHeight: 12,
-    fontWeight: "500",
+    fontWeight: "600",
     textAlign: "center",
     includeFontPadding: false,
   },

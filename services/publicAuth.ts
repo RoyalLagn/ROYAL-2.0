@@ -288,5 +288,14 @@ export function getPublicAuthError(error: unknown, fallback: string) {
   if (normalized.includes("user not found") || normalized.includes("signups not allowed")) {
     return "No public account was found for this email.";
   }
+  if (normalized.includes("already registered for a different")) {
+    return "This email is already registered for a different RoyalLagn account.";
+  }
+  if (normalized.includes("not currently supported") || normalized.includes("choose a supported")) {
+    return "Choose a supported RoyalLagn city and try again.";
+  }
+  if (normalized.includes("has no field") || normalized.includes("complete_public_registration")) {
+    return "We couldn’t finish creating your account. Please try again in a moment.";
+  }
   return message || fallback;
 }

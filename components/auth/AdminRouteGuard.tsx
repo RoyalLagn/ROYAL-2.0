@@ -7,17 +7,20 @@ import BrandedLoader from "@/components/loading/BrandedLoader";
 export function AdminRouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAdminAuthenticated, loading, signOut } = useAdminAuth();
+  const { isAdminAuthenticated, loading } = useAdminAuth();
   const protectedRoute = isProtectedAdminRoute(pathname);
 
   useEffect(() => {
     if (protectedRoute && !loading && !isAdminAuthenticated) {
-      void signOut().finally(() => {
-        if (router.canDismiss()) router.dismissAll();
-        router.replace("/AdminLogin");
-      });
+      // Only redirect. Signing out here would also destroy a public or vendor
+      // session, because all roles share one Supabase session — and a customer
+      // landing on an admin URL must not be logged out of their own account.
+      // Genuinely unauthorized admin sessions are already cleared by
+      // verifyAdminSession() in services/adminAuth.ts.
+      if (router.canDismiss()) router.dismissAll();
+      router.replace("/AdminLogin");
     }
-  }, [isAdminAuthenticated, loading, protectedRoute, router, signOut]);
+  }, [isAdminAuthenticated, loading, protectedRoute, router]);
 
   if (protectedRoute && (loading || !isAdminAuthenticated)) {
     // Admin session restoration is exactly the "no usable screen can yet be

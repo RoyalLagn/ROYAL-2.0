@@ -16,8 +16,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
+import { brandPalette } from "@/constants/brandPalette";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 const AnimatedHeart = Animated.createAnimatedComponent(Heart);
 
 type FavoriteHeartButtonProps = {

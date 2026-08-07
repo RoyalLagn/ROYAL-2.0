@@ -2,6 +2,8 @@ import React from "react";
 import { Platform, Pressable, StyleSheet, TextInput, type ViewStyle, View } from "react-native";
 import { Search, X } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { brandColors } from "@/constants/brandPalette";
+import { fonts } from "@/constants/typography";
 
 type CompactSearchBarProps = {
   value: string;
@@ -22,16 +24,17 @@ export default function CompactSearchBar({
   onSubmit,
   style,
 }: CompactSearchBarProps) {
-  const text = dark ? "#F8F2F5" : "#2A2026";
-  const muted = dark ? "#B9AEB3" : "#777780";
-  const icon = dark ? "#F08AAC" : "#EB5B86";
-  const border = dark ? "#39445A" : "#F4CBD8";
+  const colors = brandColors(dark);
+  const text = dark ? "#F8F2F5" : colors.foreground;
+  const muted = colors.mutedForeground;
+  const icon = colors.primary;
+  const border = colors.border;
   const gradient = dark
-    ? ["#0E141F", "#121A28"] as const
-    : ["#FFFFFF", "#FFFBFC"] as const;
+    ? [colors.card, "#121A28"] as const
+    : [colors.card, colors.background] as const;
 
   return (
-    <View style={[styles.shell, { backgroundColor: dark ? "#0E141F" : "#FFFFFF", borderColor: border }, style]}>
+    <View style={[styles.shell, { backgroundColor: colors.card, borderColor: border }, style]}>
       <LinearGradient
         colors={gradient}
         start={{ x: 0, y: 0 }}
@@ -57,7 +60,7 @@ export default function CompactSearchBar({
             onPress={() => onChangeText("")}
             style={({ pressed, hovered }) => [
               styles.clear,
-              hovered && Platform.OS === "web" && { backgroundColor: dark ? "#3A3035" : "#FCEBF1" },
+              hovered && Platform.OS === "web" && { backgroundColor: dark ? "#3A3035" : colors.muted },
               pressed && styles.pressed,
             ]}
           >
@@ -92,7 +95,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 13,
   },
-  input: { flex: 1, minWidth: 0, paddingVertical: 0, fontSize: 14, fontWeight: "400", outlineStyle: "none" } as never,
+  input: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 0,
+    fontFamily: fonts.sans.regular,
+    fontSize: 14,
+    outlineStyle: "none",
+  } as never,
   clear: { width: 30, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   pressed: { opacity: 0.72, transform: [{ scale: 0.96 }] },
 });

@@ -1,15 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import React, { useEffect, useState } from "react";
+import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { AuthBackButton } from "@/components/auth/AuthBackButton";
+import {
+  AuthAlert,
+  AuthLinkButton,
+  AuthSubmitButton,
+} from "@/components/auth/AuthPrimitives";
+import { AuthScreenLayout } from "@/components/auth/AuthScreenLayout";
+import { OtpCodeField } from "@/components/auth/OtpCodeField";
 import {
   getAdminAuthError,
   sendAdminRecoveryOtp,
@@ -21,6 +19,7 @@ import {
 } from "@/services/authRecoverySession";
 
 const OTP_LENGTH = 8;
+const RESEND_SECONDS = 60;
 const param = (value?: string | string[]) =>
   Array.isArray(value) ? value[0] || "" : value || "";
 
@@ -28,14 +27,13 @@ export default function AdminOtpVerification() {
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string }>();
   const email = param(params.email);
-  const input = useRef<TextInput>(null);
   const [otp, setOtp] = useState("");
-  const [countdown, setCountdown] = useState(60);
+  const [countdown, setCountdown] = useState(RESEND_SECONDS);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => { input.current?.focus(); }, []);
   useEffect(() => {
     if (!countdown) return;
     const timer = setInterval(
@@ -46,12 +44,14 @@ export default function AdminOtpVerification() {
   }, [countdown]);
 
   const verify = async () => {
+    if (loading) return;
     if (otp.length !== OTP_LENGTH) {
       setError(`Enter the complete ${OTP_LENGTH}-digit OTP.`);
       return;
     }
     setLoading(true);
     setError("");
+    setNotice("");
     markRecoverySessionActive();
     try {
       await verifyAdminRecoveryOtp(email, otp);
@@ -60,7 +60,6 @@ export default function AdminOtpVerification() {
       clearRecoverySession();
       setError(getAdminAuthError(caught, "Unable to verify the OTP."));
       setOtp("");
-      input.current?.focus();
     } finally {
       setLoading(false);
     }
@@ -70,10 +69,12 @@ export default function AdminOtpVerification() {
     if (countdown || resending) return;
     setResending(true);
     setError("");
+    setNotice("");
     try {
       await sendAdminRecoveryOtp(email);
       setOtp("");
-      setCountdown(60);
+      setCountdown(RESEND_SECONDS);
+      setNotice("A new verification code is on its way.");
     } catch (caught) {
       setError(getAdminAuthError(caught, "Unable to resend the OTP."));
     } finally {
@@ -82,48 +83,42 @@ export default function AdminOtpVerification() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-      <AuthBackButton fallbackRoute="/AdminForgotPassword" />
-      <KeyboardAvoidingView className="flex-1 justify-center px-6" behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <View className="items-center mb-9">
-          <Text className="text-primary font-bold text-4xl">Royal<Text className="text-foreground">Lagn</Text></Text>
-          <Text className="text-foreground text-xl font-bold mt-4">Verify Administrator Email</Text>
-          <Text className="text-muted-foreground text-sm text-center mt-2">
-            Enter the {OTP_LENGTH}-digit code sent to{"\n"}{email}
+    <AuthScreenLayout
+      backRoute="/AdminForgotPassword"
+      eyebrow="Admin Console"
+      title="Verify administrator email"
+      subtitle={
+        <>
+          Enter the {OTP_LENGTH}-digit code sent to{"\n"}
+          <Text className="text-foreground font-semibold">{email}</Text>
+        </>
+      }
+      footer={
+        <AuthLinkButton onPress={() => void resend()} disabled={Boolean(countdown) || resending}>
+          <Text className="text-primary font-semibold text-[13px]">
+            {resending ? "Sending…" : countdown ? `Resend code in ${countdown}s` : "Resend code"}
           </Text>
-        </View>
-        <Pressable className="flex-row justify-between gap-1.5 mb-5" onPress={() => input.current?.focus()}>
-          {Array.from({ length: OTP_LENGTH }, (_, index) => (
-            <View key={index} className={`flex-1 max-w-11 aspect-square rounded-xl border items-center justify-center bg-card ${index === otp.length ? "border-primary" : "border-border"}`}>
-              <Text className="text-foreground text-xl font-bold">{otp[index] || ""}</Text>
-            </View>
-          ))}
-          <TextInput
-            ref={input}
-            value={otp}
-            onChangeText={(value) => {
-              setOtp(value.replace(/\D/g, "").slice(0, OTP_LENGTH));
-              setError("");
-            }}
-            keyboardType="number-pad"
-            textContentType="oneTimeCode"
-            autoComplete="one-time-code"
-            maxLength={OTP_LENGTH}
-            caretHidden
-            style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
-            onSubmitEditing={() => void verify()}
-          />
-        </Pressable>
-        <Pressable className={`rounded-2xl py-4 items-center ${loading ? "bg-primary/45" : "bg-primary"}`} onPress={() => void verify()} disabled={loading}>
-          <Text className="text-white font-semibold">{loading ? "Verifying…" : "Verify OTP"}</Text>
-        </Pressable>
-        {error ? <Text className="text-red-500 text-sm text-center mt-4">{error}</Text> : null}
-        <Pressable className={`py-4 items-center ${countdown ? "opacity-60" : ""}`} onPress={() => void resend()} disabled={Boolean(countdown) || resending}>
-          <Text className="text-primary font-semibold">
-            {resending ? "Sending…" : countdown ? `Resend OTP in ${countdown}s` : "Resend OTP"}
-          </Text>
-        </Pressable>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </AuthLinkButton>
+      }
+    >
+      <View className="gap-4">
+        <OtpCodeField
+          length={OTP_LENGTH}
+          value={otp}
+          onChange={(value) => { setOtp(value); setError(""); }}
+          onSubmit={() => void verify()}
+          disabled={loading}
+        />
+        {error ? <AuthAlert tone="error" message={error} /> : null}
+        {notice && !error ? <AuthAlert tone="success" message={notice} /> : null}
+        <AuthSubmitButton
+          label="Verify code"
+          loadingLabel="Verifying…"
+          loading={loading}
+          disabled={otp.length !== OTP_LENGTH}
+          onPress={() => void verify()}
+        />
+      </View>
+    </AuthScreenLayout>
   );
 }

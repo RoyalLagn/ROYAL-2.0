@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator, Alert, Animated, AppState, FlatList, Platform,
+  ActivityIndicator, Alert, Animated, AppState, FlatList, Image, PixelRatio, Platform,
   Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View,
   type ListRenderItemInfo, type ViewToken,
 } from "react-native";
@@ -17,6 +17,7 @@ import {
   ClipViewerHandoff, ClipViewerSessionService,
 } from "@/clips/services";
 import { CLIP_FEED_SETTINGS } from "@/clips/constants";
+import { cloudinaryDeliveryUrl } from "@/utils/cloudinaryDelivery";
 import type {
   ClipEngagementState, PublicClip, PublicClipCursor,
 } from "@/clips/types";
@@ -247,6 +248,25 @@ export default function ClipsScreen() {
     });
   }, [activeIndex, containerHeight, feedItems.length]);
 
+  // Controlled preloading: only the active clip ever mounts a real video
+  // player (see PublicClipCard's shouldPlayVideo). To keep the *next* Clip
+  // opening fast without a second decoder running, warm just its poster —
+  // the same sized Cloudinary derivative PublicClipCard will request, so
+  // this is a cache hit, not extra bytes.
+  useEffect(() => {
+    const dpr = Math.min(2, Math.max(1, PixelRatio.get()));
+    for (let offset = 1; offset <= CLIP_FEED_SETTINGS.prefetchAhead; offset += 1) {
+      const next = feedItems[activeIndex + offset];
+      if (!next?.thumbnailUrl) continue;
+      const posterUri = cloudinaryDeliveryUrl(next.thumbnailUrl, {
+        width: playerWidth, height: playerHeight, crop: "fill", dpr, quality: "auto",
+      });
+      Image.prefetch(posterUri).catch(() => {
+        // Best-effort warmup only; the poster will still load on demand.
+      });
+    }
+  }, [activeIndex, feedItems, playerHeight, playerWidth]);
+
   useEffect(() => {
     if (Platform.OS !== "web") return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -371,10 +391,7 @@ export default function ClipsScreen() {
         desktop={desktop}
         dark={dark}
         active={index === activeIndex && isFocused && foreground}
-        nearby={
-          index >= activeIndex - 1
-          && index <= activeIndex + CLIP_FEED_SETTINGS.prefetchAhead
-        }
+        shouldPlayVideo={index === activeIndex}
         muted={muted}
         engagement={engagement[item.id] ?? EMPTY_ENGAGEMENT}
         counts={counts[item.id] ?? { likes: item.likesCount, saves: item.savesCount, views: item.viewsCount }}
@@ -435,11 +452,17 @@ export default function ClipsScreen() {
         onRefresh={refreshFeed}
         pagingEnabled snapToInterval={containerHeight} snapToAlignment="start" decelerationRate="fast"
         disableIntervalMomentum showsVerticalScrollIndicator={false}
-        initialNumToRender={3}
-        maxToRenderPerBatch={4}
+        // Only the active + immediate-neighbor rows ever need to be mounted —
+        // each row is a full screen and only the active one carries a real
+        // video player, so a tight render window keeps native view count
+        // (and therefore memory + composited layers) from growing while
+        // scrolling through a long feed. Web keeps a slightly wider window
+        // since DOM nodes are far cheaper than native views.
+        initialNumToRender={Platform.OS === "web" ? 3 : 2}
+        maxToRenderPerBatch={Platform.OS === "web" ? 3 : 2}
         updateCellsBatchingPeriod={16}
-        windowSize={5}
-        removeClippedSubviews={Platform.OS === "ios"}
+        windowSize={Platform.OS === "web" ? 5 : 3}
+        removeClippedSubviews={Platform.OS !== "web"}
         getItemLayout={(_, index) => ({ length: containerHeight, offset: containerHeight * index, index })}
         onViewableItemsChanged={onViewableItemsChanged} viewabilityConfig={viewabilityConfig}
         onEndReached={() => void loadMore()} onEndReachedThreshold={0.75}

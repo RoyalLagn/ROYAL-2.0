@@ -3,8 +3,23 @@ import '@/global.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, View, Text, StyleSheet } from 'react-native';
-import React from 'react';
+import { ActivityIndicator, Platform, Pressable, View, Text, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { useFonts } from 'expo-font';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
+import {
+  PlayfairDisplay_400Regular,
+  PlayfairDisplay_500Medium,
+  PlayfairDisplay_600SemiBold,
+  PlayfairDisplay_700Bold,
+  PlayfairDisplay_700Bold_Italic,
+} from '@expo-google-fonts/playfair-display';
+import * as SplashScreen from 'expo-splash-screen';
 import { FavoritesProvider } from '@/context/FavoritesContext';
 import VendorBottomNav from '@/components/vendor/VendorBottomNav';
 import { LocationProvider } from '@/context/LocationContext';
@@ -14,6 +29,8 @@ import { VendorSessionProvider } from '@/context/VendorSessionContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { AdminAuthProvider } from '@/context/AdminAuthContext';
 import { AdminRouteGuard } from '@/components/auth/AdminRouteGuard';
+import { VendorAuthProvider } from '@/context/VendorAuthContext';
+import { VendorRouteGuard } from '@/components/auth/VendorRouteGuard';
 import { ResponsiveLayoutProvider } from '@/context/ResponsiveLayoutContext';
 import { CategoryProvider } from '@/context/CategoryContext';
 import { SubscriptionProvider } from '@/context/SubscriptionContext';
@@ -27,6 +44,8 @@ import { installWebAlert } from '@/utils/webAlert';
 // react-native-web leaves Alert unimplemented, which silences every
 // Alert.alert in the app on web. Supply it before any screen renders.
 installWebAlert();
+
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export const unstable_settings = {
   initialRouteName: "(tabs)",
@@ -72,51 +91,91 @@ function WebNavigationFocusSafety() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    PlayfairDisplay_400Regular,
+    PlayfairDisplay_500Medium,
+    PlayfairDisplay_600SemiBold,
+    PlayfairDisplay_700Bold,
+    PlayfairDisplay_700Bold_Italic,
+  });
+  // Web loads these 9 weights as separate network requests (~1.1MB combined);
+  // blocking first paint on all of them was confirmed via a production
+  // Lighthouse trace to be the dominant contributor to LCP (font requests
+  // saturating the connection ahead of the hero image). Render immediately
+  // on web with the platform fallback font stack -- text re-renders with the
+  // real family the moment each FontFace resolves, the same trade-off
+  // `font-display: swap` makes. Native bundles these fonts locally (no
+  // network cost, near-instant), so the original blocking wait is kept
+  // there to avoid any visible flash of the fallback font.
+  const fontsReady = Platform.OS === 'web' || fontsLoaded || fontError;
+
+  useEffect(() => {
+    if (fontsReady) {
+      SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [fontsReady]);
+
+  if (!fontsReady) {
+    return (
+      <View style={styles.fontLoading}>
+        <ActivityIndicator color="#E91E63" />
+      </View>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <WebNavigationFocusSafety />
       <PublicAuthProvider>
           <CategoryProvider>
             <AdminAuthProvider>
-              <NotificationProvider>
-                <VendorSessionProvider>
-                  <VendorNotificationProvider>
-                    <SubscriptionProvider>
-                      <FavoritesProvider>
-                        <ReviewRatingsProvider>
-                          <LocationProvider>
-                            <ThemeProvider>
-                              <SafeAreaProvider>
-                                <ResponsiveLayoutProvider>
-                                  <PushTokenRegistrar />
-                                  <StatusBar style="dark" backgroundColor="#FFFFFF" translucent={false} />
-                                  <View className="bg-background" style={styles.app}>
-                                    <AdminWorkspaceShell>
-                                      <View style={styles.stack}>
-                                        <AdminRouteGuard>
-                                          {/* A single, app-wide transition preset instead of
-                                              per-screen configuration -- see utils/motion.ts
-                                              for why `fade_from_bottom` (soft fade + small
-                                              upward settle, native-driven) was chosen over a
-                                              custom reanimated screen wrapper. Every one of the
-                                              ~90 screens under app/ inherits this automatically;
-                                              back navigation reverses it natively. */}
-                                          <Stack screenOptions={{ headerShown: false, animation: SCREEN_TRANSITION }} />
-                                        </AdminRouteGuard>
-                                      </View>
-                                    </AdminWorkspaceShell>
-                                    <VendorBottomNav />
-                                  </View>
-                                </ResponsiveLayoutProvider>
-                              </SafeAreaProvider>
-                            </ThemeProvider>
-                          </LocationProvider>
-                        </ReviewRatingsProvider>
-                      </FavoritesProvider>
-                    </SubscriptionProvider>
-                  </VendorNotificationProvider>
-                </VendorSessionProvider>
-              </NotificationProvider>
+              <VendorAuthProvider>
+                <NotificationProvider>
+                  <VendorSessionProvider>
+                    <VendorNotificationProvider>
+                      <SubscriptionProvider>
+                        <FavoritesProvider>
+                          <ReviewRatingsProvider>
+                            <LocationProvider>
+                              <ThemeProvider>
+                                <SafeAreaProvider>
+                                  <ResponsiveLayoutProvider>
+                                    <PushTokenRegistrar />
+                                    <StatusBar style="dark" backgroundColor="#FFFFFF" translucent={false} />
+                                    <View className="bg-background" style={styles.app}>
+                                      <AdminWorkspaceShell>
+                                        <View style={styles.stack}>
+                                          <AdminRouteGuard>
+                                            <VendorRouteGuard>
+                                              {/* A single, app-wide transition preset instead of
+                                                  per-screen configuration -- see utils/motion.ts
+                                                  for why `fade_from_bottom` (soft fade + small
+                                                  upward settle, native-driven) was chosen over a
+                                                  custom reanimated screen wrapper. Every one of the
+                                                  ~90 screens under app/ inherits this automatically;
+                                                  back navigation reverses it natively. */}
+                                              <Stack screenOptions={{ headerShown: false, animation: SCREEN_TRANSITION }} />
+                                            </VendorRouteGuard>
+                                          </AdminRouteGuard>
+                                        </View>
+                                      </AdminWorkspaceShell>
+                                      <VendorBottomNav />
+                                    </View>
+                                  </ResponsiveLayoutProvider>
+                                </SafeAreaProvider>
+                              </ThemeProvider>
+                            </LocationProvider>
+                          </ReviewRatingsProvider>
+                        </FavoritesProvider>
+                      </SubscriptionProvider>
+                    </VendorNotificationProvider>
+                  </VendorSessionProvider>
+                </NotificationProvider>
+              </VendorAuthProvider>
             </AdminAuthProvider>
           </CategoryProvider>
         </PublicAuthProvider>
@@ -127,6 +186,12 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   app: { flex: 1 },
   stack: { flex: 1, minHeight: 0, zIndex: 0 },
+  fontLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFBFC',
+  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',

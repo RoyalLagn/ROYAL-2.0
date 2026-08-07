@@ -19,66 +19,213 @@ export type VendorSignupDetails = {
   phone: string;
 };
 
-export type VendorDestination =
-  | { pathname: "/vendor-dashboard" }
-  | { pathname: "/BecomeVendor" }
-  | {
-      pathname: "/VendorAuthStatus";
-      params: { status: "pending" | "rejected"; reason?: string };
-    };
+export type VendorApplicationSummary = {
+  id: string;
+  status: "pending" | "approved" | "rejected";
+  rejection_reason: string | null;
+  profile_id: string | null;
+};
 
-async function requireVendorProfile(user: User) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id,email,role,is_active")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (error) throw error;
-  if (!data || data.role !== "vendor" || !data.is_active) {
-    throw new Error("This account is not an active Vendor account.");
+export type VendorRecord = { id: string; is_verified: boolean; profile_id: string | null };
+
+/** Every state the centralized resolver can settle on. Exactly one state
+ * maps to exactly one destination -- see `destinationForState`. */
+export type VendorResolutionState =
+  | "unauthenticated"
+  | "not_vendor"
+  | "no_application"
+  | "pending"
+  | "rejected"
+  | "approved_unverified"
+  | "approved_verified";
+
+export type VendorDestination =
+  | { pathname: "/VendorAuth" }
+  | { pathname: "/BecomeVendor" }
+  | { pathname: "/VendorAuthStatus"; params: { status: "pending" | "rejected"; reason?: string } }
+  | { pathname: "/vendor-dashboard" };
+
+export type VendorResolution = {
+  state: VendorResolutionState;
+  destination: VendorDestination;
+  application: VendorApplicationSummary | null;
+  vendor: VendorRecord | null;
+};
+
+// ---------------------------------------------------------------------------
+// Safe error logging. Never logs tokens, passwords, or session contents --
+// only the fields PostgREST/Postgres put on a query error.
+// ---------------------------------------------------------------------------
+export function logSupabaseError(context: string, error: unknown) {
+  const e = error as { code?: string; message?: string; details?: string; hint?: string } | null;
+  if (e && typeof e === "object" && ("code" in e || "message" in e)) {
+    console.error(`[vendorAuth] ${context}`, {
+      code: e.code ?? null,
+      message: e.message ?? null,
+      details: e.details ?? null,
+      hint: e.hint ?? null,
+    });
+  } else {
+    console.error(`[vendorAuth] ${context}`, {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Retry helper. Postgres/PostgREST errors that carry a `code` are
+// deterministic query results (bad input, RLS denial, no matching row,
+// business-rule rejection) -- retrying them just repeats the same failure
+// and, for a raised exception like claim_vendor_workspace's "no matching
+// application", turns one 400 into several. Only genuine transport failures
+// (no response reached the server) are retried, with a small capped count.
+// ---------------------------------------------------------------------------
+function isRetryableTransportError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; status?: number; message?: string };
+  if (typeof e.status === "number") return e.status === 429 || e.status >= 500;
+  if (e.code) return false; // a Postgres/PostgREST error code means the server answered.
+  return /network|fetch|timeout|failed to fetch/i.test(e.message || "");
+}
+
+async function withTransportRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts || !isRetryableTransportError(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 300 * 3 ** attempt));
+    }
+  }
+  throw lastError;
+}
+
+async function fetchVendorProfile(userId: string) {
+  const { data, error } = await withTransportRetry(async () =>
+    supabase.from("profiles").select("id,email,role,is_active").eq("id", userId).maybeSingle()
+  );
+  if (error) {
+    logSupabaseError("fetchVendorProfile", error);
+    throw error;
   }
   return data;
 }
 
-export async function resolveVendorDestination(user: User): Promise<VendorDestination> {
-  await requireVendorProfile(user);
-  const email = normalizeEmail(user.email || "");
-  const { data: applications, error } = await supabase
-    .from("vendor_applications")
-    .select("id,status,rejection_reason,profile_id")
-    .or(`profile_id.eq.${user.id},email.eq.${email}`)
-    .order("submitted_at", { ascending: false })
-    .limit(1);
-  if (error) throw error;
-  const application = applications?.[0];
-  if (!application) return { pathname: "/BecomeVendor" };
-  if (application.status === "pending") {
-    return { pathname: "/VendorAuthStatus", params: { status: "pending" } };
+async function fetchLatestApplication(userId: string, email: string): Promise<VendorApplicationSummary | null> {
+  const { data, error } = await withTransportRetry(async () =>
+    supabase
+      .from("vendor_applications")
+      .select("id,status,rejection_reason,profile_id")
+      .or(`profile_id.eq.${userId},email.eq.${email}`)
+      .order("submitted_at", { ascending: false })
+      .limit(1)
+  );
+  if (error) {
+    logSupabaseError("fetchLatestApplication", error);
+    throw error;
   }
-  if (application.status === "rejected") {
+  return (data?.[0] as VendorApplicationSummary | undefined) ?? null;
+}
+
+async function fetchVendorRecord(userId: string): Promise<VendorRecord | null> {
+  const { data, error } = await withTransportRetry(async () =>
+    supabase.from("vendors").select("id,is_verified,profile_id").eq("profile_id", userId).maybeSingle()
+  );
+  if (error) {
+    logSupabaseError("fetchVendorRecord", error);
+    throw error;
+  }
+  return data as VendorRecord | null;
+}
+
+/**
+ * The single, centralized resolver for "where should this vendor land".
+ * Performs one round of fetches (profile -> application -> vendor) and
+ * returns exactly one destination. It is safe to call repeatedly (each
+ * state's destination is idempotent to compute), but callers must not call
+ * it from more than one place per navigation decision -- see
+ * context/VendorAuthContext.tsx, which is the only owner of this call.
+ *
+ * claim_vendor_workspace() is invoked at most once per resolve, and only
+ * when the application is approved but the vendor workspace is not yet
+ * linked to this profile / not yet verified. A vendor who already has a
+ * linked, verified workspace never triggers the RPC.
+ */
+export async function resolveVendorDestination(user: User | null): Promise<VendorResolution> {
+  if (!user) {
+    return { state: "unauthenticated", destination: { pathname: "/VendorAuth" }, application: null, vendor: null };
+  }
+
+  const profile = await fetchVendorProfile(user.id);
+  if (!profile || profile.role !== "vendor" || !profile.is_active) {
+    return { state: "not_vendor", destination: { pathname: "/VendorAuth" }, application: null, vendor: null };
+  }
+
+  const email = normalizeEmail(user.email || "");
+  const application = await fetchLatestApplication(user.id, email);
+
+  if (!application) {
+    return { state: "no_application", destination: { pathname: "/BecomeVendor" }, application: null, vendor: null };
+  }
+
+  if (application.status === "pending") {
     return {
-      pathname: "/VendorAuthStatus",
-      params: {
-        status: "rejected",
-        reason: application.rejection_reason || undefined,
-      },
+      state: "pending",
+      destination: { pathname: "/VendorAuthStatus", params: { status: "pending" } },
+      application,
+      vendor: null,
     };
   }
 
-  const { error: claimError } = await supabase.rpc("claim_vendor_workspace");
-  if (claimError) throw claimError;
-  const { data: vendor, error: vendorError } = await supabase
-    .from("vendors")
-    .select("id,is_verified")
-    .eq("profile_id", user.id)
-    .maybeSingle();
-  if (vendorError) throw vendorError;
-  if (!vendor?.is_verified) {
-    return { pathname: "/VendorAuthStatus", params: { status: "pending" } };
+  if (application.status === "rejected") {
+    return {
+      state: "rejected",
+      destination: {
+        pathname: "/VendorAuthStatus",
+        params: { status: "rejected", reason: application.rejection_reason || undefined },
+      },
+      application,
+      vendor: null,
+    };
   }
-  return { pathname: "/vendor-dashboard" };
+
+  // application.status === "approved" from here on.
+  let vendor = await fetchVendorRecord(user.id);
+  const needsClaim = !vendor || vendor.profile_id !== user.id || !vendor.is_verified;
+
+  if (needsClaim) {
+    const { error: claimError } = await supabase.rpc("claim_vendor_workspace");
+    if (claimError) {
+      logSupabaseError("claim_vendor_workspace", claimError);
+      throw claimError;
+    }
+    vendor = await fetchVendorRecord(user.id);
+  }
+
+  if (!vendor?.is_verified) {
+    return {
+      state: "approved_unverified",
+      destination: { pathname: "/VendorAuthStatus", params: { status: "pending" } },
+      application,
+      vendor,
+    };
+  }
+
+  return { state: "approved_verified", destination: { pathname: "/vendor-dashboard" }, application, vendor };
 }
 
+async function requireVendorProfile(user: User) {
+  const profile = await fetchVendorProfile(user.id);
+  if (!profile || profile.role !== "vendor" || !profile.is_active) {
+    throw new Error("This account is not an active Vendor account.");
+  }
+  return profile;
+}
+
+/** Password login -- verifies vendor role, session is ready for the caller
+ * to resolve a destination via resolveVendorDestination(). */
 export async function loginVendor(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({
     email: normalizeEmail(email),
@@ -86,7 +233,8 @@ export async function loginVendor(email: string, password: string) {
   });
   if (error || !data.user) throw error ?? new Error("Unable to restore the Vendor session.");
   try {
-    return await resolveVendorDestination(data.user);
+    await requireVendorProfile(data.user);
+    return data.user;
   } catch (caught) {
     await supabase.auth.signOut();
     throw caught;
@@ -183,6 +331,17 @@ export async function completeVendorSignup(details: VendorSignupDetails, passwor
     role: "vendor",
   });
   if (profileError) throw profileError;
+
+  // updateUser() refreshes the existing session in place and does not sign
+  // the user out, but confirm a usable session actually survived before the
+  // caller navigates into BecomeVendor, which requires one.
+  const { data: sessionCheck } = await supabase.auth.getSession();
+  if (!sessionCheck.session) {
+    const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !refreshed.session) {
+      throw new Error("Your account was created, but the session could not be restored. Please log in.");
+    }
+  }
 }
 
 export async function updateVendorRecoveredPassword(password: string) {
@@ -210,6 +369,9 @@ export function getVendorAuthError(error: unknown, fallback: string) {
   if (/rate|seconds/i.test(message)) return "Please wait before requesting another OTP.";
   if (/network|fetch/i.test(message)) return "Network error. Check your connection and try again.";
   if (/invalid.*(token|otp)|(token|otp).*invalid/i.test(message)) return "The verification code is invalid.";
+  if (/no matching vendor application/i.test(message)) {
+    return "No Vendor business is connected to this account. Sign in with your approved Vendor email.";
+  }
   return message || fallback;
 }
 

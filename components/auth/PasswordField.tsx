@@ -1,58 +1,67 @@
 import React, { forwardRef, useState } from "react";
 import { Eye, EyeOff, Lock } from "lucide-react-native";
-import { Pressable, TextInput, View } from "react-native";
+import { Pressable, type TextInput, type TextInputProps } from "react-native";
+import { AuthField } from "@/components/auth/AuthField";
 
 type PasswordFieldProps = {
+  label?: string;
   value: string;
   onChangeText: (value: string) => void;
   placeholder: string;
   onSubmitEditing?: () => void;
   returnKeyType?: "done" | "next" | "go";
-  onFocus?: (event: unknown) => void;
+  onFocus?: TextInputProps["onFocus"];
+  error?: string;
+  hint?: string;
+  /** "current-password" on login, "new-password" when setting one. */
+  autoComplete?: "current-password" | "new-password";
 };
 
 export const PasswordField = forwardRef(function PasswordField(
   {
+    label = "Password",
     value,
     onChangeText,
     placeholder,
     onSubmitEditing,
     returnKeyType = "done",
     onFocus,
+    error,
+    hint,
+    autoComplete = "current-password",
   }: PasswordFieldProps,
-  ref: React.Ref<TextInput>
+  ref: React.Ref<TextInput>,
 ) {
   const [visible, setVisible] = useState(false);
   return (
-    <View className="flex-row items-center bg-card border border-border rounded-2xl px-4">
-      <Lock size={20} className="text-muted-foreground" />
-      <TextInput
-        ref={ref}
-        className="flex-1 text-foreground py-4 mx-3"
-        placeholder={placeholder}
-        placeholderTextColor="#A8A29E"
-        secureTextEntry={!visible}
-        autoCapitalize="none"
-        autoCorrect={false}
-        textContentType="password"
-        autoComplete="password"
-        value={value}
-        onChangeText={onChangeText}
-        onSubmitEditing={onSubmitEditing}
-        returnKeyType={returnKeyType}
-        submitBehavior={returnKeyType === "next" ? "submit" : "blurAndSubmit"}
-        onFocus={onFocus}
-      />
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={visible ? "Hide password" : "Show password"}
-        hitSlop={10}
-        onPress={() => setVisible((current) => !current)}
-      >
-        {visible
-          ? <EyeOff size={20} className="text-muted-foreground" />
-          : <Eye size={20} className="text-muted-foreground" />}
-      </Pressable>
-    </View>
+    <AuthField
+      ref={ref}
+      label={label}
+      icon={Lock}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      error={error}
+      hint={hint}
+      secureTextEntry={!visible}
+      textContentType={autoComplete === "new-password" ? "newPassword" : "password"}
+      autoComplete={autoComplete}
+      returnKeyType={returnKeyType}
+      onSubmitEditing={onSubmitEditing}
+      onFocus={onFocus}
+      accessory={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={visible ? "Hide password" : "Show password"}
+          hitSlop={10}
+          className="pl-3 active:opacity-60"
+          onPress={() => setVisible((current) => !current)}
+        >
+          {visible
+            ? <EyeOff size={19} className="text-muted-foreground" />
+            : <Eye size={19} className="text-muted-foreground" />}
+        </Pressable>
+      }
+    />
   );
 });

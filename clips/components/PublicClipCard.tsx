@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, PixelRatio, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { BadgeCheck, MapPin, MessageCircle, Star } from "lucide-react-native";
+import { cloudinaryDeliveryUrl } from "@/utils/cloudinaryDelivery";
 import type { ClipEngagementState, PublicClip } from "../types";
 import { PublicClipActions } from "./PublicClipActions";
 import { PublicClipVideo } from "./PublicClipVideo";
+import { PublicClipVideoBoundary } from "./PublicClipVideoBoundary";
 
 type PublicClipCardProps = {
   clip: PublicClip;
@@ -15,7 +17,8 @@ type PublicClipCardProps = {
   desktop: boolean;
   dark: boolean;
   active: boolean;
-  nearby: boolean;
+  /** Only true for the currently-active card — the single slot allowed to mount a real video player/decoder. */
+  shouldPlayVideo: boolean;
   muted: boolean;
   chromeVisible: boolean;
   engagement: ClipEngagementState;
@@ -30,7 +33,7 @@ type PublicClipCardProps = {
 };
 
 function PublicClipCardComponent({
-  clip, width, height, compact, desktop, dark, active, nearby, muted, engagement, counts,
+  clip, width, height, compact, desktop, dark, active, shouldPlayVideo, muted, engagement, counts,
   chromeVisible, onHoldChange, onToggleMuted, onLike, onSave, onShare, onVendor, onContact,
 }: PublicClipCardProps) {
   const [captionExpanded, setCaptionExpanded] = useState(false);
@@ -52,11 +55,31 @@ function PublicClipCardComponent({
     ? caption
     : `${caption.slice(0, 109).trimEnd()}…`;
 
+  // Vendor avatars are rendered at ~36-48px — never download the original
+  // uploaded logo when a sized Cloudinary derivative is a single URL rewrite.
+  const avatarUri = useMemo(() => (
+    clip.vendor.avatarUrl
+      ? cloudinaryDeliveryUrl(clip.vendor.avatarUrl, {
+        width: 48, height: 48, crop: "fill", dpr: PixelRatio.get(), quality: "auto",
+      })
+      : null
+  ), [clip.vendor.avatarUrl]);
+
+  // The poster shown for a card that isn't the active player — sized to the
+  // card's actual render dimensions instead of the full uploaded thumbnail.
+  const posterUri = useMemo(() => (
+    clip.thumbnailUrl
+      ? cloudinaryDeliveryUrl(clip.thumbnailUrl, {
+        width, height, crop: "fill", dpr: PixelRatio.get(), quality: "auto",
+      })
+      : clip.thumbnailUrl
+  ), [clip.thumbnailUrl, width, height]);
+
   const vendorProfile = (
     <Pressable accessibilityRole="button" accessibilityLabel={`View ${clip.vendor.name} profile`} onPress={onVendor} style={styles.vendorRow}>
       <View style={[styles.profileAvatar, { backgroundColor: dark ? "#26141D" : "#FCEAF1" }]}>
-        {clip.vendor.avatarUrl
-          ? <Image source={{ uri: clip.vendor.avatarUrl }} style={styles.profileAvatarImage} />
+        {avatarUri
+          ? <Image source={{ uri: avatarUri }} style={styles.profileAvatarImage} />
           : <Text style={styles.profileAvatarLetter}>{clip.vendor.name.slice(0, 1).toUpperCase()}</Text>}
       </View>
       <View style={styles.profileCopy}>
@@ -103,22 +126,28 @@ function PublicClipCardComponent({
 
   const video = (
     <View style={[styles.card, !desktop && styles.cardMobile, compact && desktop && styles.cardCompact, { width, height }, desktop && Platform.OS === "web" ? styles.cardWeb : null]}>
-      {nearby
-        ? <PublicClipVideo
-          uri={clip.videoUrl}
-          thumbnailUrl={clip.thumbnailUrl}
-          sourceWidth={clip.resolution.width}
-          sourceHeight={clip.resolution.height}
-          active={active}
-          muted={muted}
-          onToggleMuted={onToggleMuted}
-          onHoldChange={desktop ? undefined : onHoldChange}
-          showMuteControl={desktop || chromeVisible}
-          onDoubleTapLike={() => {
-            if (!engagement.liked) onLike();
-          }}
-        />
-        : <Image source={{ uri: clip.thumbnailUrl }} resizeMode="cover" style={StyleSheet.absoluteFill} />}
+      {shouldPlayVideo
+        ? <PublicClipVideoBoundary posterUri={posterUri ?? ""}>
+          <PublicClipVideo
+            uri={clip.videoUrl}
+            thumbnailUrl={clip.thumbnailUrl}
+            sourceWidth={clip.resolution.width}
+            sourceHeight={clip.resolution.height}
+            active={active}
+            muted={muted}
+            width={width}
+            height={height}
+            onToggleMuted={onToggleMuted}
+            onHoldChange={desktop ? undefined : onHoldChange}
+            showMuteControl={desktop || chromeVisible}
+            onDoubleTapLike={() => {
+              if (!engagement.liked) onLike();
+            }}
+          />
+        </PublicClipVideoBoundary>
+        : posterUri
+          ? <Image source={{ uri: posterUri }} resizeMode="cover" style={StyleSheet.absoluteFill} />
+          : null}
       {!desktop ? <Animated.View
         pointerEvents={chromeVisible ? "box-none" : "none"}
         style={[StyleSheet.absoluteFill, chromeStyle]}
@@ -194,7 +223,7 @@ export const PublicClipCard = React.memo(
     && previous.desktop === next.desktop
     && previous.dark === next.dark
     && previous.active === next.active
-    && previous.nearby === next.nearby
+    && previous.shouldPlayVideo === next.shouldPlayVideo
     && previous.muted === next.muted
     && previous.chromeVisible === next.chromeVisible
     && previous.engagement.liked === next.engagement.liked

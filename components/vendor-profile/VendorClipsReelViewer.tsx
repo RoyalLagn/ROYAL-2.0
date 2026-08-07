@@ -21,7 +21,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BadgeCheck, ChevronLeft, Eye, Heart, Send } from "lucide-react-native";
-import { PublicClipVideo } from "@/clips/components";
+import { PublicClipVideo, PublicClipVideoBoundary } from "@/clips/components";
 import { CLIP_FEED_SETTINGS } from "@/clips/constants";
 import {
   PublicClipEngagementService,
@@ -29,6 +29,7 @@ import {
 } from "@/clips/services";
 import type { ClipEngagementState, PublicClip } from "@/clips/types";
 import { usePublicAuth } from "@/context/PublicAuthContext";
+import { cloudinaryDeliveryUrl } from "@/utils/cloudinaryDelivery";
 
 type ViewerItem = {
   key: string;
@@ -205,10 +206,16 @@ export default function VendorClipsReelViewer({
   }, [clips.length, height]);
 
   const renderItem = useCallback(({ item, index }: ListRenderItemInfo<ViewerItem>) => {
-    const nearby = Math.abs(index - activeIndex) <= CLIP_FEED_SETTINGS.prefetchAhead;
+    // Only the active slot mounts a real video player — matches the main
+    // Clips feed's "one decoder at a time" rule so this modal can't stack up
+    // extra concurrent players either.
+    const shouldPlayVideo = index === activeIndex;
     const clip = item.clip;
     const liked = engagement[clip.id]?.liked ?? false;
     const clipCounts = counts[clip.id] ?? { likes: clip.likesCount, views: clip.viewsCount };
+    const posterUri = clip.thumbnailUrl
+      ? cloudinaryDeliveryUrl(clip.thumbnailUrl, { width, height, crop: "fill", dpr: 2, quality: "auto" })
+      : clip.thumbnailUrl;
     return (
       <View
         style={[
@@ -219,23 +226,27 @@ export default function VendorClipsReelViewer({
             : null,
         ]}
       >
-        {nearby ? (
-          <PublicClipVideo
-            uri={clip.videoUrl}
-            thumbnailUrl={clip.thumbnailUrl}
-            sourceWidth={clip.resolution.width}
-            sourceHeight={clip.resolution.height}
-            active={index === activeIndex && visible && foreground}
-            muted={muted}
-            showMuteControl={false}
-            onToggleMuted={() => setMuted((current) => !current)}
-            onDoubleTapLike={() => {
-              if (!liked) void toggleLike(clip);
-            }}
-          />
-        ) : (
-          <Image source={{ uri: clip.thumbnailUrl }} resizeMode="cover" style={StyleSheet.absoluteFill} />
-        )}
+        {shouldPlayVideo ? (
+          <PublicClipVideoBoundary posterUri={posterUri ?? ""}>
+            <PublicClipVideo
+              uri={clip.videoUrl}
+              thumbnailUrl={clip.thumbnailUrl}
+              sourceWidth={clip.resolution.width}
+              sourceHeight={clip.resolution.height}
+              active={index === activeIndex && visible && foreground}
+              muted={muted}
+              width={width}
+              height={height}
+              showMuteControl={false}
+              onToggleMuted={() => setMuted((current) => !current)}
+              onDoubleTapLike={() => {
+                if (!liked) void toggleLike(clip);
+              }}
+            />
+          </PublicClipVideoBoundary>
+        ) : posterUri ? (
+          <Image source={{ uri: posterUri }} resizeMode="cover" style={StyleSheet.absoluteFill} />
+        ) : null}
         <LinearGradient
           pointerEvents="none"
           colors={["rgba(0,0,0,.44)", "transparent", "transparent", "rgba(0,0,0,.78)"]}
@@ -341,9 +352,9 @@ export default function VendorClipsReelViewer({
           snapToAlignment="start"
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
-          initialNumToRender={3}
-          maxToRenderPerBatch={4}
-          windowSize={5}
+          initialNumToRender={Platform.OS === "web" ? 3 : 2}
+          maxToRenderPerBatch={Platform.OS === "web" ? 3 : 2}
+          windowSize={Platform.OS === "web" ? 5 : 3}
           removeClippedSubviews={Platform.OS !== "web"}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}

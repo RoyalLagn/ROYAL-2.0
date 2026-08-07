@@ -22,8 +22,8 @@ export default function RoyalLagnLogo({
         accessible
         accessibilityLabel="RoyalLagn Wedding Planner"
         source={colorScheme === "dark"
-          ? require("../assets/Logo/center-logo.png")
-          : require("../assets/Logo/light-logo.png")}
+          ? require("../assets/images/optimized/center-logo.webp")
+          : require("../assets/images/optimized/light-logo.webp")}
         resizeMode="contain"
         style={[styles.image, { transform: [{ scale }] }]}
       />

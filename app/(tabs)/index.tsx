@@ -54,14 +54,18 @@ import { shareRoyalLagnApp } from "@/services/AppShareService";
 import { useCategories } from "@/context/CategoryContext";
 import SafeImage from "@/components/SafeImage";
 import { VendorCardSkeletonRow } from "@/components/loading/Skeleton";
-import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 import { BREAKPOINTS } from "@/utils/responsiveLayout";
+import { brandColors, brandPalette } from "@/constants/brandPalette";
+import { fonts } from "@/constants/typography";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primaryStrong;
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
 const PRIMARY_CATEGORY_COUNT = 9;
-/** Line-art floral corner. Drawn for a bottom-left corner, so it is rotated for other corners. */
-const FLOWER_ORNAMENT = require("../../assets/images/flowersvg.png");
+/** Optimized WebP floral corner (was 1.4MB PNG). */
+const FLOWER_ORNAMENT = require("../../assets/images/optimized/flowersvg.webp");
+/** Lightweight vendor-card fallback — avoids bundling multi‑MB category-fallback PNGs on Home. */
+const VENDOR_CARD_PLACEHOLDER = require("../../assets/images/optimized/vendor-placeholder.webp");
+const LIST_BUSINESS_BG = require("../../assets/images/optimized/list-business-bg.webp");
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -140,12 +144,15 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  const bg     = isDark ? "#070B14" : "#FFFFFF";
-  const card   = isDark ? "#0E141F" : "#FFFFFF";
-  const text   = isDark ? "#F5F0F3" : "#111827";
-  const muted  = isDark ? "#AAA0A5" : "#6B7280";
-  const border = isDark ? "#232C3D" : "#E5E7EB";
-  const heroBorder = isDark ? "#3A2530" : "#FBCFE8";
+  const colors = brandColors(isDark);
+  const bg = colors.background;
+  const card = colors.card;
+  const text = isDark ? "#F5F0F3" : colors.foreground;
+  const muted = colors.mutedForeground;
+  const border = colors.border;
+  const heroBorder = isDark ? "#3A2530" : colors.border;
+  const PINK = colors.primaryStrong;
+  const STAR = colors.rating;
 
   const catNameForNav = (name: string) => name;
   const openCategory = (name: string) => router.push({
@@ -438,14 +445,13 @@ export default function HomeScreen() {
           />
 
           <View style={s.catGrid}>
-            {displayedCategories.map((cat, index) => (
+            {displayedCategories.map((cat) => (
               <HomeCategoryCard
                 key={cat.id}
                 name={cat.name}
                 image={cat.homeImage}
                 itemWidth={categoryItemWidth}
                 cardWidth={categoryCardWidth}
-                tone={index}
                 dark={isDark}
                 onPress={() => openCategory(cat.name)}
               />
@@ -455,7 +461,6 @@ export default function HomeScreen() {
                 name="More Categories"
                 itemWidth={categoryItemWidth}
                 cardWidth={categoryCardWidth}
-                tone={1}
                 dark={isDark}
                 more
                 onPress={() => setShowAllCategories(true)}
@@ -542,13 +547,15 @@ export default function HomeScreen() {
                       <SafeImage
                         debugLabel={`home vendor card: ${v.name}`}
                         source={{ uri: v.image }}
-                        fallbackSource={resolveMarketplaceCategoryImage(v.category).fallbackSource}
+                        fallbackSource={VENDOR_CARD_PLACEHOLDER}
+                        deliveryWidth={Math.round(vendorCardWidth)}
+                        deliveryHeight={Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68))}
                         style={s.vendorImg}
                         resizeMode="cover"
                       />
                       <View style={s.imgBottomRow}>
                         <View style={s.ratingBadge}>
-                          <Star size={11} color="#FACC15" fill="#FACC15" />
+                          <Star size={11} color={STAR} fill={STAR} />
                           <Text style={s.ratingBadgeTxt}>{v.rating}</Text>
                         </View>
                         <View style={s.verifiedBadge}>
@@ -598,8 +605,8 @@ export default function HomeScreen() {
             onActionPress={() => router.push("/(tabs)/Categories")}
             accessory={
               <View style={[s.nearBadge, { backgroundColor: isDark ? "#3A2E12" : "#FFF8E1", borderColor: isDark ? "#5B4A1E" : "#F5DDA0" }]}>
-                <Star size={11} color="#FACC15" fill="#FACC15" />
-                <Text style={[s.nearBadgeText, { color: isDark ? "#FACC15" : "#B45309" }]}>Highest Rated</Text>
+                <Star size={11} color={STAR} fill={STAR} />
+                <Text style={[s.nearBadgeText, { color: colors.ratingForeground }]}>Highest Rated</Text>
               </View>
             }
           />
@@ -641,13 +648,15 @@ export default function HomeScreen() {
                       <SafeImage
                         debugLabel={`home top rated vendor card: ${v.name}`}
                         source={{ uri: v.image }}
-                        fallbackSource={resolveMarketplaceCategoryImage(v.category).fallbackSource}
+                        fallbackSource={VENDOR_CARD_PLACEHOLDER}
+                        deliveryWidth={Math.round(vendorCardWidth)}
+                        deliveryHeight={Math.round(vendorCardWidth * (isDesktop ? 0.55 : 0.68))}
                         style={s.vendorImg}
                         resizeMode="cover"
                       />
                       <View style={s.imgBottomRow}>
                         <View style={s.ratingBadge}>
-                          <Star size={11} color="#FACC15" fill="#FACC15" />
+                          <Star size={11} color={STAR} fill={STAR} />
                           <Text style={s.ratingBadgeTxt}>{v.rating}</Text>
                         </View>
                         <View style={s.verifiedBadge}>
@@ -690,7 +699,7 @@ export default function HomeScreen() {
         {/* ── List Your Business ── */}
         <View style={[s.listBanner, { width: featureWidth }]}>
           <Image
-            source={require("../../assets/list-business-bg.png")}
+            source={LIST_BUSINESS_BG}
             style={{ width: "100%", height: listBannerHeight }}
             resizeMode="cover"
           />
@@ -704,12 +713,12 @@ export default function HomeScreen() {
           >
             <View style={s.listLeft}>
               <Text style={s.listTitle}>List Your Business</Text>
-              <Text style={[s.listSub, { color: isDark ? "#FBCFE8" : "#BE185D" }]}>
+              <Text style={[s.listSub, { color: colors.secondaryForeground }]}>
                 Join thousands of vendors{"\n"}growing with us
               </Text>
               <TouchableOpacity
                 style={s.registerBtn}
-                onPress={() => router.push("/BecomeVendor")}
+                onPress={() => router.push({ pathname: "/VendorAuth", params: { tab: "signup" } })}
               >
                 <Text style={s.registerTxt}>Register Now</Text>
                 <ChevronRight size={13} color="#FFF" />
@@ -741,25 +750,25 @@ const s = StyleSheet.create<Record<string, any>>({
   headerLogo:      { position: "absolute", zIndex: 1, left: "50%", height: 48, alignItems: "center", justifyContent: "center" },
   headerActions:   { zIndex: 2, marginLeft: "auto", flexDirection: "row", flexShrink: 0, alignItems: "center" },
   headerAction:    { width: 36, height: 44, borderRadius: 18, alignItems: "center", justifyContent: "center", position: "relative" },
-  badge:           { position: "absolute", top: 2, right: 1, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: PINK, borderWidth: 2, borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
-  badgeTxt:        { color: "#FFF", fontSize: 8, fontWeight: "800" },
+  badge:           { position: "absolute", top: 2, right: 1, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: PINK, borderWidth: 2, borderColor: brandPalette.light.primaryForeground, alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
+  badgeTxt:        { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 8 },
 
   /* Greeting */
-  greetingText:    { fontSize: 12, lineHeight: 17, fontWeight: "600", marginBottom: 2 },
-  greetingTitle:   { fontFamily: "serif", fontSize: 22, lineHeight: 26, fontWeight: "800", letterSpacing: -0.5 },
+  greetingText:    { fontFamily: fonts.sans.semibold, fontSize: 12, lineHeight: 17, marginBottom: 2 },
+  greetingTitle:   { fontFamily: fonts.serif.bold, fontSize: 22, lineHeight: 26, letterSpacing: -0.5 },
   greetingTitleDesktop: { fontSize: 27, lineHeight: 31 },
-  greetingAccent:  { color: PINK, fontStyle: "italic" },
+  greetingAccent:  { color: PINK, fontFamily: fonts.serif.boldItalic },
 
   /* Greeting */
   greetingBlock:   { alignSelf: "center", marginTop: 5, marginBottom: 6 },
 
   /* Search and filters */
   searchPad:       { alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 10, marginTop: 2, marginBottom: 12 },
-  searchBar:       { flex: 1, minWidth: 0, height: 46 },
-  filterBtn:       { width: 46, height: 46, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 18, borderWidth: 1, borderColor: "#F04478", shadowOpacity: 0, elevation: 0 },
-  filterBtnNarrow: { width: 44 },
+  searchBar:       { flex: 1, minWidth: 0 },
+  filterBtn:       { width: 58, height: 58, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 22, borderWidth: 1, borderColor: brandPalette.light.border, shadowOpacity: 0, elevation: 0 },
+  filterBtnNarrow: { width: 56 },
   filterCount:     { position: "absolute", top: 6, right: 6, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 3, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
-  filterCountText: { color: "#FFF", fontSize: 8, fontWeight: "900" },
+  filterCountText: { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 8 },
 
   /* Mobile: one bordered section — greeting → search → 16:9 hero (ratio unchanged) */
   heroMobileSection: {
@@ -805,6 +814,9 @@ const s = StyleSheet.create<Record<string, any>>({
   heroMobileImageWrap: {
     width: "100%",
     overflow: "hidden",
+    // Reserve 16:9 even while HeroCarousel loads (prevents CLS into categories).
+    aspectRatio: 16 / 9,
+    backgroundColor: "#141014",
   },
 
   /* Hero split (tablet/desktop): left text stretches to image height; image owns 16:9 */
@@ -819,49 +831,49 @@ const s = StyleSheet.create<Record<string, any>>({
   catGrid:         { flexDirection: "row", flexWrap: "wrap" },
   showLessBtn:     { alignSelf: "center", minHeight: 38, marginTop: 1, marginBottom: 8, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1, borderColor: "rgba(233,30,99,.25)", backgroundColor: "rgba(233,30,99,.07)", alignItems: "center", justifyContent: "center" },
   showLessPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
-  showLessText:    { color: PINK, fontSize: 11, fontWeight: "800" },
+  showLessText:    { color: PINK, fontFamily: fonts.sans.bold, fontSize: 11 },
 
   /* Trending */
   trendingSection:{ alignSelf: "center", marginBottom: 23 },
   trendingRow:     { gap: 10, paddingTop: 2, paddingRight: 2 },
   trendingChip:    { minHeight: 43, minWidth: 190, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 9, shadowColor: "#7F5065", shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  trendingText:    { fontSize: 11, fontWeight: "600" },
+  trendingText:    { fontFamily: fonts.sans.semibold, fontSize: 11 },
 
   /* Popular Near You */
   popularSection:  { alignSelf: "center", marginBottom: 23 },
   nearBadge:       { minHeight: 26, maxWidth: 120, borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 3 },
-  nearBadgeText:   { flexShrink: 1, color: PINK, fontSize: 9, fontWeight: "700" },
+  nearBadgeText:   { flexShrink: 1, color: PINK, fontFamily: fonts.sans.bold, fontSize: 9 },
   vendorScroll:    { gap: 10, paddingHorizontal: 2, paddingRight: 18, paddingBottom: 10 },
   vendorCard:      { borderWidth: 1, borderRadius: 16, overflow: "hidden", shadowColor: "#55303F", shadowOpacity: 0.10, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
   vendorMain:      { flex: 1 },
   vendorImgWrap:   { position: "relative", overflow: "hidden" },
   vendorImg:       { width: "100%", height: "100%" },
   vendorNearby:    { position: "absolute", top: 8, left: 8, minHeight: 25, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,.94)" },
-  vendorNearbyText:{ color: PINK, fontSize: 8.5, fontWeight: "800" },
+  vendorNearbyText:{ color: PINK, fontFamily: fonts.sans.bold, fontSize: 8.5 },
   heartBtn:        { position: "absolute", top: 8, right: 8, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(255,255,255,.94)", alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   heartBtnActive:  { backgroundColor: "rgba(255,255,255,.94)" },
   favoritePressed: { opacity: 0.8, transform: [{ scale: 0.95 }] },
   imgBottomRow:    { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", padding: 7 },
-  ratingBadge:     { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(27,25,27,.72)", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 20 },
-  ratingBadgeTxt:  { color: "#FFF", fontSize: 9.5, fontWeight: "800" },
+  ratingBadge:     { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: brandPalette.light.overlayInk, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 20 },
+  ratingBadgeTxt:  { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 9.5 },
   verifiedBadge:   { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: PINK, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,.9)" },
-  verifiedTxt:     { color: "#FFF", fontSize: 8, fontWeight: "800" },
+  verifiedTxt:     { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 8 },
   vendorInfo:      { paddingHorizontal: 10, paddingVertical: 9 },
-  vendorName:      { fontFamily: "serif", fontSize: 13, fontWeight: "700", marginBottom: 2 },
+  vendorName:      { fontFamily: fonts.serif.bold, fontSize: 13, marginBottom: 2 },
   vendorNameDesktop:{ fontSize: 16 },
-  vendorCat:       { fontSize: 9.5, marginBottom: 5 },
+  vendorCat:       { fontFamily: fonts.sans.regular, fontSize: 9.5, marginBottom: 5 },
   vendorMeta:      { flexDirection: "row", alignItems: "center", gap: 3 },
-  vendorLoc:       { fontSize: 8.5, flex: 1 },
-  vendorPrice:     { maxWidth: "52%", fontSize: 8.5, fontWeight: "700", color: PINK },
-  emptyVendors:    { paddingVertical: 20, textAlign: "center", fontSize: 11 },
+  vendorLoc:       { fontFamily: fonts.sans.regular, fontSize: 8.5, flex: 1 },
+  vendorPrice:     { maxWidth: "52%", fontFamily: fonts.sans.bold, fontSize: 8.5, color: PINK },
+  emptyVendors:    { fontFamily: fonts.sans.regular, paddingVertical: 20, textAlign: "center", fontSize: 11 },
 
   /* List Your Business */
   listBanner:      { alignSelf: "center", borderRadius: 20, overflow: "hidden", marginBottom: 20 },
   listBannerImg:   { width: "100%" },
   listOverlay:     { justifyContent: "center" },
   listLeft:        { width: "55%", paddingLeft: 18, paddingVertical: 18 },
-  listTitle:       { fontSize: 17, fontWeight: "800", color: PINK, marginBottom: 4 },
-  listSub:         { fontSize: 12, lineHeight: 18, marginBottom: 14 },
+  listTitle:       { fontFamily: fonts.sans.bold, fontSize: 17, color: PINK, marginBottom: 4 },
+  listSub:         { fontFamily: fonts.sans.regular, fontSize: 12, lineHeight: 18, marginBottom: 14 },
   registerBtn:     { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: PINK, alignSelf: "flex-start", paddingHorizontal: 16, paddingVertical: 9, borderRadius: 50 },
-  registerTxt:     { color: "#FFF", fontSize: 13, fontWeight: "700" },
+  registerTxt:     { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 13 },
 });

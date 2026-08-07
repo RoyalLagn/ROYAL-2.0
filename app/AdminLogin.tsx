@@ -1,16 +1,14 @@
-import React, { useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import { Text, TextInput, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Mail } from "lucide-react-native";
-import { AuthBackButton } from "@/components/auth/AuthBackButton";
+import { AuthField } from "@/components/auth/AuthField";
+import {
+  AuthAlert,
+  AuthLinkButton,
+  AuthSubmitButton,
+} from "@/components/auth/AuthPrimitives";
+import { AuthScreenLayout } from "@/components/auth/AuthScreenLayout";
 import { PasswordField } from "@/components/auth/PasswordField";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import {
@@ -21,13 +19,15 @@ import { validateEmail } from "@/utils/authValidation";
 
 export default function AdminLoginScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ reset?: string }>();
   const { isAdminAuthenticated, loading: restoring, refreshAdmin } = useAdminAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const passwordRef = useRef<TextInput>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!restoring && isAdminAuthenticated) {
       if (router.canDismiss()) router.dismissAll();
       router.replace("/admin-dashboard");
@@ -36,8 +36,12 @@ export default function AdminLoginScreen() {
 
   const handleLogin = async () => {
     if (loading) return;
-    if (!validateEmail(email) || !password) {
-      setError("Invalid email or password.");
+    if (!validateEmail(email)) {
+      setError("Enter a valid administrator email address.");
+      return;
+    }
+    if (!password) {
+      setError("Password is required.");
       return;
     }
     setLoading(true);
@@ -55,58 +59,49 @@ export default function AdminLoginScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-      <AuthBackButton fallbackRoute="/DashboardCenter" />
-      <KeyboardAvoidingView
-        className="flex-1 justify-center px-6"
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View className="items-center mb-10">
-          <Text className="text-primary font-bold text-4xl mb-2">
-            Royal<Text className="text-foreground">Lagn</Text>
-          </Text>
-          <Text className="text-muted-foreground text-base">Sign in to continue</Text>
-        </View>
+    <AuthScreenLayout
+      backRoute="/DashboardCenter"
+      eyebrow="Admin Console"
+      title="Administrator sign in"
+      subtitle="Restricted access. Use your administrator credentials."
+    >
+      <View className="gap-4">
+        {params.reset === "success" ? (
+          <AuthAlert tone="success" message="Password updated. Sign in with your new password." />
+        ) : null}
+        <AuthField
+          label="Email address"
+          required
+          icon={Mail}
+          value={email}
+          onChangeText={(value) => { setEmail(value); setError(""); }}
+          placeholder="admin@royallagn.com"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          autoComplete="email"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+        />
+        <PasswordField
+          ref={passwordRef}
+          value={password}
+          onChangeText={(value) => { setPassword(value); setError(""); }}
+          placeholder="Enter your password"
+          onSubmitEditing={() => void handleLogin()}
+        />
+        <AuthLinkButton align="end" onPress={() => router.replace("/AdminForgotPassword")} disabled={loading}>
+          <Text className="text-primary font-semibold text-[13px]">Forgot password?</Text>
+        </AuthLinkButton>
 
-        <View className="gap-4">
-          <View className="flex-row items-center bg-card border border-border rounded-2xl px-4">
-            <Mail size={20} className="text-muted-foreground" />
-            <TextInput
-              className="flex-1 text-foreground py-4 ml-3"
-              placeholder="Email address"
-              placeholderTextColor="#A8A29E"
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-              returnKeyType="next"
-            />
-          </View>
-          <PasswordField
-            value={password}
-            onChangeText={(value) => { setPassword(value); setError(""); }}
-            placeholder="Password"
-            onSubmitEditing={() => void handleLogin()}
-          />
-          <Pressable
-            className="self-end py-1 active:opacity-70"
-            onPress={() => router.push("/AdminForgotPassword")}
-          >
-            <Text className="text-primary text-sm font-semibold">Forgot Password?</Text>
-          </Pressable>
-          {error ? <Text className="text-red-500 text-sm text-center">{error}</Text> : null}
-          <Pressable
-            className={`rounded-2xl py-4 items-center ${loading || restoring ? "bg-primary/45" : "bg-primary active:opacity-90"}`}
-            onPress={() => void handleLogin()}
-            disabled={loading || restoring}
-          >
-            <Text className="text-primary-foreground font-semibold text-base">
-              {loading || restoring ? "Verifying…" : "Login"}
-            </Text>
-          </Pressable>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        {error ? <AuthAlert tone="error" message={error} /> : null}
+
+        <AuthSubmitButton
+          label="Login"
+          loadingLabel="Verifying…"
+          loading={loading || restoring}
+          onPress={() => void handleLogin()}
+        />
+      </View>
+    </AuthScreenLayout>
   );
 }

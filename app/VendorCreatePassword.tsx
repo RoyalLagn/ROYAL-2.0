@@ -33,7 +33,7 @@ export default function VendorCreatePassword() {
     <CreatePasswordForm
       recovery={recovery}
       signupTitle="Create Vendor Password"
-      backRoute="/VendorLogin"
+      backRoute="/VendorAuth"
       onSubmit={async (password) => {
         if (recovery) {
           await updateVendorRecoveredPassword(password);
@@ -43,8 +43,11 @@ export default function VendorCreatePassword() {
           });
           return;
         }
+        // completeVendorSignup() itself verifies (and, if needed, recovers)
+        // a live Supabase session before returning -- BecomeVendor requires
+        // one to check access on mount.
         await completeVendorSignup({ email, ownerName, phone }, password);
-        router.replace("/BecomeVendor");
+        router.replace({ pathname: "/BecomeVendor", params: { source: "signup" } });
       }}
       getError={(error) =>
         getVendorAuthError(error, "Unable to save the password.")}

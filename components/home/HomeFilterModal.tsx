@@ -3,8 +3,10 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-n
 import { Check, SlidersHorizontal, X } from "lucide-react-native";
 import { useCategories } from "@/context/CategoryContext";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
+import { brandColors, brandPalette } from "@/constants/brandPalette";
+import { fonts } from "@/constants/typography";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 export type HomeFilters = {
   minimumRating: number;
@@ -60,11 +62,11 @@ export default function HomeFilterModal({ visible, dark, value, city, onClose, o
   }, [value, visible]);
 
   const colors = {
-    surface: dark ? "#211E20" : "#FFFFFF",
-    background: dark ? "#151315" : "#FFFAFC",
-    text: dark ? "#F8F2F5" : "#241D21",
-    muted: dark ? "#AAA0A5" : "#746A70",
-    border: dark ? "#3B3237" : "#F0D9E4",
+    surface: brandColors(dark).card,
+    background: brandColors(dark).background,
+    text: dark ? "#F8F2F5" : brandColors(dark).foreground,
+    muted: brandColors(dark).mutedForeground,
+    border: dark ? "#3B3237" : brandColors(dark).border,
   };
 
   const pill = (selected: boolean) => ({
@@ -175,22 +177,22 @@ const styles = StyleSheet.create({
   panel: { width: "100%", maxWidth: 560, maxHeight: "90%", borderWidth: 1, borderRadius: 24, padding: 20 },
   panelMobile: { maxWidth: "100%", borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 28 },
   header: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
-  headerIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: "#FFF0F6", alignItems: "center", justifyContent: "center" },
-  title: { fontSize: 19, lineHeight: 24, fontWeight: "800" },
-  subtitle: { fontSize: 10, marginTop: 2 },
+  headerIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: brandPalette.light.muted, alignItems: "center", justifyContent: "center" },
+  title: { fontFamily: fonts.serif.bold, fontSize: 19, lineHeight: 24 },
+  subtitle: { fontFamily: fonts.sans.regular, fontSize: 10, marginTop: 2 },
   close: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
-  label: { fontSize: 12, fontWeight: "800", marginBottom: 9 },
+  label: { fontFamily: fonts.sans.bold, fontSize: 12, marginBottom: 9 },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 18 },
   pill: { minHeight: 40, borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, alignItems: "center", justifyContent: "center" },
-  pillText: { fontSize: 10, fontWeight: "700" },
+  pillText: { fontFamily: fonts.sans.bold, fontSize: 10 },
   nearby: { minHeight: 66, borderWidth: 1, borderRadius: 16, padding: 11, flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 12 },
   checkbox: { width: 24, height: 24, borderWidth: 1.5, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   checkboxActive: { backgroundColor: PINK, borderColor: PINK },
-  nearbyTitle: { fontSize: 11, fontWeight: "800" },
-  nearbyDescription: { fontSize: 9, lineHeight: 13, marginTop: 2 },
+  nearbyTitle: { fontFamily: fonts.sans.bold, fontSize: 11 },
+  nearbyDescription: { fontFamily: fonts.sans.regular, fontSize: 9, lineHeight: 13, marginTop: 2 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14, flexDirection: "row", gap: 9 },
   reset: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" },
-  resetText: { fontSize: 11, fontWeight: "800" },
+  resetText: { fontFamily: fonts.sans.bold, fontSize: 11 },
   apply: { flex: 1.4, minHeight: 48, borderRadius: 15, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
-  applyText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
+  applyText: { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 11 },
 });

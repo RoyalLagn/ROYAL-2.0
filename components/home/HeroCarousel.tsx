@@ -11,15 +11,18 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
-import HeroSlideMedia from "@/components/home/HeroSlideMedia";
+import HeroSlideMedia, { heroDeliveryUrl } from "@/components/home/HeroSlideMedia";
 import { HeroSlideService } from "@/services/heroSlides";
 import {
   HERO_IMAGE_ASPECT,
   heroSlideDestination,
   heroSlideImageUrl,
 } from "@/types/hero";
+import { brandPalette } from "@/constants/brandPalette";
+import { fonts } from "@/constants/typography";
 
-const PINK = "#E91E63";
+/** Darker brand pink for small CTA text (WCAG AA on white text). */
+const PINK = brandPalette.light.primaryStrong;
 
 type HeroSlideView = {
   id: string;
@@ -67,10 +70,12 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
         const rows = await HeroSlideService.listActivePublic(force);
         if (!active) return;
         setLoadError(null);
+        // Transform at map-time so every consumer (Image, preload) gets a sized URL.
+        const displayWidth = Math.max(320, width || (desktop ? 960 : 390));
         setHeroSlides(
           rows.map((row) => ({
             id: row.id,
-            imageUri: heroSlideImageUrl(row, desktop),
+            imageUri: heroDeliveryUrl(heroSlideImageUrl(row, desktop), displayWidth),
             ctaLabel: row.cta_label,
             categorySlug: row.category_slug,
             categoryName: row.category_name,
@@ -94,7 +99,7 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
       active = false;
       unsubscribe();
     };
-  }, [desktop]);
+  }, [desktop, width]);
 
   useEffect(() => {
     activeIndexRef.current = 0;
@@ -143,6 +148,22 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
     if (loopResetTimer.current) clearTimeout(loopResetTimer.current);
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS !== "web" || !heroSlides[0]?.imageUri) return;
+    const href = heroDeliveryUrl(heroSlides[0].imageUri, width);
+    const existing = document.head.querySelector(`link[data-hero-preload="1"]`);
+    if (existing) existing.remove();
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = href;
+    link.setAttribute("fetchpriority", "high");
+    link.setAttribute("data-hero-preload", "1");
+    document.head.appendChild(link);
+    return () => { link.remove(); };
+  }, [heroSlides, width]);
+
+
   const handleMomentumEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!heroSlides.length) return;
     const rawIndex = Math.round(event.nativeEvent.contentOffset.x / width);
@@ -171,29 +192,31 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
     router.push(destination);
   };
 
+  // Always reserve the 16:9 shell so categories below never jump when slides arrive.
+  const shellStyle = [
+    styles.shell,
+    {
+      width,
+      maxWidth: width,
+      borderRadius: radius,
+      aspectRatio: HERO_IMAGE_ASPECT,
+    },
+  ];
+
   if (loadError) {
     return (
-      <View style={[styles.shell, { width, borderRadius: radius }, styles.errorShell]}>
+      <View style={[shellStyle, styles.errorShell]}>
         <Text style={styles.errorText}>{loadError}</Text>
       </View>
     );
   }
 
-  if (loading || !heroSlides.length) return null;
+  if (loading || !heroSlides.length) {
+    return <View style={shellStyle} accessibilityLabel="Loading hero images" />;
+  }
 
   return (
-    <View
-      style={[
-        styles.shell,
-        {
-          width,
-          maxWidth: width,
-          borderRadius: radius,
-          // Height comes only from 16:9 — never a fixed/min/max height.
-          aspectRatio: HERO_IMAGE_ASPECT,
-        },
-      ]}
-    >
+    <View style={shellStyle}>
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -211,10 +234,15 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
         onMomentumScrollEnd={handleMomentumEnd}
       >
         {slides.map((slide, index) => (
-          <View key={`${slide.id}-${index}`} style={[styles.slide, { width }]}>
+          <View
+            key={index === slides.length - 1 ? `${slide.id}-loop` : slide.id}
+            style={[styles.slide, { width }]}
+          >
             <HeroSlideMedia
               uri={slide.imageUri}
               accessibilityLabel={`${slide.categoryName} hero slide`}
+              displayWidth={width}
+              priority={index === 0}
             />
             <View style={[styles.ctaWrap, narrow && styles.ctaWrapNarrow, desktop && styles.ctaWrapDesktop]}>
               <Pressable
@@ -268,14 +296,15 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
             accessibilityRole="button"
             accessibilityLabel={`Show hero slide ${index + 1}`}
             accessibilityState={{ selected: activeIndex === index }}
-            hitSlop={8}
             onPress={() => {
               interacting.current = true;
               goTo(index);
               finishInteractionLater();
             }}
-            style={[styles.indicator, activeIndex === index && styles.indicatorActive]}
-          />
+            style={styles.indicatorHit}
+          >
+            <View style={[styles.indicator, activeIndex === index && styles.indicatorActive]} />
+          </Pressable>
         ))}
       </View>
     </View>
@@ -311,13 +340,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 16,
     paddingVertical: 18,
-    backgroundColor: "#FFF5F7",
+    backgroundColor: brandPalette.light.muted,
     borderWidth: 1,
-    borderColor: "#F3C7D4",
+    borderColor: brandPalette.light.border,
     aspectRatio: undefined,
     minHeight: 72,
   },
-  errorText: { color: "#B4234A", fontSize: 12, fontWeight: "600", textAlign: "center" },
+  errorText: {
+    color: brandPalette.light.destructive,
+    fontFamily: fonts.sans.semibold,
+    fontSize: 12,
+    textAlign: "center",
+  },
   slide: {
     height: "100%",
     position: "relative",
@@ -338,40 +372,52 @@ const styles = StyleSheet.create({
   ctaWrapNarrow: { paddingHorizontal: 14, paddingBottom: 16 },
   ctaWrapDesktop: { paddingHorizontal: 42, paddingBottom: 28 },
   cta: {
-    minHeight: 29,
+    minHeight: 36,
     alignSelf: "flex-start",
-    paddingHorizontal: 10,
+    paddingHorizontal: 14,
     borderRadius: 999,
     backgroundColor: PINK,
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
   },
-  ctaNarrow: { minHeight: 27, paddingHorizontal: 8 },
-  ctaHover: { transform: [{ translateY: -1 }], backgroundColor: "#D81758" },
+  ctaNarrow: { minHeight: 34, paddingHorizontal: 12 },
+  ctaHover: { transform: [{ translateY: -1 }], backgroundColor: "#9D174D" },
   ctaPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
-  ctaText: { color: "#FFFFFF", fontSize: 9.5, fontWeight: "800" },
-  ctaTextNarrow: { fontSize: 8.5 },
+  ctaText: {
+    color: brandPalette.light.primaryForeground,
+    fontFamily: fonts.sans.bold,
+    fontSize: 12,
+  },
+  ctaTextNarrow: { fontSize: 11 },
   indicators: {
     position: "absolute",
     zIndex: 4,
     left: 0,
     right: 0,
-    bottom: 9,
+    bottom: 4,
     flexDirection: "row",
     justifyContent: "center",
-    gap: 5,
+    alignItems: "center",
+    gap: 4,
+  },
+  /** 44×44 pressable; visual dot stays small inside. */
+  indicatorHit: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
   indicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(233,30,99,.28)" },
-  indicatorActive: { width: 20, backgroundColor: PINK },
+  indicatorActive: { width: 20, backgroundColor: brandPalette.light.primary },
   arrow: {
     position: "absolute",
     zIndex: 4,
     top: "50%",
-    width: 38,
-    height: 38,
-    marginTop: -19,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    marginTop: -22,
+    borderRadius: 22,
     backgroundColor: "rgba(25,12,18,.50)",
     alignItems: "center",
     justifyContent: "center",

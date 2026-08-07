@@ -164,29 +164,22 @@ export function useVendorWorkspace() {
         setError("Your Vendor session has expired. Sign in again to edit the live business profile.");
         return;
       }
-      let { data: vendor, error: vendorError } = await supabase
+      const { data: vendor, error: vendorError } = await supabase
         .from("vendors").select("*, categories(name)").eq("profile_id", user.id).maybeSingle();
       if (!isCurrent()) return;
       if (vendorError) throw vendorError;
       if (!vendor) {
-        // An approved application can predate the authenticated workspace
-        // link. Claim it on first entry so deep-linked Vendor pages become
-        // usable instead of rendering an empty, unsavable editor.
-        const { error: claimError } = await supabase.rpc("claim_vendor_workspace");
-        if (!isCurrent()) return;
-        if (claimError) {
-          throw new Error(
-            /no matching vendor application/i.test(claimError.message)
-              ? "No Vendor business is connected to this account. Sign in with your approved Vendor email."
-              : claimError.message,
-          );
-        }
-        const claimed = await supabase
-          .from("vendors").select("*, categories(name)").eq("profile_id", user.id).maybeSingle();
-        if (!isCurrent()) return;
-        if (claimed.error) throw claimed.error;
-        vendor = claimed.data;
-        if (!vendor) throw new Error("Your Vendor business could not be activated. Please sign in again.");
+        // The Vendor route guard (components/auth/VendorRouteGuard.tsx)
+        // already ran resolveVendorDestination() -- which claims an
+        // unowned-but-approved workspace exactly once -- before this
+        // screen could ever mount, so a missing vendor row here means the
+        // workspace genuinely isn't linked to this account. Do NOT call
+        // claim_vendor_workspace() again: it is not idempotent-safe to
+        // retry blindly from a data hook, and calling it from here as well
+        // as from the guard is exactly what caused claim_vendor_workspace
+        // to be hit repeatedly (and non-retryably 400) on every mount,
+        // focus and refresh.
+        throw new Error("No Vendor business is connected to this account. Sign in with your approved Vendor email.");
       }
       if (isCurrent()) setData({ ...emptyWorkspace, vendor });
       const today = new Date().toISOString().slice(0, 10);

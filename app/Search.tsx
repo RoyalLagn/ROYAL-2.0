@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,7 +11,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronRight, Search as SearchIcon } from "lucide-react-native";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
-import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
+import SafeImage from "@/components/SafeImage";
+import { StandaloneMobileTabBar, useMobileTabBarHeight } from "@/components/MobileTabBar";
 import { useColorScheme } from "nativewind";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import {
@@ -23,6 +23,7 @@ import {
 import { useCategories } from "@/context/CategoryContext";
 import CategoryBadge from "@/components/categories/CategoryBadge";
 import { useCustomerLocation } from "@/context/LocationContext";
+import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 import {
   rankVendorsByLocation,
   vendorLocationPriority,
@@ -37,7 +38,7 @@ const GLOBAL_PAGES = [
   { label: "About RoyalLagn", detail: "Learn more about the platform", keywords: "about royallagn company information", route: "/About" as const },
   { label: "Privacy Policy", detail: "Review privacy information", keywords: "privacy policy data security", route: "/PrivacyPolicy" as const },
   { label: "Terms & Conditions", detail: "Review application terms", keywords: "terms conditions legal policy", route: "/Terms" as const },
-  { label: "Become a Vendor", detail: "List your wedding business", keywords: "become vendor register business list", route: "/BecomeVendor" as const },
+  { label: "Become a Vendor", detail: "List your wedding business", keywords: "become vendor register business list", route: "/VendorAuth" as const },
 ];
 
 function matchesKeyword(haystack: string, keyword: string) {
@@ -55,6 +56,7 @@ export default function SearchScreen() {
   const { getRating } = useReviewRatings();
   const { searchCategories } = useCategories();
   const { preference, strictCityOnly } = useCustomerLocation();
+  const mobileTabBarHeight = useMobileTabBarHeight();
   const params = useLocalSearchParams<{
     query?: string;
     location?: string;
@@ -191,7 +193,7 @@ export default function SearchScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.results, { width: contentWidth }]}
+        contentContainerStyle={[styles.results, { width: contentWidth, paddingBottom: mobileTabBarHeight }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -230,7 +232,14 @@ export default function SearchScreen() {
             className="bg-card border border-border rounded-2xl p-3 flex-row"
             onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category } })}
           >
-            <Image source={{ uri: vendor.image }} className="w-20 h-20 rounded-xl" resizeMode="cover" />
+            <SafeImage
+              accessibilityLabel={`${vendor.name} listing`}
+              source={{ uri: vendor.image }}
+              fallbackSource={resolveMarketplaceCategoryImage(vendor.category).fallbackSource}
+              debugLabel={`search result: ${vendor.name}`}
+              resizeMode="cover"
+              style={styles.resultImage}
+            />
             <View className="ml-3 flex-1 justify-center">
               <Text className="text-foreground font-semibold">{vendor.name}</Text>
               {vendorNearbyLabel(vendor, preference) ? <Text className="text-primary text-[10px] font-bold mt-0.5">{vendorNearbyLabel(vendor, preference)}</Text> : null}
@@ -252,7 +261,7 @@ export default function SearchScreen() {
         ) : null}
       </ScrollView>
 
-      <StandaloneMobileTabBar activeRoute="index" />
+      <StandaloneMobileTabBar activeRoute="Categories" />
     </SafeAreaView>
   );
 }
@@ -269,15 +278,14 @@ const styles = StyleSheet.create({
   search: {
     flex: 1,
     minWidth: 0,
-    height: 46,
   },
+  resultImage: { width: 80, height: 80, borderRadius: 12 },
   categoryMeta: { marginTop: 4, flexDirection: "row", alignItems: "center", gap: 3 },
   categoryBadge: { color: "#E91E63", fontSize: 12 },
   scroll: { flex: 1 },
   results: {
     alignSelf: "center",
     paddingTop: 6,
-    paddingBottom: 28,
     gap: 12,
   },
 });

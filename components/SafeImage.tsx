@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Image,
+  Platform,
   type ImageProps,
   type ImageURISource,
 } from "react-native";
@@ -17,6 +18,7 @@ import {
   retryImageUri,
   type SafeImageCandidate,
 } from "@/utils/imageResolver";
+import { cloudinaryDeliveryUrl } from "@/utils/cloudinaryDelivery";
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
@@ -28,6 +30,11 @@ type SafeImageProps = Omit<ImageProps, "source" | "defaultSource"> & {
   /** Set false to skip the fade-in (e.g. an image that must appear
    *  instantly, like a live camera preview thumbnail). Defaults to true. */
   fadeIn?: boolean;
+  /** Cap Cloudinary delivery width (CSS px). Applied with dpr≈2. */
+  deliveryWidth?: number;
+  deliveryHeight?: number;
+  /** Web: lazy-load below-the-fold images. Defaults to true. */
+  lazy?: boolean;
 };
 
 function SafeImage({
@@ -36,12 +43,26 @@ function SafeImage({
   debugLabel = "image",
   retryCount = 1,
   fadeIn = true,
+  deliveryWidth,
+  deliveryHeight,
+  lazy = true,
   onError,
   onLoad,
   style,
   ...props
 }: SafeImageProps) {
-  const remoteUri = remoteImageUri(source);
+  const rawRemoteUri = remoteImageUri(source);
+  const remoteUri = useMemo(() => {
+    if (!rawRemoteUri) return rawRemoteUri;
+    if (!deliveryWidth && !deliveryHeight) return rawRemoteUri;
+    return cloudinaryDeliveryUrl(rawRemoteUri, {
+      width: deliveryWidth,
+      height: deliveryHeight,
+      crop: "fill",
+      dpr: 2,
+      quality: "auto",
+    });
+  }, [deliveryHeight, deliveryWidth, rawRemoteUri]);
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
   const reducedMotion = useReducedMotion();
@@ -102,6 +123,8 @@ function SafeImage({
       defaultSource={fallbackSource}
       onLoad={handleLoad}
       onError={handleError}
+      // @ts-expect-error — RN Web supports loading="lazy"
+      loading={Platform.OS === "web" && lazy ? "lazy" : undefined}
       style={[style, animatedStyle]}
     />
   );

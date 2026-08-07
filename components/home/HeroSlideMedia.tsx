@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Image, Platform, StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 
 import { HERO_IMAGE_ASPECT } from "@/types/hero";
+import { cloudinaryDeliveryUrl } from "@/utils/cloudinaryDelivery";
 
 type HeroSlideMediaProps = {
   uri: string;
@@ -9,44 +10,25 @@ type HeroSlideMediaProps = {
   style?: StyleProp<ViewStyle>;
   /** Corner radius on the 16:9 wrapper (overflow hidden). */
   borderRadius?: number;
+  /** Display width of the hero shell — drives Cloudinary `w_`. */
+  displayWidth?: number;
+  /** When true, mark as LCP-critical (eager load / high fetch priority on web). */
+  priority?: boolean;
 };
 
-/** True when a path segment is a Cloudinary transformation chain (not a public_id folder). */
-function isTransformSegment(segment: string) {
-  if (!segment || segment === ".") return false;
-  if (/^v\d+$/.test(segment)) return false;
-  if (segment.includes(",")) return true;
-  return /^(?:(?:[a-z]{1,2}|fl|pg|dpr|t)_[a-zA-Z0-9.:-]+|q_auto|f_auto)$/i.test(segment);
-}
-
 /**
- * Delivery URL with optimize-only transforms — never c_pad / b_white / e_trim crop.
- * Preserves the original creative proportions.
+ * Delivery URL with f_auto/q_auto and a width cap so mobile does not download
+ * full-resolution hero creatives. Uses c_limit (no crop).
  */
-export function heroDeliveryUrl(url: string): string {
-  const trimmed = url.trim();
-  if (!trimmed) return trimmed;
-
-  try {
-    const parsed = new URL(trimmed);
-    const marker = "/image/upload/";
-    const index = parsed.pathname.indexOf(marker);
-    if (index < 0) return trimmed;
-
-    const afterUpload = parsed.pathname.slice(index + marker.length);
-    const segments = afterUpload.split("/").filter(Boolean);
-    let cursor = 0;
-    while (cursor < segments.length && isTransformSegment(segments[cursor])) {
-      cursor += 1;
-    }
-    const assetPath = segments.slice(cursor).join("/");
-    if (!assetPath) return trimmed;
-
-    parsed.pathname = `${parsed.pathname.slice(0, index + marker.length)}f_auto,q_auto/${assetPath}`;
-    return parsed.toString();
-  } catch {
-    return trimmed;
-  }
+export function heroDeliveryUrl(url: string, displayWidth = 750): string {
+  // Cap delivery width so large desktop shells don't pull multi‑MB creatives.
+  const cssWidth = Math.max(320, Math.min(900, Math.round(displayWidth || 750)));
+  return cloudinaryDeliveryUrl(url, {
+    width: cssWidth,
+    crop: "limit",
+    dpr: 2,
+    quality: "auto",
+  });
 }
 
 const webImageStyle = {
@@ -66,8 +48,14 @@ export default function HeroSlideMedia({
   accessibilityLabel,
   style,
   borderRadius = 0,
+  displayWidth = 750,
+  priority = false,
 }: HeroSlideMediaProps) {
-  const deliveryUri = useMemo(() => heroDeliveryUrl(uri), [uri]);
+  // uri may already include transforms (HeroCarousel maps them); re-apply as a safety net.
+  const deliveryUri = useMemo(
+    () => heroDeliveryUrl(uri, displayWidth),
+    [displayWidth, uri],
+  );
 
   if (!uri.trim()) {
     return <View style={[styles.wrapper, { borderRadius }, style]} />;
@@ -79,6 +67,9 @@ export default function HeroSlideMedia({
         source={{ uri: deliveryUri }}
         accessibilityLabel={accessibilityLabel}
         resizeMode="contain"
+        // @ts-expect-error — RN Web supports loading / fetchPriority
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
         style={Platform.OS === "web" ? webImageStyle : styles.imageNative}
       />
     </View>

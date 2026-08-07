@@ -1,8 +1,8 @@
 import React, { type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ChevronRight } from "lucide-react-native";
-
-const PINK = "#E91E63";
+import { brandColors } from "@/constants/brandPalette";
+import { fonts } from "@/constants/typography";
 
 type SectionHeaderProps = {
   title: string;
@@ -19,11 +19,13 @@ function SectionHeader({
   onActionPress,
   accessory,
 }: SectionHeaderProps) {
+  const colors = brandColors(dark);
+
   return (
     <View style={styles.header}>
       <View style={styles.headingBlock}>
         <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: dark ? "#F7F2F4" : "#111827" }]}>{title}</Text>
+          <Text style={[styles.title, { color: dark ? "#F7F2F4" : colors.foreground }]}>{title}</Text>
           {accessory}
         </View>
       </View>
@@ -35,8 +37,8 @@ function SectionHeader({
           onPress={onActionPress}
           style={({ pressed }) => [styles.action, pressed && styles.pressed]}
         >
-          <Text style={styles.actionText}>{actionLabel}</Text>
-          <ChevronRight size={14} color={PINK} strokeWidth={2.2} />
+          <Text style={[styles.actionText, { color: colors.primaryStrong }]}>{actionLabel}</Text>
+          <ChevronRight size={14} color={colors.primaryStrong} strokeWidth={2.2} />
         </Pressable>
       ) : null}
     </View>
@@ -67,10 +69,9 @@ const styles = StyleSheet.create({
   },
   title: {
     flexShrink: 1,
-    fontFamily: "serif",
+    fontFamily: fonts.serif.bold,
     fontSize: 22,
     lineHeight: 28,
-    fontWeight: "700",
     letterSpacing: -0.4,
   },
   action: {
@@ -82,9 +83,8 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   actionText: {
-    color: PINK,
-    fontSize: 12,
-    fontWeight: "800",
+    fontFamily: fonts.sans.bold,
+    fontSize: 13,
   },
   pressed: {
     opacity: 0.68,

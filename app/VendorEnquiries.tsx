@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { BarChart3, CalendarDays, ChevronRight, Inbox, MessageCircle, Phone, Search, TrendingDown, TrendingUp, X } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -58,14 +58,14 @@ export default function VendorEnquiries() {
       </Pressable>) : null}
       {!loading && !error && !visible.length ? <State title="No matching enquiries" body="New Call Clicks, WhatsApp Clicks and form enquiries will appear here." colors={colors} /> : null}
     </ScrollView>
-    <Modal visible={Boolean(selected)} transparent animationType="slide" onRequestClose={() => setSelected(null)}><View style={styles.backdrop}><View style={[styles.sheet, { backgroundColor: colors.surface }]}><ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <Modal visible={Boolean(selected)} transparent animationType="slide" onRequestClose={() => setSelected(null)}><KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}><View style={[styles.sheet, { backgroundColor: colors.surface }]}><ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <View style={styles.sheetTop}><View style={styles.flex}><Text style={[styles.sheetTitle, { color: colors.text }]}>{selected?.customer_name}</Text><Text style={[styles.meta, { color: colors.muted }]}>{selected?.reference_code} · {selected?.package_name || selected?.event_type || enquirySourceLabel(selected?.source_type || "other")}</Text></View><Pressable onPress={() => setSelected(null)} style={[styles.close, { backgroundColor: colors.surfaceSoft }]}><X size={20} color={colors.text} /></Pressable></View>
       <Text style={[styles.message, { color: colors.muted }]}>{selected?.message}</Text>{selected?.customer_confirmation !== "pending" ? <View style={styles.customerNotice}><Text style={styles.customerNoticeText}>Customer marked this enquiry: {selected?.customer_confirmation}</Text></View> : null}
       <Text style={[styles.fieldLabel, { color: colors.text }]}>Lead status</Text><View style={styles.statusGrid}>{ENQUIRY_STATUSES.map((value) => <Pressable key={value} onPress={() => setStatus(value)} style={[styles.statusOption, { borderColor: status === value ? colors.pink : colors.border, backgroundColor: status === value ? colors.surfaceSoft : colors.background }]}><Text style={{ color: status === value ? colors.pink : colors.text, fontSize: 9, fontWeight: "800" }}>{enquiryStatusLabel(value)}</Text></Pressable>)}</View>
       <Text style={[styles.fieldLabel, { color: colors.text }]}>Private vendor notes</Text><TextInput value={notes} onChangeText={setNotes} multiline placeholder="Add context for your follow-up" placeholderTextColor={colors.muted} style={[styles.notes, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
       <Text style={[styles.fieldLabel, { color: colors.text }]}>Follow-up date</Text><View style={[styles.dateInput, { backgroundColor: colors.background, borderColor: colors.border }]}><CalendarDays size={16} color={colors.pink} /><TextInput value={followUp} onChangeText={setFollowUp} placeholder="YYYY-MM-DD" placeholderTextColor={colors.muted} style={[styles.flex, { color: colors.text, fontSize: 11 }]} /></View>
       <Pressable disabled={saving} onPress={() => void save()} style={[styles.save, saving && styles.disabled]}><Text style={styles.saveText}>{saving ? "Saving…" : "Save lead update"}</Text></Pressable>
-    </ScrollView></View></View></Modal>
+    </ScrollView></View></KeyboardAvoidingView></Modal>
   </View>;
 }
 

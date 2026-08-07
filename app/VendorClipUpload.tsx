@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronDown, ChevronLeft, ImagePlus, Play, Save, Upload, Video, X } from "lucide-react-native";
@@ -70,6 +70,7 @@ export default function VendorClipUpload() {
   }, [caption, categoryId, data.vendor?.id, internalTitle, localDraftId, sources, thumbnailUri, title]);
 
   const selectVideos = async () => {
+    if (picking) return;
     setPicking(true);
     try {
       const picked = await pickClipVideos(10);
@@ -101,14 +102,32 @@ export default function VendorClipUpload() {
     customThumbnailUri: thumbnailUri,
   })), [caption, categoryId, data.vendor?.id, internalTitle, sources, thumbnailUri]);
 
+  const [submitting, setSubmitting] = useState(false);
+  // A ref, not just the `submitting` state, gates re-entrancy: two taps fired
+  // in the same tick (a fast double-tap, or two touch pointers) can both read
+  // `submitting` as false because React hasn't committed the state update
+  // from the first tap's setSubmitting(true) yet. The ref is set synchronously
+  // before anything else runs, closing that window; `submitting` still drives
+  // the visible disabled/spinner state.
+  const submittingRef = useRef(false);
   const submit = async () => {
+    // Each call to queue.enqueue() below mints brand-new queue item ids, so a
+    // duplicate dispatch here would enqueue two independent uploads (two
+    // reservations, two Cloudinary assets, two Clip rows) for the same
+    // selection.
+    if (submittingRef.current) return;
     if (!data.vendor?.is_verified) return Alert.alert("Approved Vendor required");
     if (!sources.length || !categoryId) return Alert.alert("Complete your Clip", "Select a video and choose a category.");
+    submittingRef.current = true;
+    setSubmitting(true);
     try {
       await queue.enqueue(drafts);
       await ClipDraftService.remove(localDraftId);
     } catch (error) {
       Alert.alert("Upload not queued", error instanceof Error ? error.message : "Try again.");
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
   };
 
@@ -138,8 +157,8 @@ export default function VendorClipUpload() {
       <View style={desktop ? styles.columns : undefined}>
         <View style={desktop ? styles.column : undefined}>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {!sources.length ? <Pressable onPress={selectVideos} style={[styles.picker, { backgroundColor: colors.surfaceSoft, borderColor: colors.pink }]}>{picking ? <ActivityIndicator color={colors.pink} /> : <><Video size={38} color={colors.pink} /><Text style={[styles.pickerTitle, { color: colors.text }]}>Select one or more videos</Text><Text style={[styles.helper, { color: colors.muted }]}>MP4, MOV, M4V or HEVC</Text></>}</Pressable> :
-              <><View style={styles.preview}>{sources.length === 1 ? <Preview source={sources[0]} /> : <View style={styles.multi}><Play size={36} color={colors.pink} /><Text style={[styles.pickerTitle, { color: colors.text }]}>{sources.length} videos selected</Text></View>}</View><Pressable onPress={selectVideos} style={styles.link}><Text style={{ color: colors.pink, fontWeight: "800", fontSize: 12 }}>Choose different videos</Text></Pressable></>}
+            {!sources.length ? <Pressable disabled={picking} onPress={selectVideos} style={[styles.picker, { backgroundColor: colors.surfaceSoft, borderColor: colors.pink }]}>{picking ? <ActivityIndicator color={colors.pink} /> : <><Video size={38} color={colors.pink} /><Text style={[styles.pickerTitle, { color: colors.text }]}>Select one or more videos</Text><Text style={[styles.helper, { color: colors.muted }]}>MP4, MOV, M4V or HEVC</Text></>}</Pressable> :
+              <><View style={styles.preview}>{sources.length === 1 ? <Preview source={sources[0]} /> : <View style={styles.multi}><Play size={36} color={colors.pink} /><Text style={[styles.pickerTitle, { color: colors.text }]}>{sources.length} videos selected</Text></View>}</View><Pressable disabled={picking} onPress={selectVideos} style={styles.link}><Text style={{ color: colors.pink, fontWeight: "800", fontSize: 12 }}>{picking ? "Selecting…" : "Choose different videos"}</Text></Pressable></>}
           </View>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.label, { color: colors.text }]}>Cover thumbnail (optional)</Text>
@@ -153,7 +172,7 @@ export default function VendorClipUpload() {
             <Text style={[styles.label, { color: colors.text }]}>Caption</Text><TextInput value={caption} onChangeText={setCaption} maxLength={2200} multiline placeholder="Tell couples about this wedding moment…" placeholderTextColor={colors.muted} style={[styles.input, styles.caption, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSoft }]} />
             <Text style={[styles.captionCount, { color: colors.muted }]}>{caption.length}/2200</Text>
             <Text style={[styles.label, { color: colors.text }]}>Category</Text><Pressable onPress={() => setCategoryOpen(true)} style={[styles.input, styles.select, { borderColor: colors.border, backgroundColor: colors.surfaceSoft }]}><Text style={{ color: selectedCategory ? colors.text : colors.muted }}>{selectedCategory?.name || "Choose category"}</Text><ChevronDown size={18} color={colors.muted} /></Pressable>
-            <View style={styles.buttonRow}><Pressable onPress={saveDraft} style={[styles.secondary, { borderColor: colors.border }]}><Save size={17} color={colors.text} /><Text style={{ color: colors.text, fontWeight: "800" }}>Save Draft</Text></Pressable><Pressable onPress={submit} style={[styles.primary, { backgroundColor: colors.pink }]}><Upload size={17} color="#FFF" /><Text style={styles.primaryText}>Upload Clip</Text></Pressable></View>
+            <View style={styles.buttonRow}><Pressable onPress={saveDraft} style={[styles.secondary, { borderColor: colors.border }]}><Save size={17} color={colors.text} /><Text style={{ color: colors.text, fontWeight: "800" }}>Save Draft</Text></Pressable><Pressable disabled={submitting} onPress={submit} style={[styles.primary, { backgroundColor: colors.pink }, submitting && styles.primaryDisabled]}>{submitting ? <ActivityIndicator color="#FFF" size="small" /> : <Upload size={17} color="#FFF" />}<Text style={styles.primaryText}>{submitting ? "Queuing…" : "Upload Clip"}</Text></Pressable></View>
           </View>
           <UploadQueuePanel items={queue.items} colors={colors} onRetry={queue.retry} onCancel={queue.cancel} onRemove={queue.remove} />
         </View>
@@ -171,6 +190,6 @@ const styles = StyleSheet.create({
   preview: { height: 270, borderRadius: 16, overflow: "hidden", backgroundColor: "#080808" }, video: { width: "100%", height: "100%" }, multi: { flex: 1, alignItems: "center", justifyContent: "center", gap: 9 }, link: { paddingTop: 13, alignItems: "center" },
   label: { fontSize: 12, fontWeight: "800", marginBottom: 7, marginTop: 4 }, thumbPicker: { height: 150, borderWidth: 1, borderStyle: "dashed", borderRadius: 16, overflow: "hidden", alignItems: "center", justifyContent: "center", gap: 8 }, cover: { width: "100%", height: "100%" },
   input: { borderWidth: 1, minHeight: 50, borderRadius: 15, paddingHorizontal: 14, fontSize: 12, marginBottom: 15 }, caption: { minHeight: 128, paddingTop: 13, textAlignVertical: "top", marginBottom: 5 }, captionCount: { alignSelf: "flex-end", fontSize: 9, marginBottom: 12 }, select: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  buttonRow: { flexDirection: "row", gap: 10, marginTop: 4 }, secondary: { flex: 1, height: 48, borderWidth: 1, borderRadius: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }, primary: { flex: 1.2, height: 48, borderRadius: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }, primaryText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
+  buttonRow: { flexDirection: "row", gap: 10, marginTop: 4 }, secondary: { flex: 1, height: 48, borderWidth: 1, borderRadius: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }, primary: { flex: 1.2, height: 48, borderRadius: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }, primaryDisabled: { opacity: 0.65 }, primaryText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,.55)", justifyContent: "flex-end" }, sheet: { maxHeight: "70%", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18 }, sheetHead: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }, heading2: { fontSize: 18, fontWeight: "900" }, category: { paddingVertical: 15, borderBottomWidth: StyleSheet.hairlineWidth },
 });

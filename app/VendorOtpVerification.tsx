@@ -1,8 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useEffect, useState } from "react";
+import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { AuthBackButton } from "@/components/auth/AuthBackButton";
+import {
+  AuthAlert,
+  AuthLinkButton,
+  AuthSubmitButton,
+} from "@/components/auth/AuthPrimitives";
+import { AuthScreenLayout } from "@/components/auth/AuthScreenLayout";
+import { OtpCodeField } from "@/components/auth/OtpCodeField";
 import {
   getVendorAuthError,
   sendVendorRecoveryOtp,
@@ -16,6 +21,7 @@ import {
 } from "@/services/authRecoverySession";
 
 const OTP_LENGTH = 8;
+const RESEND_SECONDS = 60;
 const param = (value?: string | string[]) => Array.isArray(value) ? value[0] || "" : value || "";
 
 export default function VendorOtpVerification() {
@@ -25,21 +31,25 @@ export default function VendorOtpVerification() {
   const ownerName = param(params.ownerName);
   const phone = param(params.phone);
   const purpose: VendorOtpPurpose = param(params.purpose) === "recovery" ? "recovery" : "signup";
-  const input = useRef<TextInput>(null);
   const [otp, setOtp] = useState("");
-  const [countdown, setCountdown] = useState(60);
+  const [countdown, setCountdown] = useState(RESEND_SECONDS);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  useEffect(() => { input.current?.focus(); }, []);
+
   useEffect(() => {
     if (!countdown) return;
-    const timer = setInterval(() => setCountdown((v) => Math.max(0, v - 1)), 1000);
+    const timer = setInterval(() => setCountdown((value) => Math.max(0, value - 1)), 1000);
     return () => clearInterval(timer);
   }, [countdown]);
+
   const verify = async () => {
+    if (loading) return;
     if (otp.length !== OTP_LENGTH) return setError(`Enter the complete ${OTP_LENGTH}-digit OTP.`);
-    setLoading(true); setError("");
+    setLoading(true);
+    setError("");
+    setNotice("");
     try {
       if (purpose === "recovery") markRecoverySessionActive();
       else clearRecoverySession();
@@ -51,39 +61,60 @@ export default function VendorOtpVerification() {
       setOtp("");
     } finally { setLoading(false); }
   };
+
   const resend = async () => {
     if (countdown || resending) return;
-    setResending(true); setError("");
+    setResending(true);
+    setError("");
+    setNotice("");
     try {
       if (purpose === "recovery") await sendVendorRecoveryOtp(email);
       else await sendVendorSignupOtp({ email, ownerName, phone });
-      setOtp(""); setCountdown(60);
-    } catch (caught) { setError(getVendorAuthError(caught, "Unable to resend the OTP.")); }
-    finally { setResending(false); }
+      setOtp("");
+      setCountdown(RESEND_SECONDS);
+      setNotice("A new verification code is on its way.");
+    } catch (caught) {
+      setError(getVendorAuthError(caught, "Unable to resend the OTP."));
+    } finally { setResending(false); }
   };
-  return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-    <AuthBackButton fallbackRoute={purpose === "recovery" ? "/VendorForgotPassword" : "/VendorLogin"} />
-    <KeyboardAvoidingView className="flex-1 justify-center px-6" behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View className="items-center mb-9">
-        <Text className="text-primary font-bold text-4xl">Royal<Text className="text-foreground">Lagn</Text></Text>
-        <Text className="text-foreground text-xl font-bold mt-4">Verify Business Email</Text>
-        <Text className="text-muted-foreground text-sm text-center mt-2">Enter the OTP sent to{"\n"}{email}</Text>
+
+  return (
+    <AuthScreenLayout
+      backRoute={purpose === "recovery" ? "/VendorForgotPassword" : "/VendorAuth"}
+      eyebrow="Vendor Portal"
+      title="Verify business email"
+      subtitle={
+        <>
+          Enter the {OTP_LENGTH}-digit code sent to{"\n"}
+          <Text className="text-foreground font-semibold">{email}</Text>
+        </>
+      }
+      footer={
+        <AuthLinkButton onPress={() => void resend()} disabled={Boolean(countdown) || resending}>
+          <Text className="text-primary font-semibold text-[13px]">
+            {resending ? "Sending…" : countdown ? `Resend code in ${countdown}s` : "Resend code"}
+          </Text>
+        </AuthLinkButton>
+      }
+    >
+      <View className="gap-4">
+        <OtpCodeField
+          length={OTP_LENGTH}
+          value={otp}
+          onChange={(next) => { setOtp(next); setError(""); }}
+          onSubmit={() => void verify()}
+          disabled={loading}
+        />
+        {error ? <AuthAlert tone="error" message={error} /> : null}
+        {notice && !error ? <AuthAlert tone="success" message={notice} /> : null}
+        <AuthSubmitButton
+          label="Verify code"
+          loadingLabel="Verifying…"
+          loading={loading}
+          disabled={otp.length !== OTP_LENGTH}
+          onPress={() => void verify()}
+        />
       </View>
-      <Pressable className="flex-row justify-center gap-2 mb-5" onPress={() => input.current?.focus()}>
-        {Array.from({ length: OTP_LENGTH }, (_, i) => <View key={i} className={`w-9 h-11 rounded-xl border items-center justify-center bg-card ${i === otp.length ? "border-primary" : "border-border"}`}>
-          <Text className="text-foreground text-lg font-bold">{otp[i] || ""}</Text>
-        </View>)}
-        <TextInput ref={input} value={otp} onChangeText={(v) => { setOtp(v.replace(/\D/g, "").slice(0, OTP_LENGTH)); setError(""); }}
-          keyboardType="number-pad" textContentType="oneTimeCode" autoComplete="one-time-code" maxLength={OTP_LENGTH}
-          caretHidden style={{ position: "absolute", width: 1, height: 1, opacity: 0 }} onSubmitEditing={verify} />
-      </Pressable>
-      <Pressable className={`rounded-2xl py-4 items-center ${loading ? "bg-primary/45" : "bg-primary"}`} onPress={verify} disabled={loading}>
-        <Text className="text-white font-semibold">{loading ? "Verifying…" : "Verify OTP"}</Text>
-      </Pressable>
-      {error ? <Text className="text-red-500 text-sm text-center mt-4">{error}</Text> : null}
-      <Pressable className="items-center py-4" onPress={resend} disabled={!!countdown || resending}>
-        <Text className="text-primary font-semibold">{resending ? "Sending…" : countdown ? `Resend OTP in ${countdown}s` : "Resend OTP"}</Text>
-      </Pressable>
-    </KeyboardAvoidingView>
-  </SafeAreaView>;
+    </AuthScreenLayout>
+  );
 }

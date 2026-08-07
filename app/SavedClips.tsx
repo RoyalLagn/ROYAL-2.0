@@ -47,7 +47,7 @@ export default function SavedClipsScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
-  const { profile, isPublicAuthenticated } = usePublicAuth();
+  const { profile, isPublicAuthenticated, loading: authLoading } = usePublicAuth();
   const dark = colorScheme === "dark";
   const columns = width >= 1100 ? 5 : width >= 760 ? 4 : width >= 520 ? 3 : 2;
   const gap = 12;
@@ -77,12 +77,15 @@ export default function SavedClipsScreen() {
   }, [profile?.id]);
 
   useFocusEffect(useCallback(() => {
+    // Wait for the stored session to be restored — redirecting while auth is
+    // still loading bounced signed-in users out to the role picker on reload.
+    if (authLoading) return;
     if (!isPublicAuthenticated) {
       router.replace("/DashboardCenter");
       return;
     }
     void load();
-  }, [isPublicAuthenticated, load, router]));
+  }, [authLoading, isPublicAuthenticated, load, router]));
 
   useEffect(() => SavedClipEvents.subscribe(({ clipId, saved }) => {
     if (!saved) setItems((current) => current.filter((item) => item.clip.id !== clipId));

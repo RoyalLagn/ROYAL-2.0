@@ -13,8 +13,10 @@ import { Check, ChevronDown, MapPin, X } from "lucide-react-native";
 import { useCustomerLocation } from "@/context/LocationContext";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import type { LocationPreference } from "@/locations/types";
+import { brandColors, brandPalette } from "@/constants/brandPalette";
+import { fonts } from "@/constants/typography";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 type LocationSelectorProps = {
   dark: boolean;
@@ -77,11 +79,11 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
   }, [locations, query]);
 
   const colors = {
-    surface: dark ? "#211E20" : "#FFFFFF",
-    background: dark ? "#151315" : "#FFFAFC",
-    text: dark ? "#F8F2F5" : "#241D21",
-    muted: dark ? "#AAA0A5" : "#746A70",
-    border: dark ? "#3B3237" : "#F0D9E4",
+    surface: brandColors(dark).card,
+    background: brandColors(dark).background,
+    text: dark ? "#F8F2F5" : brandColors(dark).foreground,
+    muted: brandColors(dark).mutedForeground,
+    border: dark ? "#3B3237" : brandColors(dark).border,
   };
 
   const close = () => {
@@ -228,11 +230,11 @@ const styles = StyleSheet.create({
   optionText: { fontSize: 12, fontWeight: "700" },
   optionDetail: { fontSize: 9, marginTop: 2 },
   emptyText: { textAlign: "center", paddingVertical: 18, fontSize: 11 },
-  saveError: { color: "#DC2626", fontSize: 10, lineHeight: 15, marginTop: 10 },
+  saveError: { color: brandPalette.light.destructive, fontFamily: fonts.sans.regular, fontSize: 10, lineHeight: 15, marginTop: 10 },
   actions: { flexDirection: "row", gap: 9, marginTop: 18 },
   cancel: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   cancelText: { fontSize: 11, fontWeight: "800" },
   confirm: { flex: 1.4, minHeight: 48, borderRadius: 15, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
-  confirmText: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
+  confirmText: { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: 11 },
   disabled: { opacity: 0.48 },
 });

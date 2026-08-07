@@ -1,47 +1,54 @@
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Check } from "lucide-react-native";
+import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 
 export default function PasswordUpdatedScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const wide = width >= 640;
   const params = useLocalSearchParams<{ audience?: string }>();
   const audience = Array.isArray(params.audience) ? params.audience[0] : params.audience;
   const loginRoute = audience === "vendor"
-    ? "/VendorLogin" as const
+    ? "/VendorAuth" as const
     : audience === "admin"
       ? "/AdminLogin" as const
       : "/Login" as const;
 
   const goToLogin = () => {
     if (router.canDismiss()) router.dismissAll();
-    router.replace(loginRoute);
+    // The login screens surface a confirmation banner for this flag.
+    router.replace({ pathname: loginRoute, params: { reset: "success" } });
   };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right", "bottom"]}>
-      <View className="flex-1 justify-center items-center px-6">
-        <View className="w-20 h-20 rounded-full bg-primary items-center justify-center mb-6">
-          <Check size={42} color="#FFFFFF" strokeWidth={2.5} />
-        </View>
-        <Text className="text-primary font-bold text-4xl mb-8">
-          Royal<Text className="text-foreground">Lagn</Text>
-        </Text>
-        <Text className="text-foreground text-2xl font-bold text-center">
-          Password Updated Successfully
-        </Text>
-        <Text className="text-muted-foreground text-sm leading-6 text-center mt-3 max-w-md">
-          Your password has been updated successfully.{"\n"}
-          Please sign in using your new password.
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          className="w-full max-w-md bg-primary rounded-2xl py-4 items-center mt-9 active:opacity-90"
-          onPress={goToLogin}
+      <View className="flex-1 justify-center items-center px-5">
+        <View
+          style={{ width: "100%", maxWidth: 440 }}
+          className={`items-center ${wide ? "bg-card border border-border rounded-3xl px-7 py-9" : ""}`}
         >
-          <Text className="text-primary-foreground font-semibold text-base">Go To Login</Text>
-        </Pressable>
+          <RoyalLagnLogo width={340} height={102} scale={2.2} />
+          <View className="w-20 h-20 rounded-full bg-primary items-center justify-center mt-7 mb-6">
+            <Check size={40} color="#FFFFFF" strokeWidth={2.5} />
+          </View>
+          <Text className="text-foreground text-[22px] font-bold text-center">
+            Password updated
+          </Text>
+          <Text className="text-muted-foreground text-[13px] leading-5 text-center mt-2">
+            Your password has been changed successfully.{"\n"}
+            Please sign in using your new password.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            className="w-full h-14 bg-primary rounded-2xl items-center justify-center mt-8 active:opacity-90"
+            onPress={goToLogin}
+          >
+            <Text className="text-primary-foreground font-semibold text-[15px]">Go to login</Text>
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
