@@ -28,6 +28,20 @@ export function resolveImageSource(
     const uri = primary.trim();
     return uri ? { uri } : fallback;
   }
+  // A caller passing the object form (`{ uri: vendor.image }`) with an
+  // empty/blank uri must fall back the same way a bare empty string does --
+  // otherwise `{ uri: "" }` reaches RN's Image untouched and native logs
+  // "source.uri should not be an empty string" instead of showing fallback.
+  if (
+    primary
+    && typeof primary === "object"
+    && !Array.isArray(primary)
+    && "uri" in primary
+    && typeof (primary as { uri?: unknown }).uri === "string"
+  ) {
+    const uri = (primary as { uri: string }).uri.trim();
+    return uri ? { ...primary, uri } : fallback;
+  }
   return primary ?? fallback;
 }
 
