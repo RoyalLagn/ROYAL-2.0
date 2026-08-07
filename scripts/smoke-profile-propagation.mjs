@@ -3,11 +3,23 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
+// Vendor profile editing was split out of the old app/VendorEditProfile.tsx
+// into one screen per section; the smoke test must check all of them so it
+// still catches a screen that regresses to a stale/local update path.
+const VENDOR_EDIT_SCREENS = [
+  "app/VendorEditBusinessInfo.tsx",
+  "app/VendorEditAbout.tsx",
+  "app/VendorEditLocation.tsx",
+  "app/VendorEditContact.tsx",
+  "app/VendorEditBrand.tsx",
+  "app/VendorEditTags.tsx",
+];
+
 const [
   publicAuth,
   customerEdit,
   customerProfile,
-  vendorEdit,
+  vendorEditScreens,
   adminUsers,
   adminVendorService,
   realtimeMigration,
@@ -20,7 +32,7 @@ const [
   read("services/publicAuth.ts"),
   read("app/EditProfile.tsx"),
   read("app/(tabs)/profile.tsx"),
-  read("app/VendorEditProfile.tsx"),
+  Promise.all(VENDOR_EDIT_SCREENS.map(read)),
   read("services/adminUsers.ts"),
   read("services/adminVendorService.ts"),
   read("supabase/migrations/20260730120000_enable_public_profile_realtime.sql"),
@@ -37,8 +49,11 @@ assert.match(customerEdit, /updatePublicProfile\(session\.user\.id/, "Customer e
 assert.match(customerEdit, /await refreshProfile\(\)/, "Customer edit form must refresh shared profile state.");
 assert.match(customerProfile, /updatePublicProfile\(session\.user\.id, \{ profileImage: uploadedUrl \}\)/, "Customer photo upload must persist.");
 assert.match(customerProfile, /updatePublicProfile\(session\.user\.id, \{ profileImage: null \}\)/, "Customer photo removal must persist.");
-assert.match(vendorEdit, /updateVendorPublicProfile\(\{/, "Vendor edits must use the atomic profile synchronization RPC.");
-assert.match(vendorEdit, /invalidatePublicVendorCache\(\)/, "Vendor edits must invalidate public marketplace data.");
+VENDOR_EDIT_SCREENS.forEach((path, index) => {
+  const source = vendorEditScreens[index];
+  assert.match(source, /updateVendorPublicProfile\(\{/, `${path} must use the shared vendor profile update service.`);
+  assert.match(source, /invalidatePublicVendorCache\(\)/, `${path} must invalidate public marketplace data after saving.`);
+});
 assert.match(vendorProfileService, /rpc\("update_vendor_public_profile"/, "Vendor profile service must call the database synchronization RPC.");
 assert.match(profileSyncMigration, /update public\.profiles[\s\S]*full_name = btrim\(new\.owner_name\)/, "Vendor owner identity must synchronize to profiles.");
 assert.match(vendorWorkspace, /table: "vendors"[\s\S]*filter: `id=eq\.\$\{vendorId\}`/, "Vendor workspace must subscribe to live Vendor updates.");
@@ -51,4 +66,4 @@ assert.match(adminUsers, /table: "profiles"/, "Admin users must subscribe to pro
 assert.match(adminVendorService, /"vendors"[\s\S]*AdminVendorService\.invalidate|AdminVendorService/, "Admin vendor service must remain connected.");
 assert.match(realtimeMigration, /alter publication supabase_realtime add table public\.profiles/, "Profiles must be published to Supabase realtime.");
 
-console.log("Profile propagation smoke test passed.");
+console.log(`Profile propagation smoke test passed (${VENDOR_EDIT_SCREENS.length} vendor edit screens checked).`);
