@@ -43,10 +43,23 @@ export const CLIP_FEED_SETTINGS = Object.freeze({
   minimumViewDurationMs: 3_000,
 });
 
-/** Mobile-friendly Cloudinary video delivery caps (device px, pre-dpr). */
+/**
+ * Cloudinary video delivery — a single fixed transformation bucket, not a
+ * per-device/per-render size. Cloudinary transcodes video on-the-fly per
+ * unique transformation string, and that transcode is genuinely slow
+ * (measured 7-11s cold vs ~2s for the untransformed original). A width that
+ * varies with viewport/DPR means practically every device requests its own
+ * never-before-seen string, so it *never* hits a warm derivative. Every
+ * clip in the DB is already capped at 1080x1920 at upload (see
+ * clips_resolution_valid), so this bucket matches the source almost exactly
+ * — Cloudinary mostly just re-encodes format/quality rather than resizing —
+ * and it's the same single string for every viewer, so at most one viewer
+ * ever pays the cold-transcode cost per clip.
+ */
 export const CLIP_VIDEO_DELIVERY = Object.freeze({
-  maxWidth: 1080,
-  nativeQuality: "auto:eco",
+  width: 1080,
+  height: 1920,
+  nativeQuality: "auto:good",
   webQuality: "auto:good",
 });
 

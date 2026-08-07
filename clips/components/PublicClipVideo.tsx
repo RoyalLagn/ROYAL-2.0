@@ -51,21 +51,20 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
 
   const hasValidSource = typeof uri === "string" && VALID_URI.test(uri.trim());
 
+  // Fixed bucket, deliberately NOT derived from the rendered width/DPR —
+  // see CLIP_VIDEO_DELIVERY. Every viewer requesting the same transformation
+  // string is what lets Cloudinary's derivative cache actually help.
   const deliveryUri = useMemo(() => {
     if (!hasValidSource) return null;
-    const dpr = Math.min(2, Math.max(1, PixelRatio.get()));
-    const targetWidth = Math.min(
-      CLIP_VIDEO_DELIVERY.maxWidth,
-      Math.round((width && width > 0 ? width : 720) * dpr),
-    );
     return cloudinaryVideoDeliveryUrl(uri, {
-      width: targetWidth,
+      width: CLIP_VIDEO_DELIVERY.width,
+      height: CLIP_VIDEO_DELIVERY.height,
       crop: "limit",
       quality: Platform.OS === "web"
         ? CLIP_VIDEO_DELIVERY.webQuality as any
         : CLIP_VIDEO_DELIVERY.nativeQuality as any,
     });
-  }, [hasValidSource, uri, width]);
+  }, [hasValidSource, uri]);
 
   const posterUri = useMemo(() => {
     if (!thumbnailUrl) return thumbnailUrl;

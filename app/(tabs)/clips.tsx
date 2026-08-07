@@ -462,7 +462,14 @@ export default function ClipsScreen() {
         maxToRenderPerBatch={Platform.OS === "web" ? 3 : 2}
         updateCellsBatchingPeriod={16}
         windowSize={Platform.OS === "web" ? 5 : 3}
-        removeClippedSubviews={Platform.OS !== "web"}
+        // iOS-only: removeClippedSubviews has long-standing VirtualizedList
+        // bugs on Android with per-item content like ours (native video
+        // surfaces + absolute-positioned gradient overlays) — clipped rows
+        // can fail to un-clip on scroll-back, which cuts the feed short
+        // well before the real end. Not worth it here: the active-only
+        // video mount + tight windowSize above already keep native view
+        // count and memory in check without it.
+        removeClippedSubviews={Platform.OS === "ios"}
         getItemLayout={(_, index) => ({ length: containerHeight, offset: containerHeight * index, index })}
         onViewableItemsChanged={onViewableItemsChanged} viewabilityConfig={viewabilityConfig}
         onEndReached={() => void loadMore()} onEndReachedThreshold={0.75}
