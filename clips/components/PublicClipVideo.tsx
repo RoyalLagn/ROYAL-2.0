@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Image, PixelRatio, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, PixelRatio, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useEvent } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import Animated, {
@@ -183,6 +183,11 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const videoStyle = useAnimatedStyle(() => ({ opacity: videoOpacity.value }));
   const failed = hasValidSource && status?.status === "error";
   const unavailable = !hasValidSource;
+  // Distinct from the poster (shown before first frame) — this covers
+  // mid-playback stalls too, e.g. the player re-buffering on a slow
+  // connection after already having played a few seconds.
+  const buffering = hasValidSource && !failed && active && !manuallyPaused
+    && status?.status === "loading";
 
   const retry = useCallback(() => {
     if (!deliveryUri) return;
@@ -229,6 +234,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     />
     {failed && <View style={styles.center}><Text style={styles.errorTitle}>This Clip couldn&apos;t play</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry video" onPress={retry} style={styles.retry}><RefreshCw size={17} color="#FFF" /><Text style={styles.retryText}>Retry</Text></Pressable></View>}
     {unavailable && <View style={styles.center}><TriangleAlert size={28} color="#FFB0CD" /><Text style={styles.errorTitle}>This Clip is unavailable</Text></View>}
+    {buffering && <View pointerEvents="none" style={styles.buffering}><ActivityIndicator size="small" color="#FFFFFF" /></View>}
     <Animated.View pointerEvents="none" style={[styles.playBurst, playStyle]}><Play size={44} color="#FFF" fill="#FFF" /></Animated.View>
     <Animated.View pointerEvents="none" style={[styles.heartBurst, heartStyle]}><Heart size={94} color="#FFF" fill="#E91E63" strokeWidth={1.5} /></Animated.View>
     {showMuteControl && manuallyPaused && !unavailable ? <Pressable
@@ -251,4 +257,5 @@ const styles = StyleSheet.create({
   playBurst: { position: "absolute", alignSelf: "center", top: "43%", width: 82, height: 82, borderRadius: 41, alignItems: "center", justifyContent: "center", paddingLeft: 5, backgroundColor: "rgba(8,5,7,.58)", borderWidth: 1, borderColor: "rgba(255,255,255,.25)" },
   heartBurst: { position: "absolute", alignSelf: "center", top: "38%" },
   muteState: { position: "absolute", alignSelf: "center", top: "55%", width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,5,7,.62)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.32)", zIndex: 6 },
+  buffering: { position: "absolute", alignSelf: "center", top: "43%", width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,5,7,.4)" },
 });
