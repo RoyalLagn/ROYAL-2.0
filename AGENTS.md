@@ -1,10 +1,20 @@
 # AGENTS.md — RoyalLagn
 
-Guidance for AI coding agents working in this repo. See [PRD.md](PRD.md) for product/feature context.
+Guidance for AI coding agents working in this repo. Start with the documentation map below.
 
 ## Documentation Map
 
-[PRD.md](PRD.md) and this file are the **single source of truth** for product scope and dev/agent conventions. Older planning docs (`RoyalLagn.prd`, `RoyalLagn.srs`, `replit.md`) were superseded and moved to [docs/archive/](docs/archive/) — a duplicate (`ShaadiVendors_PRD.md`, byte-identical to `RoyalLagn.prd`) was deleted outright. Do not resurrect or treat the archived docs as current; if you update product scope or conventions, update PRD.md/AGENTS.md directly instead of creating a new planning doc.
+The current authoritative documentation set is:
+
+| Document | Authority |
+|---|---|
+| [PRD.md](PRD.md) | Product vision, users, scope, journeys, outcomes, and product-level requirements |
+| [SRS.md](SRS.md) | Stable functional/non-functional requirement IDs and verification expectations |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System structure, boundaries, data flows, integrations, security, and deployment architecture |
+| [DESIGN.md](DESIGN.md) | Visual system, typography, color, spacing, components, and interface rules |
+| [AGENTS.md](AGENTS.md) | Engineering and coding-agent conventions |
+
+Older planning docs (`RoyalLagn.prd`, `RoyalLagn.srs`, `replit.md`) were superseded and moved to [docs/archive/](docs/archive/); a byte-identical duplicate was deleted. Do not resurrect or treat archived files as current. Update the matching authoritative document when product scope, requirements, architecture, design, or conventions change instead of creating another competing planning document.
 
 ## Project Type
 

@@ -1,19 +1,29 @@
-# Welcome to your Expo app 👋
+# RoyalLagn
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+RoyalLagn is a cross-platform wedding-vendor marketplace with public customer, vendor, and admin/CRM surfaces built in Expo and backed by Supabase.
+
+## Project documentation
+
+- [PRD.md](PRD.md) — product scope, users, journeys, and outcomes
+- [SRS.md](SRS.md) — functional and non-functional requirements
+- [ARCHITECTURE.md](ARCHITECTURE.md) — system structure, data flows, integrations, and deployment
+- [DESIGN.md](DESIGN.md) — visual and component system
+- [AGENTS.md](AGENTS.md) — engineering conventions for coding agents
+
+Files in [docs/archive/](docs/archive/) are historical references and are not current requirements.
 
 ## Get started
 
 1. Install dependencies
 
    ```bash
-   npm install
+   npm install --legacy-peer-deps
    ```
 
 2. Start the app
 
    ```bash
-   npx expo start
+   npm run start
    ```
 
 In the output, you'll find options to open the app in a

@@ -1,104 +1,207 @@
-# RoyalLagn — Product Requirements Document
+# RoyalLagn Product Requirements Document
 
-_Derived from the current codebase (Expo/React Native app + Supabase backend) as of 2026-08-06. This is the single source of truth for product scope — it supersedes the older planning docs, which have been archived under [docs/archive/](docs/archive/) (`RoyalLagn.prd`, `RoyalLagn.srs`, `replit.md`; the duplicate `ShaadiVendors_PRD.md` was deleted outright). This file reflects what is actually implemented, not what was originally planned._
+| Field | Value |
+|---|---|
+| Status | Current source of truth |
+| Product | RoyalLagn wedding-vendor marketplace |
+| Version | 2.0 |
+| Last verified | 2026-08-08 |
+| Platforms | Web, Android, iOS |
 
-## 1. Product Summary
+This document defines product intent, scope, users, outcomes, and product-level requirements. Detailed testable requirements are in [SRS.md](SRS.md), the implementation model is in [ARCHITECTURE.md](ARCHITECTURE.md), interface rules are in [DESIGN.md](DESIGN.md), and contributor conventions are in [AGENTS.md](AGENTS.md). Files under [docs/archive/](docs/archive/) are historical only.
 
-RoyalLagn is a wedding-vendor marketplace (Venues, Caterers, Photographers, Decorators, etc.) shipped as one Expo/React Native codebase targeting Web, Android, and iOS. There are three user-facing surfaces sharing the same repo and Supabase backend:
+## 1. Product vision
 
-1. **Public/Customer app** — discover vendors, browse categories & locations, view vendor profiles/portfolios/clips, save favorites, contact vendors, leave reviews, receive notifications.
-2. **Vendor dashboard** — vendors manage their business profile, portfolio/gallery, clips (short video content), services/packages, subscription/billing, enquiries, calendar, applications, and marketing materials.
-3. **Admin dashboard** — RoyalLagn staff manage vendor applications, categories, locations, hero banners, users, reviews, push notifications, subscriptions/payments, and a CRM for field sales workspaces (states → districts → talukas → clusters → vendor outreach).
+RoyalLagn helps couples and families discover trustworthy wedding professionals, helps vendors present and grow their businesses, and gives RoyalLagn staff the tools to operate a reviewed marketplace. The experience should feel premium, calm, visual, and dependable without hiding essential information behind decorative UI.
 
-## 2. Tech Stack
+## 2. Problem statement
 
-- **Framework**: Expo SDK 54, React Native 0.81, React 19, Expo Router v6 (file-based routing under `app/`)
-- **Styling**: NativeWind v4 (Tailwind) + `tailwind.config.js`, `global.css`
-- **Backend**: Supabase (Postgres + Auth + Realtime + Edge Functions), migrations in `supabase/migrations/`
-- **Media**: Cloudinary (portfolio images, clip video + thumbnails) signed via Supabase Edge Functions (`cloudinary-sign`, `cloudinary-delete`, `profile-image`)
-- **Payments**: `react-native-razorpay` (vendor subscriptions)
-- **State**: React Context (`context/*`) per domain — auth (public/vendor/admin), favorites, categories, locations, notifications, subscriptions, reviews, responsive layout
-- **Notifications**: `expo-notifications` + Supabase `push_notifications` tables, `services/pushTokens.ts`, `services/adminPushNotifications.ts`
-- **Platforms**: Web (primary preview, port 5000), Android (Gradle build via `android/`), iOS (`ios/` Xcode project) — native folders are generated via `expo prebuild`, not committed as source of truth
+Wedding planning is fragmented across social media, referrals, directories, and direct messaging. Customers struggle to compare credible vendors and understand their work. Vendors need a credible public presence, qualified enquiries, and practical tools to maintain their listing. Marketplace operators need moderation, content, revenue, communication, and field-sales workflows in one controlled system.
 
-## 3. Core Domains & Features
+## 3. Goals
 
-### 3.1 Public / Customer
-- Category browsing (`components/categories`, `context/CategoryContext.tsx`, `data/marketplaceCategories.ts`)
-- Location-based discovery (`locations/`, `context/LocationContext.tsx`, `docs/location-management.md`)
-- Vendor listing & search (`app/VendorsListing.tsx`, `app/Search.tsx`, `services/publicVendorListings.ts`)
-- Vendor profile pages: about, gallery, portfolio, clips, reviews (`app/VendorsProfile.tsx`, `services/vendorPublicProfile.ts`, `services/vendorPortfolio.ts`)
-- Short-form video "Clips" module (`clips/` — own components/hooks/services/providers, cover-thumbnail generation)
-- Favorites (`context/FavoritesContext.tsx`, `app/SavedClips.tsx`, `app/(tabs)/favorites.tsx`)
-- Reviews & ratings (`context/ReviewRatingsContext.tsx`, `services/reviews.ts`)
-- Auth: signup/login/OTP/password reset for public users (`app/Login.tsx`, `OtpVerification.tsx`, `ForgotPassword.tsx`, `services/publicAuth.ts`, `context/PublicAuthContext.tsx`)
-- Enquiries to vendors (`app/VendorEnquiries.tsx` counterpart on vendor side, `services/enquiries.ts`, `hooks/useEnquiries.ts`)
-- Notifications inbox (`services/inboxNotifications.ts`, `context/NotificationContext.tsx`)
-- Vendor "Become a Vendor" application flow (`app/BecomeVendor.tsx`, `services/vendorApplications.ts`)
+- Make local vendor discovery fast through categories, locations, search, ratings, media, and useful filters.
+- Build customer confidence through reviewed listings, complete profiles, portfolios, packages, reviews, and visible trust signals.
+- Give vendors one workspace for profile content, media, services, packages, enquiries, availability, subscriptions, and marketing assets.
+- Give administrators safe, auditable tools for marketplace operations, content moderation, payments, notifications, reporting, and CRM activity.
+- Deliver a consistent responsive product from a shared Expo codebase across mobile, tablet, and web.
+- Keep business data live across public, vendor, and admin surfaces without requiring manual duplication.
 
-### 3.2 Vendor Dashboard
-- Vendor auth: login/OTP/forgot-password/create-password (`app/VendorLogin.tsx`, `VendorOtpVerification.tsx`, etc., `services/vendorAuth.ts`, `context/VendorSessionContext.tsx`)
-- Profile editing: business info, brand, contact, location, about, tags (`app/VendorEditBusinessInfo.tsx`, `VendorEditBrand.tsx`, `VendorEditContact.tsx`, `VendorEditLocation.tsx`, `VendorEditAbout.tsx`, `VendorEditTags.tsx`, `services/vendorProfile.ts`)
-- Gallery/portfolio + album management, image uploads via Cloudinary (`app/VendorGallery.tsx`, `VendorPortfolio.tsx`, `VendorAlbum.tsx`, `services/vendorPortfolio.ts`, `services/cloudinary.ts`)
-- Clips: upload, edit, atomic upload reservations (`app/VendorClipUpload.tsx`, `VendorClipEdit.tsx`, `VendorClips.tsx`, `clips/services`)
-- Services/packages (`app/VendorServices.tsx`, `hooks/useVendorPackages.ts`, `services/vendorPackages.ts`, `packages/validation.ts`)
-- Subscription/billing (`app/VendorSubscription.tsx`, `subscriptions/`, `hooks/useSubscriptionAccess.ts`, `context/SubscriptionContext.tsx`, Razorpay integration)
-- Calendar (`app/VendorCalendar.tsx`)
-- Enquiries management (`app/VendorEnquiries.tsx`)
-- Marketing card / center — shareable promo materials (`app/vendor-marketing-card.tsx`, `vendor-marketing-center.tsx`, `components/vendor-marketing*`, `services/marketingCardService.ts`, `services/vendorShare.ts`)
-- Application status tracking (`app/VendorApplicationDetails.tsx`, `VendorApplications.tsx`, `VendorAuthStatus.tsx`)
-- Notifications, settings, help, payment history, T&C/privacy (`VendorNotifications.tsx`, `VendorSettings.tsx`, `VendorHelp.tsx`, `VendorPaymentHistory.tsx`, `VendorTerms.tsx`, `VendorPrivacyPolicy.tsx`)
+## 4. Non-goals
 
-### 3.3 Admin Dashboard
-- Admin auth (`app/AdminLogin.tsx`, `AdminOtpVerification.tsx`, `AdminForgotPassword.tsx`, `AdminCreatePassword.tsx`, `services/adminAuth.ts`, `context/AdminAuthContext.tsx`)
-- Vendor moderation: applications, vendor details, listing management (`AdminVendorDetails.tsx`, `app/vendors-admin-listing.tsx`, `services/adminVendorService.ts`)
-- Content management: categories, locations, hero banners, clips moderation (`AdminCategories.tsx`, `AdminLocations.tsx`, `AdminHero.tsx`, `AdminClips.tsx`, `services/heroSlides.ts`, `services/CategoryService.ts`)
-- Users management, reviews moderation (`AdminUsers.tsx`, `AdminReviews.tsx`, `services/adminUsers.ts`)
-- Payments & subscriptions oversight (`app/payments-admin.tsx`, `subscriptions-admin.tsx`, `services/adminRevenueService.ts`)
-- Push notification composer/broadcast (`AdminPushNotifications.tsx`, `services/adminPushNotifications.ts`)
-- Reports/analytics (`AdminReports.tsx`, `services/adminDashboardService.ts`)
-- **CRM module** — internal field-sales tool: workspaces scoped to states/districts/talukas/clusters, vendor outreach tasks, follow-ups (`AdminCrm*.tsx`, `CrmWorkspace*.tsx`, `services/crm/`, `types/crm/`, `hooks/crm/`)
-- Settings, help, enquiries oversight (`AdminSettings.tsx`, `AdminHelp.tsx`, `AdminEnquiries.tsx`)
+- RoyalLagn is not a wedding-planning ERP, escrow service, or contract-signing platform.
+- The current product does not guarantee vendor availability, service quality, pricing, or transaction completion.
+- The app must not invent customer counts, ratings, awards, testimonials, or performance claims.
+- Native and web experiences may adapt their navigation and density; pixel-identical rendering is not a goal.
+- Archived planning documents are not a backlog and must not be treated as current requirements.
 
-## 4. Data Layer
+## 5. Users and roles
 
-- Supabase Postgres is the system of record; schema evolves via timestamped SQL files in `supabase/migrations/` (most recent: subscription free-plan seeding, atomic public registration, hero slide desktop images, push notification tables, CRM workspace tables, vendor public profile content, atomic clip upload reservations).
-- `types/database.ts` holds generated/maintained DB types; domain-specific types live in `types/adminDashboard.ts`, `types/adminVendors.ts`, `types/crm/`, `types/hero.ts`, `types/pushNotifications.ts`, `types/responsive.ts`.
-- Row-level security and service-role policies are managed per migration (e.g. `close_vendor_application_stub_policies`, `grant_service_role_push_tables`).
-- Cloudinary asset paths follow `royallagn/vendors/{vendorId}/albums/{albumId}/`; secrets are Supabase Edge Function secrets, never `EXPO_PUBLIC_` vars (see [README.md](README.md)).
+### 5.1 Public customer
 
-## 5. Cross-Cutting Concerns
+A couple, family member, or planner exploring vendors. Browsing should work with minimal friction; authenticated actions such as saving, reviewing, enquiring, and managing a profile use the public account flow.
 
-- **Theming**: `components/ThemeProvider.tsx`, `theme.ts`, light/dark support, `ThemeToggle.tsx`
-- **Responsive layout**: `context/ResponsiveLayoutContext.tsx`, `hooks/useWebNavigationFocusSafety.ts`, `utils/responsiveLayout.ts`, separate mobile tab bar vs. web navbar (`components/MobileTabBar.tsx`, `PublicWebNavbar.tsx`)
-- **Web-only shims**: `+html.tsx`, `Supply the Alert implementation react-native-web omits` (commit history) — react-native-web gaps patched manually
-- **Auth gateway**: `hooks/useAuthenticationGateway.ts` unifies session checks across public/vendor/admin contexts
-- **Error boundaries**: `components/SectionErrorBoundary.tsx`
-- **SEO/sitemap**: `scripts/generate-sitemap.mjs`, `vercel.json` (web deployment target)
+### 5.2 Vendor
 
-## 6. Testing & Verification
+A wedding-service provider who applies to the marketplace and manages an approved or pending business workspace. Vendor identity and authorization remain separate from public-customer state.
 
-Existing Node-based smoke/integration scripts (no formal test framework configured):
-- `npm run test:profile-smoke` / `test:profile-e2e` — profile propagation
-- `npm run test:subscriptions`, `test:packages`, `test:contacts`, `test:locations` — domain logic checks (`scripts/test-*.mjs`)
-- `npm run lint` — `expo lint`
+### 5.3 Administrator
 
-## 7. Deployment
+Authorized RoyalLagn staff who moderate vendors and content, manage marketplace configuration, oversee revenue and communication, and operate internal CRM workspaces.
 
-- Web: built for Vercel (`vercel.json`)
-- Android: local Gradle build via `npm run prebuild:android` + `npm run build:apk`, or EAS (`eas.json`, `.easignore`)
-- iOS: standard Xcode workflow via `ios/RoyalLagn.xcworkspace`
-- `android/` and `ios/` are generated by `expo prebuild`; treat as build artifacts, not hand-edited source, unless already customized
+## 6. Product principles
 
-## 8. Known Constraints / Preferences
+1. **Trust before volume.** Reviewed, understandable profiles are more valuable than inflated listing counts.
+2. **Visual evidence with usable context.** Media supports discovery, while location, category, services, packages, ratings, and contact actions make it actionable.
+3. **Clear role boundaries.** Public, vendor, and admin sessions and permissions must never be conflated.
+4. **One source of business truth.** Vendor edits should propagate to public and administrative views through shared records and explicit refresh or realtime mechanisms.
+5. **Premium through restraint.** Use whitespace, alignment, typography, grouping, and consistent components before adding decoration or increasing text size.
+6. **Safe progression.** Destructive or privileged actions require clear intent, validation, authorization, and useful feedback.
+7. **Responsive by design.** Small phones are the minimum constraint; larger phones, tablets, and web should gain space without losing hierarchy.
 
-- `--legacy-peer-deps` required for npm installs (lucide-react-native vs. React 19 peer conflict)
-- NativeWind v4 requires `jsxImportSource: 'nativewind'` in `babel.config.js` — do **not** use the older `nativewind/babel` plugin
-- `metro.config.js`: do not add a `blockList` for nested `node_modules` — breaks `@expo/metro-runtime` resolution
-- `newArchEnabled: true` in `app.json` is required by `react-native-reanimated` v4 + `react-native-worklets`
+## 7. Product surfaces and journeys
 
-## 9. Open Items / Not Yet Covered Here
+### 7.1 Public marketplace
 
-- No automated CI config detected (no `.github/workflows`) — verify before assuming CI gates exist
-- No formal test runner (Jest/Vitest) — only ad-hoc `.mjs` smoke scripts
-- Detailed CRM workspace business rules live only in code (`services/crm/`, `AdminCrm*.tsx`) and should be pulled into this doc if the CRM becomes a priority surface
+The public experience includes Home, Categories, Search, Vendor Listings, Vendor Profiles, Clips, Favorites, Enquiries, Notifications, account/profile screens, and the Become a Vendor flow.
+
+Primary journey:
+
+1. A customer selects or detects a supported location.
+2. The customer browses a category, search result, featured section, or Clip.
+3. The customer compares vendor cards using relevant summary information.
+4. The customer opens a vendor profile to inspect work, services, packages, availability, reviews, and business information.
+5. The customer saves, shares, contacts, reviews, or submits an enquiry subject to authentication and validation rules.
+
+Product requirements:
+
+- Discovery must support category, location, query, and available marketplace filters without presenting stale filters as active.
+- Public vendor cards must preserve a clear media-to-information hierarchy and handle missing images, long names, and narrow screens.
+- Vendor profiles must provide a stable canonical route and expose only public, approved data.
+- Favorites and saved Clips must survive ordinary navigation and session restoration where the signed-in account permits it.
+- Reviews must show aggregate and individual feedback consistently and prevent unauthorized submission or moderation.
+- Enquiry and contact actions must provide success, failure, and authentication states instead of silent no-ops.
+- The application flow must capture required vendor information and expose meaningful pending, approved, rejected, or resubmission status.
+
+### 7.2 Vendor workspace
+
+The vendor experience includes authentication, application status, dashboard, profile editing, public-profile preview, gallery and portfolio albums, Clips, services, packages, enquiries, calendar, subscription and payment history, notifications, settings, help, and marketing tools.
+
+Primary journey:
+
+1. A vendor applies or signs in through the vendor flow.
+2. RoyalLagn verifies the account and associates it with the correct vendor workspace.
+3. The vendor completes business, brand, contact, location, content, service, package, and media information.
+4. The vendor previews the public representation and manages incoming enquiries.
+5. The vendor accesses features allowed by the active subscription and manages renewal or payment history.
+
+Product requirements:
+
+- Vendor edits must be scoped to the verified vendor identity and must not expose privileged fields to client manipulation.
+- Business profile edits must update every relevant public card and profile view after successful persistence and refresh/realtime propagation.
+- Logo and profile-image editing must use a fixed 1:1 preview and 1024 × 1024 output. Users control positioning, zoom, rotation, and reset; source proportions must not be stretched or automatically cropped to fill.
+- Portfolio, gallery, and Clip uploads must communicate progress, validation failures, retryable errors, and final publication state.
+- Package and service management must validate required values before persistence.
+- Subscription-gated features must explain access requirements and use server-verified payment state.
+- Marketing assets must use real profile data and must not fabricate performance claims.
+
+### 7.3 Admin workspace
+
+The admin experience includes authentication, operational dashboard, vendor application and listing moderation, categories, locations, hero content, Clips, users, reviews, enquiries, push notifications, payments, subscriptions, reports, settings, and the internal CRM.
+
+Primary journey:
+
+1. An authorized staff member signs in and is verified against the admin role.
+2. The dashboard surfaces current operational work and safe navigation to the corresponding tools.
+3. Staff review and change vendor, content, user, revenue, or communication state with confirmation and feedback.
+4. Field teams use territory and marketing workspaces to record vendor acquisition activity, follow-ups, tasks, notes, and progress.
+
+Product requirements:
+
+- Every admin route and mutation must enforce admin authorization independently of visual route guards.
+- Vendor approval, rejection, resubmission, and listing state must remain synchronized with the vendor and public surfaces.
+- Category, location, and hero management must preserve valid public configuration and defined limits.
+- Push messages must support audience selection, validation, delivery status, and history where implemented.
+- Revenue and subscription screens must derive values from persisted payment/subscription records, never mock totals.
+- CRM records must remain scoped to their territory/workspace and preserve activity history needed for field operations.
+
+## 8. Shared capability requirements
+
+### 8.1 Identity and authorization
+
+RoyalLagn uses Supabase Auth with separate public, vendor, and admin verification paths. Sessions persist using platform-appropriate storage. UI guards improve navigation, but database Row Level Security and server-side checks are the security boundary.
+
+### 8.2 Marketplace data
+
+Supabase Postgres is the system of record. Categories, supported locations, vendor profiles, reviews, enquiries, subscriptions, Clips, notifications, and CRM data must be read and mutated through established services, RPCs, and Edge Functions.
+
+### 8.3 Media
+
+Cloudinary stores supported profile, portfolio, review, and Clip media. Sensitive signing and deletion operations execute through Supabase Edge Functions. Upload UI must preserve aspect ratio, reject unsupported data, and recover cleanly from network or processing failure.
+
+### 8.4 Payments
+
+Razorpay supports vendor subscription checkout. The client may initiate checkout, but payment verification, webhook processing, entitlements, renewal state, and lifecycle changes are server-controlled.
+
+### 8.5 Notifications
+
+Expo notifications and persisted inbox records provide device and in-app communication. Token registration is best-effort, audience selection is privileged, and notification failure must not corrupt the primary business action.
+
+### 8.6 Location model
+
+Discovery and CRM use managed geographic data. Public and vendor forms should select supported records rather than create inconsistent free-text location hierarchies where managed data is required.
+
+## 9. Experience and design requirements
+
+- [DESIGN.md](DESIGN.md) is the source of truth for color, typography, spacing, elevation, shape, and component treatment.
+- Root page backgrounds remain neutral/white in the light theme; pink tint is reserved for cards, chips, highlights, and intentional surfaces.
+- Inter is used for functional UI. Playfair Display is reserved for intentional editorial emphasis.
+- Text hierarchy should first use spacing, weight, color, and grouping; text must not be enlarged merely to create hierarchy.
+- Interactive targets, contrast, labels, focus behavior, screen-reader semantics, loading states, and error states must be considered on every platform.
+- Layouts must be validated on small phones, larger phones, tablets, and web, including truncation, wrapping, safe areas, keyboard behavior, and navigation overlap.
+- Existing flows and functionality take precedence during visual refinement.
+
+## 10. Quality attributes
+
+- **Security:** least privilege, RLS, no client-exposed service secrets, validated privileged operations.
+- **Reliability:** recoverable loading/error/empty states, idempotent server operations where retries are possible, and no data loss from navigation.
+- **Performance:** responsive interactions, bounded media processing, paginated or cursor-based feeds where appropriate, and no long synchronous click handlers.
+- **Accessibility:** readable typography, non-color-only status, keyboard/focus support on web, and platform semantics for controls.
+- **Maintainability:** shared tokens/components, domain services, append-only migrations, typed interfaces, and smoke coverage for critical workflows.
+
+## 11. Success measures
+
+The product should instrument and review these measures without inventing public claims:
+
+- Search/listing-to-profile conversion.
+- Profile-to-contact or enquiry conversion.
+- Favorite, saved Clip, and return-user activity.
+- Vendor application completion and approval turnaround.
+- Vendor profile completeness and successful media publication.
+- Enquiry response activity.
+- Subscription checkout success, renewal, expiry, and failed-payment rates.
+- Admin moderation backlog and CRM follow-up completion.
+- Crash-free sessions, upload failure rate, route-load latency, and notification delivery outcomes.
+
+Numeric targets remain business decisions and must be documented when approved.
+
+## 12. Release and deployment scope
+
+- Web is exported from Expo and deployed using the Vercel configuration.
+- Android and iOS builds use Expo/EAS or generated native workspaces.
+- Database changes are append-only Supabase migrations.
+- Edge Function and secret deployment is separate from client deployment.
+- Generated native folders are not the primary source of truth unless a native customization is explicitly adopted and documented.
+
+## 13. Risks and open decisions
+
+- Automated CI gates and a formal unit/UI test runner are not currently configured.
+- Several large route components increase regression risk and should be decomposed only when behavior can be preserved.
+- Operational targets for availability, latency, retention, privacy deletion, and recovery need business approval.
+- Legal text, consent, data retention, and regional compliance require owner/legal validation before production commitments are claimed.
+- Analytics definitions and event ownership need a formal measurement plan.
+- CRM business rules are implemented extensively but require ongoing owner validation as field processes evolve.
+
+## 14. Change control
+
+Product-scope changes update this PRD first, then the corresponding requirement IDs in [SRS.md](SRS.md). Architectural changes update [ARCHITECTURE.md](ARCHITECTURE.md). Visual-system changes update [DESIGN.md](DESIGN.md). Historical files must remain archived and must not be promoted back to current status.
