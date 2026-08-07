@@ -129,7 +129,7 @@ export default function EditProfile() {
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: background }]} edges={["top", "left", "right"]}>
       <View style={[styles.header, { backgroundColor: surface, borderBottomColor: border }]}>
-        <Pressable accessibilityLabel="Go back" onPress={() => router.back()} style={[styles.back, { backgroundColor: soft }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" hitSlop={4} onPress={() => router.back()} style={[styles.back, { backgroundColor: soft }]}>
           <ArrowLeft size={20} color={text} />
         </Pressable>
         <View style={styles.flex}>
@@ -140,7 +140,7 @@ export default function EditProfile() {
 
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 66 : 0}
       >
       <ScrollView
@@ -156,7 +156,14 @@ export default function EditProfile() {
 
         <View style={[styles.card, { backgroundColor: surface, borderColor: border }]}>
           <View style={styles.photoRow}>
-            <Pressable disabled={uploading} onPress={choosePhoto} style={[styles.avatar, { backgroundColor: soft, borderColor: border }]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
+              accessibilityState={{ disabled: uploading, busy: uploading }}
+              disabled={uploading}
+              onPress={choosePhoto}
+              style={[styles.avatar, { backgroundColor: soft, borderColor: border }]}
+            >
               {profileImage ? <Image source={{ uri: profileImage }} style={styles.avatarImage} /> : <UserRound size={36} color={pink} />}
               <View style={[styles.camera, { backgroundColor: pink, borderColor: surface }]}>
                 {uploading ? <ActivityIndicator color="#FFF" size="small" /> : <Camera size={14} color="#FFF" />}
@@ -165,7 +172,18 @@ export default function EditProfile() {
             <View style={styles.flex}>
               <Text style={[styles.photoTitle, { color: text }]}>Profile photo</Text>
               <Text style={[styles.photoHint, { color: muted }]}>Use a clear square image. It will be saved with the rest of your profile.</Text>
-              {profileImage ? <Pressable disabled={uploading} onPress={removePhoto}><Text style={[styles.removePhoto, { color: pink }]}>Remove photo</Text></Pressable> : null}
+              {profileImage ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove photo"
+                  accessibilityState={{ disabled: uploading, busy: uploading }}
+                  hitSlop={10}
+                  disabled={uploading}
+                  onPress={removePhoto}
+                >
+                  <Text style={[styles.removePhoto, { color: pink }]}>Remove photo</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
 
@@ -187,7 +205,14 @@ export default function EditProfile() {
           <View style={styles.status}>
             {saved ? <><Check size={16} color="#168A5B" /><Text style={styles.savedText}>Profile updated</Text></> : <Text style={[styles.saveHint, { color: muted }]}>Saved changes update your account everywhere.</Text>}
           </View>
-          <Pressable disabled={saving || uploading} onPress={save} style={[styles.save, { backgroundColor: pink }, (saving || uploading) && { opacity: 0.6 }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Save changes"
+            accessibilityState={{ disabled: saving || uploading, busy: saving }}
+            disabled={saving || uploading}
+            onPress={save}
+            style={[styles.save, { backgroundColor: pink }, (saving || uploading) && { opacity: 0.6 }]}
+          >
             {saving ? <ActivityIndicator color="#FFF" /> : <><Save size={17} color="#FFF" /><Text style={styles.saveText}>Save changes</Text></>}
           </Pressable>
         </View>
