@@ -15,11 +15,17 @@
     "lint": "expo lint",
     "test:profile-smoke": "node scripts/smoke-profile-propagation.mjs",
     "test:profile-e2e": "node --env-file=.env scripts/e2e-profile-propagation.mjs",
-    "test:subscriptions": "node --experimental-strip-types scripts/test-subscription-domain.mjs",
-    "test:packages": "node --experimental-strip-types scripts/test-package-domain.mjs",
-    "test:contacts": "node --experimental-strip-types scripts/test-contact-actions.mjs",
-    "test:locations": "node --experimental-strip-types scripts/test-location-domain.mjs",
+    "test:subscriptions": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-subscription-domain.mjs",
+    "test:packages": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-package-domain.mjs",
+    "test:contacts": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-contact-actions.mjs",
+    "test:locations": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-location-domain.mjs",
+    "test:regression-guards": "node scripts/test-regression-guards.mjs",
+    "test:auth-validation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-auth-validation.mjs",
+    "test:smoke": "node scripts/run-smoke-tests.mjs",
     "sitemap:generate": "node --env-file=.env scripts/generate-sitemap.mjs"
+  },
+  "engines": {
+    "node": ">=22.6.0"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
