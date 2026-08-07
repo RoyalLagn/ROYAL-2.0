@@ -46,16 +46,16 @@ No Jest/Vitest configured. Use the existing smoke scripts before/after touching 
 
 ```bash
 npm run lint
-npm run test:profile-smoke
-npm run test:subscriptions
-npm run test:packages
-npm run test:contacts
-npm run test:locations
+npm run test:smoke
 ```
 
-`test:profile-e2e` needs staging credentials in `.env` and hits real Supabase — don't run it against production data without confirming with the user.
+`npm run test:smoke` runs every safe, non-credentialed check (`test:profile-smoke`, `test:subscriptions`, `test:packages`, `test:contacts`, `test:locations`) in one command via `scripts/run-smoke-tests.mjs`; each can still be run individually.
 
-`test:profile-smoke` is currently broken (references a stale `app/VendorEditProfile.tsx` path that no longer exists post-refactor into `VendorEditBusinessInfo.tsx`/etc.) — known issue, not caused by your changes; fix `scripts/smoke-profile-propagation.mjs` if you touch that area, otherwise treat its failure as expected until fixed.
+`test:subscriptions`/`test:packages`/`test:contacts`/`test:locations` run their `.ts` scripts directly via `node --experimental-strip-types`, which requires **Node >= 22.6.0** (see `engines.node` in `package.json`) — that flag doesn't exist on Node 20. If you're on an older Node, use `nvm`/`fnm` to switch before running them.
+
+`test:profile-e2e` needs staging credentials in `.env` and hits real Supabase — don't run it against production data without confirming with the user, and it is intentionally excluded from `test:smoke`.
+
+`scripts/smoke-profile-propagation.mjs` checks every vendor profile edit screen (`VendorEditBusinessInfo.tsx`, `VendorEditAbout.tsx`, `VendorEditLocation.tsx`, `VendorEditContact.tsx`, `VendorEditBrand.tsx`, `VendorEditTags.tsx`) — it no longer references the deleted `app/VendorEditProfile.tsx`. If you add another vendor edit screen with its own save path, add it to the `VENDOR_EDIT_SCREENS` list in that script.
 
 ## Things to Avoid
 
