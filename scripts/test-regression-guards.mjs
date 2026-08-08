@@ -40,6 +40,27 @@ assert.doesNotMatch(
   /from ['"]@expo-google-fonts\/inter['"]/,
   "app/_layout.tsx must not reintroduce the Inter barrel import (bundles all 18 weights).",
 );
+
+// --- Expo Go must not evaluate expo-notifications at startup ------------
+const [pushRegistrarSource, pushServiceSource] = await Promise.all([
+  read("components/notifications/PushTokenRegistrar.tsx"),
+  read("services/pushTokens.ts"),
+]);
+for (const [path, source] of [
+  ["components/notifications/PushTokenRegistrar.tsx", pushRegistrarSource],
+  ["services/pushTokens.ts", pushServiceSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /^import \* as Notifications from ["']expo-notifications["'];?$/m,
+    `${path} must not eagerly import expo-notifications because SDK 53+ Expo Go rejects it during module evaluation.`,
+  );
+  assert.match(
+    source,
+    /Constants\.appOwnership\s*(?:===|!==)\s*["']expo["']/,
+    `${path} must keep the Expo Go runtime guard.`,
+  );
+}
 assert.doesNotMatch(
   layoutSource,
   /from ['"]@expo-google-fonts\/playfair-display['"]/,

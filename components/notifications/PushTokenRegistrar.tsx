@@ -1,22 +1,13 @@
 import { useEffect } from "react";
 import { Platform } from "react-native";
-import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { supabase } from "@/services/supabase";
 import { PushTokenService } from "@/services/pushTokens";
 
-if (Platform.OS !== "web") {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
-}
+const notificationsAvailable =
+  Platform.OS !== "web" && Constants.appOwnership !== "expo";
 
 /**
  * Registers the current device's Expo push token for the signed-in
@@ -27,12 +18,24 @@ export default function PushTokenRegistrar() {
   const { isAdminAuthenticated } = useAdminAuth();
 
   useEffect(() => {
-    if (Platform.OS === "web") return;
+    if (!notificationsAvailable) return;
 
     let cancelled = false;
 
     const register = async () => {
       try {
+        const Notifications = await import("expo-notifications");
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+          }),
+        });
+
+        if (cancelled) return;
         if (isPublicAuthenticated && profile?.role === "public_user") {
           await PushTokenService.registerForCurrentUser({ role: "public_user" });
           return;
