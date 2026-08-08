@@ -1,5 +1,5 @@
 import React from "react";
-import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { usePathname, useRouter } from "expo-router";
 import { Bell, Crown, MessageSquareText } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,6 +7,7 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { useVendorNotifications } from "@/context/VendorNotificationContext";
 import { typeStyles } from "@/constants/typography";
+import Pressable from "@/components/InteropSafePressable";
 import { vendorTheme } from "./VendorTheme";
 
 const desktopNav = [

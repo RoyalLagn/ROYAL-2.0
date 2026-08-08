@@ -5,7 +5,6 @@ import {
   Linking,
   Modal,
   Platform,
-  Pressable,
   type PressableStateCallbackType,
   ScrollView,
   StyleSheet,
@@ -49,6 +48,7 @@ import { getPublicAuthError, updatePublicProfile } from "@/services/publicAuth";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import SquareImageEditor from "@/components/vendor/SquareImageEditor";
+import Pressable from "@/components/InteropSafePressable";
 
 type AccountOptionProps = {
   icon: React.ElementType;

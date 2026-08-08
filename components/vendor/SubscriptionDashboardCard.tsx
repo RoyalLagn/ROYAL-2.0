@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import { CalendarDays, ChevronRight, Crown, Gift, ReceiptText } from "lucide-react-native";
@@ -8,6 +8,7 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { subscriptionAccessSourceLabel, subscriptionDateCopy, subscriptionStateCopy } from "@/subscriptions/presentation";
 import { typeScale } from "@/constants/typography";
+import Pressable from "@/components/InteropSafePressable";
 
 export default function SubscriptionDashboardCard() {
   const router = useRouter();

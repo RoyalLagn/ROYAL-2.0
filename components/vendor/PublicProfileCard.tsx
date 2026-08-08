@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import QRCode from "react-native-qrcode-svg";
@@ -21,6 +21,7 @@ import {
 } from "@/services/vendorPublicProfile";
 import { shareVendorProfile } from "@/services/vendorShare";
 import { typeScale, typeLeading } from "@/constants/typography";
+import Pressable from "@/components/InteropSafePressable";
 
 export default function PublicProfileCard({ vendor }: { vendor: any }) {
   const { colorScheme } = useAppTheme();

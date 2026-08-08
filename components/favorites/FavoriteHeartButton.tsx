@@ -52,6 +52,8 @@ export default function FavoriteHeartButton({
 }: FavoriteHeartButtonProps) {
   const sourceRef = useRef<View>(null);
   const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
   const scale = useSharedValue(1);
   const reducedMotion = useReducedMotion();
   const previousFavorite = useRef(favorite);
@@ -90,8 +92,12 @@ export default function FavoriteHeartButton({
       hitSlop={hitSlop}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
       onPress={() => onToggle(sourceRef)}
-      style={({ hovered, pressed }) => [
+      style={[
         style,
         favorite && activeStyle,
         (hovered || focused) && hoveredStyle,

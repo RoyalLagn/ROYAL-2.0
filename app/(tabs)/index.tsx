@@ -48,6 +48,7 @@ export default function HomeScreen() {
   const [searchText, setSearchText] = useState("");
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
+  const [categoryTogglePressed, setCategoryTogglePressed] = useState(false);
   const [filters, setFilters] = useState<HomeFilters>(DEFAULT_HOME_FILTERS);
   const [liveVendors, setLiveVendors] = useState<PublicVendorListing[]>([]);
   // True only until the *first* vendor fetch settles -- background
@@ -441,10 +442,12 @@ export default function HomeScreen() {
             accessibilityLabel={showAllCategories ? "Show fewer categories" : "Show more categories"}
             accessibilityState={{ expanded: showAllCategories }}
             onPress={() => setShowAllCategories((current) => !current)}
-            style={({ pressed }) => [
+            onPressIn={() => setCategoryTogglePressed(true)}
+            onPressOut={() => setCategoryTogglePressed(false)}
+            style={[
               s.categoryToggle,
               { backgroundColor: isDark ? colors.card : colors.background, borderColor: colors.frameBorder },
-              pressed && s.categoryTogglePressed,
+              categoryTogglePressed && s.categoryTogglePressed,
             ]}
           >
             <LayoutGrid size={17} color={PINK} strokeWidth={2.2} />

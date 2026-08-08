@@ -63,8 +63,82 @@ for (const [path, source] of [
 }
 assert.doesNotMatch(
   layoutSource,
-  /from ['"]@expo-google-fonts\/playfair-display['"]/,
+  /from ['"]@expo-google-fonts\/playfair-display['"]/, // Guard the package barrel import.
   "app/_layout.tsx must not reintroduce the Playfair barrel import (bundles all 12 weights).",
+);
+
+// --- NativeWind Pressable interop must retain Home control layout -------
+// react-native-css-interop 0.2.1 consumes a function-valued Pressable style
+// before React Native can evaluate it on Android. These Home controls must
+// therefore keep static style arrays and track pressed/hovered state through
+// event handlers, or their absolute/flex layout falls back to normal flow.
+const NATIVE_PRESSABLE_HOME_PATHS = [
+  "app/(tabs)/index.tsx",
+  "components/home/HeroCarousel.tsx",
+  "components/home/SectionHeader.tsx",
+  "components/favorites/FavoriteHeartButton.tsx",
+];
+const nativePressableHomeSources = await Promise.all(NATIVE_PRESSABLE_HOME_PATHS.map(read));
+NATIVE_PRESSABLE_HOME_PATHS.forEach((path, index) => {
+  assert.doesNotMatch(
+    nativePressableHomeSources[index],
+    /style=\{\(\{[^}]*\b(?:pressed|hovered)\b[^}]*\}\)\s*=>/,
+    `${path} must not use a callback-valued Pressable style on the Android Home render path.`,
+  );
+});
+const INTEROP_SAFE_VENDOR_PATHS = [
+  "app/vendor-dashboard.tsx",
+  "app/Vendors_dash_profile.tsx",
+  "app/VendorGallery.tsx",
+  "components/vendor/PublicProfileCard.tsx",
+  "components/vendor/SubscriptionDashboardCard.tsx",
+  "components/vendor/VendorHeader.tsx",
+];
+const interopSafeVendorSources = await Promise.all(INTEROP_SAFE_VENDOR_PATHS.map(read));
+INTEROP_SAFE_VENDOR_PATHS.forEach((path, index) => {
+  assert.match(
+    interopSafeVendorSources[index],
+    /import Pressable from ["']@\/components\/InteropSafePressable["'];/,
+    `${path} must resolve callback-valued Pressable styles before NativeWind native interop.`,
+  );
+  assert.doesNotMatch(
+    interopSafeVendorSources[index],
+    /import \{[^}]*\bPressable\b[^}]*\} from ["']react-native["'];/,
+    `${path} must not bypass the Android-safe Pressable wrapper.`,
+  );
+});
+const crmCardSource = await read("components/admin/crm/ui/CRMCard.tsx");
+const crmAnalyticsSource = await read("components/admin/crm/ui/AnalyticsCard.tsx");
+assert.match(
+  crmCardSource,
+  /import Pressable from ["']@\/components\/InteropSafePressable["'];/,
+  "CRMCard must resolve callback-valued Pressable styles before NativeWind native interop.",
+);
+assert.doesNotMatch(
+  crmCardSource,
+  /import \{[^}]*\bPressable\b[^}]*\} from ["']react-native["'];/,
+  "CRMCard must not bypass the Android-safe Pressable wrapper.",
+);
+assert.match(
+  crmAnalyticsSource,
+  /<View className=["']flex-1 min-w-\[150px\]["']>/,
+  "AnalyticsCard sizing must stay on the grid's direct flex child for native layout.",
+);
+assert.doesNotMatch(
+  crmAnalyticsSource,
+  /<CRMCard[^>]*className=["'][^"']*\bflex-1\b/,
+  "AnalyticsCard must not place grid sizing on CRMCard's nested surface.",
+);
+const publicProfileSource = await read("app/(tabs)/profile.tsx");
+assert.match(
+  publicProfileSource,
+  /import Pressable from ["']@\/components\/InteropSafePressable["'];/,
+  "Public Profile rows must resolve callback styles before NativeWind native interop.",
+);
+assert.doesNotMatch(
+  publicProfileSource,
+  /import \{[^}]*\bPressable\b[^}]*\} from ["']react-native["'];/,
+  "Public Profile must not bypass the Android-safe Pressable wrapper.",
 );
 const approvedInterWeights = ["400Regular", "500Medium", "600SemiBold", "700Bold"];
 const approvedPlayfairWeights = ["400Regular", "500Medium", "600SemiBold", "700Bold", "700Bold_Italic"];

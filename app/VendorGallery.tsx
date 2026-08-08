@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Crosshair, Eye, FolderOpen, ImagePlus, Images, MoreHorizontal, Move, Pencil, Play, Plus, RotateCcw, Sparkles, Star, Trash2, Upload, X } from "lucide-react-native";
@@ -15,6 +15,7 @@ import { portfolioAssetFingerprint, portfolioMediaUrl, PORTFOLIO_LIMITS, replace
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import ImageFadeIn from "@/components/loading/ImageFadeIn";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import Pressable from "@/components/InteropSafePressable";
 
 export default function VendorGallery() {
   const router = useRouter();

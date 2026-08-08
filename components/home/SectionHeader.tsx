@@ -22,6 +22,7 @@ function SectionHeader({
   accessory,
 }: SectionHeaderProps) {
   const [actionFocused, setActionFocused] = useState(false);
+  const [actionPressed, setActionPressed] = useState(false);
   const colors = brandColors(dark);
 
   return (
@@ -45,10 +46,12 @@ function SectionHeader({
           onHoverOut={() => setActionFocused(false)}
           onFocus={() => setActionFocused(true)}
           onBlur={() => setActionFocused(false)}
-          style={({ pressed }) => [
+          onPressIn={() => setActionPressed(true)}
+          onPressOut={() => setActionPressed(false)}
+          style={[
             styles.action,
             actionFocused && { backgroundColor: colors.muted },
-            pressed && styles.pressed,
+            actionPressed && styles.pressed,
           ]}
         >
           <Text style={[styles.actionText, { color: colors.primaryStrong }]}>{actionLabel}</Text>

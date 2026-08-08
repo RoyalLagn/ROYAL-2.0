@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Modal, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
   BriefcaseBusiness,
@@ -26,6 +26,7 @@ import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { supabase } from "@/services/supabase";
 import { deleteManagedProfileImage } from "@/services/cloudinary";
 import { decorativeType, fonts, typeScale, typeLeading } from "@/constants/typography";
+import Pressable from "@/components/InteropSafePressable";
 
 export default function VendorProfile() {
   const router = useRouter();

@@ -43,6 +43,8 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
   const [heroSlides, setHeroSlides] = useState<HeroSlideView[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pressedControl, setPressedControl] = useState<string | null>(null);
+  const [hoveredCta, setHoveredCta] = useState<string | null>(null);
   const slides = useMemo(
     () => (heroSlides.length ? [...heroSlides, heroSlides[0]] : []),
     [heroSlides],
@@ -237,11 +239,15 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
                 accessibilityRole="button"
                 accessibilityLabel={`${slide.ctaLabel}: browse ${slide.categoryName}`}
                 onPress={() => openSlide(slide)}
-                style={({ pressed, hovered }) => [
+                onPressIn={() => setPressedControl(`cta-${index}`)}
+                onPressOut={() => setPressedControl(null)}
+                onHoverIn={() => setHoveredCta(`cta-${index}`)}
+                onHoverOut={() => setHoveredCta(null)}
+                style={[
                   styles.cta,
                   narrow && styles.ctaNarrow,
-                  hovered && Platform.OS === "web" && styles.ctaHover,
-                  pressed && styles.ctaPressed,
+                  hoveredCta === `cta-${index}` && Platform.OS === "web" && styles.ctaHover,
+                  pressedControl === `cta-${index}` && styles.ctaPressed,
                 ]}
               >
                 <Text style={[styles.ctaText, narrow && styles.ctaTextNarrow]}>{slide.ctaLabel}</Text>
@@ -258,7 +264,9 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
             accessibilityRole="button"
             accessibilityLabel="Previous hero slide"
             onPress={() => goTo(activeIndex - 1)}
-            style={({ pressed }) => [styles.arrow, styles.arrowLeft, pressed && styles.arrowPressed]}
+            onPressIn={() => setPressedControl("previous")}
+            onPressOut={() => setPressedControl(null)}
+            style={[styles.arrow, styles.arrowLeft, pressedControl === "previous" && styles.arrowPressed]}
           >
             <ChevronLeft size={20} color="#FFFFFF" />
           </Pressable>
@@ -266,7 +274,9 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
             accessibilityRole="button"
             accessibilityLabel="Next hero slide"
             onPress={() => goTo(activeIndex + 1)}
-            style={({ pressed }) => [styles.arrow, styles.arrowRight, pressed && styles.arrowPressed]}
+            onPressIn={() => setPressedControl("next")}
+            onPressOut={() => setPressedControl(null)}
+            style={[styles.arrow, styles.arrowRight, pressedControl === "next" && styles.arrowPressed]}
           >
             <ChevronRight size={20} color="#FFFFFF" />
           </Pressable>

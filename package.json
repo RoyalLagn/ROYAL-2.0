@@ -5,6 +5,7 @@
   "scripts": {
     "start": "expo start",
     "start:go": "expo start --go --lan --clear",
+    "start:phone": "expo start --go --tunnel --clear",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",

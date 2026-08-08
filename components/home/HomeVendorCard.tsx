@@ -138,6 +138,7 @@ export default function HomeVendorCard({
 
 const styles = StyleSheet.create({
   card: {
+    position: "relative",
     borderWidth: 1,
     borderRadius: 20,
     overflow: "hidden",

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -13,6 +13,7 @@ import SubscriptionDashboardCard from "@/components/vendor/SubscriptionDashboard
 import PublicProfileCard from "@/components/vendor/PublicProfileCard";
 import ChecklistItem, { ReadinessChecklistGrid } from "@/components/vendor/ChecklistItem";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import Pressable from "@/components/InteropSafePressable";
 
 // Ordered worse -> better so a state "improving" can be detected with a
 // simple index comparison when the vendor returns from a section form.

@@ -1,7 +1,8 @@
 import React from "react";
-import { Pressable, View, type ViewStyle } from "react-native";
+import { View, type ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
+import Pressable from "@/components/InteropSafePressable";
 
 type CRMCardProps = {
   children: React.ReactNode;
