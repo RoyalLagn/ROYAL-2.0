@@ -16,7 +16,7 @@ import HomeFilterModal, { DEFAULT_HOME_FILTERS, type HomeFilters } from "@/compo
 import { HERO_IMAGE_ASPECT } from "@/types/hero";
 import { useCustomerLocation } from "@/context/LocationContext";
 import {
-  rankVendorsByLocation, vendorLocationPriority, vendorNearbyLabel, } from "@/services/locations";
+  rankVendorsByLocationAndMembership, vendorLocationPriority, vendorNearbyLabel, } from "@/services/locations";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { useNotifications } from "@/context/NotificationContext";
@@ -204,19 +204,21 @@ export default function HomeScreen() {
         }
         return b.rating - a.rating || b.reviews - a.reviews;
       });
-    return rankVendorsByLocation(eligible, preference, strictCityOnly || filters.nearbyOnly);
+    return rankVendorsByLocationAndMembership(eligible, preference, strictCityOnly || filters.nearbyOnly);
   }, [filters, getRating, liveVendors, preference, strictCityOnly]);
 
   const topRatedVendors = useMemo(() => {
-    // Show every vendor, best rated first -- unrated vendors sink to the
-    // bottom instead of being hidden, so the row never looks sparse.
-    return liveVendors
+    // Show every vendor using the marketplace priority order. Rating remains
+    // the tie-breaker after location and membership, and unrated vendors stay
+    // visible so the row never looks sparse.
+    const ratedVendors = liveVendors
       .map((vendor) => {
         const current = getRating(vendor.id, vendor.rating, 0);
         return { ...vendor, rating: current.rating, reviews: current.reviews };
       })
       .sort((a, b) => b.rating - a.rating || b.reviews - a.reviews);
-  }, [liveVendors, getRating]);
+    return rankVendorsByLocationAndMembership(ratedVendors, preference, strictCityOnly);
+  }, [liveVendors, getRating, preference, strictCityOnly]);
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>

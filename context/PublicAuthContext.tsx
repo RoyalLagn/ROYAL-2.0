@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
@@ -30,15 +31,25 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const sessionRef = useRef<Session | null>(null);
+  const profileRef = useRef<PublicProfile | null>(null);
+  const profileRequestSequence = useRef(0);
+  sessionRef.current = session;
+  profileRef.current = profile;
 
   const loadPublicProfile = useCallback(async (nextSession: Session | null) => {
+    const requestSequence = ++profileRequestSequence.current;
     if (nextSession && isRecoverySessionActive()) {
+      sessionRef.current = null;
+      profileRef.current = null;
       setSession(null);
       setProfile(null);
       return;
     }
+    sessionRef.current = nextSession;
     setSession(nextSession);
     if (!nextSession?.user) {
+      profileRef.current = null;
       setProfile(null);
       return;
     }
@@ -49,21 +60,46 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
       .eq("id", nextSession.user.id)
       .maybeSingle();
 
+    // INITIAL_SESSION and TOKEN_REFRESHED can overlap during app/tab resume.
+    // Never let an older profile request overwrite the newer auth state.
+    if (requestSequence !== profileRequestSequence.current) return;
+
     if (!error && !data && nextSession.user.user_metadata?.role === "public_user") {
       try {
-        setProfile(await ensurePublicProfile(nextSession.user));
+        const ensuredProfile = await ensurePublicProfile(nextSession.user);
+        if (requestSequence !== profileRequestSequence.current) return;
+        profileRef.current = ensuredProfile;
+        setProfile(ensuredProfile);
         return;
       } catch {
-        setProfile(null);
+        // A temporary network failure during session refresh is not logout.
+        // Keep the last profile when it belongs to this same user.
+        if (profileRef.current?.id !== nextSession.user.id) {
+          profileRef.current = null;
+          setProfile(null);
+        }
         return;
       }
     }
 
-    if (error || !data || data.role !== "public_user") {
+    if (error) {
+      // Backgrounding can abort this request while the stored Supabase
+      // session remains valid. Preserve the last verified identity.
+      if (profileRef.current?.id !== nextSession.user.id) {
+        profileRef.current = null;
+        setProfile(null);
+      }
+      return;
+    }
+
+    if (!data || data.role !== "public_user") {
+      profileRef.current = null;
       setProfile(null);
       return;
     }
-    setProfile(data as PublicProfile);
+    const nextProfile = data as PublicProfile;
+    profileRef.current = nextProfile;
+    setProfile(nextProfile);
   }, []);
 
   useEffect(() => {
@@ -76,23 +112,37 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
       })
       .catch(() => {
         if (!active) return;
-        setSession(null);
-        setProfile(null);
+        // INITIAL_SESSION may already have restored the user while this
+        // independent storage read was interrupted. Do not undo it.
+        if (!sessionRef.current) {
+          setSession(null);
+          setProfile(null);
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
       });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      void loadPublicProfile(nextSession)
-        .catch(() => {
-          if (!active) return;
-          setSession(null);
-          setProfile(null);
-        })
-        .finally(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return;
+      if (event === "SIGNED_OUT" || !nextSession) {
+        profileRequestSequence.current += 1;
+        sessionRef.current = null;
+        profileRef.current = null;
+        setSession(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+      // Supabase warns against making further client calls directly inside
+      // this callback. Defer profile loading to avoid a re-entrant refresh
+      // race when a browser tab or native app returns to the foreground.
+      setTimeout(() => {
+        if (!active) return;
+        void loadPublicProfile(nextSession).finally(() => {
           if (active) setLoading(false);
         });
+      }, 0);
     });
 
     return () => {
@@ -118,7 +168,10 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
         },
         (payload) => {
           const nextProfile = payload.new as PublicProfile;
-          if (nextProfile.role === "public_user") setProfile(nextProfile);
+          if (nextProfile.role === "public_user") {
+            profileRef.current = nextProfile;
+            setProfile(nextProfile);
+          }
         },
       )
       .subscribe();
@@ -132,6 +185,8 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
     const currentSession = session ?? (await supabase.auth.getSession()).data.session;
     if (!currentSession?.user) return;
     const nextProfile = await ensurePublicProfile(currentSession.user);
+    sessionRef.current = currentSession;
+    profileRef.current = nextProfile;
     setSession(currentSession);
     setProfile(nextProfile);
   }, [session]);
@@ -145,6 +200,9 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
     }
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    profileRequestSequence.current += 1;
+    sessionRef.current = null;
+    profileRef.current = null;
     setSession(null);
     setProfile(null);
   }, []);

@@ -84,6 +84,40 @@ export function rankVendorsByLocation<T extends LocationRankableVendor>(
     .map((item) => item.vendor);
 }
 
+export function vendorMembershipPriority(planName?: string | null) {
+  const normalizedPlan = planName?.trim().toLowerCase().replace(/\s+plan$/, "") ?? "";
+  if (normalizedPlan === "elite") return 2;
+  if (normalizedPlan === "premium") return 1;
+  return 0;
+}
+
+/**
+ * Keeps location as the primary ranking signal, then promotes paid membership
+ * within the same proximity group. The incoming order remains the final
+ * tie-breaker, so callers retain their rating, price, or popularity ordering.
+ */
+export function rankVendorsByLocationAndMembership<
+  T extends LocationRankableVendor & { membershipPlan?: string | null },
+>(
+  preSortedEligibleVendors: T[],
+  preference: LocationPreference | null,
+  strictCityOnly = false,
+) {
+  return preSortedEligibleVendors
+    .map((vendor, originalIndex) => ({
+      vendor,
+      originalIndex,
+      locationPriority: vendorLocationPriority(vendor, preference),
+      membershipPriority: vendorMembershipPriority(vendor.membershipPlan),
+    }))
+    .filter((item) => !strictCityOnly || !preference || item.locationPriority >= 2)
+    .sort((left, right) =>
+      right.locationPriority - left.locationPriority
+      || right.membershipPriority - left.membershipPriority
+      || left.originalIndex - right.originalIndex)
+    .map((item) => item.vendor);
+}
+
 export function vendorNearbyLabel(
   vendor: LocationRankableVendor,
   preference: LocationPreference | null,
@@ -93,4 +127,3 @@ export function vendorNearbyLabel(
   if (proximity === "city") return "Nearby";
   return null;
 }
-

@@ -67,6 +67,16 @@ assert.doesNotMatch(
   "app/_layout.tsx must not reintroduce the Playfair barrel import (bundles all 12 weights).",
 );
 
+// --- App alerts must stay cross-platform and app-wide -------------------
+const [dialogProviderSource, alertBridgeSource] = await Promise.all([
+  read("components/dialogs/AppDialogProvider.tsx"),
+  read("utils/webAlert.ts"),
+]);
+assert.match(layoutSource, /<AppDialogProvider>/, "The root layout must mount the shared app dialog provider.");
+assert.match(layoutSource, /installAppAlert\(\)/, "The root layout must install the app-wide Alert bridge before screens render.");
+assert.match(alertBridgeSource, /Alert\.alert\s*=/, "The shared bridge must continue routing existing Alert.alert calls.");
+assert.match(dialogProviderSource, /Platform\.OS === "android" \? 48 : 44/, "Dialog actions must keep platform-appropriate touch targets.");
+
 // --- NativeWind Pressable interop must retain Home control layout -------
 // react-native-css-interop 0.2.1 consumes a function-valued Pressable style
 // before React Native can evaluate it on Android. These Home controls must

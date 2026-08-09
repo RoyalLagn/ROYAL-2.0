@@ -1,24 +1,32 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Image,
+  Linking,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Mail, Phone, RefreshCw, Search, UserRound, Users } from "lucide-react-native";
+import { CalendarDays, Clock3, Mail, MoreVertical, Phone, RefreshCw, Trash2, UserCheck, UserRound, Users, UserX, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { AdminUserService, type AdminPublicUser } from "@/services/adminUsers";
+import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
+import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import { useColorScheme } from "nativewind";
 
 export default function AdminUsers() {
+  const { isPhone } = useResponsiveLayout();
+  const { colorScheme } = useColorScheme();
   const [users, setUsers] = useState<AdminPublicUser[]>([]);
+  const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [sort, setSort] = useState<"newest" | "oldest" | "name">("newest");
@@ -26,6 +34,17 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionUser, setActionUser] = useState<AdminPublicUser | null>(null);
+
+  useEffect(() => {
+    const trimmed = searchInput.trim();
+    if (trimmed.length === 1) return;
+    const timer = setTimeout(() => {
+      setQuery(trimmed);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const load = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true); else setLoading(true);
@@ -57,6 +76,41 @@ export default function AdminUsers() {
   const currentPage = Math.min(page, pages);
   const visible = filtered.slice((currentPage - 1) * 15, currentPage * 15);
 
+  const updateUserStatus = async (user: AdminPublicUser, isActive: boolean) => {
+    setActionUser(null);
+    try {
+      await AdminUserService.setActive(user.id, isActive);
+      await load(true);
+      Alert.alert("User account", `${user.full_name} is now ${isActive ? "active" : "inactive"}.`);
+    } catch (reason) {
+      Alert.alert("Action failed", reason instanceof Error ? reason.message : "Unable to update this user.");
+    }
+  };
+
+  const deleteUser = (user: AdminPublicUser) => {
+    setActionUser(null);
+    Alert.alert(
+      "Delete user profile?",
+      `This permanently removes ${user.full_name}'s public profile. This cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete profile",
+          style: "destructive",
+          onPress: () => void (async () => {
+            try {
+              await AdminUserService.deleteProfile(user.id);
+              await load(true);
+              Alert.alert("Profile deleted", `${user.full_name}'s profile was deleted.`);
+            } catch (reason) {
+              Alert.alert("Delete failed", reason instanceof Error ? reason.message : "Unable to delete this profile.");
+            }
+          })(),
+        },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <ScrollView
@@ -86,14 +140,13 @@ export default function AdminUsers() {
             </View>
           </View>
 
-          <View className="h-12 bg-card border border-border rounded-2xl px-4 flex-row items-center mb-4">
-            <Search size={18} className="text-muted-foreground" />
-            <TextInput
-              value={query}
-              onChangeText={(value) => { setQuery(value); setPage(1); }}
-              placeholder="Search name, email, phone or user ID"
-              placeholderTextColor="#8A8589"
-              className="flex-1 h-12 ml-3 text-foreground"
+          <View className="mb-4">
+            <CompactSearchBar
+              value={searchInput}
+              onChangeText={setSearchInput}
+              placeholder="Search users by name, email or phone…"
+              accessibilityLabel="Search users"
+              dark={colorScheme === "dark"}
             />
           </View>
 
@@ -105,39 +158,171 @@ export default function AdminUsers() {
           {loading ? <AdminLoadingState label="Loading live customer profiles…" />
             : error ? <AdminErrorState message={error} onRetry={() => void load()} />
               : !visible.length ? <AdminEmptyState title="No users found" message={query || status !== "all" ? "Try another search or status filter." : "Customer accounts will appear here after registration."} />
-                : <View className="gap-3">{visible.map((user) => <UserCard key={user.id} user={user} />)}</View>}
+                : <View className={isPhone ? "gap-3" : "flex-row flex-wrap gap-3"}>{visible.map((user) => <UserCard key={user.id} user={user} compact={isPhone} onActions={() => setActionUser(user)} />)}</View>}
           {!loading && !error && filtered.length > 15 ? <PaginationBar page={currentPage} pages={pages} onPage={setPage} /> : null}
         </ResponsiveContainer>
       </ScrollView>
+      <UserActionMenu
+        user={actionUser}
+        visible={Boolean(actionUser)}
+        onClose={() => setActionUser(null)}
+        onStatus={(user, active) => void updateUserStatus(user, active)}
+        onDelete={deleteUser}
+      />
       <AdminFooter activeTab="profile" />
     </SafeAreaView>
   );
 }
 
-function UserCard({ user }: { user: AdminPublicUser }) {
+function UserCard({ user, compact, onActions }: { user: AdminPublicUser; compact: boolean; onActions: () => void }) {
+  const initials = user.full_name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "U";
   return (
-    <View className="bg-card border border-border rounded-2xl p-4">
-      <View className="flex-row items-center">
+    <View
+      accessible
+      accessibilityLabel={`${user.full_name}, ${user.is_active ? "active" : "inactive"} account`}
+      className="bg-card border border-border rounded-2xl p-4"
+      style={compact ? undefined : { flexBasis: "48%", flexGrow: 1, minWidth: 320 }}
+    >
+      <View className="flex-row items-start">
         {user.profile_image ? (
-          <Image source={{ uri: user.profile_image }} className="w-12 h-12 rounded-2xl bg-muted" />
+          <Image source={{ uri: user.profile_image }} className="w-14 h-14 rounded-2xl bg-muted" resizeMode="cover" />
         ) : (
-          <View className="w-12 h-12 rounded-2xl bg-primary/10 items-center justify-center"><UserRound size={22} className="text-primary" /></View>
+          <View className="w-14 h-14 rounded-2xl bg-primary/10 items-center justify-center">
+            <Text className="text-primary text-base font-bold">{initials}</Text>
+          </View>
         )}
         <View className="flex-1 min-w-0 ml-3">
           <View className="flex-row items-center gap-2">
-            <Text className="text-foreground text-body font-bold flex-1" numberOfLines={1}>{user.full_name}</Text>
-            <Text className={user.is_active ? "text-emerald-600 bg-emerald-500/10 text-caption font-bold px-2 py-1 rounded-full" : "text-muted-foreground bg-muted text-caption font-bold px-2 py-1 rounded-full"}>
-              {user.is_active ? "ACTIVE" : "INACTIVE"}
-            </Text>
+            <Text className="text-foreground text-base font-bold flex-1" numberOfLines={1}>{user.full_name}</Text>
+            <View className={user.is_active ? "bg-emerald-500/10 px-2.5 py-1 rounded-full flex-row items-center gap-1.5" : "bg-muted px-2.5 py-1 rounded-full flex-row items-center gap-1.5"}>
+              <View className={user.is_active ? "w-1.5 h-1.5 rounded-full bg-emerald-600" : "w-1.5 h-1.5 rounded-full bg-muted-foreground"} />
+              <Text className={user.is_active ? "text-emerald-700 text-caption font-bold" : "text-muted-foreground text-caption font-bold"}>
+                {user.is_active ? "Active" : "Inactive"}
+              </Text>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Open actions for ${user.full_name}`} className="min-w-11 min-h-11 -mr-2 -mt-2 rounded-xl items-center justify-center" onPress={onActions}>
+              <MoreVertical size={19} className="text-muted-foreground" />
+            </Pressable>
           </View>
-          <Text className="text-muted-foreground text-caption mt-1" numberOfLines={1}>Updated {new Date(user.updated_at).toLocaleString()}</Text>
         </View>
       </View>
-      <View className="mt-3 pt-3 border-t border-border/70 gap-2">
-        <View className="flex-row items-center"><Mail size={14} className="text-primary" /><Text className="text-foreground text-xs ml-2 flex-1" numberOfLines={1}>{user.email}</Text></View>
-        <View className="flex-row items-center"><Phone size={14} className="text-primary" /><Text className="text-foreground text-xs ml-2">{user.phone || "No phone number"}</Text></View>
+
+      <View className="mt-4 py-3 border-y border-border/70 gap-3">
+        <View className="flex-row items-center min-w-0">
+          <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center"><Mail size={15} className="text-primary" /></View>
+          <View className="flex-1 min-w-0 ml-2.5">
+            <Text className="text-muted-foreground text-caption">Email address</Text>
+            <Text className="text-foreground text-xs font-medium mt-0.5" numberOfLines={1}>{user.email || "Not provided"}</Text>
+          </View>
+        </View>
+        <View className="flex-row items-center min-w-0">
+          <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center"><Phone size={15} className="text-primary" /></View>
+          <View className="flex-1 min-w-0 ml-2.5">
+            <Text className="text-muted-foreground text-caption">Phone number</Text>
+            <Text className="text-foreground text-xs font-medium mt-0.5" numberOfLines={1}>{user.phone || "Not provided"}</Text>
+          </View>
+        </View>
       </View>
-      <Text className="text-muted-foreground text-caption mt-3" numberOfLines={1}>ID: {user.id}</Text>
+
+      <View className="flex-row items-center justify-between gap-3 mt-3">
+        <View className="flex-row items-center flex-1 min-w-0">
+          <CalendarDays size={13} className="text-muted-foreground" />
+          <Text className="text-muted-foreground text-caption ml-1.5" numberOfLines={1}>Joined {formatUserDate(user.created_at)}</Text>
+        </View>
+        <View className="flex-row items-center flex-1 min-w-0 justify-end">
+          <Clock3 size={13} className="text-muted-foreground" />
+          <Text className="text-muted-foreground text-caption ml-1.5" numberOfLines={1}>Updated {formatUserDate(user.updated_at)}</Text>
+        </View>
+      </View>
     </View>
   );
+}
+
+function UserActionMenu({ user, visible, onClose, onStatus, onDelete }: {
+  user: AdminPublicUser | null;
+  visible: boolean;
+  onClose: () => void;
+  onStatus: (user: AdminPublicUser, active: boolean) => void;
+  onDelete: (user: AdminPublicUser) => void;
+}) {
+  if (!user) return null;
+  const initials = user.full_name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "U";
+  const openEmail = () => { onClose(); void Linking.openURL(`mailto:${user.email}`); };
+  const openPhone = () => {
+    if (!user.phone) { Alert.alert("Phone unavailable", "This user has not added a phone number."); return; }
+    onClose();
+    void Linking.openURL(`tel:${user.phone}`);
+  };
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View className="flex-1 bg-black/60 items-center justify-center px-4 py-8">
+        <Pressable accessibilityLabel="Close user actions" className="absolute inset-0" onPress={onClose} />
+        <View className="bg-card border border-border rounded-3xl p-5 w-full max-w-lg">
+          <View className="flex-row items-start gap-3">
+            <View className="w-11 h-11 rounded-2xl bg-primary/10 items-center justify-center"><Text className="text-primary font-bold">{initials}</Text></View>
+            <View className="flex-1 min-w-0 pt-0.5">
+              <Text className="text-foreground text-lg font-bold" numberOfLines={1}>{user.full_name}</Text>
+              <Text className="text-muted-foreground text-xs mt-0.5">Public user actions</Text>
+            </View>
+            <Pressable accessibilityLabel="Close" className="min-w-11 min-h-11 -mr-2 -mt-2 rounded-xl items-center justify-center" onPress={onClose}><X size={20} className="text-muted-foreground" /></Pressable>
+          </View>
+
+          <Text className="text-muted-foreground text-xs font-semibold mt-5 mb-2">CONTACT</Text>
+          <View className="flex-row gap-2">
+            <UserActionButton label="Email" icon={Mail} onPress={openEmail} />
+            <UserActionButton label="Call" icon={Phone} onPress={openPhone} disabled={!user.phone} />
+          </View>
+
+          <Text className="text-muted-foreground text-xs font-semibold mt-5 mb-2">ACCOUNT</Text>
+          <UserActionButton
+            label={user.is_active ? "Deactivate account" : "Activate account"}
+            icon={user.is_active ? UserX : UserCheck}
+            onPress={() => onStatus(user, !user.is_active)}
+            fullWidth
+          />
+
+          <View className="border-t border-border mt-5 pt-4">
+            <Text className="text-red-600 text-xs font-semibold mb-2">RESTRICTED ACTION</Text>
+            <UserActionButton label="Delete profile" icon={Trash2} onPress={() => onDelete(user)} destructive fullWidth />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function UserActionButton({ label, icon: Icon, onPress, destructive = false, disabled = false, fullWidth = false }: {
+  label: string;
+  icon: typeof Mail;
+  onPress: () => void;
+  destructive?: boolean;
+  disabled?: boolean;
+  fullWidth?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      className={`min-h-12 px-4 rounded-2xl border flex-row items-center justify-center gap-2 ${fullWidth ? "w-full" : "flex-1"} ${destructive ? "border-red-200 bg-red-50" : "border-border bg-background"}`}
+      style={{ opacity: disabled ? 0.45 : 1 }}
+    >
+      <Icon size={18} color={destructive ? "#DC2626" : "#BE185D"} />
+      <Text className={`font-semibold ${destructive ? "text-red-600" : "text-foreground"}`}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function formatUserDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return date.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
 }

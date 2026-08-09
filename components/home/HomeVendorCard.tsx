@@ -8,6 +8,7 @@ import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
+import { MembershipBadge, membershipBadgeFor } from "@/components/vendor/MembershipBadge";
 
 type HomeVendorCardProps = {
   vendor: PublicVendorListing;
@@ -37,6 +38,7 @@ export default function HomeVendorCard({
   const text = dark ? "#F5F0F3" : colors.foreground;
   const muted = colors.mutedForeground;
   const compact = width < 220;
+  const membershipBadge = membershipBadgeFor(vendor.membershipPlan);
 
   return (
     <View
@@ -98,15 +100,20 @@ export default function HomeVendorCard({
         </View>
 
         <View style={[styles.info, compact && styles.infoCompact]}>
-          <Text
-            style={[styles.name, compact && styles.nameCompact, { color: text }]}
-            numberOfLines={1}
-          >
-            {vendor.name}
-          </Text>
-          <Text style={[styles.category, { color: muted }]} numberOfLines={1}>
-            {vendor.category}
-          </Text>
+          <View style={styles.nameRow}>
+            {membershipBadge ? <MembershipBadge planName={vendor.membershipPlan} size={compact ? 38 : 42} style={styles.membershipBadge} /> : null}
+            <View style={styles.identityText}>
+              <Text
+                style={[styles.name, compact && styles.nameCompact, { color: text }]}
+                numberOfLines={1}
+              >
+                {vendor.name}
+              </Text>
+              <Text style={[styles.category, { color: muted }]} numberOfLines={1}>
+                {vendor.category}
+              </Text>
+            </View>
+          </View>
           <View style={[styles.detailRow, compact && styles.detailRowCompact]}>
             <View style={styles.locationRow}>
               <MapPin size={12} color={muted} strokeWidth={2} />
@@ -202,6 +209,9 @@ const styles = StyleSheet.create({
   verifiedText: { color: "#FFFFFF", fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
   info: { paddingHorizontal: 16, paddingTop: 15, paddingBottom: 16 },
   infoCompact: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 13 },
+  nameRow: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },
+  membershipBadge: { flexShrink: 0 },
+  identityText: { flex: 1, minWidth: 0, justifyContent: "center" },
   name: { fontFamily: fonts.serif.bold, fontSize: typeScale.editorialCardTitle, lineHeight: typeLeading.sectionTitle, letterSpacing: -0.3 },
   nameCompact: { fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact },
   category: { marginTop: 4, fontFamily: fonts.sans.medium, fontSize: typeScale.metadata },

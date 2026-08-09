@@ -9,6 +9,7 @@ import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { subscriptionAccessSourceLabel, subscriptionDateCopy, subscriptionStateCopy } from "@/subscriptions/presentation";
 import { typeScale } from "@/constants/typography";
 import Pressable from "@/components/InteropSafePressable";
+import { MembershipBadge, membershipBadgeFor } from "@/components/vendor/MembershipBadge";
 
 export default function SubscriptionDashboardCard() {
   const router = useRouter();
@@ -21,14 +22,17 @@ export default function SubscriptionDashboardCard() {
   const state = subscriptionStateCopy(access, settings);
   const date = subscriptionDateCopy(access);
   const title = access?.plan_name || state.title;
+  const membershipBadge = membershipBadgeFor(access?.plan_name);
 
   return (
     <LinearGradient
       colors={colorScheme === "dark" ? ["#34222B", "#221C20"] : ["#FFF0F5", "#FFFFFF"]}
       style={[styles.card, { borderColor: colors.border, shadowColor: colors.shadow }]}
     >
-      <View style={[styles.icon, { backgroundColor: launch ? "#FFF3D8" : colors.pink }]}>
-        {launch ? <Gift size={22} color="#B76A00" /> : <Crown size={22} color="#FFF" />}
+      <View style={[styles.icon, { backgroundColor: launch ? "#FFF3D8" : membershipBadge ? "transparent" : colors.pink }]}>
+        {launch ? <Gift size={22} color="#B76A00" /> : membershipBadge ? (
+          <MembershipBadge planName={access?.plan_name} />
+        ) : <Crown size={22} color="#FFF" />}
       </View>
       <View style={styles.content}>
         <Text style={[styles.eyebrow, { color: active ? colors.success : colors.pink }]}>

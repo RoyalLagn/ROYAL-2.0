@@ -34,7 +34,6 @@ export function useAdminVendors() {
   // indicator without swapping the already-rendered rows for a skeleton.
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [health, setHealth] = useState<Record<string, VendorHealthMetrics>>({});
 
   const load = useCallback(async (force = false) => {
@@ -71,12 +70,6 @@ export function useAdminVendors() {
   const updateFilters = useCallback((changes: Partial<VendorFilters>) => {
     setFilters((current) => ({ ...current, ...changes, page: changes.page ?? 1 }));
   }, []);
-  const toggle = useCallback((id: string) => setSelected((current) => {
-    const next = new Set(current);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    return next;
-  }), []);
-  const selectedRows = useMemo(() => rows.filter((row) => selected.has(row.record_id)), [rows, selected]);
   const optimisticPatch = useCallback((ids: string[], patch: Partial<AdminVendorRecord>) => {
     const previous = rowsRef.current.filter((row) => ids.includes(row.record_id));
     setRows((current) => current.map((row) => ids.includes(row.record_id) ? { ...row, ...patch } : row));
@@ -85,7 +78,6 @@ export function useAdminVendors() {
 
   return {
     filters, updateFilters, rows, total, statistics, categories,
-    loading, refreshing, error, selected, selectedRows, toggle, health, optimisticPatch,
-    clearSelected: () => setSelected(new Set()), refresh: () => load(true),
+    loading, refreshing, error, health, optimisticPatch, refresh: () => load(true),
   };
 }

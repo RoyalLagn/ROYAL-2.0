@@ -85,3 +85,8 @@ Performance optimizations: OFF. @ http://localhost:8081/node_modules/expo-router
 [  184993ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://fymdrjcinqvmjthdwrtd.supabase.co/rest/v1/vendors?select=id&or=%28description.is.null%2Clogo_url.is.null%29:0
 [  184993ms] [ERROR] Failed to load resource: net::ERR_INTERNET_DISCONNECTED @ https://fymdrjcinqvmjthdwrtd.supabase.co/rest/v1/categories?select=id:0
 [  197961ms] [ERROR] WebSocket connection to 'wss://fymdrjcinqvmjthdwrtd.supabase.co/realtime/v1/websocket?apikey=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5bWRyamNpbnF2bWp0aGR3cnRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NTYzNjUsImV4cCI6MjEwMDEzMjM2NX0.bYc0VhcDvwTtPgTaylaNpDSi8lyHD3U6U8CFFkEwq5c&vsn=2.0.0' failed: Error in connection establishment: net::ERR_INTERNET_DISCONNECTED @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:268907
+[ 1002866ms] [WARNING] Disconnected from Metro (1006)
+To reconnect:
+- Ensure that Metro is running and available on the same network
+- Reload this app (will trigger further help if Metro cannot be connected to) @ http://localhost:8081/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:74371
+[ 1021435ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_CLOSED @ https://fymdrjcinqvmjthdwrtd.supabase.co/rest/v1/vendors?select=id:0

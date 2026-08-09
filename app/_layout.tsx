@@ -42,11 +42,11 @@ import { AdminWorkspaceShell } from '@/components/admin/AdminWorkspaceShell';
 import PushTokenRegistrar from '@/components/notifications/PushTokenRegistrar';
 import { SCREEN_TRANSITION } from '@/utils/motion';
 import { useWebNavigationFocusSafety } from '@/hooks/useWebNavigationFocusSafety';
-import { installWebAlert } from '@/utils/webAlert';
+import { installAppAlert } from '@/utils/webAlert';
+import AppDialogProvider from '@/components/dialogs/AppDialogProvider';
 
-// react-native-web leaves Alert unimplemented, which silences every
-// Alert.alert in the app on web. Supply it before any screen renders.
-installWebAlert();
+// Route every Alert.alert call through the cross-platform RoyalLagn dialog.
+installAppAlert();
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -145,15 +145,16 @@ export default function RootLayout() {
                           <ReviewRatingsProvider>
                             <LocationProvider>
                               <ThemeProvider>
-                                <SafeAreaProvider>
-                                  <ResponsiveLayoutProvider>
-                                    <PushTokenRegistrar />
-                                    <StatusBar style="dark" backgroundColor="#FFFFFF" translucent={false} />
-                                    <View className="bg-background" style={styles.app}>
-                                      <AdminWorkspaceShell>
-                                        <View style={styles.stack}>
-                                          <AdminRouteGuard>
-                                            <VendorRouteGuard>
+                                <AppDialogProvider>
+                                  <SafeAreaProvider>
+                                    <ResponsiveLayoutProvider>
+                                      <PushTokenRegistrar />
+                                      <StatusBar style="dark" backgroundColor="#FFFFFF" translucent={false} />
+                                      <View className="bg-background" style={styles.app}>
+                                        <AdminWorkspaceShell>
+                                          <View style={styles.stack}>
+                                            <AdminRouteGuard>
+                                              <VendorRouteGuard>
                                               {/* A single, app-wide transition preset instead of
                                                   per-screen configuration -- see utils/motion.ts
                                                   for why `fade_from_bottom` (soft fade + small
@@ -161,15 +162,16 @@ export default function RootLayout() {
                                                   custom reanimated screen wrapper. Every one of the
                                                   ~90 screens under app/ inherits this automatically;
                                                   back navigation reverses it natively. */}
-                                              <Stack screenOptions={{ headerShown: false, animation: SCREEN_TRANSITION }} />
-                                            </VendorRouteGuard>
-                                          </AdminRouteGuard>
-                                        </View>
-                                      </AdminWorkspaceShell>
-                                      <VendorBottomNav />
-                                    </View>
-                                  </ResponsiveLayoutProvider>
-                                </SafeAreaProvider>
+                                                <Stack screenOptions={{ headerShown: false, animation: SCREEN_TRANSITION }} />
+                                              </VendorRouteGuard>
+                                            </AdminRouteGuard>
+                                          </View>
+                                        </AdminWorkspaceShell>
+                                        <VendorBottomNav />
+                                      </View>
+                                    </ResponsiveLayoutProvider>
+                                  </SafeAreaProvider>
+                                </AppDialogProvider>
                               </ThemeProvider>
                             </LocationProvider>
                           </ReviewRatingsProvider>

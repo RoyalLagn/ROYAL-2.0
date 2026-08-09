@@ -5,6 +5,7 @@ import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
+import { MembershipBadge, membershipBadgeFor } from "@/components/vendor/MembershipBadge";
 
 const PINK = "#E91E63";
 
@@ -19,6 +20,7 @@ export type VendorInfoPanelProps = {
   favorite?: boolean;
   onToggleFavorite?: (source: FavoriteSourceRef) => void;
   onShare?: () => void;
+  membershipPlan?: string | null;
   dark?: boolean;
   children?: React.ReactNode;
   overlap?: boolean;
@@ -35,6 +37,7 @@ export default function VendorInfoPanel({
   favorite = false,
   onToggleFavorite,
   onShare,
+  membershipPlan,
   dark = false,
   children,
   overlap = true,
@@ -54,7 +57,8 @@ export default function VendorInfoPanel({
     specialtySurface: dark ? "#25202A" : "#FFF2F6",
     specialtyBorder: "transparent",
   };
-  const hasActions = Boolean(onToggleFavorite || onShare);
+  const membershipBadge = membershipBadgeFor(membershipPlan);
+  const hasActions = Boolean(membershipBadge || onToggleFavorite || onShare);
 
   return (
     <View style={[styles.panel, !overlap && styles.panelEmbedded, { backgroundColor: colors.surface }]}>
@@ -70,6 +74,7 @@ export default function VendorInfoPanel({
         </View>
         {topRated || hasActions ? (
           <View style={styles.headingActions}>
+            {membershipBadge ? <MembershipBadge planName={membershipPlan} size={48} /> : null}
             {topRated ? (
               <View style={[styles.topRated, { backgroundColor: colors.badge, borderColor: colors.badgeBorder }]}>
                 <Crown size={15} color="#C78439" strokeWidth={1.8} />

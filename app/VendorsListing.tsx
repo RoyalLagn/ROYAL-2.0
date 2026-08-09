@@ -22,7 +22,7 @@ import {
   getApprovedPublicVendors, normalizeMarketplaceCategoryName, subscribeToPublicVendorChanges, type PublicVendorListing, } from "@/services/publicVendorListings";
 import {
   findMarketplaceCategory, resolveMarketplaceCategoryImage, } from "@/data/marketplaceCategories";
-import { rankVendorsByLocation } from "@/services/locations";
+import { rankVendorsByLocationAndMembership } from "@/services/locations";
 import { SkeletonList } from "@/components/loading/Skeleton";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
@@ -199,7 +199,7 @@ export default function VendorsListingScreen() {
         || b.reviews - a.reviews
         || b.rating - a.rating;
     });
-    return rankVendorsByLocation(baseSorted, preference, strictCityOnly);
+    return rankVendorsByLocationAndMembership(baseSorted, preference, strictCityOnly);
   }, [filters, getRating, preference, query, strictCityOnly, vendors]);
 
   const activeFilterCount = [

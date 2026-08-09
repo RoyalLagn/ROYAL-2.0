@@ -13,6 +13,8 @@ export {
   formatLocationPreference,
   getVendorProximity,
   rankVendorsByLocation,
+  rankVendorsByLocationAndMembership,
+  vendorMembershipPriority,
   vendorLocationPriority,
   vendorNearbyLabel,
 } from "@/locations/domain";

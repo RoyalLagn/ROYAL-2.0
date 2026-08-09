@@ -1,7 +1,7 @@
 import React from "react";
 import CategoryBadge from "@/components/categories/CategoryBadge";
 import { Alert, Image, Linking, Pressable, Text, View } from "react-native";
-import { Check, MessageCircle, MoreVertical, Phone, Square } from "lucide-react-native";
+import { MessageCircle, MoreVertical, Phone } from "lucide-react-native";
 import type { AdminVendorRecord, VendorHealthMetrics } from "@/types/adminVendors";
 import { ResponsiveCard } from "@/components/responsive/ResponsiveCard";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
@@ -13,15 +13,11 @@ const PHONE_UNAVAILABLE_MESSAGE = "Phone number not available.";
 
 export const VendorCard = React.memo(function VendorCard({
   item,
-  selected,
-  onSelect,
   onView,
   onActions,
   health,
 }: {
   item: AdminVendorRecord;
-  selected: boolean;
-  onSelect: () => void;
   onView: () => void;
   onActions: () => void;
   health?: VendorHealthMetrics;
@@ -39,9 +35,6 @@ export const VendorCard = React.memo(function VendorCard({
   return (
     <ResponsiveCard>
       <View className="flex-row items-start">
-        <Pressable className="min-w-11 min-h-11 items-center justify-center mr-1" onPress={onSelect} accessibilityRole="checkbox" accessibilityState={{ checked: selected }}>
-          {selected ? <View className="w-6 h-6 rounded-md bg-primary items-center justify-center"><Check size={15} color="#FFF" /></View> : <Square size={23} className="text-muted-foreground" />}
-        </Pressable>
         {item.logo_url
           ? <Image source={{ uri: item.logo_url }} className="w-14 h-14 rounded-2xl bg-white" resizeMode="contain" />
           : <View className="w-14 h-14 rounded-2xl bg-primary/10 items-center justify-center"><Text className="text-primary font-bold">{item.business_name.slice(0, 2).toUpperCase()}</Text></View>}
@@ -68,7 +61,7 @@ export const VendorCard = React.memo(function VendorCard({
         >
           <MessageCircle size={18} color="#25D366" />
         </Pressable>
-        <Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={onActions}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Open actions for ${item.business_name}`} className="min-w-11 min-h-11 items-center justify-center" onPress={onActions}>
           <MoreVertical size={20} className="text-muted-foreground" />
         </Pressable>
       </View>

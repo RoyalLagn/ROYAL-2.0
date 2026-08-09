@@ -11,50 +11,30 @@ export function VendorFilterBar({
   filters,
   onChange,
   onMore,
-  categories = [],
 }: {
   filters: VendorFilters;
   onChange: (changes: Partial<VendorFilters>) => void;
   onMore: () => void;
-  categories?: { id: string; name: string }[];
 }) {
   const { colorScheme } = useColorScheme();
   const [query, setQuery] = useState(filters.query);
   useEffect(() => setQuery(filters.query), [filters.query]);
   useEffect(() => {
+    const trimmedQuery = query.trim();
+    if (trimmedQuery.length === 1) return;
     const timer = setTimeout(() => {
       if (query !== filters.query) {
-        const tokens = query.trim().split(/\s+/).filter(Boolean);
-        let status = filters.status;
-        let plan = filters.plan;
-        let categoryId = filters.categoryId;
-        const remaining = tokens.filter((token) => {
-          const normalized = token.toLowerCase();
-          if (["pending", "approved", "rejected", "suspended", "archived"].includes(normalized)) {
-            status = normalized as typeof status;
-            return false;
-          }
-          if (["premium", "gold"].includes(normalized)) { plan = "premium"; return false; }
-          if (normalized === "free") { plan = "free"; return false; }
-          const category = categories.find((item) => {
-            const name = item.name.toLowerCase();
-            return name.startsWith(normalized.slice(0, Math.min(5, normalized.length)))
-              || normalized.startsWith(name.slice(0, Math.min(5, name.length)));
-          });
-          if (category) { categoryId = category.id; return false; }
-          return true;
-        });
-        onChange({ query: remaining.join(" "), status, plan, categoryId });
+        onChange({ query: trimmedQuery });
       }
-    }, 250);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [categories, filters.categoryId, filters.plan, filters.query, filters.status, onChange, query]);
+  }, [filters.query, onChange, query]);
   return (
     <View className="gap-3">
       <View className="flex-row gap-2">
         <CompactSearchBar
           value={query}
-          placeholder="Search vendors, owners, email, city or ID…"
+          placeholder="Search any vendor by name, owner, email, city or ID…"
           dark={colorScheme === "dark"}
           accessibilityLabel="Search vendors"
           onChangeText={setQuery}

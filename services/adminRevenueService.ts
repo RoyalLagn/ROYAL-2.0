@@ -176,8 +176,11 @@ export const AdminRevenueService = {
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = `royallagn-revenue-${input.start.toISOString().slice(0, 10)}-${new Date(input.endExclusive.getTime() - 1).toISOString().slice(0, 10)}.xls`;
+    anchor.style.display = "none";
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1_000);
   },
 };
 

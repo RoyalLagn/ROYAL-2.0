@@ -68,6 +68,7 @@ export type PublicVendorListing = {
   languages: string[];
   businessHours: VendorBusinessHourEntry[] | null;
   faqs: VendorFaq[];
+  membershipPlan: string | null;
 };
 
 const PUBLIC_VENDOR_LIST_SELECT = `
@@ -307,7 +308,16 @@ function normalizeVendor(
     languages: Array.isArray(row.languages) ? row.languages : [],
     businessHours: Array.isArray(row.business_hours) ? row.business_hours : null,
     faqs,
+    membershipPlan: row.membership_plan ?? null,
   };
+}
+
+async function getPublicVendorMembershipPlan(vendorId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("get_public_vendor_membership_plan", {
+    target_vendor_id: vendorId,
+  });
+  if (error) return null;
+  return typeof data === "string" ? data : null;
 }
 
 function canUseLegacyVendorQuery(error: { message?: string; code?: string } | null) {
@@ -364,12 +374,16 @@ export async function getApprovedPublicVendors(
     if (error) throw error;
 
     const vendorIds = (data ?? []).map((row: any) => row.id);
-    const reviewSummaries = vendorIds.length
-      ? await listReviewSummaries(vendorIds).catch((): Record<string, ReviewSummary> => ({}))
-      : {};
+    const [reviewSummaries, membershipEntries] = await Promise.all([
+      vendorIds.length
+        ? listReviewSummaries(vendorIds).catch((): Record<string, ReviewSummary> => ({}))
+        : Promise.resolve({} as Record<string, ReviewSummary>),
+      Promise.all(vendorIds.map(async (vendorId) => [vendorId, await getPublicVendorMembershipPlan(vendorId)] as const)),
+    ]);
+    const membershipPlans = new Map(membershipEntries);
     const uniqueVendors = new Map<string, PublicVendorListing>();
     (data ?? [])
-      .map((row: any) => normalizeVendor(row, reviewSummaries[row.id]))
+      .map((row: any) => normalizeVendor({ ...row, membership_plan: membershipPlans.get(row.id) ?? null }, reviewSummaries[row.id]))
       .filter((vendor): vendor is PublicVendorListing => Boolean(vendor))
       .forEach((vendor) => uniqueVendors.set(vendor.id, vendor));
     const vendors = [...uniqueVendors.values()];
@@ -388,7 +402,7 @@ export async function getApprovedPublicVendors(
 export async function getApprovedPublicVendorById(
   vendorId: string,
 ): Promise<PublicVendorListing | null> {
-  const [locationResult, reviewSummaries] = await Promise.all([
+  const [locationResult, reviewSummaries, membershipPlan] = await Promise.all([
     supabase
       .from("vendors")
       .select(PUBLIC_VENDOR_DETAIL_SELECT)
@@ -396,6 +410,7 @@ export async function getApprovedPublicVendorById(
       .eq("is_verified", true)
       .maybeSingle(),
     listReviewSummaries([vendorId]).catch((): Record<string, ReviewSummary> => ({})),
+    getPublicVendorMembershipPlan(vendorId),
   ]);
   let data: any = locationResult.data;
   let error: any = locationResult.error;
@@ -410,6 +425,7 @@ export async function getApprovedPublicVendorById(
     error = legacy.error;
   }
   if (error) throw error;
+  if (data) data.membership_plan = membershipPlan;
   return data ? normalizeVendor(data, reviewSummaries[vendorId]) : null;
 }
 
@@ -436,7 +452,11 @@ export async function getApprovedPublicVendorBySlug(
   }
   if (error) throw error;
   if (!data) return null;
-  const reviewSummaries = await listReviewSummaries([data.id]).catch((): Record<string, ReviewSummary> => ({}));
+  const [reviewSummaries, membershipPlan] = await Promise.all([
+    listReviewSummaries([data.id]).catch((): Record<string, ReviewSummary> => ({})),
+    getPublicVendorMembershipPlan(data.id),
+  ]);
+  data.membership_plan = membershipPlan;
   return normalizeVendor(data, reviewSummaries[data.id]);
 }
 

@@ -4,6 +4,7 @@ import { BadgeCheck, ChevronRight, Crown, MapPin, Star } from "lucide-react-nati
 import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
 import SafeImage from "@/components/SafeImage";
 import AnimatedPressable from "@/components/animated/AnimatedPressable";
+import { MembershipBadge, membershipBadgeFor } from "@/components/vendor/MembershipBadge";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
@@ -44,6 +45,7 @@ function VendorListingCard({
   const muted = colors.mutedForeground;
   const border = colors.border;
   const imageUri = vendor.image.replace(/([?&])w=\d+/, "$1w=900");
+  const membershipBadge = membershipBadgeFor(vendor.membershipPlan);
 
   return (
     <View
@@ -87,15 +89,31 @@ function VendorListingCard({
               <Text style={styles.topRatedText}>Top Rated</Text>
             </View>
           ) : null}
-          {nearbyLabel ? <View style={styles.nearby}><MapPin size={10} color={PINK} /><Text style={styles.nearbyText}>{nearbyLabel}</Text></View> : null}
-          <View style={[styles.verified, { backgroundColor: colors.primaryStrong }]}>
-            <BadgeCheck size={11} color="#FFFFFF" strokeWidth={2.2} />
-            <Text style={styles.verifiedText}>Verified</Text>
-          </View>
         </View>
 
         <View style={[styles.body, compact && styles.bodyCompact]}>
-          <Text numberOfLines={2} style={[styles.name, compact && styles.nameCompact, { color: text }]}>{vendor.name}</Text>
+          <View style={[styles.identityRow, compact && styles.identityRowCompact]}>
+            <View style={styles.identityText}>
+              <Text numberOfLines={compact ? 1 : 2} style={[styles.name, compact && styles.nameCompact, { color: text }]}>
+                {vendor.name}
+              </Text>
+              <Text numberOfLines={1} style={[styles.category, { color: muted }]}>
+                {vendor.category}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.trustRow}>
+            <View style={styles.trustItem}>
+              <BadgeCheck size={12} color={colors.primaryStrong} strokeWidth={2.2} />
+              <Text style={[styles.trustText, { color: colors.primaryStrong }]}>Verified</Text>
+            </View>
+            {nearbyLabel ? (
+              <View style={styles.trustItem}>
+                <MapPin size={11} color={PINK} />
+                <Text numberOfLines={1} style={styles.nearbyText}>{nearbyLabel}</Text>
+              </View>
+            ) : null}
+          </View>
           <View style={styles.meta}>
             <Star size={13} color="#F3AC24" fill="#F3AC24" />
             <Text style={[styles.rating, { color: text }]}>{displayedRating.rating.toFixed(1)}</Text>
@@ -130,6 +148,12 @@ function VendorListingCard({
           </View>
         </View>
       </AnimatedPressable>
+
+      {membershipBadge ? (
+        <View pointerEvents="none" style={styles.cardMembershipBadge}>
+          <MembershipBadge planName={vendor.membershipPlan} size={compact ? 42 : 50} />
+        </View>
+      ) : null}
 
       <FavoriteHeartButton
         favorite={favorite}
@@ -166,14 +190,18 @@ const styles = StyleSheet.create({
   image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
   topRated: { position: "absolute", top: 10, left: 0, minHeight: 29, borderTopRightRadius: 999, borderBottomRightRadius: 999, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: PINK },
   topRatedText: { color: "#FFFFFF", fontSize: typeScale.caption, fontWeight: "700" },
-  nearby: { position: "absolute", left: 8, bottom: 8, minHeight: 27, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,.94)" },
-  nearbyText: { color: PINK, fontSize: typeScale.caption, fontWeight: "700" },
-  verified: { position: "absolute", right: 8, bottom: 8, minHeight: 27, borderRadius: 999, paddingHorizontal: 8, borderWidth: 1, borderColor: "rgba(255,255,255,.86)", flexDirection: "row", alignItems: "center", gap: 3 },
-  verifiedText: { color: "#FFFFFF", fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
-  body: { flex: 1, minWidth: 0, paddingVertical: 10, paddingRight: 42, justifyContent: "center" },
-  bodyCompact: { paddingVertical: 5, paddingRight: 34 },
-  name: { ...typeStyles.editorialCardTitle, marginBottom: 7 },
-  nameCompact: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, marginBottom: 5 },
+  body: { flex: 1, minWidth: 0, paddingVertical: 10, paddingRight: 60, justifyContent: "center" },
+  bodyCompact: { paddingVertical: 5, paddingRight: 52 },
+  identityRow: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 7 },
+  identityRowCompact: { gap: 6, marginBottom: 3 },
+  identityText: { flex: 1, minWidth: 0, justifyContent: "center" },
+  name: { ...typeStyles.editorialCardTitle },
+  nameCompact: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle },
+  category: { marginTop: 2, fontFamily: fonts.sans.medium, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
+  trustRow: { minWidth: 0, minHeight: 16, marginBottom: 2, flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: 10, rowGap: 2 },
+  trustItem: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 3 },
+  trustText: { fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
+  nearbyText: { flexShrink: 1, color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
   meta: { minHeight: 22, flexDirection: "row", alignItems: "center", gap: 5 },
   rating: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   reviews: { fontFamily: fonts.sans.regular, fontSize: typeScale.metadata },
@@ -183,12 +211,13 @@ const styles = StyleSheet.create({
   tag: { maxWidth: "46%", minHeight: 25, borderRadius: 999, paddingHorizontal: 9, alignItems: "center", justifyContent: "center" },
   tagText: { maxWidth: "100%", fontFamily: fonts.sans.semibold, fontSize: typeScale.caption },
   bottomRow: { marginTop: 7, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  bottomRowCompact: { marginTop: 5 },
+  bottomRowCompact: { marginTop: 4 },
   price: { maxWidth: "62%", alignSelf: "flex-start", minHeight: 31, borderRadius: 999, paddingHorizontal: 11, alignItems: "center", justifyContent: "center" },
   priceCompact: { maxWidth: "100%", paddingHorizontal: 9 },
   priceText: { maxWidth: "100%", color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
-  viewProfile: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 2 },
+  viewProfile: { minHeight: 36, marginRight: 52, flexDirection: "row", alignItems: "center", gap: 2 },
   viewProfileText: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
+  cardMembershipBadge: { position: "absolute", zIndex: 2, right: 8, bottom: 8 },
   favorite: { position: "absolute", zIndex: 3, top: 12, right: 12, width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   favoriteHovered: { transform: [{ translateY: -1 }] },
   favoritePressed: { opacity: 0.72, transform: [{ scale: 0.94 }] },

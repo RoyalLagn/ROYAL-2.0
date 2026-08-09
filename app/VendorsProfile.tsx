@@ -337,6 +337,7 @@ export default function VendorsProfile() {
             favorite={favorite}
             onToggleFavorite={toggleVendorFavorite}
             onShare={() => void shareProfile()}
+            membershipPlan={vendor.membershipPlan}
             overlap={false}
           >
             <VendorQuickActions

@@ -4,6 +4,7 @@ import {
   formatLocationPreference,
   getVendorProximity,
   rankVendorsByLocation,
+  rankVendorsByLocationAndMembership,
   vendorNearbyLabel,
 } from "../locations/domain.ts";
 
@@ -56,5 +57,21 @@ assert.deepEqual(
   vendors.map((vendor) => vendor.id),
 );
 
-console.log("Location selection and ranking tests passed.");
+const membershipVendors = [
+  { id: "other-elite", membershipPlan: "Elite", serviceLocations: [{ cityId: "mumbai", areaId: null, pincode: null }] },
+  { id: "city-free", membershipPlan: null, serviceLocations: [{ cityId: "pune", areaId: null, pincode: null }] },
+  { id: "city-premium", membershipPlan: "Premium", serviceLocations: [{ cityId: "pune", areaId: null, pincode: null }] },
+  { id: "city-elite", membershipPlan: "Elite", serviceLocations: [{ cityId: "pune", areaId: null, pincode: null }] },
+  { id: "area-free", membershipPlan: null, serviceLocations: [{ cityId: "pune", areaId: "baner", pincode: null }] },
+];
 
+assert.deepEqual(
+  rankVendorsByLocationAndMembership(membershipVendors, preference).map((vendor) => vendor.id),
+  ["area-free", "city-elite", "city-premium", "city-free", "other-elite"],
+);
+assert.deepEqual(
+  rankVendorsByLocationAndMembership(membershipVendors, null).map((vendor) => vendor.id),
+  ["other-elite", "city-elite", "city-premium", "city-free", "area-free"],
+);
+
+console.log("Location selection and ranking tests passed.");

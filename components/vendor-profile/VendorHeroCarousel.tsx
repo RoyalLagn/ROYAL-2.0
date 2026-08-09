@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AccessibilityInfo,
-  Animated,
   Image,
   type ImageURISource,
-  PanResponder,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -57,11 +58,11 @@ function VendorHeroCarousel({
   const [index, setIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [failed, setFailed] = useState<Set<number>>(() => new Set());
-  const opacity = useRef(new Animated.Value(1)).current;
+  const scrollRef = useRef<ScrollView>(null);
   const indexRef = useRef(0);
   const pausedRef = useRef(false);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const transitioningRef = useRef(false);
+  const [carouselWidth, setCarouselWidth] = useState(width);
   const heroHeight = height ?? (width >= 900 ? 470 : Math.max(300, Math.min(410, width * 0.78)));
 
   useEffect(() => {
@@ -85,33 +86,16 @@ function VendorHeroCarousel({
   }, [index, sources]);
 
   const showIndex = useCallback((nextIndex: number) => {
-    if (sources.length < 2 || transitioningRef.current) return;
-    const normalized = (nextIndex + sources.length) % sources.length;
-    if (normalized === indexRef.current) return;
-
-    if (reducedMotion) {
-      indexRef.current = normalized;
-      setIndex(normalized);
+    if (sources.length < 2) return;
+    if (nextIndex >= sources.length) {
+      scrollRef.current?.scrollTo({ x: sources.length * carouselWidth, y: 0, animated: !reducedMotion });
       return;
     }
-
-    transitioningRef.current = true;
-    Animated.timing(opacity, {
-      toValue: 0.12,
-      duration: 160,
-      useNativeDriver: true,
-    }).start(() => {
-      indexRef.current = normalized;
-      setIndex(normalized);
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 260,
-        useNativeDriver: true,
-      }).start(() => {
-        transitioningRef.current = false;
-      });
-    });
-  }, [opacity, reducedMotion, sources.length]);
+    const normalized = (nextIndex + sources.length) % sources.length;
+    indexRef.current = normalized;
+    setIndex(normalized);
+    scrollRef.current?.scrollTo({ x: normalized * carouselWidth, y: 0, animated: !reducedMotion });
+  }, [carouselWidth, reducedMotion, sources.length]);
 
   const pauseTemporarily = useCallback((resumeDelay = MANUAL_PAUSE_MS) => {
     pausedRef.current = true;
@@ -132,73 +116,80 @@ function VendorHeroCarousel({
 
   useEffect(() => () => {
     if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
-    opacity.stopAnimation();
-  }, [opacity]);
+  }, []);
 
-  const manuallyShow = useCallback((nextIndex: number) => {
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ x: indexRef.current * carouselWidth, y: 0, animated: false });
+  }, [carouselWidth]);
+
+  const handleMomentumEnd = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!carouselWidth || !sources.length) return;
+    const rawIndex = Math.round(event.nativeEvent.contentOffset.x / carouselWidth);
+    if (rawIndex === sources.length) {
+      indexRef.current = 0;
+      setIndex(0);
+      requestAnimationFrame(() => scrollRef.current?.scrollTo({ x: 0, y: 0, animated: false }));
+      return;
+    }
+    const nextIndex = Math.max(0, Math.min(rawIndex, sources.length - 1));
+    indexRef.current = nextIndex;
+    setIndex(nextIndex);
     pauseTemporarily();
-    showIndex(nextIndex);
-  }, [pauseTemporarily, showIndex]);
+  }, [carouselWidth, pauseTemporarily, sources.length]);
 
-  const panResponder = useMemo(() => {
-    const isHorizontalSwipe = (dx: number, dy: number) =>
-      sources.length > 1 && Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.2;
-    return PanResponder.create({
-      onMoveShouldSetPanResponder: (_event, gesture) => isHorizontalSwipe(gesture.dx, gesture.dy),
-      onMoveShouldSetPanResponderCapture: (_event, gesture) => isHorizontalSwipe(gesture.dx, gesture.dy),
-      onPanResponderGrant: () => pauseTemporarily(),
-      onPanResponderRelease: (_event, gesture) => {
-        if (Math.abs(gesture.dx) < 42) return;
-        manuallyShow(indexRef.current + (gesture.dx < 0 ? 1 : -1));
-      },
-      onPanResponderTerminate: () => pauseTemporarily(),
-    });
-  }, [manuallyShow, pauseTemporarily, sources.length]);
-
-  const currentSource = failed.has(index) && fallbackImage ? fallbackImage : sources[index];
-  const currentFocalPoint = focalPoints[index] ?? { x: 0.5, y: 0.5 };
-  const focalStyle = Platform.OS === "web"
-    ? ({ objectPosition: `${Math.round(currentFocalPoint.x * 100)}% ${Math.round(currentFocalPoint.y * 100)}%` } as object)
-    : ({ transform: [{ scale: 1.04 }, { translateX: (0.5 - currentFocalPoint.x) * 16 }, { translateY: (0.5 - currentFocalPoint.y) * 16 }] } as object);
+  const slides = sources.length > 1 ? [...sources, sources[0]] : sources;
 
   return (
-    <View style={[styles.root, { height: heroHeight, backgroundColor: containMedia ? "#FFFFFF" : "#050505" }]}>
-      <Pressable
-      onPress={(event) => {
-        event.stopPropagation();
-        pauseTemporarily();
-        onOpen?.(indexRef.current);
-      }}
-      onHoverIn={() => {
-        if (Platform.OS === "web") {
-          pausedRef.current = true;
-          if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
-        }
-      }}
-      onHoverOut={() => {
-        if (Platform.OS === "web") pauseTemporarily(1800);
-      }}
-      accessibilityRole={onOpen ? "button" : undefined}
-      accessibilityLabel={onOpen ? `Open ${vendorName} gallery image ${index + 1}` : undefined}
-      style={styles.galleryTarget}
-      {...panResponder.panHandlers}
+    <View
+      style={[styles.root, { height: heroHeight, backgroundColor: containMedia ? "#FFFFFF" : "#050505" }]}
+      onLayout={(event) => setCarouselWidth(event.nativeEvent.layout.width)}
+    >
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        nestedScrollEnabled
+        bounces={false}
+        decelerationRate="fast"
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        style={styles.galleryTarget}
+        onScrollBeginDrag={() => pauseTemporarily()}
+        onMomentumScrollEnd={handleMomentumEnd}
       >
-        {currentSource ? (
-          <Animated.Image
-            source={currentSource}
-            defaultSource={fallbackImage}
-            resizeMode={containMedia ? "contain" : "cover"}
-            accessibilityLabel={`${vendorName} gallery image ${index + 1}`}
-            onError={() => setFailed((current) => new Set(current).add(index))}
-            style={[
-              styles.image,
-              focalStyle,
-              { opacity } as any,
-            ]}
-          />
-        ) : null}
-        <View pointerEvents="none" style={styles.mediaShade} />
-      </Pressable>
+        {slides.map((source, slideIndex) => {
+          const sourceIndex = slideIndex % sources.length;
+          const shownSource = failed.has(sourceIndex) && fallbackImage ? fallbackImage : source;
+          const focalPoint = focalPoints[sourceIndex] ?? { x: 0.5, y: 0.5 };
+          const focalStyle = Platform.OS === "web"
+            ? ({ objectPosition: `${Math.round(focalPoint.x * 100)}% ${Math.round(focalPoint.y * 100)}%` } as object)
+            : ({ transform: [{ scale: 1.04 }, { translateX: (0.5 - focalPoint.x) * 16 }, { translateY: (0.5 - focalPoint.y) * 16 }] } as object);
+          return (
+            <Pressable
+              key={`${sourceIndex}-${slideIndex === sources.length ? "loop" : "slide"}`}
+              onPress={() => {
+                pauseTemporarily();
+                onOpen?.(sourceIndex);
+              }}
+              accessibilityRole={onOpen ? "button" : undefined}
+              accessibilityLabel={onOpen ? `Open ${vendorName} gallery image ${sourceIndex + 1}` : undefined}
+              style={{ width: carouselWidth, height: heroHeight }}
+            >
+              {shownSource ? (
+                <Image
+                  source={shownSource}
+                  defaultSource={fallbackImage}
+                  resizeMode={containMedia ? "contain" : "cover"}
+                  accessibilityLabel={`${vendorName} gallery image ${sourceIndex + 1}`}
+                  onError={() => setFailed((current) => new Set(current).add(sourceIndex))}
+                  style={[styles.image, focalStyle]}
+                />
+              ) : null}
+              <View pointerEvents="none" style={styles.mediaShade} />
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       <View pointerEvents="box-none" style={[styles.topControls, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
         <Pressable

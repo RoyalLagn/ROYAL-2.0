@@ -5,7 +5,11 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Download, X } from "lucide-react-native";
+import {
+  Archive, BadgeCheck, BadgeX, Download, Eye, PauseCircle, PlayCircle,
+  RotateCcw, Trash2, UserCheck, UserX, X,
+  type LucideIcon,
+} from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
@@ -116,12 +120,12 @@ export default function VendorsAdminListing() {
     setOperation(next);
     setActionMenuOpen(false);
   };
-  const targets = actionRecord ? [actionRecord] : vendors.selectedRows;
+  const targets = actionRecord ? [actionRecord] : [];
 
   const confirmAction = async (reason?: string) => {
     const selected = targets;
     const currentOperation = operation;
-    if (!currentOperation) return;
+    if (!currentOperation || selected.length === 0) return;
     const rollback = vendors.optimisticPatch(
       selected.map((record) => record.record_id),
       optimisticValues(currentOperation),
@@ -143,7 +147,6 @@ export default function VendorsAdminListing() {
         setProgress({ completed: index + 1, total: selected.length, label: `${currentOperation.replace("_", " ")} vendors` });
       }
       setActionRecord(null);
-      vendors.clearSelected();
       const reverse = reverseAction(currentOperation);
       if (reverse) setUndo({ records: selected, action: reverse, message: `${selected.length} vendor${selected.length === 1 ? "" : "s"} updated` });
       await vendors.refresh();
@@ -176,7 +179,7 @@ export default function VendorsAdminListing() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled" stickyHeaderIndices={[2]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
         <ResponsiveContainer>
           <AdminPageHeader title="Vendor Management" subtitle="Live vendor operations workspace" action={<Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={() => void AdminVendorService.exportCsv(vendors.rows)}><Download size={20} className="text-primary" /></Pressable>} />
         </ResponsiveContainer>
@@ -226,7 +229,7 @@ export default function VendorsAdminListing() {
         </ResponsiveContainer>
         <ResponsiveContainer className="bg-background pt-1">
           <ResponsiveSection>
-            <VendorFilterBar filters={vendors.filters} categories={vendors.categories} onChange={vendors.updateFilters} onMore={() => setFiltersOpen(true)} />
+            <VendorFilterBar filters={vendors.filters} onChange={vendors.updateFilters} onMore={() => setFiltersOpen(true)} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
               {savedFilters.map((preset) => <Pressable key={preset.id} className="min-h-11 px-4 rounded-full bg-card border border-border items-center justify-center" onPress={() => vendors.updateFilters(preset.filters)}><Text className="text-foreground text-xs font-semibold">{preset.name}</Text></Pressable>)}
               <Pressable className="min-h-11 px-4 rounded-full bg-primary/10 items-center justify-center" onPress={() => setSaveOpen(true)}><Text className="text-primary text-xs font-semibold">+ Save filter</Text></Pressable>
@@ -234,23 +237,6 @@ export default function VendorsAdminListing() {
           </ResponsiveSection>
           {progress ? <ResponsiveSection><ActionProgress {...progress} /></ResponsiveSection> : null}
 
-          {vendors.selected.size ? (
-            <ResponsiveSection>
-              <View className="bg-card border border-primary/30 rounded-2xl p-3">
-                <Text className="text-foreground font-semibold">{vendors.selected.size} selected</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
-                  {(["approve", "reject", "suspend", "activate", "archive", "restore"] as ManagementOperation[]).map((action) => (
-                    <Pressable key={action} className="min-h-11 px-4 rounded-full bg-primary/10 items-center justify-center" onPress={() => beginAction(action)}>
-                      <Text className="text-primary text-xs font-semibold capitalize">{action}</Text>
-                    </Pressable>
-                  ))}
-                  <Pressable className="min-h-11 px-4 rounded-full bg-primary items-center justify-center" onPress={() => void AdminVendorService.exportCsv(vendors.selectedRows)}>
-                    <Text className="text-white text-xs font-semibold">Export</Text>
-                  </Pressable>
-                </ScrollView>
-              </View>
-            </ResponsiveSection>
-          ) : null}
         </ResponsiveContainer>
 
         <ResponsiveContainer>
@@ -276,8 +262,6 @@ export default function VendorsAdminListing() {
                     <VendorCard
                       key={item.record_id}
                       item={item}
-                      selected={vendors.selected.has(item.record_id)}
-                      onSelect={() => vendors.toggle(item.record_id)}
                       onView={() => router.push({ pathname: "/AdminVendorDetails", params: { id: item.record_id } })}
                       onActions={() => { setActionRecord(item); setActionMenuOpen(true); }}
                       health={item.vendor_id ? vendors.health[item.vendor_id] : undefined}
@@ -314,7 +298,80 @@ function ActionMenu({ visible, record, onClose, onView, onAction }: { visible: b
   const actions: ManagementOperation[] = record.vendor_id
     ? ["suspend", "activate", record.is_verified ? "unverify" : "verify", "archive", "restore", "soft_delete"]
     : ["approve", "reject"];
-  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><Pressable className="flex-1 bg-black/60 justify-end" onPress={onClose}><View className="bg-card border-t border-border rounded-t-3xl p-5"><Text className="text-foreground text-lg font-bold mb-3" numberOfLines={1}>{record.business_name}</Text><Pressable className="min-h-11 justify-center border-b border-border" onPress={onView}><Text className="text-primary font-semibold">View profile</Text></Pressable>{actions.map((action) => <Pressable key={action} className="min-h-11 justify-center border-b border-border" onPress={() => onAction(action)}><Text className={`font-semibold capitalize ${action === "archive" || action === "soft_delete" ? "text-red-500" : "text-foreground"}`}>{action.replace("_", " ")}</Text></Pressable>)}</View></Pressable></Modal>;
+  const standardActions = actions.filter((action) => action !== "archive" && action !== "soft_delete");
+  const destructiveActions = actions.filter((action) => action === "archive" || action === "soft_delete");
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View className="flex-1 bg-black/60 items-center justify-center px-4 py-8">
+        <Pressable accessibilityLabel="Close vendor actions" className="absolute inset-0" onPress={onClose} />
+        <View className="bg-card border border-border rounded-3xl p-5 w-full max-w-lg" style={{ maxHeight: "92%" }}>
+          <View className="flex-row items-start gap-3">
+            <View className="w-11 h-11 rounded-2xl bg-primary/10 items-center justify-center">
+              <Text className="text-primary font-bold">{record.business_name.slice(0, 2).toUpperCase()}</Text>
+            </View>
+            <View className="flex-1 min-w-0 pt-0.5">
+              <Text className="text-foreground text-lg font-bold" numberOfLines={1}>{record.business_name}</Text>
+              <Text className="text-muted-foreground text-xs mt-0.5">Vendor management actions</Text>
+            </View>
+            <Pressable accessibilityLabel="Close" className="min-w-11 min-h-11 -mr-2 -mt-2 rounded-xl items-center justify-center" onPress={onClose}>
+              <X size={20} className="text-muted-foreground" />
+            </Pressable>
+          </View>
+
+          <Pressable className="min-h-12 mt-5 rounded-2xl bg-primary flex-row items-center justify-center gap-2" onPress={onView}>
+            <Eye size={18} color="#FFFFFF" />
+            <Text className="text-white font-bold">View vendor profile</Text>
+          </Pressable>
+
+          <Text className="text-muted-foreground text-xs font-semibold mt-5 mb-2">ACCOUNT ACTIONS</Text>
+          <View className="flex-row flex-wrap gap-2">
+            {standardActions.map((action) => <ActionButton key={action} action={action} onPress={() => onAction(action)} />)}
+          </View>
+
+          {destructiveActions.length ? (
+            <View className="border-t border-border mt-5 pt-4">
+              <Text className="text-red-600 text-xs font-semibold mb-2">RESTRICTED ACTIONS</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {destructiveActions.map((action) => <ActionButton key={action} action={action} destructive onPress={() => onAction(action)} />)}
+              </View>
+            </View>
+          ) : null}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const actionIcons: Record<ManagementOperation, LucideIcon> = {
+  approve: UserCheck,
+  reject: UserX,
+  suspend: PauseCircle,
+  activate: PlayCircle,
+  verify: BadgeCheck,
+  unverify: BadgeX,
+  archive: Archive,
+  restore: RotateCcw,
+  soft_delete: Trash2,
+};
+
+function ActionIcon({ action, size, color }: { action: ManagementOperation; size: number; color: string }) {
+  const Icon = actionIcons[action];
+  return <Icon size={size} color={color} />;
+}
+
+function ActionButton({ action, destructive = false, onPress }: { action: ManagementOperation; destructive?: boolean; onPress: () => void }) {
+  const label = action.replace("_", " ");
+  const color = destructive ? "#DC2626" : "#1F191C";
+  return (
+    <Pressable
+      accessibilityLabel={`${label} vendor`}
+      className={`min-h-12 min-w-[47%] flex-1 px-3 rounded-2xl border flex-row items-center justify-center gap-2 ${destructive ? "border-red-200 bg-red-50" : "border-border bg-background"}`}
+      onPress={onPress}
+    >
+      <ActionIcon action={action} size={18} color={color} />
+      <Text className={`font-semibold capitalize ${destructive ? "text-red-600" : "text-foreground"}`}>{label}</Text>
+    </Pressable>
+  );
 }
 
 type FilterModalCategory = { id: string; name: string };

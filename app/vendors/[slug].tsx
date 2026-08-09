@@ -410,8 +410,9 @@ export default function VendorPublicProfileScreen() {
           dark={dark}
           favorite={favorite}
           onToggleFavorite={toggleVendorFavorite}
-          onShare={() => void shareProfile()}
-          overlap={false}
+            onShare={() => void shareProfile()}
+            membershipPlan={vendor.membershipPlan}
+            overlap={false}
         >
           <VendorQuickActions
             dark={dark}

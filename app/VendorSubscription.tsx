@@ -14,6 +14,7 @@ import { isPurchasableSubscriptionStatus, isSubscriptionRenewalWindow, subscript
 import type { SubscriptionCheckoutPreview, SubscriptionPayment, SubscriptionPlanBillingOption } from "@/subscriptions/types";
 import { isSubscriptionOfferEligible, subscriptionPriceBreakdown } from "@/subscriptions/pricing";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import { MembershipBadge, membershipBadgeFor } from "@/components/vendor/MembershipBadge";
 
 const shortDate = (value: string | null | undefined) => value
   ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value))
@@ -201,6 +202,7 @@ export default function VendorSubscription() {
   };
 
   const activePlan = plans.find((plan) => plan.id === access?.plan_id);
+  const activeMembershipBadge = membershipBadgeFor(access?.plan_name);
   const renewalWindow = isSubscriptionRenewalWindow(access, settings);
   const state = subscriptionStateCopy(access, settings);
   const scheduledChangeMessage = subscriptionScheduledChangeCopy(access);
@@ -222,7 +224,7 @@ export default function VendorSubscription() {
         <View style={styles.pageHeading}><View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>Choose your plan</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Compare RoyalLagn visibility, media and business tools. Prices and limits are managed centrally by RoyalLagn Admin.</Text></View></View>
 
         <View style={[styles.current, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={[styles.currentIcon, { backgroundColor: access?.has_access ? colors.pink : colors.surfaceSoft }]}><Crown size={23} color={access?.has_access ? "#FFF" : colors.pink} /></View>
+          <View style={[styles.currentIcon, { backgroundColor: activeMembershipBadge ? "transparent" : access?.has_access ? colors.pink : colors.surfaceSoft }]}>{activeMembershipBadge ? <MembershipBadge planName={access?.plan_name} size={62} /> : <Crown size={23} color={access?.has_access ? "#FFF" : colors.pink} />}</View>
           <View style={styles.flex}>
             <Text style={[styles.currentLabel, { color: colors.muted }]}>CURRENT PLAN · {subscriptionAccessSourceLabel(access?.access_source).toUpperCase()}</Text>
             <Text style={[styles.currentTitle, { color: colors.text }]}>{access?.plan_name || "No active plan"}{access?.billing_interval ? ` · ${access.billing_interval === "year" ? "Yearly" : "Monthly"}` : ""}</Text>
@@ -312,7 +314,10 @@ export default function VendorSubscription() {
             return <View key={plan.id} style={[styles.planCard, { width: cardWidth, backgroundColor: colors.surface, borderColor: isCurrent ? colors.pink : plan.is_featured ? colors.pink : colors.border, borderWidth: isCurrent || plan.is_featured ? 2 : 1 }]}>
               {/* Name + status badge */}
               <View style={styles.cardHeaderRow}>
-                <Text style={[styles.planName, { color: colors.text }]}>{plan.name}</Text>
+                <View style={styles.planIdentity}>
+                  <MembershipBadge planName={plan.name} size={72} />
+                  <Text style={[styles.planName, { color: colors.text }]}>{plan.name}</Text>
+                </View>
                 {badge ? <View style={[styles.statusPill, { backgroundColor: badge.tone === "success" ? `${colors.success}1A` : badge.tone === "pink" ? `${colors.pink}1A` : colors.surfaceSoft }]}><View style={[styles.statusDot, { backgroundColor: badge.tone === "success" ? colors.success : badge.tone === "pink" ? colors.pink : colors.muted }]} /><Text style={[styles.badgeText, { color: badge.tone === "success" ? colors.success : badge.tone === "pink" ? colors.pink : colors.muted }]}>{badge.label}</Text></View> : null}
               </View>
 
@@ -370,6 +375,7 @@ const styles = StyleSheet.create({
   // bottom edge regardless of how much content is above it.
   planCard: { minWidth: 0, minHeight: 560, borderRadius: 32, padding: 26, overflow: "hidden", flexDirection: "column" },
   cardHeaderRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 10 },
+  planIdentity: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10 },
   statusPill: { minHeight: 26, borderRadius: 999, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 6 }, statusDot: { width: 6, height: 6, borderRadius: 3 }, badgeText: { ...typeStyles.caption, fontWeight: "800", letterSpacing: 0.6 },
   planName: { ...typeStyles.editorialCardTitle, flexShrink: 1 },
   priceBlock: { marginTop: 22 }, priceRow: { flexDirection: "row", alignItems: "baseline" }, price: { fontSize: 44, lineHeight: 50, fontWeight: "800", letterSpacing: -0.5 }, duration: { ...typeStyles.bodyCompact, marginTop: 4, fontWeight: "600" },
