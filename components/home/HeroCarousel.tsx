@@ -258,7 +258,7 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
         ))}
       </ScrollView>
 
-      {heroSlides.length > 1 ? (
+      {heroSlides.length > 1 && desktop ? (
         <>
           <Pressable
             accessibilityRole="button"

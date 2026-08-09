@@ -11,6 +11,14 @@ colors:
   warm-ink: "#1F191C"
   warm-muted: "#787178"
   petal-border: "#FBCFE8"
+  admin-canvas: "#F8F9FB"
+  admin-surface: "#FFFFFF"
+  admin-surface-subtle: "#F4F6F8"
+  admin-border: "#E2E5EA"
+  admin-text: "#181B23"
+  admin-text-secondary: "#676E7C"
+  admin-warning: "#B76A00"
+  admin-info: "#2563EB"
   midnight: "#070B14"
   midnight-surface: "#0E141F"
   midnight-raised: "#161E2E"
@@ -147,15 +155,15 @@ components:
 
 RoyalLagn pairs the romance and visual confidence of a contemporary wedding publication with the clarity of a trusted marketplace. Photography and video lead on discovery surfaces; blush framing, precise pink accents, and selective Playfair Display typography give that media an unmistakably wedding-focused setting without competing with it.
 
-Operational surfaces for vendors and administrators are denser and primarily Inter-led. They retain the same warm palette, rounded geometry, and tactile feedback, but reduce decoration so profiles, enquiries, billing, moderation, and CRM work remain fast to scan. The public, vendor, and admin experiences are related members of one family, not identical skins.
+Operational surfaces for vendors and administrators are denser and primarily Inter-led. The admin workspace uses a soft neutral-gray canvas, white data surfaces, restrained gray borders, and pink only for branded actions and selection. This keeps profiles, enquiries, billing, moderation, and CRM work fast to scan while preserving the RoyalLagn identity.
 
-Depth is softly layered: clean white or midnight page canvases support pink-tinted cards, tonal inset surfaces, and restrained ambient shadows. Controls feel refined and tactile through clear states and short press responses rather than ornamental animation.
+Depth is softly layered: editorial surfaces may use petal tints, while the admin workspace layers white cards over a neutral canvas with restrained borders and shadows. Controls feel refined and tactile through clear states and short press responses rather than ornamental animation.
 
 **Key Characteristics:**
 
 - Media-forward public discovery with an editorial serif accent.
 - Bridal pink used as a deliberate action and selection signal.
-- Warm blush neutrals in light mode and midnight blue-black surfaces in dark mode.
+- Warm blush neutrals for editorial surfaces, neutral SaaS surfaces for admin, and midnight blue-black surfaces in dark mode.
 - Rounded, approachable silhouettes with fine borders and restrained elevation.
 - Compact operational density for vendor and admin workflows.
 - Brief, reduced-motion-aware interaction feedback.

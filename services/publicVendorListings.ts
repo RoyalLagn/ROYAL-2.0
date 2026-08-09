@@ -11,6 +11,7 @@ import {
 } from "@/services/vendorPortfolio";
 import { mapVendorServiceLocation } from "@/services/locations";
 import type { VendorServiceLocation } from "@/locations/types";
+import { effectiveAvailabilityStatus } from "@/services/vendorAvailability";
 
 export type PublicVendorAvailability = {
   date: string;
@@ -153,6 +154,7 @@ const PUBLIC_VENDOR_DETAIL_SELECT = `
       is_cover,
       upload_status,
       processing_status,
+      subscription_locked,
       created_at,
       updated_at
     )
@@ -220,8 +222,7 @@ function normalizeVendor(
       typeof item.date === "string"
       && ["available", "tentative", "blocked"].includes(item.status))
     .sort((a: PublicVendorAvailability, b: PublicVendorAvailability) => a.date.localeCompare(b.date));
-  const isAvailable = availability.some((item: PublicVendorAvailability) =>
-    item.status === "available" && item.date >= today);
+  const isAvailable = effectiveAvailabilityStatus(availability, today, today) === "available";
   const portfolioAlbums: PublicPortfolioAlbum[] = (row.vendor_portfolio_albums ?? [])
     .filter((album: any) => album.is_visible)
     .sort((a: any, b: any) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0))
@@ -229,6 +230,7 @@ function normalizeVendor(
       const media = (album.media ?? [])
         .filter((item: any) =>
           item.upload_status === "completed"
+          && !item.subscription_locked
           && (item.processing_status ?? "ready") === "ready",
         )
         .sort((a: any, b: any) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0)) as VendorPortfolioMedia[];

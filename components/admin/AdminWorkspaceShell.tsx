@@ -2,6 +2,8 @@ import React, { Suspense, lazy } from "react";
 import { useWindowDimensions, View, StyleSheet } from "react-native";
 import { usePathname } from "expo-router";
 import { isAdminWorkspaceRoute } from "@/admin/navigationRoutes";
+import { useAppTheme } from "@/components/ThemeProvider";
+import { adminDarkTheme, adminLightTheme } from "@/theme";
 
 /**
  * Lightweight shell: only mounts the heavy admin sidebar (and its lucide/
@@ -16,9 +18,12 @@ const AdminSidebar = lazy(() =>
 export function AdminWorkspaceShell({ children }: React.PropsWithChildren) {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
-  if (!isAdminWorkspaceRoute(pathname) || width < 768) return <>{children}</>;
+  const { colorScheme } = useAppTheme();
+  if (!isAdminWorkspaceRoute(pathname)) return <>{children}</>;
+  const adminTheme = colorScheme === "dark" ? adminDarkTheme : adminLightTheme;
+  if (width < 768) return <View style={[styles.content, adminTheme]}>{children}</View>;
   return (
-    <View style={styles.shell}>
+    <View style={[styles.shell, adminTheme]}>
       <Suspense fallback={<View style={styles.sidebarFallback} />}>
         <AdminSidebar compact={width < 1040} />
       </Suspense>

@@ -43,6 +43,8 @@ export type AdminEnquiry = {
   created_at: string;
   updated_at: string;
   vendor_name: string;
+  category_id: string | null;
+  category_name: string;
 };
 
 export type AdminReview = {
@@ -74,6 +76,19 @@ function relationBusinessName(value: unknown, fallback: string) {
   return relation && typeof relation === "object" && "business_name" in relation
     ? String((relation as { business_name?: unknown }).business_name || fallback)
     : fallback;
+}
+
+function enquiryVendor(value: unknown) {
+  const relation = Array.isArray(value) ? value[0] : value;
+  if (!relation || typeof relation !== "object") {
+    return { name: "Unknown vendor", categoryId: null, categoryName: "Uncategorized" };
+  }
+  const vendor = relation as Record<string, unknown>;
+  return {
+    name: String(vendor.business_name || "Unknown vendor"),
+    categoryId: vendor.category_id ? String(vendor.category_id) : null,
+    categoryName: relationName(vendor.categories, "Uncategorized"),
+  };
 }
 
 function relationFullName(value: unknown, fallback: string) {
@@ -120,10 +135,12 @@ export const AdminOperationsService = {
   async enquiries(): Promise<AdminEnquiry[]> {
     const { data, error } = await supabase
       .from("vendor_enquiries")
-      .select("id,vendor_id,customer_id,customer_name,customer_email,customer_phone,event_date,event_type,package_id,package_name,message,status,reference_code,enquiry_channel,source_type,customer_confirmation,vendor_notes,follow_up_date,created_at,updated_at,vendors(business_name)")
+      .select("id,vendor_id,customer_id,customer_name,customer_email,customer_phone,event_date,event_type,package_id,package_name,message,status,reference_code,enquiry_channel,source_type,customer_confirmation,vendor_notes,follow_up_date,created_at,updated_at,vendors(business_name,category_id,categories(name))")
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    return ((data ?? []) as Record<string, unknown>[]).map((row) => {
+      const vendor = enquiryVendor(row.vendors);
+      return {
       id: String(row.id), vendor_id: String(row.vendor_id),
       customer_id: row.customer_id ? String(row.customer_id) : null,
       customer_name: String(row.customer_name),
@@ -141,8 +158,10 @@ export const AdminOperationsService = {
       follow_up_date: row.follow_up_date ? String(row.follow_up_date) : null,
       message: String(row.message), status: String(row.status) as AdminEnquiryStatus,
       created_at: String(row.created_at), updated_at: String(row.updated_at),
-      vendor_name: relationBusinessName(row.vendors, "Unknown vendor"),
-    }));
+      vendor_name: vendor.name,
+      category_id: vendor.categoryId,
+      category_name: vendor.categoryName,
+    }; });
   },
 
   async updateEnquiryStatus(id: string, status: AdminEnquiryStatus) {

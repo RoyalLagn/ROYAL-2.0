@@ -144,9 +144,8 @@ export const AdminVendorService = {
         !row.state && "State",
         !serviceCounts[id] && "Services",
         !mediaCounts[id] && "Gallery",
-        !availabilityCounts[id] && "Availability",
       ].filter(Boolean) as string[];
-      const completeness = Math.round(((10 - missing.length) / 10) * 100);
+      const completeness = Math.round(((9 - missing.length) / 9) * 100);
       const ratings = (reviews.data ?? []).filter((review) => review.vendor_id === id).map((review) => Number(review.rating));
       const rating = ratings.length ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length : 0;
       const healthScore = Math.round(
@@ -155,7 +154,6 @@ export const AdminVendorService = {
         + Math.min(mediaCounts[id] ?? 0, 5) * 3
         + Math.min(serviceCounts[id] ?? 0, 5) * 3
         + Math.min(reviewCounts[id] ?? 0, 10)
-        + (availabilityCounts[id] ? 5 : 0)
         + (row.plan_name.toLowerCase() !== "free" ? 5 : 0)
         + (Date.now() - Date.parse(row.updated_at) <= 30 * 86_400_000 ? 5 : 0),
       );

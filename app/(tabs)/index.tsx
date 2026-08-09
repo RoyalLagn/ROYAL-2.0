@@ -66,6 +66,8 @@ export default function HomeScreen() {
   const isDesktop = screenWidth >= 1100;
   const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
   const featureWidth = Math.min(screenWidth - horizontalInset * 2, 1280);
+  const headerSideWidth = screenWidth < BREAKPOINTS.normalPhone ? 96 : 108;
+  const headerLogoWidth = Math.max(96, Math.min(176, featureWidth - headerSideWidth * 2));
   const categoryColumns = screenWidth < 360 ? 4 : 5;
   const categoryItemWidth = featureWidth / categoryColumns;
   const categoryCardWidth = isDesktop
@@ -230,22 +232,18 @@ export default function HomeScreen() {
         {/* ── Compact mobile header ── */}
         {!isDesktop ? (
           <HomeReveal direction="down" style={[s.header, { width: featureWidth }]}>
-            <View style={s.headerLocation}><LocationSelector dark={isDark} compact /></View>
+            <View style={[s.headerLocation, { width: headerSideWidth }]}>
+              <LocationSelector dark={isDark} compact />
+            </View>
 
             <View
               pointerEvents="none"
-              style={[
-                s.headerLogo,
-                {
-                  width: screenWidth < 360 ? 152 : 176,
-                  marginLeft: screenWidth < 360 ? -76 : -88,
-                },
-              ]}
+              style={s.headerLogo}
             >
-              <RoyalLagnLogo width={screenWidth < 360 ? 152 : 176} height={48} />
+              <RoyalLagnLogo width={headerLogoWidth} height={44} />
             </View>
 
-            <View style={s.headerActions}>
+            <View style={[s.headerActions, { width: headerSideWidth }]}>
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel="Open enquiries"
@@ -654,11 +652,11 @@ const s = StyleSheet.create<Record<string, any>>({
   scroll:          {},
 
   /* Header */
-  header:          { minHeight: 54, alignSelf: "center", flexDirection: "row", alignItems: "center", position: "relative" },
-  headerLocation:  { zIndex: 2, minWidth: 54, maxWidth: 100, flexShrink: 1, alignItems: "flex-start", justifyContent: "center" },
-  headerLogo:      { position: "absolute", zIndex: 1, left: "50%", height: 48, alignItems: "center", justifyContent: "center" },
-  headerActions:   { zIndex: 2, marginLeft: "auto", flexDirection: "row", flexShrink: 0, alignItems: "center" },
-  headerAction:    { width: 36, height: 44, borderRadius: 18, alignItems: "center", justifyContent: "center", position: "relative" },
+  header:          { minHeight: 52, alignSelf: "center", flexDirection: "row", alignItems: "center" },
+  headerLocation:  { flexShrink: 0, alignItems: "flex-start", justifyContent: "center" },
+  headerLogo:      { flex: 1, minWidth: 0, height: 44, alignItems: "center", justifyContent: "center" },
+  headerActions:   { flexDirection: "row", flexShrink: 0, alignItems: "center" },
+  headerAction:    { flex: 1, minWidth: 0, height: 44, borderRadius: 16, alignItems: "center", justifyContent: "center", position: "relative" },
   badge:           { position: "absolute", top: 2, right: 1, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: PINK, borderWidth: 2, borderColor: brandPalette.light.primaryForeground, alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
   badgeTxt:        { color: brandPalette.light.primaryForeground, fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
 

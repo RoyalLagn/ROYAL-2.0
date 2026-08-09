@@ -6,7 +6,7 @@ import {
 import { useFocusEffect, useRouter } from "expo-router";
 import {
   BarChart3, Bookmark, Clapperboard, Edit3, Eye, Heart, Lightbulb,
-  Link2, Plus, Save, Share2, Trash2, Video,
+  Link2, LockKeyhole, Plus, Save, Share2, Trash2, Video,
 } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -51,6 +51,10 @@ export default function VendorClips() {
   // `deletingId` still drives the visible disabled/spinner state.
   const deletingRef = useRef<string | null>(null);
   const openUpload = (draftId?: string) => requireFeature("upload_clips", () => {
+    if (overview.limitReached) {
+      Alert.alert("Clip limit reached", `Your plan allows ${overview.maximumClips ?? 0} Clips. Upgrade your plan or remove a Clip before uploading another.`, [{ text: "Not now", style: "cancel" }, { text: "View plans", onPress: () => router.push("/VendorSubscription") }]);
+      return;
+    }
     if (draftId) router.push({ pathname: "/VendorClipUpload", params: { draftId } });
     else router.push("/VendorClipUpload");
   });
@@ -149,7 +153,7 @@ export default function VendorClips() {
             {overview.maximumClips ? `${overview.total} / ${overview.maximumClips} Clips Used` : `${overview.total} Clips Used`}
           </Text>
           <Text style={[styles.limitText, { color: overview.limitReached ? colors.warning : colors.muted }]}>
-            {overview.limitReached ? "Clip limit reached. Uploading a new Clip will replace an existing one." : "Your Clip limit is provided by your current plan."}
+            {overview.lockedCount ? `${overview.lockedCount} Clips are locked and hidden from customers. Upgrade to unlock them.` : overview.limitReached ? "Clip limit reached. Upgrade or remove a Clip before uploading another." : "Your Clip limit is provided by your current plan."}
           </Text>
         </View>
         {overview.limitReached && <Pressable onPress={() => setGroup("approved")} style={[styles.manageButton, { backgroundColor: colors.warning }]}><Text style={styles.manageText}>Manage Clips</Text></Pressable>}
@@ -187,7 +191,8 @@ export default function VendorClips() {
       <View style={[styles.grid, { gap: 14 }]}>{visibleClips.map((clip) => <View key={clip.id} style={[styles.card, { width: columns === 1 ? "100%" : `${100 / columns - 1}%`, backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Image source={{ uri: clip.thumbnail_url }} style={styles.thumb} />
         <View style={styles.cardBody}>
-          <View style={styles.row}><Text numberOfLines={2} style={[styles.cardTitle, { color: colors.text }]}>{clip.caption?.trim() || "Wedding Clip"}</Text><ClipStatusBadge status={clip.status as ClipStatus} /></View>
+          <View style={styles.row}><Text numberOfLines={2} style={[styles.cardTitle, { color: colors.text }]}>{clip.caption?.trim() || "Wedding Clip"}</Text>{clip.subscription_locked ? <View style={[styles.lockBadge, { backgroundColor: `${colors.warning}18` }]}><LockKeyhole size={12} color={colors.warning} /><Text style={[styles.lockBadgeText, { color: colors.warning }]}>LOCKED</Text></View> : <ClipStatusBadge status={clip.status as ClipStatus} />}</View>
+          {clip.subscription_locked ? <Text style={[styles.lockReason, { color: colors.warning }]}>Hidden from customers · Upgrade to unlock</Text> : null}
           <View style={styles.analytics}><View style={styles.metric}><Eye size={14} color={colors.muted} /><Text style={[styles.metricText, { color: colors.muted }]}>{clip.views_count}</Text></View><View style={styles.metric}><Heart size={14} color={colors.muted} /><Text style={[styles.metricText, { color: colors.muted }]}>{clip.likes_count}</Text></View><View style={styles.metric}><Save size={14} color={colors.muted} /><Text style={[styles.metricText, { color: colors.muted }]}>{clip.saves_count}</Text></View></View>
           <Text style={[styles.date, { color: colors.muted }]}>Uploaded {new Date(clip.created_at).toLocaleDateString()}{clip.published_at ? ` · Published ${new Date(clip.published_at).toLocaleDateString()}` : ""}</Text>
           <View style={[styles.actions, { borderTopColor: colors.border }]}>
@@ -224,6 +229,7 @@ const styles = StyleSheet.create({
   draftBox: { borderWidth: 1, borderRadius: 20, padding: 15, marginBottom: 16 }, draftRow: { minHeight: 42, flexDirection: "row", alignItems: "center", gap: 10 }, draftText: { flex: 1, fontSize: typeScale.bodyCompact, fontWeight: "600" },
   grid: { flexDirection: "row", flexWrap: "wrap" }, card: { borderWidth: 1, borderRadius: 22, overflow: "hidden" }, thumb: { width: "100%", aspectRatio: 16 / 9, backgroundColor: "#111" }, cardBody: { padding: 14 },
   row: { flexDirection: "row", alignItems: "center", gap: 8 }, cardTitle: { flex: 1, fontSize: typeScale.body, fontWeight: "700" }, analytics: { flexDirection: "row", gap: 16, marginTop: 13 }, metric: { flexDirection: "row", gap: 5, alignItems: "center" }, metricText: { fontSize: typeScale.metadata, fontWeight: "700" }, date: { fontSize: typeScale.caption, marginTop: 10 },
+  lockBadge: { minHeight: 26, borderRadius: 9, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 4 }, lockBadgeText: { fontSize: typeScale.caption, fontWeight: "700" }, lockReason: { fontSize: typeScale.caption, fontWeight: "600", marginTop: 7 },
   actions: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 12, paddingTop: 10, flexDirection: "row", flexWrap: "wrap", gap: 11 }, action: { minHeight: 34, flexDirection: "row", alignItems: "center", gap: 4 }, actionDisabled: { opacity: 0.5 }, actionLabel: { fontSize: typeScale.caption, fontWeight: "700" },
   empty: { borderWidth: 1, borderRadius: 24, padding: 34, alignItems: "center" }, emptyIllustration: { width: 88, height: 88, borderRadius: 30, alignItems: "center", justifyContent: "center" }, emptyTitle: { maxWidth: 460, fontSize: typeScale.editorialCardTitle, fontWeight: "700", marginTop: 12, textAlign: "center" }, emptyText: { maxWidth: 430, fontSize: typeScale.bodyCompact, textAlign: "center", marginTop: 6, lineHeight: typeLeading.bodyCompact }, emptyButton: { minHeight: 46, borderRadius: 16, paddingHorizontal: 17, marginTop: 16, flexDirection: "row", alignItems: "center", gap: 7 },
   floatingUpload: { position: "absolute", right: 18, bottom: 18, minHeight: 52, borderRadius: 19, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", gap: 8, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.22, shadowRadius: 16, elevation: 8 }, floatingText: { color: "#FFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },

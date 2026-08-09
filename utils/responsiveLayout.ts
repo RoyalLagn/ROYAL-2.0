@@ -49,7 +49,10 @@ export function createResponsiveLayout(
     contentPadding: breakpoint === "xs" ? 12 : isPhone ? 16 : isTablet ? 24 : 32,
     sectionGap: isPhone ? 14 : isTablet ? 18 : 20,
     cardPadding: breakpoint === "xs" ? 14 : isPhone ? 16 : 20,
-    cardRadius: isPhone ? 20 : 24,
+    // Admin/operational cards use DESIGN.md's compact "card-sm" radius (16px)
+    // rather than the public/editorial "card"/"card-lg" scale (20-24px):
+    // restrained geometry reads as business software, not a marketing surface.
+    cardRadius: 16,
     iconSize: isPhone ? 18 : isTablet ? 20 : 22,
     titleSize: typeScale.cardTitle,
     bodySize: typeScale.bodyCompact,

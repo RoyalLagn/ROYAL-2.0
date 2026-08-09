@@ -47,6 +47,26 @@ async function getOwnProfile(userId: string) {
   return data as PublicProfile | null;
 }
 
+export async function resolvePublicLoginProfile(user: User) {
+  let profile = await getOwnProfile(user.id);
+
+  if (!profile && user.user_metadata?.role === "public_user") {
+    const metadata = user.user_metadata;
+    profile = await createPublicProfile({
+      email: normalizeEmail(user.email || ""),
+      fullName: String(metadata.full_name || "").trim(),
+      phone: String(metadata.phone || ""),
+      preferredCityId: metadata.preferred_city_id || "",
+      preferredAreaId: metadata.preferred_area_id || null,
+    });
+  }
+
+  if (!profile || profile.role !== "public_user") {
+    throw new Error("This account is not a Public User account.");
+  }
+  return profile;
+}
+
 export async function loginPublicUser(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({
     email: normalizeEmail(email),
@@ -56,25 +76,7 @@ export async function loginPublicUser(email: string, password: string) {
   if (!data.session || !data.user) throw new Error("Unable to restore your session.");
 
   try {
-    let profile = await getOwnProfile(data.user.id);
-
-    // Accounts stranded by the old two-step signup have a usable auth user
-    // but no profile row. The signup metadata carries everything needed to
-    // finish the job, so repair the account instead of locking the user out.
-    if (!profile && data.user.user_metadata?.role === "public_user") {
-      const metadata = data.user.user_metadata;
-      profile = await createPublicProfile({
-        email: normalizeEmail(data.user.email || ""),
-        fullName: String(metadata.full_name || "").trim(),
-        phone: String(metadata.phone || ""),
-        preferredCityId: metadata.preferred_city_id || "",
-        preferredAreaId: metadata.preferred_area_id || null,
-      });
-    }
-
-    if (!profile || profile.role !== "public_user") {
-      throw new Error("This account is not a Public User account.");
-    }
+    const profile = await resolvePublicLoginProfile(data.user);
     return { session: data.session, profile };
   } catch (profileError) {
     await supabase.auth.signOut();

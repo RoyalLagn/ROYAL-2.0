@@ -5,7 +5,7 @@ export const PORTFOLIO_LIMITS = {
   mediaPerAlbum: 15,
   heroMin: 5,
   heroMax: 8,
-  imageBytes: 8 * 1024 * 1024,
+  imageBytes: 5 * 1024 * 1024,
   videoBytes: 25 * 1024 * 1024,
   videoWarningSeconds: 3 * 60,
   videoMaxSeconds: 4 * 60,
@@ -47,6 +47,8 @@ export type VendorPortfolioMedia = {
   processing_status: PortfolioProcessingStatus;
   created_at: string;
   updated_at: string;
+  subscription_locked: boolean;
+  subscription_locked_at: string | null;
 };
 
 export type VendorPortfolioAlbum = {
@@ -124,6 +126,7 @@ export function stableHeroSelection(
     .flatMap((album) => album.media)
     .filter((media) =>
       media.resource_type === "image"
+      && !media.subscription_locked
       && media.upload_status === "completed"
       && media.processing_status === "ready",
     );

@@ -19,6 +19,7 @@
     "test:subscriptions": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-subscription-domain.mjs",
     "test:packages": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-package-domain.mjs",
     "test:contacts": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-contact-actions.mjs",
+    "test:external-links": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-external-link-normalization.mjs",
     "test:locations": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-location-domain.mjs",
     "test:regression-guards": "node scripts/test-regression-guards.mjs",
     "test:auth-validation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-auth-validation.mjs",

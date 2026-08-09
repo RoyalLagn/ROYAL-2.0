@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Edit3, ExternalLink, FileText, MapPin, Phone } from "lucide-react-native";
@@ -14,6 +14,15 @@ import { VendorEditorModal } from "@/components/admin/crm/vendor/VendorEditorMod
 import { useCrmVendorProfile } from "@/hooks/crm/useCrmVendorProfile";
 import { crmVendorStatusLabels } from "@/types/crm/vendor";
 import { crmFollowupTypeLabels, type CrmFollowupType } from "@/types/crm/followup";
+import {
+  openEmail,
+  openExternalUrl,
+  openGoogleMaps,
+  openInstagram,
+  openPhone,
+  openWebsite,
+  openWhatsApp,
+} from "@/services/externalLinks";
 
 const followupTypes = Object.keys(crmFollowupTypeLabels) as CrmFollowupType[];
 
@@ -30,13 +39,17 @@ function formatDateTime(value: string) {
   return new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
-function InfoRow({ label, value, href }: { label: string; value: string | null; href?: string }) {
+async function runExternal(action: () => Promise<boolean>) {
+  if (!(await action())) Alert.alert("Link unavailable.");
+}
+
+function InfoRow({ label, value, onOpen }: { label: string; value: string | null; onOpen?: () => Promise<boolean> }) {
   if (!value) return null;
   return (
     <View className="flex-row items-center justify-between py-2.5 border-b border-border">
       <Text className="text-muted-foreground text-xs">{label}</Text>
-      {href ? (
-        <Pressable onPress={() => void Linking.openURL(href)} className="flex-row items-center">
+      {onOpen ? (
+        <Pressable onPress={() => void runExternal(onOpen)} className="flex-row items-center">
           <Text className="text-primary text-sm font-semibold mr-1" numberOfLines={1}>{value}</Text>
           <ExternalLink size={12} className="text-primary" />
         </Pressable>
@@ -114,7 +127,7 @@ export default function AdminCrmVendorProfile() {
                 </Pressable>
                 {vendor.phone ? (
                   <Pressable
-                    onPress={() => void Linking.openURL(`tel:${vendor.phone}`)}
+                    onPress={() => void runExternal(() => openPhone(vendor.phone))}
                     className="flex-row items-center bg-primary/10 px-3 py-2 rounded-full"
                   >
                     <Phone size={14} className="text-primary" />
@@ -150,20 +163,25 @@ export default function AdminCrmVendorProfile() {
             <ResponsiveSection>
               <CRMCard className="p-4">
                 <InfoRow label="Owner" value={vendor.owner_name} />
-                <InfoRow label="Phone" value={vendor.phone} href={vendor.phone ? `tel:${vendor.phone}` : undefined} />
-                <InfoRow label="Alternate Phone" value={vendor.alternate_phone} href={vendor.alternate_phone ? `tel:${vendor.alternate_phone}` : undefined} />
-                <InfoRow label="WhatsApp" value={vendor.whatsapp} href={vendor.whatsapp ? `https://wa.me/${vendor.whatsapp.replace(/\D/g, "")}` : undefined} />
-                <InfoRow label="Email" value={vendor.email} href={vendor.email ? `mailto:${vendor.email}` : undefined} />
-                <InfoRow label="Website" value={vendor.website} href={vendor.website ?? undefined} />
-                <InfoRow label="Instagram" value={vendor.instagram} />
+                <InfoRow label="Phone" value={vendor.phone} onOpen={vendor.phone ? () => openPhone(vendor.phone) : undefined} />
+                <InfoRow label="Alternate Phone" value={vendor.alternate_phone} onOpen={vendor.alternate_phone ? () => openPhone(vendor.alternate_phone) : undefined} />
+                <InfoRow label="WhatsApp" value={vendor.whatsapp} onOpen={vendor.whatsapp ? () => openWhatsApp(vendor.whatsapp) : undefined} />
+                <InfoRow label="Email" value={vendor.email} onOpen={vendor.email ? () => openEmail(vendor.email) : undefined} />
+                <InfoRow label="Website" value={vendor.website} onOpen={vendor.website ? () => openWebsite(vendor.website) : undefined} />
+                <InfoRow label="Instagram" value={vendor.instagram} onOpen={vendor.instagram ? () => openInstagram(vendor.instagram) : undefined} />
                 <InfoRow label="Area" value={vendor.area} />
                 <InfoRow label="Priority" value={vendor.priority} />
                 <InfoRow label="Lead Source" value={vendor.lead_source} />
                 <InfoRow label="Visited Date" value={vendor.visited_date} />
                 <InfoRow label="Rating" value={vendor.rating ? `${vendor.rating} / 5` : null} />
-                {vendor.google_maps_url ? (
+                {(vendor.google_maps_url || vendor.area || vendor.cluster_name) ? (
                   <Pressable
-                    onPress={() => void Linking.openURL(vendor.google_maps_url!)}
+                    onPress={() => void runExternal(() => openGoogleMaps({
+                      latitude: (vendor as typeof vendor & { latitude?: number | null }).latitude,
+                      longitude: (vendor as typeof vendor & { longitude?: number | null }).longitude,
+                      googleMapsUrl: vendor.google_maps_url,
+                      address: [vendor.business_name, vendor.area, vendor.cluster_name].filter(Boolean).join(", "),
+                    }))}
                     className="flex-row items-center mt-3 bg-primary/10 rounded-2xl px-4 py-3"
                   >
                     <MapPin size={16} className="text-primary" />
@@ -308,7 +326,7 @@ export default function AdminCrmVendorProfile() {
               ) : (
                 <View className="gap-2">
                   {documents.map((document) => (
-                    <Pressable key={document.id} onPress={() => void Linking.openURL(document.file_url)}>
+                    <Pressable key={document.id} onPress={() => void runExternal(() => openExternalUrl(document.file_url))}>
                       <CRMCard className="p-3 flex-row items-center">
                         <FileText size={16} className="text-primary" />
                         <Text className="text-foreground text-sm font-semibold ml-2 flex-1" numberOfLines={1}>{document.label}</Text>

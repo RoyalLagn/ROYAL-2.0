@@ -4,11 +4,13 @@ import { CalendarDays, ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyho
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PublicVendorAvailability } from "@/services/publicVendorListings";
 import { typeScale, typeLeading } from "@/constants/typography";
+import { listEffectiveVendorAvailability } from "@/services/vendorAvailability";
 
 type AvailabilityStatus = PublicVendorAvailability["status"];
 
 type VendorAvailabilityModalProps = {
   visible: boolean;
+  vendorId: string;
   vendorName: string;
   availability: PublicVendorAvailability[];
   dark?: boolean;
@@ -23,7 +25,7 @@ const statusMeta: Record<AvailabilityStatus, {
 }> = {
   available: {
     label: "Available",
-    detail: "The vendor has marked this date as available.",
+    detail: "The vendor is available on this date.",
     background: "#16A34A",
     text: "#FFFFFF",
   },
@@ -48,6 +50,7 @@ const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(
 
 export default function VendorAvailabilityModal({
   visible,
+  vendorId,
   vendorName,
   availability,
   dark = false,
@@ -58,6 +61,7 @@ export default function VendorAvailabilityModal({
   const currentMonth = startOfMonth(new Date());
   const [month, setMonth] = useState(currentMonth);
   const [selected, setSelected] = useState(today);
+  const [effectiveStatuses, setEffectiveStatuses] = useState<Record<string, AvailabilityStatus>>({});
   const background = dark ? "#11151E" : "#FFFFFF";
   const surface = dark ? "#1A202C" : "#FFF8FB";
   const text = dark ? "#FFF8FB" : "#24171E";
@@ -70,9 +74,28 @@ export default function VendorAvailabilityModal({
     setSelected(today);
   }, [visible, today]);
 
-  const statusByDate = useMemo(() => Object.fromEntries(
-    availability.map((item) => [item.date, item.status]),
-  ) as Record<string, AvailabilityStatus>, [availability]);
+  useEffect(() => {
+    if (!visible || !vendorId) return;
+    let active = true;
+    const firstDay = iso(month);
+    const lastDay = iso(new Date(month.getFullYear(), month.getMonth() + 1, 0));
+    listEffectiveVendorAvailability(vendorId, firstDay, lastDay)
+      .then((rows) => {
+        if (!active) return;
+        setEffectiveStatuses((current) => {
+          const next = { ...current };
+          rows.forEach((row) => { next[row.date] = row.status; });
+          return next;
+        });
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [month, vendorId, visible]);
+
+  const statusByDate = useMemo(() => ({
+    ...Object.fromEntries(availability.map((item) => [item.date, item.status])),
+    ...effectiveStatuses,
+  }) as Record<string, AvailabilityStatus>, [availability, effectiveStatuses]);
 
   const days = useMemo(() => {
     const result: (Date | null)[] = Array(month.getDay()).fill(null);
@@ -84,13 +107,13 @@ export default function VendorAvailabilityModal({
     return result;
   }, [month]);
 
-  const selectedStatus = statusByDate[selected];
+  const selectedStatus = selected < today ? undefined : statusByDate[selected] ?? "available";
   const selectedPast = selected < today;
   const canGoPrevious = month.getTime() > currentMonth.getTime();
-  const markedUpcoming = availability.filter((item) => item.date >= today);
-  const availableCount = markedUpcoming.filter((item) => item.status === "available").length;
-  const tentativeCount = markedUpcoming.filter((item) => item.status === "tentative").length;
-  const blockedCount = markedUpcoming.filter((item) => item.status === "blocked").length;
+  const visibleUpcoming = days.filter((date): date is Date => Boolean(date && iso(date) >= today));
+  const availableCount = visibleUpcoming.filter((date) => (statusByDate[iso(date)] ?? "available") === "available").length;
+  const tentativeCount = visibleUpcoming.filter((date) => statusByDate[iso(date)] === "tentative").length;
+  const blockedCount = visibleUpcoming.filter((date) => statusByDate[iso(date)] === "blocked").length;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -144,8 +167,8 @@ export default function VendorAvailabilityModal({
                 {days.map((date, index) => {
                   if (!date) return <View key={`blank-${index}`} style={styles.day} />;
                   const value = iso(date);
-                  const status = statusByDate[value];
                   const past = value < today;
+                  const status: AvailabilityStatus = past ? "blocked" : statusByDate[value] ?? "available";
                   const active = value === selected;
                   const meta = statusMeta[status];
                   const backgroundColor = past
@@ -157,7 +180,7 @@ export default function VendorAvailabilityModal({
                   return (
                     <Pressable
                       key={value}
-                      accessibilityLabel={`${date.toLocaleDateString()}${past ? ", past date" : status ? `, ${meta.label}` : ", not marked"}`}
+                      accessibilityLabel={`${date.toLocaleDateString()}${past ? ", past date" : `, ${meta.label}`}`}
                       accessibilityState={{ selected: active }}
                       onPress={() => setSelected(value)}
                       style={[
@@ -193,9 +216,7 @@ export default function VendorAvailabilityModal({
                 <Text style={[styles.selectedStatus, { color: muted }]}>
                   {selectedPast
                     ? "Past date"
-                    : selectedStatus
-                      ? `${statusMeta[selectedStatus].label} · ${statusMeta[selectedStatus].detail}`
-                      : "No availability status shared for this date."}
+                    : `${statusMeta[selectedStatus ?? "available"].label} · ${statusMeta[selectedStatus ?? "available"].detail}`}
                 </Text>
               </View>
             </View>

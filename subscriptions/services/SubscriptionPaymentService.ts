@@ -31,15 +31,21 @@ export class SubscriptionPaymentService {
   static async subscribe(input: {
     vendorId: string;
     planId: string;
+    billingOptionId?: string | null;
     offerId?: string | null;
     vendorName?: string;
     email?: string;
     phone?: string;
+    deferActivation?: boolean;
+    quoteId?: string;
   }) {
     const { data: order, error: orderError } = await supabase.functions.invoke<RazorpayOrder>("create-razorpay-order", {
       body: {
         planId: input.planId,
+        billingOptionId: input.billingOptionId ?? null,
         offerId: input.offerId ?? null,
+        deferActivation: input.deferActivation ?? false,
+        quoteId: input.quoteId,
         idempotencyKey: idempotencyKey(input.vendorId, input.planId),
       },
     });
@@ -70,8 +76,43 @@ export class SubscriptionPaymentService {
     return { success: true, freeActivation: false, verification };
   }
 
-  static async startTrial(planId: string) {
-    const { data, error } = await supabase.rpc("claim_my_subscription_trial", { target_plan_id: planId });
+  static async startTrial(planId: string, billingOptionId?: string | null) {
+    const { data, error } = await supabase.rpc("claim_my_subscription_trial", {
+      target_plan_id: planId,
+      target_billing_option_id: billingOptionId ?? null,
+    });
+    if (error) throw error;
+    return data as string;
+  }
+
+  /**
+   * Schedules a plan/billing-option change for the vendor's current
+   * subscription. Upgrades (a higher payable amount) are rejected by the
+   * RPC and must go through `subscribe()` instead, which activates
+   * immediately. Downgrades only record the intent; the vendor keeps their
+   * current plan/limits until `process_subscription_lifecycle` applies the
+   * change at `effectiveAt` (defaults to the current period's end).
+   */
+  static async scheduleChange(input: {
+    vendorId: string;
+    planId: string;
+    billingOptionId?: string | null;
+    effectiveAt?: string | null;
+  }) {
+    const { data, error } = await supabase.rpc("schedule_subscription_change", {
+      target_vendor_id: input.vendorId,
+      target_plan_id: input.planId,
+      target_billing_option_id: input.billingOptionId ?? null,
+      effective_at: input.effectiveAt ?? null,
+    });
+    if (error) throw error;
+    return data as string;
+  }
+
+  /** Cancels the vendor's own subscription; access is retained until the
+   * already-paid period ends, then the vendor falls back to Free. */
+  static async cancel(reason?: string) {
+    const { data, error } = await supabase.rpc("cancel_my_subscription", { reason: reason ?? null });
     if (error) throw error;
     return data as string;
   }

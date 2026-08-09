@@ -1,7 +1,5 @@
 import React from "react";
 import { View, type ViewStyle } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { useColorScheme } from "nativewind";
 import Pressable from "@/components/InteropSafePressable";
 
 type CRMCardProps = {
@@ -11,27 +9,15 @@ type CRMCardProps = {
   style?: ViewStyle;
 };
 
-// Shared "premium" card shell for the Vendor Acquisition CRM: a soft rose
-// gradient hairline around a rounded glass-like surface, layered on the
-// existing bg-card/border-border tokens rather than introducing a new theme.
+// Shared card shell for the Vendor Acquisition CRM. Uses the same flat
+// bg-card/border-border surface as the rest of admin (ResponsiveCard,
+// DashboardWidget) instead of a bespoke gradient-hairline "glass" treatment,
+// so CRM screens read as one system with the rest of the dashboard.
 export function CRMCard({ children, onPress, className = "", style }: CRMCardProps) {
-  const { colorScheme } = useColorScheme();
-  const dark = colorScheme === "dark";
-  const gradient = dark
-    ? (["rgba(236,72,153,0.35)", "rgba(236,72,153,0.05)"] as const)
-    : (["rgba(233,30,99,0.25)", "rgba(233,30,99,0.05)"] as const);
-
   const content = (
-    <LinearGradient
-      colors={gradient}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={{ borderRadius: 24, padding: 1 }}
-    >
-      <View className={`bg-card rounded-[23px] shadow-soft-1 ${className}`} style={style}>
-        {children}
-      </View>
-    </LinearGradient>
+    <View className={`bg-card border border-border rounded-2xl ${className}`} style={style}>
+      {children}
+    </View>
   );
 
   if (!onPress) return content;

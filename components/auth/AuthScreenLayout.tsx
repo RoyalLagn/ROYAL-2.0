@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -44,6 +45,16 @@ export function AuthScreenLayout({
 }: AuthScreenLayoutProps) {
   const { width } = useWindowDimensions();
   const wide = width >= 640;
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener("keyboardDidHide", () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right", "bottom"]}>
@@ -55,22 +66,27 @@ export function AuthScreenLayout({
         <ScrollView
           contentContainerStyle={{
             flexGrow: 1,
-            justifyContent: "center",
+            justifyContent: keyboardVisible ? "flex-start" : "center",
             alignItems: "center",
             paddingHorizontal: wide ? 24 : 20,
-            paddingTop: 68,
-            paddingBottom: 32,
+            paddingTop: keyboardVisible ? 12 : 60,
+            paddingBottom: keyboardVisible ? 20 : 32,
           }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
           showsVerticalScrollIndicator={false}
         >
           <View
             style={{ width: "100%", maxWidth: CONTENT_MAX_WIDTH }}
             className={wide ? "bg-card border border-border rounded-3xl px-7 py-8" : ""}
           >
-            <View className="items-center mb-7">
-              <RoyalLagnLogo width={340} height={102} scale={2.2} />
+            <View className={`items-center ${keyboardVisible ? "mb-4" : "mb-7"}`}>
+              <RoyalLagnLogo
+                width={keyboardVisible ? 196 : 232}
+                height={keyboardVisible ? 54 : 66}
+                scale={1.9}
+              />
               {eyebrow ? (
                 <Text className="text-primary text-metadata font-bold uppercase tracking-[2px] mt-3">
                   {eyebrow}

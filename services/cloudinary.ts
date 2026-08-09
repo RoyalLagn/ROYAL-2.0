@@ -1,5 +1,6 @@
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { Platform } from "react-native";
 import { supabase } from "./supabase";
 
@@ -48,6 +49,11 @@ export type CloudinaryUpload = {
   optimizedBytes?: number;
   thumbnailUrl?: string;
   videoPosterUrl?: string;
+  /** Set for image uploads: the reservation held against the vendor's
+   * total-photo plan quota (reserve_photo_upload_slot). Must be finalized
+   * via finalize_photo_upload after the Cloudinary upload succeeds, or the
+   * insert is rejected. Null for videos, which aren't quota-limited here. */
+  reservationId?: string | null;
 };
 
 type SignedUpload = {
@@ -64,6 +70,7 @@ type SignedUpload = {
   eager?: string;
   uploadPreset?: string;
   remainingCapacity: number;
+  reservationId?: string | null;
 };
 
 export type ProfileImageTarget =
@@ -76,8 +83,105 @@ export type ProfileImageAsset = Pick<
 >;
 
 export const PROFILE_IMAGE_SIZE = 1024;
-export const PROFILE_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+export const FINAL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const PROFILE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+
+export type ImageUploadPurpose = "profile" | "portfolio" | "review" | "general";
+export type ImagePreparationStage = "optimizing" | "uploading";
+type ImageLikeAsset = Pick<ImagePicker.ImagePickerAsset,
+  "uri" | "width" | "height" | "fileName" | "mimeType" | "fileSize"
+> & { type?: ImagePicker.ImagePickerAsset["type"] };
+
+const IMAGE_LONG_EDGE: Record<ImageUploadPurpose, number> = {
+  profile: 1200,
+  portfolio: 2200,
+  review: 1800,
+  general: 2000,
+};
+
+async function imageAssetBytes(asset: Pick<ImageLikeAsset, "uri" | "fileSize">) {
+  if (Number.isFinite(asset.fileSize) && Number(asset.fileSize) > 0) return Number(asset.fileSize);
+  const response = await fetch(asset.uri);
+  if (!response.ok) throw new Error(`Unable to read selected image (${response.status}).`);
+  return (await response.blob()).size;
+}
+
+/**
+ * Central image preparation pipeline used by every normal Cloudinary image
+ * upload. Source files may be any practical camera size; only the prepared
+ * output is subject to the five-megabyte upload boundary.
+ */
+export async function prepareImageForUpload<T extends ImageLikeAsset>(
+  asset: T,
+  purpose: ImageUploadPurpose = "general",
+  onStage?: (stage: ImagePreparationStage) => void,
+): Promise<T> {
+  const mimeType = (asset.mimeType || "image/jpeg").toLowerCase();
+  if (!PROFILE_IMAGE_TYPES.has(mimeType)) {
+    throw new CloudinaryError("Choose a JPG, PNG, WebP, HEIC or HEIF image.", "UPLOAD_ERROR");
+  }
+
+  let sourceBytes: number;
+  try {
+    sourceBytes = await imageAssetBytes(asset);
+  } catch (error) {
+    throw new CloudinaryError("Unable to prepare the selected image.", "UPLOAD_ERROR", error);
+  }
+  if (!Number.isFinite(sourceBytes) || sourceBytes <= 0) {
+    throw new CloudinaryError("Unable to read the selected image.", "UPLOAD_ERROR");
+  }
+
+  const maxLongEdge = IMAGE_LONG_EDGE[purpose];
+  const sourceLongEdge = Math.max(asset.width || 0, asset.height || 0);
+  if (sourceBytes <= FINAL_IMAGE_MAX_BYTES && (!sourceLongEdge || sourceLongEdge <= maxLongEdge)) {
+    onStage?.("uploading");
+    return { ...asset, fileSize: sourceBytes };
+  }
+
+  onStage?.("optimizing");
+  const preservePng = mimeType === "image/png";
+  const format = preservePng ? SaveFormat.PNG : SaveFormat.JPEG;
+  const attempts = preservePng
+    ? [1, 0.82, 0.68, 0.54, 0.42, 0.32]
+    : [1, 0.9, 0.8, 0.7, 0.6, 0.48, 0.36];
+  const qualities = [0.88, 0.84, 0.78, 0.7, 0.62, 0.54, 0.46];
+  let lastError: unknown;
+
+  for (let index = 0; index < attempts.length; index += 1) {
+    const targetEdge = Math.max(640, Math.round(maxLongEdge * attempts[index]));
+    const actions = sourceLongEdge > targetEdge
+      ? [{ resize: asset.width >= asset.height ? { width: targetEdge } : { height: targetEdge } }]
+      : [];
+    try {
+      const result = await manipulateAsync(asset.uri, actions, {
+        compress: preservePng ? 1 : qualities[Math.min(index, qualities.length - 1)],
+        format,
+      });
+      const bytes = await imageAssetBytes({ uri: result.uri });
+      if (bytes <= FINAL_IMAGE_MAX_BYTES) {
+        onStage?.("uploading");
+        const extension = preservePng ? "png" : "jpg";
+        return {
+          ...asset,
+          uri: result.uri,
+          width: result.width,
+          height: result.height,
+          fileSize: bytes,
+          mimeType: preservePng ? "image/png" : "image/jpeg",
+          fileName: `${(asset.fileName || `image-${Date.now()}`).replace(/\.[^.]+$/, "")}.${extension}`,
+        };
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw new CloudinaryError(
+    "This image could not be optimized for upload. Try a different image.",
+    "UPLOAD_ERROR",
+    lastError,
+  );
+}
 
 type SignedProfileImage = {
   uploadMode: "signed" | "unsigned";
@@ -176,17 +280,18 @@ export async function pickImage(
  * Resolves with the HTTPS URL of the uploaded image.
  */
 export async function uploadImage(
-  image: Pick<ImagePicker.ImagePickerAsset, "uri" | "fileName" | "mimeType">
+  image: ImageLikeAsset,
 ): Promise<string> {
+  const prepared = await prepareImageForUpload(image, "general");
   const formData = new FormData();
-  const fileName = image.fileName ?? `image-${Date.now()}.jpg`;
-  const mimeType = image.mimeType ?? "image/jpeg";
+  const fileName = prepared.fileName ?? `image-${Date.now()}.jpg`;
+  const mimeType = prepared.mimeType ?? "image/jpeg";
 
   if (Platform.OS === "web") {
     let imageBlob: Blob;
 
     try {
-      const imageResponse = await fetch(image.uri);
+      const imageResponse = await fetch(prepared.uri);
 
       if (!imageResponse.ok) {
         throw new Error(`Unable to read selected image (${imageResponse.status}).`);
@@ -209,7 +314,7 @@ export async function uploadImage(
     formData.append(
       "file",
       {
-        uri: image.uri,
+        uri: prepared.uri,
         name: fileName,
         type: mimeType,
       } as unknown as Blob
@@ -268,22 +373,14 @@ export async function pickAndUploadImage(
   return image ? uploadImage(image) : null;
 }
 
-async function profileImageFileSize(asset: ProfileImageAsset) {
-  let fileSize = asset.fileSize;
-  if (!fileSize) {
-    fileSize = (await fetch(asset.uri).then((response) => response.blob())).size;
-  }
-  return fileSize;
-}
-
 export async function validateProfileImage(asset: ProfileImageAsset) {
   const mimeType = asset.mimeType || "image/jpeg";
-  const fileSize = await profileImageFileSize(asset);
+  const fileSize = await imageAssetBytes(asset);
   if (!PROFILE_IMAGE_TYPES.has(mimeType.toLowerCase())) {
     throw new CloudinaryError("Choose a JPG, PNG, WebP, HEIC or HEIF image.", "UPLOAD_ERROR");
   }
-  if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > PROFILE_IMAGE_MAX_BYTES) {
-    throw new CloudinaryError("Profile images must be 8 MB or smaller.", "UPLOAD_ERROR");
+  if (!Number.isFinite(fileSize) || fileSize <= 0) {
+    throw new CloudinaryError("Unable to read the selected profile image.", "UPLOAD_ERROR");
   }
   return { fileSize, mimeType };
 }
@@ -299,7 +396,8 @@ export async function uploadProfileImage(
   target: ProfileImageTarget,
   asset: ProfileImageAsset,
 ): Promise<string> {
-  const { fileSize, mimeType } = await validateProfileImage(asset);
+  const prepared = await prepareImageForUpload(asset, "profile");
+  const { fileSize, mimeType } = await validateProfileImage(prepared);
   const { data, error } = await supabase.functions.invoke<SignedProfileImage>("profile-image", {
     body: { ...target, action: "sign", mimeType, fileSize },
   });
@@ -312,14 +410,14 @@ export async function uploadProfileImage(
 
   const body = new FormData();
   if (Platform.OS === "web") {
-    const blob = await fetch(asset.uri).then((response) => response.blob());
-    body.append("file", new File([blob], asset.fileName || `profile-${Date.now()}.jpg`, {
+    const blob = await fetch(prepared.uri).then((response) => response.blob());
+    body.append("file", new File([blob], prepared.fileName || `profile-${Date.now()}.jpg`, {
       type: mimeType || blob.type,
     }));
   } else {
     body.append("file", {
-      uri: asset.uri,
-      name: asset.fileName || `profile-${Date.now()}.jpg`,
+      uri: prepared.uri,
+      name: prepared.fileName || `profile-${Date.now()}.jpg`,
       type: mimeType,
     } as unknown as Blob);
   }
@@ -386,23 +484,35 @@ export async function pickAndUploadBusinessDocument(): Promise<UploadedBusinessD
   if (result.canceled || !result.assets.length) return null;
 
   const asset = result.assets[0];
-  if (asset.size && asset.size > 10 * 1024 * 1024) {
+  const pickedMimeType = asset.mimeType || "application/octet-stream";
+  if (!pickedMimeType.startsWith("image/") && asset.size && asset.size > 10 * 1024 * 1024) {
     throw new CloudinaryError("Business documents must be 10 MB or smaller.", "PICKER_ERROR");
   }
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
     throw new CloudinaryError("Cloudinary is not configured.", "CONFIGURATION_ERROR");
   }
 
-  const mimeType = asset.mimeType || "application/octet-stream";
+  let uploadAsset: ImageLikeAsset | typeof asset = asset;
+  if (pickedMimeType.startsWith("image/")) {
+    uploadAsset = await prepareImageForUpload({
+      uri: asset.uri,
+      width: 0,
+      height: 0,
+      fileName: asset.name,
+      mimeType: pickedMimeType,
+      fileSize: asset.size ?? undefined,
+    }, "general");
+  }
+  const mimeType = uploadAsset.mimeType || pickedMimeType;
   const resourceType = mimeType.startsWith("image/") ? "image" : "raw";
   const body = new FormData();
   if (Platform.OS === "web") {
-    const blob = await fetch(asset.uri).then((response) => response.blob());
-    body.append("file", new File([blob], asset.name, { type: mimeType }));
+    const blob = await fetch(uploadAsset.uri).then((response) => response.blob());
+    body.append("file", new File([blob], "name" in uploadAsset ? uploadAsset.name : uploadAsset.fileName || asset.name, { type: mimeType }));
   } else {
     body.append("file", {
-      uri: asset.uri,
-      name: asset.name,
+      uri: uploadAsset.uri,
+      name: "name" in uploadAsset ? uploadAsset.name : uploadAsset.fileName || asset.name,
       type: mimeType,
     } as unknown as Blob);
   }
@@ -426,7 +536,9 @@ export async function pickAndUploadBusinessDocument(): Promise<UploadedBusinessD
     name: asset.name,
     url: payload.secure_url,
     mimeType,
-    size: asset.size ?? null,
+    size: pickedMimeType.startsWith("image/")
+      ? (uploadAsset as ImageLikeAsset).fileSize ?? null
+      : asset.size ?? null,
   };
 }
 
@@ -443,7 +555,7 @@ export async function pickPortfolioMedia(selectionLimit = 12): Promise<Portfolio
   if (result.canceled) return [];
   for (const asset of result.assets) {
     const isVideo = asset.type === "video";
-    const maxBytes = isVideo ? 150 * 1024 * 1024 : 30 * 1024 * 1024;
+    const maxBytes = 150 * 1024 * 1024;
     const durationSeconds = isVideo && asset.duration
       ? asset.duration / 1000
       : 0;
@@ -453,7 +565,7 @@ export async function pickPortfolioMedia(selectionLimit = 12): Promise<Portfolio
         "PICKER_ERROR",
       );
     }
-    if (asset.fileSize && asset.fileSize > maxBytes) {
+    if (isVideo && asset.fileSize && asset.fileSize > maxBytes) {
       throw new CloudinaryError(
         `${asset.fileName || (isVideo ? "Video" : "Image")} is too large to process. Choose a smaller file.`,
         "PICKER_ERROR",
@@ -475,12 +587,16 @@ export async function uploadPortfolioAsset(
   vendorId: string,
   albumId: string,
   onProgress?: (value: number) => void,
+  onStage?: (stage: ImagePreparationStage) => void,
 ): Promise<CloudinaryUpload> {
   const resourceType: "image" | "video" = asset.type === "video" ? "video" : "image";
-  let resolvedFileSize = asset.fileSize;
+  const prepared = resourceType === "image"
+    ? await prepareImageForUpload(asset, "portfolio", onStage)
+    : asset;
+  let resolvedFileSize = prepared.fileSize;
   if (!resolvedFileSize) {
     try {
-      resolvedFileSize = (await fetch(asset.uri).then((response) => response.blob())).size;
+      resolvedFileSize = (await fetch(prepared.uri).then((response) => response.blob())).size;
     } catch {
       throw new CloudinaryError("Unable to read the selected file size.", "PICKER_ERROR");
     }
@@ -490,7 +606,7 @@ export async function uploadPortfolioAsset(
       vendorId,
       albumId,
       resourceType,
-      mimeType: asset.mimeType || (resourceType === "video" ? "video/mp4" : "image/jpeg"),
+      mimeType: prepared.mimeType || (resourceType === "video" ? "video/mp4" : "image/jpeg"),
       fileSize: resolvedFileSize,
       batchSize: 1,
     },
@@ -501,22 +617,22 @@ export async function uploadPortfolioAsset(
       "UPLOAD_ERROR",
     );
   }
-  const finalByteLimit = resourceType === "video" ? 25 * 1024 * 1024 : 8 * 1024 * 1024;
+  const finalByteLimit = resourceType === "video" ? 25 * 1024 * 1024 : FINAL_IMAGE_MAX_BYTES;
   if (data.uploadMode === "unsigned" && resolvedFileSize > finalByteLimit) {
     throw new CloudinaryError(
       resourceType === "video"
         ? "Signed video processing is not configured yet. Choose a video under 25 MB."
-        : "Signed image processing is not configured yet. Choose an image under 8 MB.",
+        : "The image could not be prepared for upload.",
       "UPLOAD_ERROR",
     );
   }
 
   const body = new FormData();
   if (Platform.OS === "web") {
-    const blob = await fetch(asset.uri).then((response) => response.blob());
-    body.append("file", new File([blob], asset.fileName || `portfolio-${Date.now()}`, { type: asset.mimeType || blob.type }));
+    const blob = await fetch(prepared.uri).then((response) => response.blob());
+    body.append("file", new File([blob], prepared.fileName || `portfolio-${Date.now()}`, { type: prepared.mimeType || blob.type }));
   } else {
-    body.append("file", { uri: asset.uri, name: asset.fileName || `portfolio-${Date.now()}`, type: asset.mimeType || `${resourceType}/*` } as any);
+    body.append("file", { uri: prepared.uri, name: prepared.fileName || `portfolio-${Date.now()}`, type: prepared.mimeType || `${resourceType}/*` } as any);
   }
   if (data.uploadMode === "signed") {
     if (!data.apiKey || !data.timestamp || !data.signature || !data.eager) {
@@ -573,13 +689,13 @@ export async function uploadPortfolioAsset(
     : undefined;
   const processedBytes = resourceType === "video"
     ? Number(optimizedVideo?.bytes ?? payload.bytes)
-    : Math.max(0, ...imageDerivatives.map((item: any) => Number(item.bytes ?? 0)));
-  if ((payload.duration && payload.duration > 240) || processedBytes > finalByteLimit) {
+    : Math.max(Number(payload.bytes ?? 0), ...imageDerivatives.map((item: any) => Number(item.bytes ?? 0)));
+  if ((payload.duration && payload.duration > 240) || Number(payload.bytes ?? 0) > finalByteLimit || processedBytes > finalByteLimit) {
     await deleteUnstoredPortfolioAsset(vendorId, payload.public_id, resourceType).catch(() => undefined);
     throw new CloudinaryError(
       resourceType === "video"
         ? "This video could not be processed below 25 MB. Choose a shorter or smaller video."
-        : "This image could not be optimized below 8 MB. Choose a smaller image.",
+        : "This image could not be optimized for upload. Try a different image.",
       "UPLOAD_ERROR",
     );
   }
@@ -602,13 +718,14 @@ export async function uploadPortfolioAsset(
     height: payload.height,
     duration: payload.duration,
     bytes: processedBytes || payload.bytes,
-    originalBytes: payload.bytes,
+    originalBytes: asset.fileSize ?? resolvedFileSize,
     optimizedBytes: processedBytes || payload.bytes,
     thumbnailUrl: imageDerivatives[0]?.secure_url
       || imageDerivatives[0]?.url
       || (resourceType === "video" ? videoPoster?.secure_url || videoPoster?.url : undefined)
       || thumbnailFor(data.cloudName, payload.public_id, resourceType),
     videoPosterUrl: videoPoster?.secure_url || videoPoster?.url,
+    reservationId: data.reservationId ?? null,
   };
 }
 
@@ -654,14 +771,6 @@ export async function pickReviewPhotos(selectionLimit = 4): Promise<ReviewPhotoA
     quality: 0.82,
   });
   if (result.canceled) return [];
-  for (const asset of result.assets) {
-    if (asset.fileSize && asset.fileSize > 8 * 1024 * 1024) {
-      throw new CloudinaryError(
-        `${asset.fileName || "Review photo"} must be under 8 MB.`,
-        "PICKER_ERROR"
-      );
-    }
-  }
   return result.assets;
 }
 
@@ -669,10 +778,11 @@ export async function uploadReviewPhoto(
   asset: ReviewPhotoAsset,
   onProgress?: (value: number) => void
 ): Promise<CloudinaryUpload> {
-  let fileSize = asset.fileSize;
+  const prepared = await prepareImageForUpload(asset, "review");
+  let fileSize = prepared.fileSize;
   if (!fileSize) {
     try {
-      fileSize = (await fetch(asset.uri).then((response) => response.blob())).size;
+      fileSize = (await fetch(prepared.uri).then((response) => response.blob())).size;
     } catch (error) {
       throw new CloudinaryError(
         "Unable to read the selected review photo.",
@@ -681,7 +791,7 @@ export async function uploadReviewPhoto(
       );
     }
   }
-  const mimeType = asset.mimeType || "image/jpeg";
+  const mimeType = prepared.mimeType || "image/jpeg";
   const { data, error } =
     await supabase.functions.invoke<SignedReviewUpload>("review-photo-sign", {
       body: { mimeType, fileSize },
@@ -694,17 +804,17 @@ export async function uploadReviewPhoto(
   }
   const body = new FormData();
   if (Platform.OS === "web") {
-    const blob = await fetch(asset.uri).then((response) => response.blob());
+    const blob = await fetch(prepared.uri).then((response) => response.blob());
     body.append(
       "file",
-      new File([blob], asset.fileName || `review-${Date.now()}.jpg`, {
+      new File([blob], prepared.fileName || `review-${Date.now()}.jpg`, {
         type: mimeType || blob.type,
       })
     );
   } else {
     body.append("file", {
-      uri: asset.uri,
-      name: asset.fileName || `review-${Date.now()}.jpg`,
+      uri: prepared.uri,
+      name: prepared.fileName || `review-${Date.now()}.jpg`,
       type: mimeType,
     } as any);
   }

@@ -95,7 +95,7 @@ export const AdminRevenueService = {
         .range(from, to)),
       fetchAllRows((from, to) => supabase
         .from("vendor_subscriptions")
-        .select("id,vendor_id,status,access_source,start_date,expiry_date,created_at,vendors(business_name),subscription_plans(name)")
+        .select("id,vendor_id,status,access_source,start_date,expiry_date,created_at,vendors(business_name),subscription_plans!vendor_subscriptions_plan_id_fkey(name)")
         .gte("created_at", start)
         .lt("created_at", end)
         .order("created_at", { ascending: true })

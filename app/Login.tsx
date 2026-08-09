@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, Text, TextInput, View } from "react-native";
+import { Keyboard, Pressable, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Mail, Phone, User } from "lucide-react-native";
+import { ArrowLeft, Building2, ChevronRight, Mail, Phone, User } from "lucide-react-native";
 import { AuthField } from "@/components/auth/AuthField";
 import {
   AuthAlert,
@@ -14,9 +14,9 @@ import { PasswordField } from "@/components/auth/PasswordField";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import {
   getPublicAuthError,
-  loginPublicUser,
   sendSignupOtp,
 } from "@/services/publicAuth";
+import { loginMobileUser } from "@/services/authNavigation";
 import {
   validateEmail,
   validateFullName,
@@ -45,6 +45,7 @@ export default function LoginScreen() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [signupAudience, setSignupAudience] = useState<"customer" | null>(null);
   const [signupLocation, setSignupLocation] = useState<LocationPreference | null>(preference);
 
   const emailRef = useRef<TextInput>(null);
@@ -65,6 +66,7 @@ export default function LoginScreen() {
 
   const changeTab = (nextTab: AuthTab) => {
     setTab(nextTab);
+    setSignupAudience(null);
     setError("");
   };
 
@@ -81,10 +83,14 @@ export default function LoginScreen() {
     setLoading(true);
     setError("");
     try {
-      await loginPublicUser(email, password);
-      await refreshProfile();
+      const destination = await loginMobileUser(email, password);
+      if (destination.pathname === "/(tabs)") await refreshProfile();
       if (router.canDismiss()) router.dismissAll();
-      router.replace("/(tabs)");
+      if (destination.pathname === "/BecomeVendor") {
+        router.replace({ pathname: "/BecomeVendor", params: { source: "login" } });
+      } else {
+        router.replace(destination as never);
+      }
     } catch (caught) {
       setError(getPublicAuthError(caught, "Unable to log in. Please try again."));
     } finally {
@@ -125,21 +131,9 @@ export default function LoginScreen() {
 
   return (
     <AuthScreenLayout
-      backRoute="/DashboardCenter"
-      title={tab === "login" ? "Welcome back" : "Create your account"}
-      subtitle={
-        tab === "login"
-          ? "Log in to plan your celebration with RoyalLagn."
-          : "Join RoyalLagn and start building your wedding team."
-      }
-      footer={
-        <AuthLinkButton onPress={() => changeTab(tab === "login" ? "signup" : "login")} disabled={loading}>
-          <Text className="text-muted-foreground text-body">
-            {tab === "login" ? "New to RoyalLagn? " : "Already have an account? "}
-            <Text className="text-primary font-bold">{tab === "login" ? "Sign Up" : "Login"}</Text>
-          </Text>
-        </AuthLinkButton>
-      }
+      backRoute="/(tabs)"
+      title={tab === "login" ? "Welcome back" : signupAudience ? "Customer account" : "Create your account"}
+      subtitle={tab === "login" ? "Plan your celebration with RoyalLagn." : undefined}
     >
       <AuthTabs tabs={TABS} active={tab} onChange={changeTab} disabled={loading} />
 
@@ -148,8 +142,48 @@ export default function LoginScreen() {
           <AuthAlert tone="success" message="Password updated successfully. Log in with your new password." />
         ) : null}
 
-        {tab === "signup" ? (
+        {tab === "signup" && !signupAudience ? (
           <>
+            <Text className="text-foreground text-title font-bold mb-1">Choose account type</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Continue as a customer"
+              className="min-h-20 rounded-2xl border border-border bg-card px-4 py-4 flex-row items-center active:opacity-80"
+              onPress={() => setSignupAudience("customer")}
+            >
+              <View className="w-12 h-12 rounded-2xl bg-primary/10 items-center justify-center mr-4">
+                <User size={23} className="text-primary" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-foreground text-body font-bold">Public / Customer</Text>
+              </View>
+              <ChevronRight size={20} className="text-muted-foreground" />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Continue as a vendor"
+              className="min-h-20 rounded-2xl border border-border bg-card px-4 py-4 flex-row items-center active:opacity-80"
+              onPress={() => router.push({ pathname: "/VendorAuth", params: { signup: "1" } })}
+            >
+              <View className="w-12 h-12 rounded-2xl bg-primary/10 items-center justify-center mr-4">
+                <Building2 size={23} className="text-primary" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-foreground text-body font-bold">Vendor</Text>
+              </View>
+              <ChevronRight size={20} className="text-muted-foreground" />
+            </Pressable>
+          </>
+        ) : null}
+
+        {tab === "signup" && signupAudience === "customer" ? (
+          <>
+            <AuthLinkButton align="start" onPress={() => setSignupAudience(null)} disabled={loading}>
+              <View className="flex-row items-center gap-2">
+                <ArrowLeft size={18} className="text-primary" />
+                <Text className="text-primary font-semibold text-body">Choose another account type</Text>
+              </View>
+            </AuthLinkButton>
             <AuthField
               label="Full name"
               required
@@ -188,7 +222,7 @@ export default function LoginScreen() {
           </>
         ) : null}
 
-        <AuthField
+        {tab === "login" || signupAudience === "customer" ? <AuthField
           ref={emailRef}
           label="Email address"
           required
@@ -201,7 +235,7 @@ export default function LoginScreen() {
           autoComplete="email"
           returnKeyType={tab === "login" ? "next" : "done"}
           onSubmitEditing={tab === "login" ? () => passwordRef.current?.focus() : () => { Keyboard.dismiss(); void sendOtp(); }}
-        />
+        /> : null}
 
         {tab === "login" ? (
           <>
@@ -221,13 +255,13 @@ export default function LoginScreen() {
 
         {error ? <AuthAlert tone="error" message={error} /> : null}
 
-        <AuthSubmitButton
+        {tab === "login" || signupAudience === "customer" ? <AuthSubmitButton
           label={tab === "login" ? "Login" : "Send email OTP"}
           loadingLabel={tab === "login" ? "Logging in…" : "Sending OTP…"}
           loading={loading}
           disabled={tab === "signup" && !signupValid}
           onPress={() => void (tab === "login" ? login() : sendOtp())}
-        />
+        /> : null}
       </View>
     </AuthScreenLayout>
   );

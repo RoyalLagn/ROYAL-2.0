@@ -44,6 +44,7 @@ import {
   updateSupportedCity,
 } from "@/services/locations";
 import { typeScale, typeLeading } from "@/constants/typography";
+import { adminPalette } from "@/theme";
 
 type EditorState = {
   kind: "city" | "area";
@@ -234,7 +235,7 @@ export default function AdminLocations() {
 
           <View style={styles.settingCard}>
             <View style={styles.settingCopy}><Text style={styles.settingTitle}>Strict city-only discovery</Text><Text style={styles.settingText}>When enabled, customers only see vendors serving their selected city. Approval, category, subscription and relevance checks still apply first.</Text></View>
-            <Switch value={strictCityOnly} onValueChange={(value) => void perform(async () => { await updateStrictCityMode(value); })} trackColor={{ false: "#E7E1E4", true: "#F4A9C4" }} thumbColor={strictCityOnly ? "#E91E63" : "#FFFFFF"} />
+            <Switch value={strictCityOnly} onValueChange={(value) => void perform(async () => { await updateStrictCityMode(value); })} trackColor={{ false: "#E7E1E4", true: adminPalette.brandSubtle }} thumbColor={strictCityOnly ? "#E91E63" : "#FFFFFF"} />
           </View>
 
           <View style={styles.sectionHeading}>
@@ -254,8 +255,8 @@ export default function AdminLocations() {
                       <Pressable accessibilityLabel="Move city up" onPress={() => void move("city", city.id, cityIndex, -1)} disabled={!cityIndex} style={[styles.smallIcon, !cityIndex && styles.disabled]}><ChevronUp size={16} color="#655C61" /></Pressable>
                       <Pressable accessibilityLabel="Move city down" onPress={() => void move("city", city.id, cityIndex, 1)} disabled={cityIndex === cities.length - 1} style={[styles.smallIcon, cityIndex === cities.length - 1 && styles.disabled]}><ChevronDown size={16} color="#655C61" /></Pressable>
                       <Pressable accessibilityLabel={`Edit ${city.name}`} onPress={() => setEditor({ kind: "city", id: city.id, name: city.name, state: city.state, pincodes: (city.pincodes ?? []).join(", ") })} style={styles.smallIcon}><Edit3 size={15} color="#E91E63" /></Pressable>
-                      <Switch value={city.isActive} onValueChange={() => confirmStatusChange("city", city)} trackColor={{ false: "#E7E1E4", true: "#F4A9C4" }} thumbColor={city.isActive ? "#E91E63" : "#FFFFFF"} />
-                      <Pressable accessibilityLabel={`Delete ${city.name}`} onPress={() => confirmDelete("city", city)} style={styles.smallIcon}><Trash2 size={15} color="#D92D20" /></Pressable>
+                      <Switch value={city.isActive} onValueChange={() => confirmStatusChange("city", city)} trackColor={{ false: "#E7E1E4", true: adminPalette.brandSubtle }} thumbColor={city.isActive ? "#E91E63" : "#FFFFFF"} />
+                      <Pressable accessibilityLabel={`Delete ${city.name}`} onPress={() => confirmDelete("city", city)} style={styles.smallIcon}><Trash2 size={15} color={adminPalette.error} /></Pressable>
                     </View>
                   </View>
 
@@ -270,8 +271,8 @@ export default function AdminLocations() {
                           <Pressable onPress={() => void move("area", city.id, areaIndex, -1)} disabled={!areaIndex} style={[styles.smallIcon, !areaIndex && styles.disabled]}><ChevronUp size={15} color="#655C61" /></Pressable>
                           <Pressable onPress={() => void move("area", city.id, areaIndex, 1)} disabled={areaIndex === city.areas.length - 1} style={[styles.smallIcon, areaIndex === city.areas.length - 1 && styles.disabled]}><ChevronDown size={15} color="#655C61" /></Pressable>
                           <Pressable onPress={() => setEditor({ kind: "area", id: area.id, cityId: city.id, name: area.name, state: city.state, pincodes: (area.pincodes ?? []).join(", ") })} style={styles.smallIcon}><Edit3 size={14} color="#E91E63" /></Pressable>
-                          <Switch value={area.isActive} onValueChange={() => confirmStatusChange("area", area)} trackColor={{ false: "#E7E1E4", true: "#F4A9C4" }} thumbColor={area.isActive ? "#E91E63" : "#FFFFFF"} />
-                          <Pressable onPress={() => confirmDelete("area", area)} style={styles.smallIcon}><Trash2 size={14} color="#D92D20" /></Pressable>
+                          <Switch value={area.isActive} onValueChange={() => confirmStatusChange("area", area)} trackColor={{ false: "#E7E1E4", true: adminPalette.brandSubtle }} thumbColor={area.isActive ? "#E91E63" : "#FFFFFF"} />
+                          <Pressable onPress={() => confirmDelete("area", area)} style={styles.smallIcon}><Trash2 size={14} color={adminPalette.error} /></Pressable>
                         </View>
                       </View>;
                     })}
@@ -299,7 +300,7 @@ export default function AdminLocations() {
 
       <Modal visible={Boolean(pending)} transparent animationType="fade" onRequestClose={() => setPending(null)}>
         <Pressable style={styles.backdrop} onPress={() => !saving && setPending(null)}>
-          <Pressable style={styles.confirmCard} onPress={(event) => event.stopPropagation()}><View style={styles.warningIcon}><CircleAlert size={23} color="#D92D20" /></View><Text style={styles.confirmTitle}>{pending?.title}</Text><Text style={styles.confirmText}>{pending?.message}</Text><View style={styles.modalActions}><Pressable disabled={saving} onPress={() => setPending(null)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cancel</Text></Pressable><Pressable disabled={saving} onPress={() => pending && void perform(pending.run)} style={styles.destructiveButton}>{saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Confirm</Text>}</Pressable></View></Pressable>
+          <Pressable style={styles.confirmCard} onPress={(event) => event.stopPropagation()}><View style={styles.warningIcon}><CircleAlert size={23} color={adminPalette.error} /></View><Text style={styles.confirmTitle}>{pending?.title}</Text><Text style={styles.confirmText}>{pending?.message}</Text><View style={styles.modalActions}><Pressable disabled={saving} onPress={() => setPending(null)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cancel</Text></Pressable><Pressable disabled={saving} onPress={() => pending && void perform(pending.run)} style={styles.destructiveButton}>{saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Confirm</Text>}</Pressable></View></Pressable>
         </Pressable>
       </Modal>
     </SafeAreaView>
@@ -311,66 +312,66 @@ function Status({ active }: { active: boolean }) { return <View style={[styles.s
 function Field({ label, value, onChangeText, placeholder }: { label: string; value: string; onChangeText: (value: string) => void; placeholder?: string }) { return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><TextInput value={value} onChangeText={onChangeText} placeholder={placeholder ?? `Enter ${label.toLowerCase()}`} placeholderTextColor="#8A8589" style={styles.input} /></View>; }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: "#FFFFFF" },
+  page: { flex: 1, backgroundColor: adminPalette.canvas },
   scroll: { paddingBottom: 120 },
   flex: { flex: 1, minWidth: 0 },
   primaryButton: { minHeight: 42, paddingHorizontal: 14, borderRadius: 13, backgroundColor: "#E91E63", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   primaryButtonText: { color: "#FFFFFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  errorBanner: { marginBottom: 14, borderRadius: 14, padding: 12, backgroundColor: "#FEF3F2", flexDirection: "row", alignItems: "center", gap: 9 },
-  errorText: { flex: 1, color: "#B42318", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
+  errorBanner: { marginBottom: 14, borderRadius: 14, padding: 12, backgroundColor: adminPalette.errorSubtle, flexDirection: "row", alignItems: "center", gap: 9 },
+  errorText: { flex: 1, color: adminPalette.error, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
-  metric: { flexGrow: 1, flexBasis: 150, minHeight: 104, borderWidth: 1, borderColor: "#F0D9E4", borderRadius: 18, padding: 15, backgroundColor: "#FDF2F8" },
-  metricValue: { color: "#241D21", fontSize: typeScale.pageTitle, fontWeight: "700", marginTop: 8 },
-  metricLabel: { color: "#786D73", fontSize: typeScale.caption, marginTop: 2 },
-  settingCard: { borderWidth: 1, borderColor: "#F0D9E4", borderRadius: 18, padding: 16, backgroundColor: "#FDF2F8", flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 22 },
+  metric: { flexGrow: 1, flexBasis: 150, minHeight: 104, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 18, padding: 15, backgroundColor: adminPalette.surface },
+  metricValue: { color: adminPalette.text, fontSize: typeScale.pageTitle, fontWeight: "700", marginTop: 8 },
+  metricLabel: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: 2 },
+  settingCard: { borderWidth: 1, borderColor: adminPalette.border, borderRadius: 18, padding: 16, backgroundColor: adminPalette.surface, flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 22 },
   settingCopy: { flex: 1, minWidth: 0 },
-  settingTitle: { color: "#241D21", fontSize: typeScale.body, fontWeight: "700" },
-  settingText: { color: "#786D73", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 4 },
+  settingTitle: { color: adminPalette.text, fontSize: typeScale.body, fontWeight: "700" },
+  settingText: { color: adminPalette.textSecondary, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 4 },
   sectionHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 },
-  sectionTitle: { color: "#241D21", fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
-  sectionSubtitle: { color: "#786D73", fontSize: typeScale.caption, marginTop: 3 },
+  sectionTitle: { color: adminPalette.text, fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
+  sectionSubtitle: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: 3 },
   iconButton: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF1F6" },
   cityList: { gap: 12 },
-  cityCard: { borderWidth: 1, borderColor: "#F0D9E4", borderRadius: 20, padding: 15, backgroundColor: "#FDF2F8" },
+  cityCard: { borderWidth: 1, borderColor: adminPalette.border, borderRadius: 20, padding: 15, backgroundColor: adminPalette.surface },
   cityHeader: { flexDirection: "row", alignItems: "center", gap: 11 },
   locationIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF1F6" },
-  inactiveIcon: { backgroundColor: "#F4F1F3" },
+  inactiveIcon: { backgroundColor: adminPalette.surfaceSubtle },
   titleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7 },
-  cityName: { color: "#241D21", fontSize: typeScale.body, fontWeight: "700" },
-  cityMeta: { color: "#786D73", fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 4 },
+  cityName: { color: adminPalette.text, fontSize: typeScale.body, fontWeight: "700" },
+  cityMeta: { color: adminPalette.textSecondary, fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 4 },
   actions: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", gap: 3 },
   smallIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   disabled: { opacity: 0.3 },
   status: { minHeight: 22, borderRadius: 999, paddingHorizontal: 8, alignItems: "center", justifyContent: "center" },
   activeStatus: { backgroundColor: "#ECFDF5" },
-  inactiveStatus: { backgroundColor: "#F4F1F3" },
+  inactiveStatus: { backgroundColor: adminPalette.surfaceSubtle },
   statusText: { fontSize: typeScale.caption, fontWeight: "700" },
-  areaBlock: { marginTop: 14, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#F0D9E4" },
+  areaBlock: { marginTop: 14, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: adminPalette.border },
   areaHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 7 },
-  areaTitle: { color: "#655C61", fontSize: typeScale.caption, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.8 },
+  areaTitle: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.8 },
   addArea: { minHeight: 34, paddingHorizontal: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#FFF1F6" },
   addAreaText: { color: "#E91E63", fontSize: typeScale.caption, fontWeight: "700" },
-  noAreas: { color: "#8A8589", fontSize: typeScale.metadata, paddingVertical: 10 },
-  areaRow: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#F3E9EE" },
-  areaDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#F4A9C4" },
-  areaName: { color: "#241D21", fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  areaMeta: { color: "#786D73", fontSize: typeScale.caption, marginTop: 3 },
+  noAreas: { color: adminPalette.textMuted, fontSize: typeScale.metadata, paddingVertical: 10 },
+  areaRow: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: adminPalette.border },
+  areaDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: adminPalette.brandSubtle },
+  areaName: { color: adminPalette.text, fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  areaMeta: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: 3 },
   backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(25,15,20,.5)" },
   modalCard: { width: "100%", maxWidth: 500, borderRadius: 22, padding: 20, backgroundColor: "#FFFFFF" },
   modalHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 18 },
-  modalTitle: { color: "#241D21", fontSize: typeScale.editorialCardTitle, fontWeight: "700", textTransform: "capitalize" },
-  modalSubtitle: { color: "#786D73", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 3 },
+  modalTitle: { color: adminPalette.text, fontSize: typeScale.editorialCardTitle, fontWeight: "700", textTransform: "capitalize" },
+  modalSubtitle: { color: adminPalette.textSecondary, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 3 },
   field: { marginBottom: 13 },
-  fieldLabel: { color: "#241D21", fontSize: typeScale.metadata, fontWeight: "700", marginBottom: 6 },
-  input: { height: 50, borderWidth: 1, borderColor: "#E7E1E4", borderRadius: 14, paddingHorizontal: 14, color: "#241D21", fontSize: typeScale.body, backgroundColor: "#FFFAFC" },
-  fieldHelper: { color: "#786D73", fontSize: typeScale.caption, marginTop: -7 },
+  fieldLabel: { color: adminPalette.text, fontSize: typeScale.metadata, fontWeight: "700", marginBottom: 6 },
+  input: { height: 50, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 14, paddingHorizontal: 14, color: adminPalette.text, fontSize: typeScale.body, backgroundColor: adminPalette.surface },
+  fieldHelper: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: -7 },
   modalActions: { flexDirection: "row", gap: 9, marginTop: 20 },
-  secondaryButton: { flex: 1, minHeight: 48, borderWidth: 1, borderColor: "#E7E1E4", borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  secondaryButtonText: { color: "#241D21", fontSize: typeScale.metadata, fontWeight: "700" },
+  secondaryButton: { flex: 1, minHeight: 48, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  secondaryButtonText: { color: adminPalette.text, fontSize: typeScale.metadata, fontWeight: "700" },
   primaryModalButton: { flex: 1.2, minHeight: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#E91E63" },
   confirmCard: { width: "100%", maxWidth: 440, borderRadius: 22, padding: 22, backgroundColor: "#FFFFFF", alignItems: "center" },
   warningIcon: { width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center", backgroundColor: "#FEF3F2", marginBottom: 13 },
-  confirmTitle: { color: "#241D21", fontSize: typeScale.editorialCardTitle, fontWeight: "700", textAlign: "center" },
-  confirmText: { color: "#786D73", fontSize: typeScale.metadata, lineHeight: typeLeading.tab, textAlign: "center", marginTop: 7 },
-  destructiveButton: { flex: 1.2, minHeight: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#D92D20" },
+  confirmTitle: { color: adminPalette.text, fontSize: typeScale.editorialCardTitle, fontWeight: "700", textAlign: "center" },
+  confirmText: { color: adminPalette.textSecondary, fontSize: typeScale.metadata, lineHeight: typeLeading.tab, textAlign: "center", marginTop: 7 },
+  destructiveButton: { flex: 1.2, minHeight: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: adminPalette.error },
 });

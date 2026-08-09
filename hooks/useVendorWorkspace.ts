@@ -93,12 +93,9 @@ export const VendorReadinessRules = {
     return media.length >= 6 && albums.length >= 1 ? "complete" : "partial";
   },
   availability(vendor: any | null, availability: any[]): CompletionState {
-    const v = vendor ?? {};
-    const hasHours = Array.isArray(v.business_hours) && v.business_hours.some((entry: any) => !entry?.closed);
-    const hasDates = availability.length >= 3;
-    if (!hasHours && !availability.length) return "attention";
-    if (hasHours && hasDates) return "complete";
-    return "partial";
+    // Future dates are available by default; an empty exception list is a
+    // complete and valid calendar, not missing setup.
+    return vendor ? "complete" : "attention";
   },
   tags(vendor: any | null): CompletionState {
     const count = vendor?.tags?.length ?? 0;

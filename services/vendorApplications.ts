@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { requireVendorRegistrationEnabled } from "@/services/vendorRegistration";
 
 export type VendorApplicationSubmission = {
   full_name: string;
@@ -23,6 +24,7 @@ export type VendorApplicationSubmission = {
 };
 
 export async function submitVendorApplication(input: VendorApplicationSubmission) {
+  await requireVendorRegistrationEnabled();
   const { data, error } = await supabase.functions.invoke("submit-vendor-application", {
     body: { ...input, terms_accepted: true },
   });
@@ -37,4 +39,3 @@ export async function submitVendorApplication(input: VendorApplicationSubmission
   }
   return data?.application;
 }
-

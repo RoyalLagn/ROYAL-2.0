@@ -53,10 +53,13 @@ export function useVendorClipOverview(vendorId?: string | null) {
     // slot -- only count Clips that are actually published or awaiting
     // review toward the plan limit.
     const slotsUsed = active.filter((clip) => clip.status !== "rejected" && clip.status !== "hidden").length;
+    const locked = active.filter((clip) => clip.subscription_locked);
     return {
       active,
       byStatus,
       total: active.length,
+      activeCount: active.length - locked.length,
+      lockedCount: locked.length,
       approved: byStatus.approved.length,
       pending: byStatus.pending.length,
       draftCount: byStatus.draft.length + drafts.length,

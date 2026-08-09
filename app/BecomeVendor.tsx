@@ -416,7 +416,7 @@ export default function BecomeVendor() {
             return (
               <View key={kind} className="mb-4">
                 <Text className="text-foreground text-sm font-semibold mb-2">{kind === "logo" ? "Logo" : "Cover Image"}</Text>
-                {kind === "logo" ? <Text className="text-muted-foreground text-xs mb-2">Square logo · 1024 × 1024 · maximum 8 MB</Text> : null}
+                {kind === "logo" ? <Text className="text-muted-foreground text-xs mb-2">Square logo · automatically optimized for upload</Text> : null}
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel={url ? `Change ${kind === "logo" ? "logo" : "cover image"}` : `Upload ${kind === "logo" ? "logo" : "cover image"}`}

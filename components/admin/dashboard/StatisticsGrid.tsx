@@ -38,14 +38,16 @@ export function StatisticsGrid({ statistics, updatedAt }: { statistics: Dashboar
           accessibilityLabel={`${title}: ${statistics[key]}`}
         >
           <ResponsiveCard
-            className="bg-primary/5 border-primary/20"
             style={responsive.isPhone ? { padding: 12 } : undefined}
           >
-            <View className="min-w-11 min-h-11 self-start rounded-xl bg-primary/10 items-center justify-center mb-1.5">
-              <Icon size={responsive.iconSize} className="text-primary" />
+            <View className="min-w-9 min-h-9 w-9 h-9 self-start rounded-lg bg-primary/10 items-center justify-center mb-2.5">
+              <Icon size={responsive.iconSize - 2} className="text-primary" />
             </View>
+            <Text className="text-muted-foreground font-inter-medium" style={typeStyles.bodyCompact} numberOfLines={1} ellipsizeMode="tail">
+              {responsive.isPhone ? mobileTitle : title}
+            </Text>
             <Text
-              className="text-foreground font-bold"
+              className="text-foreground font-inter-bold mt-0.5"
               style={typeStyles.metric}
               numberOfLines={1}
               adjustsFontSizeToFit
@@ -54,11 +56,8 @@ export function StatisticsGrid({ statistics, updatedAt }: { statistics: Dashboar
                 ? statistics[key].toFixed(2)
                 : statistics[key].toLocaleString()}
             </Text>
-            <Text className="text-muted-foreground mt-1" style={typeStyles.bodyCompact} numberOfLines={1} ellipsizeMode="tail">
-              {responsive.isPhone ? mobileTitle : title}
-            </Text>
-            <Text className="text-emerald-500 text-xs mt-1.5" numberOfLines={1}>
-              {key.startsWith("today") ? "Today" : `Today +${key === "publicUsers" ? statistics.todayPublicRegistrations : key === "totalVendors" ? statistics.todayVendorRegistrations : key === "reviews" ? statistics.todayReviews : 0}`}
+            <Text className="text-emerald-600 dark:text-emerald-500 text-caption font-inter-medium mt-1.5" numberOfLines={1}>
+              {key.startsWith("today") ? "Today" : `↑ ${key === "publicUsers" ? statistics.todayPublicRegistrations : key === "totalVendors" ? statistics.todayVendorRegistrations : key === "reviews" ? statistics.todayReviews : 0} today`}
             </Text>
             {!responsive.isPhone ? (
               <Text className="text-muted-foreground text-metadata mt-1" numberOfLines={1}>

@@ -17,20 +17,24 @@ export function PendingTasks({ statistics, health }: { statistics: DashboardStat
   ] as const;
   return (
     <View className="gap-3">
-      {tasks.map(([task, count, priority, route]) => (
-        <View key={task} className={`bg-muted/50 rounded-2xl ${isPhone ? "p-3" : "p-4"} flex-row items-center`}>
-          <View className="flex-1">
-            <Text className="text-foreground font-semibold text-sm" numberOfLines={2}>{task}</Text>
-            <Text className={`text-xs mt-1 ${priority === "High" ? "text-red-500" : priority === "Healthy" ? "text-emerald-500" : "text-amber-500"}`}>
-              {priority} priority
-            </Text>
+      {tasks.map(([task, count, priority, route]) => {
+        const tone = priority === "High" ? "bg-red-500/10 text-red-500" : priority === "Healthy" ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500";
+        const [badgeBg, badgeText] = tone.split(" ");
+        return (
+          <View key={task} className={`bg-muted/40 border border-border/60 rounded-2xl ${isPhone ? "p-3" : "p-4"} flex-row items-center`}>
+            <View className="flex-1 min-w-0 mr-3">
+              <Text className="text-foreground font-inter-semibold text-body" numberOfLines={2}>{task}</Text>
+              <View className={`self-start px-2 py-0.5 rounded-full mt-1.5 ${badgeBg}`}>
+                <Text className={`text-caption font-inter-semibold ${badgeText}`}>{priority}</Text>
+              </View>
+            </View>
+            <Text className={`text-foreground font-inter-bold ${isPhone ? "mx-1" : "mr-4"}`} style={{ fontSize: 20, lineHeight: 26 }}>{count}</Text>
+            <Pressable className="bg-primary rounded-full min-w-11 min-h-11 px-4 items-center justify-center" onPress={() => router.push(route as Href)}>
+              <Text className="text-primary-foreground text-button font-inter-bold">Open</Text>
+            </Pressable>
           </View>
-          <Text className={`text-foreground text-xl font-bold ${isPhone ? "mx-2" : "mr-4"}`}>{count}</Text>
-          <Pressable className="bg-primary rounded-full min-w-11 min-h-11 px-3 items-center justify-center" onPress={() => router.push(route as Href)}>
-            <Text className="text-white text-xs font-semibold">Open</Text>
-          </Pressable>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }

@@ -38,6 +38,19 @@ Deno.serve(async (request) => {
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
 
+    const { data: registrationSetting, error: registrationSettingError } = await service
+      .from("application_settings")
+      .select("value")
+      .eq("key", "vendor_registration_enabled")
+      .maybeSingle();
+    if (registrationSettingError) throw registrationSettingError;
+    if (registrationSetting?.value === false) {
+      return Response.json(
+        { error: "Vendor registrations are temporarily unavailable." },
+        { status: 403, headers: cors },
+      );
+    }
+
     // Identify the caller (if any) from this request's own Authorization
     // header -- supabase.functions.invoke() forwards the caller's access
     // token automatically, so an authenticated Vendor Login -> BecomeVendor

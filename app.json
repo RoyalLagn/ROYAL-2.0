@@ -15,6 +15,7 @@
     },
     "android": {
       "versionCode": 3,
+      "softwareKeyboardLayoutMode": "resize",
       "blockedPermissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"

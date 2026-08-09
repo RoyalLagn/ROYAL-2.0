@@ -53,9 +53,8 @@ export default function AdminVendorDetailsScreen() {
     !record.logo_url && "Logo", !vendor?.description && "Description",
     !record.email && "Email", !record.phone && "Phone",
     !details.services.length && "Services", !details.media.length && "Gallery",
-    !details.availability.length && "Availability",
   ].filter(Boolean) as string[];
-  const completeness = Math.round(((7 - missing.length) / 7) * 100);
+  const completeness = Math.round(((6 - missing.length) / 6) * 100);
   const healthScore = Math.min(100, Math.round(completeness * 0.55 + (record.is_verified ? 15 : 0) + Math.min(details.services.length, 5) * 3 + Math.min(details.media.length, 5) * 3 + Math.min(details.reviews.length, 10)));
   const timeline = buildTimeline(details);
 
@@ -146,7 +145,7 @@ export default function AdminVendorDetailsScreen() {
               ]} />
             </DashboardWidget>
             <DashboardWidget title="Availability">
-              {details.availability.length ? details.availability.slice(0, 8).map((slot) => <InfoRows key={slot.id} rows={[[new Date(`${slot.date}T00:00:00`).toLocaleDateString(), slot.status]]} />) : <Empty text="No availability configured." />}
+              {details.availability.length ? details.availability.slice(0, 8).map((slot) => <InfoRows key={slot.id} rows={[[new Date(`${slot.date}T00:00:00`).toLocaleDateString(), slot.status]]} />) : <Empty text="No exceptions. Future dates are available by default." />}
             </DashboardWidget>
           </ResponsiveColumns>
 

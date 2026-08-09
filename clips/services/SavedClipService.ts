@@ -80,7 +80,7 @@ export const SavedClipService = {
       clips!clip_saves_clip_id_fkey(
         id,vendor_id,category_id,title,caption,video_url,thumbnail_url,
         duration_seconds,width,height,file_size_bytes,cloudinary_public_id,
-        views_count,likes_count,saves_count,status,visibility,
+        views_count,likes_count,saves_count,status,visibility,subscription_locked,
         created_at,updated_at,published_at,deleted_at,
         categories(name),
         vendors!clips_vendor_id_fkey(
@@ -97,7 +97,7 @@ export const SavedClipService = {
     if (error) throw error;
     const rows = (data ?? []).filter((row: any) => {
       const clip = one<any>(row.clips);
-      return clip?.status === "approved" && clip.visibility === "public" && !clip.deleted_at;
+      return clip?.status === "approved" && clip.visibility === "public" && !clip.subscription_locked && !clip.deleted_at;
     });
     const pageRows = rows.slice(0, limit);
     return {

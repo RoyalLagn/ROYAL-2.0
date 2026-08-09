@@ -98,8 +98,8 @@ Deno.serve(async (request) => {
     if (!new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]).has(mimeType)) {
       throw new Error("Unsupported profile image type");
     }
-    if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > 8 * 1024 * 1024) {
-      throw new Error("Profile images must be 8 MB or smaller");
+    if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > 5 * 1024 * 1024) {
+      throw new Error("Profile image optimization did not produce a valid upload file");
     }
 
     const timestamp = Math.floor(Date.now() / 1000);

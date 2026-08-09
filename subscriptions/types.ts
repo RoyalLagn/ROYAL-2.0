@@ -16,7 +16,11 @@ export type SubscriptionAccessSource =
   | "launch_offer"
   | "admin_grant"
   | "promotional_offer"
-  | "manual_extension";
+  | "manual_extension"
+  | "free_fallback";
+
+export type SubscriptionPlanStatus = "active" | "coming_soon" | "hidden" | "archived";
+export type SubscriptionBillingInterval = "month" | "year";
 
 export type SubscriptionFeatureKey =
   | "vendor_dashboard_actions"
@@ -37,12 +41,32 @@ export type SubscriptionAccess = {
   plan_name: string | null;
   status: SubscriptionStatus;
   access_source: SubscriptionAccessSource | null;
+  billing_interval: SubscriptionBillingInterval | string | null;
+  price: number | null;
+  currency: string | null;
   start_date: string | null;
   expiry_date: string | null;
+  renewal_date: string | null;
   grace_period_end_date: string | null;
+  trial_end_date: string | null;
   days_remaining: number | null;
   has_access: boolean;
   access_reason: string;
+  clip_limit: number | null;
+  clip_usage: number | null;
+  clip_remaining: number | null;
+  clip_active: number;
+  clip_locked: number;
+  photo_limit: number | null;
+  photo_usage: number | null;
+  photo_remaining: number | null;
+  photo_active: number;
+  photo_locked: number;
+  scheduled_plan_id: string | null;
+  scheduled_plan_name: string | null;
+  scheduled_billing_option_id: string | null;
+  scheduled_change_at: string | null;
+  features: Partial<Record<SubscriptionFeatureKey, { enabled: boolean; limit: number | null }>>;
 };
 
 export type SubscriptionPlanFeature = {
@@ -51,6 +75,22 @@ export type SubscriptionPlanFeature = {
   description: string | null;
   is_enabled: boolean;
   limit_value: number | null;
+};
+
+export type SubscriptionPlanBillingOption = {
+  id: string;
+  plan_id: string;
+  billing_interval: SubscriptionBillingInterval;
+  interval_count: number;
+  price: number;
+  discounted_price: number | null;
+  discount_percentage: number;
+  currency: string;
+  trial_enabled: boolean;
+  trial_days: number;
+  grace_period_days: number;
+  is_active: boolean;
+  display_order: number;
 };
 
 export type SubscriptionPlan = {
@@ -70,6 +110,9 @@ export type SubscriptionPlan = {
   is_active: boolean;
   is_featured: boolean;
   display_order: number;
+  status: SubscriptionPlanStatus;
+  is_permanent: boolean;
+  billing_options: SubscriptionPlanBillingOption[];
   features: SubscriptionPlanFeature[];
 };
 
@@ -83,6 +126,7 @@ export type SubscriptionOffer = {
   start_date: string | null;
   end_date: string | null;
   applicable_plan_ids: string[];
+  applicable_billing_intervals: SubscriptionBillingInterval[];
   is_global: boolean;
 };
 
@@ -102,7 +146,37 @@ export type SubscriptionPayment = {
   period_end: string | null;
   paid_at: string | null;
   created_at: string;
+  metadata?: Record<string, any> | null;
   subscription_plans?: { name: string } | null;
+};
+
+export type SubscriptionCheckoutPreview = {
+  quote_id: string;
+  quote_expires_at: string;
+  plan_id: string;
+  billing_option_id: string | null;
+  offer_id: string | null;
+  plan_name: string;
+  billing_interval: SubscriptionBillingInterval;
+  currency: string;
+  base_amount: number;
+  interval_discount_percentage: number;
+  interval_discount_amount: number;
+  promotional_discount_percentage: number;
+  promotional_discount_amount: number;
+  current_plan_credit: number;
+  proration_ratio: number;
+  is_prorated_upgrade: boolean;
+  proration_period_end: string | null;
+  proration_evaluated_at: string;
+  full_cycle_payable: number;
+  original_amount: number;
+  discount_amount: number;
+  total_savings: number;
+  payable_amount: number;
+  amount_minor: number;
+  subscription_start_at: string;
+  subscription_end_at: string | null;
 };
 
 export type PublicSubscriptionSetting = {
@@ -111,4 +185,3 @@ export type PublicSubscriptionSetting = {
   value_type: string;
   description: string | null;
 };
-

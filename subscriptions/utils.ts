@@ -1,13 +1,24 @@
-import type { SubscriptionPlan, SubscriptionStatus } from "@/subscriptions/types";
+import type { SubscriptionPlan, SubscriptionPlanBillingOption, SubscriptionStatus } from "@/subscriptions/types";
 
-export function subscriptionDurationLabel(plan: Pick<SubscriptionPlan, "billing_interval" | "billing_interval_count" | "duration_days">) {
+export function subscriptionDurationLabel(
+  plan: Pick<SubscriptionPlan, "billing_interval" | "billing_interval_count" | "duration_days">,
+  billingOption?: Pick<SubscriptionPlanBillingOption, "billing_interval" | "interval_count"> | null,
+) {
+  if (billingOption) {
+    const count = billingOption.interval_count || 1;
+    return `${count} ${billingOption.billing_interval}${count === 1 ? "" : "s"}`;
+  }
   if (plan.duration_days) return `${plan.duration_days} day${plan.duration_days === 1 ? "" : "s"}`;
   const count = plan.billing_interval_count || 1;
   const unit = plan.billing_interval;
   return `${count} ${unit}${count === 1 ? "" : "s"}`;
 }
 
-export function subscriptionPrice(plan: Pick<SubscriptionPlan, "price" | "discounted_price">) {
+export function subscriptionPrice(
+  plan: Pick<SubscriptionPlan, "price" | "discounted_price">,
+  billingOption?: Pick<SubscriptionPlanBillingOption, "price" | "discounted_price"> | null,
+) {
+  if (billingOption) return billingOption.discounted_price ?? billingOption.price;
   return plan.discounted_price ?? plan.price;
 }
 

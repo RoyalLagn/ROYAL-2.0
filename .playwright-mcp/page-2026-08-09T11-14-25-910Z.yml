@@ -1,0 +1,42 @@
+- generic [ref=e63]:
+  - generic [ref=e66]:
+    - generic [ref=e67]:
+      - generic [ref=e68]: Admin Dashboard
+      - generic [ref=e69]: Welcome back, Admin Boss
+    - generic "Refresh dashboard" [ref=e71] [cursor=pointer]
+  - generic [ref=e77]:
+    - generic [ref=e80]:
+      - generic [ref=e87]:
+        - generic [ref=e88]: Platform Overview
+        - generic [ref=e89]: Live platform workload
+      - button "Refresh Platform Overview" [ref=e90] [cursor=pointer]
+    - generic [ref=e106]:
+      - generic [ref=e111]:
+        - generic [ref=e112]: Pending Tasks
+        - generic [ref=e113]: Current administrator workload
+      - button "Refresh Pending Tasks" [ref=e114] [cursor=pointer]
+    - generic [ref=e130]:
+      - generic [ref=e137]:
+        - generic [ref=e138]: Monthly Clip Views
+        - generic [ref=e139]: Daily view movement for the selected month
+      - button "Refresh Monthly Clip Views" [ref=e140] [cursor=pointer]
+    - generic [ref=e155]:
+      - generic [ref=e156]:
+        - generic [ref=e161]:
+          - generic [ref=e162]: Equity Split & Revenue
+          - generic [ref=e163]: Verified subscription income and ownership distribution
+        - button "Refresh Equity Split & Revenue" [ref=e164] [cursor=pointer]
+      - generic [ref=e170]:
+        - generic [ref=e172]:
+          - generic [ref=e173] [cursor=pointer]: Month
+          - generic [ref=e175] [cursor=pointer]: Year
+          - generic [ref=e177] [cursor=pointer]: Month range
+          - generic [ref=e179] [cursor=pointer]: Date range
+        - generic [ref=e181]:
+          - generic [ref=e182]:
+            - generic [ref=e183]: Month
+            - textbox "YYYY-MM" [ref=e184]: 2026-08
+          - generic "Refresh revenue" [ref=e185] [cursor=pointer]
+      - generic [ref=e191]:
+        - progressbar [ref=e192]
+        - generic [ref=e197]: Loading revenue records…

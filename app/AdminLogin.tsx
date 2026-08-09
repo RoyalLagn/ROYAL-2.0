@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Text, TextInput, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Platform, Text, TextInput, View } from "react-native";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { Mail } from "lucide-react-native";
 import { AuthField } from "@/components/auth/AuthField";
 import {
@@ -18,6 +18,11 @@ import {
 import { validateEmail } from "@/utils/authValidation";
 
 export default function AdminLoginScreen() {
+  if (Platform.OS !== "web") return <Redirect href="/Login" />;
+  return <WebAdminLoginScreen />;
+}
+
+function WebAdminLoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ reset?: string }>();
   const { isAdminAuthenticated, loading: restoring, refreshAdmin } = useAdminAuth();
@@ -60,7 +65,7 @@ export default function AdminLoginScreen() {
 
   return (
     <AuthScreenLayout
-      backRoute="/DashboardCenter"
+      backRoute="/(tabs)"
       eyebrow="Admin Console"
       title="Administrator sign in"
       subtitle="Restricted access. Use your administrator credentials."

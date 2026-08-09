@@ -83,6 +83,7 @@ async function loadFallbackCandidates(categoryId?: string | null) {
       .select("id,vendor_id,published_at,views_count,likes_count,saves_count")
       .eq("status", "approved")
       .eq("visibility", "public")
+      .eq("subscription_locked", false)
       .is("deleted_at", null)
       .order("published_at", { ascending: false })
       .order("id", { ascending: false });
@@ -289,6 +290,7 @@ async function listVendorPublicClips(vendorId: string): Promise<PublicClip[]> {
       .eq("vendor_id", vendorId)
       .eq("status", "approved")
       .eq("visibility", "public")
+      .eq("subscription_locked", false)
       .is("deleted_at", null)
       .order("published_at", { ascending: false })
       .order("id", { ascending: false })
@@ -389,7 +391,7 @@ export const PublicClipService = {
         categories(name)
       )
     `)
-      .eq("status", "approved").eq("visibility", "public").is("deleted_at", null)
+      .eq("status", "approved").eq("visibility", "public").eq("subscription_locked", false).is("deleted_at", null)
       .in("id", clipIds);
     if (error) throw error;
     const rowsById = new Map((data ?? []).map((row: any) => [row.id as string, row]));

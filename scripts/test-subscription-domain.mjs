@@ -13,6 +13,7 @@ import {
   subscriptionStateCopy,
   visibleSubscriptionPlans,
 } from "../subscriptions/presentation.ts";
+import { subscriptionPriceBreakdown } from "../subscriptions/pricing.ts";
 
 assert.equal(subscriptionDurationLabel({ billing_interval: "month", billing_interval_count: 3, duration_days: null }), "3 months");
 assert.equal(subscriptionDurationLabel({ billing_interval: "custom", billing_interval_count: 1, duration_days: 45 }), "45 days");
@@ -23,6 +24,23 @@ assert.equal(isRenewableSubscription("expired"), true);
 assert.equal(isRenewableSubscription("suspended"), false);
 assert.equal(isSubscriptionRequiredError({ code: "42501", hint: "SUBSCRIPTION_REQUIRED" }), true);
 assert.match(formatSubscriptionPrice(999), /999/);
+
+assert.deepEqual(
+  subscriptionPriceBreakdown(
+    { price: 5988, discounted_price: 5389.2, discount_percentage: 10 },
+    { discount_type: "percentage", discount_value: 30 },
+  ),
+  {
+    originalAmount: 5988,
+    intervalDiscountPercentage: 10,
+    intervalDiscountAmount: 598.8,
+    promotionalDiscountPercentage: 30,
+    promotionalDiscountAmount: 1616.76,
+    totalSavings: 2215.56,
+    payableAmount: 3772.44,
+    amountMinor: 377244,
+  },
+);
 
 const plan = { id: "standard", name: "RoyalLagn Standard" };
 const secondPlan = { id: "premium", name: "RoyalLagn Premium" };
@@ -47,6 +65,20 @@ assert.deepEqual(subscriptionPlanAction(access, plan, settings), { disabled: tru
 assert.deepEqual(subscriptionPlanAction(access, secondPlan, settings), { disabled: true, label: "Available at renewal" });
 assert.equal(subscriptionStateCopy(access, settings).actionLabel, "View plan details");
 assert.deepEqual(visibleSubscriptionPlans(access, [plan, secondPlan], settings), [plan]);
+
+const freeBaseline = {
+  ...access,
+  plan_id: "free",
+  plan_name: "Free",
+  access_source: "free_fallback",
+  price: 0,
+  expiry_date: null,
+  days_remaining: null,
+};
+const freePlan = { id: "free", name: "Free" };
+assert.deepEqual(subscriptionPlanAction(freeBaseline, freePlan, settings), { disabled: true, label: "Current plan" });
+assert.deepEqual(subscriptionPlanAction(freeBaseline, secondPlan, settings), { disabled: false, label: "Upgrade to RoyalLagn Premium" });
+assert.deepEqual(visibleSubscriptionPlans(freeBaseline, [freePlan, plan, secondPlan], settings), [freePlan, plan, secondPlan]);
 
 const expiring = { ...access, days_remaining: 7 };
 assert.equal(isSubscriptionRenewalWindow(expiring, settings), true);

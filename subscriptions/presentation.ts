@@ -5,6 +5,14 @@ export type SubscriptionPlanAction = {
   label: string;
 };
 
+function isPermanentFreeBaseline(access: SubscriptionAccess | null) {
+  return Boolean(
+    access?.has_access
+    && access.access_source === "free_fallback"
+    && access.expiry_date == null,
+  );
+}
+
 const sourceLabels: Record<string, string> = {
   paid_subscription: "Paid plan",
   free_trial: "Free trial",
@@ -57,6 +65,16 @@ export function subscriptionStateCopy(access: SubscriptionAccess | null, setting
   if (status === "past_due") return { title: "Payment overdue", message: "Restore billing to keep your Vendor tools available.", actionLabel: "Restore access" };
   if (status === "grace_period") return { title: "Grace period active", message: "Renew now to prevent your Vendor tools from being paused.", actionLabel: "Restore access" };
   if (status === "expired") return { title: "Subscription expired", message: "Choose a plan to reactivate your Vendor tools.", actionLabel: "Reactivate plan" };
+  if (status === "cancelled" && access.has_access) {
+    const until = access.expiry_date
+      ? new Date(access.expiry_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+      : null;
+    return {
+      title: "Subscription cancelled",
+      message: until ? `You keep full access until ${until}, then move to Free.` : "Your access continues until the current period ends.",
+      actionLabel: "Choose a new plan",
+    };
+  }
   if (status === "cancelled") return { title: "Subscription cancelled", message: "Choose a plan when you are ready to reactivate access.", actionLabel: "Reactivate plan" };
   if (status === "trial") {
     return renewalWindow
@@ -78,14 +96,21 @@ export function subscriptionStateCopy(access: SubscriptionAccess | null, setting
 
 export function subscriptionPlanAction(
   access: SubscriptionAccess | null,
-  plan: Pick<SubscriptionPlan, "id" | "name">,
+  plan: Pick<SubscriptionPlan, "id" | "name" | "status">,
   settings: Record<string, unknown>,
 ): SubscriptionPlanAction {
   const status = access?.status;
   const current = Boolean(access?.plan_id && access.plan_id === plan.id);
   const renewalWindow = isSubscriptionRenewalWindow(access, settings);
+  const freeBaseline = isPermanentFreeBaseline(access);
 
+  if (plan.status === "coming_soon") return { disabled: true, label: "Coming soon" };
   if (status === "suspended" || status === "deactivated") return { disabled: true, label: "Unavailable during review" };
+  if (freeBaseline) {
+    return current
+      ? { disabled: true, label: "Current plan" }
+      : { disabled: false, label: `Upgrade to ${plan.name}` };
+  }
   if (access?.has_access && !renewalWindow) {
     return current
       ? { disabled: true, label: status === "trial" ? "Trial active" : status === "launch_offer" ? "Included now" : "Current plan" }
@@ -103,11 +128,21 @@ export function subscriptionPlanAction(
 }
 
 export function visibleSubscriptionPlans(access: SubscriptionAccess | null, plans: SubscriptionPlan[], settings: Record<string, unknown>) {
-  if (!access?.has_access || isSubscriptionRenewalWindow(access, settings) || !access.plan_id) return plans;
-  const current = plans.find((plan) => plan.id === access.plan_id);
-  return current ? [current] : plans;
+  // 'hidden' plans are already excluded by SubscriptionAccessService.listPlans();
+  // filtering here too is defense in depth against a caller passing an
+  // unfiltered plan list. 'coming_soon' plans stay visible (disabled).
+  const visible = plans.filter((plan) => plan.status !== "hidden" && plan.status !== "archived");
+  if (!access?.has_access || isPermanentFreeBaseline(access) || isSubscriptionRenewalWindow(access, settings) || !access.plan_id) return visible;
+  const current = visible.find((plan) => plan.id === access.plan_id);
+  return current ? [current] : visible;
 }
 
 export function isPurchasableSubscriptionStatus(status?: SubscriptionStatus | null) {
   return status !== "suspended" && status !== "deactivated";
+}
+
+export function subscriptionScheduledChangeCopy(access: SubscriptionAccess | null) {
+  if (!access?.scheduled_plan_id || !access.scheduled_change_at) return null;
+  const date = new Date(access.scheduled_change_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  return `Your plan changes to ${access.scheduled_plan_name ?? "a new plan"} on ${date}. Your current plan stays active until then.`;
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert, Modal, Pressable, ScrollView,
+  ActivityIndicator, Alert, Modal, Pressable, ScrollView, Switch,
   Text, TextInput, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,6 +25,10 @@ import { AdminEmptyState, AdminErrorState, AdminRefreshIndicator, AdminTableSkel
 import { ActionProgress } from "@/components/admin/ui/ActionProgress";
 import { UndoToast } from "@/components/admin/ui/UndoToast";
 import { AdminPreferences, type SavedVendorFilter } from "@/services/adminPreferences";
+import {
+  getVendorRegistrationEnabled,
+  setVendorRegistrationEnabled,
+} from "@/services/vendorRegistration";
 
 const sorts: { value: VendorSort; label: string }[] = [
   { value: "newest", label: "Newest" },
@@ -52,9 +56,19 @@ export default function VendorsAdminListing() {
   const [presetName, setPresetName] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [registrationEnabled, setRegistrationEnabledState] = useState<boolean | null>(null);
+  const [registrationSaving, setRegistrationSaving] = useState(false);
+  const [registrationError, setRegistrationError] = useState("");
   const exportCancelled = useRef(false);
   const pageCount = Math.max(1, Math.ceil(vendors.total / vendors.filters.pageSize));
   useEffect(() => { void AdminPreferences.listVendorFilters().then(setSavedFilters); }, []);
+  useEffect(() => {
+    let active = true;
+    getVendorRegistrationEnabled()
+      .then((enabled) => { if (active) setRegistrationEnabledState(enabled); })
+      .catch(() => { if (active) setRegistrationError("Unable to load vendor registration status."); });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     if (!undo) return;
     const timer = setTimeout(() => setUndo(null), 7000);
@@ -79,6 +93,21 @@ export default function VendorsAdminListing() {
       Alert.alert("Export failed", error instanceof Error ? error.message : "Unable to export vendors. Try again.");
     } finally {
       setExporting(false);
+    }
+  };
+
+  const updateRegistration = async (enabled: boolean) => {
+    if (registrationSaving || registrationEnabled === null) return;
+    setRegistrationSaving(true);
+    setRegistrationError("");
+    try {
+      const saved = await setVendorRegistrationEnabled(enabled);
+      setRegistrationEnabledState(saved);
+    } catch (error) {
+      setRegistrationError(error instanceof Error ? error.message : "Unable to update vendor registration.");
+      Alert.alert("Vendor registration", "The setting could not be saved. Try again.");
+    } finally {
+      setRegistrationSaving(false);
     }
   };
 
@@ -153,14 +182,49 @@ export default function VendorsAdminListing() {
         </ResponsiveContainer>
 
         <ResponsiveContainer>
+          <ResponsiveSection>
+            <View className="bg-card border border-border rounded-2xl px-4 py-4 flex-row items-center gap-4">
+              <View className="flex-1 min-w-0">
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-foreground text-base font-bold">Vendor Registration</Text>
+                  {registrationEnabled !== null ? (
+                    <View className={`rounded-full px-2.5 py-1 ${registrationEnabled ? "bg-green-500/10" : "bg-muted"}`}>
+                      <Text className={`text-xs font-bold ${registrationEnabled ? "text-green-700" : "text-muted-foreground"}`}>
+                        {registrationEnabled ? "ON" : "OFF"}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text className={`text-sm leading-5 mt-1 ${registrationError ? "text-destructive" : "text-muted-foreground"}`}>
+                  {registrationError || (registrationEnabled === null
+                    ? "Checking the current registration setting…"
+                    : registrationEnabled
+                      ? "New vendors can register through the app."
+                      : "New vendor registrations are temporarily disabled.")}
+                </Text>
+              </View>
+              {registrationEnabled === null ? (
+                <ActivityIndicator color="#E91E63" />
+              ) : (
+                <Switch
+                  accessibilityLabel="Vendor Registration"
+                  accessibilityHint="Controls whether new vendors can register through the app"
+                  accessibilityState={{ checked: registrationEnabled, disabled: registrationSaving, busy: registrationSaving }}
+                  value={registrationEnabled}
+                  disabled={registrationSaving}
+                  onValueChange={(value) => void updateRegistration(value)}
+                  trackColor={{ false: "#D6D1D4", true: "#F5A6C2" }}
+                  thumbColor={registrationEnabled ? "#E91E63" : "#FFFFFF"}
+                />
+              )}
+            </View>
+          </ResponsiveSection>
+        </ResponsiveContainer>
+
+        <ResponsiveContainer>
           {vendors.statistics ? <ResponsiveSection><VendorStatisticsGrid data={vendors.statistics} /></ResponsiveSection> : null}
         </ResponsiveContainer>
         <ResponsiveContainer className="bg-background pt-1">
-          {vendors.statistics ? <View className="flex-row gap-2 mb-2">
-            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-foreground font-bold">{vendors.statistics.total}</Text><Text className="text-muted-foreground text-metadata">Total</Text></View>
-            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-amber-500 font-bold">{vendors.statistics.pending}</Text><Text className="text-muted-foreground text-metadata">Pending</Text></View>
-            <View className="flex-1 bg-card border border-border rounded-xl p-2"><Text className="text-red-500 font-bold">{vendors.statistics.suspended}</Text><Text className="text-muted-foreground text-metadata">Suspended</Text></View>
-          </View> : null}
           <ResponsiveSection>
             <VendorFilterBar filters={vendors.filters} categories={vendors.categories} onChange={vendors.updateFilters} onMore={() => setFiltersOpen(true)} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>

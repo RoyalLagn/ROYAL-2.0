@@ -35,9 +35,9 @@ Deno.serve(async (request) => {
     const allowedImages = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
     const allowedVideos = new Set(["video/mp4", "video/quicktime", "video/webm"]);
     const allowedTypes = kind === "video" ? allowedVideos : allowedImages;
-    // Originals may be larger than the public delivery limits because
-    // Cloudinary creates the permanent optimized derivatives below.
-    const maxBytes = kind === "video" ? 150 * 1024 * 1024 : 30 * 1024 * 1024;
+    // Images reach this signer only after the shared client preparation
+    // pipeline has produced the final upload file. Video behavior is unchanged.
+    const maxBytes = kind === "video" ? 150 * 1024 * 1024 : 5 * 1024 * 1024;
     if (!allowedTypes.has(String(mimeType).toLowerCase())) throw new Error("Unsupported portfolio file type");
     if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > maxBytes) throw new Error("Portfolio file size is not allowed");
     if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 15) throw new Error("Invalid upload batch");
@@ -58,12 +58,31 @@ Deno.serve(async (request) => {
     const currentCount = Math.max(album.media_count ?? 0, count ?? 0);
     if (currentCount + batchSize > 15) throw new Error("Album media limit reached");
 
+    // Reserve capacity before spending time/bandwidth on the Cloudinary
+    // upload, and before finalize_photo_upload (the only way to insert a
+    // vendor_portfolio_media row -- see the migration that drops the direct
+    // insert policy) so a slot always exists to finalize into. The vendor's
+    // plan quota only counts images (reserve_photo_upload_slot / the RPC's
+    // active_count query filter on resource_type = 'image'), so a video
+    // reservation is effectively always granted unless the vendor's image
+    // count alone is already at their limit -- a narrow edge case, not a
+    // separate video quota.
+    const idempotencyKey = `${albumId}:${crypto.randomUUID()}`;
+    const { data: reservation, error: reservationError } = await supabase.rpc("reserve_photo_upload_slot", {
+      target_vendor_id: vendorId,
+      request_idempotency_key: idempotencyKey,
+      upload_resource_type: kind,
+    });
+    if (reservationError) throw reservationError;
+    const reserved = Array.isArray(reservation) ? reservation[0] : reservation;
+    const reservationId: string | null = reserved?.reservation_id ?? null;
+
     const timestamp = Math.floor(Date.now() / 1000);
     const folder = `royallagn/vendors/${vendorId}/albums/${albumId}`;
     const assetId = crypto.randomUUID();
     const eager = kind === "video"
       ? "c_limit,w_1280,h_720,q_auto:good,vc_h264,ac_aac,f_mp4|so_0,c_fit,w_960,h_720,q_auto,f_jpg"
-      : "c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile|c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile|c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile|c_limit,w_2560,h_2560,q_auto:good,f_auto,fl_strip_profile";
+      : "c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile|c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile|c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile|c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile";
     const params = {
       eager,
       folder,
@@ -96,6 +115,7 @@ Deno.serve(async (request) => {
         folder,
         public_id: assetId,
         remainingCapacity: 15 - currentCount,
+        reservationId,
       }, { headers: cors });
     }
 
@@ -107,6 +127,7 @@ Deno.serve(async (request) => {
       cloudName,
       resourceType: kind,
       remainingCapacity: 15 - currentCount,
+      reservationId,
     }, { headers: cors });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Unable to sign upload" },

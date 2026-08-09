@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Check, CheckCircle2, ChevronLeft, ChevronRight, Crosshair, Eye, FolderOpen, ImagePlus, Images, MoreHorizontal, Move, Pencil, Play, Plus, RotateCcw, Sparkles, Star, Trash2, Upload, X } from "lucide-react-native";
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Crosshair, Eye, FolderOpen, ImagePlus, Images, LockKeyhole, MoreHorizontal, Move, Pencil, Play, Plus, RotateCcw, Sparkles, Star, Trash2, Upload, X } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -23,7 +23,7 @@ export default function VendorGallery() {
   const insets = useSafeAreaInsets();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
-  const { requireFeature } = useSubscriptionAccess();
+  const { access, requireFeature } = useSubscriptionAccess();
   const { data, loading, error, portfolioError, refresh } = useVendorWorkspace();
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
   const [albumModal, setAlbumModal] = useState(false);
@@ -35,7 +35,7 @@ export default function VendorGallery() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, {
     name: string;
     progress: number;
-    status: "waiting" | "signing" | "uploading" | "processing" | "completed" | "failed";
+    status: "waiting" | "optimizing" | "signing" | "uploading" | "processing" | "completed" | "failed";
     error?: string;
   }>>({});
   const [preview, setPreview] = useState<any>(null);
@@ -60,6 +60,7 @@ export default function VendorGallery() {
   const tileWidth = (contentWidth - gap * (columns - 1)) / columns;
   const activeAlbum = data.albums.find((album) => album.id === selectedAlbumId) ?? data.albums[0];
   const media = useMemo(() => data.media.filter((item) => item.album_id === activeAlbum?.id), [data.media, activeAlbum?.id]);
+  const lockedPhotoCount = useMemo(() => data.media.filter((item) => item.resource_type === "image" && item.subscription_locked).length, [data.media]);
   const previewMedia = useMemo(
     () => data.media.filter((item) => item.album_id === preview?.album_id).sort((a, b) => a.display_order - b.display_order),
     [data.media, preview?.album_id],
@@ -68,6 +69,7 @@ export default function VendorGallery() {
   const remainingCapacity = Math.max(0, PORTFOLIO_LIMITS.mediaPerAlbum - media.length);
   const readyHeroImages = useMemo(() => data.media.filter((item) =>
     item.resource_type === "image"
+    && !item.subscription_locked
     && item.upload_status === "completed"
     && (item.processing_status ?? "ready") === "ready"
     && data.albums.some((album) => album.id === item.album_id && album.is_visible),
@@ -79,7 +81,7 @@ export default function VendorGallery() {
   const heroPreviewIndex = readyHeroImages.findIndex((item) => item.id === heroPreview?.id);
   const heroPreviewOrder = heroPreview ? heroDraft.indexOf(heroPreview.id) : -1;
   const uploading = Object.values(uploadProgress).some((task) =>
-    task.status === "signing" || task.status === "uploading" || task.status === "processing");
+    task.status === "optimizing" || task.status === "signing" || task.status === "uploading" || task.status === "processing");
   const showFailure = (title: string, caught: unknown, message = "Please check your connection and try again.") => {
     if (__DEV__) console.error(title, caught);
     Alert.alert(title, message);
@@ -324,25 +326,45 @@ export default function VendorGallery() {
     const name = asset.fileName || `${asset.type === "video" ? "Video" : "Image"} ${index + 1}`;
     try {
         setUploadProgress((current) => ({ ...current, [key]: { name, progress: 0, status: "signing" } }));
-        const uploaded = await uploadPortfolioAsset(asset, data.vendor.id, uploadAlbumId,
-          (value) => setUploadProgress((current) => ({ ...current, [key]: { name, progress: value, status: "uploading" } })));
+        const uploaded = await uploadPortfolioAsset(
+          asset,
+          data.vendor.id,
+          uploadAlbumId,
+          (value) => setUploadProgress((current) => ({ ...current, [key]: { name, progress: value, status: "uploading" } })),
+          (stage) => setUploadProgress((current) => ({ ...current, [key]: {
+            name,
+            progress: current[key]?.progress ?? 0,
+            status: stage === "optimizing" ? "optimizing" : "signing",
+          } })),
+        );
         setUploadProgress((current) => ({ ...current, [key]: { name, progress: 1, status: "processing" } }));
-        const { error: insertError } = await supabase.from("vendor_portfolio_media").insert({
-          vendor_id: data.vendor.id, album_id: uploadAlbumId, secure_url: uploaded.secureUrl,
-          public_id: uploaded.publicId, resource_type: uploaded.resourceType, format: uploaded.format,
-          width: uploaded.width, height: uploaded.height, duration: uploaded.duration, bytes: uploaded.bytes,
-          original_size_bytes: uploaded.originalBytes, optimized_size_bytes: uploaded.optimizedBytes,
-          optimized_url: uploaded.optimizedUrl, hero_url: uploaded.heroUrl,
-          fullscreen_url: uploaded.fullscreenUrl, video_poster_url: uploaded.videoPosterUrl,
-          aspect_ratio: uploaded.width && uploaded.height ? uploaded.width / uploaded.height : null,
-          source_fingerprint: portfolioAssetFingerprint(asset),
-          thumbnail_url: uploaded.thumbnailUrl, display_order: uploadAlbumInitialCount + index,
-          is_cover: uploadAlbumInitialCount === 0 && index === 0,
-          upload_status: "completed", processing_status: "ready",
-        });
-        if (insertError) {
+        if (!uploaded.reservationId) {
           await deleteUnstoredPortfolioAsset(data.vendor.id, uploaded.publicId, uploaded.resourceType).catch(() => undefined);
-          throw insertError;
+          throw new Error("Unable to reserve upload capacity. Please try again.");
+        }
+        // finalize_photo_upload performs the same ownership/feature checks as
+        // the old direct insert, plus the atomic total-photo quota check
+        // reserve_photo_upload_slot already held a slot for above -- it is
+        // now the only way to create a vendor_portfolio_media row.
+        const { error: finalizeError } = await supabase.rpc("finalize_photo_upload", {
+          target_reservation_id: uploaded.reservationId,
+          media_row: {
+            vendor_id: data.vendor.id, album_id: uploadAlbumId, secure_url: uploaded.secureUrl,
+            public_id: uploaded.publicId, resource_type: uploaded.resourceType, format: uploaded.format,
+            width: uploaded.width, height: uploaded.height, duration: uploaded.duration, bytes: uploaded.bytes,
+            original_size_bytes: uploaded.originalBytes, optimized_size_bytes: uploaded.optimizedBytes,
+            optimized_url: uploaded.optimizedUrl, hero_url: uploaded.heroUrl,
+            fullscreen_url: uploaded.fullscreenUrl, video_poster_url: uploaded.videoPosterUrl,
+            aspect_ratio: uploaded.width && uploaded.height ? uploaded.width / uploaded.height : null,
+            source_fingerprint: portfolioAssetFingerprint(asset),
+            thumbnail_url: uploaded.thumbnailUrl, display_order: uploadAlbumInitialCount + index,
+            is_cover: uploadAlbumInitialCount === 0 && index === 0,
+            upload_status: "completed", processing_status: "ready",
+          },
+        });
+        if (finalizeError) {
+          await deleteUnstoredPortfolioAsset(data.vendor.id, uploaded.publicId, uploaded.resourceType).catch(() => undefined);
+          throw finalizeError;
         }
         setUploadProgress((current) => ({ ...current, [key]: { name, progress: 1, status: "completed" } }));
         return true;
@@ -692,6 +714,8 @@ export default function VendorGallery() {
         <Pressable onPress={() => openAlbum()} style={[styles.primary, { backgroundColor: colors.pink }]}><Plus size={18} color="#FFF" /><Text style={styles.primaryText}>Create album</Text></Pressable>
       </View> : null}
 
+      {lockedPhotoCount ? <View style={[styles.subscriptionNotice, { backgroundColor: colors.surfaceSoft }]}><LockKeyhole size={17} color={colors.warning} /><Text style={[styles.subscriptionNoticeText, { color: colors.text }]}>{lockedPhotoCount} photos are safely stored but hidden from customers because your {access?.plan_name || "current"} plan allows {access?.photo_limit ?? 0}. Upgrade to unlock more.</Text><Pressable onPress={() => router.push("/VendorSubscription")}><Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>View plans</Text></Pressable></View> : null}
+
       {activeAlbum && <View style={[styles.albumDetails, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
         <View style={styles.albumHeading}>
           <View style={styles.flex}><Text style={[styles.sectionTitle, styles.detailTitle, { color: colors.text }]}>{activeAlbum.title}</Text><Text style={[styles.subtitle, styles.detailSubtitle, { color: colors.muted }]}>{activeAlbum.description || "Add a short description to give this collection context."}</Text></View>
@@ -713,11 +737,12 @@ export default function VendorGallery() {
         {remainingCapacity === 0 && <View style={[styles.capacityNotice, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.capacityText, { color: colors.muted }]}>This album contains 15 media items. Create another album to continue uploading.</Text><Pressable onPress={() => openAlbum()}><Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>Create album</Text></Pressable></View>}
         <View style={[styles.mediaGrid, { gap }]}>
           {media.map((item) => <Pressable key={item.id} onPress={() => setPreview(item)} style={{ width: tileWidth }}>
-            <View style={[styles.tile, { height: tileWidth * 0.8 }]}>
+            <View style={[styles.tile, { height: tileWidth * 0.8 }, item.subscription_locked && styles.lockedTile]}>
               <ImageFadeIn source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
               {item.resource_type === "video" && <View style={styles.play}><Play size={18} fill="#FFF" color="#FFF" /></View>}
               {item.resource_type === "video" && item.duration ? <View style={styles.durationBadge}><Text style={styles.durationText}>{Math.floor(item.duration / 60)}:{String(Math.round(item.duration % 60)).padStart(2, "0")}</Text></View> : null}
               {item.is_cover && <View style={[styles.coverBadge, { backgroundColor: colors.pink }]}><Star size={10} color="#FFF" fill="#FFF" /><Text style={styles.coverText}>Cover</Text></View>}
+              {item.subscription_locked ? <View style={styles.lockedOverlay}><LockKeyhole size={18} color="#FFF" /><Text style={styles.lockedOverlayText}>Locked · Upgrade</Text></View> : null}
               <View style={styles.viewBadge}><Eye size={13} color="#FFF" /></View>
             </View>
           </Pressable>)}
@@ -784,7 +809,7 @@ export default function VendorGallery() {
                     {[asset.fileSize ? `${(asset.fileSize / 1024 / 1024).toFixed(1)} MB` : null, asset.type === "video" && asset.duration ? `${Math.round(asset.duration / 1000)} sec` : null].filter(Boolean).join(" · ")}
                   </Text>
                   <Text style={[styles.uploadStatus, { color: failed ? colors.warning : completed ? colors.pink : colors.muted }]}>
-                    {task?.status === "waiting" ? "Ready" : task?.status === "signing" ? "Securing upload…" : task?.status === "uploading" ? `${Math.round(task.progress * 100)}% uploaded` : task?.status === "processing" ? "Finalising…" : completed ? "Stored successfully" : "Upload failed. Tap retry."}
+                    {task?.status === "waiting" ? "Ready" : task?.status === "optimizing" ? "Optimizing image…" : task?.status === "signing" ? "Securing upload…" : task?.status === "uploading" ? `${Math.round(task.progress * 100)}% uploaded` : task?.status === "processing" ? "Finalising…" : completed ? "Stored successfully" : "Upload failed. Tap retry."}
                   </Text>
                   <View style={[styles.progress, { backgroundColor: colors.border }]}>
                     <View style={{ width: `${Math.round((task?.progress ?? 0) * 100)}%`, height: "100%", backgroundColor: failed ? colors.warning : colors.pink }} />
@@ -800,7 +825,7 @@ export default function VendorGallery() {
           </ScrollView>
           <View style={[styles.uploadFooter, { borderTopColor: colors.border }]}>
             <View style={styles.flex}>
-              <Text style={[styles.modalHint, { color: colors.muted, margin: 0 }]}>Final limits: images 8 MB, videos 25 MB and 4 minutes. Cloudinary optimizes every asset before it becomes public.</Text>
+              <Text style={[styles.modalHint, { color: colors.muted, margin: 0 }]}>Large images are optimized automatically. Videos keep the existing 25 MB final limit and 4-minute duration limit.</Text>
               {pendingAssets.length > 0 && <Text style={[styles.overallProgress, { color: colors.pink }]}>Overall {Math.round(Object.values(uploadProgress).reduce((sum, task) => sum + task.progress, 0) / pendingAssets.length * 100)}%</Text>}
             </View>
             <Pressable
@@ -1070,6 +1095,7 @@ const styles = StyleSheet.create({
   upload: { minHeight: 52, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 16 },
   uploadTask: { marginBottom: 8 }, uploadTaskLabel: { flexDirection: "row", gap: 8, marginBottom: 5 }, uploadName: { flex: 1, fontSize: typeScale.caption }, uploadPercent: { fontSize: typeScale.caption, fontWeight: "700" },
   progress: { height: 5, borderRadius: 4, overflow: "hidden" }, mediaGrid: { flexDirection: "row", flexWrap: "wrap" }, tile: { width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#050505" },
+  lockedTile: { opacity: 0.82 }, lockedOverlay: { position: "absolute", left: 7, right: 7, top: 7, minHeight: 32, borderRadius: 10, backgroundColor: "rgba(20,10,15,.76)", paddingHorizontal: 9, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }, lockedOverlayText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
   play: { position: "absolute", top: "50%", left: "50%", marginLeft: -19, marginTop: -19, width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(0,0,0,.55)", alignItems: "center", justifyContent: "center" },
   coverBadge: { position: "absolute", left: 7, bottom: 7, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 4, flexDirection: "row", alignItems: "center", gap: 3 }, coverText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
   durationBadge: { position: "absolute", right: 7, bottom: 7, paddingHorizontal: 6, paddingVertical: 4, backgroundColor: "rgba(0,0,0,.62)", borderRadius: 7 }, durationText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
@@ -1083,6 +1109,7 @@ const styles = StyleSheet.create({
   save: { minHeight: 48, borderRadius: 15, alignItems: "center", justifyContent: "center", marginTop: 4 },
   albumSaveActions: { flexDirection: "row", gap: 9 }, albumSaveSecondary: { flex: 1, borderWidth: 1 }, albumSavePrimary: { flex: 1.35, flexDirection: "row", gap: 7 },
   setupNotice: { borderWidth: 1, borderRadius: 16, padding: 13, marginBottom: 15 },
+  subscriptionNotice: { borderRadius: 16, padding: 13, marginBottom: 15, flexDirection: "row", alignItems: "center", gap: 10 }, subscriptionNoticeText: { flex: 1, fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "600" },
   setupTitle: { fontSize: typeScale.metadata, fontWeight: "700" }, setupBody: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 4 },
   connectButton: { alignSelf: "flex-start", minHeight: 36, paddingHorizontal: 13, borderRadius: 11, alignItems: "center", justifyContent: "center", marginTop: 10 },
   capacityNotice: { borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 13 },

@@ -19,6 +19,9 @@ import {
   clearRecoverySession,
   markRecoverySessionActive,
 } from "@/services/authRecoverySession";
+import { getCurrentMobileAccountRole } from "@/services/authNavigation";
+import { supabase } from "@/services/supabase";
+import { isAdminRole } from "@/services/adminAuth";
 
 // Keep this aligned with the hosted Supabase Auth email OTP setting.
 const OTP_LENGTH = 8;
@@ -67,6 +70,26 @@ export default function OtpVerificationScreen() {
       if (purpose === "recovery") markRecoverySessionActive();
       else clearRecoverySession();
       await verifyPublicEmailOtp(email, otp);
+      if (purpose === "recovery") {
+        const role = await getCurrentMobileAccountRole();
+        if (isAdminRole(role)) {
+          await supabase.auth.signOut({ scope: "local" });
+          clearRecoverySession();
+          throw new Error("Admin access is available through the RoyalLagn Admin Portal.");
+        }
+        if (role === "vendor") {
+          router.replace({
+            pathname: "/VendorCreatePassword",
+            params: { email, purpose: "recovery" },
+          });
+          return;
+        }
+        if (role !== "public_user") {
+          await supabase.auth.signOut({ scope: "local" });
+          clearRecoverySession();
+          throw new Error("This account type is not supported in the RoyalLagn mobile app.");
+        }
+      }
       router.replace({
         pathname: "/CreatePassword",
         params: { email, fullName, phone, preferredCityId, preferredAreaId, purpose },

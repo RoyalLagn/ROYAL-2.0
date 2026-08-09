@@ -98,10 +98,17 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
         accessibilityLabel={`Change location, currently ${location}`}
         accessibilityState={{ expanded: visible }}
         onPress={() => setVisible(true)}
+        hitSlop={compact ? 7 : 0}
         style={({ pressed, hovered }) => [
           styles.trigger,
           { backgroundColor: colors.surface, borderColor: colors.border },
-          compact && styles.triggerCompact,
+          compact && [
+            styles.triggerCompact,
+            {
+              backgroundColor: dark ? "#211820" : "#FFF7FA",
+              borderColor: dark ? "#4B3440" : "#F5C2D7",
+            },
+          ],
           filterChip && [styles.triggerFilter, { backgroundColor: colors.surface, borderColor: colors.border }],
           hovered && Platform.OS === "web" && { backgroundColor: dark ? "#2A2428" : "#FFF1F6" },
           pressed && styles.pressed,
@@ -198,7 +205,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   pressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
   trigger: { minWidth: 0, maxWidth: 190, flexShrink: 1, height: 36, borderWidth: 1, borderRadius: 14, paddingHorizontal: 8, paddingVertical: 0, flexDirection: "row", alignItems: "center", gap: 3 },
-  triggerCompact: { maxWidth: 150, height: 30, paddingHorizontal: 6, borderRadius: 11 },
+  triggerCompact: { maxWidth: 92, height: 30, paddingHorizontal: 7, borderRadius: 10, gap: 4 },
   triggerFilter: { minHeight: 42, borderWidth: 1, borderRadius: 14, paddingHorizontal: 12 },
   triggerText: { flexShrink: 1, minWidth: 0, fontSize: typeScale.metadata, lineHeight: typeLeading.caption, fontWeight: "700", includeFontPadding: false },
   triggerTextCompact: { fontSize: typeScale.caption, lineHeight: typeLeading.caption },

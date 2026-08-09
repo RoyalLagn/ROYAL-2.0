@@ -33,12 +33,12 @@ export default function VendorForgotPassword() {
 
   return (
     <AuthScreenLayout
-      backRoute="/VendorAuth"
+      backRoute="/Login"
       eyebrow="Vendor Portal"
       title="Password recovery"
       subtitle="We’ll send a verification code to your registered business email."
       footer={
-        <AuthLinkButton onPress={() => router.replace("/VendorAuth")} disabled={loading}>
+        <AuthLinkButton onPress={() => router.replace("/Login")} disabled={loading}>
           <Text className="text-muted-foreground text-body">
             Remembered it? <Text className="text-primary font-bold">Back to login</Text>
           </Text>

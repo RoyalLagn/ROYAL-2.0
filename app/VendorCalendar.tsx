@@ -6,20 +6,22 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
-import { supabase } from "@/services/supabase";
 import { updateVendorPublicProfile, type VendorBusinessHourEntry } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
+import {
+  listEffectiveVendorAvailability,
+  setVendorAvailabilityException,
+  type AvailabilityStatus,
+} from "@/services/vendorAvailability";
 
 const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const defaultHours = (): VendorBusinessHourEntry[] =>
   DAY_LABELS.map((_, day) => ({ day, opens: "09:00", closes: "18:00", closed: day === 0 }));
 
 const statuses = [
-  { id: "available", label: "Available", icon: CircleCheck },
   { id: "tentative", label: "Tentative", icon: Clock3 },
   { id: "blocked", label: "Blocked", icon: LockKeyhole },
 ] as const;
-type AvailabilityStatus = (typeof statuses)[number]["id"];
 const statusColors: Record<AvailabilityStatus, { background: string; text: string }> = {
   available: { background: "#16A34A", text: "#FFFFFF" },
   tentative: { background: "#F4B400", text: "#3C2A00" },
@@ -34,6 +36,7 @@ export default function VendorCalendar() {
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [selected, setSelected] = useState(() => iso(new Date()));
   const [savedStatuses, setSavedStatuses] = useState<Record<string, AvailabilityStatus>>({});
+  const [bookingBlockedDates, setBookingBlockedDates] = useState<Set<string>>(new Set());
   const [savingStatus, setSavingStatus] = useState<AvailabilityStatus | null>(null);
   const [hours, setHours] = useState<VendorBusinessHourEntry[]>(defaultHours());
   const [hoursSaving, setHoursSaving] = useState(false);
@@ -92,7 +95,7 @@ export default function VendorCalendar() {
     setSavedStatuses((current) => {
       const next = { ...current };
       data.availability.forEach((item) => {
-        if (item.date) next[item.date] = item.status;
+        if (item.date && item.status !== "available") next[item.date] = item.status;
       });
       return next;
     });
@@ -103,31 +106,32 @@ export default function VendorCalendar() {
     const firstDay = iso(month);
     const lastDay = iso(new Date(month.getFullYear(), month.getMonth() + 1, 0));
     let active = true;
-    supabase
-      .from("vendor_availability")
-      .select("date,status")
-      .eq("vendor_id", data.vendor.id)
-      .gte("date", firstDay)
-      .lte("date", lastDay)
-      .then(({ data: rows, error }) => {
+    listEffectiveVendorAvailability(data.vendor.id, firstDay, lastDay)
+      .then((rows) => {
         if (!active) return;
-        if (error) {
-          Alert.alert("Availability not loaded", error.message);
-          return;
-        }
         setSavedStatuses((current) => {
           const next = { ...current };
           Object.keys(next).forEach((date) => {
             if (date >= firstDay && date <= lastDay) delete next[date];
           });
-          rows?.forEach((row) => { next[row.date] = row.status as AvailabilityStatus; });
+          rows.filter((row) => row.isException).forEach((row) => { next[row.date] = row.status; });
           return next;
         });
-      });
+        setBookingBlockedDates((current) => {
+          const next = new Set([...current].filter((date) => date < firstDay || date > lastDay));
+          rows.filter((row) => row.bookingBlocked).forEach((row) => next.add(row.date));
+          return next;
+        });
+      })
+      .catch((error) => { if (active) Alert.alert("Availability not loaded", error.message); });
     return () => { active = false; };
   }, [data.vendor?.id, month]);
 
-  const dateStatus = (date: string) => savedStatuses[date];
+  const dateStatus = (date: string): AvailabilityStatus | undefined => {
+    if (date < today) return undefined;
+    if (bookingBlockedDates.has(date)) return "blocked";
+    return savedStatuses[date] ?? "available";
+  };
   const update = async (status: AvailabilityStatus) => {
     if (selected < today) {
       return Alert.alert("Past date is locked", "Availability records for past dates are read-only and cannot be changed.");
@@ -135,14 +139,19 @@ export default function VendorCalendar() {
     if (!data.vendor?.id) return Alert.alert("Vendor profile required", "Connect a vendor profile before changing availability.");
     if (savingStatus) return;
     const previousStatus = savedStatuses[selected];
-    setSavedStatuses((current) => ({ ...current, [selected]: status }));
+    setSavedStatuses((current) => {
+      const next = { ...current };
+      if (status === "available") delete next[selected];
+      else next[selected] = status;
+      return next;
+    });
     setSavingStatus(status);
-    const { error } = await supabase
-      .from("vendor_availability")
-      .upsert(
-        { vendor_id: data.vendor.id, date: selected, status },
-        { onConflict: "vendor_id,date" },
-      );
+    let error: unknown = null;
+    try {
+      await setVendorAvailabilityException(data.vendor.id, selected, status);
+    } catch (caught) {
+      error = caught;
+    }
     setSavingStatus(null);
     if (error) {
       setSavedStatuses((current) => {
@@ -151,11 +160,18 @@ export default function VendorCalendar() {
         else delete next[selected];
         return next;
       });
-      Alert.alert("Availability not saved", error.message);
+      Alert.alert("Availability not saved", error instanceof Error ? error.message : "Please try again.");
       return;
     }
     void refresh();
-    Alert.alert("Availability saved", `${selected} is now ${status}.`);
+    Alert.alert(
+      "Availability saved",
+      status === "available"
+        ? bookingBlockedDates.has(selected)
+          ? `${selected} still has a confirmed booking and remains blocked.`
+          : `${selected} is available by default.`
+        : `${selected} is now ${status}.`,
+    );
   };
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
@@ -208,7 +224,7 @@ export default function VendorCalendar() {
       </View>
       <View style={[styles.editor, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
         <Text style={[styles.editorTitle, { color: colors.text }]}>{new Date(`${selected}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</Text>
-        <Text style={[styles.subtitle, { color: colors.muted }]}>Choose how this date appears in your vendor schedule.</Text>
+        <Text style={[styles.subtitle, { color: colors.muted }]}>Future dates are available automatically. Add an exception only when needed.</Text>
         <View style={styles.statusGrid}>{statuses.map(({ id, label, icon: Icon }) => {
           const active = dateStatus(selected) === id;
           const palette = statusColors[id];
@@ -219,6 +235,18 @@ export default function VendorCalendar() {
             <Text style={{ color: active ? palette.text : colors.text, fontSize: typeScale.metadata, fontWeight: "700" }}>{label}</Text>
           </Pressable>;
         })}</View>
+        {selected >= today && savedStatuses[selected] ? (
+          <Pressable
+            disabled={savingStatus !== null}
+            onPress={() => update("available")}
+            style={[styles.markAvailable, { borderColor: statusColors.available.background }]}
+          >
+            {savingStatus === "available"
+              ? <ActivityIndicator size="small" color={statusColors.available.background} />
+              : <CircleCheck size={18} color={statusColors.available.background} />}
+            <Text style={[styles.markAvailableText, { color: statusColors.available.background }]}>Mark Available</Text>
+          </Pressable>
+        ) : null}
         {selected < today ? <View style={[styles.lockNotice, { backgroundColor: colors.surfaceSoft }]}>
           <LockKeyhole size={16} color={colors.muted} />
           <Text style={[styles.lockText, { color: colors.muted }]}>Past availability is read-only and cannot be changed.</Text>
@@ -284,6 +312,8 @@ const styles = StyleSheet.create({
   legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13, paddingTop: 16 }, legendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, legendSwatch: { width: 10, height: 10, borderRadius: 3 }, legendText: { fontSize: typeScale.caption, fontWeight: "700" },
   editor: { borderRadius: 22, padding: 16, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .07, shadowRadius: 18, elevation: 2 }, editorTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
   statusGrid: { flexDirection: "row", gap: 8, marginTop: 16 }, status: { flex: 1, minHeight: 68, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 }, statusDisabled: { opacity: .45 }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
+  markAvailable: { minHeight: 46, borderWidth: 1, borderRadius: 14, marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  markAvailableText: { fontSize: typeScale.metadata, fontWeight: "700" },
   hoursList: { marginTop: 14, gap: 4 },
   hourRow: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
   hourDay: { width: 84, fontSize: typeScale.metadata, fontWeight: "700" },

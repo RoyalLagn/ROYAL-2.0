@@ -468,6 +468,7 @@ export default function VendorsProfile() {
       />
       <VendorAvailabilityModal
         visible={calendarVisible}
+        vendorId={vendor.id}
         vendorName={vendor.name}
         availability={vendor.availability}
         dark={dark}

@@ -2,6 +2,7 @@ import { supabase } from "@/services/supabase";
 import type {
   PublicSubscriptionSetting,
   SubscriptionAccess,
+  SubscriptionCheckoutPreview,
   SubscriptionFeatureKey,
   SubscriptionOffer,
   SubscriptionPayment,
@@ -15,10 +16,14 @@ let schemaState: "unknown" | "available" | "missing" = "unknown";
 const PLAN_SELECT = `
   id,name,slug,description,price,discounted_price,currency,billing_interval,
   billing_interval_count,duration_days,trial_enabled,trial_days,grace_period_days,
-  is_active,is_featured,display_order,
+  is_active,is_featured,display_order,status,is_permanent,
   subscription_plan_features(
     is_enabled,limit_value,
     subscription_feature_definitions(feature_key,name,description)
+  ),
+  subscription_plan_billing_options(
+    id,plan_id,billing_interval,interval_count,price,discounted_price,discount_percentage,currency,
+    trial_enabled,trial_days,grace_period_days,is_active,display_order
   )
 `;
 
@@ -27,6 +32,8 @@ function mapPlan(row: any): SubscriptionPlan {
     ...row,
     price: Number(row.price),
     discounted_price: row.discounted_price == null ? null : Number(row.discounted_price),
+    status: row.status ?? (row.is_active ? "active" : "hidden"),
+    is_permanent: Boolean(row.is_permanent),
     features: (row.subscription_plan_features ?? []).map((entry: any): SubscriptionPlanFeature => ({
       feature_key: entry.subscription_feature_definitions.feature_key,
       name: entry.subscription_feature_definitions.name,
@@ -34,17 +41,64 @@ function mapPlan(row: any): SubscriptionPlan {
       is_enabled: Boolean(entry.is_enabled),
       limit_value: entry.limit_value,
     })),
+    billing_options: (row.subscription_plan_billing_options ?? [])
+      .filter((option: any) => option.is_active)
+      .map((option: any) => ({
+        ...option,
+        price: Number(option.price),
+        discounted_price: option.discounted_price == null ? null : Number(option.discounted_price),
+        discount_percentage: Number(option.discount_percentage ?? 0),
+      }))
+      .sort((a: any, b: any) => a.display_order - b.display_order || a.billing_interval.localeCompare(b.billing_interval)),
   };
 }
 
 export class SubscriptionAccessService {
+  static async previewCheckout(
+    planId: string,
+    billingOptionId: string | null,
+    offerId: string | null,
+  ): Promise<SubscriptionCheckoutPreview> {
+    const { data, error } = await supabase.rpc("create_my_subscription_quote", {
+      target_plan_id: planId,
+      target_billing_option_id: billingOptionId,
+      target_offer_id: offerId,
+    });
+    if (error) throw error;
+    const row = data as Record<string, unknown> | null;
+    if (!row) throw new Error("Unable to calculate subscription pricing");
+    const number = (key: string) => Number(row[key] ?? 0);
+    return {
+      ...(row as unknown as SubscriptionCheckoutPreview),
+      base_amount: number("base_amount"),
+      interval_discount_percentage: number("interval_discount_percentage"),
+      interval_discount_amount: number("interval_discount_amount"),
+      promotional_discount_percentage: number("promotional_discount_percentage"),
+      promotional_discount_amount: number("promotional_discount_amount"),
+      current_plan_credit: number("current_plan_credit"),
+      proration_ratio: number("proration_ratio"),
+      full_cycle_payable: number("full_cycle_payable"),
+      original_amount: number("original_amount"),
+      discount_amount: number("discount_amount"),
+      total_savings: number("total_savings"),
+      payable_amount: number("payable_amount"),
+      amount_minor: number("amount_minor"),
+      is_prorated_upgrade: row.is_prorated_upgrade === true,
+    };
+  }
+
   static async getCurrentAccess(): Promise<SubscriptionAccess | null> {
     // Guard against calling the RPC without a session: it's revoked from
     // `anon` and always 401s for a signed-out/not-yet-restored caller. Avoid
     // the round trip entirely rather than surface a spurious auth error.
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
-    const { data, error } = await supabase.rpc("get_my_subscription_access");
+    const { data: mediaUsage, error: refreshError } = await supabase.rpc("refresh_my_subscription_access");
+    if (refreshError && !/does not exist|schema cache|PGRST202/i.test(refreshError.message)) throw refreshError;
+    const [{ data, error }, { data: entitlementData, error: entitlementError }] = await Promise.all([
+      supabase.rpc("get_my_subscription_access"),
+      supabase.rpc("get_my_subscription_entitlements"),
+    ]);
     if (error) {
       if (/does not exist|schema cache|PGRST202/i.test(error.message)) return null;
       // A 401/expired-JWT here means the session lapsed between the check
@@ -55,14 +109,26 @@ export class SubscriptionAccessService {
       }
       throw error;
     }
-    return (Array.isArray(data) ? data[0] : data) as SubscriptionAccess | null;
+    if (entitlementError && !/does not exist|schema cache|PGRST202/i.test(entitlementError.message)) {
+      throw entitlementError;
+    }
+    const access = (Array.isArray(data) ? data[0] : data) as Omit<SubscriptionAccess, "features" | "renewal_date"> | null;
+    return access ? {
+      ...access,
+      renewal_date: access.expiry_date,
+      clip_active: Number((mediaUsage as any)?.clip_active ?? access.clip_usage ?? 0),
+      clip_locked: Number((mediaUsage as any)?.clip_locked ?? 0),
+      photo_active: Number((mediaUsage as any)?.photo_active ?? access.photo_usage ?? 0),
+      photo_locked: Number((mediaUsage as any)?.photo_locked ?? 0),
+      features: (entitlementData ?? {}) as SubscriptionAccess["features"],
+    } : null;
   }
 
   static async listPlans(): Promise<SubscriptionPlan[]> {
     const { data, error } = await supabase
       .from("subscription_plans")
       .select(PLAN_SELECT)
-      .eq("is_active", true)
+      .in("status", ["active", "coming_soon"])
       .is("archived_at", null)
       .order("display_order")
       .order("created_at");
@@ -84,7 +150,7 @@ export class SubscriptionAccessService {
   static async listOffers(): Promise<SubscriptionOffer[]> {
     const { data, error } = await supabase
       .from("subscription_offers")
-      .select("id,name,code,description,discount_type,discount_value,start_date,end_date,applicable_plan_ids,is_global")
+      .select("id,name,code,description,discount_type,discount_value,start_date,end_date,applicable_plan_ids,applicable_billing_intervals,is_global")
       .eq("is_active", true)
       .is("archived_at", null)
       .order("created_at", { ascending: false });
@@ -104,7 +170,7 @@ export class SubscriptionAccessService {
   static async listPayments(vendorId: string): Promise<SubscriptionPayment[]> {
     const { data, error } = await supabase
       .from("subscription_payments")
-      .select("id,plan_id,amount,original_amount,discount_amount,currency,payment_status,payment_method,razorpay_order_id,razorpay_payment_id,failure_reason,period_start,period_end,paid_at,created_at,subscription_plans(name)")
+      .select("id,plan_id,amount,original_amount,discount_amount,currency,payment_status,payment_method,razorpay_order_id,razorpay_payment_id,failure_reason,period_start,period_end,paid_at,created_at,metadata,subscription_plans(name)")
       .eq("vendor_id", vendorId)
       .order("created_at", { ascending: false });
     if (error) throw error;
@@ -118,8 +184,25 @@ export class SubscriptionAccessService {
 
   static hasFeature(access: SubscriptionAccess | null, plans: SubscriptionPlan[], feature: SubscriptionFeatureKey) {
     if (!access?.has_access || !access.plan_id) return false;
+    if (access.features?.[feature]) return access.features[feature]?.enabled === true;
     const plan = plans.find((candidate) => candidate.id === access.plan_id);
     return Boolean(plan?.features.find((candidate) => candidate.feature_key === feature)?.is_enabled);
+  }
+
+  static canUploadClip(access: SubscriptionAccess | null) {
+    return Boolean(access?.has_access && access.features?.upload_clips?.enabled && (access.clip_remaining ?? 0) > 0);
+  }
+
+  static canUploadPhoto(access: SubscriptionAccess | null) {
+    return Boolean(access?.has_access && access.features?.upload_gallery?.enabled && (access.photo_remaining ?? 0) > 0);
+  }
+
+  static canUseAnalytics(access: SubscriptionAccess | null) {
+    return Boolean(access?.has_access && access.features?.view_analytics?.enabled);
+  }
+
+  static canReceiveEnquiries(access: SubscriptionAccess | null) {
+    return Boolean(access?.has_access && access.features?.receive_enquiries?.enabled);
   }
 
   static async requireFeature(vendorId: string, feature: SubscriptionFeatureKey) {

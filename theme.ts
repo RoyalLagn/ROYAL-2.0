@@ -158,3 +158,79 @@ export const darkTheme = vars({
 "--sidebar-border": "35 44 61",
 "--sidebar-ring": "82 82 82", // oklch(0.439 0 0)
 });
+
+// Admin workspaces intentionally use a calmer SaaS palette than the
+// media-forward customer and vendor surfaces. These values remap the existing
+// semantic tokens inside AdminWorkspaceShell; they do not create a parallel
+// component theme or change the RoyalLagn brand action color.
+export const adminLightTheme = vars({
+"--background": "248 249 251", // Neutral workspace #F8F9FB
+"--foreground": "24 27 35", // Charcoal #181B23
+"--card": "255 255 255",
+"--card-foreground": "24 27 35",
+"--popover": "255 255 255",
+"--popover-foreground": "24 27 35",
+"--primary": "233 30 99",
+"--primary-foreground": "255 255 255",
+"--secondary": "244 246 248",
+"--secondary-foreground": "45 50 60",
+"--muted": "244 246 248",
+"--muted-foreground": "103 110 124",
+"--accent": "253 242 248",
+"--accent-foreground": "190 24 93",
+"--destructive": "220 38 38",
+"--border": "226 229 234",
+"--input": "226 229 234",
+"--ring": "233 30 99",
+"--chart-1": "233 30 99",
+"--chart-2": "37 99 235",
+"--chart-3": "22 163 74",
+"--chart-4": "217 119 6",
+"--chart-5": "124 58 237",
+});
+
+export const adminDarkTheme = vars({
+"--background": "7 11 20",
+"--foreground": "245 245 245",
+"--card": "14 20 31",
+"--card-foreground": "245 245 245",
+"--popover": "17 24 39",
+"--popover-foreground": "245 245 245",
+"--primary": "236 72 153",
+"--primary-foreground": "255 255 255",
+"--secondary": "22 30 46",
+"--secondary-foreground": "229 231 235",
+"--muted": "16 23 36",
+"--muted-foreground": "160 160 165",
+"--accent": "37 22 32",
+"--accent-foreground": "251 207 232",
+"--destructive": "248 113 113",
+"--border": "35 44 61",
+"--input": "35 44 61",
+"--ring": "236 72 153",
+"--chart-1": "236 72 153",
+"--chart-2": "96 165 250",
+"--chart-3": "74 222 128",
+"--chart-4": "251 191 36",
+"--chart-5": "167 139 250",
+});
+
+export const adminPalette = {
+  canvas: "#F8F9FB",
+  surface: "#FFFFFF",
+  surfaceSubtle: "#F4F6F8",
+  border: "#E2E5EA",
+  text: "#181B23",
+  textSecondary: "#676E7C",
+  textMuted: "#6F7785",
+  brand: "#E91E63",
+  brandSubtle: "#FDF2F8",
+  success: "#168A5B",
+  successSubtle: "#ECFDF5",
+  warning: "#B76A00",
+  warningSubtle: "#FFF7E6",
+  error: "#DC2626",
+  errorSubtle: "#FEF2F2",
+  info: "#2563EB",
+  infoSubtle: "#EFF6FF",
+} as const;

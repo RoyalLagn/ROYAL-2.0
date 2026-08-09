@@ -12,6 +12,7 @@ import {
   validatePhone,
 } from "@/utils/authValidation";
 import { clearRecoverySession } from "@/services/authRecoverySession";
+import { requireVendorRegistrationEnabled } from "@/services/vendorRegistration";
 
 export type VendorSignupDetails = {
   email: string;
@@ -40,7 +41,7 @@ export type VendorResolutionState =
   | "approved_verified";
 
 export type VendorDestination =
-  | { pathname: "/VendorAuth" }
+  | { pathname: "/Login" }
   | { pathname: "/BecomeVendor" }
   | { pathname: "/VendorAuthStatus"; params: { status: "pending" | "rejected"; reason?: string } }
   | { pathname: "/vendor-dashboard" };
@@ -164,12 +165,12 @@ async function fetchVendorRecord(userId: string): Promise<VendorRecord | null> {
  */
 export async function resolveVendorDestination(user: User | null): Promise<VendorResolution> {
   if (!user) {
-    return { state: "unauthenticated", destination: { pathname: "/VendorAuth" }, application: null, vendor: null };
+    return { state: "unauthenticated", destination: { pathname: "/Login" }, application: null, vendor: null };
   }
 
   const profile = await fetchVendorProfile(user.id);
   if (!profile || profile.role !== "vendor" || !profile.is_active) {
-    return { state: "not_vendor", destination: { pathname: "/VendorAuth" }, application: null, vendor: null };
+    return { state: "not_vendor", destination: { pathname: "/Login" }, application: null, vendor: null };
   }
 
   const email = normalizeEmail(user.email || "");
@@ -258,6 +259,7 @@ export async function sendVendorSignupOtp(details: VendorSignupDetails) {
   ) {
     throw new Error("Enter a valid owner name, phone number, and business email.");
   }
+  await requireVendorRegistrationEnabled();
   const email = normalizeEmail(details.email);
   const { error } = await supabase.auth.signInWithOtp({
     email,
@@ -285,7 +287,8 @@ export async function sendVendorRecoveryOtp(email: string) {
   return normalized;
 }
 
-export async function verifyVendorOtp(email: string, token: string) {
+export async function verifyVendorOtp(email: string, token: string, purpose: VendorOtpPurpose = "signup") {
+  if (purpose === "signup") await requireVendorRegistrationEnabled();
   const { data, error } = await supabase.auth.verifyOtp({
     email: normalizeEmail(email),
     token,
@@ -304,6 +307,8 @@ export async function completeVendorSignup(details: VendorSignupDetails, passwor
     || !validateEmail(details.email)
     || !validatePassword(password)
   ) throw new Error("Your Vendor registration details are incomplete or invalid.");
+
+  await requireVendorRegistrationEnabled();
 
   const { data: current, error: currentError } = await supabase.auth.getUser();
   if (currentError || !current.user) throw currentError ?? new Error("Your verification session expired.");

@@ -6,6 +6,15 @@ export type RazorpayOrder = {
   keyId?: string;
   planName: string;
   freeActivation?: boolean;
+  pricing?: {
+    originalAmount: number;
+    intervalDiscountPercentage: number;
+    intervalDiscountAmount: number;
+    promotionalDiscountPercentage: number;
+    promotionalDiscountAmount: number;
+    totalSavings: number;
+    payableAmount: number;
+  };
 };
 
 export type RazorpayCheckoutResult = {
@@ -19,4 +28,3 @@ export type RazorpayCheckoutOptions = RazorpayOrder & {
   email?: string;
   phone?: string;
 };
-

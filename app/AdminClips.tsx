@@ -6,6 +6,7 @@ import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
+import ClipAnalyticsSection from "@/components/admin/clips/ClipAnalyticsSection";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { AdminOperationsService, type AdminClip, type AdminClipStatus } from "@/services/adminOperations";
 
@@ -64,7 +65,9 @@ export default function AdminClips() {
   return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}>
       <ResponsiveContainer>
-        <AdminPageHeader title="Clip Moderation" subtitle="Review and manage vendor clips" action={<Pressable accessibilityLabel="Refresh clips" onPress={() => void load(true)} className="min-w-11 min-h-11 items-center justify-center"><RefreshCw size={19} className="text-primary" /></Pressable>} />
+        <AdminPageHeader title="Clips" subtitle="Understand performance and moderate vendor content" action={<Pressable accessibilityLabel="Refresh clips" onPress={() => void load(true)} className="min-w-11 min-h-11 items-center justify-center"><RefreshCw size={19} className="text-primary" /></Pressable>} />
+        <ClipAnalyticsSection />
+        <View className="mb-4"><Text className="text-foreground text-xl font-bold">Clip Moderation</Text><Text className="text-muted-foreground text-sm mt-1">Review and manage vendor clips.</Text></View>
         <View className="bg-card border border-border rounded-2xl px-4 h-12 flex-row items-center"><Search size={18} className="text-muted-foreground" /><TextInput value={query} onChangeText={(value) => { setQuery(value); setPage(1); }} placeholder="Search clip, vendor or category" placeholderTextColor="#8A8589" className="flex-1 h-12 ml-3 text-foreground" /></View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 12 }}>
           {statuses.map((value) => <Pressable key={value} onPress={() => { setStatus(value); setPage(1); }} className={status === value ? "px-4 py-2 rounded-xl bg-primary" : "px-4 py-2 rounded-xl bg-card border border-border"}><Text className={status === value ? "text-white text-xs font-semibold capitalize" : "text-foreground text-xs font-semibold capitalize"}>{value}</Text></Pressable>)}

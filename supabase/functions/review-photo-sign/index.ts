@@ -46,8 +46,8 @@ Deno.serve(async (request) => {
     if (!allowed.has(String(mimeType).toLowerCase())) {
       throw new Error("Unsupported review photo type");
     }
-    if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > 8 * 1024 * 1024) {
-      throw new Error("Review photo must be under 8 MB");
+    if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > 5 * 1024 * 1024) {
+      throw new Error("Review photo optimization did not produce a valid upload file");
     }
 
     const timestamp = Math.floor(Date.now() / 1000);

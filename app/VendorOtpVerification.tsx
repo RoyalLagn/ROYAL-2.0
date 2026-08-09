@@ -53,7 +53,7 @@ export default function VendorOtpVerification() {
     try {
       if (purpose === "recovery") markRecoverySessionActive();
       else clearRecoverySession();
-      await verifyVendorOtp(email, otp);
+      await verifyVendorOtp(email, otp, purpose);
       router.replace({ pathname: "/VendorCreatePassword", params: { email, ownerName, phone, purpose } });
     } catch (caught) {
       if (purpose === "recovery") clearRecoverySession();

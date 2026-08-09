@@ -4,7 +4,7 @@
 
 ## Platform
 
-web
+adaptive
 
 ## Users
 
@@ -34,7 +34,7 @@ A reviewed/approved-only wedding vendor marketplace (not an open directory) that
 
 - Category browsing, location-based discovery, vendor listing/search, vendor profile pages (about, gallery, portfolio, clips, reviews), favorites, ratings/reviews, enquiries, notifications inbox.
 - Vendor-side: profile editing (business info, brand, contact, location, about, tags), gallery/album management, clips upload/edit, services/packages, subscription/billing, calendar, enquiries management, shareable marketing card/center, application status tracking.
-- Admin-side: vendor moderation, content management (categories/locations/hero banners/clips), user and review moderation, payments/subscriptions oversight, push notification composer, reports/analytics, CRM.
+- Admin-side: vendor moderation, content management (categories/locations/hero banners/clips), user and review moderation, payments/subscriptions oversight, push notification composer, reports/analytics, CRM, and clip performance analytics (views/watch-time trends by day or month, filterable by vendor/clip/category/city/area, with period-over-period comparison) surfaced on the admin dashboard.
 - Tech stack: Expo SDK 54, React Native 0.81, React 19, Expo Router v6, NativeWind v4 (Tailwind) for styling, Supabase (Postgres/Auth/Realtime/Edge Functions), Cloudinary for media, Razorpay for vendor payments.
 - `--legacy-peer-deps` required for installs; `jsxImportSource: 'nativewind'` in babel config (not the older nativewind/babel plugin); no `blockList` in metro.config for nested node_modules.
 - No formal test framework (Jest/Vitest) — ad-hoc Node smoke scripts (`npm run test:smoke`, `lint`) are the verification surface.

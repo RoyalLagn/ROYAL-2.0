@@ -12,7 +12,7 @@ export default function PasswordUpdatedScreen() {
   const params = useLocalSearchParams<{ audience?: string }>();
   const audience = Array.isArray(params.audience) ? params.audience[0] : params.audience;
   const loginRoute = audience === "vendor"
-    ? "/VendorAuth" as const
+    ? "/Login" as const
     : audience === "admin"
       ? "/AdminLogin" as const
       : "/Login" as const;

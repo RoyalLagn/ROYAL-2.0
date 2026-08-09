@@ -23,7 +23,7 @@ Deno.serve(async (request) => {
     const admin = serviceClient();
     const { data: payment, error: paymentError } = await admin
       .from("subscription_payments")
-      .select("id,vendor_id,amount_minor,currency,payment_status,razorpay_payment_id")
+      .select("id,vendor_id,amount_minor,currency,payment_status,razorpay_payment_id,metadata")
       .eq("razorpay_order_id", orderId)
       .eq("vendor_id", vendor.id)
       .maybeSingle();
@@ -70,10 +70,16 @@ Deno.serve(async (request) => {
       verification_metadata: { verified_via: "checkout_callback" },
     });
     if (activationError) throw activationError;
+    const quoteId = payment.metadata?.quote_id;
+    if (quoteId) {
+      await admin.from("subscription_checkout_quotes").update({
+        used_at: new Date().toISOString(),
+        payment_id: payment.id,
+      }).eq("id", quoteId).eq("vendor_id", vendor.id).is("used_at", null);
+    }
     return json({ success: true, subscriptionActive: true, subscriptionId });
   } catch (error) {
     console.error("[verify-razorpay-payment]", error);
     return json({ error: error instanceof Error ? error.message : "Unable to verify payment" }, 400);
   }
 });
-

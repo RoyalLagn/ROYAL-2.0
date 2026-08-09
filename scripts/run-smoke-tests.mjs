@@ -8,6 +8,7 @@ const CHECKS = [
   { name: "subscriptions", script: "scripts/test-subscription-domain.mjs", strip: true },
   { name: "packages", script: "scripts/test-package-domain.mjs", strip: true },
   { name: "contacts", script: "scripts/test-contact-actions.mjs", strip: true },
+  { name: "external-links", script: "scripts/test-external-link-normalization.mjs", strip: true },
   { name: "locations", script: "scripts/test-location-domain.mjs", strip: true },
   { name: "auth-validation", script: "scripts/test-auth-validation.mjs", strip: true },
   { name: "marketing-card-pdf", script: "scripts/test-marketing-card-pdf.mjs", strip: true },
