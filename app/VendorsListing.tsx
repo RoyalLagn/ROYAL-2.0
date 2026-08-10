@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, type ListRenderItemInfo, Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { RefreshCw, SearchX } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,13 +19,31 @@ import { useFavorites } from "@/context/FavoritesContext";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import {
-  getApprovedPublicVendors, normalizeMarketplaceCategoryName, subscribeToPublicVendorChanges, type PublicVendorListing, } from "@/services/publicVendorListings";
+  databaseCategoryCandidates, getApprovedPublicVendors, normalizeMarketplaceCategoryName, subscribeToPublicVendorChanges, type PublicVendorListing, } from "@/services/publicVendorListings";
 import {
   findMarketplaceCategory, resolveMarketplaceCategoryImage, } from "@/data/marketplaceCategories";
 import { rankVendorsByLocationAndMembership } from "@/services/locations";
 import { SkeletonList } from "@/components/loading/Skeleton";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
+import { TalukaLocationSelector } from "@/components/locations/TalukaLocationSelector";
+import {
+  fetchTalukaVendorPageCards,
+  listActiveGeoStates,
+  loadGuestGeoPreference,
+  saveGuestGeoPreference,
+  clearGuestGeoPreference,
+  validateGeoSelection,
+  type TalukaPageCursor,
+  type TieredVendorCard,
+} from "@/services/geoLocations";
+import type { GeoSelection, GeoState } from "@/locations/types";
+
+const TALUKA_PAGE_SIZE = 20;
+
+type ListRow =
+  | { kind: "vendor"; vendor: PublicVendorListing }
+  | { kind: "separator"; key: string; label: string };
 
 function getPriceOptions(category: string) {
   if (category === "Caterers") {
@@ -101,6 +119,120 @@ export default function VendorsListingScreen() {
   const [vendorsLoading, setVendorsLoading] = useState(true);
   const [vendorsError, setVendorsError] = useState("");
 
+  // District/Taluka discovery (State -> District -> Taluka hierarchy).
+  // Independent of and additive to the legacy city/area preference above --
+  // when no Taluka is selected the screen behaves exactly as it did before.
+  const [geoStates, setGeoStates] = useState<GeoState[]>([]);
+  const [geoSelection, setGeoSelection] = useState<GeoSelection | null>(null);
+  const [geoLabel, setGeoLabel] = useState<{ district: string; taluka: string } | null>(null);
+  // Gates the legacy full-marketplace fetch below until the persisted geo
+  // preference has been read (and validated) once, so a restored Taluka
+  // selection never triggers a full unpaginated marketplace download it
+  // won't even use (P2-1).
+  const [geoPreferenceChecked, setGeoPreferenceChecked] = useState(false);
+  const [tieredCards, setTieredCards] = useState<TieredVendorCard[]>([]);
+  const [tieredCursor, setTieredCursor] = useState<TalukaPageCursor | null>(null);
+  const [tieredOffset, setTieredOffset] = useState(0);
+  const [tieredHasMore, setTieredHasMore] = useState(true);
+  const [tieredLoading, setTieredLoading] = useState(false);
+  const [tieredError, setTieredError] = useState("");
+  const tieredRequestSequence = useRef(0);
+  const talukaSelected = Boolean(geoSelection?.talukaId);
+
+  useEffect(() => {
+    let active = true;
+    listActiveGeoStates()
+      .then((states) => { if (active) setGeoStates(states); })
+      .catch(() => {});
+    loadGuestGeoPreference()
+      .then(async (stored) => {
+        if (!stored) return;
+        // P1-4: never trust a persisted selection blindly -- re-validate it
+        // against the *current* active hierarchy (it may have since been
+        // deactivated/deleted, or belong to a State that no longer exists).
+        const validated = await validateGeoSelection(stored).catch(() => null);
+        if (!active) return;
+        if (validated) {
+          setGeoSelection({ stateId: validated.stateId, districtId: validated.districtId, talukaId: validated.talukaId });
+          setGeoLabel({ district: validated.districtName, taluka: validated.talukaName });
+        } else {
+          void clearGuestGeoPreference();
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (active) setGeoPreferenceChecked(true); });
+    return () => { active = false; };
+  }, []);
+
+  const fetchTieredPage = useCallback((reset: boolean) => {
+    if (!geoSelection?.talukaId) return;
+    const requestSequence = ++tieredRequestSequence.current;
+    setTieredLoading(true);
+    setTieredError("");
+    fetchTalukaVendorPageCards({
+      categoryNames: databaseCategoryCandidates(displayCategory),
+      talukaId: geoSelection.talukaId,
+      search: query,
+      minRating: filters.minimumRating > 0 ? filters.minimumRating : undefined,
+      maxPrice: filters.maximumPrice > 0 ? filters.maximumPrice : undefined,
+      sort: filters.sort,
+      limit: TALUKA_PAGE_SIZE,
+      offset: reset ? 0 : tieredOffset,
+      after: reset ? null : tieredCursor,
+    })
+      .then((result) => {
+        if (requestSequence !== tieredRequestSequence.current) return;
+        setTieredCards((previous) => (reset ? result.cards : [...previous, ...result.cards]));
+        setTieredHasMore(result.cards.length === TALUKA_PAGE_SIZE);
+        setTieredOffset(result.nextOffset);
+        setTieredCursor(result.nextCursor);
+      })
+      .catch(() => {
+        if (requestSequence === tieredRequestSequence.current) {
+          setTieredError("We couldn't load nearby vendors right now.");
+        }
+      })
+      .finally(() => {
+        if (requestSequence === tieredRequestSequence.current) setTieredLoading(false);
+      });
+  }, [displayCategory, geoSelection?.talukaId, query, filters, tieredOffset, tieredCursor]);
+
+  // Selected Taluka/District/State, category, search text, and every
+  // pagination-sensitive filter (rating/price/sort) all reset the cursor
+  // (P2-2: "Changing filters must reset the cursor/page state").
+  useEffect(() => {
+    if (!geoPreferenceChecked) return;
+    tieredRequestSequence.current += 1;
+    if (!geoSelection?.talukaId) {
+      setTieredCards([]);
+      setTieredOffset(0);
+      setTieredCursor(null);
+      setTieredHasMore(true);
+      return;
+    }
+    setTieredCards([]);
+    setTieredOffset(0);
+    setTieredCursor(null);
+    setTieredHasMore(true);
+    fetchTieredPage(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geoPreferenceChecked, geoSelection?.talukaId, displayCategory, query, filters.sort, filters.minimumRating, filters.maximumPrice]);
+
+  const loadMoreTiered = useCallback(() => {
+    if (tieredLoading || !tieredHasMore || !geoSelection?.talukaId) return;
+    fetchTieredPage(false);
+  }, [fetchTieredPage, geoSelection?.talukaId, tieredHasMore, tieredLoading]);
+
+  const selectGeoLocation = useCallback((value: GeoSelection, districtName: string, talukaName: string) => {
+    setGeoSelection(value);
+    setGeoLabel({ district: districtName, taluka: talukaName });
+    void saveGuestGeoPreference(value);
+  }, []);
+
+  const resolveGeoLabel = useCallback((districtName: string, talukaName: string) => {
+    setGeoLabel({ district: districtName, taluka: talukaName });
+  }, []);
+
   const compact = width < 1100;
   const desktop = width >= 1100;
   const contentWidth = Math.min(width - (width >= 1100 ? 96 : 32), 1120);
@@ -128,6 +260,19 @@ export default function VendorsListingScreen() {
   }, []);
 
   useEffect(() => {
+    // Do not download the full verified marketplace while a Taluka is
+    // selected -- that path is served entirely by the bounded, paginated
+    // get_public_vendor_taluka_page_cards query instead (P2-1). Wait for
+    // the initial persisted-selection check so a restored Taluka never
+    // triggers this fetch even for one render.
+    if (!geoPreferenceChecked) return;
+    if (talukaSelected) {
+      // Not applicable in Taluka mode -- clear it so the empty/loading
+      // logic below falls through to the tiered-fetch flags instead of
+      // getting stuck showing a skeleton forever.
+      setVendorsLoading(false);
+      return;
+    }
     let active = true;
     const load = () => {
       getApprovedPublicVendors()
@@ -153,7 +298,7 @@ export default function VendorsListingScreen() {
       active = false;
       unsubscribe();
     };
-  }, []);
+  }, [geoPreferenceChecked, talukaSelected]);
 
   const clearSearchAndFilters = () => {
     setQuery("");
@@ -166,9 +311,9 @@ export default function VendorsListingScreen() {
     [approvedVendors, displayCategory],
   );
 
-  const filteredVendors = useMemo(() => {
+  const applySearchAndSort = useCallback((source: PublicVendorListing[]) => {
     const normalizedQuery = query.trim().toLowerCase();
-    const ratedVendors = vendors.map((vendor) => {
+    const ratedVendors = source.map((vendor) => {
       const current = getRating(vendor.id, vendor.rating, vendor.reviews);
       return { ...vendor, rating: current.rating, reviews: current.reviews };
     });
@@ -188,8 +333,7 @@ export default function VendorsListingScreen() {
           && vendor.startingPriceValue <= filters.maximumPrice
         ));
     });
-
-    const baseSorted = [...matching].sort((a, b) => {
+    return matching.sort((a, b) => {
       if (filters.sort === "rating") return b.rating - a.rating || b.reviews - a.reviews;
       if (filters.sort === "price") {
         return (a.startingPriceValue || Number.MAX_SAFE_INTEGER)
@@ -199,8 +343,53 @@ export default function VendorsListingScreen() {
         || b.reviews - a.reviews
         || b.rating - a.rating;
     });
+  }, [filters, getRating, query]);
+
+  const filteredVendors = useMemo(() => {
+    const baseSorted = applySearchAndSort(vendors);
     return rankVendorsByLocationAndMembership(baseSorted, preference, strictCityOnly);
-  }, [filters, getRating, preference, query, strictCityOnly, vendors]);
+  }, [applySearchAndSort, preference, strictCityOnly, vendors]);
+
+  // Tier 0 = the selected Taluka, exhausted first; tier 1..N = the
+  // automatically generated nearby-Taluka order, as already ordered
+  // server-side by get_public_vendor_taluka_page_cards (search/rating/
+  // price/sort are all applied there too, over the complete eligible
+  // dataset -- see P2-1/P2-2). No client-side re-filtering or re-sorting
+  // here: only a live rating/review overlay for display, so a rating a
+  // customer *just* submitted reflects immediately without waiting for the
+  // server aggregate to catch up.
+  const tieredListRows = useMemo((): ListRow[] => {
+    if (!talukaSelected) return [];
+    const groups = new Map<number, { talukaName: string; vendors: PublicVendorListing[] }>();
+    const order: number[] = [];
+    for (const card of tieredCards) {
+      if (!groups.has(card.tier)) {
+        groups.set(card.tier, { talukaName: card.talukaName, vendors: [] });
+        order.push(card.tier);
+      }
+      const rated = getRating(card.vendor.id, card.vendor.rating, card.vendor.reviews);
+      groups.get(card.tier)!.vendors.push({ ...card.vendor, rating: rated.rating, reviews: rated.reviews });
+    }
+    const rows: ListRow[] = [];
+    for (const tier of order) {
+      const group = groups.get(tier)!;
+      if (!group.vendors.length) continue;
+      if (tier > 0) {
+        rows.push({
+          kind: "separator",
+          key: `separator-${tier}-${group.talukaName}`,
+          label: `More vendors from nearby ${group.talukaName}`,
+        });
+      }
+      group.vendors.forEach((vendor) => rows.push({ kind: "vendor", vendor }));
+    }
+    return rows;
+  }, [talukaSelected, tieredCards, getRating]);
+
+  const listRows: ListRow[] = talukaSelected
+    ? tieredListRows
+    : filteredVendors.map((vendor) => ({ kind: "vendor", vendor }));
+  const visibleVendorCount = listRows.filter((row) => row.kind === "vendor").length;
 
   const activeFilterCount = [
     filters.sort !== "popular",
@@ -247,24 +436,36 @@ export default function VendorsListingScreen() {
     [displayCategory],
   );
 
-  const renderVendorCard = useCallback(({ item: vendor, index }: ListRenderItemInfo<PublicVendorListing>) => (
-    <HomeReveal delay={Math.min(index * 30, 210)}>
-      <VendorListingCard
-        vendor={vendor}
-        dark={isDark}
-        compact={compact}
-        favorite={isFavorite(vendor.id)}
-        fallbackImage={fallbackImage}
-        onOpen={() =>
-          router.push({
-            pathname: "/VendorsProfile",
-            params: { vendorId: vendor.id, category: displayCategory },
-          })
-        }
-        onToggleFavorite={(source) => toggleVendorFavorite(vendor, source)}
-      />
-    </HomeReveal>
-  ), [isDark, compact, isFavorite, fallbackImage, router, displayCategory, toggleVendorFavorite]);
+  const renderRow = useCallback(({ item, index }: ListRenderItemInfo<ListRow>) => {
+    if (item.kind === "separator") {
+      return (
+        <View style={[styles.separator, { borderColor: border }]}>
+          <View style={[styles.separatorLine, { backgroundColor: border }]} />
+          <Text style={[styles.separatorText, { color: muted }]}>{item.label}</Text>
+          <View style={[styles.separatorLine, { backgroundColor: border }]} />
+        </View>
+      );
+    }
+    const vendor = item.vendor;
+    return (
+      <HomeReveal delay={Math.min(index * 30, 210)}>
+        <VendorListingCard
+          vendor={vendor}
+          dark={isDark}
+          compact={compact}
+          favorite={isFavorite(vendor.id)}
+          fallbackImage={fallbackImage}
+          onOpen={() =>
+            router.push({
+              pathname: "/VendorsProfile",
+              params: { vendorId: vendor.id, category: displayCategory },
+            })
+          }
+          onToggleFavorite={(source) => toggleVendorFavorite(vendor, source)}
+        />
+      </HomeReveal>
+    );
+  }, [isDark, compact, isFavorite, fallbackImage, router, displayCategory, toggleVendorFavorite, border, muted]);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "left", "right"]}>
@@ -273,9 +474,18 @@ export default function VendorsListingScreen() {
         <HomeReveal direction="down">
           <CategoryListingHeader
             category={displayCategory}
-            location={locationSubtitle}
+            location={geoLabel ? `${geoLabel.taluka}, ${geoLabel.district}` : locationSubtitle}
             dark={isDark}
             onBack={goBack}
+          />
+        </HomeReveal>
+
+        <HomeReveal delay={18}>
+          <TalukaLocationSelector
+            states={geoStates}
+            value={geoSelection}
+            onChange={selectGeoLocation}
+            onResolvedLabel={resolveGeoLabel}
           />
         </HomeReveal>
 
@@ -305,19 +515,20 @@ export default function VendorsListingScreen() {
 
         <HomeReveal delay={95}>
           <ResultsSummary
-            count={filteredVendors.length}
+            count={visibleVendorCount}
             category={displayCategory}
             sortLabel={sortLabel}
             dark={isDark}
             onSort={() => openFilters("sort")}
+            hasMore={talukaSelected && tieredHasMore}
           />
         </HomeReveal>
       </View>
 
       <FlatList
-        data={filteredVendors}
-        keyExtractor={(vendor) => vendor.id}
-        renderItem={renderVendorCard}
+        data={listRows}
+        keyExtractor={(row) => (row.kind === "vendor" ? row.vendor.id : row.key)}
+        renderItem={renderRow}
         extraData={favorites}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -327,16 +538,28 @@ export default function VendorsListingScreen() {
         maxToRenderPerBatch={8}
         windowSize={7}
         removeClippedSubviews={Platform.OS !== "web"}
-        ListEmptyComponent={vendorsLoading ? (
+        onEndReachedThreshold={0.4}
+        onEndReached={talukaSelected ? loadMoreTiered : undefined}
+        ListFooterComponent={talukaSelected && tieredLoading && tieredCards.length > 0 ? (
+          <SkeletonList count={1} height={compact ? 172 : 220} gap={14} />
+        ) : null}
+        ListEmptyComponent={(vendorsLoading || (talukaSelected && tieredLoading && !tieredCards.length)) ? (
           <SkeletonList count={compact ? 3 : 4} height={compact ? 172 : 220} gap={14} />
-        ) : vendorsError ? (
+        ) : (vendorsError || (talukaSelected && tieredError)) ? (
           <View style={[styles.empty, { borderColor: border, backgroundColor: colors.card }]}>
             <View style={[styles.emptyIcon, { backgroundColor: colors.muted }]}>
               <RefreshCw size={22} color={colors.primaryStrong} />
             </View>
             <Text style={[styles.emptyTitle, { color: text }]}>Vendors are taking a moment</Text>
-            <Text style={[styles.emptyText, { color: muted }]}>{vendorsError}</Text>
-            <Pressable accessibilityRole="button" onPress={() => void loadVendors()} style={({ pressed }) => [styles.emptyAction, pressed && styles.emptyActionPressed]}>
+            <Text style={[styles.emptyText, { color: muted }]}>{vendorsError || tieredError}</Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                if (talukaSelected && tieredError) fetchTieredPage(true);
+                else void loadVendors();
+              }}
+              style={({ pressed }) => [styles.emptyAction, pressed && styles.emptyActionPressed]}
+            >
               <Text style={styles.emptyActionText}>Try again</Text>
             </Pressable>
           </View>
@@ -387,4 +610,7 @@ const styles = StyleSheet.create({
   emptyAction: { minHeight: 44, marginTop: 16, paddingHorizontal: 18, borderRadius: 14, backgroundColor: "#E91E63", alignItems: "center", justifyContent: "center" },
   emptyActionPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   emptyActionText: { color: "#FFFFFF", fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
+  separator: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
+  separatorLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  separatorText: { fontFamily: fonts.sans.semibold, fontSize: typeScale.caption, textAlign: "center" },
 });

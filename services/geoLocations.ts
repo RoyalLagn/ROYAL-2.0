@@ -1,0 +1,481 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase } from "@/services/supabase";
+import type {
+  GeoDistrict,
+  GeoSelection,
+  GeoState,
+  GeoTaluka,
+  ValidatedGeoSelection,
+} from "@/locations/types";
+import { normalizeMarketplaceCategoryName, type PublicVendorListing } from "@/services/publicVendorListings";
+
+// ============================================================================
+// Client for the generic State -> District -> Taluka discovery hierarchy.
+// Mirrors the caching/shape conventions of services/locations.ts (the
+// existing City/Area client) but is fully independent of it.
+// ============================================================================
+
+const GUEST_GEO_PREFERENCE_KEY = "royallagn:guest-geo-preference:v1";
+
+let statesCache: GeoState[] | null = null;
+let statesRequest: Promise<GeoState[]> | null = null;
+let districtsCache: Map<string, GeoDistrict[]> | null = null;
+let talukasCache: Map<string, GeoTaluka[]> | null = null;
+
+function mapState(row: any): GeoState {
+  return { id: row.id, name: row.name, code: row.code, isActive: Boolean(row.is_active) };
+}
+function mapDistrict(row: any): GeoDistrict {
+  return { id: row.id, stateId: row.state_id, name: row.name, isActive: Boolean(row.is_active) };
+}
+function mapTaluka(row: any): GeoTaluka {
+  return { id: row.id, districtId: row.district_id, name: row.name, isActive: Boolean(row.is_active) };
+}
+
+export function invalidateGeoCache() {
+  statesCache = null;
+  statesRequest = null;
+  districtsCache = null;
+  talukasCache = null;
+}
+
+export async function listActiveGeoStates(): Promise<GeoState[]> {
+  if (statesCache) return statesCache;
+  if (statesRequest) return statesRequest;
+  const request = (async () => {
+    const { data, error } = await supabase
+      .from("geo_states")
+      .select("id,name,code,is_active")
+      .eq("is_active", true)
+      .order("name");
+    if (error) throw error;
+    const result = (data ?? []).map(mapState);
+    statesCache = result;
+    return result;
+  })();
+  statesRequest = request;
+  try {
+    return await request;
+  } finally {
+    if (statesRequest === request) statesRequest = null;
+  }
+}
+
+export async function listActiveGeoDistricts(stateId: string): Promise<GeoDistrict[]> {
+  if (districtsCache?.has(stateId)) return districtsCache.get(stateId)!;
+  const { data, error } = await supabase
+    .from("geo_districts")
+    .select("id,state_id,name,is_active")
+    .eq("state_id", stateId)
+    .eq("is_active", true)
+    .order("name");
+  if (error) throw error;
+  const result = (data ?? []).map(mapDistrict);
+  districtsCache ??= new Map();
+  districtsCache.set(stateId, result);
+  return result;
+}
+
+export async function listActiveGeoTalukas(districtId: string): Promise<GeoTaluka[]> {
+  if (talukasCache?.has(districtId)) return talukasCache.get(districtId)!;
+  const { data, error } = await supabase
+    .from("geo_talukas")
+    .select("id,district_id,name,is_active")
+    .eq("district_id", districtId)
+    .eq("is_active", true)
+    .order("name");
+  if (error) throw error;
+  const result = (data ?? []).map(mapTaluka);
+  talukasCache ??= new Map();
+  talukasCache.set(districtId, result);
+  return result;
+}
+
+export async function loadGuestGeoPreference(): Promise<GeoSelection | null> {
+  const stored = await AsyncStorage.getItem(GUEST_GEO_PREFERENCE_KEY);
+  if (!stored) return null;
+  try {
+    const parsed = JSON.parse(stored);
+    // A preference saved before stateId existed on this type is no longer
+    // trustworthy on its own (P1-4) -- treat it as absent rather than
+    // guessing which State it belonged to. validateGeoSelection() below is
+    // still the authority on whether *any* restored selection is usable.
+    return typeof parsed?.stateId === "string"
+      && typeof parsed?.districtId === "string"
+      && typeof parsed?.talukaId === "string"
+      ? { stateId: parsed.stateId, districtId: parsed.districtId, talukaId: parsed.talukaId }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveGuestGeoPreference(selection: GeoSelection) {
+  await AsyncStorage.setItem(GUEST_GEO_PREFERENCE_KEY, JSON.stringify(selection));
+}
+
+export async function clearGuestGeoPreference() {
+  await AsyncStorage.removeItem(GUEST_GEO_PREFERENCE_KEY);
+}
+
+/**
+ * Validates a (possibly stale/persisted) selection against the *current*
+ * active hierarchy in a single bounded, indexed query -- never loads the
+ * full State/District/Taluka tree just to check one selection. Returns
+ * null if the State, District or Taluka no longer exists, is inactive, or
+ * the chain doesn't actually nest the way the selection claims (e.g. a
+ * Taluka that has since been moved to a different District). Callers
+ * should clear the selection and prompt a fresh one when this returns null
+ * (P1-4: "If a saved location is disabled or deleted, clear it safely and
+ * request a new selection").
+ */
+export async function validateGeoSelection(
+  selection: GeoSelection,
+): Promise<ValidatedGeoSelection | null> {
+  if (!selection.talukaId) return null;
+  const { data, error } = await supabase
+    .from("geo_talukas")
+    .select("id,name,is_active,geo_districts!inner(id,name,is_active,state_id,geo_states!inner(id,name,is_active))")
+    .eq("id", selection.talukaId)
+    .eq("district_id", selection.districtId)
+    .eq("is_active", true)
+    .eq("geo_districts.is_active", true)
+    .eq("geo_districts.state_id", selection.stateId)
+    .eq("geo_districts.geo_states.is_active", true)
+    .maybeSingle();
+  if (error || !data) return null;
+  const district = Array.isArray(data.geo_districts) ? data.geo_districts[0] : data.geo_districts;
+  const state = district ? (Array.isArray(district.geo_states) ? district.geo_states[0] : district.geo_states) : null;
+  if (!district || !state) return null;
+  return {
+    stateId: state.id,
+    stateName: state.name,
+    districtId: district.id,
+    districtName: district.name,
+    talukaId: data.id,
+    talukaName: data.name,
+  };
+}
+
+/**
+ * Applies a vendor's already-verified PIN code to the geo hierarchy. Reads
+ * from the geo_pincodes cache populated by the lookup-india-pincode Edge
+ * Function; never guesses a Taluka when the cache is empty or ambiguous.
+ * Kept for Admin/standalone retries -- the normal vendor "save my location"
+ * path no longer calls this separately (see replaceVendorServiceLocations
+ * in services/locations.ts, which now resolves geo atomically in the same
+ * transaction as the legacy location save).
+ */
+export async function applyVendorGeoPincode(vendorId: string, pincode: string) {
+  const { data, error } = await supabase.rpc("apply_vendor_geo_pincode", {
+    target_vendor_id: vendorId,
+    target_pincode: pincode,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export type VendorGeoStatus = {
+  status: "resolved" | "needs_review" | "unresolved";
+  reviewReason: string | null;
+  talukaId: string | null;
+};
+
+/**
+ * Fresh, non-cached read of a vendor's current geo resolution outcome.
+ * Used right after a location save to build an accurate message -- reading
+ * the local hook state instead would risk showing a stale pre-save status,
+ * since the hook's own refresh() is an async state update, not something
+ * this call can await the result of.
+ */
+export async function getVendorGeoStatus(vendorId: string): Promise<VendorGeoStatus | null> {
+  const { data, error } = await supabase
+    .from("vendors")
+    .select("geo_resolution_status,geo_review_reason,geo_taluka_id")
+    .eq("id", vendorId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    status: (data.geo_resolution_status as VendorGeoStatus["status"]) ?? "unresolved",
+    reviewReason: data.geo_review_reason ?? null,
+    talukaId: data.geo_taluka_id ?? null,
+  };
+}
+
+/** Admin-triggered re-resolution of a vendor's existing PIN against the
+ * current geo_pincodes cache (e.g. after an Admin corrects/re-imports
+ * data). Does not require the PIN value client-side. */
+export async function adminRetryVendorGeoResolution(vendorId: string) {
+  const { data, error } = await supabase.rpc("admin_retry_vendor_geo_resolution", {
+    target_vendor_id: vendorId,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// ----------------------------------------------------------------------------
+// Public vendor discovery: tiered (selected Taluka first, then automatically
+// generated nearby Talukas), paginated, with full ready-to-render card data
+// returned in a single bounded query (P2-1) -- no separate per-vendor
+// membership/review RPC calls, and no client-side download of the full
+// marketplace. Search/rating/price/sort are applied server-side over the
+// complete eligible dataset before pagination (P2-2), so a filtered page
+// can never look falsely empty.
+// ----------------------------------------------------------------------------
+const TALUKA_PAGE_SIZE = 20;
+
+export type TalukaSortMode = "popular" | "rating" | "price";
+
+/** Keyset cursor for the default ("popular") sort -- see the SQL function's
+ * doc comment for why explicit rating/price sorts use plain offset instead. */
+export type TalukaPageCursor = {
+  tier: number;
+  featuredRank: number;
+  negReviewCount: number;
+  negRating: number;
+  negUpdatedAt: number;
+  vendorId: string;
+};
+
+export type TieredVendorCard = {
+  vendor: PublicVendorListing;
+  tier: number;
+  distanceKm: number;
+  talukaId: string;
+  talukaName: string;
+  districtName: string;
+  stateName: string;
+  cursor: TalukaPageCursor;
+};
+
+export type TieredVendorPageResult = {
+  cards: TieredVendorCard[];
+  nextCursor: TalukaPageCursor | null;
+  nextOffset: number;
+};
+
+function mapCardRow(row: any): TieredVendorCard {
+  const startingPriceValue = Number(row.starting_price ?? 0);
+  const vendor: PublicVendorListing = {
+    id: row.vendor_id,
+    name: row.business_name,
+    slug: row.slug ?? "",
+    category: normalizeMarketplaceCategoryName(row.category_name),
+    rating: Number(row.average_rating ?? 0),
+    reviews: Number(row.review_count ?? 0),
+    priceLevel: "₹ ₹",
+    location: `${row.taluka_name}, ${row.district_name}`,
+    address: "",
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    services: Array.isArray(row.service_titles) ? row.service_titles : [],
+    startingPrice: startingPriceValue ? `₹${startingPriceValue.toLocaleString("en-IN")}` : "Contact for price",
+    startingPriceValue,
+    image: row.logo_url || "",
+    isTopRated: Boolean(row.is_featured),
+    isFeatured: Boolean(row.is_featured),
+    // Availability isn't rendered on the listing card (only on the detail
+    // profile, loaded separately) -- deliberately not fetched here to keep
+    // this a single bounded query. See "Keep vendor profile detail loading
+    // separate from card/listing loading" (P2-1).
+    isAvailable: false,
+    availability: [],
+    description: row.description || "",
+    experience: null,
+    contactPhone: "",
+    contactEmail: "",
+    website: "",
+    instagram: "",
+    facebook: "",
+    portfolioImages: [],
+    portfolioAlbums: [],
+    heroMedia: [],
+    primaryCityId: null,
+    primaryAreaId: null,
+    serviceLocations: [],
+    managementStatus: "active",
+    publicProfileEnabled: true,
+    awards: [],
+    languages: [],
+    businessHours: null,
+    faqs: [],
+    membershipPlan: row.membership_plan ?? null,
+  };
+  return {
+    vendor,
+    tier: Number(row.tier ?? 0),
+    distanceKm: Number(row.distance_km ?? 0),
+    talukaId: row.taluka_id,
+    talukaName: row.taluka_name,
+    districtName: row.district_name,
+    stateName: row.state_name,
+    cursor: {
+      tier: Number(row.tier ?? 0),
+      featuredRank: Number(row.featured_rank ?? 1),
+      negReviewCount: Number(row.neg_review_count ?? 0),
+      negRating: Number(row.neg_rating ?? 0),
+      negUpdatedAt: Number(row.neg_updated_at ?? 0),
+      vendorId: row.vendor_id,
+    },
+  };
+}
+
+export async function fetchTalukaVendorPageCards(input: {
+  /** Every raw categories.name value that maps to the selected display
+   * category -- see databaseCategoryCandidates() in
+   * services/publicVendorListings.ts. */
+  categoryNames: string[];
+  talukaId: string;
+  search?: string;
+  minRating?: number;
+  maxPrice?: number;
+  sort?: TalukaSortMode;
+  limit?: number;
+  /** Offset pagination, only used for explicit rating/price sorts. */
+  offset?: number;
+  /** Keyset pagination cursor, used for the default "popular" sort. */
+  after?: TalukaPageCursor | null;
+}): Promise<TieredVendorPageResult> {
+  const limit = input.limit ?? TALUKA_PAGE_SIZE;
+  const sort = input.sort ?? "popular";
+  const { data, error } = await supabase.rpc("get_public_vendor_taluka_page_cards", {
+    p_category_names: input.categoryNames,
+    p_taluka_id: input.talukaId,
+    p_search: input.search?.trim() || null,
+    p_min_rating: input.minRating ?? null,
+    p_max_price: input.maxPrice ?? null,
+    p_sort: sort,
+    p_limit: limit,
+    p_offset: input.offset ?? 0,
+    p_after_tier: sort === "popular" ? input.after?.tier ?? null : null,
+    p_after_featured_rank: sort === "popular" ? input.after?.featuredRank ?? null : null,
+    p_after_neg_review_count: sort === "popular" ? input.after?.negReviewCount ?? null : null,
+    p_after_neg_rating: sort === "popular" ? input.after?.negRating ?? null : null,
+    p_after_neg_updated_at: sort === "popular" ? input.after?.negUpdatedAt ?? null : null,
+    p_after_vendor_id: sort === "popular" ? input.after?.vendorId ?? null : null,
+  });
+  if (error) throw error;
+  const cards = (data ?? []).map(mapCardRow);
+  return {
+    cards,
+    nextCursor: cards.length ? cards[cards.length - 1].cursor : null,
+    nextOffset: (input.offset ?? 0) + cards.length,
+  };
+}
+
+// ----------------------------------------------------------------------------
+// Admin tools
+// ----------------------------------------------------------------------------
+export async function listAdminGeoStates(): Promise<GeoState[]> {
+  const { data, error } = await supabase
+    .from("geo_states").select("id,name,code,is_active").order("name");
+  if (error) throw error;
+  return (data ?? []).map(mapState);
+}
+
+export async function listAdminGeoDistricts(stateId: string): Promise<GeoDistrict[]> {
+  const { data, error } = await supabase
+    .from("geo_districts").select("id,state_id,name,is_active").eq("state_id", stateId).order("name");
+  if (error) throw error;
+  return (data ?? []).map(mapDistrict);
+}
+
+export async function listAdminGeoTalukas(districtId: string): Promise<GeoTaluka[]> {
+  const { data, error } = await supabase
+    .from("geo_talukas").select("id,district_id,name,is_active").eq("district_id", districtId).order("name");
+  if (error) throw error;
+  return (data ?? []).map(mapTaluka);
+}
+
+export async function setGeoStateActive(id: string, isActive: boolean) {
+  const { error } = await supabase.from("geo_states").update({ is_active: isActive }).eq("id", id);
+  if (error) throw error;
+  invalidateGeoCache();
+}
+export async function setGeoDistrictActive(id: string, isActive: boolean) {
+  const { error } = await supabase.from("geo_districts").update({ is_active: isActive }).eq("id", id);
+  if (error) throw error;
+  invalidateGeoCache();
+}
+export async function setGeoTalukaActive(id: string, isActive: boolean) {
+  const { error } = await supabase.from("geo_talukas").update({ is_active: isActive }).eq("id", id);
+  if (error) throw error;
+  invalidateGeoCache();
+}
+
+export type GeoAdminOverview = {
+  statesTotal: number;
+  statesActive: number;
+  districtsTotal: number;
+  districtsActive: number;
+  talukasTotal: number;
+  talukasActive: number;
+  talukasWithoutNeighbors: number;
+  pincodesTotal: number;
+  pincodesResolved: number;
+  pincodesNeedsReview: number;
+  pincodesUnresolved: number;
+  vendorsResolved: number;
+  vendorsNeedsReview: number;
+  vendorsUnresolved: number;
+  neighborsGeneratedAt: string | null;
+};
+
+export async function getGeoAdminOverview(): Promise<GeoAdminOverview> {
+  const { data, error } = await supabase.rpc("get_geo_admin_overview");
+  if (error) throw error;
+  return {
+    statesTotal: Number(data?.states_total ?? 0),
+    statesActive: Number(data?.states_active ?? 0),
+    districtsTotal: Number(data?.districts_total ?? 0),
+    districtsActive: Number(data?.districts_active ?? 0),
+    talukasTotal: Number(data?.talukas_total ?? 0),
+    talukasActive: Number(data?.talukas_active ?? 0),
+    talukasWithoutNeighbors: Number(data?.talukas_without_neighbors ?? 0),
+    pincodesTotal: Number(data?.pincodes_total ?? 0),
+    pincodesResolved: Number(data?.pincodes_resolved ?? 0),
+    pincodesNeedsReview: Number(data?.pincodes_needs_review ?? 0),
+    pincodesUnresolved: Number(data?.pincodes_unresolved ?? 0),
+    vendorsResolved: Number(data?.vendors_resolved ?? 0),
+    vendorsNeedsReview: Number(data?.vendors_needs_review ?? 0),
+    vendorsUnresolved: Number(data?.vendors_unresolved ?? 0),
+    neighborsGeneratedAt: data?.neighbors_generated_at ?? null,
+  };
+}
+
+export async function rebuildTalukaNeighbors(input: {
+  stateId?: string | null;
+  maxNeighbors?: number;
+  maxDistanceKm?: number;
+} = {}) {
+  const { data, error } = await supabase.rpc("rebuild_taluka_neighbors", {
+    p_state_id: input.stateId ?? null,
+    p_max_neighbors: input.maxNeighbors ?? 8,
+    p_max_distance_km: input.maxDistanceKm ?? 150,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+export type UnmappedVendorPincode = {
+  vendorId: string;
+  businessName: string;
+  pincode: string;
+  city: string;
+  state: string;
+  geoResolutionStatus: string;
+  geoReviewReason: string | null;
+};
+
+export async function listUnmappedVendorPincodes(limit = 50): Promise<UnmappedVendorPincode[]> {
+  const { data, error } = await supabase.rpc("list_unmapped_vendor_pincodes", { p_limit: limit });
+  if (error) throw error;
+  return (data ?? []).map((row: any): UnmappedVendorPincode => ({
+    vendorId: row.vendor_id,
+    businessName: row.business_name,
+    pincode: row.pincode,
+    city: row.city,
+    state: row.state,
+    geoResolutionStatus: row.geo_resolution_status,
+    geoReviewReason: row.geo_review_reason ?? null,
+  }));
+}

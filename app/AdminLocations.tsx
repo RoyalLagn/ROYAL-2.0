@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import {
   ChevronDown,
   ChevronUp,
@@ -66,6 +67,7 @@ const usageKey = (kind: "city" | "area", id: string) => `${kind}:${id}`;
 const parsePincodes = (value: string) => [...new Set(value.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean))];
 
 export default function AdminLocations() {
+  const router = useRouter();
   const [cities, setCities] = useState<SupportedCity[]>([]);
   const [usage, setUsage] = useState<Record<string, LocationUsageCount>>({});
   const [strictCityOnly, setStrictCityOnly] = useState(false);
@@ -224,6 +226,11 @@ export default function AdminLocations() {
             action={<Pressable onPress={() => setEditor({ kind: "city", name: "", state: "", pincodes: "" })} style={styles.primaryButton}><Plus size={16} color="#FFFFFF" /><Text style={styles.primaryButtonText}>Add city</Text></Pressable>}
           />
 
+          <Pressable onPress={() => router.push("/AdminGeoLocations")} style={styles.geoLink}>
+            <MapPinned size={15} color="#E91E63" />
+            <Text style={styles.geoLinkText}>New: District &amp; Taluka discovery hierarchy →</Text>
+          </Pressable>
+
           {error ? <View style={styles.errorBanner}><CircleAlert size={17} color="#B42318" /><Text style={styles.errorText}>{error}</Text><Pressable onPress={() => setError("")}><X size={16} color="#B42318" /></Pressable></View> : null}
 
           <View style={styles.metrics}>
@@ -317,6 +324,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   primaryButton: { minHeight: 42, paddingHorizontal: 14, borderRadius: 13, backgroundColor: "#E91E63", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   primaryButtonText: { color: "#FFFFFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  geoLink: { minHeight: 34, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 14 },
+  geoLinkText: { color: "#E91E63", fontSize: typeScale.metadata, fontWeight: "700" },
   errorBanner: { marginBottom: 14, borderRadius: 14, padding: 12, backgroundColor: adminPalette.errorSubtle, flexDirection: "row", alignItems: "center", gap: 9 },
   errorText: { flex: 1, color: adminPalette.error, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },

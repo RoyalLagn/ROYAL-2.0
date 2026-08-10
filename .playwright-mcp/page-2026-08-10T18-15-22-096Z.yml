@@ -1,0 +1,48 @@
+- generic [ref=e13]:
+  - generic [ref=e15]:
+    - link "RoyalLagn home" [ref=e16] [cursor=pointer]:
+      - generic "RoyalLagn Wedding Planner" [ref=e18]:
+        - img "RoyalLagn Wedding Planner" [ref=e20]
+    - generic [ref=e21]:
+      - link "Home" [ref=e22] [cursor=pointer]
+      - link "Categories" [ref=e24] [cursor=pointer]
+      - link "Clips" [ref=e27] [cursor=pointer]
+      - link "Favorites" [ref=e29] [cursor=pointer]
+    - textbox "Search vendors, categories and services" [ref=e38]:
+      - /placeholder: Search vendors, categories, services...
+    - generic [ref=e39]:
+      - button "Change location, currently Pune, Maharashtra" [ref=e40] [cursor=pointer]:
+        - generic [ref=e44]: Pune
+      - button "Notifications" [ref=e47] [cursor=pointer]
+      - link "Open enquiries" [ref=e51] [cursor=pointer]
+      - button "Share RoyalLagn" [ref=e54] [cursor=pointer]
+      - link "Profile" [ref=e61] [cursor=pointer]
+      - switch "Dark mode" [ref=e65] [cursor=pointer]
+  - generic [ref=e68]:
+    - generic [ref=e70]:
+      - button "Go back" [ref=e71] [cursor=pointer]
+      - generic:
+        - generic: Photographers
+        - generic: Khed, Pune
+    - generic [ref=e76]:
+      - generic [ref=e77]: Where do you need the service?
+      - button "Change service location, currently Khed, Pune" [active] [ref=e394] [cursor=pointer]:
+        - generic [ref=e82]: Khed, Pune
+    - generic [ref=e86]:
+      - textbox "Search photographers" [ref=e92]:
+        - /placeholder: Search photographers…
+      - button "Open category filters" [ref=e93] [cursor=pointer]
+    - generic [ref=e97]:
+      - button "Sort listing options" [ref=e98] [cursor=pointer]:
+        - generic [ref=e102]: Sort
+      - button "Price listing options" [ref=e103] [cursor=pointer]:
+        - generic [ref=e107]: Price
+      - button "Rating listing options" [ref=e110] [cursor=pointer]:
+        - generic [ref=e113]: Rating
+    - generic [ref=e117]:
+      - generic [ref=e118]: 0 Photographers found
+      - button "Sort results, currently Popular" [ref=e119] [cursor=pointer]:
+        - generic [ref=e120]: Popular
+  - generic [ref=e395]:
+    - generic [ref=e402]: No matching photographers
+    - generic [ref=e403]: Try another keyword or clear the price and rating filters.

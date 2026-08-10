@@ -1,0 +1,129 @@
+- generic [ref=f4e1]:
+  - generic [ref=f4e13]:
+    - generic [ref=f4e14]:
+      - generic [ref=f4e16]:
+        - button "Go back" [ref=f4e17] [cursor=pointer]
+        - generic:
+          - generic: Photographers
+          - generic: Pune
+      - generic [ref=f4e22]:
+        - generic [ref=f4e23]: Where do you need the service?
+        - button "Choose your District and Taluka" [ref=f4e24] [cursor=pointer]:
+          - generic [ref=f4e28]: Choose your District & Taluka
+      - generic [ref=f4e32]:
+        - textbox "Search photographers" [ref=f4e38]:
+          - /placeholder: Search photographers…
+        - button "Open category filters" [ref=f4e39] [cursor=pointer]
+      - generic [ref=f4e43]:
+        - button "Sort listing options" [ref=f4e44] [cursor=pointer]:
+          - generic [ref=f4e48]: Sort
+        - button "Price listing options" [ref=f4e49] [cursor=pointer]:
+          - generic [ref=f4e53]: Price
+        - button "Rating listing options" [ref=f4e56] [cursor=pointer]:
+          - generic [ref=f4e59]: Rating
+      - generic [ref=f4e63]:
+        - generic [ref=f4e64]: 1 Photographer found
+        - button "Sort results, currently Popular" [ref=f4e65] [cursor=pointer]:
+          - generic [ref=f4e66]: Popular
+    - generic [ref=f4e73]:
+      - button "Open Shubham Photography" [ref=f4e74] [cursor=pointer]:
+        - generic "Shubham Photography listing" [ref=f4e76]:
+          - img "Shubham Photography listing" [ref=f4e78]
+        - generic [ref=f4e79]:
+          - generic [ref=f4e81]:
+            - generic [ref=f4e82]: Shubham Photography
+            - generic [ref=f4e83]: Photographers
+          - generic [ref=f4e84]: Verified
+          - generic [ref=f4e90]:
+            - generic [ref=f4e93]: "0.0"
+            - generic [ref=f4e94]: (0)
+          - generic [ref=f4e95]: Bhosari, Maharashtra
+          - generic [ref=f4e100]: Starts from ₹12,000
+      - button "Add Shubham Photography to favorites" [ref=f4e103] [cursor=pointer]
+    - navigation "Main" [ref=f4e107]:
+      - generic [ref=f4e109]:
+        - link "Home" [ref=f4e110] [cursor=pointer]
+        - link "Category" [ref=f4e116] [cursor=pointer]
+        - link "Clips" [ref=f4e121] [cursor=pointer]
+        - link "Favorites" [ref=f4e130] [cursor=pointer]
+        - link "Profile" [ref=f4e135] [cursor=pointer]
+  - dialog [ref=f4e142]:
+    - generic [ref=f4e145] [cursor=pointer]:
+      - generic [ref=f4e146]:
+        - generic [ref=f4e147]:
+          - generic [ref=f4e148]: Choose your location
+          - generic [ref=f4e149]: We'll show vendors there first, then nearby Talukas automatically.
+        - button "Close" [ref=f4e150]
+      - generic [ref=f4e154]:
+        - generic [ref=f4e155]: State
+        - generic [ref=f4e157]:
+          - button "Select Maharashtra" [ref=f4e158]:
+            - generic [ref=f4e159]: Maharashtra
+          - button "Select QA Second State" [ref=f4e160]:
+            - generic [ref=f4e161]: QA Second State
+      - textbox "Search Taluka or District" [ref=f4e166]
+      - generic [ref=f4e168]:
+        - button "Ambegaon, Pune District" [ref=f4e169]:
+          - generic [ref=f4e170]:
+            - generic [ref=f4e171]: Ambegaon
+            - generic [ref=f4e172]: Pune District
+        - button "Baramati, Pune District" [ref=f4e173]:
+          - generic [ref=f4e174]:
+            - generic [ref=f4e175]: Baramati
+            - generic [ref=f4e176]: Pune District
+        - button "Bhor, Pune District" [ref=f4e177]:
+          - generic [ref=f4e178]:
+            - generic [ref=f4e179]: Bhor
+            - generic [ref=f4e180]: Pune District
+        - button "Daund, Pune District" [ref=f4e181]:
+          - generic [ref=f4e182]:
+            - generic [ref=f4e183]: Daund
+            - generic [ref=f4e184]: Pune District
+        - button "Haveli, Pune District" [ref=f4e185]:
+          - generic [ref=f4e186]:
+            - generic [ref=f4e187]: Haveli
+            - generic [ref=f4e188]: Pune District
+        - button "Indapur, Pune District" [ref=f4e189]:
+          - generic [ref=f4e190]:
+            - generic [ref=f4e191]: Indapur
+            - generic [ref=f4e192]: Pune District
+        - button "Junnar, Pune District" [ref=f4e193]:
+          - generic [ref=f4e194]:
+            - generic [ref=f4e195]: Junnar
+            - generic [ref=f4e196]: Pune District
+        - button "Khed, Pune District" [ref=f4e197]:
+          - generic [ref=f4e198]:
+            - generic [ref=f4e199]: Khed
+            - generic [ref=f4e200]: Pune District
+        - button "Loni Kalbhor, Pune District" [ref=f4e201]:
+          - generic [ref=f4e202]:
+            - generic [ref=f4e203]: Loni Kalbhor
+            - generic [ref=f4e204]: Pune District
+        - button "Maval, Pune District" [ref=f4e205]:
+          - generic [ref=f4e206]:
+            - generic [ref=f4e207]: Maval
+            - generic [ref=f4e208]: Pune District
+        - button "Mulshi, Pune District" [ref=f4e209]:
+          - generic [ref=f4e210]:
+            - generic [ref=f4e211]: Mulshi
+            - generic [ref=f4e212]: Pune District
+        - button "Pimpri-Chinchwad, Pune District" [ref=f4e213]:
+          - generic [ref=f4e214]:
+            - generic [ref=f4e215]: Pimpri-Chinchwad
+            - generic [ref=f4e216]: Pune District
+        - button "Pune City, Pune District" [ref=f4e217]:
+          - generic [ref=f4e218]:
+            - generic [ref=f4e219]: Pune City
+            - generic [ref=f4e220]: Pune District
+        - button "Purandar, Pune District" [ref=f4e221]:
+          - generic [ref=f4e222]:
+            - generic [ref=f4e223]: Purandar
+            - generic [ref=f4e224]: Pune District
+        - button "Shirur, Pune District" [ref=f4e225]:
+          - generic [ref=f4e226]:
+            - generic [ref=f4e227]: Shirur
+            - generic [ref=f4e228]: Pune District
+        - button "Velha, Pune District" [ref=f4e229]:
+          - generic [ref=f4e230]:
+            - generic [ref=f4e231]: Velha
+            - generic [ref=f4e232]: Pune District

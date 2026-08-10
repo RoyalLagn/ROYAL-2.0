@@ -178,29 +178,12 @@ function relatedOne<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
-const MARKETPLACE_CATEGORY_NAMES: Record<string, string> = {
-  photographer: "Photographers",
-  decorator: "Decorators",
-  "makeup artist": "Makeup Artists",
-  "mehendi artist": "Mehndi Artists",
-  dj: "DJs",
-  "wedding hall": "Venues",
-  caterer: "Caterers",
-  jewellery: "Jewellery & Accessories",
-  "invitation cards": "Invites & Cards",
-  pandit: "Pandits",
-  choreographer: "Music & Dance",
-  "live orchestra": "Live Orchestra & Band",
-  orchestra: "Live Orchestra & Band",
-  "orchestra and band": "Live Orchestra & Band",
-  "wedding band": "Live Orchestra & Band",
-  "wedding bands": "Live Orchestra & Band",
-};
-
-export function normalizeMarketplaceCategoryName(value: string) {
-  const trimmed = value.trim();
-  return MARKETPLACE_CATEGORY_NAMES[trimmed.toLowerCase()] ?? trimmed;
-}
+// Moved to locations/marketplaceCategoryNames.ts (dependency-free, so it can
+// be unit-tested with plain `node` -- see
+// scripts/test-location-discovery-domain.mjs) and re-exported here so every
+// existing import of these two functions from this module keeps working.
+import { normalizeMarketplaceCategoryName, databaseCategoryCandidates } from "@/locations/marketplaceCategoryNames";
+export { normalizeMarketplaceCategoryName, databaseCategoryCandidates };
 
 function normalizeVendor(
   row: any,

@@ -1,0 +1,141 @@
+- generic [ref=e1]:
+  - generic [ref=e13]:
+    - generic [ref=e15]:
+      - link "RoyalLagn home" [ref=e16] [cursor=pointer]:
+        - generic "RoyalLagn Wedding Planner" [ref=e18]:
+          - img "RoyalLagn Wedding Planner" [ref=e20]
+      - generic [ref=e21]:
+        - link "Home" [ref=e22] [cursor=pointer]
+        - link "Categories" [ref=e24] [cursor=pointer]
+        - link "Clips" [ref=e27] [cursor=pointer]
+        - link "Favorites" [ref=e29] [cursor=pointer]
+      - textbox "Search vendors, categories and services" [ref=e38]:
+        - /placeholder: Search vendors, categories, services...
+      - generic [ref=e39]:
+        - button "Change location, currently Pune, Maharashtra" [ref=e40] [cursor=pointer]:
+          - generic [ref=e44]: Pune
+        - button "Notifications" [ref=e47] [cursor=pointer]
+        - link "Open enquiries" [ref=e51] [cursor=pointer]
+        - button "Share RoyalLagn" [ref=e54] [cursor=pointer]
+        - link "Profile" [ref=e61] [cursor=pointer]
+        - switch "Dark mode" [ref=e65] [cursor=pointer]
+    - generic [ref=e68]:
+      - generic [ref=e70]:
+        - button "Go back" [ref=e71] [cursor=pointer]
+        - generic:
+          - generic: Photographers
+          - generic: Maval, Pune
+      - generic [ref=e76]:
+        - generic [ref=e77]: Where do you need the service?
+        - button "Change service location, currently Maval, Pune" [ref=e173] [cursor=pointer]:
+          - generic [ref=e82]: Maval, Pune
+      - generic [ref=e86]:
+        - textbox "Search photographers" [ref=e92]:
+          - /placeholder: Search photographers…
+        - button "Open category filters" [ref=e93] [cursor=pointer]
+      - generic [ref=e97]:
+        - button "Sort listing options" [ref=e98] [cursor=pointer]:
+          - generic [ref=e102]: Sort
+        - button "Price listing options" [ref=e103] [cursor=pointer]:
+          - generic [ref=e107]: Price
+        - button "Rating listing options" [ref=e110] [cursor=pointer]:
+          - generic [ref=e113]: Rating
+      - generic [ref=e117]:
+        - generic [ref=e118]: 1 Photographer found
+        - button "Sort results, currently Popular" [ref=e119] [cursor=pointer]:
+          - generic [ref=e120]: Popular
+    - generic [ref=e176]:
+      - button "Open Shubham Photography" [ref=e177] [cursor=pointer]:
+        - generic "Shubham Photography listing" [ref=e179]:
+          - img "Shubham Photography listing" [ref=e181]
+        - generic [ref=e182]:
+          - generic [ref=e184]:
+            - generic [ref=e185]: Shubham Photography
+            - generic [ref=e186]: Photographers
+          - generic [ref=e187]: Verified
+          - generic [ref=e193]:
+            - generic [ref=e196]: "0.0"
+            - generic [ref=e197]: (0)
+          - generic [ref=e198]: Maval, Pune
+          - generic [ref=e203]: "Turning fleeting moments into timeless memories. Specializing in [Weddings / Portraits / Automotive] photography. 📍 Based in Pune | Available to travel 💌 Let's shoot! DM or click below to book: [Link to website/portfolio] Shubham Photography 🎞️ Capturing life’s best angles. Visual storyteller | [Your Niche, e.g., Portraiture & Events] Booking now for [Current Year/Season] 🗓️ [Link]"
+          - generic [ref=e204]:
+            - generic [ref=e205]: Candid Photography
+            - generic [ref=e207]: Haldi Photoshoot
+            - generic [ref=e209]: Wedding shoot
+          - generic [ref=e211]:
+            - generic [ref=e212]: Starts from ₹12,000
+            - generic [ref=e214]: View profile
+      - button "Add Shubham Photography to favorites" [ref=e218] [cursor=pointer]
+  - dialog [ref=e223]:
+    - generic [ref=e226] [cursor=pointer]:
+      - generic [ref=e227]:
+        - generic [ref=e228]:
+          - generic [ref=e229]: Choose your location
+          - generic [ref=e230]: We'll show vendors there first, then nearby Talukas automatically.
+        - button "Close" [ref=e231]
+      - textbox "Search Taluka or District" [ref=e239]
+      - generic [ref=e241]:
+        - button "Ambegaon, Pune District" [ref=e242]:
+          - generic [ref=e243]:
+            - generic [ref=e244]: Ambegaon
+            - generic [ref=e245]: Pune District
+        - button "Baramati, Pune District" [ref=e246]:
+          - generic [ref=e247]:
+            - generic [ref=e248]: Baramati
+            - generic [ref=e249]: Pune District
+        - button "Bhor, Pune District" [ref=e250]:
+          - generic [ref=e251]:
+            - generic [ref=e252]: Bhor
+            - generic [ref=e253]: Pune District
+        - button "Daund, Pune District" [ref=e254]:
+          - generic [ref=e255]:
+            - generic [ref=e256]: Daund
+            - generic [ref=e257]: Pune District
+        - button "Haveli, Pune District" [ref=e258]:
+          - generic [ref=e259]:
+            - generic [ref=e260]: Haveli
+            - generic [ref=e261]: Pune District
+        - button "Indapur, Pune District" [ref=e262]:
+          - generic [ref=e263]:
+            - generic [ref=e264]: Indapur
+            - generic [ref=e265]: Pune District
+        - button "Junnar, Pune District" [ref=e266]:
+          - generic [ref=e267]:
+            - generic [ref=e268]: Junnar
+            - generic [ref=e269]: Pune District
+        - button "Khed, Pune District" [ref=e270]:
+          - generic [ref=e271]:
+            - generic [ref=e272]: Khed
+            - generic [ref=e273]: Pune District
+        - button "Loni Kalbhor, Pune District" [ref=e274]:
+          - generic [ref=e275]:
+            - generic [ref=e276]: Loni Kalbhor
+            - generic [ref=e277]: Pune District
+        - button "Maval, Pune District" [ref=e278]:
+          - generic [ref=e279]:
+            - generic [ref=e280]: Maval
+            - generic [ref=e281]: Pune District
+        - button "Mulshi, Pune District" [ref=e284]:
+          - generic [ref=e285]:
+            - generic [ref=e286]: Mulshi
+            - generic [ref=e287]: Pune District
+        - button "Pimpri-Chinchwad, Pune District" [ref=e288]:
+          - generic [ref=e289]:
+            - generic [ref=e290]: Pimpri-Chinchwad
+            - generic [ref=e291]: Pune District
+        - button "Pune City, Pune District" [ref=e292]:
+          - generic [ref=e293]:
+            - generic [ref=e294]: Pune City
+            - generic [ref=e295]: Pune District
+        - button "Purandar, Pune District" [ref=e296]:
+          - generic [ref=e297]:
+            - generic [ref=e298]: Purandar
+            - generic [ref=e299]: Pune District
+        - button "Shirur, Pune District" [ref=e300]:
+          - generic [ref=e301]:
+            - generic [ref=e302]: Shirur
+            - generic [ref=e303]: Pune District
+        - button "Velha, Pune District" [ref=e304]:
+          - generic [ref=e305]:
+            - generic [ref=e306]: Velha
+            - generic [ref=e307]: Pune District

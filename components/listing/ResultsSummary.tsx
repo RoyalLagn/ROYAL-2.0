@@ -10,16 +10,20 @@ type ResultsSummaryProps = {
   sortLabel: string;
   dark: boolean;
   onSort: () => void;
+  /** True when more pages exist beyond what's currently loaded -- shows
+   * "20+" instead of "20" so the count never falsely implies the loaded
+   * page is the complete total. */
+  hasMore?: boolean;
 };
 
-export default function ResultsSummary({ count, category, sortLabel, dark, onSort }: ResultsSummaryProps) {
+export default function ResultsSummary({ count, category, sortLabel, dark, onSort, hasMore }: ResultsSummaryProps) {
   const [sortFocused, setSortFocused] = useState(false);
   const colors = brandColors(dark);
   const text = dark ? "#F8F2F5" : colors.foreground;
-  const countLabel = count === 1 ? category.replace(/s$/, "") : category;
+  const countLabel = count === 1 && !hasMore ? category.replace(/s$/, "") : category;
   return (
     <View style={styles.row}>
-      <Text numberOfLines={1} style={[styles.count, { color: text }]}>{count} {countLabel} found</Text>
+      <Text numberOfLines={1} style={[styles.count, { color: text }]}>{count}{hasMore ? "+" : ""} {countLabel} found</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Sort results, currently ${sortLabel}`}

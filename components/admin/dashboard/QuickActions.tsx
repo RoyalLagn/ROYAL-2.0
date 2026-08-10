@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, Text } from "react-native";
 import { Href, useRouter } from "expo-router";
-import { Bell, Building2, ClipboardList, FileBarChart, Folder, PanelsTopLeft, Settings, Users } from "lucide-react-native";
+import { Bell, Building2, ClipboardList, FileBarChart, Folder, MapPinned, PanelsTopLeft, Settings, Users } from "lucide-react-native";
 import { ResponsiveGrid } from "@/components/responsive/ResponsiveGrid";
 import { ResponsiveCard } from "@/components/responsive/ResponsiveCard";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
@@ -13,6 +13,7 @@ const actions = [
   ["Hero Section", "Manage home carousel slides", PanelsTopLeft, "/AdminHero"],
   ["Push Notifications", "Send customer and vendor announcements", Bell, "/AdminPushNotifications"],
   ["View Categories", "Open marketplace categories", Folder, "/AdminCategories"],
+  ["District & Taluka Locations", "Manage the State → District → Taluka hierarchy", MapPinned, "/AdminGeoLocations"],
   ["Open Reports", "Go to the reports workspace", FileBarChart, "/AdminReports"],
   ["Open Settings", "Manage administrator settings", Settings, "/AdminSettings"],
 ] as const;

@@ -10,6 +10,7 @@ const CHECKS = [
   { name: "contacts", script: "scripts/test-contact-actions.mjs", strip: true },
   { name: "external-links", script: "scripts/test-external-link-normalization.mjs", strip: true },
   { name: "locations", script: "scripts/test-location-domain.mjs", strip: true },
+  { name: "location-discovery", script: "scripts/test-location-discovery-domain.mjs", strip: true },
   { name: "auth-validation", script: "scripts/test-auth-validation.mjs", strip: true },
   { name: "marketing-card-pdf", script: "scripts/test-marketing-card-pdf.mjs", strip: true },
   { name: "regression-guards", script: "scripts/test-regression-guards.mjs", strip: false },

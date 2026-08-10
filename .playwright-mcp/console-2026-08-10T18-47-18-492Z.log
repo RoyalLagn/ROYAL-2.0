@@ -1,0 +1,8 @@
+[    2760ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ https://sn_9mh4-pratikdada-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:17367
+[    2783ms] [LOG] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF. @ https://sn_9mh4-pratikdada-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:40300
+[    2812ms] [WARNING] "shadow*" style props are deprecated. Use "boxShadow". @ https://sn_9mh4-pratikdada-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23905
+[    2867ms] [WARNING] "textShadow*" style props are deprecated. Use "textShadow". @ https://sn_9mh4-pratikdada-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23905
+[    2928ms] [WARNING] props.pointerEvents is deprecated. Use style.pointerEvents @ https://sn_9mh4-pratikdada-8081.exp.direct/node_modules/expo-router/entry.bundle?platform=web&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.routerRoot=app&unstable_transformProfile=hermes-stable:23905
