@@ -57,6 +57,7 @@ type AccountOptionProps = {
   onPress: () => void;
   tile?: boolean;
   tileWidth?: `${number}%`;
+  showNativeSeparator?: boolean;
 };
 
 const mobilePressedScale = ({ pressed }: PressableStateCallbackType) =>
@@ -71,6 +72,7 @@ function AccountOption({
   onPress,
   tile = false,
   tileWidth,
+  showNativeSeparator = false,
 }: AccountOptionProps) {
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
@@ -90,10 +92,15 @@ function AccountOption({
       onPress={onPress}
       onHoverIn={() => setIsHovered(true)}
       onHoverOut={() => setIsHovered(false)}
-      className={tile
-        ? "group bg-card border border-border/80 rounded-2xl p-5 min-h-[144px] justify-between hover:border-primary/35 hover:bg-muted/40 hover:-translate-y-0.5 hover:shadow-soft-1 active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-all duration-200 ease-out"
-        : "group min-h-[72px] px-4 py-3.5 flex-row items-center border-b border-border/70 last:border-b-0 hover:bg-muted/50 active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 transition-colors duration-200 ease-out"}
+      className={Platform.OS === "web"
+        ? tile
+          ? "group bg-card border border-border/80 rounded-2xl p-5 min-h-[144px] justify-between hover:border-primary/35 hover:bg-muted/40 hover:-translate-y-0.5 hover:shadow-soft-1 active:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-all duration-200 ease-out"
+          : "group min-h-[72px] px-4 py-3.5 flex-row items-center border-b border-border/70 last:border-b-0 hover:bg-muted/50 active:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 transition-colors duration-200 ease-out"
+        : undefined}
       style={({ pressed }) => [
+        Platform.OS !== "web" && (tile ? styles.nativeTile : styles.nativeSettingsRow),
+        Platform.OS !== "web" && (isDark ? styles.nativeSurfaceDark : styles.nativeSurfaceLight),
+        Platform.OS !== "web" && !tile && showNativeSeparator && (isDark ? styles.nativeSeparatorDark : styles.nativeSeparatorLight),
         tile && tileWidth ? { width: tileWidth } : undefined,
         webTransition,
         Platform.OS === "web" && isHovered
@@ -611,11 +618,17 @@ export default function ProfileScreen() {
                   Your details, privacy and preferences
                 </Text>
                 <View
-                  className="bg-card rounded-2xl overflow-hidden border border-border/80"
-                  style={surfaceShadow}
+                  className={Platform.OS === "web" ? "bg-card rounded-2xl overflow-hidden border border-border/80" : undefined}
+                  style={Platform.OS === "web"
+                    ? surfaceShadow
+                    : [styles.nativeSettingsGroup, isDark ? styles.nativeSurfaceDark : styles.nativeSurfaceLight]}
                 >
-                  {accountOptions.map((item) => (
-                    <AccountOption key={item.title} {...item} />
+                  {accountOptions.map((item, index) => (
+                    <AccountOption
+                      key={item.title}
+                      {...item}
+                      showNativeSeparator={index < accountOptions.length - 1}
+                    />
                   ))}
                 </View>
               </View>
@@ -626,11 +639,17 @@ export default function ProfileScreen() {
                   Support, policies and contact options
                 </Text>
                 <View
-                  className="bg-card rounded-2xl overflow-hidden border border-border/80"
-                  style={surfaceShadow}
+                  className={Platform.OS === "web" ? "bg-card rounded-2xl overflow-hidden border border-border/80" : undefined}
+                  style={Platform.OS === "web"
+                    ? surfaceShadow
+                    : [styles.nativeSettingsGroup, isDark ? styles.nativeSurfaceDark : styles.nativeSurfaceLight]}
                 >
-                  {supportOptions.map((item) => (
-                    <AccountOption key={item.title} {...item} />
+                  {supportOptions.map((item, index) => (
+                    <AccountOption
+                      key={item.title}
+                      {...item}
+                      showNativeSeparator={index < supportOptions.length - 1}
+                    />
                   ))}
                 </View>
               </View>
@@ -915,6 +934,41 @@ const styles = StyleSheet.create({
   mobileStack: {
     width: "100%",
     gap: 28,
+  },
+  nativeSettingsGroup: {
+    borderWidth: 1,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  nativeSettingsRow: {
+    minHeight: 72,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  nativeTile: {
+    minHeight: 144,
+    padding: 20,
+    borderWidth: 1,
+    borderRadius: 16,
+    justifyContent: "space-between",
+  },
+  nativeSurfaceLight: {
+    backgroundColor: "#FDF2F8",
+    borderColor: "#FBCFE8",
+  },
+  nativeSurfaceDark: {
+    backgroundColor: "#0E141F",
+    borderColor: "#232C3D",
+  },
+  nativeSeparatorLight: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#F8D8E5",
+  },
+  nativeSeparatorDark: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#232C3D",
   },
   nativeShadow: {
     shadowColor: "#5D2A41",

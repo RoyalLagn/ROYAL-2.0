@@ -1,5 +1,8 @@
 import React from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
+// NativeWind's native Pressable interop drops function `style={(state) =>
+// [...]}` props on Android; InteropSafePressable resolves it first.
+import Pressable from "@/components/InteropSafePressable";
 import ReviewCard from "./ReviewCard";
 import ReviewFilters from "./ReviewFilters";
 import ReviewForm from "./ReviewForm";

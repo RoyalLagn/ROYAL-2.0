@@ -1,12 +1,31 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Platform, Pressable, StyleSheet, Text, View, } from "react-native";
+import { Animated, PixelRatio, Platform, StyleSheet, Text, View, } from "react-native";
 import { ArrowUpRight, Images, Play } from "lucide-react-native";
 import {
   portfolioMediaUrl, type PublicPortfolioAlbum, type VendorPortfolioMedia, } from "@/services/vendorPortfolio";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
 import { brandPalette } from "@/constants/brandPalette";
+// NativeWind's native Pressable interop drops function `style={(state) =>
+// [...]}` props on Android (used by the "View All" button below);
+// InteropSafePressable resolves it first.
+import Pressable from "@/components/InteropSafePressable";
 
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
+
+function twoColumnTileWidth(containerWidth: number, gap: number) {
+  if (!containerWidth) return undefined;
+  if (Platform.OS === "web") return (containerWidth - gap) / 2;
+
+  // Yoga rounds each child edge to the Android device pixel grid. Two
+  // mathematically exact half-width children can therefore round upward and
+  // overflow their row by one physical pixel, wrapping the second album.
+  // Divide the measured physical pixels first so both tiles and the gap are
+  // guaranteed to fit on every density.
+  const density = PixelRatio.get();
+  const containerPixels = Math.floor(containerWidth * density);
+  const gapPixels = Math.ceil(gap * density);
+  return Math.floor((containerPixels - gapPixels) / 2) / density;
+}
 
 type Props = {
   albums: PublicPortfolioAlbum[];
@@ -275,7 +294,7 @@ function PortfolioAlbums({
   );
   const remainingAlbums = mode === "preview" && albums.length > 4 ? albums.slice(3) : [];
   const gap = gridWidth < 480 ? 10 : 14;
-  const cardWidth = gridWidth ? (gridWidth - gap) / 2 : undefined;
+  const cardWidth = twoColumnTileWidth(gridWidth, gap);
   const cardHeight = cardWidth ? (cardWidth / 1.08) + 72 : undefined;
 
   if (!albums.length) return null;
@@ -309,7 +328,10 @@ function PortfolioAlbums({
 
       <View
         onLayout={(event) => {
-          const nextWidth = Math.round(event.nativeEvent.layout.width);
+          const measuredWidth = event.nativeEvent.layout.width;
+          const nextWidth = Platform.OS === "web"
+            ? Math.round(measuredWidth)
+            : Math.floor(measuredWidth * PixelRatio.get()) / PixelRatio.get();
           setGridWidth((current) => current === nextWidth ? current : nextWidth);
         }}
         style={[styles.grid, { columnGap: gap, rowGap: gap }]}

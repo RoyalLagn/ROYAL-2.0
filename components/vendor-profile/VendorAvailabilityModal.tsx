@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { CalendarDays, ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyhole, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PublicVendorAvailability } from "@/services/publicVendorListings";
@@ -48,6 +48,18 @@ const iso = (date: Date) =>
 
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
 
+// Sheet sizing constants used to derive pixel-accurate layout from the
+// actual device width. Android's Yoga layout engine can mis-resolve
+// `aspectRatio` combined with percentage widths inside a `flexWrap`
+// container (the calendar day grid), which balloons cell sizes on native
+// Android while looking fine on web. Computing explicit pixel sizes from
+// useWindowDimensions sidesteps that engine-specific bug and keeps the
+// sheet responsive across screen sizes instead of just "smaller".
+const SHEET_HORIZONTAL_MARGIN = 12;
+const SHEET_MAX_WIDTH = 560;
+const SHEET_HORIZONTAL_PADDING = 16;
+const CALENDAR_PADDING = 13;
+
 export default function VendorAvailabilityModal({
   visible,
   vendorId,
@@ -57,6 +69,11 @@ export default function VendorAvailabilityModal({
   onClose,
 }: VendorAvailabilityModalProps) {
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const sheetWidth = Math.min(windowWidth - SHEET_HORIZONTAL_MARGIN * 2, SHEET_MAX_WIDTH);
+  const sheetMaxHeight = Math.max(320, Math.min(windowHeight * 0.92, windowHeight - insets.top - 24));
+  const gridWidth = sheetWidth - SHEET_HORIZONTAL_PADDING * 2 - CALENDAR_PADDING * 2;
+  const cellSize = Math.floor(gridWidth / 7);
   const today = iso(new Date());
   const currentMonth = startOfMonth(new Date());
   const [month, setMonth] = useState(currentMonth);
@@ -119,6 +136,8 @@ export default function VendorAvailabilityModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={[styles.sheet, {
+          width: sheetWidth,
+          maxHeight: sheetMaxHeight,
           paddingBottom: Math.max(insets.bottom, 16) + 8,
           backgroundColor: background,
           shadowColor: dark ? "#000000" : "#7D3D58",
@@ -144,7 +163,12 @@ export default function VendorAvailabilityModal({
             <View style={[styles.summaryPill, { backgroundColor: "#FDECEB" }]}><Text style={styles.summaryValue}>{blockedCount}</Text><Text style={styles.summaryRed}>Blocked</Text></View>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
             <View style={[styles.calendar, { backgroundColor: surface }]}>
               <View style={styles.monthRow}>
                 <Pressable
@@ -163,9 +187,9 @@ export default function VendorAvailabilityModal({
 
               <View style={styles.grid}>
                 {["S", "M", "T", "W", "T", "F", "S"].map((day, index) =>
-                  <Text key={`${day}-${index}`} style={[styles.weekday, { color: muted }]}>{day}</Text>)}
+                  <Text key={`${day}-${index}`} style={[styles.weekday, { width: cellSize, color: muted }]}>{day}</Text>)}
                 {days.map((date, index) => {
-                  if (!date) return <View key={`blank-${index}`} style={styles.day} />;
+                  if (!date) return <View key={`blank-${index}`} style={[styles.day, { width: cellSize, height: cellSize }]} />;
                   const value = iso(date);
                   const past = value < today;
                   const status: AvailabilityStatus = past ? "blocked" : statusByDate[value] ?? "available";
@@ -185,7 +209,7 @@ export default function VendorAvailabilityModal({
                       onPress={() => setSelected(value)}
                       style={[
                         styles.day,
-                        { backgroundColor },
+                        { width: cellSize, height: cellSize, backgroundColor },
                         past && styles.pastDay,
                         active && { borderColor: "#E91E63", borderWidth: 2 },
                       ]}
@@ -229,7 +253,9 @@ export default function VendorAvailabilityModal({
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(17,8,13,.56)" },
-  sheet: { width: "100%", maxWidth: 560, maxHeight: "92%", alignSelf: "center", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 16, paddingTop: 10, shadowOffset: { width: 0, height: -8 }, shadowOpacity: .16, shadowRadius: 28, elevation: 10 },
+  sheet: { alignSelf: "center", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: SHEET_HORIZONTAL_PADDING, paddingTop: 10, shadowOffset: { width: 0, height: -8 }, shadowOpacity: .16, shadowRadius: 28, elevation: 10 },
+  scroll: { flexShrink: 1, flexGrow: 0 },
+  scrollContent: { flexGrow: 1 },
   handle: { width: 38, height: 4, borderRadius: 999, alignSelf: "center", marginBottom: 18 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 11, marginBottom: 18 },
   headerIcon: { width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center" },
@@ -250,8 +276,8 @@ const styles = StyleSheet.create({
   arrow: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   disabled: { opacity: .28 },
   grid: { flexDirection: "row", flexWrap: "wrap" },
-  weekday: { width: "14.285%", paddingVertical: 8, textAlign: "center", fontSize: typeScale.caption, fontWeight: "700" },
-  day: { width: "14.285%", aspectRatio: 1, borderRadius: 11, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] },
+  weekday: { paddingVertical: 8, textAlign: "center", fontSize: typeScale.caption, fontWeight: "700" },
+  day: { borderRadius: 11, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] },
   dayText: { fontSize: typeScale.metadata, lineHeight: typeLeading.label, fontWeight: "700" },
   pastDay: { opacity: .64 },
   legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 14, paddingVertical: 14 },

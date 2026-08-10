@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TextInput, View } from "react-native";
 import ReviewPhotoUploader from "./ReviewPhotoUploader";
 import type { ReviewDraft } from "./types";
 import { reviewPalette } from "./types";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+// NativeWind's native Pressable interop drops function `style={(state) =>
+// [...]}` props on Android; InteropSafePressable resolves it first.
+import Pressable from "@/components/InteropSafePressable";
 
 export type ReviewFormProps = { initialValue?: Partial<ReviewDraft>; dark?: boolean; submitting?: boolean; error?: string | null; onSubmit: (draft: ReviewDraft) => void | Promise<void>; onCancel?: () => void; onAddPhotos: () => void; onRemovePhoto: (uri: string, index: number) => void; photos: string[]; submitLabel?: string };
 export default function ReviewForm({ initialValue, dark = false, submitting = false, error, onSubmit, onCancel, onAddPhotos, onRemovePhoto, photos, submitLabel }: ReviewFormProps) {

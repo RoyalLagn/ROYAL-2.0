@@ -1,5 +1,8 @@
 import React from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
+// NativeWind's native Pressable interop drops function `style={(state) =>
+// [...]}` props on Android; InteropSafePressable resolves it first.
+import Pressable from "@/components/InteropSafePressable";
 import StarDistribution from "./StarDistribution";
 import type { StarCounts } from "./types";
 import { reviewPalette } from "./types";

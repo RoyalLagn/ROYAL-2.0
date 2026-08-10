@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { CalendarDays, MessageCircle, MessageSquareText, Phone } from "lucide-react-native";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
+// NativeWind's native Pressable interop drops function `style={(state) =>
+// [...]}` props on Android; InteropSafePressable resolves it first.
+import Pressable from "@/components/InteropSafePressable";
 
 export type VendorQuickActionsProps = {
   dark?: boolean;

@@ -1,10 +1,13 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { PackageOpen, X } from "lucide-react-native";
 import PackageDisplayCard from "@/components/packages/PackageDisplayCard";
 import { useVendorPackages } from "@/hooks/useVendorPackages";
 import type { VendorPackage } from "@/services/vendorPackages";
 import { typeScale, typeLeading } from "@/constants/typography";
+// NativeWind's native Pressable interop drops function `style={(state) =>
+// [...]}` props on Android; InteropSafePressable resolves it first.
+import Pressable from "@/components/InteropSafePressable";
 
 type Props = {
   visible: boolean;

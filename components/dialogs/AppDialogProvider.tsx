@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,15 @@ import { useColorScheme } from "nativewind";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeLeading, typeScale } from "@/constants/typography";
 import { registerAppAlertPresenter, type AppAlertRequest } from "@/utils/webAlert";
+// This provider backs every Alert.alert() call app-wide (see
+// utils/webAlert.ts). Its action/close buttons use a function
+// `style={(state) => [...]}` prop to react to `pressed`. NativeWind's
+// native Pressable interop does not resolve that render-prop form on
+// Android -- the whole style silently drops (icon/text children still
+// render), which is why the OK button looked like plain white text with no
+// pink background. InteropSafePressable resolves the callback style itself
+// before handing an already-resolved style to the underlying Pressable.
+import Pressable from "@/components/InteropSafePressable";
 
 type QueuedAlert = AppAlertRequest & { id: number };
 let nextAlertId = 0;

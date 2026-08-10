@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import React, { useState } from "react";
+import { Platform, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -13,6 +13,10 @@ type Props = {
   hero: React.ReactNode;
   children: React.ReactNode;
   heroHeight: number;
+  /** Initial/fallback page width (typically `Math.min(useWindowDimensions().width, DESKTOP_MAX_WIDTH)`
+   * from the caller), used only until the layout below measures the real
+   * rendered width. Do not treat this as authoritative -- see the note on
+   * `measuredWidth` for why. */
   pageWidth: number;
   overlap?: number;
   motionDistance?: number;
@@ -21,7 +25,26 @@ type Props = {
   contentContainerStyle?: StyleProp<ViewStyle>;
 };
 
-/** One vertical scroll owner, one hero offset, and no scroll-driven layout. */
+const DESKTOP_MAX_WIDTH = 1120;
+
+/**
+ * One vertical scroll owner, one hero offset, and no scroll-driven layout.
+ *
+ * Width is the single source of truth for every vendor-profile section
+ * nested inside `children` (portfolio grid, clips grid, etc.) -- they all
+ * measure their own available width relative to this component's `page`
+ * container via their own `onLayout`. That only works if `page`'s width is
+ * itself trustworthy. It used to come straight from the `pageWidth` prop,
+ * which every caller derives from `useWindowDimensions()`; on some Android/
+ * Expo Go runtimes that hook does not reliably reflect the actual rendered
+ * width, so `page` (and everything measuring against it, like the portfolio
+ * grid) would silently inherit a wrong width -- this is what made the
+ * 2-column portfolio grid intermittently collapse to one oversized column
+ * per row despite the grid's own layout math being correct. Measuring this
+ * component's own root `onLayout` gives the true rendered width regardless
+ * of that hook, so `pageWidth` is now only a same-frame fallback before the
+ * first layout pass.
+ */
 function PinnedHeroProfileLayout({
   hero,
   children,
@@ -37,6 +60,17 @@ function PinnedHeroProfileLayout({
   const reducedMotion = useReducedMotion();
   const sheetOffset = Math.max(0, heroHeight - overlap);
   const coverDistance = Math.max(1, Math.min(heroHeight, motionDistance));
+  const [measuredWidth, setMeasuredWidth] = useState(0);
+  // Web is the visual reference and already receives the correct viewport
+  // width from its caller. Only native needs the measured-root fallback for
+  // Expo Go runtimes whose window dimensions can briefly be stale.
+  const effectiveWidth = Platform.OS === "web"
+    ? pageWidth
+    : Math.min(measuredWidth || pageWidth, DESKTOP_MAX_WIDTH);
+  const onRootLayout = (event: LayoutChangeEvent) => {
+    const next = Math.round(event.nativeEvent.layout.width);
+    setMeasuredWidth((current) => (current === next ? current : next));
+  };
 
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -68,7 +102,10 @@ function PinnedHeroProfileLayout({
   }), [coverDistance, reducedMotion]);
 
   return (
-    <View style={[styles.root, { backgroundColor }]}>
+    <View
+      onLayout={Platform.OS === "web" ? undefined : onRootLayout}
+      style={[styles.root, { backgroundColor }]}
+    >
       <Animated.ScrollView
         style={styles.scroll}
         contentContainerStyle={contentContainerStyle}
@@ -78,7 +115,7 @@ function PinnedHeroProfileLayout({
         nestedScrollEnabled
         onScroll={onScroll}
       >
-        <View style={[styles.page, { width: pageWidth, paddingTop: sheetOffset }]}>
+        <View style={[styles.page, { width: effectiveWidth, paddingTop: sheetOffset }]}>
           <Animated.View style={[styles.hero, { height: heroHeight }, heroStyle]}>
             {hero}
             <Animated.View pointerEvents="none" style={[styles.shade, shadeStyle]} />

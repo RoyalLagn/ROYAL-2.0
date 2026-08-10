@@ -6,7 +6,6 @@ import {
   Image,
   Modal,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -21,6 +20,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BadgeCheck, ChevronLeft, Eye, Heart, Send } from "lucide-react-native";
+// NativeWind's native Pressable interop drops function `style={(state) =>
+// [...]}` props on Android; InteropSafePressable resolves it first.
+import Pressable from "@/components/InteropSafePressable";
 import { PublicClipVideo, PublicClipVideoBoundary } from "@/clips/components";
 import { CLIP_FEED_SETTINGS } from "@/clips/constants";
 import {

@@ -1,5 +1,8 @@
 import React from "react";
-import { Linking, Pressable, StyleSheet, Text } from "react-native";
+import { Linking, StyleSheet, Text } from "react-native";
+// NativeWind's native Pressable interop drops function `style={(state) =>
+// [...]}` props on Android; InteropSafePressable resolves it first.
+import Pressable from "@/components/InteropSafePressable";
 import { MapPin } from "lucide-react-native";
 import { typeScale } from "@/constants/typography";
 

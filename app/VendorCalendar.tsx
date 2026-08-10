@@ -1,7 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyhole, Save } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
+import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
+// The Tentative/Blocked controls use a function `style={(state) => [...]}`
+// prop (to react to `pressed`). NativeWind's native Pressable interop does
+// not resolve that render-prop form on Android -- the whole style silently
+// drops (children still render), which is why those controls showed as
+// bare icon+text with no visible pill. InteropSafePressable (already used
+// elsewhere in the app for the same reason) resolves the callback style
+// itself before handing a plain style to the underlying Pressable.
+import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
@@ -29,10 +39,28 @@ const statusColors: Record<AvailabilityStatus, { background: string; text: strin
 };
 const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
+const STATUS_GAP = 8;
+
 export default function VendorCalendar() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { data, refresh } = useVendorWorkspace();
+  const insets = useSafeAreaInsets();
+  // Grid/button sizes are derived from each row's own measured `onLayout`
+  // width rather than `useWindowDimensions()`. Two independent Android
+  // layout bugs live here: (1) Yoga can mis-resolve `aspectRatio` combined
+  // with percentage widths inside `flexWrap` (the day grid), and (2) on
+  // some Expo Go/Android runtimes `useWindowDimensions()` does not reliably
+  // reflect the actual rendered content width at mount time, which silently
+  // produced a near-zero/invalid computed width for the Tentative/Blocked
+  // buttons and made them collapse to their unstyled intrinsic content
+  // size. Measuring the real row width directly with onLayout sidesteps
+  // both: it's always the true available space, regardless of window
+  // timing or Yoga's aspectRatio resolution order.
+  const [calendarGridWidth, setCalendarGridWidth] = useState(0);
+  const [statusRowWidth, setStatusRowWidth] = useState(0);
+  const cellSize = calendarGridWidth ? Math.floor(calendarGridWidth / 7) : 0;
+  const statusButtonWidth = statusRowWidth ? Math.floor((statusRowWidth - STATUS_GAP) / 2) : 0;
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [selected, setSelected] = useState(() => iso(new Date()));
   const [savedStatuses, setSavedStatuses] = useState<Record<string, AvailabilityStatus>>({});
@@ -175,15 +203,15 @@ export default function VendorCalendar() {
   };
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 24 + Math.max(insets.bottom, 8) + VENDOR_TAB_BASE_HEIGHT + 16 }]}>
       <Text style={[styles.eyebrow, { color: colors.pink }]}>PLAN WITH CLARITY</Text>
       <Text style={[styles.title, { color: colors.text }]}>Availability</Text>
       <Text style={[styles.subtitle, { color: colors.muted }]}>Keep customer expectations accurate with an up-to-date working calendar.</Text>
       <View style={[styles.calendar, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
         <View style={styles.monthRow}><Pressable onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} style={styles.arrow}><ChevronLeft size={20} color={colors.text} /></Pressable><Text style={[styles.month, { color: colors.text }]}>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</Text><Pressable onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} style={styles.arrow}><ChevronRight size={20} color={colors.text} /></Pressable></View>
-        <View style={styles.grid}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <Text key={`${day}${index}`} style={[styles.weekday, { color: colors.muted }]}>{day}</Text>)}
+        <View onLayout={(event) => setCalendarGridWidth(event.nativeEvent.layout.width)} style={styles.grid}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <Text key={`${day}${index}`} style={[styles.weekday, cellSize ? { width: cellSize } : null, { color: colors.muted }]}>{day}</Text>)}
           {days.map((date, index) => {
-            if (!date) return <View key={`blank${index}`} style={styles.day} />;
+            if (!date) return <View key={`blank${index}`} style={[styles.day, cellSize ? { width: cellSize, height: cellSize } : null]} />;
             const value = iso(date);
             const status = dateStatus(value);
             const active = value === selected;
@@ -203,6 +231,7 @@ export default function VendorCalendar() {
               onPress={() => setSelected(value)}
               style={[
                 styles.day,
+                cellSize ? { width: cellSize, height: cellSize } : null,
                 { backgroundColor },
                 past && styles.pastDay,
                 active && !past && {
@@ -225,14 +254,14 @@ export default function VendorCalendar() {
       <View style={[styles.editor, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
         <Text style={[styles.editorTitle, { color: colors.text }]}>{new Date(`${selected}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>Future dates are available automatically. Add an exception only when needed.</Text>
-        <View style={styles.statusGrid}>{statuses.map(({ id, label, icon: Icon }) => {
+        <View onLayout={(event) => setStatusRowWidth(event.nativeEvent.layout.width)} style={styles.statusGrid}>{statuses.map(({ id, label, icon: Icon }) => {
           const active = dateStatus(selected) === id;
           const palette = statusColors[id];
-          return <Pressable key={id} disabled={savingStatus !== null || selected < today} onPress={() => update(id)} style={({ pressed }) => [styles.status, { backgroundColor: active ? palette.background : colors.background }, selected < today && styles.statusDisabled, pressed && styles.pressed]}>
+          return <Pressable key={id} disabled={savingStatus !== null || selected < today} onPress={() => update(id)} style={({ pressed }) => [styles.status, statusButtonWidth ? { width: statusButtonWidth } : null, { backgroundColor: active ? palette.background : colors.background }, selected < today && styles.statusDisabled, pressed && styles.pressed]}>
             {savingStatus === id
               ? <ActivityIndicator size="small" color={active ? palette.text : colors.pink} />
               : <Icon size={19} color={active ? palette.text : colors.muted} />}
-            <Text style={{ color: active ? palette.text : colors.text, fontSize: typeScale.metadata, fontWeight: "700" }}>{label}</Text>
+            <Text numberOfLines={1} style={{ flexShrink: 1, color: active ? palette.text : colors.text, fontSize: typeScale.metadata, fontWeight: "700" }}>{label}</Text>
           </Pressable>;
         })}</View>
         {selected >= today && savedStatuses[selected] ? (
@@ -308,10 +337,10 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 4 }, calendar: { borderRadius: 24, padding: 15, marginTop: 20, shadowOffset: { width: 0, height: 9 }, shadowOpacity: .08, shadowRadius: 22, elevation: 3 },
   monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }, month: { fontSize: typeScale.cardTitle, fontWeight: "700" }, arrow: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap" }, weekday: { width: "14.285%", textAlign: "center", fontSize: typeScale.caption, fontWeight: "700", paddingVertical: 8 },
-  day: { width: "14.285%", aspectRatio: 1, borderRadius: 12, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] }, dayText: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" }, pastDay: { opacity: .6 },
+  day: { width: "14.285%", borderRadius: 12, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] }, dayText: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" }, pastDay: { opacity: .6 },
   legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13, paddingTop: 16 }, legendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, legendSwatch: { width: 10, height: 10, borderRadius: 3 }, legendText: { fontSize: typeScale.caption, fontWeight: "700" },
   editor: { borderRadius: 22, padding: 16, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .07, shadowRadius: 18, elevation: 2 }, editorTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
-  statusGrid: { flexDirection: "row", gap: 8, marginTop: 16 }, status: { flex: 1, minHeight: 68, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 }, statusDisabled: { opacity: .45 }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
+  statusGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 }, status: { flex: 1, minWidth: 120, minHeight: 68, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 }, statusDisabled: { opacity: .45 }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
   markAvailable: { minHeight: 46, borderWidth: 1, borderRadius: 14, marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   markAvailableText: { fontSize: typeScale.metadata, fontWeight: "700" },
   hoursList: { marginTop: 14, gap: 4 },

@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
+import { ActivityIndicator, Alert, Linking, Platform, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
+// NativeWind's native Pressable interop doesn't resolve a function
+// `style={(state) => [...]}` prop on Android (whole style silently drops).
+// InteropSafePressable resolves it first. See VendorCalendar.tsx /
+// AppDialogProvider.tsx / VendorProfileTabs.tsx for the same fix.
+import Pressable from "@/components/InteropSafePressable";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";

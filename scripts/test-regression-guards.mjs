@@ -150,6 +150,69 @@ assert.doesNotMatch(
   /import \{[^}]*\bPressable\b[^}]*\} from ["']react-native["'];/,
   "Public Profile must not bypass the Android-safe Pressable wrapper.",
 );
+assert.match(
+  publicProfileSource,
+  /className=\{Platform\.OS === ["']web["'] \? "bg-card rounded-2xl overflow-hidden border border-border\/80" : undefined\}/,
+  "Public Profile grouped-card NativeWind borders must remain web-only so Android never falls back to black token borders.",
+);
+assert.match(
+  publicProfileSource,
+  /showNativeSeparator=\{index < accountOptions\.length - 1\}/,
+  "Public Profile account rows must use deterministic native separators instead of alpha-token borders.",
+);
+assert.match(
+  publicProfileSource,
+  /nativeSurfaceLight:[\s\S]*?backgroundColor: "#FDF2F8",[\s\S]*?borderColor: "#FBCFE8",/,
+  "Public Profile Android grouped cards must retain their explicit light pink surface and border colors.",
+);
+assert.match(
+  publicProfileSource,
+  /nativeSeparatorLight:[\s\S]*?borderBottomWidth: StyleSheet\.hairlineWidth,[\s\S]*?borderBottomColor: "#F8D8E5",/,
+  "Public Profile Android separators must stay explicit hairlines rather than platform-dependent token borders.",
+);
+
+// --- Public vendor media must keep its native-only responsive fixes -----
+const [portfolioAlbumsSource, vendorClipsGridSource, androidVendorClipsGridSource, pinnedProfileLayoutSource] = await Promise.all([
+  read("components/vendor-profile/PortfolioAlbums.tsx"),
+  read("components/vendor-profile/VendorClipsGrid.tsx"),
+  read("components/vendor-profile/VendorClipsGrid.android.tsx"),
+  read("components/vendor-profile/PinnedHeroProfileLayout.tsx"),
+]);
+assert.match(
+  portfolioAlbumsSource,
+  /function twoColumnTileWidth\([\s\S]*?PixelRatio\.get\(\)[\s\S]*?Math\.floor/,
+  "Portfolio albums must divide measured physical pixels before laying out two Android columns.",
+);
+assert.match(
+  vendorClipsGridSource,
+  /import Pressable from ["']@\/components\/InteropSafePressable["'];/,
+  "Vendor Clips must retain callback Pressable styles through NativeWind on Android.",
+);
+assert.match(
+  vendorClipsGridSource,
+  /onLayout=\{Platform\.OS === ["']web["'] \? undefined/,
+  "Vendor Clips must measure its rendered native container instead of assuming the window width.",
+);
+assert.match(
+  androidVendorClipsGridSource,
+  /<View style=\{\[styles\.tileFrame, \{ width \}\]\}>[\s\S]*?<Image[\s\S]*?style=\{styles\.thumbnail\}[\s\S]*?<Pressable/,
+  "Android Vendor Clips must keep layout and media painting outside the Pressable interaction overlay.",
+);
+assert.match(
+  androidVendorClipsGridSource,
+  /thumbnail: \{[\s\S]*?width: ["']100%["'][\s\S]*?height: ["']100%["']/,
+  "Android Vendor Clips thumbnails must have explicit non-zero in-flow dimensions.",
+);
+assert.match(
+  androidVendorClipsGridSource,
+  /\{clips\.map\(\(clip, index\) =>/,
+  "Android Vendor Clips must render every clip without a platform-specific filter.",
+);
+assert.match(
+  pinnedProfileLayoutSource,
+  /Platform\.OS === ["']web["'][\s\S]*?\? pageWidth[\s\S]*?: Math\.min\(measuredWidth \|\| pageWidth/,
+  "Pinned vendor profiles must preserve the web width path and use measured width only on native.",
+);
 const approvedInterWeights = ["400Regular", "500Medium", "600SemiBold", "700Bold"];
 const approvedPlayfairWeights = ["400Regular", "500Medium", "600SemiBold", "700Bold", "700Bold_Italic"];
 for (const weight of approvedInterWeights) {

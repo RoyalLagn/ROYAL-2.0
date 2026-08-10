@@ -1,5 +1,8 @@
 import React from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
+// NativeWind's native Pressable interop drops function `style={(state) =>
+// [...]}` props on Android; InteropSafePressable resolves it first.
+import Pressable from "@/components/InteropSafePressable";
 import { CalendarRange, Check, Clock3, Gift, Minus, PackageCheck, Sparkles } from "lucide-react-native";
 import type { VendorPackage, VendorPackageItem } from "@/services/vendorPackages";
 import { typeScale, typeLeading } from "@/constants/typography";

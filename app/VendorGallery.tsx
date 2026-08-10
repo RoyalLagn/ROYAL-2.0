@@ -54,10 +54,24 @@ export default function VendorGallery() {
   const [savingHero, setSavingHero] = useState(false);
   const [focalMedia, setFocalMedia] = useState<any>(null);
   const [focalFrame, setFocalFrame] = useState({ width: 1, height: 1 });
-  const columns = width >= 900 ? 4 : width >= 600 ? 3 : 2;
   const gap = 10;
   const contentWidth = Math.min(width, 1120) - (width >= 900 ? 56 : 32);
-  const tileWidth = (contentWidth - gap * (columns - 1)) / columns;
+  // Portfolio media grid: columns/tile width are derived from the grid's own
+  // measured layout width (onLayout below), not just the window width. This
+  // keeps the 2-up mobile grid correct even when the rendered container is
+  // narrower/wider than the raw window (e.g. Android/Expo Go safe-area and
+  // navigator chrome), which is what made the grid collapse to one oversized
+  // column per row instead of two.
+  const [galleryWidth, setGalleryWidth] = useState(0);
+  const [previewGridWidth, setPreviewGridWidth] = useState(0);
+  const columnsForWidth = (w: number) => (w >= 900 ? 4 : w >= 600 ? 3 : 2);
+  const tileWidthForContainer = (containerWidth: number) => {
+    const measured = containerWidth || contentWidth;
+    const cols = columnsForWidth(measured);
+    return (measured - gap * (cols - 1)) / cols;
+  };
+  const tileWidth = tileWidthForContainer(galleryWidth);
+  const previewTileWidth = tileWidthForContainer(previewGridWidth);
   const activeAlbum = data.albums.find((album) => album.id === selectedAlbumId) ?? data.albums[0];
   const media = useMemo(() => data.media.filter((item) => item.album_id === activeAlbum?.id), [data.media, activeAlbum?.id]);
   const lockedPhotoCount = useMemo(() => data.media.filter((item) => item.resource_type === "image" && item.subscription_locked).length, [data.media]);
@@ -735,7 +749,7 @@ export default function VendorGallery() {
           <Text style={{ color: colors.pink, fontWeight: "700", fontSize: typeScale.body }}>{uploading ? "Uploading securely…" : remainingCapacity === 0 ? "Album limit reached" : "Add images or videos"}</Text>
         </Pressable>
         {remainingCapacity === 0 && <View style={[styles.capacityNotice, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.capacityText, { color: colors.muted }]}>This album contains 15 media items. Create another album to continue uploading.</Text><Pressable onPress={() => openAlbum()}><Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>Create album</Text></Pressable></View>}
-        <View style={[styles.mediaGrid, { gap }]}>
+        <View onLayout={(event) => setGalleryWidth(event.nativeEvent.layout.width)} style={[styles.mediaGrid, { gap }]}>
           {media.map((item) => <Pressable key={item.id} onPress={() => setPreview(item)} style={{ width: tileWidth }}>
             <View style={[styles.tile, { height: tileWidth * 0.8 }, item.subscription_locked && styles.lockedTile]}>
               <ImageFadeIn source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
@@ -884,9 +898,9 @@ export default function VendorGallery() {
             <Text style={[styles.albumPreviewName, { color: colors.text }]}>{albumPreview?.title}</Text>
             <Text style={[styles.albumPreviewDescription, { color: colors.muted }]}>{albumPreview?.description || "A curated selection from our recent work."}</Text>
           </View>
-          <View style={[styles.mediaGrid, { gap }]}>
-            {data.media.filter((item) => item.album_id === albumPreview?.id).map((item) => <Pressable key={item.id} onPress={() => { setAlbumPreview(null); setPreview(item); }} style={{ width: tileWidth }}>
-              <View style={[styles.tile, { height: tileWidth * .8 }]}>
+          <View onLayout={(event) => setPreviewGridWidth(event.nativeEvent.layout.width)} style={[styles.mediaGrid, { gap }]}>
+            {data.media.filter((item) => item.album_id === albumPreview?.id).map((item) => <Pressable key={item.id} onPress={() => { setAlbumPreview(null); setPreview(item); }} style={{ width: previewTileWidth }}>
+              <View style={[styles.tile, { height: previewTileWidth * .8 }]}>
                 <ImageFadeIn source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
                 {item.resource_type === "video" && <View style={styles.play}><Play size={18} fill="#FFF" color="#FFF" /></View>}
                 {item.is_cover && <View style={[styles.coverBadge, { backgroundColor: colors.pink }]}><Star size={10} color="#FFF" fill="#FFF" /><Text style={styles.coverText}>Cover</Text></View>}

@@ -1,5 +1,8 @@
 import React, { useState } from "react";
-import { Image, type ImageSourcePropType, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
+import { Image, type ImageSourcePropType, Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
+// NativeWind's native Pressable interop drops function `style={(state) =>
+// [...]}` props on Android; InteropSafePressable resolves it first.
+import Pressable from "@/components/InteropSafePressable";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 const PINK = "#E91E63";

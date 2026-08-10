@@ -1,9 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  PixelRatio,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -13,6 +13,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Clapperboard, Eye, Play } from "lucide-react-native";
 import type { PublicClip } from "@/clips/types";
 import { typeScale, typeLeading } from "@/constants/typography";
+// NativeWind's native Pressable interop drops function `style={(state) =>
+// [...]}` props on Android; InteropSafePressable resolves it first.
+import Pressable from "@/components/InteropSafePressable";
 
 function compactCount(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M`;
@@ -36,9 +39,20 @@ export default function VendorClipsGrid({
   onRetry: () => void;
 }) {
   const { width: windowWidth } = useWindowDimensions();
+  const [gridWidth, setGridWidth] = useState(0);
   const contentPadding = windowWidth < 600 ? 28 : 44;
   const availableWidth = Math.max(0, Math.min(windowWidth, 960) - contentPadding);
-  const tileWidth = Math.max(0, (availableWidth - 10) / 3);
+  const gap = 5;
+  const nativeAvailableWidth = gridWidth || availableWidth;
+  const density = PixelRatio.get();
+  const tileWidth = Platform.OS === "web"
+    ? Math.max(0, (availableWidth - (gap * 2)) / 3)
+    : Math.max(
+        0,
+        Math.floor(
+          (Math.floor(nativeAvailableWidth * density) - Math.ceil(gap * density) * 2) / 3,
+        ) / density,
+      );
 
   if (loading) {
     return (
@@ -74,7 +88,14 @@ export default function VendorClipsGrid({
   }
 
   return (
-    <View style={styles.grid}>
+    <View
+      onLayout={Platform.OS === "web" ? undefined : (event) => {
+        const measuredWidth = event.nativeEvent.layout.width;
+        const nextWidth = Math.floor(measuredWidth * density) / density;
+        setGridWidth((current) => current === nextWidth ? current : nextWidth);
+      }}
+      style={styles.grid}
+    >
       {clips.map((clip, index) => (
         <Pressable
           key={clip.id}

@@ -1,6 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Platform, Pressable, StyleSheet, Text, View, } from "react-native";
+import { Animated, Platform, StyleSheet, Text, View, } from "react-native";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
+// Tab Pressables use a function `style={(state) => [...]}` prop (to react
+// to pressed/hovered). NativeWind's native Pressable interop does not
+// resolve that render-prop form on Android -- it silently drops the whole
+// style, including `styles.tab`'s `flex: 1`, which is what makes each tab
+// take half the row. Without it the tabs shrink to their text width and
+// sit glued together ("PortfolioClips"). InteropSafePressable resolves the
+// callback style itself before handing an already-resolved style to the
+// underlying Pressable -- same fix already applied to VendorCalendar.tsx
+// and AppDialogProvider.tsx for this exact bug class.
+import Pressable from "@/components/InteropSafePressable";
 
 export type VendorProfileTab = "portfolio" | "clips";
 
