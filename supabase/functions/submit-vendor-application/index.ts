@@ -22,7 +22,6 @@ Deno.serve(async (request) => {
       categoryId: text(body.category_id),
       description: text(body.description),
       pincode: text(body.pincode),
-      cityId: text(body.city_id),
     };
     if (Object.values(required).some((value) => !value)) throw new Error("Complete all required Vendor application fields.");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(required.email)) throw new Error("Enter a valid email address.");
@@ -65,21 +64,26 @@ Deno.serve(async (request) => {
       callerId = callerData?.user?.id ?? null;
     }
 
+    const cityId = optionalText(body.city_id);
     const [{ data: city, error: cityError }, { data: category, error: categoryError }] = await Promise.all([
-      service.from("supported_cities").select("id,name,state,is_active").eq("id", required.cityId).eq("is_active", true).maybeSingle(),
+      cityId
+        ? service.from("supported_cities").select("id,name,state,is_active").eq("id", cityId).eq("is_active", true).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
       service.from("categories").select("id").eq("id", required.categoryId).maybeSingle(),
     ]);
     if (cityError) throw cityError;
     if (categoryError) throw categoryError;
-    if (!city) throw new Error("This city is not currently supported by RoyalLagn.");
+    if (cityId && !city) throw new Error("This city is not currently supported by RoyalLagn.");
     if (!category) throw new Error("Choose an active RoyalLagn category.");
 
     const areaId = optionalText(body.area_id);
+    const geoLocalityId = optionalText(body.geo_pincode_locality_id);
     const serviceAreaIds = Array.isArray(body.service_area_ids)
       ? [...new Set(body.service_area_ids.map(text).filter(Boolean))]
       : [];
     const requestedAreaIds = [...new Set([areaId, ...serviceAreaIds].filter(Boolean))] as string[];
-    if (requestedAreaIds.length) {
+    if (requestedAreaIds.length && !city) throw new Error("Service areas require a supported primary city.");
+    if (requestedAreaIds.length && city) {
       const { data: supportedAreas, error: areaError } = await service
         .from("supported_areas")
         .select("id")
@@ -118,9 +122,22 @@ Deno.serve(async (request) => {
     } else if (lookupResponse && !lookupResponse.ok && lookupResponse.status !== 404) {
       throw new Error("Unable to verify this PIN code right now.");
     } else if (lookupResponse && lookup.supported !== true) {
-      throw new Error(lookup.message || "RoyalLagn is not yet available in this PIN-code location.");
-    } else if (lookupResponse && lookup.city?.id !== city.id) {
+      if (!lookup.geo?.localities?.length) {
+        throw new Error(lookup.message || "RoyalLagn is not yet available in this PIN-code location.");
+      }
+    } else if (lookupResponse && city && lookup.city?.id !== city.id) {
       throw new Error(`This PIN code belongs to ${lookup.city?.name || lookup.detected?.district || "another city"}, not the selected city.`);
+    }
+
+    const localityOptions = Array.isArray(lookup.geo?.localities) ? lookup.geo.localities : [];
+    if (localityOptions.length > 1 && !geoLocalityId) {
+      throw new Error("Choose the post office or locality that matches the business address.");
+    }
+    const selectedGeoLocality = geoLocalityId
+      ? localityOptions.find((item: any) => item.id === geoLocalityId)
+      : localityOptions.length === 1 ? localityOptions[0] : null;
+    if (geoLocalityId && !selectedGeoLocality) {
+      throw new Error("The selected locality does not belong to this PIN code.");
     }
 
     // A vendor is identified first by their authenticated profile (stable
@@ -151,7 +168,9 @@ Deno.serve(async (request) => {
       ? await service.from("supported_areas").select("name").eq("id", areaId).single()
       : { data: null, error: null };
     if (selectedArea.error) throw selectedArea.error;
-    const address = optionalText(body.address) || selectedArea.data?.name || city.name;
+    const canonicalState = selectedGeoLocality?.state?.name || lookup.geo?.state?.name || city?.state || "";
+    const canonicalDistrict = selectedGeoLocality?.district?.name || lookup.geo?.district?.name || city?.name || "";
+    const address = optionalText(body.address) || selectedGeoLocality?.name || selectedArea.data?.name || canonicalDistrict;
     const record = {
       profile_id: callerId,
       full_name: required.fullName,
@@ -162,14 +181,15 @@ Deno.serve(async (request) => {
       description: required.description,
       experience,
       address,
-      area: selectedArea.data?.name || city.name,
-      city: city.name,
-      state: city.state,
+      area: selectedArea.data?.name || selectedGeoLocality?.name || canonicalDistrict,
+      city: canonicalDistrict,
+      state: canonicalState,
       country: "India",
       pincode: required.pincode,
-      city_id: city.id,
+      city_id: city?.id ?? null,
       area_id: areaId,
       service_area_ids: serviceAreaIds,
+      geo_pincode_locality_id: selectedGeoLocality?.id ?? null,
       instagram: optionalText(body.instagram),
       facebook: optionalText(body.facebook),
       website: optionalText(body.website),

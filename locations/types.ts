@@ -115,6 +115,25 @@ export type PincodeGeoResolution = {
    * matched -- never silently promoted to canonical without corroboration
    * or Admin sign-off), or "none" when nothing matched at all. */
   sourceTrust: "official" | "admin_verified" | "unofficial_pending_review" | "none";
+  localities: PincodeLocality[];
+  localitySelectionRequired: boolean;
+};
+
+export type PincodeLocality = {
+  id: string;
+  name: string;
+  officeType: string | null;
+  deliveryStatus: string | null;
+  trusted: boolean;
+  source: string;
+  state: { id: string; name: string } | null;
+  district: { id: string; name: string } | null;
+  taluka: { id: string; name: string } | null;
+  /** Present when the locality row itself carries a resolved lat/lng (used
+   * as the origin point for GPS-based nearby search when a customer falls
+   * back to PIN-code entry instead of granting device location). */
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type TieredVendorMatch = {

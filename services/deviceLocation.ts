@@ -1,0 +1,116 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
+
+// ============================================================================
+// Thin wrapper around expo-location for the GPS-based "Near Me" flow.
+// Mirrors the AsyncStorage-caching convention already used for guest
+// location preferences (services/geoLocations.ts GUEST_GEO_PREFERENCE_KEY)
+// so the OS permission prompt is requested at most once per denial, never
+// re-triggered on every screen render.
+// ============================================================================
+
+const PREVIOUSLY_DENIED_KEY = "royallagn:device-location-denied:v1";
+
+export type DevicePermissionStatus = "granted" | "denied" | "undetermined";
+
+export type DeviceLocationErrorReason = "denied" | "unavailable" | "timeout" | "unknown";
+
+export class DeviceLocationError extends Error {
+  reason: DeviceLocationErrorReason;
+  constructor(reason: DeviceLocationErrorReason, message: string) {
+    super(message);
+    this.name = "DeviceLocationError";
+    this.reason = reason;
+  }
+}
+
+export type DeviceCoordinates = { latitude: number; longitude: number };
+
+/** Whether the user has already denied the permission in a previous visit
+ * to this feature -- lets the screen skip straight to the PIN fallback
+ * instead of re-prompting. */
+export async function hasPreviouslyDeniedLocation(): Promise<boolean> {
+  const stored = await AsyncStorage.getItem(PREVIOUSLY_DENIED_KEY);
+  return stored === "1";
+}
+
+async function rememberDenied() {
+  await AsyncStorage.setItem(PREVIOUSLY_DENIED_KEY, "1");
+}
+
+async function forgetDenied() {
+  await AsyncStorage.removeItem(PREVIOUSLY_DENIED_KEY);
+}
+
+export async function getDevicePermissionStatus(): Promise<DevicePermissionStatus> {
+  try {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    return status as DevicePermissionStatus;
+  } catch {
+    return "undetermined";
+  }
+}
+
+/** Requests the OS permission prompt. Callers should only call this from an
+ * explicit user action (tapping "Allow Location"), not on mount, so we
+ * never surprise-prompt on first render. */
+export async function requestDeviceLocationPermission(): Promise<DevicePermissionStatus> {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === "granted") await forgetDenied();
+    else await rememberDenied();
+    return status as DevicePermissionStatus;
+  } catch {
+    return "undetermined";
+  }
+}
+
+/** Resolves the device's current coordinates. Never throws a raw error --
+ * always resolves to coordinates or rejects with a classified
+ * DeviceLocationError so the UI can show a specific, friendly message. */
+export async function getCurrentDeviceLocation(timeoutMs = 12000): Promise<DeviceCoordinates> {
+  const permission = await getDevicePermissionStatus();
+  if (permission !== "granted") {
+    throw new DeviceLocationError("denied", "Location permission is not granted.");
+  }
+  try {
+    const servicesEnabled = await Location.hasServicesEnabledAsync();
+    if (!servicesEnabled) {
+      throw new DeviceLocationError("unavailable", "Location services are turned off.");
+    }
+  } catch (error) {
+    if (error instanceof DeviceLocationError) throw error;
+    // hasServicesEnabledAsync itself failing shouldn't block the attempt --
+    // fall through and let getCurrentPositionAsync be the source of truth.
+  }
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new DeviceLocationError("timeout", "Location request timed out.")), timeoutMs);
+  });
+  try {
+    const position = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      timeout,
+    ]);
+    return { latitude: position.coords.latitude, longitude: position.coords.longitude };
+  } catch (error) {
+    if (error instanceof DeviceLocationError) throw error;
+    throw new DeviceLocationError("unavailable", "Could not determine your current location.");
+  }
+}
+
+/** Best-effort "Wakad, Pune"-style label for display only -- never throws,
+ * returns null on any failure so the UI can fall back to a generic
+ * "Using your current location" message. */
+export async function reverseGeocodeLabel(coords: DeviceCoordinates): Promise<string | null> {
+  try {
+    const results = await Location.reverseGeocodeAsync(coords);
+    const place = results?.[0];
+    if (!place) return null;
+    const primary = place.district || place.subregion || place.city || place.name;
+    const secondary = place.city && place.city !== primary ? place.city : place.region;
+    const unique = [...new Set([primary, secondary].filter((part): part is string => Boolean(part)))];
+    return unique.length ? unique.join(", ") : null;
+  } catch {
+    return null;
+  }
+}

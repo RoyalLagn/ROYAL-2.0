@@ -254,42 +254,68 @@ begin
   update geo_talukas set is_active = true where id = v_taluka_b;
 
   ------------------------------------------------------------------------
-  -- TEST 7: unverified / suspended vendors are excluded from the public
+  -- TEST 7: inactive parent District/State excludes the entire hierarchy.
+  -- SECURITY DEFINER RPCs bypass RLS, so both checks must live inside the
+  -- function itself (regression for the independent-audit P1 leak).
+  ------------------------------------------------------------------------
+  update geo_districts set is_active = false where id = v_district_id;
+  if (select count(*) from get_public_vendor_taluka_page_cards(array['Photographer'], v_taluka_a, null, null, null, 'popular', 100, 0)) <> 0 then
+    raise exception 'TEST 7 FAILED: vendors from a deactivated District were still returned';
+  end if;
+  update geo_districts set is_active = true where id = v_district_id;
+
+  update geo_states set is_active = false where id = v_state_id;
+  if (select count(*) from get_public_vendor_taluka_page_cards(array['Photographer'], v_taluka_a, null, null, null, 'popular', 100, 0)) <> 0 then
+    raise exception 'TEST 7 FAILED: vendors from a deactivated State were still returned';
+  end if;
+  update geo_states set is_active = true where id = v_state_id;
+
+  ------------------------------------------------------------------------
+  -- TEST 8: unverified / suspended vendors are excluded from the public
   -- listing entirely.
   ------------------------------------------------------------------------
   update vendors set is_verified = false where business_name = 'QA Test Vendor A01';
   update vendors set management_status = 'suspended' where business_name = 'QA Test Vendor A02';
   if (select count(*) from get_public_vendor_taluka_page_cards(array['Photographer'], v_taluka_a, null, null, null, 'popular', 100, 0) where business_name in ('QA Test Vendor A01', 'QA Test Vendor A02')) <> 0 then
-    raise exception 'TEST 7 FAILED: an unverified or suspended vendor was returned publicly';
+    raise exception 'TEST 8 FAILED: an unverified or suspended vendor was returned publicly';
   end if;
 
   ------------------------------------------------------------------------
-  -- TEST 8: search matches a vendor_services title, not just
+  -- TEST 9: search matches a vendor_services title, not just
   -- business_name/description/tags (P2-2 regression coverage).
   ------------------------------------------------------------------------
   insert into vendor_services (vendor_id, title, price, is_active, status)
   select id, 'QA Unique Service Title Zephyr', 5000, true, 'active'
   from vendors where business_name = 'QA Test Vendor A03';
   if (select count(*) from get_public_vendor_taluka_page_cards(array['Photographer'], v_taluka_a, 'Zephyr', null, null, 'popular', 100, 0)) <> 1 then
-    raise exception 'TEST 8 FAILED: search did not match a vendor_services.title';
+    raise exception 'TEST 9 FAILED: search did not match a vendor_services.title';
   end if;
 
   ------------------------------------------------------------------------
-  -- TEST 9: unauthorized write attempt -- rebuild_taluka_neighbors and
+  -- TEST 10: unauthorized write attempts -- rebuild_taluka_neighbors and
   -- admin_confirm_geo_pincode must reject a non-admin/anonymous caller.
   -- (private.is_admin() returns false with no auth.uid() session, exactly
   -- the context this script runs in.)
   ------------------------------------------------------------------------
   begin
     perform rebuild_taluka_neighbors(v_state_id, 8, 150);
-    raise exception 'TEST 9 FAILED: rebuild_taluka_neighbors did not reject an unauthorized caller';
+    raise exception 'TEST 10 FAILED: rebuild_taluka_neighbors did not reject an unauthorized caller';
   exception when others then
     if sqlerrm not ilike '%Administrator access required%' then
-      raise exception 'TEST 9 FAILED: unexpected error from rebuild_taluka_neighbors: %', sqlerrm;
+      raise exception 'TEST 10 FAILED: unexpected error from rebuild_taluka_neighbors: %', sqlerrm;
     end if;
   end;
 
-  raise notice 'ALL 9 LOCATION-DISCOVERY SQL/RPC TESTS PASSED';
+  begin
+    perform admin_confirm_geo_pincode('499999', v_taluka_a);
+    raise exception 'TEST 10 FAILED: admin_confirm_geo_pincode did not reject an unauthorized caller';
+  exception when others then
+    if sqlerrm not ilike '%Administrator access required%' then
+      raise exception 'TEST 10 FAILED: unexpected error from admin_confirm_geo_pincode: %', sqlerrm;
+    end if;
+  end;
+
+  raise notice 'ALL 10 LOCATION-DISCOVERY SQL/RPC TESTS PASSED';
 end $$;
 
 -- Always roll back: this entire script only ever proves behavior against a

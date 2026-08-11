@@ -192,6 +192,13 @@ The supported clients are modern web browsers, Android, and iOS. The interface a
 | CFG-002 | Required | Supported location selection and vendor service areas MUST use the dedicated location domain and authorized location records. |
 | CFG-003 | Required | Pincode lookup MAY assist user entry but MUST NOT silently overwrite an explicit supported-location selection. |
 | CFG-004 | Required | Marketplace configuration changes MUST not require hard-coded screen edits when a managed data source already exists. |
+| CFG-005 | Required | Public discovery MUST expose active State → District → Taluka records through dependent, bounded selection; it MUST NOT load every Taluka for an entire State when only one District is being chosen. |
+| CFG-006 | Required | A trusted, unambiguous PIN mapping MUST populate canonical vendor State/District/Taluka references atomically with the vendor location save. Unknown, ambiguous, or unofficial-only mappings MUST clear stale canonical references and enter an unresolved/review state. |
+| CFG-007 | Required | Taluka discovery MUST return every matching selected-Taluka vendor before any nearby-Taluka vendor. Nearby alternatives MUST follow generated proximity order and MUST NOT require a vendor service-area mapping to the selected Taluka. |
+| CFG-008 | Required | Pagination across Taluka boundaries MUST be bounded and stable, without duplicate, skipped, or prematurely inserted nearby vendors; category, location, search, rating, price, and sort changes MUST reset pagination. |
+| CFG-009 | Required | The canonical State/District/Taluka hierarchy MUST coexist with the legacy City/Area tables and references until an explicit migration removes that compatibility layer. |
+| CFG-010 | Required | Public roles MAY read the active hierarchy and generated neighbor data needed for discovery but MUST NOT modify hierarchy, PIN, neighbor, or another vendor’s location records. |
+| CFG-011 | Required | Nearby-Taluka relationships MUST be generated from recorded geography with deterministic ordering, not hand-authored production name pairs; the cache interface MUST allow a later polygon-adjacency source without changing listing consumers. |
 
 ## 5. External interface requirements
 
@@ -300,7 +307,7 @@ npm run test:smoke
 | Packages/enquiries | Package and contact smoke scripts plus authorized data-policy review |
 | Clips | Upload reservation, retry, feed, thumbnail, and quota behavior |
 | Subscriptions | Subscription domain test; server order/verification/webhook review |
-| Locations | Location domain test and managed-selection validation |
+| Locations | Location domain test, rollback-only SQL/RPC pagination and RLS suite, trusted PIN mapping checks, and desktop/mobile District → Taluka browser flow |
 | Admin/CRM | Permission checks, target confirmation, scoped list/detail/report consistency |
 | Responsive/accessibility | Small phone, large phone, tablet, desktop web; keyboard, focus, wrapping, truncation, contrast |
 

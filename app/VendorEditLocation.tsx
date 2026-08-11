@@ -25,6 +25,7 @@ const emptyLocation: VendorLocationValue = {
   primaryCityId: "",
   primaryAreaId: null,
   serviceAreaIds: [],
+  geoLocalityId: null,
 };
 
 // Location: PIN code, primary city/area, service areas (vendor_service_locations)
@@ -69,6 +70,7 @@ export default function VendorEditLocation() {
           primaryCityId: primary?.cityId ?? data.vendor.primary_city_id ?? "",
           primaryAreaId: primary?.areaId ?? data.vendor.primary_area_id ?? null,
           serviceAreaIds: serviceLocations.map((item) => item.areaId).filter((item): item is string => Boolean(item)),
+          geoLocalityId: data.vendor.geo_pincode_locality_id ?? null,
         });
         setLocationDirty(false);
       })
@@ -81,24 +83,31 @@ export default function VendorEditLocation() {
           primaryCityId: data.vendor.primary_city_id ?? "",
           primaryAreaId: data.vendor.primary_area_id ?? null,
           serviceAreaIds: data.vendor.primary_area_id ? [data.vendor.primary_area_id] : [],
+          geoLocalityId: data.vendor.geo_pincode_locality_id ?? null,
         });
         setLocationDirty(false);
       })
       .finally(() => { if (active) setLocationsLoading(false); });
     return () => { active = false; };
-  }, [data.vendor?.id, data.vendor?.pincode, data.vendor?.primary_area_id, data.vendor?.primary_city_id]);
+  }, [data.vendor?.geo_pincode_locality_id, data.vendor?.id, data.vendor?.pincode, data.vendor?.primary_area_id, data.vendor?.primary_city_id]);
 
   const clearFeedback = () => { setSaved(false); setSaveError(""); };
 
   const save = async () => {
     if (saving || !data.vendor?.id) return;
+    if (locationDirty && !locationValid) {
+      const message = "Verify your PIN code and select your area / village before saving.";
+      setSaveError(message);
+      Alert.alert("Location required", message);
+      return;
+    }
     const selectedCity = locations.find((item) => item.id === vendorLocation.primaryCityId);
     setSaving(true);
     setSaveError("");
     let locationWarning = "";
     try {
       let locationSaved = false;
-      if (locationDirty && locationValid && selectedCity) {
+      if (locationDirty && locationValid) {
         // If the PIN changed since it was last loaded/verified, warm the
         // geo_pincodes cache with a fresh lookup first so the atomic save
         // below has the best chance of resolving a canonical Taluka rather
@@ -128,11 +137,12 @@ export default function VendorEditLocation() {
             primaryAreaId: vendorLocation.primaryAreaId,
             serviceAreaIds: vendorLocation.serviceAreaIds,
             pincode: vendorLocation.pincode,
+            geoLocalityId: vendorLocation.geoLocalityId,
           });
           locationSaved = true;
           loadedPincode.current = vendorLocation.pincode;
         } catch (locationError) {
-          locationWarning = `Address saved, but location was unchanged: ${locationError instanceof Error ? locationError.message : "Unable to update service location."}`;
+          throw new Error(locationError instanceof Error ? locationError.message : "Unable to update service location.");
         }
         if (locationSaved) {
           // Fresh, non-cached read (not the pre-save hook state) of what
@@ -146,8 +156,6 @@ export default function VendorEditLocation() {
           }
         }
         setLocationDirty(false);
-      } else if (locationDirty) {
-        locationWarning = "Address saved, but choose a valid PIN code / city to update your service location.";
       }
       await updateVendorPublicProfile({
         address: address.trim() || null,
@@ -213,7 +221,7 @@ export default function VendorEditLocation() {
           <SaveBar
             colors={colors}
             saving={saving}
-            disabled={locationsLoading}
+            disabled={locationsLoading || (locationDirty && !locationValid)}
             saved={saved}
             saveError={saveError}
             savedLabel="Location updated"

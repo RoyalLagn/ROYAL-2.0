@@ -11,6 +11,15 @@ provenance/precedence rules, and how to extend it beyond Pune/Maharashtra.
 > State, and a Taluka-selected listing that still downloaded the whole
 > marketplace). This revision (2026-08-11) fixes all of those; see the
 > per-section notes below for what changed and why.
+>
+> A second independent audit on 2026-08-11 found and corrected four further
+> production issues in `20260811110000_location_discovery_audit_fixes.sql`:
+> inactive parent Districts/States still leaked through the SECURITY DEFINER
+> listing RPC, the selector eagerly loaded every District's Talukas instead
+> of offering a real dependent District step, the Maval point used Lonavala
+> while claiming to represent the headquarters, and the deployed project had
+> no configured official PIN provider so acceptance PINs could not become
+> canonical without Admin review.
 
 ## Architecture
 
@@ -53,8 +62,8 @@ carries both sets of location references.
   are nullable and currently `NULL` for every row; `verification_status` is
   `'awaiting_lgd_verification'` for every row for exactly this reason — see
   "Backfilling LGD codes" below.
-- **Taluka centroid coordinates**: OpenStreetMap Nominatim geocodes of each
-  Taluka's headquarters town, queried 2026-08-11 (rate-limited, identified
+- **Taluka proximity coordinates**: OpenStreetMap Nominatim geocodes of each
+  Taluka's headquarters/representative town, queried 2026-08-11 (rate-limited, identified
   User-Agent, per Nominatim's usage policy). Recorded per-row in
   `coordinate_source` (the exact query and town used) and
   `coordinate_method = 'representative_headquarters'` — **not**
@@ -66,17 +75,24 @@ carries both sets of location references.
   (`official_polygon_centroid`, `official_point`,
   `representative_headquarters`, `manually_reviewed`) — no row is ever
   described as an official centroid when it isn't one.
+- **Maval correction**: the first revision used Lonavala because its Vadgaon
+  query did not resolve, but still labeled the method
+  `representative_headquarters`. The independent audit resolved the alternate
+  spelling "Vadgaon Mawal" and corrected the point to `18.7438014,
+  73.6307937`; the row states that it is a Nominatim town/bus-stop reference,
+  not an official centroid.
 - **PIN code → locality/Taluka mapping**: resolved **live**, per request, via
   `supabase/functions/lookup-india-pincode`, with explicit **source
   precedence** (see below) between `data.gov.in`/India Post (official) and
   `postalpincode.in` (unofficial fallback, kept only for availability). No
-  PIN code is hand-typed or invented anywhere in this feature.
+  PIN code is invented anywhere in this feature. The canonical post-office
+  rows are loaded India-wide through `npm run locations:import-india-post`.
 
 ### PIN provider precedence
 
 `data.gov.in`/India Post
 (https://www.data.gov.in/resource/all-india-pincode-directory-till-last-month)
-is treated as authoritative. `postalpincode.in` needs no API key and has no
+are treated as authoritative. `postalpincode.in` needs no API key and has no
 rate-limit friction in this environment, so it's kept as a fallback when
 `DATA_GOV_IN_API_KEY`/`DATA_GOV_IN_PINCODE_RESOURCE_ID` aren't configured —
 but a Taluka match found **only** through it is never silently promoted to
@@ -113,6 +129,11 @@ provenance columns for the whole set. This is a plain idempotent pattern
 (`on conflict ... do nothing` / explicit `update`); to add the next district
 or state, write a new migration in the same shape:
 
+`20260811110000_location_discovery_audit_fixes.sql` hardens active-hierarchy
+policies/RPCs and regenerates proximity rows. It contains no PIN-specific
+seed data. `20260811120000_india_wide_pincode_localities.sql` adds the generic
+post-office/locality model and restricted official India Post batch importer.
+
 ```sql
 insert into public.geo_states (name, code, country) values ('Goa', 'GA', 'India')
   on conflict (lower(name)) do nothing;
@@ -140,32 +161,40 @@ select private.rebuild_taluka_neighbors_internal(
 );
 ```
 
-No application code needs to change — the hierarchy, the PIN resolver, the
-public picker, and the Admin screen are all state/district-agnostic. The
-public selector (`TalukaLocationSelector.tsx`) automatically shows a State
-step the moment a second `geo_states` row is active — this was verified live
-against a temporary, since-removed fixture State during this revision.
+No application code needs to change when importing another State/District.
+The hierarchy, PIN resolver, public picker, and Admin screen are ID-driven.
+The public selector shows a State step when more than one State is active,
+loads Districts only for that State, and loads Talukas only for the selected
+District; it never downloads the full State hierarchy.
 
 ### 2. Nearby-Taluka generation
 
 `public.rebuild_taluka_neighbors(state_id, max_neighbors, max_distance_km)`
 (Admin-only RPC, also exposed as a button on `/AdminGeoLocations`) computes,
-for every active Taluka, the N nearest other active Talukas by
+for every Taluka whose State/District/Taluka chain is active, the N nearest
+other fully active Talukas by
 `extensions.st_distance()` on their `geography(Point,4326)` centroids, and
 caches the ordered result in `geo_taluka_neighbors`. It is **not** filtered
 to the same district/state, so a Taluka near a state border will correctly
 surface a neighbouring state's Taluka once that state's data is imported.
-Re-running it is safe: each Taluka's neighbour rows are deleted and
-reinserted, never duplicated.
+Re-running it is safe: target-State rows are cleared and regenerated in one
+transaction, never duplicated. Equal distances use the Taluka UUID as a
+stable tiebreaker.
 
 ### 3. PIN code resolution
 
-No standalone import script is needed for PINs — `lookup-india-pincode`
+No all-India PIN dump is loaded into the client. `lookup-india-pincode`
 resolves and caches a PIN's District/Taluka the first time it's looked up
 (vendor PIN entry, or an Admin retry), applying the precedence rules above.
 See `resolveGeoHierarchy()`/`upsertGeoPincodeWithPrecedence()` in that
 function for the exact logic, including alias-aware Taluka name matching
 (`geo_talukas.aliases`).
+
+The official Pune Government directory seed covers the published Tahsil PINs
+for acceptance and availability. It never overwrites an existing resolved
+`data.gov.in` or Admin-confirmed row. Expansion beyond these seed PINs should
+configure the data.gov.in Edge Function secrets or import another cited
+official source through an append-only migration.
 
 ### 4. Vendor enrichment (atomic, P1-3)
 
@@ -244,8 +273,8 @@ trade-off rather than an oversight.
 - `scripts/location-tests/sql-pagination-and-rpc.test.sql` — DB/RPC-level
   tests (pagination/tier-boundary correctness with a 25+3+0+2 vendor
   fixture, keyset pagination, category aliasing, inactive-Taluka exclusion,
-  unverified/suspended-vendor exclusion, service-title search, unauthorized
-  writes). **Environment**: runs against the linked Supabase project via
+  inactive parent hierarchy exclusion, unverified/suspended-vendor exclusion,
+  service-title search, and unauthorized writes). **Environment**: runs against the linked Supabase project via
   `supabase db query --linked --file <path>` (no local Supabase/Docker is
   available in this environment) inside a transaction that always rolls
   back — no fixture row is ever committed. Run it with:
@@ -255,13 +284,12 @@ trade-off rather than an oversight.
 - `scripts/test-location-discovery-domain.mjs` — pure-JS tests for the
   category-alias resolution (`locations/marketplaceCategoryNames.ts`).
   Registered in `npm run test:smoke` / `npm run test:location-discovery`.
-- Live Playwright MCP flows against the running dev server covered the
-  selector (dependent loading, persisted-selection validation, invalid- and
-  deleted-selection recovery, multi-state — via a temporary, since-removed
-  real fixture State), category-change pagination reset, the Maval/Khed
-  Pune scenarios, search, and desktop + 390×844 mobile viewports, with 0
-  console errors throughout. See the implementation report for the full
-  transcript summary.
+- Independent Playwright browser verification covered the real Pune selector,
+  Maval/Khed switching, category persistence, Maval Photographer results,
+  Maval Venues/Khed empty states, and desktop plus 390×844 mobile layouts.
+  The linked database had no nearby geo-resolved vendor after the one Maval
+  Photographer, so the visual cross-Taluka separator remains SQL-fixture
+  verified rather than demonstrable with current production data.
 
 ## Scope
 

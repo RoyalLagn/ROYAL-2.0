@@ -11,9 +11,10 @@ export type VendorApplicationSubmission = {
   experience: number;
   address: string;
   pincode: string;
-  city_id: string;
+  city_id: string | null;
   area_id: string | null;
   service_area_ids: string[];
+  geo_pincode_locality_id: string | null;
   location_fallback: boolean;
   instagram: string | null;
   facebook: string | null;

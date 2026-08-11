@@ -151,6 +151,10 @@ Expo notifications and persisted inbox records provide device and in-app communi
 
 Discovery and CRM use managed geographic data. Public and vendor forms should select supported records rather than create inconsistent free-text location hierarchies where managed data is required.
 
+The public discovery hierarchy is India → State → District → Taluka/Sub-District → PIN/locality → Vendor. The legacy City/Area records remain available for compatibility while canonical State/District/Taluka references become the main discovery layer. A customer-selected District/Taluka represents the wedding or service location, not the customer’s permanent GPS location.
+
+Within a category, vendors in the selected Taluka appear first and must be exhausted before vendors from automatically calculated nearby Talukas continue in proximity order. Nearby vendors are alternatives and do not need a service-area mapping to the selected Taluka. PIN-derived canonical location references require a trusted, unambiguous mapping; unknown, ambiguous, or unofficial-only matches remain reviewable instead of being silently assigned.
+
 ## 9. Experience and design requirements
 
 - [DESIGN.md](DESIGN.md) is the source of truth for color, typography, spacing, elevation, shape, and component treatment.

@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -10,7 +11,7 @@ import {
 import { Check, MapPin, Search, ShieldCheck } from "lucide-react-native";
 import { useCustomerLocation } from "@/context/LocationContext";
 import { SupportedLocationField } from "@/components/locations/SupportedLocationField";
-import type { LocationPreference } from "@/locations/types";
+import type { LocationPreference, PincodeLocality } from "@/locations/types";
 import {
   lookupIndianPincode,
   PincodeLookupUnavailableError,
@@ -22,6 +23,7 @@ export type VendorLocationValue = {
   primaryCityId: string;
   primaryAreaId: string | null;
   serviceAreaIds: string[];
+  geoLocalityId: string | null;
 };
 
 type Props = {
@@ -40,15 +42,18 @@ export function VendorServiceLocationEditor({
   const { locations, loading, error } = useCustomerLocation();
   const [lookingUp, setLookingUp] = useState(false);
   const [lookupVerified, setLookupVerified] = useState(!requireLookup && Boolean(value.primaryCityId));
-  const [manualFallback, setManualFallback] = useState(!requireLookup);
+  const [lookupCompleted, setLookupCompleted] = useState(!requireLookup);
   const [lookupMessage, setLookupMessage] = useState("");
+  const [localityOptions, setLocalityOptions] = useState<PincodeLocality[]>([]);
   const selectedCity = locations.find((item) => item.id === value.primaryCityId);
   const locationValue = value.primaryCityId
     ? { cityId: value.primaryCityId, areaId: value.primaryAreaId } satisfies LocationPreference
     : null;
+  const selectedLocalityBelongsToPin = localityOptions.some((item) => item.id === value.geoLocalityId);
   const valid = /^[1-9][0-9]{5}$/.test(value.pincode)
-    && Boolean(value.primaryCityId)
-    && (!requireLookup || lookupVerified || manualFallback);
+    && lookupCompleted
+    && localityOptions.length > 0
+    && selectedLocalityBelongsToPin;
 
   useEffect(() => {
     onValidationChange?.(valid, valid ? lookupVerified ? "verified" : "manual_fallback" : null);
@@ -56,12 +61,13 @@ export function VendorServiceLocationEditor({
 
   const updatePincode = (pincode: string) => {
     setLookupVerified(false);
-    setManualFallback(!requireLookup);
+    setLookupCompleted(!requireLookup);
     setLookupMessage("");
-    onChange({ ...value, pincode: pincode.replace(/\D/g, "").slice(0, 6) });
+    setLocalityOptions([]);
+    onChange({ ...value, pincode: pincode.replace(/\D/g, "").slice(0, 6), geoLocalityId: null });
   };
 
-  const lookup = async () => {
+  const lookup = useCallback(async () => {
     if (!/^[1-9][0-9]{5}$/.test(value.pincode) || lookingUp) {
       setLookupMessage("Enter a valid six-digit Indian PIN code.");
       return;
@@ -69,32 +75,65 @@ export function VendorServiceLocationEditor({
     setLookingUp(true);
     setLookupMessage("");
     setLookupVerified(false);
-    setManualFallback(false);
+    setLookupCompleted(false);
     try {
       const result = await lookupIndianPincode(value.pincode);
-      if (!result.supported || !result.city) {
-        setLookupMessage(result.message ?? "RoyalLagn is not yet available in this location.");
+      const localities = result.geo?.localities ?? [];
+      setLocalityOptions(localities);
+      setLookupCompleted(true);
+      if (!localities.length) {
+        onChange({ ...value, geoLocalityId: null });
+        setLookupMessage(result.message ?? "No locations found for this PIN.");
         return;
       }
       const areaId = result.area?.id ?? null;
+      const selectedLocality = localities.length === 1
+        ? localities[0]
+        : localities.find((item) => item.id === value.geoLocalityId) ?? null;
       onChange({
         ...value,
-        primaryCityId: result.city.id,
+        primaryCityId: result.city?.id ?? value.primaryCityId,
         primaryAreaId: areaId,
         serviceAreaIds: areaId ? [areaId] : [],
+        geoLocalityId: selectedLocality?.id ?? null,
       });
-      setLookupVerified(true);
-      setLookupMessage(`${result.officeName || result.area?.name || result.city.name}, ${result.city.name}, ${result.city.state} · verified`);
+      if (localities.length > 1 && !selectedLocality) {
+        setLookupMessage("Select your area / village to continue.");
+      } else if (selectedLocality) {
+        const trusted = Boolean(selectedLocality.trusted && selectedLocality.taluka && selectedLocality.district && selectedLocality.state);
+        setLookupVerified(trusted);
+        setLookupMessage(trusted
+          ? `${selectedLocality.name}, ${selectedLocality.taluka!.name}, ${selectedLocality.district!.name}, ${selectedLocality.state!.name} - verified`
+          : `${selectedLocality.name} selected - canonical hierarchy pending review`);
+      } else {
+        setLookupMessage(result.message ?? "This PIN requires location review.");
+      }
     } catch (caught) {
       if (caught instanceof PincodeLookupUnavailableError) {
-        setManualFallback(true);
-        setLookupMessage("PIN lookup is temporarily unavailable. Choose only from the supported locations below.");
+        setLookupMessage("PIN lookup is temporarily unavailable. Try again before continuing.");
       } else {
         setLookupMessage(caught instanceof Error ? caught.message : "Unable to look up this PIN code.");
       }
     } finally {
       setLookingUp(false);
     }
+  }, [lookingUp, onChange, value]);
+
+  const hydratedSelection = useRef(false);
+  useEffect(() => {
+    if (!hydratedSelection.current && value.geoLocalityId && /^[1-9][0-9]{5}$/.test(value.pincode)) {
+      hydratedSelection.current = true;
+      void lookup();
+    }
+  }, [lookup, value.geoLocalityId, value.pincode]);
+
+  const selectLocality = (locality: PincodeLocality) => {
+    onChange({ ...value, geoLocalityId: locality.id });
+    const canonicallyTrusted = Boolean(locality.trusted && locality.taluka && locality.district && locality.state);
+    setLookupVerified(canonicallyTrusted);
+    setLookupMessage(canonicallyTrusted
+      ? `${locality.name}, ${locality.taluka!.name}, ${locality.district!.name}, ${locality.state!.name} - verified`
+      : `${locality.name} selected - canonical hierarchy pending review`);
   };
 
   const selectLocation = (next: LocationPreference) => {
@@ -122,7 +161,7 @@ export function VendorServiceLocationEditor({
     });
   };
 
-  const canChooseManually = manualFallback || lookupVerified || !requireLookup;
+  const canChooseManually = lookupCompleted || !requireLookup;
   return (
     <View>
       <Text style={styles.label}>Business PIN code <Text style={styles.required}>*</Text></Text>
@@ -144,16 +183,32 @@ export function VendorServiceLocationEditor({
         </Pressable>
       </View>
       {lookupMessage ? <View style={[styles.message, lookupVerified && styles.verifiedMessage]}>{lookupVerified ? <ShieldCheck size={15} color="#16845B" /> : null}<Text style={[styles.messageText, lookupVerified && styles.verifiedText]}>{lookupMessage}</Text></View> : null}
+      {localityOptions.length > 1 ? (
+        <View style={styles.localitySection}>
+          <Text style={styles.label}>Your area / village <Text style={styles.required}>*</Text></Text>
+          <Text style={styles.helper}>Select the post office or locality matching your business address.</Text>
+          <ScrollView style={styles.localityList} nestedScrollEnabled keyboardShouldPersistTaps="handled" accessibilityRole="radiogroup">
+            {localityOptions.map((locality) => {
+              const selected = locality.id === value.geoLocalityId;
+              const hierarchy = [locality.taluka?.name, locality.district?.name, locality.state?.name].filter(Boolean).join(", ");
+              return <Pressable key={locality.id} accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={() => selectLocality(locality)} style={[styles.localityOption, selected && styles.localityOptionSelected]}>
+                <View style={styles.localityText}><Text style={[styles.localityName, selected && styles.areaTextSelected]}>{locality.name}</Text><Text style={styles.localityMeta}>{hierarchy || "Hierarchy pending review"}{locality.trusted ? "" : " · Unofficial candidate"}</Text></View>
+                {selected ? <Check size={17} color="#E91E63" /> : null}
+              </Pressable>;
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
       {loading ? <ActivityIndicator color="#E91E63" style={styles.locationLoader} /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View pointerEvents={canChooseManually ? "auto" : "none"} style={!canChooseManually ? styles.disabled : undefined}>
         <SupportedLocationField
           label="Primary service location"
-          required
+          required={false}
           locations={locations}
           value={locationValue}
           onChange={selectLocation}
-          helper={requireLookup && !canChooseManually ? "Verify the PIN code first." : "Vendors can only select active admin-supported locations."}
+          helper={requireLookup && !canChooseManually ? "Verify the PIN code first." : "Optional legacy service-market assignment; it does not determine the canonical PIN hierarchy."}
         />
       </View>
       {selectedCity?.areas.length ? (
@@ -188,6 +243,13 @@ const styles = StyleSheet.create({
   verifiedMessage: { backgroundColor: "#ECFDF5" },
   verifiedText: { color: "#16845B" },
   error: { color: "#B42318", fontSize: typeScale.metadata, marginBottom: 12 },
+  localitySection: { marginBottom: 16 },
+  localityList: { maxHeight: 330, marginTop: 9 },
+  localityOption: { minHeight: 54, borderWidth: 1, borderColor: "#E7E1E4", borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10, marginBottom: 8, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF" },
+  localityOptionSelected: { borderColor: "#E91E63", backgroundColor: "#FFF3F8" },
+  localityText: { flex: 1, minWidth: 0 },
+  localityName: { color: "#241D21", fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  localityMeta: { color: "#786D73", fontSize: typeScale.caption, marginTop: 3 },
   locationLoader: { marginVertical: 12 },
   helper: { color: "#786D73", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: -3, marginBottom: 10 },
   areasSection: { marginTop: 2, marginBottom: 8 },

@@ -29,8 +29,9 @@ type PostalRecord = {
 // *same* Taluka, which counts as corroboration.
 // ============================================================================
 const PROVIDER_TRUST: Record<string, number> = {
+  "admin_verified": 4,
   "data.gov.in": 3,
-  "admin_verified": 3,
+  "india_post_ogd": 3,
   "postalpincode.in": 1,
 };
 const OFFICIAL_TRUST_THRESHOLD = 2;
@@ -93,7 +94,15 @@ async function lookupWithPostalPincode(pincode: string): Promise<PostalRecord[]>
 }
 
 async function providerLookup(pincode: string) {
-  const dataGovRows = await lookupWithDataGov(pincode);
+  let dataGovRows: PostalRecord[] = [];
+  try {
+    dataGovRows = await lookupWithDataGov(pincode);
+  } catch (error) {
+    // Availability fallback only. postalpincode.in results stay
+    // `needs_review`, so an official-provider outage can never silently
+    // create a canonical Taluka assignment.
+    console.warn("Official PIN-code provider unavailable; using review-only fallback", error);
+  }
   return dataGovRows.length ? { provider: "data.gov.in", rows: dataGovRows } : {
     provider: "postalpincode.in",
     rows: await lookupWithPostalPincode(pincode),
@@ -108,7 +117,57 @@ type GeoResolution = {
   taluka: { id: string; name: string } | null;
   ambiguous: boolean;
   sourceTrust: "official" | "unofficial_pending_review" | "admin_verified" | "none";
+  localities: GeoLocality[];
+  localitySelectionRequired: boolean;
 };
+
+type GeoLocality = {
+  id: string;
+  name: string;
+  officeType: string | null;
+  deliveryStatus: string | null;
+  trusted: boolean;
+  source: string;
+  state: { id: string; name: string } | null;
+  district: { id: string; name: string } | null;
+  taluka: { id: string; name: string } | null;
+  /** Locality-level lat/lng, when the source row has it -- lets a GPS-based
+   * "near me" caller resolve a PIN-fallback origin point without a second
+   * round trip. Absent (null) for older cached rows resolved before this
+   * column was selected here. */
+  latitude: number | null;
+  longitude: number | null;
+};
+
+const firstRelation = (value: any) => Array.isArray(value) ? value[0] ?? null : value ?? null;
+const localityFromRow = (row: any): GeoLocality => ({
+  id: String(row.id),
+  name: String(row.locality_name),
+  officeType: row.office_type ?? null,
+  deliveryStatus: row.delivery_status ?? null,
+  trusted: Boolean(row.is_trusted),
+  source: String(row.source ?? ""),
+  state: firstRelation(row.geo_states),
+  district: firstRelation(row.geo_districts),
+  taluka: firstRelation(row.geo_talukas),
+  latitude: row.latitude === null || row.latitude === undefined ? null : Number(row.latitude),
+  longitude: row.longitude === null || row.longitude === undefined ? null : Number(row.longitude),
+});
+
+async function listCachedLocalities(service: ReturnType<typeof createClient>, pincode: string) {
+  const { data, error } = await service
+    .from("geo_pincode_localities")
+    .select("id,locality_name,office_type,delivery_status,is_trusted,source,latitude,longitude,geo_states(id,name),geo_districts(id,name),geo_talukas(id,name)")
+    .eq("pincode", pincode)
+    .eq("is_active", true)
+    .order("is_trusted", { ascending: false })
+    .order("locality_name");
+  // Backward-compatible during deployment ordering: the Edge Function can
+  // still return the PIN result before the locality migration is applied.
+  if (error && /geo_pincode_localities|schema cache|PGRST205|42P01/i.test(`${error.code ?? ""} ${error.message ?? ""}`)) return [];
+  if (error) throw error;
+  return (data ?? []).map(localityFromRow);
+}
 
 type ExistingCacheRow = {
   taluka_id: string | null;
@@ -137,11 +196,12 @@ async function upsertGeoPincodeWithPrecedence(
     raw_response: unknown;
   },
 ): Promise<{ resolution_status: GeoResolution["status"]; skippedAsLowerTrust: boolean }> {
-  const { data: existing } = await service
+  const { data: existing, error: existingError } = await service
     .from("geo_pincodes")
     .select("taluka_id,resolution_status,source")
     .eq("pincode", pincode)
     .maybeSingle<ExistingCacheRow>();
+  if (existingError) throw existingError;
 
   const newTrust = trustOf(provider);
   const existingTrust = existing ? trustOf(existing.source) : -1;
@@ -173,11 +233,14 @@ async function upsertGeoPincodeWithPrecedence(
         ? "resolved"
         : "needs_review";
 
-  await service.from("geo_pincodes").upsert({
+  const { error: upsertError } = await service.from("geo_pincodes").upsert({
     pincode,
     state_id: patch.state_id,
     district_id: patch.district_id,
-    taluka_id: officialMatch ? patch.taluka_id : (resolution_status === "resolved" ? patch.taluka_id : null),
+    // Keep a single unofficial candidate for Admin review, but the
+    // resolution_status remains needs_review and the vendor resolver never
+    // copies this candidate into vendors.geo_taluka_id until confirmed.
+    taluka_id: patch.taluka_id,
     area: patch.area,
     office_name: patch.office_name,
     resolution_status,
@@ -186,6 +249,7 @@ async function upsertGeoPincodeWithPrecedence(
     raw_response: patch.raw_response,
     verified_at: new Date().toISOString(),
   });
+  if (upsertError) throw upsertError;
 
   return { resolution_status, skippedAsLowerTrust: false };
 }
@@ -213,7 +277,7 @@ async function resolveGeoHierarchy(
     .from("geo_states")
     .select("id,name")
     .eq("is_active", true);
-  if (statesError) console.error("geo_states lookup failed", statesError);
+  if (statesError) throw statesError;
   const stateRow = rows
     .map((row) => (states ?? []).find((item: any) => normalize(item.name) === normalize(row.state)))
     .find(Boolean) ?? null;
@@ -230,15 +294,16 @@ async function resolveGeoHierarchy(
     });
     return {
       supported: false, status: "unresolved", state: null, district: null, taluka: null,
-      ambiguous: false, sourceTrust: "none",
+      ambiguous: false, sourceTrust: "none", localities: [], localitySelectionRequired: false,
     };
   }
 
-  const { data: districts } = await service
+  const { data: districts, error: districtsError } = await service
     .from("geo_districts")
     .select("id,name")
     .eq("state_id", stateRow.id)
     .eq("is_active", true);
+  if (districtsError) throw districtsError;
   const districtRow = rows
     .map((row) => (districts ?? []).find((item: any) => normalize(item.name) === normalize(row.district)))
     .find(Boolean) ?? null;
@@ -255,15 +320,16 @@ async function resolveGeoHierarchy(
     });
     return {
       supported: false, status: "unresolved", state: stateRow, district: null, taluka: null,
-      ambiguous: false, sourceTrust: "none",
+      ambiguous: false, sourceTrust: "none", localities: [], localitySelectionRequired: false,
     };
   }
 
-  const { data: talukas } = await service
+  const { data: talukas, error: talukasError } = await service
     .from("geo_talukas")
     .select("id,name,aliases")
     .eq("district_id", districtRow.id)
     .eq("is_active", true);
+  if (talukasError) throw talukasError;
   const talukaNameMatches = (taluka: any, candidate: string) =>
     normalize(taluka.name) === normalize(candidate)
     || (Array.isArray(taluka.aliases) && taluka.aliases.some((alias: string) => normalize(alias) === normalize(candidate)));
@@ -284,19 +350,82 @@ async function resolveGeoHierarchy(
     state_id: stateRow.id,
     district_id: districtRow.id,
     taluka_id: talukaRow?.id ?? null,
-    area: rows[0]?.area || rows[0]?.officeName || null,
-    office_name: rows[0]?.officeName || null,
+    area: rows.length === 1 ? rows[0]?.area || rows[0]?.officeName || null : null,
+    office_name: rows.length === 1 ? rows[0]?.officeName || null : null,
     ambiguous,
     raw_response,
   });
 
+  const providerTrust = trustOf(provider);
+  const trustedProvider = providerTrust >= OFFICIAL_TRUST_THRESHOLD;
+  const { data: existingLocalityRows, error: existingLocalityError } = await service
+    .from("geo_pincode_localities")
+    .select("normalized_name,source_trust,admin_confirmed")
+    .eq("pincode", pincode);
+  if (existingLocalityError && !/geo_pincode_localities|schema cache|PGRST205|42P01/i.test(`${existingLocalityError.code ?? ""} ${existingLocalityError.message ?? ""}`)) {
+    throw existingLocalityError;
+  }
+  const existingByName = new Map((existingLocalityRows ?? []).map((item: any) => [item.normalized_name, item]));
+  const localityPayloads = rows
+    .filter((row) => row.officeName.trim())
+    .map((row) => {
+      const matchedTaluka = (talukas ?? []).find((item: any) =>
+        [row.area, row.officeName].some((candidate) => talukaNameMatches(item, candidate))
+      ) ?? null;
+      const raw = row.raw as any;
+      const normalizedName = normalize(row.officeName);
+      const existing = existingByName.get(normalizedName) as any;
+      if (existing?.admin_confirmed || Number(existing?.source_trust ?? 0) > providerTrust) return null;
+      return {
+        pincode,
+        locality_name: row.officeName,
+        normalized_name: normalizedName,
+        office_type: raw?.officetype ?? raw?.officeType ?? raw?.BranchType ?? null,
+        delivery_status: raw?.deliverystatus ?? raw?.delivery ?? raw?.DeliveryStatus ?? null,
+        state_id: stateRow.id,
+        district_id: districtRow.id,
+        taluka_id: matchedTaluka?.id ?? null,
+        source: provider,
+        source_trust: providerTrust,
+        is_trusted: trustedProvider,
+        admin_confirmed: false,
+        is_active: true,
+        raw_response: raw ?? {},
+        verified_at: new Date().toISOString(),
+      };
+    }).filter(Boolean);
+  if (localityPayloads.length) {
+    const { error: localitiesError } = await service
+      .from("geo_pincode_localities")
+      .upsert(localityPayloads, { onConflict: "pincode,normalized_name" });
+    if (localitiesError && !/geo_pincode_localities|schema cache|PGRST205|42P01/i.test(`${localitiesError.code ?? ""} ${localitiesError.message ?? ""}`)) {
+      throw localitiesError;
+    }
+  }
+  const localities = await listCachedLocalities(service, pincode);
+  const trustedLocalities = localities.filter((item) => item.trusted);
+  const { error: countUpdateError } = await service
+    .from("geo_pincodes")
+    .update({
+      locality_count: localities.length,
+      trusted_locality_count: trustedLocalities.length,
+      locality_selection_required: trustedLocalities.length > 1,
+    })
+    .eq("pincode", pincode)
+    .neq("source", "admin_verified");
+  if (countUpdateError && !/locality_count|schema cache|PGRST204|42703/i.test(`${countUpdateError.code ?? ""} ${countUpdateError.message ?? ""}`)) {
+    throw countUpdateError;
+  }
+
   // Re-read what actually landed (precedence rules above may have kept an
   // existing higher-trust row instead of this lookup's own result).
-  const { data: finalRow } = await service
+  const { data: finalRow, error: finalRowError } = await service
     .from("geo_pincodes")
     .select("taluka_id,district_id,state_id,resolution_status,ambiguous,source")
     .eq("pincode", pincode)
     .maybeSingle();
+  if (finalRowError) throw finalRowError;
+  if (!finalRow) throw new Error("The canonical PIN-code cache could not be read after update");
   const finalTaluka = finalRow?.taluka_id
     ? (talukas ?? []).find((item: any) => item.id === finalRow.taluka_id) ?? null
     : null;
@@ -312,7 +441,9 @@ async function resolveGeoHierarchy(
       ? "admin_verified"
       : trustOf(finalRow?.source ?? provider) >= OFFICIAL_TRUST_THRESHOLD
         ? "official"
-        : resolution_status === "resolved" ? "official" : "unofficial_pending_review",
+        : "unofficial_pending_review",
+    localities,
+    localitySelectionRequired: trustedLocalities.length > 1 || (!trustedLocalities.length && localities.length > 1),
   };
 }
 
@@ -338,15 +469,17 @@ Deno.serve(async (request) => {
     // The geo (State/District/Taluka) cache is keyed the same way as the
     // legacy supported_pincodes cache, and both are refreshed together
     // whenever a live provider lookup happens below.
-    const { data: cachedGeoRow } = await service
+    const { data: cachedGeoRow, error: cachedGeoError } = await service
       .from("geo_pincodes")
       .select("state_id,district_id,taluka_id,resolution_status,ambiguous,source,verified_at,geo_states(id,name),geo_districts(id,name),geo_talukas(id,name)")
       .eq("pincode", pincode)
       .maybeSingle();
+    if (cachedGeoError) throw cachedGeoError;
     const geoCacheIsFresh = Boolean(
       cachedGeoRow?.verified_at
       && (Date.now() - new Date(cachedGeoRow.verified_at).getTime()) < PIN_CACHE_STALE_DAYS * 86_400_000,
     );
+    const cachedLocalities = cachedGeoRow ? await listCachedLocalities(service, pincode) : [];
     const geoFromCache = (row: typeof cachedGeoRow): GeoResolution | null => {
       if (!row) return null;
       const state = Array.isArray(row.geo_states) ? row.geo_states[0] : row.geo_states;
@@ -363,23 +496,39 @@ Deno.serve(async (request) => {
           ? "admin_verified"
           : trustOf(row.source) >= OFFICIAL_TRUST_THRESHOLD
             ? "official"
-            : row.resolution_status === "resolved" ? "official" : "unofficial_pending_review",
+            : "unofficial_pending_review",
+        localities: cachedLocalities,
+        localitySelectionRequired: cachedLocalities.length > 1,
       };
     };
 
-    const { data: cached } = await service
+    const { data: cached, error: cachedError } = await service
       .from("supported_pincodes")
       .select("pincode,office_name,district,state,city_id,area_id,provider,verified_at,supported_cities(id,name,state,is_active),supported_areas(id,name,is_active)")
       .eq("pincode", pincode)
       .eq("is_active", true)
       .maybeSingle();
+    if (cachedError) throw cachedError;
     const cachedCity = Array.isArray(cached?.supported_cities)
       ? cached?.supported_cities[0]
       : cached?.supported_cities;
     const cachedArea = Array.isArray(cached?.supported_areas)
       ? cached?.supported_areas[0]
       : cached?.supported_areas;
-    if (cached && cachedCity?.is_active && (!cachedArea || cachedArea.is_active) && cachedGeoRow && geoCacheIsFresh) {
+    // Bug fix: a "fresh" geo_pincodes/supported_pincodes row is NOT
+    // sufficient evidence that geo_pincode_localities has actually been
+    // populated for this PIN. Rows written before the locality-tracking
+    // system existed (or seeded directly, e.g. supported_pincodes rows with
+    // provider="admin") can be marked resolved/fresh while
+    // geo_pincode_localities has zero matching rows -- both cache
+    // short-circuits below must therefore also require at least one cached
+    // locality, or a PIN with real multi-locality data (confirmed live
+    // against the postal provider) permanently returns "No locations found
+    // for this PIN" until the row goes stale. Falling through here is cheap
+    // and self-healing: it simply re-runs the same live-provider +
+    // resolveGeoHierarchy path every uncached PIN already takes, which
+    // correctly (re)populates geo_pincode_localities.
+    if (cached && cachedCity?.is_active && (!cachedArea || cachedArea.is_active) && cachedGeoRow && geoCacheIsFresh && cachedLocalities.length > 0) {
       return Response.json({
         supported: true,
         cached: true,
@@ -393,6 +542,22 @@ Deno.serve(async (request) => {
         geo: geoFromCache(cachedGeoRow),
       }, { headers: cors });
     }
+    if (cachedGeoRow && geoCacheIsFresh && cachedGeoRow.resolution_status === "resolved" && cachedLocalities.length > 0) {
+      const cachedGeo = geoFromCache(cachedGeoRow);
+      return Response.json({
+        supported: Boolean(cachedCity?.is_active),
+        found: true,
+        cached: true,
+        pincode,
+        city: cachedCity?.is_active ? cachedCity : null,
+        area: cachedArea?.is_active ? cachedArea : null,
+        district: (cachedGeo?.district as { name?: string } | null)?.name ?? "",
+        state: (cachedGeo?.state as { name?: string } | null)?.name ?? "",
+        officeName: cachedLocalities.length === 1 ? cachedLocalities[0].name : "",
+        provider: cachedGeoRow.source,
+        geo: cachedGeo,
+      }, { headers: cors });
+    }
 
     const { provider, rows } = await providerLookup(pincode);
     if (!rows.length) {
@@ -403,7 +568,7 @@ Deno.serve(async (request) => {
         message: "No Indian postal location was found for this PIN code.",
         geo: {
           supported: false, status: "unresolved", state: null, district: null, taluka: null,
-          ambiguous: false, sourceTrust: "none",
+          ambiguous: false, sourceTrust: "none", localities: [], localitySelectionRequired: false,
         },
       }, { status: 404, headers: cors });
     }
@@ -432,7 +597,7 @@ Deno.serve(async (request) => {
         found: true,
         pincode,
         detected: {
-          area: matchedRow.area || matchedRow.officeName,
+          area: rows.length === 1 ? matchedRow.area || matchedRow.officeName : undefined,
           city: matchedRow.city,
           district: matchedRow.district,
           state: matchedRow.state,
@@ -450,11 +615,11 @@ Deno.serve(async (request) => {
     const areaCandidates = rows.flatMap((row) => [row.area, row.officeName]).map(normalize);
     const area = (areas ?? []).find((item: any) => areaCandidates.includes(normalize(item.name))) ?? null;
 
-    await service.from("supported_pincodes").upsert({
+    const { error: legacyCacheError } = await service.from("supported_pincodes").upsert({
       pincode,
       city_id: city.id,
       area_id: area?.id ?? null,
-      office_name: matchedRow.officeName || null,
+      office_name: rows.length === 1 ? matchedRow.officeName || null : null,
       district: matchedRow.district || null,
       state: matchedRow.state || city.state,
       provider,
@@ -462,6 +627,7 @@ Deno.serve(async (request) => {
       verified_at: new Date().toISOString(),
       raw_response: { records: rows.map((row) => row.raw) },
     });
+    if (legacyCacheError) throw legacyCacheError;
 
     return Response.json({
       supported: true,
@@ -471,7 +637,7 @@ Deno.serve(async (request) => {
       area,
       district: matchedRow.district,
       state: matchedRow.state || city.state,
-      officeName: matchedRow.officeName,
+      officeName: rows.length === 1 ? matchedRow.officeName : "",
       provider,
       geo,
     }, { headers: cors });

@@ -261,6 +261,14 @@ The device registers an Expo token through `services/pushTokens.ts`. Admin compo
 
 CRM services are grouped under `services/crm/` and types/hooks under their matching domain folders. Territory data flows from state to district, taluka, cluster, category, and vendor scope. Field and marketing workspace sessions narrow accessible data; tasks, follow-ups, notes, documents, activities, status transitions, and reports operate through dedicated services rather than general admin screen queries.
 
+### 7.10 Geographic discovery
+
+The legacy compatibility model (`supported_cities`, `supported_areas`, `supported_pincodes`, and `vendor_service_locations`) remains intact. Canonical discovery uses `geo_states` → `geo_districts` → `geo_talukas`, with `geo_pincodes` for trusted PIN resolution and `geo_taluka_neighbors` for generated proximity order. Vendors carry nullable `geo_*` references plus an explicit resolution/review status; a PIN change resolves or clears those references inside the same database transaction as the legacy location save.
+
+`TalukaLocationSelector` loads active Districts for one State and active Talukas for one selected District. `get_public_vendor_taluka_page_cards` is a bounded server-side query that makes Taluka tier the primary ordering key, then applies search/filter/sort and stable pagination. It does not consult vendor service-area eligibility for nearby alternatives. The RPC explicitly checks active State, District, and Taluka records because SECURITY DEFINER functions do not inherit public RLS filtering.
+
+Neighbor rows are rebuilt by an Admin-only function from recorded PostGIS geography points with deterministic distance/UUID ordering and cached for reads. Listing consumers depend on the cache shape rather than the centroid algorithm, allowing a later official polygon-adjacency implementation without rewriting public discovery. The PIN Edge Function prefers official government data, stores unofficial-only candidates as review-only, and never exposes service-role credentials to the client.
+
 ## 8. Media and external-service boundaries
 
 ### 8.1 Client-safe configuration
@@ -269,7 +277,7 @@ The client may receive `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON
 
 ### 8.2 Server-only configuration
 
-Cloudinary API secrets, Razorpay secrets, Supabase service-role keys, and push-provider credentials belong in Edge Function/project secrets. They must never use an `EXPO_PUBLIC_` prefix or be committed.
+Cloudinary API secrets, Razorpay secrets, Supabase service-role keys, push-provider credentials, and optional `DATA_GOV_IN_API_KEY`/`DATA_GOV_IN_PINCODE_RESOURCE_ID` values belong in Edge Function/project secrets. They must never use an `EXPO_PUBLIC_` prefix or be committed.
 
 ### 8.3 Edge Functions
 

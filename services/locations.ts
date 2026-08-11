@@ -345,10 +345,11 @@ export function mapVendorServiceLocation(row: any): VendorServiceLocation {
 
 export async function replaceVendorServiceLocations(input: {
   vendorId: string;
-  primaryCityId: string;
+  primaryCityId: string | null;
   primaryAreaId: string | null;
   serviceAreaIds: string[];
   pincode?: string | null;
+  geoLocalityId?: string | null;
 }) {
   const { data, error } = await supabase.rpc("replace_vendor_service_locations", {
     target_vendor_id: input.vendorId,
@@ -356,6 +357,7 @@ export async function replaceVendorServiceLocations(input: {
     target_primary_area_id: input.primaryAreaId,
     target_service_area_ids: input.serviceAreaIds,
     target_pincode: input.pincode || null,
+    target_geo_locality_id: input.geoLocalityId || null,
   });
   if (error) throw error;
   return data;

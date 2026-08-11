@@ -37,6 +37,7 @@ type RejectedApplicationRecord = {
   city_id: string | null;
   area_id: string | null;
   service_area_ids: string[] | null;
+  geo_pincode_locality_id: string | null;
   instagram: string | null;
   facebook: string | null;
   website: string | null;
@@ -111,6 +112,7 @@ export default function BecomeVendor() {
     primaryCityId: "",
     primaryAreaId: null,
     serviceAreaIds: [],
+    geoLocalityId: null,
   });
   const [locationValid, setLocationValid] = useState(false);
   const [locationSource, setLocationSource] = useState<"verified" | "manual_fallback" | null>(null);
@@ -168,7 +170,7 @@ export default function BecomeVendor() {
           const { data: existing, error: existingError } = await supabase
             .from("vendor_applications")
             .select(
-              "id,business_name,full_name,email,phone,category_id,description,experience,pincode,city_id,area_id,service_area_ids,instagram,facebook,website,logo_url,cover_image_url,business_documents"
+              "id,business_name,full_name,email,phone,category_id,description,experience,pincode,city_id,area_id,service_area_ids,geo_pincode_locality_id,instagram,facebook,website,logo_url,cover_image_url,business_documents"
             )
             .eq("id", resolution.application.id)
             .maybeSingle();
@@ -196,6 +198,7 @@ export default function BecomeVendor() {
               primaryCityId: record.city_id || "",
               primaryAreaId: record.area_id || null,
               serviceAreaIds: record.service_area_ids || [],
+              geoLocalityId: record.geo_pincode_locality_id || null,
             });
             setDocuments(record.business_documents || []);
             setIsResubmission(true);
@@ -290,8 +293,8 @@ export default function BecomeVendor() {
     if (!termsAccepted) return Alert.alert("Terms required", "Accept the Terms & Conditions to continue.");
     const selectedCity = locations.find((item) => item.id === vendorLocation.primaryCityId);
     const selectedArea = selectedCity?.areas.find((item) => item.id === vendorLocation.primaryAreaId);
-    if (!selectedCity || !locationValid) {
-      return Alert.alert("Service location required", "Verify your PIN code and choose an active RoyalLagn service location.");
+    if (!locationValid) {
+      return Alert.alert("Service location required", "Verify your PIN code and choose a locality when prompted.");
     }
 
     setSubmitting(true);
@@ -305,11 +308,12 @@ export default function BecomeVendor() {
         category_id: form.categoryId,
         description: form.description.trim(),
         experience,
-        address: selectedArea?.name ?? selectedCity.name,
+        address: selectedArea?.name ?? selectedCity?.name ?? "",
         pincode: vendorLocation.pincode,
-        city_id: selectedCity.id,
+        city_id: selectedCity?.id ?? null,
         area_id: selectedArea?.id ?? null,
         service_area_ids: vendorLocation.serviceAreaIds,
+        geo_pincode_locality_id: vendorLocation.geoLocalityId,
         location_fallback: locationSource === "manual_fallback",
         instagram: form.instagram.trim() || null,
         facebook: form.facebook.trim() || null,

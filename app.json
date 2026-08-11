@@ -61,6 +61,12 @@
           "defaultChannel": "default"
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow RoyalLagn to use your location to show wedding vendors near you."
+        }
+      ],
       "@react-native-community/datetimepicker"
     ],
     "experiments": {
