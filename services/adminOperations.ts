@@ -174,7 +174,7 @@ export const AdminOperationsService = {
   async reviews(): Promise<AdminReview[]> {
     const { data, error } = await supabase
       .from("reviews")
-      .select("id,vendor_key,vendor_id,profile_id,rating,title,review,status,helpful_count,is_verified_customer,created_at,updated_at,profiles(full_name),vendors(business_name)")
+      .select("id,vendor_key,vendor_id,profile_id,rating,title,review,status,helpful_count,is_verified_customer,created_at,updated_at,profiles!reviews_profile_id_fkey(full_name),vendors(business_name)")
       .order("created_at", { ascending: false });
     if (error) throw error;
     return ((data ?? []) as Record<string, unknown>[]).map((row) => ({

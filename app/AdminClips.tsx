@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Modal, Pressable, RefreshControl, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Check, Eye, Heart, RefreshCw, Search, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
@@ -9,6 +9,7 @@ import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import ClipAnalyticsSection from "@/components/admin/clips/ClipAnalyticsSection";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { AdminOperationsService, type AdminClip, type AdminClipStatus } from "@/services/adminOperations";
+import { getPublicClipsEnabled, setPublicClipsEnabled } from "@/services/publicClipsAvailability";
 
 const statuses: (AdminClipStatus | "all")[] = ["all", "pending", "approved", "hidden", "rejected", "draft"];
 const PAGE_SIZE = 12;
@@ -24,6 +25,9 @@ export default function AdminClips() {
   const [review, setReview] = useState<{ clip: AdminClip; decision: "hidden" | "rejected" } | null>(null);
   const [reason, setReason] = useState("");
   const [working, setWorking] = useState(false);
+  const [publicClipsEnabled, setPublicClipsEnabledState] = useState<boolean | null>(null);
+  const [availabilitySaving, setAvailabilitySaving] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState("");
 
   const load = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true); else setLoading(true);
@@ -37,6 +41,29 @@ export default function AdminClips() {
     void load();
     return AdminOperationsService.subscribe("clips", () => void load(true));
   }, [load]);
+
+  useEffect(() => {
+    let active = true;
+    getPublicClipsEnabled()
+      .then((enabled) => { if (active) setPublicClipsEnabledState(enabled); })
+      .catch(() => { if (active) setAvailabilityError("Unable to load the public Clips status."); });
+    return () => { active = false; };
+  }, []);
+
+  const updatePublicClips = async (enabled: boolean) => {
+    if (availabilitySaving || publicClipsEnabled === null) return;
+    setAvailabilitySaving(true);
+    setAvailabilityError("");
+    try {
+      const saved = await setPublicClipsEnabled(enabled);
+      setPublicClipsEnabledState(saved);
+    } catch (cause) {
+      setAvailabilityError(cause instanceof Error ? cause.message : "Unable to update public Clips.");
+      Alert.alert("Public Clips", "The setting could not be saved. Try again.");
+    } finally {
+      setAvailabilitySaving(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -66,6 +93,18 @@ export default function AdminClips() {
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}>
       <ResponsiveContainer>
         <AdminPageHeader title="Clips" subtitle="Understand performance and moderate vendor content" action={<Pressable accessibilityLabel="Refresh clips" onPress={() => void load(true)} className="min-w-11 min-h-11 items-center justify-center"><RefreshCw size={19} className="text-primary" /></Pressable>} />
+        <View className="bg-card border border-border rounded-2xl px-4 py-4 mb-5 flex-row items-center gap-4">
+          <View className="flex-1 min-w-0">
+            <View className="flex-row items-center gap-2">
+              <Text className="text-foreground text-base font-bold">Public Clips</Text>
+              {publicClipsEnabled !== null ? <View className={`rounded-full px-2.5 py-1 ${publicClipsEnabled ? "bg-green-500/10" : "bg-primary/10"}`}><Text className={`text-xs font-bold ${publicClipsEnabled ? "text-green-700" : "text-primary"}`}>{publicClipsEnabled ? "ACTIVE" : "COMING SOON"}</Text></View> : null}
+            </View>
+            <Text className={`text-sm leading-5 mt-1 ${availabilityError ? "text-destructive" : "text-muted-foreground"}`}>
+              {availabilityError || (publicClipsEnabled === null ? "Checking the public Clips status…" : publicClipsEnabled ? "Public users can browse and watch Clips." : "Public users see a coming-soon message. Vendor Clips remain available.")}
+            </Text>
+          </View>
+          {publicClipsEnabled === null ? <ActivityIndicator color="#E91E63" /> : <Switch accessibilityLabel="Public Clips availability" accessibilityHint="Controls whether Clips are available in the public app" accessibilityState={{ checked: publicClipsEnabled, disabled: availabilitySaving, busy: availabilitySaving }} value={publicClipsEnabled} disabled={availabilitySaving} onValueChange={(value) => void updatePublicClips(value)} trackColor={{ false: "#D6D1D4", true: "#F5A6C2" }} thumbColor={publicClipsEnabled ? "#E91E63" : "#FFFFFF"} />}
+        </View>
         <ClipAnalyticsSection />
         <View className="mb-4"><Text className="text-foreground text-xl font-bold">Clip Moderation</Text><Text className="text-muted-foreground text-sm mt-1">Review and manage vendor clips.</Text></View>
         <View className="bg-card border border-border rounded-2xl px-4 h-12 flex-row items-center"><Search size={18} className="text-muted-foreground" /><TextInput value={query} onChangeText={(value) => { setQuery(value); setPage(1); }} placeholder="Search clip, vendor or category" placeholderTextColor="#8A8589" className="flex-1 h-12 ml-3 text-foreground" /></View>

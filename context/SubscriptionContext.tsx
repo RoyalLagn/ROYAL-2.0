@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "@/services/supabase";
+import { restoreSupabaseSession, supabase } from "@/services/supabase";
 import { SubscriptionAccessService } from "@/subscriptions/services/SubscriptionAccessService";
 import type { SubscriptionAccess, SubscriptionFeatureKey, SubscriptionOffer, SubscriptionPlan } from "@/subscriptions/types";
 import { ClipUploadService } from "@/clips/services";
@@ -89,9 +89,9 @@ export function SubscriptionProvider({ children }: React.PropsWithChildren) {
     // SecureStore/localStorage is async on both native and web) before the
     // first refresh, so the vendor-access RPC never fires with a
     // not-yet-restored/anonymous request.
-    supabase.auth.getSession().then(({ data }) => {
+    restoreSupabaseSession().then((restoredSession) => {
       if (!active) return;
-      hasSession.current = Boolean(data.session);
+      hasSession.current = Boolean(restoredSession);
       void refresh();
     }).catch(() => {
       if (!active) return;

@@ -29,7 +29,10 @@ type Colors = typeof vendorTheme.light;
 type ChecklistMeta = { label: string; icon: React.ComponentType<{ size?: number; color?: string }> };
 
 export const READINESS_CHECKLIST_GAP = 8;
-export const READINESS_CHECKLIST_MIN_CARD_WIDTH = 156;
+// Preserve enough room for the section icon, a two-line label, status, and
+// chevron. Phones fall back to one column; tablet-sized vendor surfaces use
+// two; the bounded desktop dashboard can comfortably hold three.
+export const READINESS_CHECKLIST_MIN_CARD_WIDTH = 210;
 
 /** Columns for the readiness checklist based on the measured grid width. */
 export function readinessChecklistColumns(gridWidth: number) {
@@ -53,6 +56,7 @@ export function readinessChecklistItemWidth(
 type ChecklistItemProps = {
   item: CompletionItem;
   meta: ChecklistMeta;
+  sectionIcon: React.ComponentType<{ size?: number; color?: string }>;
   colors: Colors;
   /** Measured card width from the parent grid. Prefer this over percentage widths. */
   itemWidth?: number;
@@ -107,6 +111,7 @@ export function ReadinessChecklistGrid({ children, style }: ChecklistGridProps) 
 export default function ChecklistItem({
   item,
   meta,
+  sectionIcon: SectionIcon,
   colors,
   itemWidth,
   highlighted,
@@ -121,7 +126,7 @@ export default function ChecklistItem({
         : colors.pink;
   const stateOpacity = useSharedValue(1);
   const highlightGlow = useSharedValue(0);
-  const Icon = meta.icon;
+  const StatusIcon = meta.icon;
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -153,7 +158,7 @@ export default function ChecklistItem({
   const rowStyle: ViewStyle[] = [
     styles.completionItem,
     itemWidth ? { width: itemWidth } : styles.completionItemFallback,
-    { backgroundColor: colors.background, borderColor: colors.border },
+    { backgroundColor: colors.surfaceSoft },
   ];
 
   return (
@@ -168,9 +173,9 @@ export default function ChecklistItem({
         pointerEvents="none"
         style={[styles.highlightGlow, { backgroundColor: `${tint}12` }, glowStyle]}
       />
-      <Animated.View style={[styles.stateIcon, { backgroundColor: `${tint}16` }, stateStyle]}>
-        <Icon size={16} color={tint} />
-      </Animated.View>
+      <View style={[styles.sectionIcon, { backgroundColor: colors.background }]}>
+        <SectionIcon size={18} color={colors.pink} />
+      </View>
       <View style={styles.copy}>
         <Text
           style={[styles.completionLabel, { color: colors.text }, webTextStyle]}
@@ -178,12 +183,12 @@ export default function ChecklistItem({
         >
           {item.label}
         </Text>
-        <Animated.Text
-          style={[styles.stateLabel, { color: tint }, stateStyle, webTextStyle]}
-          numberOfLines={1}
-        >
-          {meta.label}
-        </Animated.Text>
+        <Animated.View style={[styles.stateRow, stateStyle]}>
+          <StatusIcon size={12} color={tint} />
+          <Text style={[styles.stateLabel, { color: tint }, webTextStyle]} numberOfLines={1}>
+            {meta.label}
+          </Text>
+        </Animated.View>
       </View>
       <View style={styles.chevron}>
         <ChevronRight size={15} color={colors.muted} />
@@ -209,11 +214,10 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
   },
   completionItem: {
-    minHeight: 68,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
+    minHeight: 70,
+    borderRadius: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
@@ -230,10 +234,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1.5,
   },
-  stateIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
+  sectionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -249,14 +253,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   completionLabel: {
-    fontSize: typeScale.metadata,
+    fontSize: typeScale.bodyCompact,
     fontWeight: "700",
-    lineHeight: typeLeading.caption,
+    lineHeight: typeLeading.bodyCompact,
+  },
+  stateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 3,
   },
   stateLabel: {
     fontSize: typeScale.caption,
     fontWeight: "700",
-    marginTop: 3,
     lineHeight: typeLeading.caption,
   },
 });

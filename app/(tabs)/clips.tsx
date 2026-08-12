@@ -23,6 +23,7 @@ import type {
 } from "@/clips/types";
 import { EnquiryExternalOpenError, EnquiryService } from "@/services/enquiries";
 import { typeScale, typeLeading } from "@/constants/typography";
+import { getPublicClipsEnabled } from "@/services/publicClipsAvailability";
 
 const EMPTY_ENGAGEMENT: ClipEngagementState = { liked: false, saved: false };
 
@@ -36,6 +37,36 @@ function FeedSkeleton({ dark, width, height }: { dark: boolean; width: number; h
 }
 
 export default function ClipsScreen() {
+  const { colorScheme } = useAppTheme();
+  const dark = colorScheme === "dark";
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getPublicClipsEnabled()
+      .then((value) => { if (active) setEnabled(value); })
+      .catch(() => { if (active) setEnabled(true); });
+    return () => { active = false; };
+  }, []);
+
+  if (enabled === null) return <View style={[styles.availabilityRoot, { backgroundColor: dark ? "#080608" : "#FFFFFF" }]}><ActivityIndicator size="large" color="#E91E63" /></View>;
+  if (!enabled) return <ClipsComingSoon dark={dark} />;
+  return <ClipsFeed />;
+}
+
+function ClipsComingSoon({ dark }: { dark: boolean }) {
+  return <View style={[styles.availabilityRoot, { backgroundColor: dark ? "#080608" : "#FFFFFF" }]}>
+    <StatusBar style={dark ? "light" : "dark"} />
+    <View style={[styles.comingSoonCard, { backgroundColor: dark ? "#151014" : "#FFF8FB", borderColor: dark ? "#30232A" : "#F5D7E3" }]}>
+      <View style={styles.comingSoonIcon}><Clapperboard size={42} color="#E91E63" strokeWidth={1.8} /></View>
+      <Text style={[styles.comingSoonEyebrow, { color: dark ? "#FF8CB4" : "#C2185B" }]}>CLIPS</Text>
+      <Text style={[styles.comingSoonTitle, { color: dark ? "#FFFFFF" : "#211A1D" }]}>This feature is coming soon</Text>
+      <Text style={[styles.comingSoonText, { color: dark ? "#CBBBC3" : "#71666B" }]}>We’re preparing wedding inspiration for you. Please check back soon.</Text>
+    </View>
+  </View>;
+}
+
+function ClipsFeed() {
   const router = useRouter();
   const { clipId, clipSearch } = useLocalSearchParams<{ clipId?: string; clipSearch?: string }>();
   const insets = useSafeAreaInsets();
@@ -486,6 +517,12 @@ export default function ClipsScreen() {
 }
 
 const styles = StyleSheet.create({
+  availabilityRoot: { flex: 1, minHeight: 0, alignItems: "center", justifyContent: "center", padding: 24 },
+  comingSoonCard: { width: "100%", maxWidth: 520, alignItems: "center", borderWidth: 1, borderRadius: 28, paddingHorizontal: 28, paddingVertical: 48 },
+  comingSoonIcon: { width: 96, height: 96, borderRadius: 32, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(233,30,99,.10)", marginBottom: 24 },
+  comingSoonEyebrow: { fontSize: 12, lineHeight: 16, letterSpacing: 1.4, fontWeight: "800" },
+  comingSoonTitle: { marginTop: 8, textAlign: "center", fontSize: typeScale.sectionTitle, lineHeight: 32, fontWeight: "800" },
+  comingSoonText: { maxWidth: 360, marginTop: 10, textAlign: "center", fontSize: typeScale.body, lineHeight: typeLeading.body },
   root: { flex: 1, width: "100%", maxWidth: "100%", minHeight: 0, alignItems: "center", overflow: "hidden", backgroundColor: "#080608" },
   rootWeb: { maxHeight: "100dvh", overscrollBehavior: "none" } as any,
   toolbar: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, width: "100%", alignItems: "center", paddingBottom: 12 },

@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/services/supabase";
+import { restoreSupabaseSession, supabase } from "@/services/supabase";
 import {
   ensurePublicProfile,
   type PublicProfile,
@@ -105,10 +105,10 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession()
-      .then(async ({ data }) => {
+    restoreSupabaseSession()
+      .then(async (restoredSession) => {
         if (!active) return;
-        await loadPublicProfile(data.session);
+        await loadPublicProfile(restoredSession);
       })
       .catch(() => {
         if (!active) return;

@@ -78,7 +78,11 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
   };
 
   const close = () => {
-    if (!needsLocationSelection) setVisible(false);
+    // A required location should be prompted, not used as an uncloseable
+    // global modal. Expo Router can retain the public screen while another
+    // role route is active; refusing to close here lets this modal intercept
+    // Vendor/Admin login and navigation outside the marketplace.
+    setVisible(false);
   };
   const confirm = async () => {
     if (!draft || saving) return;

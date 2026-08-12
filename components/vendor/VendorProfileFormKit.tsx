@@ -323,6 +323,8 @@ export function SaveBar({
       </Animated.View>
       <Animated.View style={buttonAnimatedStyle}>
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={state === "saved" ? "Saved" : buttonLabel}
           disabled={saving || disabled}
           onPress={onPress}
           style={({ pressed }) => [

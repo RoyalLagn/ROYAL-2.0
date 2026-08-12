@@ -33,7 +33,7 @@ export const VendorCard = React.memo(function VendorCard({
     void Linking.openURL(`https://wa.me/${normalizeWhatsAppPhone(item.phone)}`);
   };
   return (
-    <ResponsiveCard>
+    <ResponsiveCard className="active:border-primary/30">
       <View className="flex-row items-start">
         {item.logo_url
           ? <Image source={{ uri: item.logo_url }} className="w-14 h-14 rounded-2xl bg-white" resizeMode="contain" />

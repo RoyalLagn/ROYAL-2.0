@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import QRCode from "react-native-qrcode-svg";
@@ -26,6 +26,8 @@ import Pressable from "@/components/InteropSafePressable";
 export default function PublicProfileCard({ vendor }: { vendor: any }) {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const { width } = useWindowDimensions();
+  const desktop = width >= 900;
   const router = useRouter();
   const qrRef = useRef<any>(null);
   const [copied, setCopied] = useState(false);
@@ -92,7 +94,7 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
 
   if (!slug) {
     return (
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+      <View style={[styles.card, { backgroundColor: colors.background, borderColor: colors.border }]}>
         <View style={[styles.icon, { backgroundColor: colors.pink }]}>
           <QrCode size={22} color="#FFF" />
         </View>
@@ -107,7 +109,7 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
   }
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+    <View style={[styles.card, desktop && styles.cardDesktop, { backgroundColor: colors.background, borderColor: colors.border }]}>
       <View style={styles.headerRow}>
         <View style={[styles.icon, { backgroundColor: colors.pink }]}>
           <QrCode size={22} color="#FFF" />
@@ -118,11 +120,11 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
         </View>
       </View>
 
-      <View style={styles.qrRow}>
+      <View style={[styles.qrRow, desktop && styles.qrRowDesktop]}>
         <View ref={qrRef} collapsable={false} style={[styles.qrWrap, { borderColor: colors.border }]}>
           <QRCode value={qrUrl} size={104} backgroundColor="#FFFFFF" />
         </View>
-        <View style={styles.actionsCol}>
+        <View style={[styles.actionsCol, desktop && styles.actionsColDesktop]}>
           <ActionButton label="Copy Link" icon={<Copy size={15} color={colors.pink} />} colors={colors} onPress={handleCopy} />
           <ActionButton label="Open Profile" icon={<ExternalLink size={15} color={colors.pink} />} colors={colors} onPress={() => router.push({ pathname: "/vendors/[slug]", params: { slug } })} />
           <ActionButton label="Share" icon={<Share2 size={15} color={colors.pink} />} colors={colors} onPress={handleShare} />
@@ -185,17 +187,20 @@ function StatTile({ label, value, colors }: { label: string; value: number; colo
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 24, padding: 16, marginBottom: 16, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 18, elevation: 2 },
+  card: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 16 },
+  cardDesktop: { padding: 20 },
   headerRow: { flexDirection: "row", gap: 13, alignItems: "flex-start" },
-  icon: { width: 46, height: 46, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  icon: { width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   content: { flex: 1, minWidth: 0 },
   title: { fontSize: typeScale.cardTitle, fontWeight: "700" },
   hint: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 4 },
   url: { fontSize: typeScale.metadata, fontWeight: "700", marginTop: 3 },
   qrRow: { flexDirection: "row", gap: 14, marginTop: 14, alignItems: "flex-start" },
+  qrRowDesktop: { gap: 20, alignItems: "stretch" },
   qrWrap: { padding: 8, borderRadius: 14, borderWidth: 1, backgroundColor: "#FFFFFF" },
   actionsCol: { flex: 1, gap: 8 },
-  actionButton: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
+  actionsColDesktop: { flexDirection: "row", flexWrap: "wrap", alignContent: "flex-start" },
+  actionButton: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 40, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
   actionLabel: { fontSize: typeScale.metadata, fontWeight: "700" },
   copiedText: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 8 },
   settingsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, paddingTop: 14, borderTopWidth: 1 },

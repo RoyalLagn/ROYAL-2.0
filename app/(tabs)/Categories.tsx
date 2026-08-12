@@ -12,7 +12,7 @@ import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import { useCategories } from "@/context/CategoryContext";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
-const INITIAL_ANIMATED_CARDS = 8;
+const INITIAL_ANIMATED_CARDS = 6;
 const SKELETON_DELAY_MS = 200;
 const SKELETON_MINIMUM_MS = 320;
 const SKELETON_IDS = Array.from({ length: 8 }, (_, index) => `category-skeleton-${index}`);
@@ -44,14 +44,14 @@ const CategoryListItem = memo(function CategoryListItem({
 }) {
   const animatedStyle = useAnimatedStyle(() => {
     if (entry.entranceIndex >= INITIAL_ANIMATED_CARDS) return { opacity: 1, transform: [{ translateY: 0 }] };
-    const start = reducedMotion ? 0 : 0.14 + entry.entranceIndex * 0.05;
-    const end = reducedMotion ? 0.22 : Math.min(0.94, start + 0.43);
+    const start = reducedMotion ? 0 : 0.08 + entry.entranceIndex * 0.035;
+    const end = reducedMotion ? 0.18 : Math.min(0.78, start + 0.3);
     return {
       opacity: interpolate(entrance.value, [start, end], [0, 1], Extrapolation.CLAMP),
       transform: [{
         translateY: reducedMotion
           ? 0
-          : interpolate(entrance.value, [start, end], [12, 0], Extrapolation.CLAMP),
+          : interpolate(entrance.value, [start, end], [8, 0], Extrapolation.CLAMP),
       }],
     };
   }, [entry.entranceIndex, reducedMotion]);
@@ -95,13 +95,13 @@ export default function CategoriesScreen() {
   const { searchCategories: liveCategories, loading } = useCategories();
   const { width: screenWidth } = useWindowDimensions();
   const isDesktop = screenWidth >= 1100;
-  const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
+  const horizontalInset = isDesktop ? 32 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 24;
   const twoColumns = screenWidth >= 900;
   const compactCards = screenWidth < 600;
-  const contentWidth = Math.min(screenWidth - horizontalInset * 2, 1180);
-  const cardWidth = twoColumns ? (contentWidth - 14) / 2 : contentWidth;
+  const contentWidth = Math.min(screenWidth - horizontalInset * 2, 1240);
+  const cardWidth = twoColumns ? (contentWidth - 16) / 2 : contentWidth;
 
-  const bg = isDark ? "#070B14" : "#FFFFFF";
+  const bg = isDark ? "#070B14" : "#FFFBFD";
   const text = isDark ? "#F5F0F3" : "#141414";
   const muted = isDark ? "#AAA0A5" : "#787178";
   const border = isDark ? "#232C3D" : "#F0E8F2";
@@ -140,8 +140,8 @@ export default function CategoriesScreen() {
     if (!categories.length || showSkeleton || entranceStarted.current) return;
     entranceStarted.current = true;
     entrance.value = withTiming(1, {
-      duration: reducedMotion ? 140 : 650,
-      easing: Easing.out(Easing.cubic),
+      duration: reducedMotion ? 120 : 280,
+      easing: Easing.bezier(0.23, 1, 0.32, 1),
     });
   }, [categories.length, entrance, reducedMotion, showSkeleton]);
 
@@ -223,7 +223,7 @@ export default function CategoriesScreen() {
         maxToRenderPerBatch={8}
         windowSize={7}
         removeClippedSubviews={!isDesktop}
-        contentContainerStyle={[s.list, { width: contentWidth, paddingBottom: 28 }]}
+        contentContainerStyle={[s.list, { width: contentWidth, paddingBottom: 36 }]}
         ListEmptyComponent={!loading && !showSkeleton ? (
           <View style={[s.empty, { borderColor: border }]}>
             <Text style={[s.emptyTitle, { color: text }]}>No categories found</Text>
@@ -239,22 +239,22 @@ export default function CategoriesScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  topContent: { alignSelf: "center" },
+  topContent: { alignSelf: "center", paddingTop: 4 },
   list: { alignSelf: "center" },
-  column: { gap: 14 },
-  separator: { height: 14 },
-  skeletonCard: { borderRadius: 22, flexDirection: "row", alignItems: "center", paddingLeft: 18, overflow: "hidden" },
-  skeletonCompact: { height: 116, borderRadius: 20, paddingLeft: 12 },
-  skeletonWide: { height: 142 },
+  column: { gap: 16 },
+  separator: { height: 16 },
+  skeletonCard: { borderRadius: 16, flexDirection: "row", alignItems: "center", paddingLeft: 18, overflow: "hidden" },
+  skeletonCompact: { height: 120, paddingLeft: 14 },
+  skeletonWide: { height: 154 },
   skeletonCircle: { width: 68, height: 68, borderRadius: 34, flexShrink: 0 },
   skeletonCircleCompact: { width: 58, height: 58, borderRadius: 29 },
   skeletonCopy: { flex: 1, minWidth: 0, gap: 8, marginHorizontal: 15 },
   skeletonTitle: { width: "68%", height: 16, borderRadius: 6 },
   skeletonLine: { width: "90%", height: 10, borderRadius: 5 },
   skeletonLineShort: { width: "58%" },
-  skeletonImage: { width: 132, height: 134, margin: 4, marginLeft: 0, borderRadius: 18 },
-  skeletonImageCompact: { width: 106, height: 108, borderRadius: 17 },
-  empty: { marginTop: 12, borderWidth: 1, borderStyle: "dashed", borderRadius: 20, paddingVertical: 34, paddingHorizontal: 20, alignItems: "center" },
+  skeletonImage: { width: 150, height: 154, borderRadius: 0 },
+  skeletonImageCompact: { width: 108, height: 120 },
+  empty: { marginTop: 12, borderWidth: 1, borderStyle: "dashed", borderRadius: 16, paddingVertical: 40, paddingHorizontal: 20, alignItems: "center" },
   emptyTitle: { ...typeStyles.editorialSectionTitle, marginBottom: 5 },
   emptyText: { maxWidth: 330, textAlign: "center", fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
 });

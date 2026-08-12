@@ -78,8 +78,8 @@ export default function VendorClips() {
           Alert.alert("Clip deleted", "The Clip was deleted successfully.");
         } catch (caught) {
           const message = caught instanceof Error ? caught.message : "Unknown deletion error";
-          console.error("[VendorClips] Clip deletion failed", { clipId: clip.id, error: message });
-          Alert.alert("Unable to delete Clip", "Unable to delete this clip. Please try again.");
+          console.error(`[VendorClips] Clip deletion failed (${clip.id}): ${message}`);
+          Alert.alert("Unable to delete Clip", message || "Unable to delete this clip. Please try again.");
         } finally {
           deletingRef.current = null;
           setDeletingId(null);

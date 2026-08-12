@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/services/supabase";
+import { restoreSupabaseSession, supabase } from "@/services/supabase";
 import {
   AdminAuthError,
   logoutAdmin,
@@ -71,10 +71,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getSession()
-      .then(({ data }) => {
+    restoreSupabaseSession()
+      .then((restoredSession) => {
         if (!mounted) return;
-        if (data.session) void refreshAdmin(data.session);
+        if (restoredSession) void refreshAdmin(restoredSession);
         else setLoading(false);
       })
       .catch(() => {

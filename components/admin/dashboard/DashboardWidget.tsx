@@ -32,14 +32,14 @@ export function DashboardWidget({
   const { iconSize, isPhone } = useResponsiveLayout();
   return (
     <ResponsiveCard className="overflow-hidden">
-      <View className={`flex-row items-center ${isPhone ? "mb-3" : "mb-4"}`}>
-        {Icon ? <View className="min-w-11 min-h-11 rounded-xl bg-primary/10 items-center justify-center mr-3"><Icon size={iconSize} className="text-primary" /></View> : null}
+      <View className={`flex-row items-center ${isPhone ? "mb-3" : "mb-5"}`}>
+        {Icon ? <View className="w-9 h-9 rounded-lg bg-primary/10 items-center justify-center mr-3"><Icon size={Math.max(17, iconSize - 3)} className="text-primary" /></View> : null}
         <View className="flex-1">
           <Text className="text-foreground font-bold" style={typeStyles.cardTitle} numberOfLines={2}>{title}</Text>
           {subtitle ? <Text className="text-muted-foreground mt-0.5" style={typeStyles.bodyCompact} numberOfLines={2}>{subtitle}</Text> : null}
         </View>
         {onRefresh ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={`Refresh ${title}`} className="min-w-11 min-h-11 items-center justify-center" onPress={onRefresh}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Refresh ${title}`} className="min-w-11 min-h-11 rounded-xl items-center justify-center active:bg-muted" onPress={onRefresh}>
             <RefreshCw size={17} className="text-muted-foreground" />
           </Pressable>
         ) : null}

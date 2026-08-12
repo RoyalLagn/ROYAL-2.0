@@ -23,6 +23,8 @@ export default function VendorGallery() {
   const insets = useSafeAreaInsets();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const dark = colorScheme === "dark";
+  const canvas = dark ? colors.background : "#FFF9FB";
   const { access, requireFeature } = useSubscriptionAccess();
   const { data, loading, error, portfolioError, refresh } = useVendorWorkspace();
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
@@ -475,7 +477,7 @@ export default function VendorGallery() {
     );
   };
 
-  return <View style={[styles.page, { backgroundColor: colors.background }]}>
+  return <View style={[styles.page, { backgroundColor: canvas }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
     <ScrollView
       contentContainerStyle={[styles.content, width >= 900 && styles.desktop]}
@@ -511,7 +513,7 @@ export default function VendorGallery() {
         showsHorizontalScrollIndicator={false}
         decelerationRate="fast"
         snapToInterval={168}
-        contentContainerStyle={styles.summaryGrid}
+        contentContainerStyle={[styles.summaryGrid, width >= 900 && styles.summaryGridDesktop]}
       >
         {[
           {
@@ -538,7 +540,12 @@ export default function VendorGallery() {
             detail: "Publicly visible",
             progress: data.albums.length ? data.albums.filter((album) => album.is_visible).length / data.albums.length : 0,
           },
-        ].map((stat) => <View key={stat.key} style={[styles.summaryCard, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+        ].map((stat) => <View key={stat.key} style={[
+          styles.summaryCard,
+          width >= 900 && styles.summaryCardDesktop,
+          width >= 900 && { width: (contentWidth - 20) / 3 },
+          { backgroundColor: colors.background, borderColor: colors.border },
+        ]}>
           <View style={[styles.summaryIcon, { backgroundColor: colors.surfaceSoft }]}>{stat.icon}</View>
           <Text style={[styles.summaryValue, { color: colors.text }]}>{stat.value}</Text>
           <Text style={[styles.summaryLabel, { color: colors.muted }]}>{stat.label}</Text>
@@ -565,7 +572,7 @@ export default function VendorGallery() {
         </View>)}
       </View> : null}
 
-      {readyHeroImages.length ? <View style={[styles.heroManager, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+      {readyHeroImages.length ? <View style={[styles.heroManager, width >= 900 && styles.heroManagerDesktop, { backgroundColor: colors.background, borderColor: colors.border }]}>
         <View style={styles.heroManagerHeader}>
           <View style={[styles.heroTitleIcon, { backgroundColor: colors.surfaceSoft }]}>
             <Sparkles size={19} color={colors.pink} fill={colors.pink} />
@@ -684,7 +691,7 @@ export default function VendorGallery() {
           const albumMedia = data.media.filter((item) => item.album_id === album.id);
           const cover = albumMedia.find((item) => item.is_cover) ?? albumMedia[0];
           const active = activeAlbum?.id === album.id;
-          return <View key={album.id} style={[styles.album, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+          return <View key={album.id} style={[styles.album, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
@@ -730,7 +737,7 @@ export default function VendorGallery() {
 
       {lockedPhotoCount ? <View style={[styles.subscriptionNotice, { backgroundColor: colors.surfaceSoft }]}><LockKeyhole size={17} color={colors.warning} /><Text style={[styles.subscriptionNoticeText, { color: colors.text }]}>{lockedPhotoCount} photos are safely stored but hidden from customers because your {access?.plan_name || "current"} plan allows {access?.photo_limit ?? 0}. Upgrade to unlock more.</Text><Pressable onPress={() => router.push("/VendorSubscription")}><Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>View plans</Text></Pressable></View> : null}
 
-      {activeAlbum && <View style={[styles.albumDetails, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+      {activeAlbum && <View style={[styles.albumDetails, width >= 900 && styles.albumDetailsDesktop, { backgroundColor: colors.background, borderColor: colors.border }]}>
         <View style={styles.albumHeading}>
           <View style={styles.flex}><Text style={[styles.sectionTitle, styles.detailTitle, { color: colors.text }]}>{activeAlbum.title}</Text><Text style={[styles.subtitle, styles.detailSubtitle, { color: colors.muted }]}>{activeAlbum.description || "Add a short description to give this collection context."}</Text></View>
           <Pressable accessibilityLabel="Preview album" onPress={() => setAlbumPreview(activeAlbum)} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressScale]}><Eye size={18} color={colors.text} /></Pressable>
@@ -1007,30 +1014,32 @@ export default function VendorGallery() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: { position: "relative", padding: 16, paddingTop: 28, paddingBottom: 112, alignSelf: "center", width: "100%" },
-  desktop: { maxWidth: 1120, paddingHorizontal: 28, paddingTop: 40, paddingBottom: 56 },
+  content: { position: "relative", padding: 16, paddingTop: 22, paddingBottom: 112, alignSelf: "center", width: "100%" },
+  desktop: { maxWidth: 1180, paddingHorizontal: 28, paddingTop: 30, paddingBottom: 56 },
   ambientGlow: { position: "absolute", top: -90, right: -110, width: 250, height: 250, borderRadius: 125, backgroundColor: "rgba(233,30,99,.055)" },
   flex: { flex: 1, minWidth: 0 },
-  headingRow: { flexDirection: "row", gap: 20, alignItems: "center", marginBottom: 28 },
-  headingStack: { flexDirection: "column", alignItems: "stretch", gap: 18 },
+  headingRow: { flexDirection: "row", gap: 20, alignItems: "center", marginBottom: 22 },
+  headingStack: { flexDirection: "column", alignItems: "stretch", gap: 15 },
   eyebrow: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700", letterSpacing: 1.8, marginBottom: 8 },
   title: { ...typeStyles.pageTitle },
   subtitle: { ...typeStyles.body, marginTop: 5 },
   headingSubtitle: { maxWidth: 510 },
-  primary: { minHeight: 48, paddingHorizontal: 18, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  createAlbumButton: { minHeight: 52, borderRadius: 18, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .18, shadowRadius: 16, elevation: 4 },
+  primary: { minHeight: 48, paddingHorizontal: 18, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  createAlbumButton: { minHeight: 48, borderRadius: 14 },
   primaryText: { color: "#FFF", fontWeight: "700", fontSize: typeScale.body },
   pressScale: { transform: [{ scale: .97 }], opacity: .92 },
   pressLift: { transform: [{ translateY: 1 }, { scale: .985 }], opacity: .94 },
   disabled: { opacity: .36 },
   error: { fontSize: typeScale.bodyCompact, marginBottom: 16 },
-  summaryGrid: { gap: 12, paddingHorizontal: 1, paddingBottom: 28 },
-  summaryCard: { width: 156, minHeight: 160, borderRadius: 22, padding: 16, shadowOffset: { width: 0, height: 9 }, shadowOpacity: .085, shadowRadius: 22, elevation: 3 },
-  summaryIcon: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center", marginBottom: 13 },
+  summaryGrid: { gap: 10, paddingHorizontal: 1, paddingBottom: 22 },
+  summaryGridDesktop: { width: "100%" },
+  summaryCard: { width: 150, minHeight: 144, borderWidth: 1, borderRadius: 16, padding: 15 },
+  summaryCardDesktop: { minHeight: 126, paddingHorizontal: 18, paddingVertical: 16 },
+  summaryIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center", marginBottom: 10 },
   summaryValue: { fontSize: typeScale.pageTitle, lineHeight: typeLeading.metric, fontWeight: "700", letterSpacing: -.5 },
   summaryLabel: { fontSize: typeScale.metadata, lineHeight: typeLeading.label, marginTop: 1 },
   summaryDetail: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700", marginTop: 8 },
-  statProgress: { height: 4, borderRadius: 999, overflow: "hidden", marginTop: 13 },
+  statProgress: { height: 4, borderRadius: 999, overflow: "hidden", marginTop: 10 },
   statProgressFill: { height: "100%", borderRadius: 999 },
   skeletonGrid: { flexDirection: "row", gap: 12, paddingBottom: 28, overflow: "hidden" },
   skeletonCard: { width: 260, height: 286, padding: 10, borderRadius: 24 },
@@ -1040,12 +1049,13 @@ const styles = StyleSheet.create({
   emptyIcon: { width: 60, height: 60, borderRadius: 21, alignItems: "center", justifyContent: "center", marginBottom: 14 },
   emptyTitle: { fontSize: typeScale.sectionTitle, fontWeight: "700", letterSpacing: -.3 },
   emptyBody: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, textAlign: "center", maxWidth: 430, marginVertical: 8, marginBottom: 16 },
-  heroManager: { borderRadius: 24, padding: 16, marginBottom: 34, shadowOffset: { width: 0, height: 12 }, shadowOpacity: .1, shadowRadius: 26, elevation: 4 },
+  heroManager: { borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 28 },
+  heroManagerDesktop: { padding: 20 },
   heroManagerHeader: { flexDirection: "row", alignItems: "flex-start", gap: 11, marginBottom: 16 },
-  heroTitleIcon: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  heroTitleIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   sectionTitle: { fontSize: typeScale.editorialCardTitle, lineHeight: typeLeading.editorialCardTitle, fontWeight: "700", letterSpacing: -.35 },
   heroCount: { overflow: "hidden", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700" },
-  heroStage: { width: "100%", aspectRatio: 1.48, borderRadius: 20, overflow: "hidden" },
+  heroStage: { width: "100%", aspectRatio: 1.62, borderRadius: 14, overflow: "hidden" },
   heroStageNav: { position: "absolute", top: "50%", marginTop: -22, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,.92)", alignItems: "center", justifyContent: "center", shadowColor: "#1A0911", shadowOffset: { width: 0, height: 4 }, shadowOpacity: .17, shadowRadius: 10, elevation: 4 },
   heroStageNavLeft: { left: 12 },
   heroStageNavRight: { right: 12 },
@@ -1067,16 +1077,16 @@ const styles = StyleSheet.create({
   heroActions: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12 },
   heroAutomatic: { minHeight: 46, flex: 1, borderRadius: 15, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   heroAutomaticText: { fontSize: typeScale.caption, fontWeight: "700" },
-  heroSave: { minHeight: 48, flex: 1.2, borderRadius: 16, paddingHorizontal: 12, flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", shadowOffset: { width: 0, height: 8 }, shadowOpacity: .17, shadowRadius: 15, elevation: 3 },
+  heroSave: { minHeight: 48, flex: 1.2, borderRadius: 14, paddingHorizontal: 12, flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center" },
   sectionHeadingRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 16, marginBottom: 14, paddingHorizontal: 2 },
   albumSectionTitle: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle },
   sectionCaption: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 2 },
   sectionLink: { fontSize: typeScale.caption, fontWeight: "700", paddingBottom: 2 },
-  albumStrip: { gap: 14, paddingHorizontal: 1, paddingBottom: 30 },
-  album: { position: "relative", width: 260, height: 286, borderRadius: 24, shadowOffset: { width: 0, height: 10 }, shadowOpacity: .1, shadowRadius: 22, elevation: 4 },
-  albumSelectArea: { flex: 1, borderRadius: 24, overflow: "hidden" },
+  albumStrip: { gap: 12, paddingHorizontal: 1, paddingBottom: 24 },
+  album: { position: "relative", width: 252, height: 276, borderWidth: 1, borderRadius: 16, overflow: "hidden" },
+  albumSelectArea: { flex: 1, borderRadius: 15, overflow: "hidden" },
   albumPressed: { transform: [{ scale: .985 }], opacity: .94 },
-  albumCover: { width: "100%", height: 184, alignItems: "center", justifyContent: "center", overflow: "hidden", borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  albumCover: { width: "100%", height: 176, alignItems: "center", justifyContent: "center", overflow: "hidden", borderTopLeftRadius: 15, borderTopRightRadius: 15 },
   albumMediaBadge: { position: "absolute", left: 13, bottom: 12, minHeight: 28, borderRadius: 999, paddingHorizontal: 9, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(18,8,13,.58)" },
   albumMediaBadgeText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
   albumBody: { flex: 1, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14 },
@@ -1088,7 +1098,7 @@ const styles = StyleSheet.create({
   publishText: { fontSize: typeScale.caption, fontWeight: "700" },
   albumCapacity: { height: 4, borderRadius: 999, overflow: "hidden", marginTop: 11, width: "100%" },
   albumMenuButton: { position: "absolute", top: 12, right: 12, zIndex: 3, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,.92)", alignItems: "center", justifyContent: "center", shadowColor: "#1A0911", shadowOffset: { width: 0, height: 4 }, shadowOpacity: .15, shadowRadius: 9, elevation: 3 },
-  albumActiveRing: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 24, borderWidth: 2, zIndex: 4 },
+  albumActiveRing: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 16, borderWidth: 2, zIndex: 4 },
   albumActionSheet: { width: "100%", maxWidth: 520, alignSelf: "center", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 30, shadowOffset: { width: 0, height: -8 }, shadowOpacity: .12, shadowRadius: 26, elevation: 8 },
   albumActionHandle: { width: 38, height: 4, borderRadius: 999, alignSelf: "center", marginBottom: 18 },
   albumActionHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 16 },
@@ -1097,7 +1107,8 @@ const styles = StyleSheet.create({
   albumActionIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   albumActionTitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" },
   albumActionHint: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3 },
-  albumDetails: { borderRadius: 24, padding: 16, marginBottom: 24, shadowOffset: { width: 0, height: 9 }, shadowOpacity: .08, shadowRadius: 22, elevation: 3 },
+  albumDetails: { borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 24 },
+  albumDetailsDesktop: { padding: 20 },
   albumHeading: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 16 },
   detailTitle: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle },
   detailSubtitle: { maxWidth: 520 },

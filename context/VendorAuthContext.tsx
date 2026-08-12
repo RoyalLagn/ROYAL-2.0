@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/services/supabase";
+import { restoreSupabaseSession, supabase } from "@/services/supabase";
 import {
   logSupabaseError,
   resolveVendorDestination,
@@ -69,10 +69,10 @@ export function VendorAuthProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getSession()
-      .then(({ data }) => {
+    restoreSupabaseSession()
+      .then((restoredSession) => {
         if (!mounted) return;
-        void refresh(data.session);
+        void refresh(restoredSession);
       })
       .catch((error) => {
         if (!mounted) return;

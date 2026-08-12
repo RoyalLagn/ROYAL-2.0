@@ -37,6 +37,7 @@ function safeCloudinaryResponse(body: string, apiKey: string, signature?: string
 type DestroyResult = { result?: string; error?: { message?: string } };
 type AdminDeleteResult = {
   deleted?: Record<string, string>;
+  unauthorized?: string[];
   partial?: boolean;
   error?: { message?: string };
 };
@@ -75,6 +76,26 @@ async function adminDeleteAsset(options: {
     catch { return null; }
   })();
   return { response, result, safeResponseBody };
+}
+
+async function adminGetAsset(options: {
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
+  publicId: string;
+  resourceType: "video" | "image";
+}) {
+  const { cloudName, apiKey, apiSecret, publicId, resourceType } = options;
+  const encodedPublicId = encodeURIComponent(publicId);
+  const url = `https://api.cloudinary.com/v1_1/${cloudName}/resources/${resourceType}/upload/${encodedPublicId}`;
+  const response = await fetchWithTimeout(url, {
+    headers: { Authorization: `Basic ${btoa(`${apiKey}:${apiSecret}`)}` },
+  });
+  const responseText = await response.text();
+  return {
+    response,
+    safeResponseBody: safeCloudinaryResponse(responseText, apiKey),
+  };
 }
 
 /**
@@ -177,7 +198,9 @@ Deno.serve(async (request) => {
       // failure, retry once via the signed Upload API destroy method in
       // case this particular key/account is configured the other way
       // around.
-      if (!response.ok && response.status === 403) {
+      const adminApiDeniedAsset = response.status === 403
+        || result?.unauthorized?.includes(assetPublicId) === true;
+      if (adminApiDeniedAsset) {
         console.error("[clip-cloudinary-delete] Admin API deletion rejected, retrying via Upload API destroy", {
           requestId, clipId: clipId ?? null, vendorId: ownedVendorId,
           publicId: assetPublicId, resourceType, deliveryType,
@@ -216,8 +239,28 @@ Deno.serve(async (request) => {
         );
       }
 
-      const assetStatus = result?.deleted?.[assetPublicId];
-      const isConfirmed = assetStatus === "deleted" || assetStatus === "not_found";
+      let assetStatus = result?.deleted?.[assetPublicId];
+      let isConfirmed = assetStatus === "deleted" || assetStatus === "not_found";
+      if (!isConfirmed) {
+        // Cloudinary has returned more than one successful bulk-delete body
+        // shape over time. Do not fail (and retry the delete three times)
+        // merely because a 2xx response omitted the expected map entry.
+        // Confirm the authoritative post-condition with the Admin resource
+        // endpoint: 404 means the asset is gone, regardless of response shape.
+        const verification = await adminGetAsset({
+          cloudName, apiKey, apiSecret, publicId: assetPublicId, resourceType,
+        });
+        if (verification.response.status === 404) {
+          assetStatus = "not_found";
+          isConfirmed = true;
+        } else if (!verification.response.ok) {
+          console.error("[clip-cloudinary-delete] Unable to verify storage deletion", {
+            requestId, publicId: assetPublicId, resourceType, deletionMethod,
+            verificationStatus: verification.response.status,
+            verificationResponse: verification.safeResponseBody,
+          });
+        }
+      }
       if (!isConfirmed) {
         console.error("[clip-cloudinary-delete] Storage deletion returned an unexpected result", {
           requestId, publicId: assetPublicId, resourceType, deletionMethod, result,

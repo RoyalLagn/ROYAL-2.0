@@ -46,7 +46,7 @@ export function VendorFilterBar({
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
         {statuses.map((status) => (
-          <Pressable key={status} className={`min-h-11 px-4 rounded-full items-center justify-center border ${filters.status === status ? "bg-primary border-primary" : "bg-card border-border"}`} onPress={() => onChange({ status })}>
+          <Pressable key={status} className={`min-h-10 px-4 rounded-xl items-center justify-center ${filters.status === status ? "bg-primary" : "bg-muted/60"} active:opacity-70`} onPress={() => onChange({ status })}>
             <Text className={`text-xs font-semibold capitalize ${filters.status === status ? "text-white" : "text-foreground"}`}>{status}</Text>
           </Pressable>
         ))}

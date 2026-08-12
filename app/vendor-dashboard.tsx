@@ -3,7 +3,9 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, useWin
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
-  Check, ChevronRight, CircleAlert, Clock3, Eye, Globe, Images, MessageSquareText, Plus, Sparkles, Star, Target, } from "lucide-react-native";
+  BadgeIndianRupee, BriefcaseBusiness, CalendarDays, Check, ChevronRight, CircleAlert,
+  Clock3, Eye, FileText, Globe, Images, MapPin, MessageSquareText, Palette,
+  Phone, Plus, Sparkles, Star, Tags, Target, } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -31,6 +33,22 @@ const completionMeta = {
   attention: { label: VendorReadinessLabels.attention, icon: CircleAlert },
 };
 
+// The leading icon describes the section itself. Completion belongs in the
+// smaller status line, so vendors can identify a destination before reading
+// its state instead of scanning a wall of identical checkmarks.
+const checklistSectionIcons: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
+  business: BriefcaseBusiness,
+  about: FileText,
+  location: MapPin,
+  contact: Phone,
+  identity: Palette,
+  services: Sparkles,
+  pricing: BadgeIndianRupee,
+  portfolio: Images,
+  availability: CalendarDays,
+  tags: Tags,
+};
+
 export default function VendorDashboard() {
   const router = useRouter();
   const { focus } = useLocalSearchParams<{ focus?: string }>();
@@ -40,6 +58,7 @@ export default function VendorDashboard() {
   const { data, loading, error, completion, refresh } = useVendorWorkspace();
   const desktop = width >= 900;
   const dark = colorScheme === "dark";
+  const canvas = dark ? colors.background : "#FFF9FB";
   const unread = data.notifications.filter((item) => !item.is_read).length;
   const openEnquiries = data.enquiries.filter((item) => !["closed", "booked"].includes(item.status)).length;
   const averageRating = data.reviews.length
@@ -124,7 +143,7 @@ export default function VendorDashboard() {
   ];
 
   return (
-    <View style={[styles.page, { backgroundColor: colors.background }]}>
+    <View style={[styles.page, { backgroundColor: canvas }]}>
       <VendorHeader unread={unread} />
       <ScrollView
         ref={scrollRef}
@@ -137,7 +156,7 @@ export default function VendorDashboard() {
             colors={dark ? ["#2D2026", "#211D20"] : ["#FFEAF2", "#FFF8FB", "#FFFFFF"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.heroCard, { borderColor: colors.border, shadowColor: colors.shadow }]}
+            style={[styles.heroCard, desktop && styles.heroCardDesktop, { borderColor: colors.border, shadowColor: colors.shadow }]}
           >
             <View style={[styles.heroGlow, { backgroundColor: `${colors.pink}12` }]} />
             <View style={styles.heroContent}>
@@ -185,7 +204,8 @@ export default function VendorDashboard() {
               onPress={() => router.push("/vendor-marketing-center")}
               style={({ pressed }) => [
                 styles.marketingCenterButton,
-                { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow },
+                desktop && styles.marketingCenterButtonDesktop,
+                { backgroundColor: colors.background, borderColor: colors.border },
                 pressed && styles.pressed,
               ]}
             >
@@ -200,15 +220,14 @@ export default function VendorDashboard() {
             </Pressable>
           ) : null}
 
-          <View style={[styles.statsGrid, desktop && styles.statsDesktop]}>
-            {stats.map(({ label, value, detail, icon: Icon }, index) => (
-              <VendorDashboardReveal
+          <View style={[styles.statsGrid, desktop && styles.statsDesktop, { backgroundColor: colors.border, borderColor: colors.border }]}>
+            {stats.map(({ label, value, detail, icon: Icon }) => (
+              <View
                 key={label}
-                delay={60 + index * 35}
                 style={[
                   styles.statCard,
                   desktop && styles.statDesktop,
-                  { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow },
+                  { backgroundColor: colors.background },
                 ]}
               >
                 <View style={styles.statTop}>
@@ -219,11 +238,11 @@ export default function VendorDashboard() {
                 <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
                 <Text style={[styles.statLabel, { color: colors.text }]}>{label}</Text>
                 <Text style={[styles.statDetail, { color: colors.muted }]}>{detail}</Text>
-              </VendorDashboardReveal>
+              </View>
             ))}
           </View>
 
-          <View ref={checklistRef} style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+          <View ref={checklistRef} style={[styles.profileCard, desktop && styles.profileCardDesktop, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <View style={styles.profileHeader}>
               <View style={[styles.profileIcon, { backgroundColor: colors.pink }]}>
                 <Target size={23} color="#FFF" />
@@ -234,7 +253,7 @@ export default function VendorDashboard() {
                   A stronger profile helps customers trust and discover your business.
                 </Text>
               </View>
-              <View style={[styles.percentBadge, { backgroundColor: colors.surfaceSoft, borderColor: colors.border }]}>
+              <View style={[styles.percentBadge, { backgroundColor: colors.surfaceSoft }]}>
                 <Text style={[styles.percent, { color: colors.pink }]}>{completion.percent}%</Text>
                 <Text style={[styles.percentLabel, { color: colors.muted }]}>READY</Text>
               </View>
@@ -260,7 +279,7 @@ export default function VendorDashboard() {
                 onPress={() => router.push(nextItem.route as any)}
                 style={({ pressed }) => [
                   styles.nextStep,
-                  { backgroundColor: colors.surfaceSoft, borderColor: `${colors.pink}38` },
+                  { backgroundColor: colors.surfaceSoft, borderColor: `${colors.pink}28` },
                   pressed && styles.pressed,
                 ]}
               >
@@ -292,6 +311,7 @@ export default function VendorDashboard() {
                     key={item.id}
                     item={item}
                     meta={completionMeta[item.state]}
+                    sectionIcon={checklistSectionIcons[item.id] ?? Target}
                     colors={colors}
                     itemWidth={itemWidth}
                     highlighted={highlightedId === item.id}
@@ -312,10 +332,11 @@ export default function VendorDashboard() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 28, width: "100%", alignSelf: "center" },
-  desktopScroll: { maxWidth: 1120, paddingHorizontal: 28, paddingTop: 24, paddingBottom: 48 },
+  scroll: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28, width: "100%", alignSelf: "center" },
+  desktopScroll: { maxWidth: 1180, paddingHorizontal: 28, paddingTop: 28, paddingBottom: 52 },
   flex: { flex: 1, minWidth: 0 },
-  heroCard: { position: "relative", overflow: "hidden", borderWidth: 1, borderRadius: 26, padding: 20, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.06, shadowRadius: 22, elevation: 2 },
+  heroCard: { position: "relative", overflow: "hidden", borderWidth: 1, borderRadius: 18, padding: 20, marginBottom: 16, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.045, shadowRadius: 18, elevation: 1 },
+  heroCardDesktop: { paddingHorizontal: 26, paddingVertical: 24 },
   heroGlow: { position: "absolute", width: 180, height: 180, borderRadius: 90, right: -62, top: -92 },
   heroContent: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   eyebrow: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.7, marginBottom: 7 },
@@ -327,25 +348,27 @@ const styles = StyleSheet.create({
   notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   noticeTitle: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 2 },
   noticeText: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
-  marketingCenterButton: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 20, padding: 15, marginBottom: 16, shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.045, shadowRadius: 16, elevation: 2 },
-  marketingCenterIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  marketingCenterButton: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 16 },
+  marketingCenterButtonDesktop: { paddingHorizontal: 18, paddingVertical: 15 },
+  marketingCenterIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   marketingCenterTitle: { fontSize: typeScale.body, fontWeight: "700" },
   marketingCenterHint: { fontSize: typeScale.caption, marginTop: 2 },
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 1, marginBottom: 16, borderWidth: 1, borderRadius: 16, overflow: "hidden" },
   statsDesktop: { flexWrap: "nowrap" },
-  statCard: { width: "48.4%", minHeight: 145, borderRadius: 22, borderWidth: 1, padding: 15, shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.045, shadowRadius: 16, elevation: 2 },
+  statCard: { width: "49.8%", minHeight: 128, paddingHorizontal: 16, paddingVertical: 17 },
   statDesktop: { flex: 1, width: "auto" },
   statTop: { flexDirection: "row", alignItems: "center", marginBottom: 11 },
-  statIcon: { width: 37, height: 37, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  statIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   statValue: { fontSize: typeScale.pageTitle, lineHeight: typeLeading.pageTitle, fontWeight: "700", letterSpacing: -0.6 },
   statLabel: { fontSize: typeScale.metadata, fontWeight: "700", marginTop: 2 },
   statDetail: { fontSize: typeScale.caption, marginTop: 4 },
-  profileCard: { borderWidth: 1, borderRadius: 26, padding: 18, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
+  profileCard: { borderWidth: 1, borderRadius: 18, padding: 18 },
+  profileCardDesktop: { padding: 22 },
   profileHeader: { flexDirection: "row", alignItems: "center", gap: 11 },
-  profileIcon: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  profileIcon: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   sectionTitle: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, fontWeight: "700", letterSpacing: -0.3 },
   sectionSubtitle: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 3 },
-  percentBadge: { width: 65, height: 58, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  percentBadge: { width: 65, height: 58, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   percent: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700" },
   percentLabel: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1 },
   progressSummary: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 21 },
@@ -353,8 +376,8 @@ const styles = StyleSheet.create({
   progressCount: { fontSize: typeScale.caption },
   progressTrack: { height: 9, borderRadius: 7, overflow: "hidden", marginTop: 9 },
   progressFill: { height: "100%", borderRadius: 7 },
-  nextStep: { minHeight: 82, borderWidth: 1, borderRadius: 19, padding: 13, marginTop: 17, flexDirection: "row", alignItems: "center", gap: 11 },
-  nextStepIcon: { width: 39, height: 39, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  nextStep: { minHeight: 78, borderWidth: 1, borderRadius: 15, padding: 13, marginTop: 17, flexDirection: "row", alignItems: "center", gap: 11 },
+  nextStepIcon: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   nextEyebrow: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.2 },
   nextTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginTop: 3 },
   nextHint: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },

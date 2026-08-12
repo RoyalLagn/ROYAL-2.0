@@ -7,7 +7,6 @@ import {
 } from "lucide-react-native";
 import type { DashboardStatistics } from "@/types/adminDashboard";
 import { ResponsiveGrid } from "@/components/responsive/ResponsiveGrid";
-import { ResponsiveCard } from "@/components/responsive/ResponsiveCard";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import { typeStyles } from "@/constants/typography";
 
@@ -24,49 +23,46 @@ const definitions = [
   ["todayVendorRegistrations", "Today's New Vendors", "New Vendors", Building2, "/VendorApplications"],
 ] as const;
 
-export function StatisticsGrid({ statistics, updatedAt }: { statistics: DashboardStatistics; updatedAt: number }) {
+export function StatisticsGrid({ statistics }: { statistics: DashboardStatistics }) {
   const router = useRouter();
   const responsive = useResponsiveLayout();
   return (
-    <ResponsiveGrid gap={responsive.isPhone ? 10 : 12}>
-      {definitions.map(([key, title, mobileTitle, Icon, route]) => (
+    <ResponsiveGrid columns={responsive.isPhone ? 2 : responsive.isTablet ? 3 : 5} gap={responsive.isPhone ? 8 : 10}>
+      {definitions.map(([key, title, mobileTitle, Icon, route]) => {
+        const todayValue = key === "publicUsers" ? statistics.todayPublicRegistrations : key === "totalVendors" ? statistics.todayVendorRegistrations : key === "reviews" ? statistics.todayReviews : 0;
+        const todayLabel = key.startsWith("today") ? "Today" : `${todayValue.toLocaleString()} today`;
+        return (
         <Pressable
           key={key}
-          className="min-h-11"
+          className="min-h-11 rounded-xl bg-muted/35 active:opacity-70"
+          style={({ pressed }) => [{ padding: responsive.isPhone ? 12 : 14 }, pressed ? { transform: [{ scale: 0.98 }] } : null]}
           onPress={() => router.push(route as Href)}
           accessibilityRole="button"
           accessibilityLabel={`${title}: ${statistics[key]}`}
         >
-          <ResponsiveCard
-            style={responsive.isPhone ? { padding: 12 } : undefined}
-          >
-            <View className="min-w-9 min-h-9 w-9 h-9 self-start rounded-lg bg-primary/10 items-center justify-center mb-2.5">
-              <Icon size={responsive.iconSize - 2} className="text-primary" />
+          <View>
+            <View className="flex-row items-start gap-2">
+              <View className="w-8 h-8 rounded-lg bg-primary/10 items-center justify-center">
+                <Icon size={16} className="text-primary" />
+              </View>
+              <Text
+                className="text-foreground font-inter-bold flex-1 text-right"
+                style={typeStyles.metric}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                {key === "averageRating" ? statistics[key].toFixed(2) : statistics[key].toLocaleString()}
+              </Text>
             </View>
-            <Text className="text-muted-foreground font-inter-medium" style={typeStyles.bodyCompact} numberOfLines={1} ellipsizeMode="tail">
+            <Text className="text-muted-foreground font-inter-medium mt-3" style={typeStyles.bodyCompact} numberOfLines={1} ellipsizeMode="tail">
               {responsive.isPhone ? mobileTitle : title}
             </Text>
-            <Text
-              className="text-foreground font-inter-bold mt-0.5"
-              style={typeStyles.metric}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-            >
-              {key === "averageRating"
-                ? statistics[key].toFixed(2)
-                : statistics[key].toLocaleString()}
+            <Text className={`${todayValue > 0 ? "text-emerald-600 dark:text-emerald-500" : "text-muted-foreground"} text-caption font-inter-medium mt-1`} numberOfLines={1}>
+              {todayLabel}
             </Text>
-            <Text className="text-emerald-600 dark:text-emerald-500 text-caption font-inter-medium mt-1.5" numberOfLines={1}>
-              {key.startsWith("today") ? "Today" : `↑ ${key === "publicUsers" ? statistics.todayPublicRegistrations : key === "totalVendors" ? statistics.todayVendorRegistrations : key === "reviews" ? statistics.todayReviews : 0} today`}
-            </Text>
-            {!responsive.isPhone ? (
-              <Text className="text-muted-foreground text-metadata mt-1" numberOfLines={1}>
-                Updated {new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </Text>
-            ) : null}
-          </ResponsiveCard>
+          </View>
         </Pressable>
-      ))}
+      );})}
     </ResponsiveGrid>
   );
 }

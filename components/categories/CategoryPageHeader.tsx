@@ -57,14 +57,14 @@ function CategoryPageHeader({ dark, onBack, entrance, reducedMotion = false }: C
 export default React.memo(CategoryPageHeader);
 
 const styles = StyleSheet.create({
-  header: { minHeight: 76, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  header: { minHeight: 86, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   action: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   pressed: { opacity: 0.74, transform: [{ scale: 0.97 }] },
-  titleBlock: { flex: 1, minWidth: 0, alignItems: "center", paddingHorizontal: 8 },
+  titleBlock: { flex: 1, minWidth: 0, alignItems: "center", paddingHorizontal: 12 },
   title: {
     ...typeStyles.editorialPageTitle,
     textAlign: "center",
   },
-  ornament: { marginTop: 3, flexDirection: "row", alignItems: "center", gap: 6 },
-  line: { width: 38, height: 1, backgroundColor: "#E9B65C" },
+  ornament: { marginTop: 5, flexDirection: "row", alignItems: "center", gap: 7 },
+  line: { width: 30, height: 1, backgroundColor: "#E9B65C" },
 });

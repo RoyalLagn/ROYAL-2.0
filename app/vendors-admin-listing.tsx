@@ -180,11 +180,26 @@ export default function VendorsAdminListing() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
-        <ResponsiveContainer>
-          <AdminPageHeader title="Vendor Management" subtitle="Live vendor operations workspace" action={<Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={() => void AdminVendorService.exportCsv(vendors.rows)}><Download size={20} className="text-primary" /></Pressable>} />
+        <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
+          <AdminPageHeader
+            title="Vendor Management"
+            subtitle="Review vendor access, profiles and registration"
+            action={(
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Export filtered vendors"
+                accessibilityState={{ disabled: exporting, busy: exporting }}
+                className="min-w-11 min-h-11 rounded-xl items-center justify-center active:opacity-70"
+                disabled={exporting}
+                onPress={() => void exportFilteredVendors()}
+              >
+                {exporting ? <ActivityIndicator size="small" color="#E91E63" /> : <Download size={20} className="text-primary" />}
+              </Pressable>
+            )}
+          />
         </ResponsiveContainer>
 
-        <ResponsiveContainer>
+        <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
           <ResponsiveSection>
             <View className="bg-card border border-border rounded-2xl px-4 py-4 flex-row items-center gap-4">
               <View className="flex-1 min-w-0">
@@ -224,26 +239,29 @@ export default function VendorsAdminListing() {
           </ResponsiveSection>
         </ResponsiveContainer>
 
-        <ResponsiveContainer>
+        <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
           {vendors.statistics ? <ResponsiveSection><VendorStatisticsGrid data={vendors.statistics} /></ResponsiveSection> : null}
         </ResponsiveContainer>
-        <ResponsiveContainer className="bg-background pt-1">
+        <ResponsiveContainer className="bg-background pt-1" style={{ maxWidth: 1600, alignSelf: "center" }}>
           <ResponsiveSection>
             <VendorFilterBar filters={vendors.filters} onChange={vendors.updateFilters} onMore={() => setFiltersOpen(true)} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
-              {savedFilters.map((preset) => <Pressable key={preset.id} className="min-h-11 px-4 rounded-full bg-card border border-border items-center justify-center" onPress={() => vendors.updateFilters(preset.filters)}><Text className="text-foreground text-xs font-semibold">{preset.name}</Text></Pressable>)}
-              <Pressable className="min-h-11 px-4 rounded-full bg-primary/10 items-center justify-center" onPress={() => setSaveOpen(true)}><Text className="text-primary text-xs font-semibold">+ Save filter</Text></Pressable>
+              {savedFilters.map((preset) => <Pressable key={preset.id} className="min-h-10 px-4 rounded-xl bg-muted/60 items-center justify-center active:opacity-70" onPress={() => vendors.updateFilters(preset.filters)}><Text className="text-foreground text-xs font-semibold">{preset.name}</Text></Pressable>)}
+              <Pressable className="min-h-10 px-4 rounded-xl bg-primary/10 items-center justify-center active:opacity-70" onPress={() => setSaveOpen(true)}><Text className="text-primary text-xs font-semibold">+ Save filter</Text></Pressable>
             </ScrollView>
           </ResponsiveSection>
           {progress ? <ResponsiveSection><ActionProgress {...progress} /></ResponsiveSection> : null}
 
         </ResponsiveContainer>
 
-        <ResponsiveContainer>
+        <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
           <View className="flex-row justify-between items-center mb-3">
             <Text className="text-foreground font-bold">{vendors.total.toLocaleString()} vendors</Text>
             <Pressable
-              className="min-h-11 px-3 items-center justify-center"
+              accessibilityRole="button"
+              accessibilityLabel="Export filtered vendors"
+              accessibilityState={{ disabled: exporting, busy: exporting }}
+              className="min-h-11 px-3 rounded-xl items-center justify-center active:bg-primary/5"
               disabled={exporting}
               onPress={() => void exportFilteredVendors()}
             >

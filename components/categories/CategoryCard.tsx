@@ -1,5 +1,5 @@
 import React from "react";
-import { type ImageURISource, Pressable, StyleSheet, Text, View, } from "react-native";
+import { Platform, type ImageURISource, Pressable, StyleSheet, Text, View, } from "react-native";
 import SafeImage from "@/components/SafeImage";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
@@ -35,10 +35,12 @@ function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
       accessibilityRole="button"
       accessibilityLabel={`Browse ${category.name}`}
       onPress={onPress}
-      style={[
+      style={({ pressed, hovered }) => [
         styles.card,
         compact ? styles.cardCompact : styles.cardWide,
         { backgroundColor: surface, borderColor: border },
+        hovered && Platform.OS === "web" && styles.cardHovered,
+        pressed && styles.cardPressed,
       ]}
     >
       <View style={[styles.details, compact && styles.detailsCompact]}>
@@ -86,24 +88,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     shadowColor: "#613548",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
+    shadowOpacity: 0.055,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
   },
-  cardCompact: { height: 116, borderRadius: 20 },
-  cardWide: { height: 142, borderRadius: 22 },
-  details: { flex: 1, minWidth: 0, paddingHorizontal: 18, paddingVertical: 18, flexDirection: "row", alignItems: "center", gap: 15 },
-  detailsCompact: { paddingHorizontal: 12, paddingVertical: 13, gap: 10 },
-  iconCircle: { width: 68, height: 68, borderRadius: 34, borderWidth: 1, alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  iconCircleCompact: { width: 58, height: 58, borderRadius: 29 },
+  cardCompact: { height: 120, borderRadius: 16 },
+  cardWide: { height: 154, borderRadius: 16 },
+  cardHovered: { borderColor: "#E8B8C9", shadowOpacity: 0.1, transform: [{ translateY: -2 }] },
+  cardPressed: { opacity: 0.94, transform: [{ scale: 0.98 }] },
+  details: { flex: 1, minWidth: 0, paddingHorizontal: 20, paddingVertical: 18, flexDirection: "row", alignItems: "center", gap: 16 },
+  detailsCompact: { paddingHorizontal: 14, paddingVertical: 13, gap: 11 },
+  iconCircle: { width: 62, height: 62, borderRadius: 18, borderWidth: 1, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  iconCircleCompact: { width: 52, height: 52, borderRadius: 16 },
   copy: { flex: 1, minWidth: 0 },
-  name: { ...typeStyles.editorialCardTitle, marginBottom: 5 },
+  name: { ...typeStyles.editorialCardTitle, marginBottom: 6 },
   nameCompact: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, marginBottom: 3 },
   description: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, fontWeight: "400" },
   descriptionCompact: { fontSize: typeScale.metadata, lineHeight: typeLeading.label },
-  imageWrap: { width: 132, height: 134, margin: 4, marginLeft: 0, borderRadius: 18, overflow: "hidden", backgroundColor: "#F8E9EE" },
-  imageWrapCompact: { width: 106, height: 108, borderRadius: 17 },
+  imageWrap: { width: 150, height: "100%", overflow: "hidden", backgroundColor: "#F8E9EE" },
+  imageWrapCompact: { width: 108 },
   // react-native-web falls back to a local image asset's own intrinsic
   // pixel size whenever the style doesn't set explicit width/height
   // (StyleSheet.absoluteFillObject only sets inset, not width/height), so a
