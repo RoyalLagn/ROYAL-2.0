@@ -20,6 +20,95 @@ async function sha1(value: string) {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+async function signCloudinaryParams(params: Record<string, string>, apiSecret: string) {
+  const canonical = Object.entries(params)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}=${value}`)
+    .join("&");
+  return sha1(`${canonical}${apiSecret}`);
+}
+
+function safeCloudinaryResponse(body: string, apiKey: string, signature?: string) {
+  let redacted = body.replaceAll(apiKey, "[REDACTED_API_KEY]");
+  if (signature) redacted = redacted.replaceAll(signature, "[REDACTED_SIGNATURE]");
+  return redacted.slice(0, 2_000);
+}
+
+type DestroyResult = { result?: string; error?: { message?: string } };
+type AdminDeleteResult = {
+  deleted?: Record<string, string>;
+  partial?: boolean;
+  error?: { message?: string };
+};
+
+/**
+ * Deletes a single Cloudinary asset using the Admin API's bulk-delete endpoint
+ * (DELETE /resources/:resource_type/:type), authenticated with HTTP Basic Auth
+ * (api_key:api_secret).
+ *
+ * This is deliberately used instead of the Upload API's "destroy" method:
+ * Cloudinary's restricted/scoped API keys frequently disable the "delete"
+ * action on the Upload API while still permitting the equivalent Admin API
+ * call, which is the failure mode behind the 403
+ * "missing permissions (actions=[\"delete\"])" response this function used to hit.
+ */
+async function adminDeleteAsset(options: {
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
+  publicId: string;
+  resourceType: "video" | "image";
+}) {
+  const { cloudName, apiKey, apiSecret, publicId, resourceType } = options;
+  const url = new URL(`https://api.cloudinary.com/v1_1/${cloudName}/resources/${resourceType}/upload`);
+  url.searchParams.set("public_ids[]", publicId);
+  url.searchParams.set("invalidate", "true");
+  const basicAuth = `Basic ${btoa(`${apiKey}:${apiSecret}`)}`;
+  const response = await fetchWithTimeout(url.toString(), {
+    method: "DELETE",
+    headers: { Authorization: basicAuth },
+  });
+  const responseText = await response.text();
+  const safeResponseBody = safeCloudinaryResponse(responseText, apiKey);
+  const result = (() => {
+    try { return JSON.parse(responseText) as AdminDeleteResult; }
+    catch { return null; }
+  })();
+  return { response, result, safeResponseBody };
+}
+
+/**
+ * Falls back to the signed Upload API "destroy" method. Kept as a fallback
+ * only: some accounts/keys are configured the other way around (destroy
+ * allowed, Admin API restricted), so if the Admin API call itself is
+ * rejected for permissions reasons we still give the signed method a try
+ * before giving up.
+ */
+async function uploadApiDestroyAsset(options: {
+  cloudName: string;
+  apiKey: string;
+  apiSecret: string;
+  publicId: string;
+  resourceType: "video" | "image";
+}) {
+  const { cloudName, apiKey, apiSecret, publicId: assetPublicId, resourceType } = options;
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signedParams = { public_id: assetPublicId, timestamp: String(timestamp) };
+  const signature = await signCloudinaryParams(signedParams, apiSecret);
+  const body = new URLSearchParams({ ...signedParams, api_key: apiKey, signature });
+  const response = await fetchWithTimeout(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`, {
+    method: "POST",
+    body,
+  });
+  const responseText = await response.text();
+  const safeResponseBody = safeCloudinaryResponse(responseText, apiKey, signature);
+  const result = (() => {
+    try { return JSON.parse(responseText) as DestroyResult; }
+    catch { return null; }
+  })();
+  return { response, result, safeResponseBody };
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   const requestId = crypto.randomUUID();
@@ -34,11 +123,14 @@ Deno.serve(async (request) => {
     const { clipId, vendorId, publicId: requestedPublicId } = await request.json();
     let publicId = requestedPublicId as string | undefined;
     let ownedVendorId = vendorId as string | undefined;
+    let deleteClipRecord = false;
     if (clipId) {
-      const { data: clip } = await supabase.from("clips").select("cloudinary_public_id,vendor_id,vendors!inner(profile_id)")
+      const { data: clip, error: clipError } = await supabase.from("clips").select("cloudinary_public_id,vendor_id,vendors!inner(profile_id)")
         .eq("id", clipId).eq("vendors.profile_id", user.id).maybeSingle();
+      if (clipError) throw clipError;
       publicId = clip?.cloudinary_public_id;
       ownedVendorId = clip?.vendor_id;
+      deleteClipRecord = true;
     } else {
       const { data: vendor } = await supabase.from("vendors").select("id")
         .eq("id", vendorId).eq("profile_id", user.id).maybeSingle();
@@ -47,26 +139,112 @@ Deno.serve(async (request) => {
       }
     }
     if (!publicId) throw new Error("Owned Clip not found");
-    const { error: accessError } = await supabase.rpc("require_vendor_feature_access", {
-      target_vendor_id: ownedVendorId,
-      requested_feature_key: "upload_clips",
+    console.log("[clip-cloudinary-delete] Ownership verified", {
+      requestId, clipId: clipId ?? null, vendorId: ownedVendorId,
+      publicId, publicIdExists: true,
     });
-    if (accessError) throw accessError;
     const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
     const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
     const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME");
-    if (!apiSecret || !apiKey || !cloudName) throw new Error("Cloudinary deletion is not configured");
-    const timestamp = Math.floor(Date.now() / 1000);
-    for (const [publicId, resourceType] of [
+    const missingCloudinarySecrets = [
+      !cloudName && "CLOUDINARY_CLOUD_NAME",
+      !apiKey && "CLOUDINARY_API_KEY",
+      !apiSecret && "CLOUDINARY_API_SECRET",
+    ].filter(Boolean);
+    if (missingCloudinarySecrets.length > 0) {
+      throw new Error(`Cloudinary deletion is not configured. Missing Edge Function secrets: ${missingCloudinarySecrets.join(", ")}`);
+    }
+    const deliveryType = "upload";
+    for (const [assetPublicId, resourceType] of [
       [publicId, "video"],
       [publicId.replace(/\/video$/, "/thumbnail"), "image"],
-    ]) {
-      console.log("[clip-cloudinary-delete] Deleting asset", { requestId, publicId, resourceType });
-      const signature = await sha1(`public_id=${publicId}&timestamp=${timestamp}${apiSecret}`);
-      const body = new URLSearchParams({ public_id: publicId, timestamp: String(timestamp), api_key: apiKey, signature });
-      const response = await fetchWithTimeout(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`, { method: "POST", body });
-      if (!response.ok) throw new Error("Cloudinary asset deletion failed");
-      await response.json();
+    ] as const) {
+      console.log("[clip-cloudinary-delete] Deleting asset", {
+        requestId, clipId: clipId ?? null, vendorId: ownedVendorId,
+        publicId: assetPublicId, publicIdExists: Boolean(assetPublicId),
+        deletionMethod: "Admin API DELETE /resources (Basic Auth)",
+        resourceType, deliveryType,
+      });
+
+      let { response, result, safeResponseBody } = await adminDeleteAsset({
+        cloudName, apiKey, apiSecret, publicId: assetPublicId, resourceType,
+      });
+      let deletionMethod = "Admin API DELETE /resources (Basic Auth)";
+
+      // The Admin API returns 200 with a per-asset status even when the
+      // asset doesn't exist, so a non-2xx response here is a real failure
+      // (auth, permissions, bad cloud name, etc). If it's a permissions
+      // failure, retry once via the signed Upload API destroy method in
+      // case this particular key/account is configured the other way
+      // around.
+      if (!response.ok && response.status === 403) {
+        console.error("[clip-cloudinary-delete] Admin API deletion rejected, retrying via Upload API destroy", {
+          requestId, clipId: clipId ?? null, vendorId: ownedVendorId,
+          publicId: assetPublicId, resourceType, deliveryType,
+          cloudinaryStatus: response.status, cloudinaryResponse: safeResponseBody,
+        });
+        const fallback = await uploadApiDestroyAsset({
+          cloudName, apiKey, apiSecret, publicId: assetPublicId, resourceType,
+        });
+        response = fallback.response;
+        safeResponseBody = fallback.safeResponseBody;
+        deletionMethod = "Upload API destroy (signed, fallback)";
+        // Normalize the Upload API's "ok" / "not found" result strings onto
+        // the same "deleted" / "not_found" vocabulary the Admin API uses,
+        // so the confirmation check below treats both paths identically.
+        const fallbackStatus = fallback.result?.result === "ok"
+          ? "deleted"
+          : fallback.result?.result === "not found"
+          ? "not_found"
+          : undefined;
+        result = fallbackStatus
+          ? { deleted: { [assetPublicId]: fallbackStatus }, error: fallback.result?.error }
+          : result;
+      }
+
+      if (!response.ok) {
+        console.error("[clip-cloudinary-delete] Storage deletion rejected", {
+          requestId, clipId: clipId ?? null, vendorId: ownedVendorId,
+          publicId: assetPublicId, publicIdExists: Boolean(assetPublicId),
+          deletionMethod, resourceType, deliveryType,
+          cloudinaryStatus: response.status, cloudinaryResponse: safeResponseBody,
+        });
+        const cloudinaryMessage = result?.error?.message?.trim();
+        throw new Error(
+          `Cloudinary ${resourceType} deletion failed with status ${response.status}`
+          + (cloudinaryMessage ? `: ${cloudinaryMessage}` : ""),
+        );
+      }
+
+      const assetStatus = result?.deleted?.[assetPublicId];
+      const isConfirmed = assetStatus === "deleted" || assetStatus === "not_found";
+      if (!isConfirmed) {
+        console.error("[clip-cloudinary-delete] Storage deletion returned an unexpected result", {
+          requestId, publicId: assetPublicId, resourceType, deletionMethod, result,
+        });
+        throw new Error(
+          `Cloudinary ${resourceType} deletion was not confirmed`
+          + ` [debug method=${deletionMethod} status=${response.status} body=${safeResponseBody}]`,
+        );
+      }
+      console.log("[clip-cloudinary-delete] Asset deletion result", {
+        requestId, clipId: clipId ?? null, vendorId: ownedVendorId,
+        publicId: assetPublicId, deletionMethod,
+        resourceType, deliveryType, cloudinaryStatus: response.status,
+        cloudinaryResult: assetStatus,
+      });
+    }
+    if (deleteClipRecord) {
+      const { error: deleteError } = await supabase.rpc("vendor_soft_delete_clip", { target_clip_id: clipId });
+      if (deleteError) {
+        console.error("[clip-cloudinary-delete] Database deletion failed after storage cleanup", {
+          requestId, clipId, vendorId: ownedVendorId, error: deleteError,
+        });
+        throw new Error(`Clip media was cleared, but the database update failed: ${deleteError.message}`);
+      }
+      console.log("[clip-cloudinary-delete] Supabase soft deletion complete", {
+        requestId, clipId, vendorId: ownedVendorId,
+      });
     }
     console.log("[clip-cloudinary-delete] Complete", { requestId });
     return Response.json({ deleted: true }, { headers: cors });

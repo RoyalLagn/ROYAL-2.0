@@ -1,6 +1,6 @@
 export const CLIP_MEDIA_LIMITS = Object.freeze({
   maximumDurationSeconds: 30,
-  maximumFinalFileSizeBytes: 52 * 1024 * 1024,
+  maximumFinalFileSizeBytes: 40 * 1024 * 1024,
   maximumWidth: 1080,
   maximumHeight: 1920,
 });
@@ -12,8 +12,9 @@ export const CLIP_COMPRESSION_SETTINGS = Object.freeze({
   preferredContainer: "mp4",
   preferredVideoCodec: "h264",
   preferredAudioCodec: "aac",
-  maximumAttempts: 2,
+  maximumAttempts: 3,
   targetVideoBitrate: 8_000_000,
+  targetFileSizeBytes: 39 * 1024 * 1024,
 });
 
 export const CLIP_THUMBNAIL_SETTINGS = Object.freeze({

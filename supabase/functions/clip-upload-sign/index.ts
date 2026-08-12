@@ -39,12 +39,14 @@ Deno.serve(async (request) => {
       requestId, uploadId, vendorId, clipId, kind, mimeType, fileSize,
     });
     if (!vendorId || !clipId || !["video", "thumbnail"].includes(kind)) throw new Error("Invalid upload request");
-    const maximum = kind === "video" ? 52 * 1024 * 1024 : 8 * 1024 * 1024;
+    const maximum = kind === "video" ? 40 * 1024 * 1024 : 8 * 1024 * 1024;
     const allowed = kind === "video"
       ? new Set(["video/mp4", "video/quicktime", "video/x-m4v", "video/hevc"])
       : new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
     if (!allowed.has(String(mimeType).toLowerCase())) throw new Error("Unsupported Clip media type");
-    if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > maximum) throw new Error("Clip media size is not allowed");
+    if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > maximum) {
+      throw new Error(kind === "video" ? "Maximum clip size is 40 MB." : "Clip media size is not allowed");
+    }
     console.log(`[CLIP-DEBUG][${uploadId}] EDGE_VENDOR_AUTH START`, { requestId, vendorId, clipId, kind });
     const { data: vendor } = await supabase.from("vendors").select("id")
       .eq("id", vendorId).eq("profile_id", user.id).eq("is_verified", true).maybeSingle();

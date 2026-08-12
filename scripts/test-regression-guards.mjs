@@ -85,6 +85,7 @@ assert.match(dialogProviderSource, /Platform\.OS === "android" \? 48 : 44/, "Dia
 const NATIVE_PRESSABLE_HOME_PATHS = [
   "app/(tabs)/index.tsx",
   "components/home/HeroCarousel.tsx",
+  "components/home/LocationSelector.tsx",
   "components/home/SectionHeader.tsx",
   "components/favorites/FavoriteHeartButton.tsx",
 ];
@@ -94,6 +95,28 @@ NATIVE_PRESSABLE_HOME_PATHS.forEach((path, index) => {
     nativePressableHomeSources[index],
     /style=\{\(\{[^}]*\b(?:pressed|hovered)\b[^}]*\}\)\s*=>/,
     `${path} must not use a callback-valued Pressable style on the Android Home render path.`,
+  );
+});
+const INTEROP_SAFE_LISTING_PATHS = [
+  "app/VendorsListing.tsx",
+  "components/categories/CategorySearchBar.tsx",
+  "components/listing/CategoryFilterChips.tsx",
+  "components/listing/CompactSearchBar.tsx",
+  "components/listing/ListingFilterModal.tsx",
+  "components/locations/CategoryLocationSelector.tsx",
+  "components/locations/TalukaLocationSelector.tsx",
+];
+const interopSafeListingSources = await Promise.all(INTEROP_SAFE_LISTING_PATHS.map(read));
+INTEROP_SAFE_LISTING_PATHS.forEach((path, index) => {
+  assert.match(
+    interopSafeListingSources[index],
+    /import Pressable from ["']@\/components\/InteropSafePressable["'];/,
+    `${path} must resolve callback-valued Pressable styles before NativeWind native interop.`,
+  );
+  assert.doesNotMatch(
+    interopSafeListingSources[index],
+    /import \{[^}]*\bPressable\b[^}]*\} from ["']react-native["'];/,
+    `${path} must not bypass the Android-safe Pressable wrapper.`,
   );
 });
 const INTEROP_SAFE_VENDOR_PATHS = [
@@ -117,6 +140,69 @@ INTEROP_SAFE_VENDOR_PATHS.forEach((path, index) => {
     `${path} must not bypass the Android-safe Pressable wrapper.`,
   );
 });
+const [publicClipsSource, publicClipVideoSource] = await Promise.all([
+  read("app/(tabs)/clips.tsx"),
+  read("clips/components/PublicClipVideo.tsx"),
+]);
+assert.match(
+  publicClipsSource,
+  /useState\(Platform\.OS === ["']web["']\)/,
+  "Public Clips must start audible on native while retaining browser-compatible muted autoplay.",
+);
+assert.match(publicClipVideoSource, /instance\.volume = 1;/, "Public Clips must initialize at audible volume.");
+assert.match(publicClipVideoSource, /instance\.audioMixingMode = ["']doNotMix["'];/, "Native Clips must request audio focus.");
+assert.match(publicClipVideoSource, /showMuteControl && active && controlsVisible && !unavailable/, "The Clip mute control must only render during its temporary interaction window.");
+assert.doesNotMatch(publicClipVideoSource, /CONTROL_HIDE_DELAY_MS|controlHideTimer/, "Clip play controls must follow playback state without a delayed hide timer.");
+assert.match(publicClipVideoSource, /player\.pause\(\);\s*setControlsVisible\(true\);/, "Pausing a Clip must immediately reveal its controls.");
+assert.match(publicClipVideoSource, /player\.play\(\);\s*setControlsVisible\(false\);/, "Resuming a Clip must immediately hide its controls.");
+const [clipConstantsSource, clipValidationSource, clipUploadSignSource, clipLimitMigrationSource] = await Promise.all([
+  read("clips/constants/index.ts"),
+  read("clips/utils/validation.ts"),
+  read("supabase/functions/clip-upload-sign/index.ts"),
+  read("supabase/migrations/20260812180000_limit_new_clips_to_40_mib.sql"),
+]);
+const CLIP_MAX_BYTES = 40 * 1024 * 1024;
+assert.equal(CLIP_MAX_BYTES, 41_943_040, "The Clip limit must use binary MiB.");
+assert.ok(39 * 1024 * 1024 <= CLIP_MAX_BYTES, "A 39 MiB Clip must be accepted.");
+assert.ok(40 * 1024 * 1024 <= CLIP_MAX_BYTES, "A 40 MiB Clip must be accepted.");
+assert.ok(CLIP_MAX_BYTES + 1 > CLIP_MAX_BYTES, "A Clip one byte above 40 MiB must be rejected.");
+assert.ok(41 * 1024 * 1024 > CLIP_MAX_BYTES, "A 41 MiB Clip must be rejected.");
+assert.ok(52 * 1024 * 1024 > CLIP_MAX_BYTES, "A 52 MiB Clip must be rejected.");
+assert.match(clipConstantsSource, /maximumFinalFileSizeBytes: 40 \* 1024 \* 1024/, "Client Clip configuration must cap files at 40 MiB.");
+assert.match(clipValidationSource, /requiresCompression: source\.fileSizeBytes > clipsConfig\.media\.maximumFinalFileSizeBytes/, "Only Clips above 40 MiB must enter local compression.");
+assert.match(clipUploadSignSource, /kind === ["']video["'] \? 40 \* 1024 \* 1024/, "The Clip signing function must cap video uploads at 40 MiB.");
+assert.match(clipLimitMigrationSource, /file_size_bytes <= 41943040/, "The database must enforce the exact 40 MiB byte limit.");
+assert.match(clipLimitMigrationSource, /not valid;/i, "The new Clip constraint must preserve previously uploaded oversized rows.");
+const clipNativeMediaSource = await read("clips/services/ClipNativeMediaService.ts");
+const clipCompressionPlanSource = await read("clips/utils/compressionPlan.ts");
+assert.match(clipCompressionPlanSource, /targetFileSizeBytes/, "Native Clip compression must target below the hard limit.");
+assert.match(clipCompressionPlanSource, /maximumAttempts/, "Native Clip compression must use a bounded progressive strategy.");
+assert.match(clipNativeMediaSource, /stripAudio: false/, "Native Clip compression must preserve audio.");
+assert.match(clipNativeMediaSource, /metadata\.size <= clipsConfig\.media\.maximumFinalFileSizeBytes/, "Every compressed Clip must be measured before upload.");
+assert.match(clipNativeMediaSource, /unavailable in standard Expo Go/, "Oversized Clips in Expo Go must fail clearly instead of uploading the original.");
+assert.match(clipCompressionPlanSource, /Math\.min\(sourceMaxDimension, profile\.maxDimension\)/, "Smart Clip optimization must never upscale low-resolution input.");
+assert.match(clipCompressionPlanSource, /maxDimension: 1920[\s\S]*maxDimension: 1280[\s\S]*maxDimension: 960/, "Smart Clip optimization must preserve 1080p before progressively reducing resolution.");
+assert.match(clipCompressionPlanSource, /source\.fileSizeBytes \* 8\) \/ duration/, "Smart Clip optimization must calculate bitrate from source size and duration.");
+const [clipManagementSource, clipDeleteFunctionSource, clipDeleteMigrationSource, vendorClipsSource, publicClipSource] = await Promise.all([
+  read("clips/services/ClipManagementService.ts"),
+  read("supabase/functions/clip-cloudinary-delete/index.ts"),
+  read("supabase/migrations/20260812190000_allow_vendor_clip_deletion_without_active_plan.sql"),
+  read("app/VendorClips.tsx"),
+  read("clips/services/PublicClipService.ts"),
+]);
+assert.doesNotMatch(clipManagementSource, /vendor_soft_delete_clip[\s\S]*ClipCloudinaryService\.delete/, "The client must not hide a Clip before storage deletion.");
+assert.match(clipDeleteFunctionSource, /vendors!inner\(profile_id\)[\s\S]*Cloudinary[\s\S]*vendor_soft_delete_clip/, "Secure Clip deletion must verify ownership, clear storage, then update the database.");
+assert.match(clipDeleteFunctionSource, /Database deletion failed after storage cleanup/, "Partial Clip deletion failures must be logged for safe retry.");
+assert.doesNotMatch(clipDeleteFunctionSource, /for \(const \[publicId, resourceType\]/, "Clip deletion must not shadow the resolved Cloudinary public ID inside the asset loop.");
+assert.match(clipDeleteFunctionSource, /assetStatus === "deleted" \|\| assetStatus === "not_found"/, "Clip deletion must validate Cloudinary Admin API delete results and treat an already-missing asset idempotently.");
+assert.match(clipDeleteFunctionSource, /signCloudinaryParams[\s\S]*Object\.entries\(params\)[\s\S]*\.sort\([\s\S]*public_id: assetPublicId, timestamp:/, "Cloudinary destroy fallback must sign the exact sorted REST request parameters server-side.");
+assert.match(clipDeleteFunctionSource, /deliveryType = "upload"[\s\S]*Admin API DELETE \/resources \(Basic Auth\)/, "Clip deletion diagnostics must identify the Cloudinary endpoint category and delivery type.");
+assert.match(clipDeleteFunctionSource, /cloudinaryStatus: response\.status[\s\S]*cloudinaryResponse: safeResponseBody/, "Cloudinary failures must log the safe response body and HTTP status.");
+assert.doesNotMatch(clipDeleteFunctionSource, /console\.(?:log|error)\([^\n]*apiSecret|console\.(?:log|error)\([^\n]*apiKey/, "Clip deletion logs must not expose Cloudinary credentials.");
+assert.doesNotMatch(clipDeleteMigrationSource, /vendor_has_subscription_feature/, "A vendor must be able to delete owned media without an active upload entitlement.");
+assert.match(vendorClipsSource, /deletingRef\.current/, "Vendor Clip deletion must retain its duplicate-tap guard.");
+assert.match(clipDeleteFunctionSource, /missingCloudinarySecrets[\s\S]*CLOUDINARY_API_KEY[\s\S]*CLOUDINARY_API_SECRET/, "Clip deletion must identify missing server-side Cloudinary credentials.");
+assert.match(publicClipSource, /\.eq\("status", "approved"\)[\s\S]*\.eq\("visibility", "public"\)[\s\S]*\.is\("deleted_at", null\)/, "Public Clip queries must never return deleted or non-public Clips.");
 const crmCardSource = await read("components/admin/crm/ui/CRMCard.tsx");
 const crmAnalyticsSource = await read("components/admin/crm/ui/AnalyticsCard.tsx");
 assert.match(

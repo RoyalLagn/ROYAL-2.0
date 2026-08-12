@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text } from "react-native";
+import { ScrollView, StyleSheet, Text } from "react-native";
+import Pressable from "@/components/InteropSafePressable";
 import { ArrowUpDown, ChevronDown, Star, Tag } from "lucide-react-native";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeScale } from "@/constants/typography";

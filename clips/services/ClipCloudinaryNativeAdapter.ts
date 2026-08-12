@@ -381,7 +381,15 @@ ClipCloudinaryService.configure({
   },
   async delete(clipId) {
     const { error } = await supabase.functions.invoke("clip-cloudinary-delete", { body: { clipId } });
-    if (error) throw new ClipModuleError("CLOUDINARY_ERROR", error.message, true, error);
+    if (error) {
+      let message = error.message;
+      const context = (error as { context?: Response }).context;
+      if (context && typeof context.clone === "function") {
+        const payload = await context.clone().json().catch(() => null) as { error?: string } | null;
+        if (payload?.error) message = payload.error;
+      }
+      throw new ClipModuleError("CLOUDINARY_ERROR", message || "Unable to delete this Clip. Please try again.", true, error);
+    }
   },
   async replace(input, _previousPublicId, onProgress) {
     return this.upload(input, onProgress);

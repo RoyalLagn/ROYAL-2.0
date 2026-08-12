@@ -3,13 +3,13 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import Pressable from "@/components/InteropSafePressable";
 import {
   Check,
   ChevronDown,

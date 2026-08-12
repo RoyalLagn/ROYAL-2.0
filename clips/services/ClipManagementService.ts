@@ -43,35 +43,15 @@ export const ClipManagementService = {
     return result;
   },
   async remove(clipId: string) {
-    // vendor_soft_delete_clip() only ever succeeds once per Clip -- it requires
-    // deleted_at is null, so it cannot be safely re-run if a later step fails.
-    // From the moment it returns, the Clip is gone from the vendor's account no
-    // matter what happens below, so the cache is invalidated immediately rather
-    // than after the Cloudinary cleanup: callers must treat this as the
-    // point of no return and refresh their list even if this function throws.
-    const { error } = await supabase.rpc("vendor_soft_delete_clip", { target_clip_id: clipId });
-    if (error) throw error;
+    // The Edge Function owns the ordered transaction: verify ownership and
+    // read the public ID while the row is visible, delete Cloudinary assets,
+    // then soft-delete the database row. Cloudinary destroy is idempotent, so
+    // retrying also recovers storage-success/database-failure cases safely.
+    await withClipRetry(
+      () => ClipCloudinaryService.delete(clipId),
+      (retryError) => !(retryError instanceof ClipModuleError) || retryError.retryable,
+    );
     ClipCacheService.invalidate();
-    try {
-      // Cloudinary's destroy endpoint is idempotent (deleting an
-      // already-gone asset just reports "not found"), so retrying it -- unlike
-      // retrying the RPC above -- is always safe.
-      await withClipRetry(
-        () => ClipCloudinaryService.delete(clipId),
-        (retryError) => !(retryError instanceof ClipModuleError) || retryError.retryable,
-      );
-    } catch (cloudinaryError) {
-      ClipLogger.error("cloudinary", "Clip removed from database but Cloudinary cleanup failed", {
-        clipId, error: cloudinaryError instanceof Error ? cloudinaryError.message : String(cloudinaryError),
-      });
-      throw new ClipModuleError(
-        "CLOUDINARY_ERROR",
-        "The Clip was removed from your account, but we couldn't confirm its stored video was cleared. No further action is needed.",
-        false,
-        cloudinaryError,
-        { dbDeleted: true },
-      );
-    }
   },
   async replaceOldest(vendorId: string) {
     const { data, error } = await supabase.rpc("vendor_replace_oldest_clip", { target_vendor_id: vendorId });

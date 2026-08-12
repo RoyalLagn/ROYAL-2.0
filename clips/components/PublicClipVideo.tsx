@@ -33,7 +33,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
 }) {
   const [manuallyPaused, setManuallyPaused] = useState(false);
   const [firstFrameRendered, setFirstFrameRendered] = useState(false);
-  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [controlsVisible, setControlsVisible] = useState(false);
   const lastTap = useRef(0);
   const longPressed = useRef(false);
   const holdReleaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,6 +84,8 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
 
   const player = useVideoPlayer(source, (instance) => {
     instance.loop = true;
+    instance.volume = 1;
+    if (Platform.OS !== "web") instance.audioMixingMode = "doNotMix";
     instance.muted = muted || !active;
     instance.bufferOptions = {
       preferredForwardBufferDuration: 6,
@@ -96,6 +98,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
 
   useEffect(() => {
     if (!hasValidSource) return;
+    player.volume = 1;
     player.muted = muted || !active;
   }, [active, hasValidSource, muted, player]);
   useEffect(() => {
@@ -108,7 +111,6 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     if (!manuallyPaused) player.play();
   }, [active, hasValidSource, manuallyPaused, player]);
   useEffect(() => () => {
-    if (tapTimer.current) clearTimeout(tapTimer.current);
     if (holdReleaseTimer.current) clearTimeout(holdReleaseTimer.current);
     onHoldChange?.(false);
     // Stop playback immediately — the underlying player is released
@@ -126,12 +128,23 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     playScale.value = paused ? withSpring(1) : withTiming(0.86, { duration: reduced ? 0 : 180 });
   }, [playOpacity, playScale, reduced]);
 
+  useEffect(() => {
+    if (active) return;
+    setControlsVisible(false);
+    showPauseState(false);
+  }, [active, showPauseState]);
+
   const togglePlayback = useCallback(() => {
     if (!active || !hasValidSource) return;
     setManuallyPaused((current) => {
       const next = !current;
-      if (next) player.pause();
-      else player.play();
+      if (next) {
+        player.pause();
+        setControlsVisible(true);
+      } else {
+        player.play();
+        setControlsVisible(false);
+      }
       showPauseState(next);
       return next;
     });
@@ -157,18 +170,13 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     }
     const now = Date.now();
     if (now - lastTap.current < DOUBLE_TAP_MS) {
-      if (tapTimer.current) clearTimeout(tapTimer.current);
-      tapTimer.current = null;
       lastTap.current = 0;
       burstHeart();
       onDoubleTapLike();
-      return;
+    } else {
+      lastTap.current = now;
     }
-    lastTap.current = now;
-    tapTimer.current = setTimeout(() => {
-      togglePlayback();
-      tapTimer.current = null;
-    }, DOUBLE_TAP_MS);
+    togglePlayback();
   }, [burstHeart, onDoubleTapLike, togglePlayback]);
 
   const playStyle = useAnimatedStyle(() => ({
@@ -236,7 +244,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     {buffering && <View pointerEvents="none" style={styles.buffering}><ActivityIndicator size="small" color="#FFFFFF" /></View>}
     <Animated.View pointerEvents="none" style={[styles.playBurst, playStyle]}><Play size={44} color="#FFF" fill="#FFF" /></Animated.View>
     <Animated.View pointerEvents="none" style={[styles.heartBurst, heartStyle]}><Heart size={94} color="#FFF" fill="#E91E63" strokeWidth={1.5} /></Animated.View>
-    {showMuteControl && manuallyPaused && !unavailable ? <Pressable
+    {showMuteControl && active && controlsVisible && !unavailable ? <Pressable
       accessibilityRole="button"
       accessibilityLabel={muted ? "Turn Clip sound on" : "Mute Clip"}
       onPress={onToggleMuted}

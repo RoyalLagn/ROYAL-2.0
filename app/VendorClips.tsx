@@ -62,7 +62,6 @@ export default function VendorClips() {
     router.push({ pathname: "/VendorClipEdit", params: { id: clipId } });
   });
   const remove = (clip: any) => {
-    if (!requireFeature("upload_clips")) return;
     // Guards against a double-tap (or a second tap while the confirm alert is
     // still opening) dispatching two deletes for the same Clip: the RPC behind
     // ClipManagementService.remove() can only ever succeed once per Clip, so a
@@ -76,14 +75,12 @@ export default function VendorClips() {
         setDeletingId(clip.id);
         try {
           await ClipManagementService.remove(clip.id);
+          Alert.alert("Clip deleted", "The Clip was deleted successfully.");
         } catch (caught) {
-          Alert.alert("Delete failed", caught instanceof Error ? caught.message : "Try again.");
+          const message = caught instanceof Error ? caught.message : "Unknown deletion error";
+          console.error("[VendorClips] Clip deletion failed", { clipId: clip.id, error: message });
+          Alert.alert("Unable to delete Clip", "Unable to delete this clip. Please try again.");
         } finally {
-          // Always refresh, even on failure: vendor_soft_delete_clip() is a
-          // one-shot RPC, so by the time any error surfaces here the Clip has
-          // very likely already been removed from the database. Skipping this
-          // on error would leave the list showing a Clip that is already gone,
-          // inviting a retry that is now guaranteed to fail.
           deletingRef.current = null;
           setDeletingId(null);
           await refresh();

@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 import { clipsConfig } from "../config";
 import type { ClipUpload } from "../types";
 import { ClipModuleError } from "../utils/errors";
+import { buildClipCompressionPlan } from "../utils/compressionPlan";
 import { ClipCompressionService } from "./ClipCompressionService";
 import { ClipThumbnailService } from "./ClipThumbnailService";
 
@@ -12,7 +13,8 @@ const localMediaDirectory = `${FileSystem.documentDirectory || ""}royallagn-clip
 
 // `react-native-compressor` requires native NitroModules that are not available
 // inside Expo Go. Load it lazily so the app does not crash at import time; when
-// it is unavailable (Expo Go), uploads proceed without client-side compression.
+// it is unavailable (Expo Go), oversized uploads fail clearly before the
+// original file can reach Cloudinary.
 type CompressorModule = typeof import("react-native-compressor");
 let compressorModule: CompressorModule | null | undefined;
 function getCompressor(): CompressorModule | null {
@@ -88,32 +90,68 @@ ClipCompressionService.configure({
   async compress(source, onProgress) {
     const compressor = getCompressor();
     if (!compressor) {
-      // Expo Go: native compression unavailable — upload the original video.
-      onProgress?.(1);
-      return source;
+      // Expo Go: native compression is unavailable. Never fall back to the
+      // oversized original because the storage contract is a hard 40 MiB.
+      throw new ClipModuleError(
+        "COMPRESSION_ERROR",
+        "Automatic compression requires the RoyalLagn development or production app and is unavailable in standard Expo Go.",
+      );
     }
     const { Video, getVideoMetaData } = compressor;
-    let cancellationId = "";
-    const uri = await Video.compress(source.uri, {
-      compressionMethod: "manual",
-      maxSize: Math.max(clipsConfig.media.maximumWidth, clipsConfig.media.maximumHeight),
-      bitrate: clipsConfig.compression.targetVideoBitrate,
-      getCancellationId: (value) => { cancellationId = value; },
-    }, onProgress);
-    const metadata = await getVideoMetaData(uri);
-    if (!metadata.size) {
-      if (cancellationId) Video.cancelCompression(cancellationId);
-      throw new ClipModuleError("COMPRESSION_ERROR", "Unable to verify the compressed video.");
+    const attempts = buildClipCompressionPlan(source);
+    let previousTemporaryUri: string | null = null;
+    try {
+      for (let index = 0; index < attempts.length; index += 1) {
+        const attempt = attempts[index];
+        let cancellationId = "";
+        const uri = await Video.compress(source.uri, {
+          compressionMethod: "manual",
+          maxSize: attempt.maxDimension,
+          bitrate: attempt.videoBitrate,
+          stripAudio: false,
+          getCancellationId: (value) => { cancellationId = value; },
+        }, (progress) => onProgress?.((index + progress) / attempts.length));
+        const metadata = await getVideoMetaData(uri);
+        if (!metadata.size) {
+          if (cancellationId) Video.cancelCompression(cancellationId);
+          throw new ClipModuleError("COMPRESSION_ERROR", "Unable to verify the compressed video.");
+        }
+        if (previousTemporaryUri && previousTemporaryUri !== uri) {
+          await FileSystem.deleteAsync(previousTemporaryUri, { idempotent: true }).catch(() => undefined);
+        }
+        previousTemporaryUri = uri;
+        if (metadata.size <= clipsConfig.media.maximumFinalFileSizeBytes) {
+          onProgress?.(1);
+          return {
+            ...source,
+            uri,
+            fileName: source.fileName.replace(/\.[^.]+$/, ".mp4"),
+            mimeType: "video/mp4",
+            fileSizeBytes: metadata.size,
+            durationSeconds: metadata.duration,
+            resolution: { width: metadata.width, height: metadata.height },
+          };
+        }
+      }
+    } catch (error) {
+      if (previousTemporaryUri) {
+        await FileSystem.deleteAsync(previousTemporaryUri, { idempotent: true }).catch(() => undefined);
+      }
+      if (error instanceof ClipModuleError) throw error;
+      throw new ClipModuleError(
+        "COMPRESSION_ERROR",
+        "Automatic compression is unavailable in this app build or failed. Please use the RoyalLagn development or production app and try again.",
+        false,
+        error,
+      );
     }
-    return {
-      ...source,
-      uri,
-      fileName: source.fileName.replace(/\.[^.]+$/, ".mp4"),
-      mimeType: "video/mp4",
-      fileSizeBytes: metadata.size,
-      durationSeconds: metadata.duration,
-      resolution: { width: metadata.width, height: metadata.height },
-    };
+    if (previousTemporaryUri) {
+      await FileSystem.deleteAsync(previousTemporaryUri, { idempotent: true }).catch(() => undefined);
+    }
+    throw new ClipModuleError(
+      "COMPRESSION_ERROR",
+      "This video could not be compressed below 40 MB. Please choose a shorter video or a lower-resolution clip.",
+    );
   },
 });
 

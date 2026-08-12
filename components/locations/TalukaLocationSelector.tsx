@@ -3,13 +3,13 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import Pressable from "@/components/InteropSafePressable";
 import { Check, ChevronDown, MapPin, Search, X } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 import type { GeoDistrict, GeoSelection, GeoState, GeoTaluka } from "@/locations/types";

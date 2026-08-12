@@ -98,7 +98,7 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
         accessibilityState={{ expanded: visible }}
         onPress={() => setVisible(true)}
         hitSlop={compact ? 7 : 0}
-        style={({ pressed, hovered }) => [
+        style={[
           styles.trigger,
           { backgroundColor: colors.surface, borderColor: colors.border },
           compact && [
@@ -109,8 +109,6 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
             },
           ],
           filterChip && [styles.triggerFilter, { backgroundColor: colors.surface, borderColor: colors.border }],
-          hovered && Platform.OS === "web" && { backgroundColor: dark ? "#2A2428" : "#FFF1F6" },
-          pressed && styles.pressed,
         ]}
       >
         <MapPin size={compact ? 11 : 14} color={PINK} />
@@ -162,13 +160,12 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
                     accessibilityState={{ selected }}
                     accessibilityLabel={`Select ${item.label}`}
                     onPress={() => setDraft(item.preference)}
-                    style={({ pressed }) => [
+                    style={[
                       styles.option,
                       {
                         backgroundColor: selected ? (dark ? "#34222B" : "#FFF0F6") : colors.background,
                         borderColor: selected ? PINK : colors.border,
                       },
-                      pressed && styles.pressed,
                     ]}
                   >
                     <View style={[styles.optionIcon, { backgroundColor: colors.surface }]}><MapPin size={16} color={PINK} /></View>

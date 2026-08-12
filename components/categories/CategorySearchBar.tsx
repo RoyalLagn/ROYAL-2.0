@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import Pressable from "@/components/InteropSafePressable";
 import { SlidersHorizontal } from "lucide-react-native";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import { brandColors } from "@/constants/brandPalette";

@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import * as FileSystem from "expo-file-system/legacy";
 import { clipsConfig } from "../config";
 import type { ClipQueueItem, UploadProgress } from "../types";
 import { ClipModuleError } from "../utils/errors";
@@ -11,7 +12,7 @@ import { ClipUploadService } from "./ClipUploadService";
 export type UploadProgressHandler = (progress: UploadProgress) => void;
 
 const OPERATION_TIMEOUT_MS = 30_000;
-const MEDIA_PREPARATION_TIMEOUT_MS = 3 * 60_000;
+const MEDIA_PREPARATION_TIMEOUT_MS = 8 * 60_000;
 
 async function withTimeout<T>(
   label: string,
@@ -77,6 +78,7 @@ export const ClipUploadOrchestrator = {
     // successful reservation would otherwise hold the slot until its
     // 15 minute expiry even though no Clip was created.
     let reservationId: string | undefined;
+    let temporaryPreparedUri: string | undefined;
     const releaseReservation = async (id: string | undefined) => {
       if (!id) return;
       await Promise.resolve(supabase.rpc("cancel_clip_upload_reservation", { target_reservation_id: id })).catch(() => undefined);
@@ -150,13 +152,14 @@ export const ClipUploadOrchestrator = {
       const prepared = await withTimeout("Preparing video", ClipUploadService.prepare(draft, (value) => {
         onProgress({ stage: "compressing", progress: value * 0.3, bytesUploaded: 0, totalBytes: draft.source.fileSizeBytes, attempt: item.retryCount + 1 });
       }), undefined, MEDIA_PREPARATION_TIMEOUT_MS);
+      if (prepared.uri !== draft.source.uri) temporaryPreparedUri = prepared.uri;
       ClipLogger.info("compression", "Video prepared", { queueId: item.id, bytes: prepared.fileSizeBytes });
       ClipLogger.uploadDebug(uploadId, "VIDEO_PREPARE", "DONE", {
         elapsedMs: Date.now() - stageStartedAt, bytes: prepared.fileSizeBytes,
       });
       ensureActive();
       if (prepared.fileSizeBytes > clipsConfig.media.maximumFinalFileSizeBytes) {
-        throw new ClipModuleError("COMPRESSION_ERROR", "The video could not be reduced below 52 MB.");
+        throw new ClipModuleError("COMPRESSION_ERROR", "This video could not be compressed below 40 MB. Please choose a shorter video or a lower-resolution clip.");
       }
 
       onProgress({ stage: "thumbnail", progress: 0.35, bytesUploaded: 0, totalBytes: prepared.fileSizeBytes, attempt: item.retryCount + 1 });
@@ -209,7 +212,7 @@ export const ClipUploadOrchestrator = {
         await withTimeout("Cleaning up oversized upload", supabase.functions.invoke("clip-cloudinary-delete", {
           body: { vendorId: draft.vendorId, publicId: uploaded.publicId },
         })).catch(() => undefined);
-        throw new ClipModuleError("UPLOAD_ERROR", "The final Cloudinary asset exceeds 52 MB.");
+        throw new ClipModuleError("UPLOAD_ERROR", "Maximum clip size is 40 MB.");
       }
       onProgress({ stage: "saving", progress: 0.95, bytesUploaded: prepared.fileSizeBytes, totalBytes: prepared.fileSizeBytes, attempt: item.retryCount + 1 });
       const insertStartedAt = Date.now();
@@ -306,6 +309,9 @@ export const ClipUploadOrchestrator = {
       await releaseReservation(reservationId);
       throw error;
     } finally {
+      if (temporaryPreparedUri) {
+        await FileSystem.deleteAsync(temporaryPreparedUri, { idempotent: true }).catch(() => undefined);
+      }
       ClipLogger.uploadDebug(uploadId, "PIPELINE", "FINALLY", {
         elapsedMs: Date.now() - pipelineStartedAt,
       });

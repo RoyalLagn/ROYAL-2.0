@@ -52,10 +52,17 @@ npx supabase secrets set \
   CLOUDINARY_API_SECRET=your-api-secret
 npx supabase functions deploy cloudinary-sign
 npx supabase functions deploy cloudinary-delete
+npx supabase functions deploy clip-upload-sign
+npx supabase functions deploy clip-cloudinary-delete
 npx supabase functions deploy profile-image
 ```
 
 Uploaded portfolio assets use `royallagn/vendors/{vendorId}/albums/{albumId}/`. The app stores the secure URL, Cloudinary public ID, media type, display order, and album relationship in Supabase.
+
+Vendor Clip deletion first removes the Cloudinary video and thumbnail, then
+soft-deletes the owned database row. Public Clip queries only return approved,
+public, unlocked rows whose `deleted_at` value is null, so a successfully deleted
+Clip cannot reappear on the public Clips screen.
 
 ## Profile propagation verification
 

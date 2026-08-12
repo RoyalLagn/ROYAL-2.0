@@ -1,5 +1,6 @@
 import React from "react";
-import { Platform, Pressable, StyleSheet, TextInput, type ViewStyle, View } from "react-native";
+import { Platform, StyleSheet, TextInput, type ViewStyle, View } from "react-native";
+import Pressable from "@/components/InteropSafePressable";
 import { Search, X } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { brandColors } from "@/constants/brandPalette";

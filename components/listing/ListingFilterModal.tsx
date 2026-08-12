@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import Pressable from "@/components/InteropSafePressable";
 import { Check, X } from "lucide-react-native";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 import { typeScale, typeLeading } from "@/constants/typography";

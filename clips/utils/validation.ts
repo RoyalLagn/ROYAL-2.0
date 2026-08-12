@@ -14,9 +14,6 @@ export function validateClipSource(source: ClipUpload) {
     throw new ClipModuleError("VALIDATION_ERROR", "Clip file size is unavailable.");
   }
   return {
-    requiresCompression:
-      source.fileSizeBytes > clipsConfig.media.maximumFinalFileSizeBytes
-      || source.resolution.width > clipsConfig.media.maximumWidth
-      || source.resolution.height > clipsConfig.media.maximumHeight,
+    requiresCompression: source.fileSizeBytes > clipsConfig.media.maximumFinalFileSizeBytes,
   };
 }

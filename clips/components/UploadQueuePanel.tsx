@@ -12,8 +12,8 @@ import { MotionDuration, MotionEasing } from "@/utils/motion";
 
 const STAGE_LABEL: Record<string, string> = {
   idle: "Queued",
-  validating: "Validating",
-  compressing: "Compressing video",
+  validating: "Analyzing video",
+  compressing: "Optimizing video",
   thumbnail: "Generating thumbnail",
   uploading: "Uploading",
   saving: "Saving",
