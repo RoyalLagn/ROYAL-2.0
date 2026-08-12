@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Pressable, type ListRenderItemInfo, Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { RefreshCw, SearchX } from "lucide-react-native";
+import { LocateFixed, MapPinned, RefreshCw, SearchX } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -19,7 +19,7 @@ import { useFavorites } from "@/context/FavoritesContext";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import {
-  getApprovedPublicVendors, normalizeMarketplaceCategoryName, subscribeToPublicVendorChanges, type PublicVendorListing, } from "@/services/publicVendorListings";
+  databaseCategoryCandidates, getApprovedPublicVendors, normalizeMarketplaceCategoryName, subscribeToPublicVendorChanges, type PublicVendorListing, } from "@/services/publicVendorListings";
 import {
   findMarketplaceCategory, resolveMarketplaceCategoryImage, } from "@/data/marketplaceCategories";
 import { rankVendorsByLocationAndMembership } from "@/services/locations";
@@ -32,6 +32,17 @@ import CategoryLocationSelector, {
 } from "@/components/locations/CategoryLocationSelector";
 import { fetchNearbyVendors } from "@/services/vendorDiscovery";
 import { fetchPincodeVendors } from "@/services/pincodeVendorDiscovery";
+import { TalukaLocationSelector } from "@/components/locations/TalukaLocationSelector";
+import {
+  clearGuestGeoPreference,
+  fetchTalukaVendorPageCards,
+  listActiveGeoStates,
+  loadGuestGeoPreference,
+  saveGuestGeoPreference,
+  validateGeoSelection,
+  type TalukaPageCursor,
+} from "@/services/geoLocations";
+import type { GeoSelection, GeoState } from "@/locations/types";
 
 const LOCATION_PAGE_SIZE = 20;
 
@@ -113,31 +124,102 @@ export default function VendorsListingScreen() {
   const [vendorsLoading, setVendorsLoading] = useState(true);
   const [vendorsError, setVendorsError] = useState("");
 
-  // Compact "Near Me" / "Search by Location" selector, scoped to the active
-  // category on this page. The category is *always* passed straight through
-  // to fetchNearbyVendors / fetchPincodeVendors below -- selecting a
-  // location here can only ever narrow the current category, never replace
-  // it with "all vendors". Independent of the legacy city/area preference
-  // above (used only for ranking when no location is explicitly selected)
-  // and does not touch services/geoLocations.ts.
+  // Three database-backed discovery modes share one listing owner:
+  // District/Taluka (default), Near Me, and PIN/locality. Keeping the fetch
+  // orchestration here guarantees category/filter pagination cannot diverge
+  // between selectors.
+  const [discoveryMode, setDiscoveryMode] = useState<"taluka" | "quick">("taluka");
+  const [geoStates, setGeoStates] = useState<GeoState[]>([]);
+  const [geoSelection, setGeoSelection] = useState<GeoSelection | null>(null);
+  const [geoDistrictName, setGeoDistrictName] = useState("");
+  const [geoTalukaName, setGeoTalukaName] = useState("");
+  const [geoLoading, setGeoLoading] = useState(true);
+  const [geoError, setGeoError] = useState("");
   const [locationSelection, setLocationSelection] = useState<CategoryLocationSelection | null>(null);
-  const locationActive = locationSelection !== null;
+  const talukaActive = discoveryMode === "taluka" && geoSelection !== null;
+  const quickLocationActive = discoveryMode === "quick" && locationSelection !== null;
+  const locationActive = talukaActive || quickLocationActive;
   const [locationCards, setLocationCards] = useState<PublicVendorListing[]>([]);
+  const [locationCardMeta, setLocationCardMeta] = useState<Record<string, { tier: number; talukaName: string }>>({});
   const [locationOffset, setLocationOffset] = useState(0);
+  const [locationCursor, setLocationCursor] = useState<TalukaPageCursor | null>(null);
   const [locationHasMore, setLocationHasMore] = useState(true);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState("");
   const locationRequestSequence = useRef(0);
 
+  useEffect(() => {
+    let active = true;
+    setGeoLoading(true);
+    setGeoError("");
+    Promise.all([listActiveGeoStates(), loadGuestGeoPreference()])
+      .then(async ([states, stored]) => {
+        if (!active) return;
+        setGeoStates(states);
+        if (states.length === 0) {
+          setGeoError("No active service locations are available right now.");
+          return;
+        }
+        if (!stored) return;
+        const validated = await validateGeoSelection(stored);
+        if (!active) return;
+        if (!validated) {
+          await clearGuestGeoPreference();
+          return;
+        }
+        setGeoSelection({ stateId: validated.stateId, districtId: validated.districtId, talukaId: validated.talukaId });
+        setGeoDistrictName(validated.districtName);
+        setGeoTalukaName(validated.talukaName);
+      })
+      .catch(() => {
+        if (active) setGeoError("District and Taluka options could not be loaded. Try again.");
+      })
+      .finally(() => { if (active) setGeoLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  const selectGeoLocation = useCallback((selection: GeoSelection, districtName: string, talukaName: string) => {
+    setGeoSelection(selection);
+    setGeoDistrictName(districtName);
+    setGeoTalukaName(talukaName);
+    setLocationSelection(null);
+    setGeoError("");
+    void saveGuestGeoPreference(selection);
+  }, []);
+
+  const resolveGeoLabel = useCallback((districtName: string, talukaName: string) => {
+    setGeoDistrictName(districtName);
+    setGeoTalukaName(talukaName);
+  }, []);
+
   const fetchLocationPage = useCallback((reset: boolean) => {
-    if (!locationSelection) return;
+    if (!locationActive) return;
     const requestSequence = ++locationRequestSequence.current;
     setLocationLoading(true);
     setLocationError("");
     const offsetToUse = reset ? 0 : locationOffset;
     const minRating = filters.minimumRating > 0 ? filters.minimumRating : undefined;
     const maxPrice = filters.maximumPrice > 0 ? filters.maximumPrice : undefined;
-    const request = locationSelection.mode === "nearMe"
+    const activeTalukaId = talukaActive ? geoSelection?.talukaId : null;
+    const request = activeTalukaId
+      ? fetchTalukaVendorPageCards({
+        categoryNames: databaseCategoryCandidates(displayCategory),
+        talukaId: activeTalukaId,
+        search: query,
+        minRating,
+        maxPrice,
+        sort: filters.sort,
+        limit: LOCATION_PAGE_SIZE,
+        offset: reset ? 0 : locationOffset,
+        after: reset ? null : locationCursor,
+      }).then((result) => ({
+        vendors: result.cards.map((card) => card.vendor),
+        meta: Object.fromEntries(result.cards.map((card) => [card.vendor.id, { tier: card.tier, talukaName: card.talukaName }])),
+        nextOffset: result.nextOffset,
+        nextCursor: result.nextCursor,
+        hasMore: result.cards.length === LOCATION_PAGE_SIZE,
+      }))
+      : locationSelection?.mode === "nearMe"
       ? fetchNearbyVendors({
         latitude: locationSelection.latitude,
         longitude: locationSelection.longitude,
@@ -149,10 +231,12 @@ export default function VendorsListingScreen() {
         offset: offsetToUse,
       }).then((result) => ({
         vendors: result.cards.map((card) => card.vendor),
+        meta: {},
         nextOffset: result.nextOffset,
+        nextCursor: null,
         hasMore: result.hasMore,
       }))
-      : fetchPincodeVendors({
+      : locationSelection?.mode === "pincode" ? fetchPincodeVendors({
         pincode: locationSelection.pincode,
         categoryDisplayName: displayCategory,
         localityIds: locationSelection.localityIds ?? undefined,
@@ -162,15 +246,19 @@ export default function VendorsListingScreen() {
         offset: offsetToUse,
       }).then((result) => ({
         vendors: result.cards.map((card) => card.vendor),
+        meta: {},
         nextOffset: result.nextOffset,
+        nextCursor: null,
         hasMore: result.hasMore,
-      }));
+      })) : Promise.resolve({ vendors: [], meta: {}, nextOffset: 0, nextCursor: null, hasMore: false });
     request
-      .then(({ vendors, nextOffset, hasMore }) => {
+      .then(({ vendors, meta, nextOffset, nextCursor, hasMore }) => {
         if (requestSequence !== locationRequestSequence.current) return;
         setLocationCards((previous) => (reset ? vendors : [...previous, ...vendors]));
+        setLocationCardMeta((previous) => (reset ? meta : { ...previous, ...meta }));
         setLocationHasMore(hasMore);
         setLocationOffset(nextOffset);
+        setLocationCursor(nextCursor);
       })
       .catch(() => {
         if (requestSequence === locationRequestSequence.current) {
@@ -183,7 +271,7 @@ export default function VendorsListingScreen() {
       .finally(() => {
         if (requestSequence === locationRequestSequence.current) setLocationLoading(false);
       });
-  }, [locationSelection, displayCategory, filters.minimumRating, filters.maximumPrice, locationOffset]);
+  }, [locationActive, talukaActive, geoSelection, locationSelection, displayCategory, filters.minimumRating, filters.maximumPrice, filters.sort, query, locationOffset, locationCursor]);
 
   // Selecting/clearing a location, changing category, or narrowing by
   // rating/price all reset the location-mode cursor (mirrors the same
@@ -192,24 +280,28 @@ export default function VendorsListingScreen() {
   // via applySearchAndSort below instead of retriggering a fetch.
   useEffect(() => {
     locationRequestSequence.current += 1;
-    if (!locationSelection) {
+    if (!locationActive) {
       setLocationCards([]);
+      setLocationCardMeta({});
       setLocationOffset(0);
+      setLocationCursor(null);
       setLocationHasMore(true);
       setLocationError("");
       return;
     }
     setLocationCards([]);
+    setLocationCardMeta({});
     setLocationOffset(0);
+    setLocationCursor(null);
     setLocationHasMore(true);
     fetchLocationPage(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locationSelection, displayCategory, filters.minimumRating, filters.maximumPrice]);
+  }, [locationActive, discoveryMode, geoSelection, locationSelection, displayCategory, filters.minimumRating, filters.maximumPrice, filters.sort, talukaActive ? query : ""]);
 
   const loadMoreLocation = useCallback(() => {
-    if (locationLoading || !locationHasMore || !locationSelection) return;
+    if (locationLoading || !locationHasMore || !locationActive) return;
     fetchLocationPage(false);
-  }, [fetchLocationPage, locationSelection, locationHasMore, locationLoading]);
+  }, [fetchLocationPage, locationActive, locationHasMore, locationLoading]);
 
   const compact = width < 1100;
   const desktop = width >= 1100;
@@ -219,7 +311,11 @@ export default function VendorsListingScreen() {
   const text = isDark ? "#F8F2F5" : colors.foreground;
   const muted = colors.mutedForeground;
   const border = colors.border;
-  const locationSubtitle = locationSelection ? describeCategoryLocationSelection(locationSelection) : city;
+  const locationSubtitle = talukaActive
+    ? `${geoTalukaName}, ${geoDistrictName}`
+    : quickLocationActive && locationSelection
+      ? describeCategoryLocationSelection(locationSelection)
+      : city;
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -322,17 +418,29 @@ export default function VendorsListingScreen() {
     return rankVendorsByLocationAndMembership(baseSorted, preference, strictCityOnly);
   }, [applySearchAndSort, preference, strictCityOnly, vendors]);
 
-  // Near Me / PIN-locality results are already category-filtered server-side
-  // (categoryDisplayName is always passed through); only client-side search
-  // text and sort are layered on top here, the same applySearchAndSort used
-  // for the default flow -- no separate filtering logic to maintain.
+  // Taluka results are fully filtered and sorted by the bounded RPC so tier
+  // order can never be destroyed client-side. Near Me/PIN retain their
+  // existing client-side search/sort layer.
   const locationFilteredVendors = useMemo(
-    () => applySearchAndSort(locationCards),
-    [applySearchAndSort, locationCards],
+    () => talukaActive ? locationCards : applySearchAndSort(locationCards),
+    [applySearchAndSort, locationCards, talukaActive],
   );
 
-  const listRows: ListRow[] = (locationActive ? locationFilteredVendors : filteredVendors)
-    .map((vendor) => ({ kind: "vendor", vendor }));
+  const listRows: ListRow[] = useMemo(() => {
+    const source = locationActive ? locationFilteredVendors : filteredVendors;
+    if (!talukaActive) return source.map((vendor) => ({ kind: "vendor", vendor }));
+    const rows: ListRow[] = [];
+    let previousTier = 0;
+    for (const vendor of source) {
+      const meta = locationCardMeta[vendor.id];
+      if (meta?.tier > 0 && meta.tier !== previousTier) {
+        rows.push({ kind: "separator", key: `nearby-tier-${meta.tier}`, label: `Nearby · ${meta.talukaName}` });
+      }
+      rows.push({ kind: "vendor", vendor });
+      if (meta) previousTier = meta.tier;
+    }
+    return rows;
+  }, [filteredVendors, locationActive, locationCardMeta, locationFilteredVendors, talukaActive]);
   const visibleVendorCount = listRows.filter((row) => row.kind === "vendor").length;
 
   const activeFilterCount = [
@@ -425,11 +533,47 @@ export default function VendorsListingScreen() {
         </HomeReveal>
 
         <HomeReveal delay={18}>
-          <CategoryLocationSelector
-            dark={isDark}
-            value={locationSelection}
-            onChange={setLocationSelection}
-          />
+          <View style={styles.locationModes}>
+            <View style={[styles.modeSwitch, { borderColor: border, backgroundColor: colors.card }]} accessibilityRole="tablist">
+              <Pressable
+                accessibilityRole="tab"
+                accessibilityState={{ selected: discoveryMode === "taluka" }}
+                onPress={() => setDiscoveryMode("taluka")}
+                style={[styles.modeButton, discoveryMode === "taluka" && { backgroundColor: colors.primary }]}
+              >
+                <MapPinned size={16} color={discoveryMode === "taluka" ? "#FFFFFF" : colors.primaryStrong} />
+                <Text style={[styles.modeButtonText, { color: discoveryMode === "taluka" ? "#FFFFFF" : text }]}>District & Taluka</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="tab"
+                accessibilityState={{ selected: discoveryMode === "quick" }}
+                onPress={() => setDiscoveryMode("quick")}
+                style={[styles.modeButton, discoveryMode === "quick" && { backgroundColor: colors.primary }]}
+              >
+                <LocateFixed size={16} color={discoveryMode === "quick" ? "#FFFFFF" : colors.primaryStrong} />
+                <Text style={[styles.modeButtonText, { color: discoveryMode === "quick" ? "#FFFFFF" : text }]}>Near Me or PIN</Text>
+              </Pressable>
+            </View>
+
+            {discoveryMode === "taluka" ? (
+              <>
+                <TalukaLocationSelector
+                  states={geoStates}
+                  value={geoSelection}
+                  onChange={selectGeoLocation}
+                  onResolvedLabel={resolveGeoLabel}
+                  loading={geoLoading}
+                />
+                {geoError ? <Text accessibilityRole="alert" style={[styles.locationModeError, { color: colors.destructive }]}>{geoError}</Text> : null}
+              </>
+            ) : (
+              <CategoryLocationSelector
+                dark={isDark}
+                value={locationSelection}
+                onChange={setLocationSelection}
+              />
+            )}
+          </View>
         </HomeReveal>
 
         <HomeReveal delay={35}>
@@ -547,6 +691,11 @@ export default function VendorsListingScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   top: { alignSelf: "center", paddingBottom: 8 },
+  locationModes: { gap: 10 },
+  modeSwitch: { minHeight: 48, padding: 4, borderWidth: 1, borderRadius: 16, flexDirection: "row", gap: 4 },
+  modeButton: { flex: 1, minHeight: 40, paddingHorizontal: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  modeButtonText: { flexShrink: 1, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata, textAlign: "center" },
+  locationModeError: { fontFamily: fonts.sans.medium, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   chips: { marginBottom: 4 },
   scroll: { flex: 1 },
   list: { alignSelf: "center", gap: 14, paddingTop: 6 },

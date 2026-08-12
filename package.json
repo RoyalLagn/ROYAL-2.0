@@ -68,7 +68,7 @@
     "expo-web-browser": "~15.0.11",
     "gsap": "^3.15.0",
     "html2canvas": "^1.4.1",
-    "jspdf": "^3.0.4",
+    "jspdf": "^4.2.1",
     "lucide-react-native": "0.510.0",
     "nativewind": "4.2.1",
     "qrcode": "^1.5.4",
@@ -101,6 +101,7 @@
     "typescript": "5.9.3"
   },
   "overrides": {
+    "postcss": "^8.5.26",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },

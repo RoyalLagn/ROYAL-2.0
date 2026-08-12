@@ -106,6 +106,17 @@ const searchByLocation = await readFile(new URL("../app/SearchByLocation.tsx", i
 assert.match(searchByLocation, /\.catch\(\(\) => \{[\s\S]{0,300}setHasMore\(false\)/);
 const vendorsListing = await readFile(new URL("../app/VendorsListing.tsx", import.meta.url), "utf8");
 assert.match(vendorsListing, /\.catch\(\(\) => \{[\s\S]{0,300}setLocationHasMore\(false\)/);
+// Public category listings must keep the State/District/Taluka path wired to
+// the tiered RPC. Near Me and PIN are additional modes, not replacements for
+// the Admin-managed hierarchy and neighbor-priority flow.
+assert.match(vendorsListing, /<TalukaLocationSelector/);
+assert.match(vendorsListing, /listActiveGeoStates\(\)/);
+assert.match(vendorsListing, /validateGeoSelection\(stored\)/);
+assert.match(vendorsListing, /fetchTalukaVendorPageCards\(/);
+assert.match(vendorsListing, /databaseCategoryCandidates\(displayCategory\)/);
+assert.match(vendorsListing, /Nearby · \$\{meta\.talukaName\}/);
+assert.match(vendorsListing, /sort: filters\.sort/);
+assert.match(vendorsListing, /after: reset \? null : locationCursor/);
 
 const officialRows = validateOfficialRows([
   { pincode: "110001", officename: "Example Head Office", taluk: "Example Taluka", districtname: "New Delhi", statename: "Delhi" },

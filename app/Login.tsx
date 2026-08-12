@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, Pressable, Text, TextInput, View } from "react-native";
+import { Keyboard, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Building2, ChevronRight, Mail, Phone, User } from "lucide-react-native";
 import { AuthField } from "@/components/auth/AuthField";
@@ -59,7 +59,7 @@ export default function LoginScreen() {
 
   useEffect(() => {
     if (!authLoading && isPublicAuthenticated) {
-      if (router.canDismiss()) router.dismissAll();
+      if (Platform.OS !== "web" && router.canDismiss()) router.dismissAll();
       router.replace("/(tabs)");
     }
   }, [authLoading, isPublicAuthenticated, router]);
@@ -85,7 +85,7 @@ export default function LoginScreen() {
     try {
       const destination = await loginMobileUser(email, password);
       if (destination.pathname === "/(tabs)") await refreshProfile();
-      if (router.canDismiss()) router.dismissAll();
+      if (Platform.OS !== "web" && router.canDismiss()) router.dismissAll();
       if (destination.pathname === "/BecomeVendor") {
         router.replace({ pathname: "/BecomeVendor", params: { source: "login" } });
       } else {

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Platform, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
+import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
 // NativeWind's native Pressable interop doesn't resolve a function
 // `style={(state) => [...]}` prop on Android (whole style silently drops).
 // InteropSafePressable resolves it first. See VendorCalendar.tsx /
@@ -52,6 +52,10 @@ import {
 } from "@/services/vendorPublicProfile";
 import { resolveTrafficSource } from "@/services/trafficSource";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
+import {
+  openInstagram as openInstagramUrl,
+  openWebsite as openWebsiteUrl,
+} from "@/services/externalLinks";
 
 const PINK = "#E91E63";
 
@@ -567,7 +571,7 @@ export default function VendorPublicProfileScreen() {
               {vendor.website ? (
                 <Pressable
                   style={styles.linkChip}
-                  onPress={() => { openWebsite(); void Linking.openURL(vendor.website); }}
+                  onPress={() => { openWebsite(); void openWebsiteUrl(vendor.website); }}
                 >
                   <Text style={styles.linkChipText}>Website</Text>
                 </Pressable>
@@ -575,7 +579,7 @@ export default function VendorPublicProfileScreen() {
               {vendor.instagram ? (
                 <Pressable
                   style={styles.linkChip}
-                  onPress={() => { openInstagram(); void Linking.openURL(vendor.instagram); }}
+                  onPress={() => { openInstagram(); void openInstagramUrl(vendor.instagram); }}
                 >
                   <Text style={styles.linkChipText}>Instagram</Text>
                 </Pressable>

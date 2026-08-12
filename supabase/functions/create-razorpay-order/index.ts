@@ -53,7 +53,7 @@ Deno.serve(async (request) => {
       proration_period_end: snapshot?.is_prorated_upgrade ? quote.subscription_end_at : null,
       proration_evaluated_at: snapshot?.upgrade_requested_at,
       full_cycle_payable: Number(snapshot?.full_cycle_payable_minor ?? quote.final_payable_minor) / 100,
-      total_savings: (Number(quote.yearly_discount_minor) + Number(quote.promotional_discount_minor) + Number(quote.current_plan_credit_minor)) / 100,
+      discount_amount: (Number(quote.yearly_discount_minor) + Number(quote.promotional_discount_minor) + Number(quote.current_plan_credit_minor)) / 100,
       payable_amount: Number(quote.final_payable_minor) / 100,
       amount_minor: Number(quote.final_payable_minor),
       currency: quote.currency,
@@ -70,7 +70,7 @@ Deno.serve(async (request) => {
       prorationPeriodEnd: resolved.proration_period_end,
       prorationEvaluatedAt: resolved.proration_evaluated_at,
       fullCyclePayable: Number(resolved.full_cycle_payable),
-      totalSavings: Number(resolved.total_savings),
+      totalSavings: Number(resolved.discount_amount),
       payableAmount: Number(resolved.payable_amount),
     };
 
@@ -103,6 +103,18 @@ Deno.serve(async (request) => {
     }
 
     const paymentId = existing?.id ?? crypto.randomUUID();
+    const { data: claimedQuote, error: claimError } = await admin
+      .from("subscription_checkout_quotes")
+      .update({ payment_id: paymentId })
+      .eq("id", quoteId)
+      .is("used_at", null)
+      .or(`payment_id.is.null,payment_id.eq.${paymentId}`)
+      .select("id")
+      .maybeSingle();
+    if (claimError) throw claimError;
+    if (!claimedQuote) {
+      return json({ error: "This pricing quote is already being used by another checkout." }, 409);
+    }
     if (!existing) {
       const { error: insertError } = await admin.from("subscription_payments").insert({
         id: paymentId,
@@ -129,7 +141,14 @@ Deno.serve(async (request) => {
           pricing,
         },
       });
-      if (insertError) throw insertError;
+      if (insertError) {
+        await admin.from("subscription_checkout_quotes")
+          .update({ payment_id: null })
+          .eq("id", quoteId)
+          .eq("payment_id", paymentId)
+          .is("used_at", null);
+        throw insertError;
+      }
     }
 
     if (Number(resolved.amount_minor) === 0) {
@@ -183,8 +202,6 @@ Deno.serve(async (request) => {
       },
     }).eq("id", paymentId);
     if (updateError) throw updateError;
-    await admin.from("subscription_checkout_quotes").update({ payment_id: paymentId }).eq("id", quoteId).is("used_at", null);
-
     return json({
       paymentRecordId: paymentId,
       orderId: order.id,

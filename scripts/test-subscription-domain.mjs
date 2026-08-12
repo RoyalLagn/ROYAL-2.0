@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   formatSubscriptionPrice,
   isRenewableSubscription,
@@ -102,5 +103,30 @@ assert.deepEqual(subscriptionPlanAction(expired, plan, settings), { disabled: fa
 const suspended = { ...access, status: "suspended", has_access: false, days_remaining: 0 };
 assert.equal(subscriptionPlanAction(suspended, plan, settings).disabled, true);
 assert.equal(subscriptionStateCopy(suspended, settings).actionLabel, "View account status");
+
+const orderFunction = await readFile(
+  new URL("../supabase/functions/create-razorpay-order/index.ts", import.meta.url),
+  "utf8",
+);
+assert.match(
+  orderFunction,
+  /discount_amount:\s*\(Number\(quote\.yearly_discount_minor\)[\s\S]*quote\.current_plan_credit_minor/,
+  "checkout payment rows must persist the server-quoted total discount",
+);
+assert.doesNotMatch(
+  orderFunction,
+  /resolved\.total_savings|discount_amount:\s*resolved\.discount_amount[\s\S]*?const resolved = \{/,
+  "checkout must not reference a pricing property that was never defined",
+);
+assert.match(
+  orderFunction,
+  /\.or\(`payment_id\.is\.null,payment_id\.eq\.\$\{paymentId\}`\)/,
+  "a checkout quote must be atomically claimed by exactly one payment record",
+);
+assert.match(
+  orderFunction,
+  /This pricing quote is already being used by another checkout/,
+  "concurrent quote reuse must return a deterministic conflict",
+);
 
 console.log("subscription domain tests passed");

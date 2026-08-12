@@ -93,6 +93,22 @@ export class SubscriptionAccessService {
     // the round trip entirely rather than surface a spurious auth error.
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
+
+    // Public/customer accounts also have authenticated sessions, but the
+    // refresh RPC is intentionally vendor-only and returns 403 for them.
+    // The read RPC safely returns no rows for non-vendors, so use it as the
+    // role-neutral guard before invoking any vendor-only operation.
+    const { data: initialData, error: initialError } = await supabase.rpc("get_my_subscription_access");
+    if (initialError) {
+      if (/does not exist|schema cache|PGRST202/i.test(initialError.message)) return null;
+      if (/PGRST301|JWT|401/i.test(initialError.message ?? "") || (initialError as { status?: number }).status === 401) {
+        return null;
+      }
+      throw initialError;
+    }
+    const initialAccess = (Array.isArray(initialData) ? initialData[0] : initialData) as SubscriptionAccess | null;
+    if (!initialAccess) return null;
+
     const { data: mediaUsage, error: refreshError } = await supabase.rpc("refresh_my_subscription_access");
     if (refreshError && !/does not exist|schema cache|PGRST202/i.test(refreshError.message)) throw refreshError;
     const [{ data, error }, { data: entitlementData, error: entitlementError }] = await Promise.all([

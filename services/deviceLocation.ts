@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
+import { Platform } from "react-native";
 
 // ============================================================================
 // Thin wrapper around expo-location for the GPS-based "Near Me" flow.
@@ -102,6 +103,10 @@ export async function getCurrentDeviceLocation(timeoutMs = 12000): Promise<Devic
  * returns null on any failure so the UI can fall back to a generic
  * "Using your current location" message. */
 export async function reverseGeocodeLabel(coords: DeviceCoordinates): Promise<string | null> {
+  // Expo removed reverse geocoding from its web implementation. Calling it
+  // still emits a console error before rejecting, so keep the documented
+  // best-effort fallback on web and only reverse geocode on native.
+  if (Platform.OS === "web") return null;
   try {
     const results = await Location.reverseGeocodeAsync(coords);
     const place = results?.[0];
