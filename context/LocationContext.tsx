@@ -12,20 +12,17 @@ import type { LocationPreference, SupportedCity } from "@/locations/types";
 import {
   findSupportedSelection,
   formatLocationPreference,
-  clearGuestLocationPreference,
   listActiveLocations,
   loadCustomerLocationPreference,
   loadGuestLocationPreference,
   loadLocationSettings,
   saveGuestLocationPreference,
-  saveCustomerLocationPreference,
   subscribeToLocationChanges,
 } from "@/services/locations";
 
 type LocationContextValue = {
   locations: SupportedCity[];
   preference: LocationPreference | null;
-  defaultPreference: LocationPreference | null;
   location: string;
   city: string;
   area: string | null;
@@ -36,8 +33,6 @@ type LocationContextValue = {
   strictCityOnly: boolean;
   claimLocationOnboardingPrompt: () => boolean;
   setLocation: (preference: LocationPreference) => Promise<void>;
-  setDefaultLocation: (preference: LocationPreference) => Promise<void>;
-  removeLocation: () => Promise<void>;
   refreshLocations: () => Promise<void>;
 };
 
@@ -47,7 +42,6 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   const { session, profile } = usePublicAuth();
   const [locations, setLocations] = useState<SupportedCity[]>([]);
   const [preference, setPreference] = useState<LocationPreference | null>(null);
-  const [defaultPreference, setDefaultPreference] = useState<LocationPreference | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,10 +72,8 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
           loadCustomerLocationPreference(session.user.id),
         ]);
         stored = localPreference ?? customerPreference;
-        setDefaultPreference(customerPreference);
       } else {
         stored = await loadGuestLocationPreference();
-        setDefaultPreference(stored);
       }
       const selected = findSupportedSelection(activeLocations, stored);
       if (selected && stored) {
@@ -127,35 +119,6 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     }
   }, [locations]);
 
-  const setDefaultLocation = useCallback(async (next: LocationPreference) => {
-    const selected = findSupportedSelection(locations, next);
-    if (!selected) throw new Error("Choose an active RoyalLagn location.");
-    setSaving(true);
-    try {
-      if (profile?.role === "public_user" && session?.user) {
-        await saveCustomerLocationPreference(next);
-      } else {
-        await saveGuestLocationPreference(next);
-      }
-      setPreference(next);
-      setDefaultPreference(next);
-      setNeedsLocationSelection(false);
-    } finally {
-      setSaving(false);
-    }
-  }, [locations, profile?.role, session?.user]);
-
-  const removeLocation = useCallback(async () => {
-    setSaving(true);
-    try {
-      await clearGuestLocationPreference();
-      setPreference(null);
-      setNeedsLocationSelection(false);
-    } finally {
-      setSaving(false);
-    }
-  }, []);
-
   const claimLocationOnboardingPrompt = useCallback(() => {
     if (
       promptClaimed.current
@@ -174,7 +137,6 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<LocationContextValue>(() => ({
     locations,
     preference,
-    defaultPreference,
     location: formatLocationPreference(locations, preference),
     city: selection?.city.name ?? "Choose location",
     area: selection?.area?.name ?? null,
@@ -185,8 +147,6 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     strictCityOnly,
     claimLocationOnboardingPrompt,
     setLocation,
-    setDefaultLocation,
-    removeLocation,
     refreshLocations: () => load(true),
   }), [
     error,
@@ -195,14 +155,11 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     locations,
     needsLocationSelection,
     preference,
-    defaultPreference,
     claimLocationOnboardingPrompt,
     saving,
     selection?.area?.name,
     selection?.city.name,
     setLocation,
-    setDefaultLocation,
-    removeLocation,
     strictCityOnly,
   ]);
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, } from "react-native";
-import { Check, ChevronDown, MapPin, Star, Trash2, X } from "lucide-react-native";
+import { Check, ChevronDown, MapPin, X } from "lucide-react-native";
 import { useCustomerLocation } from "@/context/LocationContext";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import type { LocationPreference } from "@/locations/types";
@@ -21,15 +21,12 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
     city,
     locations,
     preference,
-    defaultPreference,
     loading,
     saving,
     error,
     needsLocationSelection,
     claimLocationOnboardingPrompt,
     setLocation,
-    setDefaultLocation,
-    removeLocation,
   } = useCustomerLocation();
   const [visible, setVisible] = useState(false);
   const [query, setQuery] = useState("");
@@ -93,33 +90,6 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
       setSaveError(caught instanceof Error ? caught.message : "Unable to save this location.");
     }
   };
-  const remove = async () => {
-    if (saving) return;
-    setSaveError("");
-    try {
-      await removeLocation();
-      setDraft(null);
-      setVisible(false);
-    } catch (caught) {
-      setSaveError(caught instanceof Error ? caught.message : "Unable to remove this location.");
-    }
-  };
-  const makeDefault = async () => {
-    if (!draft || saving) return;
-    setSaveError("");
-    try {
-      await setDefaultLocation(draft);
-      setVisible(false);
-    } catch (caught) {
-      setSaveError(caught instanceof Error ? caught.message : "Unable to set this default location.");
-    }
-  };
-  const draftIsDefault = Boolean(
-    draft
-    && defaultPreference?.cityId === draft.cityId
-    && defaultPreference?.areaId === draft.areaId,
-  );
-
   return (
     <>
       <Pressable
@@ -215,33 +185,6 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
 
             {saveError ? <Text style={styles.saveError}>{saveError}</Text> : null}
 
-            {preference ? (
-              <View style={[styles.preferenceActions, { borderColor: colors.border }]}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove selected location"
-                  disabled={saving}
-                  onPress={() => void remove()}
-                  style={({ pressed }) => [styles.preferenceAction, pressed && styles.pressed, saving && styles.disabled]}
-                >
-                  <Trash2 size={16} color={brandPalette.light.destructive} />
-                  <Text style={styles.removeText}>Remove location</Text>
-                </Pressable>
-                <View style={[styles.actionDivider, { backgroundColor: colors.border }]} />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={draftIsDefault ? "Selected location is your default" : "Set selected location as default"}
-                  accessibilityState={{ disabled: !draft || saving || draftIsDefault }}
-                  disabled={!draft || saving || draftIsDefault}
-                  onPress={() => void makeDefault()}
-                  style={({ pressed }) => [styles.preferenceAction, pressed && styles.pressed, (!draft || saving || draftIsDefault) && styles.disabled]}
-                >
-                  {draftIsDefault ? <Check size={16} color={PINK} /> : <Star size={16} color={PINK} />}
-                  <Text style={[styles.defaultText, { color: PINK }]}>{draftIsDefault ? "Default location" : "Set as default"}</Text>
-                </Pressable>
-              </View>
-            ) : null}
-
             <View style={styles.actions}>
               <Pressable accessibilityRole="button" disabled={needsLocationSelection || saving} onPress={close} style={[styles.cancel, { borderColor: colors.border }, needsLocationSelection && styles.disabled]}>
                 <Text style={[styles.cancelText, { color: colors.text }]}>Cancel</Text>
@@ -285,11 +228,6 @@ const styles = StyleSheet.create({
   optionDetail: { fontSize: typeScale.caption, marginTop: 2 },
   emptyText: { textAlign: "center", paddingVertical: 18, fontSize: typeScale.metadata },
   saveError: { color: brandPalette.light.destructive, fontFamily: fonts.sans.regular, fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 10 },
-  preferenceActions: { minHeight: 46, marginTop: 14, borderWidth: 1, borderRadius: 14, flexDirection: "row", alignItems: "center" },
-  preferenceAction: { flex: 1, minHeight: 44, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  actionDivider: { width: 1, height: 24 },
-  removeText: { color: brandPalette.light.destructive, fontSize: typeScale.caption, fontWeight: "700" },
-  defaultText: { fontSize: typeScale.caption, fontWeight: "700" },
   actions: { flexDirection: "row", gap: 9, marginTop: 18 },
   cancel: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   cancelText: { fontSize: typeScale.metadata, fontWeight: "700" },

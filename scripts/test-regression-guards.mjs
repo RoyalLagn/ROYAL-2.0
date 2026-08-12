@@ -307,17 +307,6 @@ assert.doesNotMatch(
   "Untrusted vendor URLs must never be opened directly.",
 );
 
-// --- Public location selector must expose preference management ----------
-const [locationSelectorSource, locationContextSource, locationServiceSource] = await Promise.all([
-  read("components/home/LocationSelector.tsx"),
-  read("context/LocationContext.tsx"),
-  read("services/locations.ts"),
-]);
-assert.match(locationSelectorSource, />Remove location</, "The location selector must let customers clear the active location filter.");
-assert.match(locationSelectorSource, /"Set as default"/, "The location selector must let customers save a default location.");
-assert.match(locationContextSource, /saveCustomerLocationPreference\(next\)/, "Signed-in customer defaults must persist through the profile RPC.");
-assert.match(locationServiceSource, /AsyncStorage\.removeItem\(GUEST_PREFERENCE_KEY\)/, "Removing a location must clear its persisted browsing preference.");
-
 // --- Aggregate runner must still register every non-credentialed check --
 const runnerSource = await read("scripts/run-smoke-tests.mjs");
 const expectedChecks = [

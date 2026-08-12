@@ -136,10 +136,6 @@ export async function saveGuestLocationPreference(preference: LocationPreference
   await AsyncStorage.setItem(GUEST_PREFERENCE_KEY, JSON.stringify(preference));
 }
 
-export async function clearGuestLocationPreference() {
-  await AsyncStorage.removeItem(GUEST_PREFERENCE_KEY);
-}
-
 export async function loadCustomerLocationPreference(userId: string) {
   const { data, error } = await supabase
     .from("profiles")
