@@ -109,6 +109,64 @@ async function providerLookup(pincode: string) {
   };
 }
 
+// ============================================================================
+// Vendor-application authorization outcome (P: "one clear, consistent
+// outcome" -- never a Taluka candidate offered alongside a message that
+// contradicts it). This is the single source of truth both this function's
+// caller-facing response AND submit-vendor-application key off of, so the
+// early client-side warning and the server-side enforcement can never drift
+// apart into two different opinions about the same PIN.
+//
+//   resolved_enabled  -- an officially/admin-trusted Taluka match exists and
+//                         accept_vendor_applications = true. Apply freely.
+//   resolved_disabled -- same trusted match, but the Admin has paused new
+//                         applications from this Taluka specifically.
+//   ambiguous         -- more than one candidate Taluka under this PIN;
+//                         the caller must choose a locality (or an Admin
+//                         must correct the mapping) before any decision can
+//                         be made.
+//   needs_review      -- a Taluka candidate exists but only from an
+//                         unofficial/unconfirmed source -- never silently
+//                         trusted. Blocked and queued for Admin review.
+//   unresolved        -- no Taluka candidate at all. Blocked and queued for
+//                         Admin review.
+// ============================================================================
+type ApplicationStatus = "resolved_enabled" | "resolved_disabled" | "ambiguous" | "needs_review" | "unresolved";
+
+function computeApplicationOutcome(input: {
+  talukaId: string | null;
+  talukaName: string | null;
+  acceptingApplications: boolean | null;
+  ambiguous: boolean;
+  resolutionStatus: GeoResolution["status"];
+}): { applicationStatus: ApplicationStatus; applicationMessage: string | null } {
+  if (input.ambiguous) {
+    return {
+      applicationStatus: "ambiguous",
+      applicationMessage: "Multiple localities match this PIN code. Choose the post office or locality that matches the business address before applying.",
+    };
+  }
+  if (!input.talukaId || input.resolutionStatus === "unresolved") {
+    return {
+      applicationStatus: "unresolved",
+      applicationMessage: "This PIN code isn't yet mapped to a location RoyalLagn recognizes. It's been sent for Admin review -- the location must be verified before an application can be accepted from here.",
+    };
+  }
+  if (input.resolutionStatus !== "resolved") {
+    return {
+      applicationStatus: "needs_review",
+      applicationMessage: `This location (near ${input.talukaName}) needs to be verified by RoyalLagn before you can apply here. It's been sent for Admin review.`,
+    };
+  }
+  if (input.acceptingApplications === false) {
+    return {
+      applicationStatus: "resolved_disabled",
+      applicationMessage: `RoyalLagn is not currently accepting new vendor applications from ${input.talukaName}.`,
+    };
+  }
+  return { applicationStatus: "resolved_enabled", applicationMessage: null };
+}
+
 type GeoResolution = {
   supported: boolean;
   status: "resolved" | "needs_review" | "unresolved";
@@ -119,6 +177,10 @@ type GeoResolution = {
   sourceTrust: "official" | "unofficial_pending_review" | "admin_verified" | "none";
   localities: GeoLocality[];
   localitySelectionRequired: boolean;
+  /** The authoritative "can a vendor apply from here" decision -- see
+   * computeApplicationOutcome above. Always present, never null. */
+  applicationStatus: ApplicationStatus;
+  applicationMessage: string | null;
 };
 
 type GeoLocality = {
@@ -272,11 +334,19 @@ async function resolveGeoHierarchy(
   rows: PostalRecord[],
   provider: string,
 ): Promise<GeoResolution> {
+  // Deliberately does NOT filter state/district/taluka by is_active here.
+  // is_active means "publicly discoverable in manual search" -- a District
+  // or Taluka can be real, imported, and pending Admin review (is_active =
+  // false) while still needing to *resolve* so its own independent
+  // accept_vendor_applications can be checked and its Admin-review PIN
+  // queue can populate correctly. Filtering resolution by is_active would
+  // make a hidden-but-real Taluka indistinguishable from one that was never
+  // imported at all -- exactly the "one field, two responsibilities" bug
+  // this whole feature exists to eliminate.
   const raw_response = { records: rows.map((row) => row.raw) };
   const { data: states, error: statesError } = await service
     .from("geo_states")
-    .select("id,name")
-    .eq("is_active", true);
+    .select("id,name");
   if (statesError) throw statesError;
   const stateRow = rows
     .map((row) => (states ?? []).find((item: any) => normalize(item.name) === normalize(row.state)))
@@ -295,14 +365,15 @@ async function resolveGeoHierarchy(
     return {
       supported: false, status: "unresolved", state: null, district: null, taluka: null,
       ambiguous: false, sourceTrust: "none", localities: [], localitySelectionRequired: false,
+      applicationStatus: "unresolved",
+      applicationMessage: "This PIN code isn't yet mapped to a location RoyalLagn recognizes. It's been sent for Admin review -- the location must be verified before an application can be accepted from here.",
     };
   }
 
   const { data: districts, error: districtsError } = await service
     .from("geo_districts")
     .select("id,name")
-    .eq("state_id", stateRow.id)
-    .eq("is_active", true);
+    .eq("state_id", stateRow.id);
   if (districtsError) throw districtsError;
   const districtRow = rows
     .map((row) => (districts ?? []).find((item: any) => normalize(item.name) === normalize(row.district)))
@@ -321,14 +392,15 @@ async function resolveGeoHierarchy(
     return {
       supported: false, status: "unresolved", state: stateRow, district: null, taluka: null,
       ambiguous: false, sourceTrust: "none", localities: [], localitySelectionRequired: false,
+      applicationStatus: "unresolved",
+      applicationMessage: "This PIN code isn't yet mapped to a location RoyalLagn recognizes. It's been sent for Admin review -- the location must be verified before an application can be accepted from here.",
     };
   }
 
   const { data: talukas, error: talukasError } = await service
     .from("geo_talukas")
-    .select("id,name,aliases")
-    .eq("district_id", districtRow.id)
-    .eq("is_active", true);
+    .select("id,name,aliases,accept_vendor_applications")
+    .eq("district_id", districtRow.id);
   if (talukasError) throw talukasError;
   const talukaNameMatches = (taluka: any, candidate: string) =>
     normalize(taluka.name) === normalize(candidate)
@@ -430,13 +502,26 @@ async function resolveGeoHierarchy(
     ? (talukas ?? []).find((item: any) => item.id === finalRow.taluka_id) ?? null
     : null;
 
+  const finalAmbiguous = Boolean(finalRow?.ambiguous);
+  // finalTaluka can be null even when finalRow.taluka_id is set, in the rare
+  // case source precedence kept an existing cache row whose Taluka isn't in
+  // this District's own candidate list -- fail closed (treat as needs_review)
+  // rather than guessing an accept_vendor_applications value we don't have.
+  const { applicationStatus, applicationMessage } = computeApplicationOutcome({
+    talukaId: finalRow?.taluka_id ?? null,
+    talukaName: finalTaluka?.name ?? null,
+    acceptingApplications: finalTaluka ? Boolean((finalTaluka as any).accept_vendor_applications) : null,
+    ambiguous: finalAmbiguous,
+    resolutionStatus: finalRow?.taluka_id && !finalTaluka ? "needs_review" : resolution_status,
+  });
+
   return {
     supported: resolution_status === "resolved",
     status: resolution_status,
     state: stateRow,
     district: districtRow,
     taluka: finalTaluka,
-    ambiguous: Boolean(finalRow?.ambiguous),
+    ambiguous: finalAmbiguous,
     sourceTrust: finalRow?.source === "admin_verified"
       ? "admin_verified"
       : trustOf(finalRow?.source ?? provider) >= OFFICIAL_TRUST_THRESHOLD
@@ -444,6 +529,8 @@ async function resolveGeoHierarchy(
         : "unofficial_pending_review",
     localities,
     localitySelectionRequired: trustedLocalities.length > 1 || (!trustedLocalities.length && localities.length > 1),
+    applicationStatus,
+    applicationMessage,
   };
 }
 
@@ -471,7 +558,7 @@ Deno.serve(async (request) => {
     // whenever a live provider lookup happens below.
     const { data: cachedGeoRow, error: cachedGeoError } = await service
       .from("geo_pincodes")
-      .select("state_id,district_id,taluka_id,resolution_status,ambiguous,source,verified_at,geo_states(id,name),geo_districts(id,name),geo_talukas(id,name)")
+      .select("state_id,district_id,taluka_id,resolution_status,ambiguous,source,verified_at,geo_states(id,name),geo_districts(id,name),geo_talukas(id,name,accept_vendor_applications)")
       .eq("pincode", pincode)
       .maybeSingle();
     if (cachedGeoError) throw cachedGeoError;
@@ -485,9 +572,17 @@ Deno.serve(async (request) => {
       const state = Array.isArray(row.geo_states) ? row.geo_states[0] : row.geo_states;
       const district = Array.isArray(row.geo_districts) ? row.geo_districts[0] : row.geo_districts;
       const taluka = Array.isArray(row.geo_talukas) ? row.geo_talukas[0] : row.geo_talukas;
+      const status = row.resolution_status as GeoResolution["status"];
+      const { applicationStatus, applicationMessage } = computeApplicationOutcome({
+        talukaId: row.taluka_id ?? null,
+        talukaName: taluka?.name ?? null,
+        acceptingApplications: taluka ? Boolean((taluka as any).accept_vendor_applications) : null,
+        ambiguous: Boolean(row.ambiguous),
+        resolutionStatus: row.taluka_id && !taluka ? "needs_review" : status,
+      });
       return {
-        supported: row.resolution_status === "resolved",
-        status: row.resolution_status as GeoResolution["status"],
+        supported: status === "resolved",
+        status,
         state: state ?? null,
         district: district ?? null,
         taluka: taluka ?? null,
@@ -499,6 +594,8 @@ Deno.serve(async (request) => {
             : "unofficial_pending_review",
         localities: cachedLocalities,
         localitySelectionRequired: cachedLocalities.length > 1,
+        applicationStatus,
+        applicationMessage,
       };
     };
 
@@ -529,8 +626,10 @@ Deno.serve(async (request) => {
     // resolveGeoHierarchy path every uncached PIN already takes, which
     // correctly (re)populates geo_pincode_localities.
     if (cached && cachedCity?.is_active && (!cachedArea || cachedArea.is_active) && cachedGeoRow && geoCacheIsFresh && cachedLocalities.length > 0) {
+      const cachedGeoFast = geoFromCache(cachedGeoRow);
+      const applicationEnabledFast = cachedGeoFast?.applicationStatus === "resolved_enabled";
       return Response.json({
-        supported: true,
+        supported: applicationEnabledFast,
         cached: true,
         pincode,
         city: cachedCity,
@@ -539,13 +638,21 @@ Deno.serve(async (request) => {
         state: cached.state,
         officeName: cached.office_name ?? "",
         provider: cached.provider,
-        geo: geoFromCache(cachedGeoRow),
+        message: applicationEnabledFast ? undefined : (cachedGeoFast?.applicationMessage ?? undefined),
+        geo: cachedGeoFast,
       }, { headers: cors });
     }
     if (cachedGeoRow && geoCacheIsFresh && cachedGeoRow.resolution_status === "resolved" && cachedLocalities.length > 0) {
       const cachedGeo = geoFromCache(cachedGeoRow);
+      // Vendor-application supportedness is decided by the canonical geo
+      // resolution (applicationStatus), never by whether the legacy
+      // City/Area system happens to have a matching row -- a resolved,
+      // accepting Taluka in a District the legacy list has never heard of
+      // must still say "supported", and a resolved-but-disabled Taluka must
+      // never say "supported" just because the legacy city is configured.
+      const applicationEnabled = cachedGeo?.applicationStatus === "resolved_enabled";
       return Response.json({
-        supported: Boolean(cachedCity?.is_active),
+        supported: applicationEnabled,
         found: true,
         cached: true,
         pincode,
@@ -555,6 +662,7 @@ Deno.serve(async (request) => {
         state: (cachedGeo?.state as { name?: string } | null)?.name ?? "",
         officeName: cachedLocalities.length === 1 ? cachedLocalities[0].name : "",
         provider: cachedGeoRow.source,
+        message: applicationEnabled ? undefined : (cachedGeo?.applicationMessage ?? undefined),
         geo: cachedGeo,
       }, { headers: cors });
     }
@@ -569,6 +677,8 @@ Deno.serve(async (request) => {
         geo: {
           supported: false, status: "unresolved", state: null, district: null, taluka: null,
           ambiguous: false, sourceTrust: "none", localities: [], localitySelectionRequired: false,
+          applicationStatus: "unresolved",
+          applicationMessage: "This PIN code isn't yet mapped to a location RoyalLagn recognizes. It's been sent for Admin review -- the location must be verified before an application can be accepted from here.",
         },
       }, { status: 404, headers: cors });
     }
@@ -591,9 +701,17 @@ Deno.serve(async (request) => {
         && normalize(matchedRow.state) === normalize(item.state);
     });
 
+    // Vendor-application supportedness is decided entirely by the canonical
+    // geo (State/District/Taluka) resolution from here on -- never by
+    // whether the legacy City/Area list happens to have a matching row. A
+    // resolved, accepting Taluka in a District the legacy list has never
+    // heard of is still supported; a resolved-but-disabled Taluka is never
+    // supported just because a legacy city entry exists for it.
+    const applicationEnabled = geo.applicationStatus === "resolved_enabled";
+
     if (!city) {
       return Response.json({
-        supported: false,
+        supported: applicationEnabled,
         found: true,
         pincode,
         detected: {
@@ -602,7 +720,9 @@ Deno.serve(async (request) => {
           district: matchedRow.district,
           state: matchedRow.state,
         },
-        message: `RoyalLagn is not yet available in ${matchedRow.district || matchedRow.city || "this location"}.`,
+        message: applicationEnabled
+          ? undefined
+          : (geo.applicationMessage ?? `RoyalLagn is not yet available in ${matchedRow.district || matchedRow.city || "this location"}.`),
         geo,
       }, { headers: cors });
     }
@@ -630,7 +750,7 @@ Deno.serve(async (request) => {
     if (legacyCacheError) throw legacyCacheError;
 
     return Response.json({
-      supported: true,
+      supported: applicationEnabled,
       cached: false,
       pincode,
       city,
@@ -639,6 +759,7 @@ Deno.serve(async (request) => {
       state: matchedRow.state || city.state,
       officeName: rows.length === 1 ? matchedRow.officeName : "",
       provider,
+      message: applicationEnabled ? undefined : (geo.applicationMessage ?? undefined),
       geo,
     }, { headers: cors });
   } catch (error) {

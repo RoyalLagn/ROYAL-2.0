@@ -20,6 +20,97 @@ provenance/precedence rules, and how to extend it beyond Pune/Maharashtra.
 > while claiming to represent the headquarters, and the deployed project had
 > no configured official PIN provider so acceptance PINs could not become
 > canonical without Admin review.
+>
+> **2026-08-14 — root-cause data fix + availability/application split.** Only
+> Pune's 15 talukas had ever been seeded; the State dropdown listing all
+> States/UTs (`20260814030000_seed_all_india_states_for_admin.sql`) was
+> UI-only and didn't touch the missing District/Taluka data. Fixed by:
+> `20260814050000_geo_seed_maharashtra_full.sql` (all 35 remaining
+> Maharashtra Districts and their real Talukas — 360 Talukas statewide,
+> Pune untouched) and `20260814060000_geo_seed_india_districts.sql` (real
+> Districts, sourced from Wikipedia's per-State lists, for the other 35
+> States/UTs — 779 Districts total). **Talukas beyond Maharashtra are not
+> yet populated** — large scraped Taluka tables (200–350 rows per State)
+> showed real truncation/conflation risk during sourcing, and a
+> partially-populated Taluka list would reproduce the exact bug this fix
+> exists to close. Extend the same State using the pattern demonstrated in
+> the Maharashtra migration (one `insert ... on conflict do nothing` block
+> per District, sourced and verified per District before writing it).
+> `20260814040000_geo_taluka_accept_vendor_applications.sql` also splits
+> `geo_talukas.is_active` (public marketplace visibility — unchanged) from
+> a new `accept_vendor_applications` column (whether the Taluka accepts
+> *new* vendor applications, enforced in `submit-vendor-application`); see
+> "Availability vs. public visibility" below.
+>
+> **2026-08-14 (later same day) — full audit: public-visibility default,
+> Near Me, PIN authorization outcome, coordinates.** A full audit of the
+> Admin → Vendor → Public chain found and fixed:
+> - **Public-visibility default bug**: the District/Taluka import above never
+>   set `is_active` explicitly, so every new row inherited the column's old
+>   `DEFAULT true` and went publicly live the moment it was imported — 778/779
+>   Districts and 358/360 Talukas were public before any Admin review.
+>   `20260814080000_geo_public_visibility_default_inactive.sql` flips the
+>   column defaults to `false` and backfills every row except the pre-existing
+>   Pune District/Talukas. `20260814100000_restore_pune_public_visibility.sql`
+>   separately restores Pune District + its Ambegaon Taluka, which had been
+>   left hidden by an unrelated prior session while 3 real verified vendors
+>   depended on them — an oversight this repair would otherwise have
+>   compounded.
+> - **`is_active` was accidentally gating PIN *resolution*, not just public
+>   discovery**: `resolveGeoHierarchy` in `lookup-india-pincode` filtered
+>   candidate States/Districts/Talukas by `is_active = true`, so once the bug
+>   above was fixed, PINs in every not-yet-reviewed District stopped
+>   resolving at all — `accept_vendor_applications` must be checkable
+>   independently of public visibility, so this filter was removed; PIN
+>   resolution now considers every imported row regardless of `is_active`.
+> - **`get_nearby_vendors` (Near Me)** is `SECURITY DEFINER` and bypassed RLS
+>   entirely, so a vendor whose canonical State/District/Taluka had been
+>   hidden from public discovery still appeared in Near Me results. Fixed in
+>   `20260814090000_near_me_enforce_public_visibility.sql` with the same
+>   explicit chain check `get_public_vendor_taluka_page_cards` already had.
+>   Deliberately still ignores `accept_vendor_applications` — Near Me answers
+>   "is this vendor discoverable", not "is this Taluka accepting new
+>   applications".
+> - **PIN authorization outcome** (`424201` reproduced this exactly): the
+>   response's `supported`/`message` fields were driven by whether the
+>   *legacy* `supported_cities` list had a matching row, completely
+>   independent of the canonical Taluka resolution — so a PIN could return a
+>   Taluka candidate (`Pachora`) inside `geo` while the top-level message said
+>   "not yet available", an internally contradictory response. Every response
+>   path in `lookup-india-pincode` now derives `supported` from a single
+>   `computeApplicationOutcome()` result — `resolved_enabled` /
+>   `resolved_disabled` / `ambiguous` / `needs_review` / `unresolved` — and
+>   `PincodeGeoResolution.applicationStatus`/`applicationMessage` carry that
+>   exact outcome to every consumer (`submit-vendor-application`'s
+>   server-side gate and `VendorServiceLocationEditor`'s new
+>   `enforceApplicationAvailability` early-warning, both reading the identical
+>   fields so they can never disagree).
+> - **`submit-vendor-application`** previously only blocked when a Taluka
+>   resolved with `accept_vendor_applications = false`; an ambiguous or
+>   untrusted/unresolved PIN fell through with no gate at all. It now blocks
+>   on every non-`resolved_enabled` outcome and independently re-verifies
+>   `accept_vendor_applications` against the database rather than trusting
+>   the nested lookup response's boolean alone.
+> - **Unrelated production bug found while verifying the deployed Edge
+>   Function** (per this audit's explicit "verify the deployed version, not
+>   only the local file" requirement): `public.application_settings` had RLS
+>   policies but no table-level `GRANT` for `service_role` at all, so *every*
+>   vendor application submission failed at the function's very first query
+>   ("permission denied for table application_settings") — before reaching
+>   any location logic. Fixed in
+>   `20260814110000_fix_application_settings_service_role_grant.sql`.
+> - **Nearby-Taluka coordinates**: `20260814120000_geo_taluka_headquarters_coordinates.sql`
+>   adds real coordinates for the 29 Maharashtra Talukas that are their own
+>   District's headquarters town, by reusing that District's already-sourced
+>   headquarters point (27 exact-name matches, plus the two well-established
+>   cases where the names differ: Nagpur District → Nagpur City Taluka,
+>   Raigad District → Alibaug Taluka). The ~330 remaining Maharashtra Talukas
+>   still have `NULL` coordinates and are correctly skipped by
+>   `rebuild_taluka_neighbors_internal` (never a guessed distance) —
+>   selected-Taluka results still work for them, nearby fallback simply isn't
+>   available yet. Verified live: temporarily activating Nashik and rebuilding
+>   produced real, geographically plausible neighbors (Junnar 90km, Ambegaon
+>   105km, ...), then reverted.
 
 ## Architecture
 
@@ -218,6 +309,32 @@ official source through an append-only migration.
   `geo_resolution_status = 'unresolved'`/`'needs_review'` (PIN preserved,
   nothing guessed) until a save, an Admin retry, or an Admin PIN
   confirmation resolves them.
+
+## Availability vs. public visibility
+
+`geo_talukas` carries two independent boolean flags, each write path scoped
+to a single Taluka row (`eq("id", id)` — never a cascading update to a
+District/State or a sibling Taluka):
+
+- **`is_active`** — public marketplace visibility. Already-approved vendors
+  in an inactive Taluka disappear from public discovery (RLS +
+  `get_public_vendor_taluka_page`'s join). Managed from the *advanced*
+  `/AdminLocations` screen alongside State/District `is_active` and PIN
+  review.
+- **`accept_vendor_applications`** — whether the Taluka accepts *new* vendor
+  applications, enforced in `submit-vendor-application` right after the PIN
+  resolves a Taluka, before any application row is written. Managed from the
+  simple `/AdminGeoLocations` "Talukas in selected District" switches
+  (`services/geoLocations.ts#setGeoTalukaAcceptingApplications`,
+  `hooks/useAdminGeoHierarchy.ts#toggleTaluka`).
+
+Turning `accept_vendor_applications` off for a Taluka never touches
+`is_active` — an already-approved vendor stays publicly discoverable even
+while new applications from that Taluka are paused. This is deliberate: the
+two flags answer different questions ("can customers find vendors here
+today?" vs. "can new vendors sign up from here right now?") and conflating
+them would mean pausing new applications silently hides existing vendors,
+which the Admin spec explicitly disallows.
 
 ## Backfilling LGD codes
 

@@ -140,6 +140,63 @@ Deno.serve(async (request) => {
       throw new Error("The selected locality does not belong to this PIN code.");
     }
 
+    // ------------------------------------------------------------------------
+    // Canonical Taluka authorization gate. This is the server-side
+    // enforcement of the Admin's accept_vendor_applications setting -- a
+    // client-side warning is a convenience, never the authority. The only
+    // Taluka this function ever considers is the one server-resolved above
+    // from the PIN/locality (lookup.geo / selectedGeoLocality); no field in
+    // the request body can name a Taluka directly.
+    //
+    // Skipped only when the PIN provider itself was unreachable and the
+    // caller explicitly fell back to manual city/area selection
+    // (location_fallback === true, handled above) -- in that degraded mode
+    // there is no PIN-derived geo object to gate on at all.
+    //
+    // Every other outcome blocks the application before any row is written:
+    //   - ambiguous              -> caller must choose a matching locality
+    //   - needs_review/unresolved (or no geo at all despite a real lookup)
+    //                            -> location isn't verified yet; Admin review
+    //   - resolved but disabled  -> Taluka-specific "not accepting" message
+    // Existing approved vendors are never touched by any of this -- it only
+    // ever runs before a NEW application row is inserted.
+    // ------------------------------------------------------------------------
+    if (lookup.geo) {
+      const geoStatus = lookup.geo?.applicationStatus as string | undefined;
+      const resolvedTalukaId = selectedGeoLocality?.taluka?.id ?? lookup.geo?.taluka?.id ?? null;
+
+      if (geoStatus === "ambiguous") {
+        throw new Error(lookup.geo?.applicationMessage || "Choose the post office or locality that matches the business address.");
+      }
+      if (!resolvedTalukaId || geoStatus === "needs_review" || geoStatus === "unresolved" || !geoStatus) {
+        return Response.json(
+          { error: lookup.geo?.applicationMessage || "This location needs to be verified by RoyalLagn before an application can be accepted from here." },
+          { status: 403, headers: cors },
+        );
+      }
+
+      // Independent re-check straight against the database -- the final
+      // authorization decision is never taken solely from the nested
+      // lookup response's boolean, even though that response was itself
+      // server-generated.
+      const { data: talukaRow, error: talukaError } = await service
+        .from("geo_talukas")
+        .select("name,accept_vendor_applications")
+        .eq("id", resolvedTalukaId)
+        .maybeSingle();
+      if (talukaError) throw talukaError;
+      if (!talukaRow || !talukaRow.accept_vendor_applications) {
+        return Response.json(
+          {
+            error: talukaRow
+              ? `RoyalLagn is not currently accepting new vendor applications from ${talukaRow.name}. Existing vendors in this area remain unaffected.`
+              : "This location could not be verified. It has been sent for Admin review.",
+          },
+          { status: 403, headers: cors },
+        );
+      }
+    }
+
     // A vendor is identified first by their authenticated profile (stable
     // across email changes), falling back to email for the legacy
     // unauthenticated-submission path. This single lookup decides whether

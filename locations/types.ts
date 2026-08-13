@@ -84,7 +84,13 @@ export type GeoTaluka = {
   id: string;
   districtId: string;
   name: string;
+  /** Public marketplace visibility for already-approved vendors in this
+   * Taluka. Independent of acceptingApplications below. */
   isActive: boolean;
+  /** Whether NEW vendor applications are accepted from this Taluka. Toggled
+   * from the /AdminGeoLocations Taluka availability switches. Turning this
+   * off never deletes or hides an already-approved vendor. */
+  acceptingApplications: boolean;
 };
 
 export type GeoSelection = {
@@ -117,6 +123,13 @@ export type PincodeGeoResolution = {
   sourceTrust: "official" | "admin_verified" | "unofficial_pending_review" | "none";
   localities: PincodeLocality[];
   localitySelectionRequired: boolean;
+  /** The authoritative "can a vendor apply from here" decision, computed
+   * server-side from the resolved Taluka's accept_vendor_applications and
+   * this PIN's resolution trust -- never both offer a Taluka candidate and
+   * imply it's safely supported. See supabase/functions/lookup-india-pincode
+   * computeApplicationOutcome() for the exact rule. */
+  applicationStatus: "resolved_enabled" | "resolved_disabled" | "ambiguous" | "needs_review" | "unresolved";
+  applicationMessage: string | null;
 };
 
 export type PincodeLocality = {

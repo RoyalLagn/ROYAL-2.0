@@ -29,7 +29,13 @@ function mapDistrict(row: any): GeoDistrict {
   return { id: row.id, stateId: row.state_id, name: row.name, isActive: Boolean(row.is_active) };
 }
 function mapTaluka(row: any): GeoTaluka {
-  return { id: row.id, districtId: row.district_id, name: row.name, isActive: Boolean(row.is_active) };
+  return {
+    id: row.id,
+    districtId: row.district_id,
+    name: row.name,
+    isActive: Boolean(row.is_active),
+    acceptingApplications: Boolean(row.accept_vendor_applications ?? row.is_active),
+  };
 }
 
 export function invalidateGeoCache() {
@@ -80,7 +86,7 @@ export async function listActiveGeoTalukas(districtId: string): Promise<GeoTaluk
   if (talukasCache?.has(districtId)) return talukasCache.get(districtId)!;
   const { data, error } = await supabase
     .from("geo_talukas")
-    .select("id,district_id,name,is_active")
+    .select("id,district_id,name,is_active,accept_vendor_applications")
     .eq("district_id", districtId)
     .eq("is_active", true)
     .order("name");
@@ -394,7 +400,10 @@ export async function listAdminGeoDistricts(stateId: string): Promise<GeoDistric
 
 export async function listAdminGeoTalukas(districtId: string): Promise<GeoTaluka[]> {
   const { data, error } = await supabase
-    .from("geo_talukas").select("id,district_id,name,is_active").eq("district_id", districtId).order("name");
+    .from("geo_talukas")
+    .select("id,district_id,name,is_active,accept_vendor_applications")
+    .eq("district_id", districtId)
+    .order("name");
   if (error) throw error;
   return (data ?? []).map(mapTaluka);
 }
@@ -432,20 +441,39 @@ export async function listAdminTalukaPincodes(talukaId: string): Promise<AdminTa
   return [...grouped.values()];
 }
 
-export async function setGeoStateActive(id: string, isActive: boolean) {
-  const { error } = await supabase.from("geo_states").update({ is_active: isActive }).eq("id", id);
+/** Toggles whether this Taluka accepts NEW vendor applications. This never
+ * touches is_active (public marketplace visibility for already-approved
+ * vendors) -- there is deliberately no is_active setter here for
+ * States/Districts/Talukas; /AdminGeoLocations only ever manages
+ * accept_vendor_applications, so an already-approved vendor in this Taluka
+ * stays publicly discoverable even while new applications are paused. Used
+ * by the /AdminGeoLocations Taluka switches;
+ * updating one Taluka's row can never affect another Taluka, District or
+ * State since it's a single-row `eq("id", id)` update. */
+export async function setGeoTalukaAcceptingApplications(id: string, accepting: boolean) {
+  const { error } = await supabase.from("geo_talukas").update({ accept_vendor_applications: accepting }).eq("id", id);
   if (error) throw error;
   invalidateGeoCache();
 }
-export async function setGeoDistrictActive(id: string, isActive: boolean) {
-  const { error } = await supabase.from("geo_districts").update({ is_active: isActive }).eq("id", id);
+
+/** Bulk on/off for every Taluka in one District, in a single atomic
+ * `update ... where district_id = X` -- one round trip, and scoped strictly
+ * to that District's own Talukas so it can never touch a sibling District
+ * or State. Used by the "toggle all" switch next to the Taluka list header. */
+export async function setDistrictTalukasAcceptingApplications(districtId: string, accepting: boolean) {
+  const { error } = await supabase.from("geo_talukas").update({ accept_vendor_applications: accepting }).eq("district_id", districtId);
   if (error) throw error;
   invalidateGeoCache();
 }
-export async function setGeoTalukaActive(id: string, isActive: boolean) {
-  const { error } = await supabase.from("geo_talukas").update({ is_active: isActive }).eq("id", id);
+
+export async function adminConfirmGeoPincode(pincode: string, talukaId: string) {
+  const { data, error } = await supabase.rpc("admin_confirm_geo_pincode", {
+    target_pincode: pincode,
+    target_taluka_id: talukaId,
+  });
   if (error) throw error;
   invalidateGeoCache();
+  return data;
 }
 
 export type GeoAdminOverview = {

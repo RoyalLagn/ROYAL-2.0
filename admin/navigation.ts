@@ -82,7 +82,7 @@ export const adminNavigationGroups: { label: string; items: AdminNavigationItem[
       { key: "hero", label: "Hero Section", route: "/AdminHero", icon: PanelsTopLeft },
       { key: "push", label: "Push Notifications", route: "/AdminPushNotifications", icon: Bell },
       { key: "categories", label: "Categories", route: "/AdminCategories", icon: FolderTree },
-      { key: "locations", label: "Locations", route: "/AdminLocations", icon: MapPinned },
+      { key: "locations", label: "Locations", route: "/AdminGeoLocations", icon: MapPinned },
       { key: "reports", label: "Reports", route: "/AdminReports", icon: FileBarChart },
       { key: "settings", label: "Settings", route: "/AdminSettings", icon: Settings },
       { key: "help", label: "Help", route: "/AdminHelp", icon: CircleHelp },

@@ -397,6 +397,7 @@ export default function BecomeVendor() {
             onChange={setVendorLocation}
             requireLookup={!isResubmission}
             onValidationChange={(valid, source) => { setLocationValid(valid); setLocationSource(source); }}
+            enforceApplicationAvailability
           />
           <Field label="Years of Experience" required value={form.experience} onChangeText={(v) => update("experience", v)} keyboardType="number-pad" />
           <Field label="Business Description" required multiline value={form.description} onChangeText={(v) => update("description", v)} />

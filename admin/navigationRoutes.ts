@@ -25,6 +25,7 @@ export const adminWorkspaceRoutes = new Set([
   "/AdminPushNotifications",
   "/AdminCategories",
   "/AdminLocations",
+  "/AdminGeoLocations",
   "/AdminReports",
   "/AdminSettings",
   "/AdminHelp",

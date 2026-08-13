@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Check, MapPin, Search, ShieldCheck } from "lucide-react-native";
+import { Check, CircleAlert, MapPin, Search, ShieldCheck } from "lucide-react-native";
 import type { PincodeLocality } from "@/locations/types";
 import {
   lookupIndianPincode,
@@ -29,6 +29,14 @@ type Props = {
   onChange: (value: VendorLocationValue) => void;
   requireLookup?: boolean;
   onValidationChange?: (valid: boolean, source: "verified" | "manual_fallback" | null) => void;
+  /** New-application flow only (never set by the existing-vendor "edit my
+   * location" screen): as soon as the PIN/locality resolves to a canonical
+   * Taluka, immediately surface whether that Taluka is currently accepting
+   * NEW vendor applications -- before the vendor fills out the rest of the
+   * form, not just at final submission. The deployed submit-vendor-application
+   * Edge Function repeats this exact check server-side; this is a UX
+   * head-start, never the authority. */
+  enforceApplicationAvailability?: boolean;
 };
 
 export function VendorServiceLocationEditor({
@@ -36,17 +44,24 @@ export function VendorServiceLocationEditor({
   onChange,
   requireLookup = true,
   onValidationChange,
+  enforceApplicationAvailability = false,
 }: Props) {
   const [lookingUp, setLookingUp] = useState(false);
   const [lookupVerified, setLookupVerified] = useState(false);
   const [lookupCompleted, setLookupCompleted] = useState(!requireLookup);
   const [lookupMessage, setLookupMessage] = useState("");
   const [localityOptions, setLocalityOptions] = useState<PincodeLocality[]>([]);
+  // Distinct from lookupMessage: this is specifically the "can a new vendor
+  // apply from here" outcome, kept separate so it always renders as a hard
+  // block (not just an informational verification note) and is never
+  // silently overwritten by an unrelated locality-selection message.
+  const [applicationBlockedMessage, setApplicationBlockedMessage] = useState("");
   const selectedLocalityBelongsToPin = localityOptions.some((item) => item.id === value.geoLocalityId);
   const valid = /^[1-9][0-9]{5}$/.test(value.pincode)
     && lookupCompleted
     && localityOptions.length > 0
-    && selectedLocalityBelongsToPin;
+    && selectedLocalityBelongsToPin
+    && !applicationBlockedMessage;
 
   useEffect(() => {
     onValidationChange?.(valid, valid ? lookupVerified ? "verified" : "manual_fallback" : null);
@@ -56,6 +71,7 @@ export function VendorServiceLocationEditor({
     setLookupVerified(false);
     setLookupCompleted(!requireLookup);
     setLookupMessage("");
+    setApplicationBlockedMessage("");
     setLocalityOptions([]);
     onChange({ ...value, pincode: pincode.replace(/\D/g, "").slice(0, 6), geoLocalityId: null });
   };
@@ -67,6 +83,7 @@ export function VendorServiceLocationEditor({
     }
     setLookingUp(true);
     setLookupMessage("");
+    setApplicationBlockedMessage("");
     setLookupVerified(false);
     setLookupCompleted(false);
     try {
@@ -74,6 +91,19 @@ export function VendorServiceLocationEditor({
       const localities = result.geo?.localities ?? [];
       setLocalityOptions(localities);
       setLookupCompleted(true);
+      // Surface "can a new vendor apply from here" the moment the PIN
+      // resolves -- before locality selection, before the rest of the form.
+      // This is the SAME applicationStatus the deployed
+      // submit-vendor-application Edge Function independently re-checks at
+      // submit time; showing it here is a head start, not a substitute.
+      if (enforceApplicationAvailability) {
+        const appStatus = result.geo?.applicationStatus ?? null;
+        setApplicationBlockedMessage(
+          appStatus && appStatus !== "resolved_enabled"
+            ? (result.geo?.applicationMessage ?? "This location is not currently available for new vendor applications.")
+            : "",
+        );
+      }
       if (!localities.length) {
         onChange({ ...value, geoLocalityId: null });
         setLookupMessage(result.message ?? "No locations found for this PIN.");
@@ -145,7 +175,12 @@ export function VendorServiceLocationEditor({
           {lookingUp ? <ActivityIndicator color="#FFFFFF" /> : <><Search size={16} color="#FFFFFF" /><Text style={styles.lookupText}>Verify</Text></>}
         </Pressable>
       </View>
-      {lookupMessage ? <View style={[styles.message, lookupVerified && styles.verifiedMessage]}>{lookupVerified ? <ShieldCheck size={15} color="#16845B" /> : null}<Text style={[styles.messageText, lookupVerified && styles.verifiedText]}>{lookupMessage}</Text></View> : null}
+      {applicationBlockedMessage ? (
+        <View style={styles.message} accessibilityRole="alert">
+          <CircleAlert size={15} color="#B42318" />
+          <Text style={styles.messageText}>{applicationBlockedMessage}</Text>
+        </View>
+      ) : lookupMessage ? <View style={[styles.message, lookupVerified && styles.verifiedMessage]}>{lookupVerified ? <ShieldCheck size={15} color="#16845B" /> : null}<Text style={[styles.messageText, lookupVerified && styles.verifiedText]}>{lookupMessage}</Text></View> : null}
       {localityOptions.length > 1 ? (
         <View style={styles.localitySection}>
           <Text style={styles.label}>Your area / village <Text style={styles.required}>*</Text></Text>
