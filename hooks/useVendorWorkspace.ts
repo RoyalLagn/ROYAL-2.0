@@ -60,11 +60,10 @@ export const VendorReadinessRules = {
   location(vendor: any | null): CompletionState {
     const v = vendor ?? {};
     const hasPincode = /^[1-9][0-9]{5}$/.test(v.pincode ?? "");
-    const hasCity = Boolean(v.primary_city_id || hasText(v.city));
-    const hasArea = Boolean(v.primary_area_id);
-    const score = [hasPincode, hasCity, hasArea].filter(Boolean).length;
-    if (score === 0) return "missing";
-    if (score < 3) return "partial";
+    const hasLocality = Boolean(v.geo_pincode_locality_id);
+    const hasResolvedHierarchy = Boolean(v.geo_taluka_id && v.geo_district_id && v.geo_state_id);
+    if (!hasPincode) return "missing";
+    if (!hasLocality || !hasResolvedHierarchy) return "partial";
     return "complete";
   },
   contact(vendor: any | null): CompletionState {

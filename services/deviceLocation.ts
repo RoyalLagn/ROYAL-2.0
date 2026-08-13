@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import { Platform } from "react-native";
+import { supabase } from "@/services/supabase";
 
 // ============================================================================
 // Thin wrapper around expo-location for the GPS-based "Near Me" flow.
@@ -11,6 +12,7 @@ import { Platform } from "react-native";
 // ============================================================================
 
 const PREVIOUSLY_DENIED_KEY = "royallagn:device-location-denied:v1";
+const LAST_LOCATION_LABEL_KEY = "royallagn:last-device-location-label:v1";
 
 export type DevicePermissionStatus = "granted" | "denied" | "undetermined";
 
@@ -26,6 +28,15 @@ export class DeviceLocationError extends Error {
 }
 
 export type DeviceCoordinates = { latitude: number; longitude: number };
+
+export async function getLastDetectedLocationLabel(): Promise<string | null> {
+  return AsyncStorage.getItem(LAST_LOCATION_LABEL_KEY);
+}
+
+async function rememberLocationLabel(label: string) {
+  await AsyncStorage.setItem(LAST_LOCATION_LABEL_KEY, label).catch(() => {});
+  return label;
+}
 
 /** Whether the user has already denied the permission in a previous visit
  * to this feature -- lets the screen skip straight to the PIN fallback
@@ -103,10 +114,24 @@ export async function getCurrentDeviceLocation(timeoutMs = 12000): Promise<Devic
  * returns null on any failure so the UI can fall back to a generic
  * "Using your current location" message. */
 export async function reverseGeocodeLabel(coords: DeviceCoordinates): Promise<string | null> {
-  // Expo removed reverse geocoding from its web implementation. Calling it
-  // still emits a console error before rejecting, so keep the documented
-  // best-effort fallback on web and only reverse geocode on native.
-  if (Platform.OS === "web") return null;
+  // Expo does not implement reverse geocoding on web. Keep precise device
+  // coordinates inside RoyalLagn's existing Supabase boundary and match only
+  // a nearby, trusted canonical PIN locality. Never guess from a far centroid.
+  if (Platform.OS === "web") {
+    try {
+      const { data, error } = await supabase.rpc("reverse_geocode_known_locality", {
+        customer_latitude: coords.latitude,
+        customer_longitude: coords.longitude,
+      });
+      if (error) return null;
+      const place = Array.isArray(data) ? data[0] : data;
+      if (!place?.locality_name) return null;
+      const unique = [...new Set([place.locality_name, place.district_name].filter((part): part is string => typeof part === "string" && Boolean(part.trim())))];
+      return rememberLocationLabel(unique.join(", "));
+    } catch {
+      return null;
+    }
+  }
   try {
     const results = await Location.reverseGeocodeAsync(coords);
     const place = results?.[0];
@@ -114,7 +139,7 @@ export async function reverseGeocodeLabel(coords: DeviceCoordinates): Promise<st
     const primary = place.district || place.subregion || place.city || place.name;
     const secondary = place.city && place.city !== primary ? place.city : place.region;
     const unique = [...new Set([primary, secondary].filter((part): part is string => Boolean(part)))];
-    return unique.length ? unique.join(", ") : null;
+    return unique.length ? rememberLocationLabel(unique.join(", ")) : null;
   } catch {
     return null;
   }

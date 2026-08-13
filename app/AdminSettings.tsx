@@ -14,7 +14,7 @@ const destinations = [
   { title: "Push Notifications", description: "Send announcements to customers and vendors", route: "/AdminPushNotifications", icon: Bell },
   { title: "User directory", description: "View customer accounts", route: "/AdminUsers", icon: Users },
   { title: "Category directory", description: "Inspect live marketplace categories", route: "/AdminCategories", icon: FolderTree },
-  { title: "Location Management", description: "Manage supported cities, areas and PIN codes", route: "/AdminLocations", icon: MapPinned },
+  { title: "Location Management", description: "Manage states, districts, Talukas and PIN mappings", route: "/AdminGeoLocations", icon: MapPinned },
   { title: "Subscription configuration", description: "Manage plans, offers and access", route: "/subscriptions-admin", icon: WalletCards },
 ];
 export default function AdminSettings() { const router = useRouter(); const { identity } = useAdminAuth(); return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}><ScrollView contentContainerStyle={{ paddingBottom: 120 }}><ResponsiveContainer><AdminPageHeader title="Settings" subtitle="Administration access and platform configuration" />

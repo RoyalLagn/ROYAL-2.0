@@ -9,9 +9,7 @@ import {
   View,
 } from "react-native";
 import { Check, MapPin, Search, ShieldCheck } from "lucide-react-native";
-import { useCustomerLocation } from "@/context/LocationContext";
-import { SupportedLocationField } from "@/components/locations/SupportedLocationField";
-import type { LocationPreference, PincodeLocality } from "@/locations/types";
+import type { PincodeLocality } from "@/locations/types";
 import {
   lookupIndianPincode,
   PincodeLookupUnavailableError,
@@ -39,16 +37,11 @@ export function VendorServiceLocationEditor({
   requireLookup = true,
   onValidationChange,
 }: Props) {
-  const { locations, loading, error } = useCustomerLocation();
   const [lookingUp, setLookingUp] = useState(false);
-  const [lookupVerified, setLookupVerified] = useState(!requireLookup && Boolean(value.primaryCityId));
+  const [lookupVerified, setLookupVerified] = useState(false);
   const [lookupCompleted, setLookupCompleted] = useState(!requireLookup);
   const [lookupMessage, setLookupMessage] = useState("");
   const [localityOptions, setLocalityOptions] = useState<PincodeLocality[]>([]);
-  const selectedCity = locations.find((item) => item.id === value.primaryCityId);
-  const locationValue = value.primaryCityId
-    ? { cityId: value.primaryCityId, areaId: value.primaryAreaId } satisfies LocationPreference
-    : null;
   const selectedLocalityBelongsToPin = localityOptions.some((item) => item.id === value.geoLocalityId);
   const valid = /^[1-9][0-9]{5}$/.test(value.pincode)
     && lookupCompleted
@@ -86,15 +79,11 @@ export function VendorServiceLocationEditor({
         setLookupMessage(result.message ?? "No locations found for this PIN.");
         return;
       }
-      const areaId = result.area?.id ?? null;
       const selectedLocality = localities.length === 1
         ? localities[0]
         : localities.find((item) => item.id === value.geoLocalityId) ?? null;
       onChange({
         ...value,
-        primaryCityId: result.city?.id ?? value.primaryCityId,
-        primaryAreaId: areaId,
-        serviceAreaIds: areaId ? [areaId] : [],
         geoLocalityId: selectedLocality?.id ?? null,
       });
       if (localities.length > 1 && !selectedLocality) {
@@ -136,32 +125,6 @@ export function VendorServiceLocationEditor({
       : `${locality.name} selected - canonical hierarchy pending review`);
   };
 
-  const selectLocation = (next: LocationPreference) => {
-    const keepAreas = next.cityId === value.primaryCityId ? value.serviceAreaIds : [];
-    const serviceAreaIds = next.areaId
-      ? [...new Set([...keepAreas, next.areaId])]
-      : keepAreas;
-    onChange({
-      ...value,
-      primaryCityId: next.cityId,
-      primaryAreaId: next.areaId,
-      serviceAreaIds,
-    });
-  };
-
-  const toggleArea = (areaId: string) => {
-    const selected = value.serviceAreaIds.includes(areaId);
-    const next = selected
-      ? value.serviceAreaIds.filter((id) => id !== areaId)
-      : [...value.serviceAreaIds, areaId];
-    onChange({
-      ...value,
-      serviceAreaIds: next,
-      primaryAreaId: value.primaryAreaId === areaId && selected ? null : value.primaryAreaId,
-    });
-  };
-
-  const canChooseManually = lookupCompleted || !requireLookup;
   return (
     <View>
       <Text style={styles.label}>Business PIN code <Text style={styles.required}>*</Text></Text>
@@ -199,33 +162,6 @@ export function VendorServiceLocationEditor({
           </ScrollView>
         </View>
       ) : null}
-      {loading ? <ActivityIndicator color="#E91E63" style={styles.locationLoader} /> : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <View pointerEvents={canChooseManually ? "auto" : "none"} style={!canChooseManually ? styles.disabled : undefined}>
-        <SupportedLocationField
-          label="Primary service location"
-          required={false}
-          locations={locations}
-          value={locationValue}
-          onChange={selectLocation}
-          helper={requireLookup && !canChooseManually ? "Verify the PIN code first." : "Optional legacy service-market assignment; it does not determine the canonical PIN hierarchy."}
-        />
-      </View>
-      {selectedCity?.areas.length ? (
-        <View style={styles.areasSection}>
-          <Text style={styles.label}>Service areas</Text>
-          <Text style={styles.helper}>Select every locality you currently serve in {selectedCity.name}.</Text>
-          <View style={styles.areaGrid}>
-            {selectedCity.areas.map((area) => {
-              const selected = value.serviceAreaIds.includes(area.id);
-              return <Pressable key={area.id} disabled={!canChooseManually} onPress={() => toggleArea(area.id)} style={[styles.areaChip, selected && styles.areaChipSelected]}>
-                {selected ? <Check size={14} color="#E91E63" /> : null}
-                <Text style={[styles.areaText, selected && styles.areaTextSelected]}>{area.name}</Text>
-              </Pressable>;
-            })}
-          </View>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -242,7 +178,6 @@ const styles = StyleSheet.create({
   messageText: { flex: 1, color: "#B42318", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   verifiedMessage: { backgroundColor: "#ECFDF5" },
   verifiedText: { color: "#16845B" },
-  error: { color: "#B42318", fontSize: typeScale.metadata, marginBottom: 12 },
   localitySection: { marginBottom: 16 },
   localityList: { maxHeight: 330, marginTop: 9 },
   localityOption: { minHeight: 54, borderWidth: 1, borderColor: "#E7E1E4", borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10, marginBottom: 8, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF" },
@@ -250,13 +185,7 @@ const styles = StyleSheet.create({
   localityText: { flex: 1, minWidth: 0 },
   localityName: { color: "#241D21", fontSize: typeScale.bodyCompact, fontWeight: "700" },
   localityMeta: { color: "#786D73", fontSize: typeScale.caption, marginTop: 3 },
-  locationLoader: { marginVertical: 12 },
   helper: { color: "#786D73", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: -3, marginBottom: 10 },
-  areasSection: { marginTop: 2, marginBottom: 8 },
-  areaGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  areaChip: { minHeight: 38, paddingHorizontal: 12, borderRadius: 19, borderWidth: 1, borderColor: "#E7E1E4", flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#FFFFFF" },
-  areaChipSelected: { borderColor: "#F4A9C4", backgroundColor: "#FFF1F6" },
-  areaText: { color: "#655C61", fontSize: typeScale.metadata, fontWeight: "600" },
   areaTextSelected: { color: "#E91E63" },
   pressed: { opacity: 0.75 },
   disabled: { opacity: 0.48 },

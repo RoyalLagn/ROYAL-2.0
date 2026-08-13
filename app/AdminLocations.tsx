@@ -1,386 +1,183 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import {
-  ChevronDown,
-  ChevronUp,
-  CircleAlert,
-  Edit3,
-  MapPin,
-  MapPinned,
-  Plus,
-  RefreshCw,
-  Trash2,
-  Users,
-  X,
-} from "lucide-react-native";
+import { Check, ChevronDown, CircleAlert, MapPin, Search, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminEmptyState, AdminLoadingState } from "@/components/admin/ui/AdminState";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
-import type { LocationUsageCount, SupportedArea, SupportedCity } from "@/locations/types";
+import type { GeoDistrict, GeoState, GeoTaluka, PincodeLocality } from "@/locations/types";
+import { lookupIndianPincode } from "@/services/locations";
 import {
-  createSupportedArea,
-  createSupportedCity,
-  deleteSupportedArea,
-  deleteSupportedCity,
-  getLocationUsageCounts,
-  listAdminLocations,
-  loadLocationSettings,
-  replaceSupportedPincodes,
-  updateStrictCityMode,
-  updateSupportedArea,
-  updateSupportedCity,
-} from "@/services/locations";
-import { typeScale, typeLeading } from "@/constants/typography";
+  type AdminTalukaPincode,
+  listAdminGeoDistricts,
+  listAdminGeoStates,
+  listAdminGeoTalukas,
+  listAdminTalukaPincodes,
+} from "@/services/geoLocations";
 import { adminPalette } from "@/theme";
+import { fonts, typeLeading, typeScale } from "@/constants/typography";
 
-type EditorState = {
-  kind: "city" | "area";
-  id?: string;
-  cityId?: string;
-  name: string;
-  state: string;
-  pincodes: string;
-};
-
-type PendingAction = {
-  title: string;
-  message: string;
-  destructive?: boolean;
-  run: () => Promise<void>;
-};
-
-const usageKey = (kind: "city" | "area", id: string) => `${kind}:${id}`;
-const parsePincodes = (value: string) => [...new Set(value.split(/[\s,]+/).map((item) => item.trim()).filter(Boolean))];
+type Option = { id: string; name: string };
 
 export default function AdminLocations() {
   const router = useRouter();
-  const [cities, setCities] = useState<SupportedCity[]>([]);
-  const [usage, setUsage] = useState<Record<string, LocationUsageCount>>({});
-  const [strictCityOnly, setStrictCityOnly] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [editor, setEditor] = useState<EditorState | null>(null);
-  const [pending, setPending] = useState<PendingAction | null>(null);
+  const { width } = useWindowDimensions();
+  const stacked = width < 860;
+  const [states, setStates] = useState<GeoState[]>([]);
+  const [districts, setDistricts] = useState<GeoDistrict[]>([]);
+  const [talukas, setTalukas] = useState<GeoTaluka[]>([]);
+  const [stateId, setStateId] = useState<string | null>(null);
+  const [districtId, setDistrictId] = useState<string | null>(null);
+  const [talukaId, setTalukaId] = useState<string | null>(null);
+  const [pins, setPins] = useState<AdminTalukaPincode[]>([]);
+  const [pin, setPin] = useState("");
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState("");
+  const [localities, setLocalities] = useState<PincodeLocality[]>([]);
+  const [lookupSummary, setLookupSummary] = useState<{ state: string; district: string; taluka: string; status: string } | null>(null);
+  const [browseLoading, setBrowseLoading] = useState(true);
+  const [browseError, setBrowseError] = useState("");
+  const [pinSearch, setPinSearch] = useState("");
 
-  const load = useCallback(async (refresh = false) => {
-    if (refresh) setRefreshing(true);
-    else setLoading(true);
-    setError("");
-    try {
-      const [nextCities, counts, settings] = await Promise.all([
-        listAdminLocations(),
-        getLocationUsageCounts(),
-        loadLocationSettings(),
-      ]);
-      setCities(nextCities);
-      setUsage(Object.fromEntries(counts.map((item: LocationUsageCount) => [usageKey(item.kind, item.id), item])));
-      setStrictCityOnly(settings.strictCityOnly);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to load Location Management.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  useEffect(() => {
+    listAdminGeoStates().then((items) => {
+      setStates(items);
+      setStateId(items.find((item) => item.isActive)?.id ?? items[0]?.id ?? null);
+    }).catch(() => setBrowseError("Unable to load States.")).finally(() => setBrowseLoading(false));
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    setDistrictId(null); setTalukaId(null); setPins([]);
+    if (!stateId) { setDistricts([]); return; }
+    setBrowseLoading(true);
+    listAdminGeoDistricts(stateId).then((items) => {
+      setDistricts(items);
+      setDistrictId(items.find((item) => item.isActive)?.id ?? items[0]?.id ?? null);
+    }).catch(() => setBrowseError("Unable to load Districts.")).finally(() => setBrowseLoading(false));
+  }, [stateId]);
 
-  const metrics = useMemo(() => ({
-    activeCities: cities.filter((city) => city.isActive).length,
-    activeAreas: cities.flatMap((city) => city.areas).filter((area) => area.isActive).length,
-    vendors: Object.values(usage).filter((item) => item.kind === "city").reduce((sum, item) => sum + item.vendorCount, 0),
-    customers: Object.values(usage).filter((item) => item.kind === "city").reduce((sum, item) => sum + item.customerCount, 0),
-  }), [cities, usage]);
+  useEffect(() => {
+    setTalukaId(null); setPins([]);
+    if (!districtId) { setTalukas([]); return; }
+    setBrowseLoading(true);
+    listAdminGeoTalukas(districtId).then((items) => {
+      setTalukas(items);
+      setTalukaId(items.find((item) => item.isActive)?.id ?? items[0]?.id ?? null);
+    }).catch(() => setBrowseError("Unable to load Talukas.")).finally(() => setBrowseLoading(false));
+  }, [districtId]);
 
-  const perform = async (action: () => Promise<void>) => {
-    setSaving(true);
-    setError("");
+  useEffect(() => {
+    setPins([]);
+    if (!talukaId) return;
+    setBrowseLoading(true);
+    listAdminTalukaPincodes(talukaId).then(setPins)
+      .catch(() => setBrowseError("Unable to load PIN codes for this Taluka."))
+      .finally(() => setBrowseLoading(false));
+  }, [talukaId]);
+
+  const resolvePin = useCallback(async (value: string) => {
+    if (!/^[1-9][0-9]{5}$/.test(value)) return;
+    setPinLoading(true); setPinError(""); setLookupSummary(null); setLocalities([]);
     try {
-      await action();
-      setEditor(null);
-      setPending(null);
-      await load(true);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The location change could not be saved.");
-      setPending(null);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveEditor = async () => {
-    if (!editor?.name.trim()) return setError("Enter a location name.");
-    if (editor.kind === "city" && !editor.state.trim()) return setError("Enter the state.");
-    const pincodes = parsePincodes(editor.pincodes);
-    if (pincodes.some((item) => !/^[1-9][0-9]{5}$/.test(item))) return setError("Every PIN code must contain exactly six digits.");
-    await perform(async () => {
-      if (editor.kind === "city") {
-        if (editor.id) {
-          await updateSupportedCity(editor.id, { name: editor.name, state: editor.state });
-          await replaceSupportedPincodes(editor.id, null, pincodes);
-        } else {
-          await createSupportedCity({
-            name: editor.name,
-            state: editor.state,
-            displayOrder: (cities[cities.length - 1]?.displayOrder ?? 0) + 10,
-            pincodes,
-          });
-        }
+      const result = await lookupIndianPincode(value);
+      const geo = result.geo;
+      if (!geo || !geo.localities.length) {
+        setPinError(result.message || "No canonical location mapping was found for this PIN code.");
         return;
       }
-      if (!editor.cityId) throw new Error("Choose a parent city.");
-      if (editor.id) {
-        await updateSupportedArea(editor.id, { name: editor.name });
-        await replaceSupportedPincodes(editor.cityId, editor.id, pincodes);
-      } else {
-        const city = cities.find((item) => item.id === editor.cityId);
-        await createSupportedArea({
-          cityId: editor.cityId,
-          name: editor.name,
-          displayOrder: ((city?.areas ?? [])[(city?.areas.length ?? 0) - 1]?.displayOrder ?? 0) + 10,
-          pincodes,
-        });
-      }
-    });
+      setLocalities(geo.localities);
+      setLookupSummary({
+        state: geo.state?.name ?? result.state ?? "Needs review",
+        district: geo.district?.name ?? result.district ?? "Needs review",
+        taluka: geo.taluka?.name ?? "Needs review",
+        status: geo.status,
+      });
+    } catch (error) {
+      setPinError(error instanceof Error ? error.message : "PIN lookup is temporarily unavailable.");
+    } finally { setPinLoading(false); }
+  }, []);
+
+  const onPinChange = (value: string) => {
+    const next = value.replace(/\D/g, "").slice(0, 6);
+    setPin(next); setPinError("");
+    if (next.length < 6) { setLookupSummary(null); setLocalities([]); }
+    if (next.length === 6) void resolvePin(next);
   };
 
-  const confirmStatusChange = (kind: "city" | "area", item: SupportedCity | SupportedArea) => {
-    const count = usage[usageKey(kind, item.id)] ?? { vendorCount: 0, customerCount: 0 };
-    const nextActive = !item.isActive;
-    if (nextActive) {
-      void perform(() => kind === "city"
-        ? updateSupportedCity(item.id, { isActive: true })
-        : updateSupportedArea(item.id, { isActive: true }));
-      return;
-    }
-    setPending({
-      title: `Deactivate ${item.name}?`,
-      message: `${count.vendorCount} vendors and ${count.customerCount} customers currently use this ${kind}. Existing records will remain unchanged, but it will disappear from new selections.`,
-      destructive: true,
-      run: () => kind === "city"
-        ? updateSupportedCity(item.id, { isActive: false })
-        : updateSupportedArea(item.id, { isActive: false }),
-    });
-  };
-
-  const confirmDelete = (kind: "city" | "area", item: SupportedCity | SupportedArea) => {
-    const count = usage[usageKey(kind, item.id)] ?? { vendorCount: 0, customerCount: 0 };
-    if (count.vendorCount || count.customerCount) {
-      setError(`${item.name} is in use by ${count.vendorCount} vendors and ${count.customerCount} customers. Deactivate it to preserve historical records.`);
-      return;
-    }
-    setPending({
-      title: `Delete ${item.name}?`,
-      message: kind === "city"
-        ? "This is only allowed when the city has no areas, PIN mappings, vendors or customers. This action cannot be undone."
-        : "This is only allowed when the area has no PIN mappings, vendors or customers. This action cannot be undone.",
-      destructive: true,
-      run: () => kind === "city" ? deleteSupportedCity(item.id) : deleteSupportedArea(item.id),
-    });
-  };
-
-  const move = async (kind: "city" | "area", cityId: string, index: number, direction: -1 | 1) => {
-    const list = kind === "city" ? cities : cities.find((item) => item.id === cityId)?.areas ?? [];
-    const otherIndex = index + direction;
-    if (!list[otherIndex]) return;
-    const current = list[index];
-    const other = list[otherIndex];
-    await perform(async () => {
-      if (kind === "city") {
-        await Promise.all([
-          updateSupportedCity(current.id, { displayOrder: other.displayOrder }),
-          updateSupportedCity(other.id, { displayOrder: current.displayOrder }),
-        ]);
-      } else {
-        await Promise.all([
-          updateSupportedArea(current.id, { displayOrder: other.displayOrder }),
-          updateSupportedArea(other.id, { displayOrder: current.displayOrder }),
-        ]);
-      }
-    });
-  };
+  const filteredPins = useMemo(() => {
+    const query = pinSearch.trim().toLowerCase();
+    if (!query) return pins;
+    return pins.filter((item) => item.pincode.includes(query) || item.localities.some((name) => name.toLowerCase().includes(query)));
+  }, [pinSearch, pins]);
 
   return (
     <SafeAreaView style={styles.page} edges={["top", "left", "right"]}>
-      <ScrollView contentContainerStyle={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <ResponsiveContainer>
-          <AdminPageHeader
-            title="Location Management"
-            subtitle="Control where RoyalLagn customers can browse and vendors can register"
-            action={<Pressable onPress={() => setEditor({ kind: "city", name: "", state: "", pincodes: "" })} style={styles.primaryButton}><Plus size={16} color="#FFFFFF" /><Text style={styles.primaryButtonText}>Add city</Text></Pressable>}
-          />
+          <AdminPageHeader title="PIN & Taluka Mapping" subtitle="Verify the canonical PIN → Locality → Taluka → District → State hierarchy" />
+          <View style={[styles.notice, { marginTop: 2 }]}><MapPin size={17} color="#E91E63" /><Text style={styles.noticeText}>Vendor discovery uses these mappings. Legacy City/Area records are not used here.</Text></View>
 
-          <Pressable onPress={() => router.push("/AdminGeoLocations")} style={styles.geoLink}>
-            <MapPinned size={15} color="#E91E63" />
-            <Text style={styles.geoLinkText}>New: District &amp; Taluka discovery hierarchy →</Text>
-          </Pressable>
-
-          {error ? <View style={styles.errorBanner}><CircleAlert size={17} color="#B42318" /><Text style={styles.errorText}>{error}</Text><Pressable onPress={() => setError("")}><X size={16} color="#B42318" /></Pressable></View> : null}
-
-          <View style={styles.metrics}>
-            <Metric icon={MapPinned} value={metrics.activeCities} label="Active cities" />
-            <Metric icon={MapPin} value={metrics.activeAreas} label="Active areas" />
-            <Metric icon={Users} value={metrics.vendors} label="Vendor links" />
-            <Metric icon={Users} value={metrics.customers} label="Customer choices" />
-          </View>
-
-          <View style={styles.settingCard}>
-            <View style={styles.settingCopy}><Text style={styles.settingTitle}>Strict city-only discovery</Text><Text style={styles.settingText}>When enabled, customers only see vendors serving their selected city. Approval, category, subscription and relevance checks still apply first.</Text></View>
-            <Switch value={strictCityOnly} onValueChange={(value) => void perform(async () => { await updateStrictCityMode(value); })} trackColor={{ false: "#E7E1E4", true: adminPalette.brandSubtle }} thumbColor={strictCityOnly ? "#E91E63" : "#FFFFFF"} />
-          </View>
-
-          <View style={styles.sectionHeading}>
-            <View><Text style={styles.sectionTitle}>Supported locations</Text><Text style={styles.sectionSubtitle}>Drag-free ordering controls work consistently on mobile, tablet and web.</Text></View>
-            <Pressable accessibilityLabel="Refresh locations" onPress={() => void load(true)} style={styles.iconButton}><RefreshCw size={18} color="#E91E63" /></Pressable>
-          </View>
-
-          {loading ? <AdminLoadingState label="Loading managed locations…" /> : !cities.length ? <AdminEmptyState title="No supported cities" message="Add the first city to enable customer and vendor location selection." /> : (
-            <View style={styles.cityList}>
-              {cities.map((city, cityIndex) => {
-                const cityUsage = usage[usageKey("city", city.id)];
-                return <View key={city.id} style={styles.cityCard}>
-                  <View style={styles.cityHeader}>
-                    <View style={[styles.locationIcon, !city.isActive && styles.inactiveIcon]}><MapPinned size={20} color={city.isActive ? "#E91E63" : "#8A8589"} /></View>
-                    <View style={styles.flex}><View style={styles.titleRow}><Text style={styles.cityName}>{city.name}</Text><Status active={city.isActive} /></View><Text style={styles.cityMeta}>{city.state} · {city.areas.length} areas · {cityUsage?.vendorCount ?? 0} vendors · {cityUsage?.customerCount ?? 0} customers</Text></View>
-                    <View style={styles.actions}>
-                      <Pressable accessibilityLabel="Move city up" onPress={() => void move("city", city.id, cityIndex, -1)} disabled={!cityIndex} style={[styles.smallIcon, !cityIndex && styles.disabled]}><ChevronUp size={16} color="#655C61" /></Pressable>
-                      <Pressable accessibilityLabel="Move city down" onPress={() => void move("city", city.id, cityIndex, 1)} disabled={cityIndex === cities.length - 1} style={[styles.smallIcon, cityIndex === cities.length - 1 && styles.disabled]}><ChevronDown size={16} color="#655C61" /></Pressable>
-                      <Pressable accessibilityLabel={`Edit ${city.name}`} onPress={() => setEditor({ kind: "city", id: city.id, name: city.name, state: city.state, pincodes: (city.pincodes ?? []).join(", ") })} style={styles.smallIcon}><Edit3 size={15} color="#E91E63" /></Pressable>
-                      <Switch value={city.isActive} onValueChange={() => confirmStatusChange("city", city)} trackColor={{ false: "#E7E1E4", true: adminPalette.brandSubtle }} thumbColor={city.isActive ? "#E91E63" : "#FFFFFF"} />
-                      <Pressable accessibilityLabel={`Delete ${city.name}`} onPress={() => confirmDelete("city", city)} style={styles.smallIcon}><Trash2 size={15} color={adminPalette.error} /></Pressable>
-                    </View>
-                  </View>
-
-                  <View style={styles.areaBlock}>
-                    <View style={styles.areaHeading}><Text style={styles.areaTitle}>Areas and localities</Text><Pressable onPress={() => setEditor({ kind: "area", cityId: city.id, name: "", state: city.state, pincodes: "" })} style={styles.addArea}><Plus size={14} color="#E91E63" /><Text style={styles.addAreaText}>Add area</Text></Pressable></View>
-                    {!city.areas.length ? <Text style={styles.noAreas}>No areas yet. Customers can still select the city-wide option.</Text> : city.areas.map((area, areaIndex) => {
-                      const areaUsage = usage[usageKey("area", area.id)];
-                      return <View key={area.id} style={styles.areaRow}>
-                        <View style={styles.areaDot} />
-                        <View style={styles.flex}><View style={styles.titleRow}><Text style={styles.areaName}>{area.name}</Text><Status active={area.isActive} /></View><Text style={styles.areaMeta}>{(area.pincodes ?? []).length ? `${area.pincodes?.join(", ")} · ` : ""}{areaUsage?.vendorCount ?? 0} vendors · {areaUsage?.customerCount ?? 0} customers</Text></View>
-                        <View style={styles.actions}>
-                          <Pressable onPress={() => void move("area", city.id, areaIndex, -1)} disabled={!areaIndex} style={[styles.smallIcon, !areaIndex && styles.disabled]}><ChevronUp size={15} color="#655C61" /></Pressable>
-                          <Pressable onPress={() => void move("area", city.id, areaIndex, 1)} disabled={areaIndex === city.areas.length - 1} style={[styles.smallIcon, areaIndex === city.areas.length - 1 && styles.disabled]}><ChevronDown size={15} color="#655C61" /></Pressable>
-                          <Pressable onPress={() => setEditor({ kind: "area", id: area.id, cityId: city.id, name: area.name, state: city.state, pincodes: (area.pincodes ?? []).join(", ") })} style={styles.smallIcon}><Edit3 size={14} color="#E91E63" /></Pressable>
-                          <Switch value={area.isActive} onValueChange={() => confirmStatusChange("area", area)} trackColor={{ false: "#E7E1E4", true: adminPalette.brandSubtle }} thumbColor={area.isActive ? "#E91E63" : "#FFFFFF"} />
-                          <Pressable onPress={() => confirmDelete("area", area)} style={styles.smallIcon}><Trash2 size={14} color={adminPalette.error} /></Pressable>
-                        </View>
-                      </View>;
-                    })}
-                  </View>
-                </View>;
-              })}
+          <View style={[styles.workspace, stacked && styles.workspaceStacked]}>
+            <View style={styles.card}>
+              <Text style={styles.eyebrow}>LOOK UP BY PIN</Text>
+              <Text style={styles.cardTitle}>Enter a PIN code</Text>
+              <Text style={styles.cardSubtitle}>District and Taluka appear automatically after the sixth digit.</Text>
+              <View style={[styles.pinInputWrap, pinError ? styles.inputError : null]}>
+                <Search size={18} color="#81777C" />
+                <TextInput value={pin} onChangeText={onPinChange} keyboardType="number-pad" maxLength={6} placeholder="e.g. 411062" placeholderTextColor="#91898D" style={styles.pinInput} accessibilityLabel="Indian PIN code" />
+                {pinLoading ? <ActivityIndicator size="small" color="#E91E63" /> : pin.length === 6 && lookupSummary ? <Check size={18} color="#16845B" /> : null}
+              </View>
+              {pinError ? <View style={styles.inlineError}><CircleAlert size={15} color="#B42318" /><Text style={styles.inlineErrorText}>{pinError}</Text></View> : null}
+              {lookupSummary ? <View style={styles.resultBox}>
+                <HierarchyRow label="State" value={lookupSummary.state} />
+                <HierarchyRow label="District" value={lookupSummary.district} />
+                <HierarchyRow label="Taluka" value={lookupSummary.taluka} />
+                <View style={[styles.statusPill, lookupSummary.status !== "resolved" && styles.reviewPill]}><Text style={[styles.statusText, lookupSummary.status !== "resolved" && styles.reviewText]}>{lookupSummary.status === "resolved" ? "Resolved" : "Needs review"}</Text></View>
+              </View> : null}
+              {localities.length ? <View style={styles.localitySection}><Text style={styles.localityHeading}>{localities.length > 1 ? `${localities.length} localities found` : "Locality found"}</Text>{localities.map((item) => <View key={item.id} style={styles.localityRow}><View style={[styles.dot, !item.trusted && styles.dotReview]} /><View style={styles.flex}><Text style={styles.localityName}>{item.name}</Text><Text style={styles.localityMeta}>{item.taluka?.name ?? "Taluka needs review"} · {item.district?.name ?? "District needs review"}</Text></View></View>)}</View> : null}
             </View>
-          )}
+
+            <View style={styles.card}>
+              <Text style={styles.eyebrow}>FIND PIN CODES</Text>
+              <Text style={styles.cardTitle}>Choose District and Taluka</Text>
+              <Text style={styles.cardSubtitle}>Only PIN codes already linked to the canonical Taluka are shown.</Text>
+              <SelectField label="State" value={states.find((item) => item.id === stateId)?.name} options={states} selectedId={stateId} onSelect={setStateId} />
+              <SelectField label="District" value={districts.find((item) => item.id === districtId)?.name} options={districts} selectedId={districtId} onSelect={setDistrictId} disabled={!stateId} />
+              <SelectField label="Taluka" value={talukas.find((item) => item.id === talukaId)?.name} options={talukas} selectedId={talukaId} onSelect={setTalukaId} disabled={!districtId} />
+              {browseError ? <View style={styles.inlineError}><CircleAlert size={15} color="#B42318" /><Text style={styles.inlineErrorText}>{browseError}</Text></View> : null}
+              {talukaId ? <View style={styles.pinResultsHeader}><Text style={styles.localityHeading}>{browseLoading ? "Loading PIN codes…" : `${pins.length} PIN code${pins.length === 1 ? "" : "s"}`}</Text>{pins.length > 5 ? <TextInput value={pinSearch} onChangeText={setPinSearch} placeholder="Filter PIN or locality" placeholderTextColor="#91898D" style={styles.filterInput} /> : null}</View> : null}
+              {!browseLoading && talukaId && !pins.length ? <Text style={styles.emptyText}>No canonical PIN mapping exists for this Taluka yet.</Text> : null}
+              <View style={styles.pinList}>{filteredPins.map((item) => <View key={item.pincode} style={styles.pinRow}><Text style={styles.pinCode}>{item.pincode}</Text><Text style={styles.pinLocalities} numberOfLines={2}>{item.localities.join(", ")}</Text><View style={[styles.miniDot, !item.trusted && styles.dotReview]} /></View>)}</View>
+            </View>
+          </View>
+          <Pressable onPress={() => router.push("/AdminGeoLocations")} style={({ pressed }) => [styles.manageButton, pressed && styles.pressed]}><Text style={styles.manageButtonText}>Manage States, Districts & Talukas</Text></Pressable>
         </ResponsiveContainer>
       </ScrollView>
       <AdminFooter activeTab="profile" />
-
-      <Modal visible={Boolean(editor)} transparent animationType="fade" onRequestClose={() => setEditor(null)}>
-        <Pressable style={styles.backdrop} onPress={() => !saving && setEditor(null)}>
-          <Pressable style={styles.modalCard} onPress={(event) => event.stopPropagation()}>
-            <View style={styles.modalHeader}><View style={styles.flex}><Text style={styles.modalTitle}>{editor?.id ? "Edit" : "Add"} {editor?.kind}</Text><Text style={styles.modalSubtitle}>Only active saved locations appear to customers and vendors.</Text></View><Pressable onPress={() => setEditor(null)} style={styles.smallIcon}><X size={18} color="#241D21" /></Pressable></View>
-            <Field label={editor?.kind === "city" ? "City name" : "Area or locality name"} value={editor?.name ?? ""} onChangeText={(name) => setEditor((current) => current ? { ...current, name } : current)} />
-            {editor?.kind === "city" ? <Field label="State" value={editor.state} onChangeText={(state) => setEditor((current) => current ? { ...current, state } : current)} /> : null}
-            <Field label="PIN codes (optional)" value={editor?.pincodes ?? ""} onChangeText={(pincodes) => setEditor((current) => current ? { ...current, pincodes } : current)} placeholder="411001, 411002" />
-            <Text style={styles.fieldHelper}>Separate multiple six-digit PIN codes with commas or spaces.</Text>
-            <View style={styles.modalActions}><Pressable disabled={saving} onPress={() => setEditor(null)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cancel</Text></Pressable><Pressable disabled={saving} onPress={() => void saveEditor()} style={styles.primaryModalButton}>{saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Save location</Text>}</Pressable></View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal visible={Boolean(pending)} transparent animationType="fade" onRequestClose={() => setPending(null)}>
-        <Pressable style={styles.backdrop} onPress={() => !saving && setPending(null)}>
-          <Pressable style={styles.confirmCard} onPress={(event) => event.stopPropagation()}><View style={styles.warningIcon}><CircleAlert size={23} color={adminPalette.error} /></View><Text style={styles.confirmTitle}>{pending?.title}</Text><Text style={styles.confirmText}>{pending?.message}</Text><View style={styles.modalActions}><Pressable disabled={saving} onPress={() => setPending(null)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cancel</Text></Pressable><Pressable disabled={saving} onPress={() => pending && void perform(pending.run)} style={styles.destructiveButton}>{saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>Confirm</Text>}</Pressable></View></Pressable>
-        </Pressable>
-      </Modal>
     </SafeAreaView>
   );
 }
 
-function Metric({ icon: Icon, value, label }: { icon: React.ElementType; value: number; label: string }) { return <View style={styles.metric}><Icon size={18} color="#E91E63" /><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>; }
-function Status({ active }: { active: boolean }) { return <View style={[styles.status, active ? styles.activeStatus : styles.inactiveStatus]}><Text style={[styles.statusText, { color: active ? "#16845B" : "#655C61" }]}>{active ? "Active" : "Inactive"}</Text></View>; }
-function Field({ label, value, onChangeText, placeholder }: { label: string; value: string; onChangeText: (value: string) => void; placeholder?: string }) { return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><TextInput value={value} onChangeText={onChangeText} placeholder={placeholder ?? `Enter ${label.toLowerCase()}`} placeholderTextColor="#8A8589" style={styles.input} /></View>; }
+function HierarchyRow({ label, value }: { label: string; value: string }) { return <View style={styles.hierarchyRow}><Text style={styles.hierarchyLabel}>{label}</Text><Text style={styles.hierarchyValue}>{value}</Text></View>; }
+
+function SelectField({ label, value, options, selectedId, onSelect, disabled }: { label: string; value?: string; options: Option[]; selectedId: string | null; onSelect: (id: string) => void; disabled?: boolean }) {
+  const [open, setOpen] = useState(false);
+  return <View style={styles.field}><Text style={styles.fieldLabel}>{label}</Text><Pressable accessibilityRole="button" accessibilityLabel={`Choose ${label}`} disabled={disabled} onPress={() => setOpen(true)} style={({ pressed }) => [styles.select, disabled && styles.disabled, pressed && !disabled && styles.pressed]}><Text style={[styles.selectText, !value && styles.placeholder]} numberOfLines={1}>{value ?? `Select ${label}`}</Text><ChevronDown size={18} color="#6D6368" /></Pressable><Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}><Pressable style={styles.backdrop} onPress={() => setOpen(false)}><Pressable style={styles.menu} onPress={(event) => event.stopPropagation()}><View style={styles.menuHeader}><View><Text style={styles.menuTitle}>Choose {label}</Text><Text style={styles.menuSubtitle}>{options.length} available</Text></View><Pressable accessibilityLabel="Close dropdown" onPress={() => setOpen(false)} style={styles.closeButton}><X size={18} color="#30272C" /></Pressable></View><ScrollView style={styles.menuScroll} keyboardShouldPersistTaps="handled">{options.map((item) => { const selected = item.id === selectedId; return <Pressable key={item.id} onPress={() => { onSelect(item.id); setOpen(false); }} style={({ pressed }) => [styles.option, selected && styles.optionSelected, pressed && styles.pressed]}><Text style={[styles.optionText, selected && styles.optionTextSelected]}>{item.name}</Text>{selected ? <Check size={17} color="#E91E63" /> : null}</Pressable>; })}</ScrollView></Pressable></Pressable></Modal></View>;
+}
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: adminPalette.canvas },
-  scroll: { paddingBottom: 120 },
-  flex: { flex: 1, minWidth: 0 },
-  primaryButton: { minHeight: 42, paddingHorizontal: 14, borderRadius: 13, backgroundColor: "#E91E63", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  primaryButtonText: { color: "#FFFFFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  geoLink: { minHeight: 34, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 14 },
-  geoLinkText: { color: "#E91E63", fontSize: typeScale.metadata, fontWeight: "700" },
-  errorBanner: { marginBottom: 14, borderRadius: 14, padding: 12, backgroundColor: adminPalette.errorSubtle, flexDirection: "row", alignItems: "center", gap: 9 },
-  errorText: { flex: 1, color: adminPalette.error, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
-  metrics: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 14 },
-  metric: { flexGrow: 1, flexBasis: 150, minHeight: 104, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 18, padding: 15, backgroundColor: adminPalette.surface },
-  metricValue: { color: adminPalette.text, fontSize: typeScale.pageTitle, fontWeight: "700", marginTop: 8 },
-  metricLabel: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: 2 },
-  settingCard: { borderWidth: 1, borderColor: adminPalette.border, borderRadius: 18, padding: 16, backgroundColor: adminPalette.surface, flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 22 },
-  settingCopy: { flex: 1, minWidth: 0 },
-  settingTitle: { color: adminPalette.text, fontSize: typeScale.body, fontWeight: "700" },
-  settingText: { color: adminPalette.textSecondary, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 4 },
-  sectionHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 },
-  sectionTitle: { color: adminPalette.text, fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
-  sectionSubtitle: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: 3 },
-  iconButton: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF1F6" },
-  cityList: { gap: 12 },
-  cityCard: { borderWidth: 1, borderColor: adminPalette.border, borderRadius: 20, padding: 15, backgroundColor: adminPalette.surface },
-  cityHeader: { flexDirection: "row", alignItems: "center", gap: 11 },
-  locationIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF1F6" },
-  inactiveIcon: { backgroundColor: adminPalette.surfaceSubtle },
-  titleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7 },
-  cityName: { color: adminPalette.text, fontSize: typeScale.body, fontWeight: "700" },
-  cityMeta: { color: adminPalette.textSecondary, fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 4 },
-  actions: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", gap: 3 },
-  smallIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  disabled: { opacity: 0.3 },
-  status: { minHeight: 22, borderRadius: 999, paddingHorizontal: 8, alignItems: "center", justifyContent: "center" },
-  activeStatus: { backgroundColor: "#ECFDF5" },
-  inactiveStatus: { backgroundColor: adminPalette.surfaceSubtle },
-  statusText: { fontSize: typeScale.caption, fontWeight: "700" },
-  areaBlock: { marginTop: 14, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: adminPalette.border },
-  areaHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 7 },
-  areaTitle: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.8 },
-  addArea: { minHeight: 34, paddingHorizontal: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#FFF1F6" },
-  addAreaText: { color: "#E91E63", fontSize: typeScale.caption, fontWeight: "700" },
-  noAreas: { color: adminPalette.textMuted, fontSize: typeScale.metadata, paddingVertical: 10 },
-  areaRow: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 9, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: adminPalette.border },
-  areaDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: adminPalette.brandSubtle },
-  areaName: { color: adminPalette.text, fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  areaMeta: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: 3 },
-  backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(25,15,20,.5)" },
-  modalCard: { width: "100%", maxWidth: 500, borderRadius: 22, padding: 20, backgroundColor: "#FFFFFF" },
-  modalHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 18 },
-  modalTitle: { color: adminPalette.text, fontSize: typeScale.editorialCardTitle, fontWeight: "700", textTransform: "capitalize" },
-  modalSubtitle: { color: adminPalette.textSecondary, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 3 },
-  field: { marginBottom: 13 },
-  fieldLabel: { color: adminPalette.text, fontSize: typeScale.metadata, fontWeight: "700", marginBottom: 6 },
-  input: { height: 50, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 14, paddingHorizontal: 14, color: adminPalette.text, fontSize: typeScale.body, backgroundColor: adminPalette.surface },
-  fieldHelper: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: -7 },
-  modalActions: { flexDirection: "row", gap: 9, marginTop: 20 },
-  secondaryButton: { flex: 1, minHeight: 48, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  secondaryButtonText: { color: adminPalette.text, fontSize: typeScale.metadata, fontWeight: "700" },
-  primaryModalButton: { flex: 1.2, minHeight: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#E91E63" },
-  confirmCard: { width: "100%", maxWidth: 440, borderRadius: 22, padding: 22, backgroundColor: "#FFFFFF", alignItems: "center" },
-  warningIcon: { width: 50, height: 50, borderRadius: 25, alignItems: "center", justifyContent: "center", backgroundColor: "#FEF3F2", marginBottom: 13 },
-  confirmTitle: { color: adminPalette.text, fontSize: typeScale.editorialCardTitle, fontWeight: "700", textAlign: "center" },
-  confirmText: { color: adminPalette.textSecondary, fontSize: typeScale.metadata, lineHeight: typeLeading.tab, textAlign: "center", marginTop: 7 },
-  destructiveButton: { flex: 1.2, minHeight: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: adminPalette.error },
+  page: { flex: 1, backgroundColor: adminPalette.canvas }, scroll: { paddingBottom: 120 }, flex: { flex: 1, minWidth: 0 },
+  notice: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 14, borderRadius: 13, backgroundColor: "#FFF1F6", borderWidth: 1, borderColor: "#F8CEDD" }, noticeText: { flex: 1, color: "#655C61", fontFamily: fonts.sans.medium, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
+  workspace: { flexDirection: "row", alignItems: "flex-start", gap: 18, marginTop: 18 }, workspaceStacked: { flexDirection: "column" },
+  card: { flex: 1, width: "100%", minWidth: 0, padding: 22, borderRadius: 18, borderWidth: 1, borderColor: "#E9E2E5", backgroundColor: "#FFFFFF" },
+  eyebrow: { color: "#E91E63", fontFamily: fonts.sans.bold, fontSize: 11, letterSpacing: 0.8 }, cardTitle: { marginTop: 6, color: "#241D21", fontFamily: fonts.sans.bold, fontSize: 20, lineHeight: 26 }, cardSubtitle: { marginTop: 5, marginBottom: 18, color: "#756B70", fontFamily: fonts.sans.regular, fontSize: 13, lineHeight: 19 },
+  pinInputWrap: { minHeight: 50, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderColor: "#D8D0D4", borderRadius: 13, backgroundColor: "#FCFAFB" }, inputError: { borderColor: "#E99A95" }, pinInput: { flex: 1, minHeight: 48, color: "#241D21", fontFamily: fonts.sans.semibold, fontSize: 17, letterSpacing: 1.5, outlineStyle: "none" } as never,
+  inlineError: { flexDirection: "row", alignItems: "flex-start", gap: 7, marginTop: 10 }, inlineErrorText: { flex: 1, color: "#B42318", fontFamily: fonts.sans.medium, fontSize: 12, lineHeight: 18 },
+  resultBox: { marginTop: 16, padding: 15, borderRadius: 14, backgroundColor: "#F8F6F7" }, hierarchyRow: { minHeight: 34, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 16 }, hierarchyLabel: { color: "#756B70", fontFamily: fonts.sans.medium, fontSize: 12 }, hierarchyValue: { flex: 1, color: "#241D21", fontFamily: fonts.sans.bold, fontSize: 13, textAlign: "right" }, statusPill: { alignSelf: "flex-start", marginTop: 8, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 999, backgroundColor: "#E8F7F1" }, reviewPill: { backgroundColor: "#FFF4E5" }, statusText: { color: "#16845B", fontFamily: fonts.sans.bold, fontSize: 11 }, reviewText: { color: "#A15C00" },
+  localitySection: { marginTop: 18 }, localityHeading: { color: "#3A3035", fontFamily: fonts.sans.bold, fontSize: 12 }, localityRow: { minHeight: 50, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#E9E2E5" }, dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#16845B" }, dotReview: { backgroundColor: "#D97706" }, localityName: { color: "#241D21", fontFamily: fonts.sans.semibold, fontSize: 13 }, localityMeta: { marginTop: 2, color: "#81777C", fontFamily: fonts.sans.regular, fontSize: 11 },
+  field: { marginTop: 12 }, fieldLabel: { marginBottom: 7, color: "#4C4247", fontFamily: fonts.sans.bold, fontSize: 12 }, select: { minHeight: 48, paddingHorizontal: 13, borderWidth: 1, borderColor: "#D8D0D4", borderRadius: 13, backgroundColor: "#FCFAFB", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }, selectText: { flex: 1, color: "#241D21", fontFamily: fonts.sans.semibold, fontSize: 14 }, placeholder: { color: "#91898D" }, disabled: { opacity: 0.46 }, pressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
+  pinResultsHeader: { marginTop: 20 }, filterInput: { minHeight: 42, marginTop: 9, paddingHorizontal: 12, borderWidth: 1, borderColor: "#DDD5D9", borderRadius: 11, color: "#241D21", fontFamily: fonts.sans.medium, fontSize: 13, outlineStyle: "none" } as never, emptyText: { marginTop: 14, color: "#81777C", fontFamily: fonts.sans.regular, fontSize: 13 }, pinList: { marginTop: 8 }, pinRow: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#E9E2E5" }, pinCode: { width: 62, color: "#241D21", fontFamily: fonts.sans.bold, fontSize: 13, letterSpacing: 0.4 }, pinLocalities: { flex: 1, color: "#756B70", fontFamily: fonts.sans.regular, fontSize: 12, lineHeight: 17 }, miniDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#16845B" },
+  manageButton: { alignSelf: "flex-start", minHeight: 44, marginTop: 16, paddingHorizontal: 15, borderRadius: 12, borderWidth: 1, borderColor: "#E91E63", alignItems: "center", justifyContent: "center" }, manageButtonText: { color: "#E91E63", fontFamily: fonts.sans.bold, fontSize: 12 },
+  backdrop: { flex: 1, padding: 20, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(30,22,26,0.46)" }, menu: { width: "100%", maxWidth: 480, maxHeight: "72%", overflow: "hidden", borderRadius: 18, backgroundColor: "#FFFFFF" }, menuHeader: { minHeight: 68, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#ECE5E8" }, menuTitle: { color: "#241D21", fontFamily: fonts.sans.bold, fontSize: 17 }, menuSubtitle: { marginTop: 2, color: "#81777C", fontFamily: fonts.sans.regular, fontSize: 11 }, closeButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 12 }, menuScroll: { paddingHorizontal: 8, paddingVertical: 8 }, option: { minHeight: 48, paddingHorizontal: 12, borderRadius: 11, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 }, optionSelected: { backgroundColor: "#FFF0F5" }, optionText: { flex: 1, color: "#4C4247", fontFamily: fonts.sans.medium, fontSize: 14 }, optionTextSelected: { color: "#C81652", fontFamily: fonts.sans.bold },
 });

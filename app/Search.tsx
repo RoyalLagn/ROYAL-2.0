@@ -22,13 +22,7 @@ import {
 } from "@/services/publicVendorListings";
 import { useCategories } from "@/context/CategoryContext";
 import CategoryBadge from "@/components/categories/CategoryBadge";
-import { useCustomerLocation } from "@/context/LocationContext";
 import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
-import {
-  rankVendorsByLocation,
-  vendorLocationPriority,
-  vendorNearbyLabel,
-} from "@/services/locations";
 import { typeScale } from "@/constants/typography";
 
 const GLOBAL_PAGES = [
@@ -56,7 +50,6 @@ export default function SearchScreen() {
   const { width } = useWindowDimensions();
   const { getRating } = useReviewRatings();
   const { searchCategories } = useCategories();
-  const { preference, strictCityOnly } = useCustomerLocation();
   const mobileTabBarHeight = useMobileTabBarHeight();
   const params = useLocalSearchParams<{
     query?: string;
@@ -101,7 +94,6 @@ export default function SearchScreen() {
   const minimumRating = Number(Array.isArray(params.rating) ? params.rating[0] : params.rating) || 0;
   const maximumBudget = Number(Array.isArray(params.budget) ? params.budget[0] : params.budget) || 0;
   const selectedCategory = Array.isArray(params.category) ? params.category[0] : params.category ?? "";
-  const nearbyOnly = (Array.isArray(params.nearby) ? params.nearby[0] : params.nearby) === "true";
   const availabilityOnly = (Array.isArray(params.availability) ? params.availability[0] : params.availability) === "true";
   const sort = Array.isArray(params.sort) ? params.sort[0] : params.sort ?? "recommended";
 
@@ -126,8 +118,7 @@ export default function SearchScreen() {
           vendor.startingPriceValue > 0
           && vendor.startingPriceValue <= maximumBudget
         ))
-        && (!availabilityOnly || vendor.isAvailable)
-        && (!nearbyOnly || vendorLocationPriority(vendor, preference) >= 2);
+        && (!availabilityOnly || vendor.isAvailable);
     });
 
     const baseSorted = [...filtered].sort((a, b) => {
@@ -138,8 +129,8 @@ export default function SearchScreen() {
       }
       return b.rating - a.rating || b.reviews - a.reviews;
     });
-    return rankVendorsByLocation(baseSorted, preference, strictCityOnly || nearbyOnly);
-  }, [availabilityOnly, getRating, maximumBudget, minimumRating, nearbyOnly, preference, query, selectedCategory, sort, strictCityOnly, vendors]);
+    return baseSorted;
+  }, [availabilityOnly, getRating, maximumBudget, minimumRating, query, selectedCategory, sort, vendors]);
 
   const pageResults = useMemo(() => {
     if (!query.trim()) return { fixedPages: [], categoryPages: [] };
@@ -156,7 +147,7 @@ export default function SearchScreen() {
   }, [query, searchCategories]);
 
   const submit = () => setQuery(draftQuery.trim());
-  const activeFilterCount = [minimumRating > 0, maximumBudget > 0, Boolean(selectedCategory), availabilityOnly, nearbyOnly, sort !== "recommended"].filter(Boolean).length;
+  const activeFilterCount = [minimumRating > 0, maximumBudget > 0, Boolean(selectedCategory), availabilityOnly, sort !== "recommended"].filter(Boolean).length;
   const horizontalInset = width < 380 ? 14 : width < 600 ? 16 : 24;
   const contentWidth = Math.min(width - horizontalInset * 2, 980);
   const goBack = () => {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { type ReactNode, useState } from "react";
 import { ScrollView, StyleSheet, Text } from "react-native";
 import Pressable from "@/components/InteropSafePressable";
 import { ArrowUpDown, ChevronDown, Star, Tag } from "lucide-react-native";
@@ -15,6 +15,7 @@ type CategoryFilterChipsProps = {
     rating: boolean;
   };
   onPress: (section: "sort" | "price" | "rating") => void;
+  trailing?: ReactNode;
 };
 
 const CHIPS = [
@@ -23,7 +24,7 @@ const CHIPS = [
   { key: "rating" as const, label: "Rating", icon: Star, dropdown: true },
 ];
 
-export default function CategoryFilterChips({ dark, active, onPress }: CategoryFilterChipsProps) {
+export default function CategoryFilterChips({ dark, active, onPress, trailing }: CategoryFilterChipsProps) {
   const [interactiveChip, setInteractiveChip] = useState<string | null>(null);
   const colors = brandColors(dark);
   const surface = colors.card;
@@ -61,13 +62,14 @@ export default function CategoryFilterChips({ dark, active, onPress }: CategoryF
           </Pressable>
         );
       })}
+      {trailing}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { gap: 7, paddingRight: 2 },
-  chip: { minWidth: 76, height: 42, borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 },
+  row: { gap: 8, paddingRight: 4, paddingBottom: 2 },
+  chip: { minWidth: 76, height: 40, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
   label: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
 });

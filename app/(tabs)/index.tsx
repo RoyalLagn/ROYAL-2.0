@@ -3,20 +3,16 @@ import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, Styl
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  MapPin, Bell, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, } from "lucide-react-native";
+  Bell, LocateFixed, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useFavorites } from "@/context/FavoritesContext";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import HeroCarousel from "@/components/home/HeroCarousel";
 import HomeReveal from "@/components/home/HomeReveal";
-import LocationSelector from "@/components/home/LocationSelector";
 import SectionHeader from "@/components/home/SectionHeader";
 import HomeFilterModal, { DEFAULT_HOME_FILTERS, type HomeFilters } from "@/components/home/HomeFilterModal";
 import { HERO_IMAGE_ASPECT } from "@/types/hero";
-import { useCustomerLocation } from "@/context/LocationContext";
-import {
-  rankVendorsByLocationAndMembership, vendorLocationPriority, vendorNearbyLabel, } from "@/services/locations";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { useNotifications } from "@/context/NotificationContext";
@@ -31,6 +27,11 @@ import { VendorCardSkeletonRow } from "@/components/loading/Skeleton";
 import { BREAKPOINTS } from "@/utils/responsiveLayout";
 import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
+import {
+  getCurrentDeviceLocation,
+  getDevicePermissionStatus,
+  reverseGeocodeLabel,
+} from "@/services/deviceLocation";
 
 const PINK = brandPalette.light.primaryStrong;
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
@@ -57,11 +58,12 @@ export default function HomeScreen() {
   const [vendorsLoading, setVendorsLoading] = useState(true);
   const { isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
-  const { city, preference, strictCityOnly } = useCustomerLocation();
   const { unreadCount } = useNotifications();
   const { profile } = usePublicAuth();
   const { homeCategories: categories } = useCategories();
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [homeLocation, setHomeLocation] = useState<string | null>(null);
+  const [homeLocationLoading, setHomeLocationLoading] = useState(false);
   const { width: screenWidth } = useWindowDimensions();
   const isDesktop = screenWidth >= 1100;
   const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
@@ -125,6 +127,26 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, []);
 
+  // Never prompt from the home screen. If permission was already granted,
+  // refresh the same device GPS + first-party locality label used by Near Me.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (await getDevicePermissionStatus() !== "granted" || !active) return;
+      setHomeLocationLoading(true);
+      try {
+        const coords = await getCurrentDeviceLocation();
+        const label = await reverseGeocodeLabel(coords).catch(() => null);
+        if (active) setHomeLocation(label ?? `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`);
+      } catch {
+        if (active) setHomeLocation(null);
+      } finally {
+        if (active) setHomeLocationLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
   const colors = brandColors(isDark);
   const bg = colors.background;
   const card = colors.card;
@@ -144,7 +166,6 @@ export default function HomeScreen() {
   const displayedCategories = showAllCategories ? categories : primaryCategories;
   const searchParams = (value: HomeFilters = filters, query = searchText) => ({
     query: query.trim(),
-    location: city,
     rating: value.minimumRating ? String(value.minimumRating) : undefined,
     budget: value.maximumBudget ? String(value.maximumBudget) : undefined,
     category: value.category || undefined,
@@ -156,6 +177,10 @@ export default function HomeScreen() {
   const applyFilters = (value: HomeFilters) => {
     setFilters(value);
     setFiltersVisible(false);
+    if (value.nearbyOnly) {
+      router.push("/NearbyVendors");
+      return;
+    }
     router.push({ pathname: "/Search", params: searchParams(value) });
   };
   const shareApp = async () => {
@@ -194,7 +219,7 @@ export default function HomeScreen() {
         ))
         && (!filters.category || vendor.category === filters.category)
         && (!filters.availabilityOnly || vendor.isAvailable)
-        && (!filters.nearbyOnly || vendorLocationPriority(vendor, preference) >= 2)
+        && !filters.nearbyOnly
       )
       .sort((a, b) => {
         if (filters.sort === "rating") return b.rating - a.rating;
@@ -204,8 +229,8 @@ export default function HomeScreen() {
         }
         return b.rating - a.rating || b.reviews - a.reviews;
       });
-    return rankVendorsByLocationAndMembership(eligible, preference, strictCityOnly || filters.nearbyOnly);
-  }, [filters, getRating, liveVendors, preference, strictCityOnly]);
+    return eligible;
+  }, [filters, getRating, liveVendors]);
 
   const topRatedVendors = useMemo(() => {
     // Show every vendor using the marketplace priority order. Rating remains
@@ -217,8 +242,8 @@ export default function HomeScreen() {
         return { ...vendor, rating: current.rating, reviews: current.reviews };
       })
       .sort((a, b) => b.rating - a.rating || b.reviews - a.reviews);
-    return rankVendorsByLocationAndMembership(ratedVendors, preference, strictCityOnly);
-  }, [liveVendors, getRating, preference, strictCityOnly]);
+    return ratedVendors;
+  }, [liveVendors, getRating]);
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
@@ -234,9 +259,21 @@ export default function HomeScreen() {
         {/* ── Compact mobile header ── */}
         {!isDesktop ? (
           <HomeReveal direction="down" style={[s.header, { width: featureWidth }]}>
-            <View style={[s.headerLocation, { width: headerSideWidth }]}>
-              <LocationSelector dark={isDark} compact />
-            </View>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={homeLocation ? `Your current location: ${homeLocation}. Open nearby vendors` : "Set location and find nearby vendors"}
+              style={[s.nearMeHeader, { width: headerSideWidth }]}
+              onPress={() => router.push("/NearbyVendors")}
+              activeOpacity={0.72}
+            >
+              <View style={s.locationIconWrap}><LocateFixed size={15} color={PINK} /></View>
+              <View style={s.locationCopy}>
+                <Text style={s.locationEyebrow}>{homeLocation ? "Your location" : "Location"}</Text>
+                <Text style={s.nearMeHeaderText} numberOfLines={1}>
+                  {homeLocationLoading ? "Locating…" : homeLocation?.split(",")[0]?.trim() || "Set location"}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
             <View
               pointerEvents="none"
@@ -481,20 +518,14 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
-        {/* ── Popular Near You ── */}
+        {/* General recommendations; GPS discovery stays on /NearbyVendors. */}
         <View style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}>
           <SectionHeader
-            title="Popular Near You"
-            subtitle="Reviewed professionals close to your celebration"
+            title="Popular Vendors"
+            subtitle="Reviewed professionals for your celebration"
             dark={isDark}
             actionLabel="View All"
-            onActionPress={() => router.push({ pathname: "/Search", params: { location: city, nearby: "true" } })}
-            accessory={
-              <View style={[s.nearBadge, { backgroundColor: isDark ? "#351D28" : "#FFF1F6", borderColor: isDark ? "#5B2940" : "#F7C7D9" }]}>
-                <MapPin size={11} color={PINK} />
-                <Text style={s.nearBadgeText}>Near {city}</Text>
-              </View>
-            }
+            onActionPress={() => router.push("/NearbyVendors")}
           />
 
           {vendorsLoading ? (
@@ -516,7 +547,6 @@ export default function HomeScreen() {
           >
             {nearbyVendors.map((v) => {
               const isFav = isFavorite(v.id);
-              const nearbyLabel = vendorNearbyLabel(v, preference);
               return (
                 <HomeVendorCard
                   key={v.id}
@@ -524,7 +554,6 @@ export default function HomeScreen() {
                   width={vendorCardWidth}
                   imageHeight={vendorImageHeight}
                   dark={isDark}
-                  nearbyLabel={nearbyLabel}
                   favorite={isFav}
                   fallbackSource={VENDOR_CARD_PLACEHOLDER}
                   onOpen={() =>
@@ -641,7 +670,7 @@ export default function HomeScreen() {
         visible={filtersVisible}
         dark={isDark}
         value={filters}
-        city={city}
+        city=""
         onClose={() => setFiltersVisible(false)}
         onApply={applyFilters}
       />
@@ -656,6 +685,11 @@ const s = StyleSheet.create<Record<string, any>>({
   /* Header */
   header:          { minHeight: 52, alignSelf: "center", flexDirection: "row", alignItems: "center" },
   headerLocation:  { flexShrink: 0, alignItems: "flex-start", justifyContent: "center" },
+  nearMeHeader: { minHeight: 44, flexShrink: 0, flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 12 },
+  locationIconWrap: { width: 27, height: 27, flexShrink: 0, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF0F5" },
+  locationCopy: { flex: 1, minWidth: 0, justifyContent: "center" },
+  locationEyebrow: { color: "#81777C", fontFamily: fonts.sans.medium, fontSize: 9, lineHeight: 11 },
+  nearMeHeaderText: { marginTop: 1, color: brandPalette.light.primaryStrong, fontFamily: fonts.sans.bold, fontSize: typeScale.caption, lineHeight: 15 },
   headerLogo:      { flex: 1, minWidth: 0, height: 44, alignItems: "center", justifyContent: "center" },
   headerActions:   { flexDirection: "row", flexShrink: 0, alignItems: "center" },
   headerAction:    { flex: 1, minWidth: 0, height: 44, borderRadius: 16, alignItems: "center", justifyContent: "center", position: "relative" },

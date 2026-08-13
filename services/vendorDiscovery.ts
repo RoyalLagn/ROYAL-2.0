@@ -87,6 +87,7 @@ export type FetchNearbyVendorsInput = {
   /** Display category (e.g. "Photographers"). Omit/undefined for "all
    * categories near me". */
   categoryDisplayName?: string;
+  search?: string;
   radiusKm?: number;
   minRating?: number;
   maxPrice?: number;
@@ -104,6 +105,7 @@ export async function fetchNearbyVendors(input: FetchNearbyVendorsInput): Promis
     user_lat: input.latitude,
     user_lng: input.longitude,
     p_category_names: categoryNames,
+    p_search: input.search?.trim() || null,
     p_radius_km: input.radiusKm ?? 10,
     p_min_rating: input.minRating ?? null,
     p_max_price: input.maxPrice ?? null,
@@ -121,5 +123,5 @@ export async function fetchNearbyVendors(input: FetchNearbyVendorsInput): Promis
 
 /** The radius choices exposed in the "Near Me" UI, 10 km selected by
  * default per product requirements. */
-export const NEARBY_RADIUS_OPTIONS_KM = [5, 10, 25, 50] as const;
+export const NEARBY_RADIUS_OPTIONS_KM = [5, 10, 20, 50] as const;
 export const DEFAULT_NEARBY_RADIUS_KM = 10;

@@ -213,6 +213,19 @@ export async function adminRetryVendorGeoResolution(vendorId: string) {
   return data;
 }
 
+/** Admin correction for the vendor's selected PIN locality. The database
+ * promotes that locality to admin-verified and re-resolves the vendor in the
+ * same transaction, so discovery never sees a corrected locality paired with
+ * a stale Taluka. */
+export async function adminConfirmVendorPincodeLocality(vendorId: string, talukaId: string) {
+  const { data, error } = await supabase.rpc("admin_confirm_vendor_pincode_locality", {
+    target_vendor_id: vendorId,
+    target_taluka_id: talukaId,
+  });
+  if (error) throw error;
+  return data;
+}
+
 // ----------------------------------------------------------------------------
 // Public vendor discovery: tiered (selected Taluka first, then automatically
 // generated nearby Talukas), paginated, with full ready-to-render card data
@@ -384,6 +397,39 @@ export async function listAdminGeoTalukas(districtId: string): Promise<GeoTaluka
     .from("geo_talukas").select("id,district_id,name,is_active").eq("district_id", districtId).order("name");
   if (error) throw error;
   return (data ?? []).map(mapTaluka);
+}
+
+export type AdminTalukaPincode = {
+  pincode: string;
+  localities: string[];
+  trusted: boolean;
+};
+
+/** Admin-only reverse lookup for the canonical hierarchy. The PIN/locality
+ * rows already power vendor resolution, so this deliberately does not read
+ * the legacy supported_cities/supported_areas tables. */
+export async function listAdminTalukaPincodes(talukaId: string): Promise<AdminTalukaPincode[]> {
+  const { data, error } = await supabase
+    .from("geo_pincode_localities")
+    .select("pincode,locality_name,is_trusted,is_active")
+    .eq("taluka_id", talukaId)
+    .eq("is_active", true)
+    .order("pincode")
+    .order("locality_name");
+  if (error) throw error;
+
+  const grouped = new Map<string, AdminTalukaPincode>();
+  for (const row of data ?? []) {
+    const existing: AdminTalukaPincode = grouped.get(row.pincode) ?? {
+      pincode: row.pincode,
+      localities: [],
+      trusted: true,
+    };
+    if (!existing.localities.includes(row.locality_name)) existing.localities.push(row.locality_name);
+    existing.trusted = existing.trusted && Boolean(row.is_trusted);
+    grouped.set(row.pincode, existing);
+  }
+  return [...grouped.values()];
 }
 
 export async function setGeoStateActive(id: string, isActive: boolean) {

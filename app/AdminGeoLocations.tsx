@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
 import {
   AlertTriangle,
   Compass,
@@ -19,6 +18,7 @@ import type { GeoDistrict, GeoState, GeoTaluka } from "@/locations/types";
 import {
   type GeoAdminOverview,
   type UnmappedVendorPincode,
+  adminConfirmVendorPincodeLocality,
   adminRetryVendorGeoResolution,
   getGeoAdminOverview,
   listAdminGeoDistricts,
@@ -31,18 +31,16 @@ import {
   setGeoTalukaActive,
 } from "@/services/geoLocations";
 
-// Admin console for the generic State -> District -> Taluka discovery
-// hierarchy that powers the public VendorsListing location picker. This is
-// deliberately a separate screen/route from the legacy City/Area manager at
-// /AdminLocations (see that file's "New" link) -- the two systems run
-// side-by-side, so neither admin flow risks the other's data.
+// Canonical Admin console for the State -> District -> Taluka hierarchy that
+// powers vendor mapping and public marketplace discovery. Legacy City/Area
+// records remain untouched for historical compatibility, but are not an
+// active discovery or editing path.
 //
 // Read-mostly: activate/deactivate rows, inspect imported data and the
 // automatically generated nearby-Taluka cache, and flag PIN codes that
 // still need review. There is deliberately no "link Taluka A to Taluka B"
 // control -- neighbours are always computed, never hand-authored.
 export default function AdminGeoLocations() {
-  const router = useRouter();
   const [overview, setOverview] = useState<GeoAdminOverview | null>(null);
   const [states, setStates] = useState<GeoState[]>([]);
   const [districts, setDistricts] = useState<GeoDistrict[]>([]);
@@ -50,6 +48,7 @@ export default function AdminGeoLocations() {
   const [problemPincodes, setProblemPincodes] = useState<UnmappedVendorPincode[]>([]);
   const [selectedStateId, setSelectedStateId] = useState<string | null>(null);
   const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(null);
+  const [selectedTalukaId, setSelectedTalukaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
@@ -90,7 +89,10 @@ export default function AdminGeoLocations() {
 
   useEffect(() => {
     if (!selectedDistrictId) { setTalukas([]); return; }
-    listAdminGeoTalukas(selectedDistrictId).then(setTalukas).catch(() => setTalukas([]));
+    listAdminGeoTalukas(selectedDistrictId).then((items) => {
+      setTalukas(items);
+      setSelectedTalukaId((current) => items.some((item) => item.id === current) ? current : items.find((item) => item.isActive)?.id ?? null);
+    }).catch(() => setTalukas([]));
   }, [selectedDistrictId]);
 
   const reload = async () => { setRefreshing(true); await load(); };
@@ -102,6 +104,22 @@ export default function AdminGeoLocations() {
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to retry this vendor's location.");
+    } finally {
+      setRetryingVendorId(null);
+    }
+  };
+
+  const confirmVendor = async (vendorId: string) => {
+    if (!selectedTalukaId) {
+      setError("Select the correct District and Taluka before confirming this PIN locality.");
+      return;
+    }
+    setRetryingVendorId(vendorId);
+    try {
+      await adminConfirmVendorPincodeLocality(vendorId, selectedTalukaId);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to confirm this vendor's PIN locality.");
     } finally {
       setRetryingVendorId(null);
     }
@@ -140,10 +158,6 @@ export default function AdminGeoLocations() {
             subtitle="State → District → Taluka discovery hierarchy (Maharashtra pilot)"
             action={<Pressable accessibilityLabel="Refresh" onPress={() => void reload()} className="min-w-11 min-h-11 items-center justify-center"><RefreshCw size={19} className="text-primary" /></Pressable>}
           />
-
-          <Pressable onPress={() => router.push("/AdminLocations")} className="mb-4">
-            <Text className="text-primary font-inter-semibold text-body-compact">← City / Area location manager</Text>
-          </Pressable>
 
           {loading ? <AdminLoadingState label="Loading location data…" /> : error ? (
             <AdminEmptyState title="Couldn't load location data" message={error} />
@@ -230,18 +244,21 @@ export default function AdminGeoLocations() {
               </View>
 
               <Text className="text-foreground font-bold mt-4 mb-2">Talukas</Text>
+              <Text className="text-muted-foreground text-xs mb-2">Select a Taluka here before correcting a vendor PIN below.</Text>
               <View className="gap-2 mb-2">
                 {talukas.map((taluka) => (
-                  <RowToggle
-                    key={taluka.id}
-                    label={taluka.name}
-                    detail="Taluka"
-                    isActive={taluka.isActive}
-                    onToggle={async (value) => {
-                      await setGeoTalukaActive(taluka.id, value);
-                      void load();
-                    }}
-                  />
+                  <Pressable key={taluka.id} onPress={() => setSelectedTalukaId(taluka.id)}>
+                    <RowToggle
+                      label={taluka.name}
+                      detail="Taluka"
+                      selected={selectedTalukaId === taluka.id}
+                      isActive={taluka.isActive}
+                      onToggle={async (value) => {
+                        await setGeoTalukaActive(taluka.id, value);
+                        void load();
+                      }}
+                    />
+                  </Pressable>
                 ))}
                 {!talukas.length ? <Text className="text-muted-foreground text-xs">No Talukas imported for this District yet.</Text> : null}
               </View>
@@ -274,6 +291,16 @@ export default function AdminGeoLocations() {
                       >
                         <Text className="text-primary font-inter-semibold text-caption">
                           {retryingVendorId === row.vendorId ? "Retrying…" : "Retry resolution"}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        disabled={retryingVendorId === row.vendorId || !selectedTalukaId}
+                        onPress={() => void confirmVendor(row.vendorId)}
+                        className="min-h-9 mt-2 self-start px-3 rounded-lg bg-primary items-center justify-center"
+                        style={{ opacity: selectedTalukaId ? 1 : 0.45 }}
+                      >
+                        <Text className="text-white font-inter-semibold text-caption">
+                          Confirm selected Taluka
                         </Text>
                       </Pressable>
                     </View>

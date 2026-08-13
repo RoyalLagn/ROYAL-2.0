@@ -11,7 +11,6 @@ import {
   VendorServiceLocationEditor,
   type VendorLocationValue,
 } from "@/components/locations/VendorServiceLocationEditor";
-import { useCustomerLocation } from "@/context/LocationContext";
 import {
   listVendorServiceLocations,
   replaceVendorServiceLocations,
@@ -28,7 +27,7 @@ const emptyLocation: VendorLocationValue = {
   geoLocalityId: null,
 };
 
-// Location: PIN code, primary city/area, service areas (vendor_service_locations)
+// Canonical location: PIN code and selected locality resolve the hierarchy.
 // plus the free-text business address on the vendors row. Only these are
 // read or written here -- business identity, contact info, brand and every
 // other section stay untouched.
@@ -36,7 +35,6 @@ export default function VendorEditLocation() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { data, loading, error, refresh } = useVendorWorkspace();
-  const { locations } = useCustomerLocation();
   const [address, setAddress] = useState("");
   const [vendorLocation, setVendorLocation] = useState<VendorLocationValue>(emptyLocation);
   const [locationValid, setLocationValid] = useState(false);
@@ -101,7 +99,6 @@ export default function VendorEditLocation() {
       Alert.alert("Location required", message);
       return;
     }
-    const selectedCity = locations.find((item) => item.id === vendorLocation.primaryCityId);
     setSaving(true);
     setSaveError("");
     let locationWarning = "";
@@ -126,16 +123,15 @@ export default function VendorEditLocation() {
           }
         }
         try {
-          // Atomic: legacy City/Area fields, the vendor's pincode, and the
-          // canonical State/District/Taluka hierarchy are all resolved (or
-          // safely cleared) in one database transaction. There is no
+          // Atomic: PIN, locality, and the canonical hierarchy are resolved
+          // (or safely cleared) in one database transaction. There is no
           // separate follow-up call that could fail independently and
           // leave a stale Taluka attached to a since-changed PIN.
           await replaceVendorServiceLocations({
             vendorId: data.vendor.id,
-            primaryCityId: vendorLocation.primaryCityId,
-            primaryAreaId: vendorLocation.primaryAreaId,
-            serviceAreaIds: vendorLocation.serviceAreaIds,
+            primaryCityId: null,
+            primaryAreaId: null,
+            serviceAreaIds: [],
             pincode: vendorLocation.pincode,
             geoLocalityId: vendorLocation.geoLocalityId,
           });
@@ -159,7 +155,6 @@ export default function VendorEditLocation() {
       }
       await updateVendorPublicProfile({
         address: address.trim() || null,
-        ...(locationSaved && selectedCity ? { city: selectedCity.name, state: selectedCity.state } : {}),
       });
       if (!mounted.current) return;
       invalidatePublicVendorCache();
@@ -189,13 +184,13 @@ export default function VendorEditLocation() {
           </View>
           <Text style={[kitStyles.title, { color: colors.text }]}>Location</Text>
           <Text style={[kitStyles.subtitle, { color: colors.muted }]}>
-            Your PIN code, city, service areas and address. This does not affect any other section of your profile.
+            Enter your PIN code and choose the locality matching your business address. District and Taluka are assigned automatically.
           </Text>
         </View>
 
         <VendorWorkspaceGate colors={colors} loading={loading} vendor={data.vendor} error={error} onRetry={() => void refresh()}>
           <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <SectionTitle icon={MapPin} title="Service location" detail="Choose only active RoyalLagn cities and the localities your business serves." colors={colors} />
+            <SectionTitle icon={MapPin} title="Business location" detail="Your verified locality becomes the source for District and Taluka discovery." colors={colors} />
             <View style={kitStyles.grid}>
               <View style={{ width: "100%" }}>
                 <VendorServiceLocationEditor

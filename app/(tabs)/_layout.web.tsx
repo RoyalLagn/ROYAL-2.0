@@ -22,7 +22,6 @@ import {
 import { cssInterop, useColorScheme } from "nativewind";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileTabBar } from "@/components/MobileTabBar";
-import LocationSelector from "@/components/home/LocationSelector";
 import HomeReveal from "@/components/home/HomeReveal";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
@@ -219,13 +218,17 @@ export default function TabsWebLayout() {
               <RoyalLagnLogo width={172} height={52} scale={1.9} />
             </Pressable>
 
-            {isHome ? <View className="mr-5"><LocationSelector dark={isDark} compact /></View> : null}
 
             <View className="flex-row items-center mr-6">
               <NavItem
                 label="Home"
                 active={isActive("/(tabs)")}
                 onPress={() => router.push("/(tabs)")}
+              />
+              <NavItem
+                label="Near Me"
+                active={false}
+                onPress={() => router.push("/NearbyVendors")}
               />
               <NavItem
                 label="Categories"
@@ -256,7 +259,6 @@ export default function TabsWebLayout() {
             ) : <View className="flex-1" />}
 
             <View className="flex-row items-center ml-3 gap-1">
-              {!isHome ? <LocationSelector dark={isDark} compact /> : null}
 
               <Pressable
                 accessibilityRole="button"

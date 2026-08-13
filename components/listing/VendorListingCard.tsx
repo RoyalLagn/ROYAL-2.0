@@ -8,8 +8,6 @@ import { MembershipBadge, membershipBadgeFor } from "@/components/vendor/Members
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
-import { useCustomerLocation } from "@/context/LocationContext";
-import { vendorNearbyLabel } from "@/services/locations";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading, typeStyles } from "@/constants/typography";
 
@@ -36,8 +34,6 @@ function VendorListingCard({
 }: VendorListingCardProps) {
   const [interactive, setInteractive] = useState(false);
   const { getRating } = useReviewRatings();
-  const { preference } = useCustomerLocation();
-  const nearbyLabel = vendorNearbyLabel(vendor, preference);
   const displayedRating = getRating(vendor.id, vendor.rating, vendor.reviews);
   const colors = brandColors(dark);
   const surface = colors.card;
@@ -77,8 +73,8 @@ function VendorListingCard({
             source={imageUri}
             fallbackSource={fallbackImage}
             debugLabel={`${vendor.name} listing`}
-            deliveryWidth={compact ? 146 : 216}
-            deliveryHeight={compact ? 146 : 216}
+            deliveryWidth={compact ? 138 : 184}
+            deliveryHeight={compact ? 146 : 184}
             deliveryCrop="fit"
             resizeMode="contain"
             style={styles.image}
@@ -94,25 +90,23 @@ function VendorListingCard({
         <View style={[styles.body, compact && styles.bodyCompact]}>
           <View style={[styles.identityRow, compact && styles.identityRowCompact]}>
             <View style={styles.identityText}>
-              <Text numberOfLines={compact ? 1 : 2} style={[styles.name, compact && styles.nameCompact, { color: text }]}>
-                {vendor.name}
-              </Text>
+              <View style={styles.nameRow}>
+                <Text numberOfLines={compact ? 1 : 2} style={[styles.name, compact && styles.nameCompact, { color: text }]}>
+                  {vendor.name}
+                </Text>
+                <View
+                  accessible
+                  accessibilityRole="image"
+                  accessibilityLabel="Verified vendor"
+                  style={[styles.verifiedBadge, { backgroundColor: dark ? "#38242D" : "#FFF0F6" }]}
+                >
+                  <BadgeCheck size={compact ? 14 : 15} color={colors.primaryStrong} strokeWidth={2.4} />
+                </View>
+              </View>
               <Text numberOfLines={1} style={[styles.category, { color: muted }]}>
                 {vendor.category}
               </Text>
             </View>
-          </View>
-          <View style={styles.trustRow}>
-            <View style={styles.trustItem}>
-              <BadgeCheck size={12} color={colors.primaryStrong} strokeWidth={2.2} />
-              <Text style={[styles.trustText, { color: colors.primaryStrong }]}>Verified</Text>
-            </View>
-            {nearbyLabel ? (
-              <View style={styles.trustItem}>
-                <MapPin size={11} color={PINK} />
-                <Text numberOfLines={1} style={styles.nearbyText}>{nearbyLabel}</Text>
-              </View>
-            ) : null}
           </View>
           <View style={styles.meta}>
             <Star size={13} color="#F3AC24" fill="#F3AC24" />
@@ -175,13 +169,13 @@ function VendorListingCard({
 export default React.memo(VendorListingCard);
 
 const styles = StyleSheet.create({
-  card: { width: "100%", borderWidth: 1, overflow: "hidden", position: "relative", shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  cardCompact: { height: 172, borderRadius: 20 },
-  cardWide: { height: 232, borderRadius: 24 },
-  main: { flex: 1, flexDirection: "row", padding: 8, gap: 13 },
-  imageWrap: { position: "relative", flexShrink: 0, borderRadius: 16, overflow: "hidden", backgroundColor: "#F8E9EE" },
-  imageCompact: { width: 146, height: 146 },
-  imageWide: { width: 216, height: 216 },
+  card: { width: "100%", borderWidth: 1, overflow: "hidden", position: "relative", shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  cardCompact: { height: 164, borderRadius: 18 },
+  cardWide: { height: 200, borderRadius: 18 },
+  main: { flex: 1, flexDirection: "row", padding: 8, gap: 14 },
+  imageWrap: { position: "relative", flexShrink: 0, borderRadius: 14, overflow: "hidden", backgroundColor: "#F8E9EE" },
+  imageCompact: { width: 138, height: 146 },
+  imageWide: { width: 184, height: 184 },
   // react-native-web falls back to a local image asset's own intrinsic
   // pixel size whenever the style doesn't set explicit width/height
   // (StyleSheet.absoluteFillObject only sets inset, not width/height), so a
@@ -190,18 +184,16 @@ const styles = StyleSheet.create({
   image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
   topRated: { position: "absolute", top: 10, left: 0, minHeight: 29, borderTopRightRadius: 999, borderBottomRightRadius: 999, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: PINK },
   topRatedText: { color: "#FFFFFF", fontSize: typeScale.caption, fontWeight: "700" },
-  body: { flex: 1, minWidth: 0, paddingVertical: 10, paddingRight: 60, justifyContent: "center" },
-  bodyCompact: { paddingVertical: 5, paddingRight: 52 },
-  identityRow: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 7 },
-  identityRowCompact: { gap: 6, marginBottom: 3 },
+  body: { flex: 1, minWidth: 0, paddingVertical: 8, paddingRight: 64, justifyContent: "center" },
+  bodyCompact: { paddingVertical: 4, paddingRight: 48 },
+  identityRow: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
+  identityRowCompact: { gap: 6, marginBottom: 2 },
   identityText: { flex: 1, minWidth: 0, justifyContent: "center" },
-  name: { ...typeStyles.editorialCardTitle },
+  nameRow: { maxWidth: "100%", flexDirection: "row", alignItems: "center", gap: 6 },
+  name: { ...typeStyles.editorialCardTitle, flexShrink: 1 },
   nameCompact: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle },
+  verifiedBadge: { width: 22, height: 22, flexShrink: 0, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   category: { marginTop: 2, fontFamily: fonts.sans.medium, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
-  trustRow: { minWidth: 0, minHeight: 16, marginBottom: 2, flexDirection: "row", alignItems: "center", flexWrap: "wrap", columnGap: 10, rowGap: 2 },
-  trustItem: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 3 },
-  trustText: { fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
-  nearbyText: { flexShrink: 1, color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
   meta: { minHeight: 22, flexDirection: "row", alignItems: "center", gap: 5 },
   rating: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   reviews: { fontFamily: fonts.sans.regular, fontSize: typeScale.metadata },
@@ -218,7 +210,7 @@ const styles = StyleSheet.create({
   viewProfile: { minHeight: 36, marginRight: 52, flexDirection: "row", alignItems: "center", gap: 2 },
   viewProfileText: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   cardMembershipBadge: { position: "absolute", zIndex: 2, right: 8, bottom: 8 },
-  favorite: { position: "absolute", zIndex: 3, top: 12, right: 12, width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  favorite: { position: "absolute", zIndex: 3, top: 10, right: 10, width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   favoriteHovered: { transform: [{ translateY: -1 }] },
   favoritePressed: { opacity: 0.72, transform: [{ scale: 0.94 }] },
 });

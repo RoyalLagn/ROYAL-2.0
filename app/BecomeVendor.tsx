@@ -18,7 +18,6 @@ import {
   VendorServiceLocationEditor,
   type VendorLocationValue,
 } from "@/components/locations/VendorServiceLocationEditor";
-import { useCustomerLocation } from "@/context/LocationContext";
 import { submitVendorApplication } from "@/services/vendorApplications";
 import { logSupabaseError, resolveVendorDestination } from "@/services/vendorAuth";
 import { supabase } from "@/services/supabase";
@@ -105,7 +104,6 @@ export default function BecomeVendor() {
   const params = useLocalSearchParams<{ source?: string }>();
   const source = Array.isArray(params.source) ? params.source[0] : params.source;
   const { registrationCategories: categories } = useCategories();
-  const { locations } = useCustomerLocation();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [vendorLocation, setVendorLocation] = useState<VendorLocationValue>({
     pincode: "",
@@ -291,8 +289,6 @@ export default function BecomeVendor() {
       return Alert.alert("Invalid experience", "Enter a valid number of years.");
     }
     if (!termsAccepted) return Alert.alert("Terms required", "Accept the Terms & Conditions to continue.");
-    const selectedCity = locations.find((item) => item.id === vendorLocation.primaryCityId);
-    const selectedArea = selectedCity?.areas.find((item) => item.id === vendorLocation.primaryAreaId);
     if (!locationValid) {
       return Alert.alert("Service location required", "Verify your PIN code and choose a locality when prompted.");
     }
@@ -308,11 +304,11 @@ export default function BecomeVendor() {
         category_id: form.categoryId,
         description: form.description.trim(),
         experience,
-        address: selectedArea?.name ?? selectedCity?.name ?? "",
+        address: "",
         pincode: vendorLocation.pincode,
-        city_id: selectedCity?.id ?? null,
-        area_id: selectedArea?.id ?? null,
-        service_area_ids: vendorLocation.serviceAreaIds,
+        city_id: null,
+        area_id: null,
+        service_area_ids: [],
         geo_pincode_locality_id: vendorLocation.geoLocalityId,
         location_fallback: locationSource === "manual_fallback",
         instagram: form.instagram.trim() || null,

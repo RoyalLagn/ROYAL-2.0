@@ -55,11 +55,11 @@ export default function CategoryListingHeader({
 }
 
 const styles = StyleSheet.create({
-  header: { minHeight: 72, flexDirection: "row", alignItems: "center" },
+  header: { minHeight: 78, flexDirection: "row", alignItems: "center" },
   action: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   pressed: { opacity: 0.74, transform: [{ scale: 0.96 }] },
   center: { flex: 1, minWidth: 0, alignItems: "center", paddingHorizontal: 6 },
-  title: { maxWidth: "100%", ...typeStyles.editorialPageTitle },
-  location: { maxWidth: "100%", marginTop: 2, flexDirection: "row", alignItems: "center", gap: 4 },
+  title: { maxWidth: "100%", ...typeStyles.editorialPageTitle, letterSpacing: -0.7 },
+  location: { maxWidth: "100%", marginTop: 3, flexDirection: "row", alignItems: "center", gap: 5 },
   locationText: { flexShrink: 1, color: PINK, ...typeStyles.label },
 });

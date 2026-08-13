@@ -21,8 +21,11 @@ type Props = {
   states: GeoState[];
   value: GeoSelection | null;
   onChange: (value: GeoSelection, districtName: string, talukaName: string) => void;
+  onClear?: () => void;
   onResolvedLabel?: (districtName: string, talukaName: string) => void;
   loading?: boolean;
+  hideLabel?: boolean;
+  compact?: boolean;
 };
 
 /**
@@ -40,7 +43,7 @@ type Props = {
  * geo_states, a State-selection row appears here with no code change
  * required anywhere else.
  */
-export function TalukaLocationSelector({ states, value, onChange, onResolvedLabel, loading }: Props) {
+export function TalukaLocationSelector({ states, value, onChange, onClear, onResolvedLabel, loading, hideLabel = false, compact = false }: Props) {
   const { colorScheme } = useColorScheme();
   const colors = brandColors(colorScheme === "dark");
   const [visible, setVisible] = useState(false);
@@ -163,24 +166,36 @@ export function TalukaLocationSelector({ states, value, onChange, onResolvedLabe
     ? showStateStep
       ? `${selectedTalukaName}, ${selectedDistrictName}, ${selectedStateName}`
       : `${selectedTalukaName}, ${selectedDistrictName}`
-    : "Choose your District & Taluka";
+    : compact ? "Choose location" : "Choose your District & Taluka";
 
   return (
     <View style={styles.field}>
-      <Text style={[styles.label, { color: colors.foreground }]} nativeID="taluka-selector-label">Where do you need the service?</Text>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ expanded: visible }}
-        accessibilityLabel={selectedTalukaName ? `Change service location, currently ${display}` : "Choose your District and Taluka"}
-        onPress={() => setVisible(true)}
-        style={({ pressed }) => [styles.control, { backgroundColor: colors.background, borderColor: colors.border }, pressed && styles.pressed]}
-      >
-        <MapPin size={18} color={colors.primary} />
-        <Text numberOfLines={1} style={[styles.value, { color: colors.foreground }, !selectedTalukaName && { color: colors.mutedForeground }]}>
-          {display}
-        </Text>
-        {loading ? <ActivityIndicator size="small" color={colors.primary} /> : <ChevronDown size={18} color={colors.mutedForeground} />}
-      </Pressable>
+      {!hideLabel ? <Text style={[styles.label, { color: colors.foreground }]} nativeID="taluka-selector-label">Where do you need the service?</Text> : null}
+      <View style={styles.controlRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: visible }}
+          accessibilityLabel={selectedTalukaName ? `Change service location, currently ${display}` : "Choose your District and Taluka"}
+          onPress={() => setVisible(true)}
+          style={({ pressed }) => [styles.control, compact && styles.controlCompact, { backgroundColor: colors.background, borderColor: colors.border }, pressed && styles.pressed]}
+        >
+          <MapPin size={18} color={colors.primary} />
+          <Text numberOfLines={1} style={[styles.value, { color: colors.foreground }, !selectedTalukaName && { color: colors.mutedForeground }]}>
+            {display}
+          </Text>
+          {loading ? <ActivityIndicator size="small" color={colors.primary} /> : <ChevronDown size={18} color={colors.mutedForeground} />}
+        </Pressable>
+        {value && onClear ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Remove service location ${display}`}
+            onPress={onClear}
+            style={({ pressed }) => [styles.clearControl, { backgroundColor: colors.background, borderColor: colors.border }, pressed && styles.pressed]}
+          >
+            <X size={16} color={colors.primaryStrong} strokeWidth={2.2} />
+          </Pressable>
+        ) : null}
+      </View>
 
       <Modal visible={visible} transparent accessibilityViewIsModal animationType={Platform.OS === "web" ? "fade" : "slide"} onRequestClose={() => setVisible(false)}>
         <Pressable style={styles.backdrop} onPress={() => setVisible(false)}>
@@ -295,9 +310,12 @@ export function TalukaLocationSelector({ states, value, onChange, onResolvedLabe
 
 const styles = StyleSheet.create({
   field: { marginBottom: 4 },
+  controlRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   flex: { flex: 1, minWidth: 0 },
   label: { fontSize: typeScale.body, fontWeight: "600", marginBottom: 8 },
-  control: { height: 52, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10 },
+  control: { flex: 1, height: 52, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10 },
+  controlCompact: { width: 164, height: 42, borderRadius: 999, paddingHorizontal: 11, gap: 6 },
+  clearControl: { width: 42, height: 42, flexShrink: 0, borderWidth: 1, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   value: { flex: 1, minWidth: 0, fontSize: typeScale.body },
   pressed: { opacity: 0.75 },
   backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(25,15,20,.5)" },

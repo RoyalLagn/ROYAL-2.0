@@ -13,7 +13,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import LocationSelector from "@/components/home/LocationSelector";
 import HomeReveal from "@/components/home/HomeReveal";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
@@ -181,6 +180,7 @@ export default function PublicWebNavbar({
 
         <View className="flex-row items-center mr-6">
           <NavItem label="Home" active={activeRoute === "Home"} onPress={() => router.push("/(tabs)")} />
+          <NavItem label="Near Me" active={false} onPress={() => router.push("/NearbyVendors")} />
           <NavItem label="Categories" active={activeRoute === "Categories"} onPress={() => router.push("/(tabs)/Categories")} />
           <NavItem label="Clips" active={activeRoute === "Clips"} onPress={() => router.push("/(tabs)/clips")} />
           <DesktopFavoritesButton onPress={() => router.push("/(tabs)/favorites")} />
@@ -197,7 +197,6 @@ export default function PublicWebNavbar({
         />
 
         <View className="flex-row items-center ml-3 gap-1">
-          <LocationSelector dark={isDark} compact />
 
           <Pressable
             accessibilityRole="button"
