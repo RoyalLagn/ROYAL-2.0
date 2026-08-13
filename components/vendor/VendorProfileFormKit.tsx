@@ -321,25 +321,23 @@ export function SaveBar({
           <Text style={[kitStyles.saveHint, { color: colors.muted }]}>{hint}</Text>
         )}
       </Animated.View>
-      <Animated.View style={buttonAnimatedStyle}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={state === "saved" ? "Saved" : buttonLabel}
-          disabled={saving || disabled}
-          onPress={onPress}
-          style={({ pressed }) => [
-            kitStyles.save,
-            { backgroundColor: state === "saved" ? colors.success : colors.pink },
-            pressed && kitStyles.pressed,
-            (saving || disabled) && { opacity: 0.6 },
-          ]}
-        >
-          {saving
-            ? <ActivityIndicator color="#FFF" />
-            : state === "saved"
-              ? <><Check size={17} color="#FFF" /><Text style={kitStyles.saveText}>Saved</Text></>
-              : <><Save size={17} color="#FFF" /><Text style={kitStyles.saveText}>{buttonLabel}</Text></>}
-        </Pressable>
+      <Animated.View style={[buttonAnimatedStyle, (saving || disabled) && kitStyles.saveDisabled]}>
+        <View style={[kitStyles.saveVisual, { backgroundColor: state === "saved" ? colors.success : colors.pink }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={state === "saved" ? "Saved" : buttonLabel}
+            android_ripple={{ color: "rgba(255,255,255,0.18)" }}
+            disabled={saving || disabled}
+            onPress={onPress}
+            style={kitStyles.saveHitArea}
+          >
+            {saving
+              ? <ActivityIndicator color="#FFF" />
+              : state === "saved"
+                ? <><Check size={17} color="#FFF" /><Text style={kitStyles.saveText}>Saved</Text></>
+                : <><Save size={17} color="#FFF" /><Text style={kitStyles.saveText}>{buttonLabel}</Text></>}
+          </Pressable>
+        </View>
       </Animated.View>
     </View>
   );
@@ -382,7 +380,8 @@ export const kitStyles = StyleSheet.create({
   saveHint: { fontSize: typeScale.caption },
   savedText: { fontSize: typeScale.caption, fontWeight: "700" },
   saveErrorText: { color: "#D33B55", fontSize: typeScale.caption, lineHeight: typeLeading.label, fontWeight: "700" },
-  save: { minWidth: 130, minHeight: 47, paddingHorizontal: 18, borderRadius: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  saveVisual: { width: 130, height: 47, overflow: "hidden", borderRadius: 15 },
+  saveHitArea: { flex: 1, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  saveDisabled: { opacity: 0.6 },
   saveText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
-  pressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
 });

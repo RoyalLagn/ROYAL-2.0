@@ -50,7 +50,11 @@ export default function QrCodeSection({
 
 function QrButton({ label, icon, colors, onPress }: { label: string; icon: React.ReactNode; colors: typeof vendorTheme.light; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.qrButton, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressed]}>
+    <Pressable
+      android_ripple={{ color: "rgba(233,30,99,0.08)" }}
+      onPress={onPress}
+      style={[styles.qrButton, { backgroundColor: colors.surfaceSoft }]}
+    >
       {icon}
       <Text style={[styles.qrButtonLabel, { color: colors.text }]}>{label}</Text>
     </Pressable>
@@ -63,9 +67,8 @@ const styles = StyleSheet.create({
   qrWrap: { alignItems: "center", marginBottom: 16 },
   qrBox: { padding: 14, borderRadius: 18, borderWidth: 1, backgroundColor: "#FFFFFF" },
   actionsRow: { flexDirection: "row", gap: 8 },
-  qrButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, paddingVertical: 10 },
+  qrButton: { flex: 1, height: 38, overflow: "hidden", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, paddingHorizontal: 6 },
   qrButtonLabel: { fontSize: typeScale.caption, fontWeight: "700" },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },
   modalClose: { position: "absolute", top: 50, right: 24, width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.12)" },
   modalQrBox: { padding: 24, borderRadius: 24, backgroundColor: "#FFFFFF" },

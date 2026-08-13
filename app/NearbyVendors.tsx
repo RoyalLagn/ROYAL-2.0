@@ -145,8 +145,15 @@ export default function NearbyVendorsScreen() {
     router.push("/(tabs)/Categories");
   }, [category, router]);
 
+  // Ref-backed fetch lock: onEndReached can fire multiple times before a
+  // setResultsLoading(true) state update actually commits, which used to let
+  // two calls through with the same `offset` and append the same page of
+  // vendors twice -- producing duplicate `vendor.id` keys in the FlatList.
+  const fetchInFlight = useRef(false);
+
   const loadResults = useCallback((reset: boolean, radius: number = radiusKm) => {
-    if (!origin) return;
+    if (!origin || fetchInFlight.current) return;
+    fetchInFlight.current = true;
     setResultsLoading(true);
     setResultsError("");
     fetchNearbyVendors({
@@ -160,14 +167,27 @@ export default function NearbyVendorsScreen() {
       offset: reset ? 0 : offset,
     })
       .then((result) => {
-        setCards((previous) => (reset ? result.cards : [...previous, ...result.cards]));
+        setCards((previous) => {
+          const merged = reset ? result.cards : [...previous, ...result.cards];
+          const seen = new Set<string>();
+          // Belt-and-suspenders: drop any vendor id already present so a
+          // stray overlapping page can never produce duplicate list keys.
+          return merged.filter((card) => {
+            if (seen.has(card.vendor.id)) return false;
+            seen.add(card.vendor.id);
+            return true;
+          });
+        });
         setHasMore(result.hasMore);
         setOffset(result.nextOffset);
       })
       .catch(() => {
         setResultsError("We couldn't load nearby vendors right now.");
       })
-      .finally(() => setResultsLoading(false));
+      .finally(() => {
+        fetchInFlight.current = false;
+        setResultsLoading(false);
+      });
   }, [origin, category, searchQuery, minimumRating, offset, radiusKm]);
 
   useEffect(() => {
@@ -180,7 +200,7 @@ export default function NearbyVendorsScreen() {
   }, [stage, origin, category, searchQuery, minimumRating, radiusKm]);
 
   const loadMore = useCallback(() => {
-    if (resultsLoading || !hasMore) return;
+    if (resultsLoading || !hasMore || fetchInFlight.current) return;
     loadResults(false);
   }, [resultsLoading, hasMore, loadResults]);
 
@@ -219,6 +239,7 @@ export default function NearbyVendorsScreen() {
   ), [isDark, compact, isFavorite, fallbackImage, router, toggleVendorFavorite]);
 
   const showLocationPrompt = stage === "checking" || stage === "denied" || stage === "unavailable";
+  const android = Platform.OS === "android";
   const showLoadingSkeleton = stage === "locating"
     || (stage === "ready" && resultsLoading && cards.length === 0);
 
@@ -259,26 +280,36 @@ export default function NearbyVendorsScreen() {
                 <View style={styles.permissionHeading}>
                   <View style={styles.fallbackIcon}><ShieldAlert size={18} color={colors.primaryStrong} /></View>
                   <View style={styles.flex}>
-                    <Text style={[styles.fallbackTitle, { color: text }]}>
+                    <Text maxFontSizeMultiplier={android ? 1.3 : undefined} style={[styles.fallbackTitle, android && styles.fallbackTitleAndroid, { color: text }]}>
                       {stage === "checking"
                         ? "Use your current location"
                         : stage === "denied"
                           ? "Location permission is off"
                           : "Location is unavailable"}
                     </Text>
-                    <Text style={[styles.fallbackText, { color: muted }]}>
+                    <Text maxFontSizeMultiplier={android ? 1.3 : undefined} style={[styles.fallbackText, android && styles.fallbackTextAndroid, { color: muted }]}>
                       {locationError || "Allow GPS to see accurate distance. RoyalLagn requests it only when you choose this option."}
                     </Text>
                   </View>
                 </View>
                 <View style={[styles.permissionActions, desktop && styles.permissionActionsDesktop]}>
-                  <Pressable accessibilityRole="button" onPress={requestPermission} style={({ pressed }) => [styles.primaryAction, pressed && styles.actionPressed]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    android_ripple={{ color: "rgba(255,255,255,0.18)" }}
+                    onPress={requestPermission}
+                    style={styles.primaryAction}
+                  >
                     <LocateFixed size={16} color="#FFFFFF" />
-                    <Text style={styles.primaryActionText}>{stage === "checking" ? "Use my location" : "Try GPS again"}</Text>
+                    <Text maxFontSizeMultiplier={android ? 1.3 : undefined} style={[styles.primaryActionText, android && styles.primaryActionTextAndroid]}>{stage === "checking" ? "Use my location" : "Try GPS again"}</Text>
                   </Pressable>
-                  <Pressable accessibilityRole="button" onPress={openManualSearch} style={({ pressed }) => [styles.secondaryAction, { borderColor: border }, pressed && styles.actionPressed]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    android_ripple={{ color: "rgba(233,30,99,0.08)" }}
+                    onPress={openManualSearch}
+                    style={[styles.secondaryAction, { borderColor: border }]}
+                  >
                     <MapPin size={15} color={colors.primaryStrong} />
-                    <Text style={[styles.secondaryActionText, { color: colors.primaryStrong }]}>Choose District & Taluka</Text>
+                    <Text maxFontSizeMultiplier={android ? 1.3 : undefined} style={[styles.secondaryActionText, android && styles.secondaryActionTextAndroid, { color: colors.primaryStrong }]}>Choose District & Taluka</Text>
                   </Pressable>
                 </View>
               </View>
@@ -299,14 +330,17 @@ export default function NearbyVendorsScreen() {
                 <TextInput value={searchInput} onChangeText={setSearchInput} placeholder="Search vendors or services" placeholderTextColor={muted} accessibilityLabel="Search nearby vendors or services" style={[styles.searchInput, { color: text }]} />
               </View>
               <View style={styles.selectorRow}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Choose vendor category" onPress={() => setCategoryPickerOpen(true)} style={({ pressed }) => [styles.categorySelect, styles.selectorControl, { borderColor: border, backgroundColor: background }, pressed && styles.actionPressed]}>
+              <View style={[styles.selectorVisual, { borderColor: border, backgroundColor: background }]}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Choose vendor category" android_ripple={{ color: "rgba(233,30,99,0.08)" }} onPress={() => setCategoryPickerOpen(true)} style={styles.selectorHitArea}>
                 <View style={styles.filterSelectCopy}>
                   <Text style={[styles.filterSelectLabel, { color: muted }]}>Category</Text>
                   <Text style={[styles.categorySelectText, { color: text }]} numberOfLines={1}>{category ?? "All categories"}</Text>
                 </View>
                 <ChevronDown size={18} color={muted} />
               </Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="Open rating and radius filters" onPress={() => setFilterPickerOpen(true)} style={({ pressed }) => [styles.categorySelect, styles.selectorControl, { borderColor: border, backgroundColor: background }, pressed && styles.actionPressed]}>
+              </View>
+              <View style={[styles.selectorVisual, { borderColor: border, backgroundColor: background }]}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Open rating and radius filters" android_ripple={{ color: "rgba(233,30,99,0.08)" }} onPress={() => setFilterPickerOpen(true)} style={styles.selectorHitArea}>
                 <SlidersHorizontal size={17} color={PINK} />
                 <View style={styles.filterSelectCopy}>
                   <Text style={[styles.filterSelectLabel, { color: muted }]}>Filters</Text>
@@ -314,6 +348,7 @@ export default function NearbyVendorsScreen() {
                 </View>
                 <ChevronDown size={18} color={muted} />
               </Pressable>
+              </View>
               </View>
             </View>
           </View>
@@ -420,13 +455,17 @@ const styles = StyleSheet.create({
   permissionHeading: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   fallbackIcon: { width: 38, height: 38, flexShrink: 0, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF0F5" },
   fallbackTitle: { fontFamily: fonts.sans.bold, fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle },
+  fallbackTitleAndroid: { includeFontPadding: false },
   fallbackText: { maxWidth: 410, marginTop: 5, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
+  fallbackTextAndroid: { includeFontPadding: false },
   permissionActions: { marginTop: 16, gap: 9 },
   permissionActionsDesktop: { flexDirection: "row", alignItems: "center" },
-  primaryAction: { minHeight: 46, paddingHorizontal: 18, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: PINK },
+  primaryAction: { height: 46, overflow: "hidden", paddingHorizontal: 18, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: PINK },
   primaryActionText: { color: "#FFFFFF", fontFamily: fonts.sans.bold, fontSize: typeScale.bodyCompact },
-  secondaryAction: { minHeight: 46, paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  primaryActionTextAndroid: { includeFontPadding: false },
+  secondaryAction: { height: 46, overflow: "hidden", paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   secondaryActionText: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
+  secondaryActionTextAndroid: { includeFontPadding: false },
   filterPanel: { marginTop: 16, overflow: "hidden", borderWidth: 1, borderRadius: 18, padding: 16 },
   filterHeader: { flexDirection: "row", justifyContent: "flex-end" },
   filterBody: { gap: 14 },
@@ -439,9 +478,9 @@ const styles = StyleSheet.create({
   sectionLabel: { marginTop: 12, marginBottom: 7, fontFamily: fonts.sans.semibold, fontSize: typeScale.caption },
   sectionLabelInline: { marginBottom: 8, fontFamily: fonts.sans.semibold, fontSize: typeScale.caption },
   categoryBlock: { marginTop: 15, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(120,113,120,0.24)" },
-  categorySelect: { minHeight: 46, paddingHorizontal: 13, borderWidth: 1, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   selectorRow: { flex: 1, minWidth: 0, flexDirection: "row", gap: 10, marginTop: 14 },
-  selectorControl: { flex: 1, minWidth: 0 },
+  selectorVisual: { flex: 1, minWidth: 0, height: 46, overflow: "hidden", borderWidth: 1, borderRadius: 14 },
+  selectorHitArea: { flex: 1, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   filterSelectCopy: { flex: 1, minWidth: 0 },
   filterSelectLabel: { fontFamily: fonts.sans.semibold, fontSize: 9, lineHeight: 12, letterSpacing: 0.45 },
   categorySelectText: { flex: 1, minWidth: 0, fontFamily: fonts.sans.semibold, fontSize: typeScale.bodyCompact },

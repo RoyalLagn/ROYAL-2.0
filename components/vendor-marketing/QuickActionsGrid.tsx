@@ -42,14 +42,18 @@ export default function QuickActionsGrid({
       <Text style={[styles.title, { color: colors.text }]}>Quick Actions</Text>
       <View style={styles.grid}>
         {actions.map((action) => (
-          <Pressable
-            key={action.key}
-            onPress={action.onPress}
-            style={({ pressed }) => [styles.button, { backgroundColor: colors.pink }, pressed && styles.pressed]}
-          >
-            {action.icon}
-            <Text style={styles.buttonLabel}>{action.label}</Text>
-          </Pressable>
+          <View key={action.key} style={[styles.buttonTile, { backgroundColor: colors.pink }]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
+              android_ripple={{ color: "rgba(255,255,255,0.18)" }}
+              onPress={action.onPress}
+              style={styles.buttonHitArea}
+            >
+              {action.icon}
+              <Text style={styles.buttonLabel}>{action.label}</Text>
+            </Pressable>
+          </View>
         ))}
       </View>
     </View>
@@ -60,7 +64,7 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
   title: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 12 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  button: { minWidth: "31%", flexGrow: 1, minHeight: 78, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 12 },
+  buttonTile: { flexBasis: "30%", flexGrow: 1, height: 78, overflow: "hidden", borderRadius: 18 },
+  buttonHitArea: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 12 },
   buttonLabel: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700", textAlign: "center" },
-  pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
 });

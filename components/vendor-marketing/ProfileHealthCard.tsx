@@ -35,8 +35,9 @@ export default function ProfileHealthCard({
           {suggestions.map((item) => (
             <Pressable
               key={item.id}
+              android_ripple={{ color: "rgba(233,30,99,0.08)" }}
               onPress={() => router.push(item.route as any)}
-              style={({ pressed }) => [styles.row, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressed]}
+              style={[styles.row, { backgroundColor: colors.surfaceSoft }]}
             >
               <Text style={[styles.rowText, { color: colors.text }]}>{item.label}</Text>
               <ChevronRight size={15} color={colors.muted} />
@@ -58,8 +59,7 @@ const styles = StyleSheet.create({
   percentBadge: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
   percent: { fontSize: typeScale.body, fontWeight: "700" },
   list: { gap: 8, marginTop: 14 },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 13, paddingHorizontal: 12, paddingVertical: 11 },
+  row: { minHeight: 42, overflow: "hidden", flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: 13, paddingHorizontal: 12, paddingVertical: 11 },
   rowText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  pressed: { opacity: 0.88 },
   doneText: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginTop: 14 },
 });

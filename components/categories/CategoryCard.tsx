@@ -1,5 +1,5 @@
 import React from "react";
-import { Platform, type ImageURISource, Pressable, StyleSheet, Text, View, } from "react-native";
+import { type ImageURISource, Pressable, StyleSheet, Text, View, } from "react-native";
 import SafeImage from "@/components/SafeImage";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
@@ -29,18 +29,18 @@ function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
   const surface = dark ? "#201D1F" : "#FFFFFF";
   const border = dark ? "#3D3036" : "#F3D3DE";
   const iconSurface = dark ? `${category.iconColor}1E` : category.iconBg;
+  const cardHeight = compact ? 120 : 154;
+  const imageWidth = compact ? 108 : 150;
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Browse ${category.name}`}
       onPress={onPress}
-      style={({ pressed, hovered }) => [
+      style={[
         styles.card,
         compact ? styles.cardCompact : styles.cardWide,
         { backgroundColor: surface, borderColor: border },
-        hovered && Platform.OS === "web" && styles.cardHovered,
-        pressed && styles.cardPressed,
       ]}
     >
       <View style={[styles.details, compact && styles.detailsCompact]}>
@@ -64,14 +64,14 @@ function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
         </View>
       </View>
 
-      <View style={[styles.imageWrap, compact && styles.imageWrapCompact]}>
+      <View style={[styles.imageWrap, { width: imageWidth, height: cardHeight }]}>
         <SafeImage
           accessibilityLabel={`${category.name} category`}
           source={category.image}
           fallbackSource={category.fallbackImage}
           debugLabel={`${category.name} category`}
           resizeMode="cover"
-          style={styles.image}
+          style={{ width: imageWidth, height: cardHeight }}
         />
       </View>
     </Pressable>
@@ -95,8 +95,6 @@ const styles = StyleSheet.create({
   },
   cardCompact: { height: 120, borderRadius: 16 },
   cardWide: { height: 154, borderRadius: 16 },
-  cardHovered: { borderColor: "#E8B8C9", shadowOpacity: 0.1, transform: [{ translateY: -2 }] },
-  cardPressed: { opacity: 0.94, transform: [{ scale: 0.98 }] },
   details: { flex: 1, minWidth: 0, paddingHorizontal: 20, paddingVertical: 18, flexDirection: "row", alignItems: "center", gap: 16 },
   detailsCompact: { paddingHorizontal: 14, paddingVertical: 13, gap: 11 },
   iconCircle: { width: 62, height: 62, borderRadius: 18, borderWidth: 1, alignItems: "center", justifyContent: "center", flexShrink: 0 },
@@ -106,12 +104,10 @@ const styles = StyleSheet.create({
   nameCompact: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, marginBottom: 3 },
   description: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, fontWeight: "400" },
   descriptionCompact: { fontSize: typeScale.metadata, lineHeight: typeLeading.label },
-  imageWrap: { width: 150, height: "100%", overflow: "hidden", backgroundColor: "#F8E9EE" },
-  imageWrapCompact: { width: 108 },
-  // react-native-web falls back to a local image asset's own intrinsic
-  // pixel size whenever the style doesn't set explicit width/height
-  // (StyleSheet.absoluteFillObject only sets inset, not width/height), so a
-  // small fallback asset would render at its native size instead of filling
-  // imageWrap. Force fill sizing explicitly so inset alone can't be beaten.
-  image: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
+  imageWrap: {
+    flexShrink: 0,
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: "#F8E9EE",
+  },
 });
