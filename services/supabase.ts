@@ -27,17 +27,46 @@ const secureStoreAdapter: SupportedStorage = {
   removeItem: (key) => SecureStore.deleteItemAsync(key),
 };
 
+// Deliberately sessionStorage, not localStorage. Admin, Public and Vendor
+// all authenticate through this one Supabase client/project, so a shared
+// localStorage key means whichever role signs in *last* overwrites the same
+// "sb-<ref>-auth-token" entry for every open tab -- and Supabase's browser
+// client also listens for the `storage` DOM event to sync sessions across
+// tabs sharing that storage, so the other tabs' AdminAuthContext /
+// PublicAuthContext / VendorAuthContext immediately re-verify against the
+// new (wrong-role) session and sign themselves out. sessionStorage is scoped
+// to a single tab/browsing-context by the browser itself: it still survives
+// a reload of that same tab (so refresh keeps you logged in), but a
+// separately opened tab gets its own empty sessionStorage and never
+// observes another tab's writes, so `storage` events -- and therefore
+// cross-tab session replacement -- simply cannot reach it. Native keeps
+// SecureStore untouched below; this only changes the web adapter.
 const webStorageAdapter: SupportedStorage = {
-  getItem: (key) =>
-    typeof localStorage === "undefined" ? null : localStorage.getItem(key),
+  getItem: (key) => {
+    try {
+      return typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(key);
+    } catch {
+      // sessionStorage can throw in privacy modes / sandboxed frames.
+      return null;
+    }
+  },
   setItem: (key, value) => {
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(key, value);
+    try {
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.setItem(key, value);
+      }
+    } catch {
+      // Best-effort: a failed write just means this tab won't persist
+      // across reload, not a crash.
     }
   },
   removeItem: (key) => {
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(key);
+    try {
+      if (typeof sessionStorage !== "undefined") {
+        sessionStorage.removeItem(key);
+      }
+    } catch {
+      // Nothing else to clean up.
     }
   },
 };
