@@ -43,6 +43,11 @@ function numeric<T extends Record<string, unknown>>(row: T, fields: string[]) {
   return result;
 }
 
+function isMissingRpc(error: unknown, functionName: string) {
+  const value = error as { code?: string; message?: string } | null;
+  return value?.code === "PGRST202" || value?.code === "42883" || Boolean(value?.message?.includes(functionName));
+}
+
 export function summarizeFinance(data: Pick<FinanceMonthData, "transactions" | "budget" | "budgetItems" | "taxes">): FinanceSummary {
   const recorded = data.transactions.filter((item) => item.status === "recorded");
   const revenue = recorded.filter((item) => item.direction === "revenue");
@@ -79,7 +84,7 @@ export const AdminFinanceService = {
     const bounds = monthBounds(monthStart);
     const [categoriesResult, transactions, budgetResult, taxesResult, usageResult, scenariosResult, closureResult] = await Promise.all([
       supabase.from("finance_categories").select("id,name,group_name,direction,is_system,is_active").eq("is_active", true).order("direction").order("group_name").order("name"),
-      allRows<Record<string, unknown>>((from, to) => supabase.from("finance_transactions").select("id,occurred_on,direction,category_id,amount,tax_amount,gateway_fee,source,source_payment_id,source_event_key,payment_method,counterparty,reference_number,is_recurring,status,notes,created_at,finance_categories(name,group_name)").gte("occurred_on", bounds.start).lt("occurred_on", bounds.end).order("occurred_on", { ascending: false }).order("created_at", { ascending: false }).range(from, to)),
+      allRows<Record<string, unknown>>((from, to) => supabase.from("finance_transactions").select("id,occurred_on,direction,category_id,amount,tax_amount,gateway_fee,source,source_payment_id,payment_method,counterparty,reference_number,is_recurring,status,notes,created_at,finance_categories(name,group_name)").gte("occurred_on", bounds.start).lt("occurred_on", bounds.end).order("occurred_on", { ascending: false }).order("created_at", { ascending: false }).range(from, to)),
       supabase.from("finance_budgets").select("id,month_start,name,revenue_target,status,notes").eq("month_start", bounds.start).maybeSingle(),
       supabase.from("finance_tax_records").select("id,period_start,period_end,tax_type,amount,is_estimate,notes").lt("period_start", bounds.end).gte("period_end", bounds.start).order("tax_type"),
       supabase.from("finance_cloudinary_usage").select("id,month_start,storage_percent,bandwidth_percent,transformations_percent,estimated_cost,actual_cost,notes").eq("month_start", bounds.start).maybeSingle(),
@@ -139,7 +144,46 @@ export const AdminFinanceService = {
 
   async saveBudget(monthStart: string, revenueTarget: number, items: { category_id: string; amount: number }[]) {
     const { error } = await supabase.rpc("admin_save_finance_budget", { target_month: monthStart, target_revenue: revenueTarget, budget_items: items });
-    if (error) throw error;
+    if (!error) return;
+    if (!isMissingRpc(error, "admin_save_finance_budget")) throw error;
+
+    // Compatibility path for databases that have the Finance tables but have
+    // not received the atomic budget RPC migration yet.
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+    const { data: existingBudget, error: lookupError } = await supabase
+      .from("finance_budgets")
+      .select("id")
+      .eq("month_start", monthStart)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    const budgetRequest = existingBudget
+      ? supabase.from("finance_budgets").update({ revenue_target: revenueTarget, updated_by: userId }).eq("id", existingBudget.id)
+      : supabase.from("finance_budgets").insert({ month_start: monthStart, name: `${monthStart.slice(0, 7)} operating budget`, revenue_target: revenueTarget, status: "open", updated_by: userId, created_by: userId });
+    const { data: budget, error: budgetError } = await budgetRequest
+      .select("id")
+      .single();
+    if (budgetError) throw budgetError;
+
+    const { data: existing, error: existingError } = await supabase
+      .from("finance_budget_items")
+      .select("id,category_id")
+      .eq("budget_id", budget.id);
+    if (existingError) throw existingError;
+
+    if (items.length) {
+      const { error: itemsError } = await supabase.from("finance_budget_items").upsert(
+        items.map((item) => ({ budget_id: budget.id, category_id: item.category_id, amount: item.amount })),
+        { onConflict: "budget_id,category_id" },
+      );
+      if (itemsError) throw itemsError;
+    }
+
+    const retainedCategoryIds = new Set(items.map((item) => item.category_id));
+    const obsoleteIds = (existing ?? []).filter((item) => !retainedCategoryIds.has(item.category_id)).map((item) => item.id);
+    if (obsoleteIds.length) {
+      const { error: deleteError } = await supabase.from("finance_budget_items").delete().in("id", obsoleteIds);
+      if (deleteError) throw deleteError;
+    }
   },
 
   async saveTaxRecord(input: Omit<FinanceTaxRecord, "id"> & { id?: string }) {

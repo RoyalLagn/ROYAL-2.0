@@ -20,7 +20,6 @@ export type FinanceTransaction = {
   gateway_fee: number;
   source: "manual" | "subscription_payment" | "refund" | "adjustment";
   source_payment_id: string | null;
-  source_event_key: string | null;
   payment_method: string | null;
   counterparty: string | null;
   reference_number: string | null;
