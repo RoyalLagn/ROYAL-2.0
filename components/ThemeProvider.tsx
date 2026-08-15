@@ -1,7 +1,7 @@
 // ThemeProvider.tsx
 import { useColorScheme } from 'nativewind';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Platform, useColorScheme as useSystemColorScheme, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { lightTheme, darkTheme } from '../theme';
 import { brandPalette } from '@/constants/brandPalette';
@@ -32,9 +32,7 @@ export function useAppTheme() {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { setColorScheme: setNativeWindColorScheme } = useColorScheme();
-  const systemColorScheme = useSystemColorScheme();
-  const [followsSystem, setFollowsSystem] = useState(true);
-  const [colorScheme, setColorScheme] = useState<AppColorScheme>(systemColorScheme === 'dark' ? 'dark' : 'light');
+  const [colorScheme, setColorScheme] = useState<AppColorScheme>('light');
 
   useEffect(() => {
     const restoreTheme = async () => {
@@ -42,7 +40,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
         ? globalThis.localStorage?.getItem(THEME_KEY)
         : await SecureStore.getItemAsync(THEME_KEY);
       if (saved === 'light' || saved === 'dark') {
-        setFollowsSystem(false);
         setColorScheme(saved);
       }
     };
@@ -50,15 +47,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   }, []);
 
   useEffect(() => {
-    if (followsSystem) setColorScheme(systemColorScheme === 'dark' ? 'dark' : 'light');
-  }, [followsSystem, systemColorScheme]);
-
-  useEffect(() => {
     setNativeWindColorScheme(colorScheme);
   }, [colorScheme, setNativeWindColorScheme]);
 
   const toggleColorScheme = useCallback(() => {
-    setFollowsSystem(false);
     setColorScheme((current) => {
       const next = current === 'dark' ? 'light' : 'dark';
       if (Platform.OS === 'web') globalThis.localStorage?.setItem(THEME_KEY, next);

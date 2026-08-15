@@ -121,21 +121,27 @@ export default function VendorHeader(_props: { unread?: number }) {
   return (
     <View style={[styles.header, { paddingTop: insets.top + 8, paddingLeft: Math.max(insets.left, 16), paddingRight: Math.max(insets.right, 16), backgroundColor: colors.background, borderBottomColor: colors.border }]}>
       <Pressable accessibilityRole="button" onPress={() => { if (!normalizedPath.startsWith("/vendorsubscription")) router.push("/VendorSubscription"); }} accessibilityLabel="Manage subscription"
-        style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}>
-        <Crown size={20} color={normalizedPath.startsWith("/vendorsubscription") ? colors.pink : colors.text} />
+        style={({ pressed }) => [styles.iconButton, Platform.OS === "web" && { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}>
+        <View pointerEvents="none" style={[styles.iconButtonSurface, Platform.OS !== "web" && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+          <Crown size={20} color={normalizedPath.startsWith("/vendorsubscription") ? colors.pink : colors.text} />
+        </View>
       </Pressable>
       <View style={styles.brandWrap}>
         <RoyalLagnLogo width={168} height={46} />
       </View>
       <View style={styles.actions}>
         <Pressable accessibilityRole="button" onPress={() => { if (!normalizedPath.startsWith("/vendorenquiries")) router.push("/VendorEnquiries"); }} accessibilityLabel="Open enquiries"
-          style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}>
-          <MessageSquareText size={19} color={colors.text} />
+          style={({ pressed }) => [styles.iconButton, Platform.OS === "web" && { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}>
+          <View pointerEvents="none" style={[styles.iconButtonSurface, Platform.OS !== "web" && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+            <MessageSquareText size={19} color={colors.text} />
+          </View>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => { if (!normalizedPath.startsWith("/vendornotifications")) router.push("/VendorNotifications"); }} accessibilityLabel="Open notifications"
-          style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}>
-          <Bell size={19} color={colors.text} />
-          {unread > 0 && <View style={[styles.badge, { backgroundColor: colors.pink }]}><Text style={[styles.badgeText, { color: colors.onPrimary }]}>{unread > 9 ? "9+" : unread}</Text></View>}
+          style={({ pressed }) => [styles.iconButton, Platform.OS === "web" && { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}>
+          <View pointerEvents="none" style={[styles.iconButtonSurface, Platform.OS !== "web" && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+            <Bell size={19} color={colors.text} />
+            {unread > 0 && <View style={[styles.badge, { backgroundColor: colors.pink }]}><Text style={[styles.badgeText, { color: colors.onPrimary }]}>{unread > 9 ? "9+" : unread}</Text></View>}
+          </View>
         </Pressable>
       </View>
     </View>
@@ -156,7 +162,8 @@ const styles = StyleSheet.create({
   desktopActiveLine: { position: "absolute", left: 12, right: 12, bottom: 0, height: 3, borderTopLeftRadius: 3, borderTopRightRadius: 3 },
   desktopActions: { width: 182, flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 8 },
   desktopIconButton: { position: "relative", width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  iconButton: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  iconButton: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: Platform.OS === "web" ? 1 : 0 },
+  iconButtonSurface: { width: "100%", height: "100%", borderRadius: 14, alignItems: "center", justifyContent: "center" },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.88 },
   badge: { position: "absolute", top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   badgeText: { ...typeStyles.caption },

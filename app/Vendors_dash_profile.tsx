@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Image, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Modal, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
   BriefcaseBusiness,
@@ -130,18 +130,20 @@ export default function VendorProfile() {
         onPress={logout}
         style={({ pressed }) => [
           styles.logout,
-          { backgroundColor: colors.surface, borderColor: colors.border },
+          Platform.OS === "web" && { backgroundColor: colors.surface, borderColor: colors.border },
           pressed && { backgroundColor: colors.surfaceSoft },
         ]}
       >
-        <View style={[styles.rowIcon, { backgroundColor: `${colors.warning}14` }]}>
-          <LogOut size={19} color={colors.warning} />
+        <View style={[styles.logoutSurface, Platform.OS !== "web" && { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={[styles.rowIcon, { backgroundColor: `${colors.warning}14` }]}>
+            <LogOut size={19} color={colors.warning} />
+          </View>
+          <View style={styles.flex}>
+            <Text style={[styles.rowLabel, { color: colors.warning }]}>Log out</Text>
+            <Text style={[styles.rowDetail, { color: colors.muted }]}>Leave the Vendor workspace on this device</Text>
+          </View>
+          <ChevronRight size={18} color={colors.muted} />
         </View>
-        <View style={styles.flex}>
-          <Text style={[styles.rowLabel, { color: colors.warning }]}>Log out</Text>
-          <Text style={[styles.rowDetail, { color: colors.muted }]}>Leave the Vendor workspace on this device</Text>
-        </View>
-        <ChevronRight size={18} color={colors.muted} />
       </Pressable>
     </ScrollView>
     <Modal visible={photoOpen} transparent animationType="fade" onRequestClose={() => setPhotoOpen(false)}>
@@ -168,7 +170,8 @@ const styles = StyleSheet.create({
   name: { fontSize: typeScale.metric, lineHeight: typeLeading.metric, fontWeight: "700", textAlign: "center", letterSpacing: -0.45 }, category: { fontSize: typeScale.bodyCompact, marginTop: 4 }, location: { flexDirection: "row", gap: 4, alignItems: "center", marginTop: 8 }, locationText: { fontSize: typeScale.metadata },
   completion: { borderRadius: 15, width: "100%", maxWidth: 420, padding: 12, marginTop: 16 }, completionText: { fontSize: typeScale.metadata, fontWeight: "700", textAlign: "center" }, track: { height: 5, borderRadius: 4, marginTop: 8, overflow: "hidden" }, fill: { height: "100%", borderRadius: 4 },
   group: { borderRadius: 22, borderWidth: 1, overflow: "hidden", marginBottom: 13 }, row: { minHeight: 75, flexDirection: "row", alignItems: "center", padding: 13, gap: 11 },
-  logout: { minHeight: 75, borderRadius: 22, borderWidth: 1, flexDirection: "row", alignItems: "center", padding: 13, gap: 11 },
+  logout: { minHeight: 75, borderRadius: 22, borderWidth: Platform.OS === "web" ? 1 : 0, overflow: "hidden" },
+  logoutSurface: { minHeight: 73, width: "100%", borderRadius: 22, borderWidth: Platform.OS === "web" ? 0 : 1, flexDirection: "row", alignItems: "center", padding: 13, gap: 11 },
   rowIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, rowLabel: { fontSize: typeScale.body, fontWeight: "700" }, rowDetail: { fontSize: typeScale.caption, marginTop: 4 },
   overlay: { flex: 1, backgroundColor: "rgba(20,10,15,.48)", justifyContent: "flex-end" }, photoSheet: { borderWidth: 1, borderRadius: 28, padding: 20, paddingBottom: 34, width: "100%", maxWidth: 520, alignSelf: "center" },
   sheetTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, sheetTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
