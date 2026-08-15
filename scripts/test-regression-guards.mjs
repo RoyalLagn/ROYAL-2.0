@@ -393,6 +393,19 @@ assert.doesNotMatch(
   "Untrusted vendor URLs must never be opened directly.",
 );
 
+// --- Category listing location ranking must never become a radius filter --
+const [vendorListingSource, vendorDiscoverySource, locationRankMigrationSource] = await Promise.all([
+  read("app/VendorsListing.tsx"),
+  read("services/vendorDiscovery.ts"),
+  read("supabase/migrations/20260815130000_location_ranked_category_vendors.sql"),
+]);
+assert.match(vendorListingSource, /fetchLocationRankedVendors\(/, "VendorsListing must use the full location-ranked query when GPS is available.");
+assert.doesNotMatch(vendorListingSource, /radiusKm/, "VendorsListing must not restore a customer-selectable distance cutoff.");
+assert.match(vendorDiscoverySource, /LISTING_NEARBY_THRESHOLD_KM = 20/, "The category listing nearby priority bucket must remain 20 km.");
+assert.doesNotMatch(locationRankMigrationSource, /st_dwithin/i, "The category listing query must rank by distance without excluding farther vendors.");
+assert.match(locationRankMigrationSource, /distance_bucket asc,\s*membership_rank asc,/i, "Distance bucket must rank before Elite/Premium membership priority.");
+assert.match(locationRankMigrationSource, /when 'elite' then 0\s*when 'premium' then 1/i, "Elite must rank before Premium in location-ranked results.");
+
 // --- Aggregate runner must still register every non-credentialed check --
 const runnerSource = await read("scripts/run-smoke-tests.mjs");
 const expectedChecks = [

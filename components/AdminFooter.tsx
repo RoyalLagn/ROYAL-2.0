@@ -31,7 +31,7 @@ const tabs: TabItem[] = [
 ];
 
 interface AdminFooterProps {
-  activeTab: TabKey;
+  activeTab?: TabKey;
 }
 
 export default function AdminFooter({ activeTab }: AdminFooterProps) {

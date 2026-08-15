@@ -24,6 +24,10 @@ import { useCategories } from "@/context/CategoryContext";
 import CategoryBadge from "@/components/categories/CategoryBadge";
 import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 import { typeScale } from "@/constants/typography";
+import PageLoader from "@/components/loading/PageLoader";
+import { useCustomerLocation } from "@/context/LocationContext";
+import { vendorNearbyLabel } from "@/services/locations";
+import { rankVendorsByLocationAndMembership } from "@/locations/domain";
 
 const GLOBAL_PAGES = [
   { label: "Categories", detail: "Browse every wedding service", keywords: "categories services vendors browse", route: "/(tabs)/Categories" as const },
@@ -50,6 +54,7 @@ export default function SearchScreen() {
   const { width } = useWindowDimensions();
   const { getRating } = useReviewRatings();
   const { searchCategories } = useCategories();
+  const { preference } = useCustomerLocation();
   const mobileTabBarHeight = useMobileTabBarHeight();
   const params = useLocalSearchParams<{
     query?: string;
@@ -65,6 +70,7 @@ export default function SearchScreen() {
   const [draftQuery, setDraftQuery] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
   const [vendors, setVendors] = useState<PublicVendorListing[]>([]);
+  const [vendorsLoading, setVendorsLoading] = useState(true);
 
   useEffect(() => {
     const nextQuery = Array.isArray(params.query) ? params.query[0] : params.query ?? "";
@@ -81,6 +87,9 @@ export default function SearchScreen() {
         })
         .catch(() => {
           if (active) setVendors([]);
+        })
+        .finally(() => {
+          if (active) setVendorsLoading(false);
         });
     };
     load();
@@ -129,8 +138,10 @@ export default function SearchScreen() {
       }
       return b.rating - a.rating || b.reviews - a.reviews;
     });
-    return baseSorted;
-  }, [availabilityOnly, getRating, maximumBudget, minimumRating, query, selectedCategory, sort, vendors]);
+    return sort === "recommended"
+      ? rankVendorsByLocationAndMembership(baseSorted, preference)
+      : baseSorted;
+  }, [availabilityOnly, getRating, maximumBudget, minimumRating, preference, query, selectedCategory, sort, vendors]);
 
   const pageResults = useMemo(() => {
     if (!query.trim()) return { fixedPages: [], categoryPages: [] };
@@ -160,6 +171,7 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+      {vendorsLoading ? <PageLoader /> : null}
       <View style={[styles.searchHeader, { width: contentWidth }]}>
         <TouchableOpacity
           accessibilityRole="button"

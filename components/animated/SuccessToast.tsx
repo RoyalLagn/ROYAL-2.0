@@ -17,8 +17,8 @@ import { typeScale, typeLeading } from "@/constants/typography";
  * Lightweight, non-blocking confirmation toast for "ordinary edit saved"
  * feedback -- explicitly used instead of a large blocking success modal
  * (per spec: "Do not show a large blocking success modal for ordinary
- * edits"). Mount one <SuccessToast ref={...} /> per screen and call
- * `.show("message")` / `.showError("message")` from a save handler.
+ * edits"). AppFeedbackProvider mounts one above the router so confirmation
+ * can survive navigation; call its `.show()` / `.showError()` methods.
  */
 export type SuccessToastHandle = {
   show: (message: string) => void;

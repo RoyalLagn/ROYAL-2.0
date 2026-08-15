@@ -18,6 +18,7 @@ import { kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate }
 import { typeScale } from "@/constants/typography";
 import SquareImageEditor from "@/components/vendor/SquareImageEditor";
 import { brandPalette } from "@/constants/brandPalette";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
 // Logo and brand: the vendor's logo image, the only brand-media field on
 // the vendor record itself (portfolio photos/videos and Clips each have
@@ -45,6 +46,10 @@ export default function VendorEditBrand() {
     setLogoUrl(data.vendor.logo_url ?? "");
     setPersistedLogoUrl(data.vendor.logo_url ?? "");
   }, [data.vendor]);
+
+  useUnsavedChangesGuard(Boolean(data.vendor) && (
+    logoUrl !== persistedLogoUrl || Boolean(logoEditorAsset)
+  ));
 
   const uploadLogo = async () => {
     if (uploadingLogo || !data.vendor?.id) return;

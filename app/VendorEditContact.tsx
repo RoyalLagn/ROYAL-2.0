@@ -8,6 +8,7 @@ import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorks
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -38,6 +39,15 @@ export default function VendorEditContact() {
     setInstagram(data.vendor.instagram ?? "");
     setFacebook(data.vendor.facebook ?? "");
   }, [data.vendor]);
+
+  const hasUnsavedChanges = Boolean(data.vendor) && (
+    contactPhone !== (data.vendor?.contact_phone ?? "")
+    || contactEmail !== (data.vendor?.contact_email ?? "")
+    || website !== (data.vendor?.website ?? "")
+    || instagram !== (data.vendor?.instagram ?? "")
+    || facebook !== (data.vendor?.facebook ?? "")
+  );
+  useUnsavedChangesGuard(hasUnsavedChanges);
 
   const clearFeedback = () => { setSaved(false); setSaveError(""); };
 

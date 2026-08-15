@@ -18,6 +18,7 @@ import {
 } from "@/services/locations";
 import { getVendorGeoStatus } from "@/services/geoLocations";
 import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
 const emptyLocation: VendorLocationValue = {
   pincode: "",
@@ -89,6 +90,11 @@ export default function VendorEditLocation() {
     return () => { active = false; };
   }, [data.vendor?.geo_pincode_locality_id, data.vendor?.id, data.vendor?.pincode, data.vendor?.primary_area_id, data.vendor?.primary_city_id]);
 
+  const hasUnsavedChanges = Boolean(data.vendor) && (
+    locationDirty || address !== (data.vendor?.address ?? "")
+  );
+  useUnsavedChangesGuard(hasUnsavedChanges);
+
   const clearFeedback = () => { setSaved(false); setSaveError(""); };
 
   const save = async () => {
@@ -151,7 +157,6 @@ export default function VendorEditLocation() {
               : "Address and PIN saved. Your area's Taluka needs review before it appears in District/Taluka search.";
           }
         }
-        setLocationDirty(false);
       }
       await updateVendorPublicProfile({
         address: address.trim() || null,
@@ -160,6 +165,7 @@ export default function VendorEditLocation() {
       invalidatePublicVendorCache();
       await refresh();
       if (!mounted.current) return;
+      setLocationDirty(false);
       setSaveError(locationWarning);
       setSaved(true);
       setTimeout(() => { if (mounted.current) setSaved(false); }, 2200);

@@ -23,6 +23,7 @@ import {
 import {
   findMarketplaceCategory, resolveMarketplaceCategoryImage, } from "@/data/marketplaceCategories";
 import { SkeletonList } from "@/components/loading/Skeleton";
+import PageLoader from "@/components/loading/PageLoader";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
 import { TalukaLocationSelector } from "@/components/locations/TalukaLocationSelector";
@@ -37,7 +38,7 @@ import {
 } from "@/services/geoLocations";
 import type { GeoSelection, GeoState } from "@/locations/types";
 import { getCurrentDeviceLocation, getDevicePermissionStatus, getLastDetectedLocationLabel, reverseGeocodeLabel, type DeviceCoordinates } from "@/services/deviceLocation";
-import { DEFAULT_NEARBY_RADIUS_KM, fetchNearbyVendors } from "@/services/vendorDiscovery";
+import { fetchLocationRankedVendors } from "@/services/vendorDiscovery";
 
 const LOCATION_PAGE_SIZE = 20;
 
@@ -75,7 +76,6 @@ const DEFAULT_FILTERS: ListingFilters = {
   sort: "popular",
   maximumPrice: 0,
   minimumRating: 0,
-  radiusKm: DEFAULT_NEARBY_RADIUS_KM,
 };
 
 const CATEGORY_ALIASES: Record<string, string> = {
@@ -125,8 +125,8 @@ export default function VendorsListingScreen() {
   // direct PIN search remain separate, explicit features on their own routes.
   const [geoStates, setGeoStates] = useState<GeoState[]>([]);
   const [geoSelection, setGeoSelection] = useState<GeoSelection | null>(null);
-  const [geoDistrictName, setGeoDistrictName] = useState("");
-  const [geoTalukaName, setGeoTalukaName] = useState("");
+  const [, setGeoDistrictName] = useState("");
+  const [, setGeoTalukaName] = useState("");
   const [geoLoading, setGeoLoading] = useState(true);
   const [geoError, setGeoError] = useState("");
   const talukaActive = geoSelection !== null;
@@ -237,14 +237,14 @@ export default function VendorsListingScreen() {
         hasMore: result.cards.length === LOCATION_PAGE_SIZE,
       }))
       : gpsActive && deviceOrigin
-        ? fetchNearbyVendors({
+        ? fetchLocationRankedVendors({
           latitude: deviceOrigin.latitude,
           longitude: deviceOrigin.longitude,
           categoryDisplayName: displayCategory,
           search: query,
-          radiusKm: filters.radiusKm,
           minRating,
           maxPrice,
+          sort: filters.sort,
           limit: LOCATION_PAGE_SIZE,
           offset: reset ? 0 : locationOffset,
         }).then((result) => ({
@@ -275,13 +275,10 @@ export default function VendorsListingScreen() {
       .finally(() => {
         if (requestSequence === locationRequestSequence.current) setLocationLoading(false);
       });
-  }, [locationActive, talukaActive, gpsActive, geoSelection, deviceOrigin, displayCategory, filters.minimumRating, filters.maximumPrice, filters.radiusKm, filters.sort, query, locationOffset, locationCursor]);
+  }, [locationActive, talukaActive, gpsActive, geoSelection, deviceOrigin, displayCategory, filters.minimumRating, filters.maximumPrice, filters.sort, query, locationOffset, locationCursor]);
 
-  // Selecting/clearing a location, changing category, or narrowing by
-  // rating/price all reset the location-mode cursor (mirrors the same
-  // pagination-reset rule for the Taluka flow). Sort has no
-  // server-side equivalent for these two RPCs, so it's applied client-side
-  // via applySearchAndSort below instead of retriggering a fetch.
+  // Any location, category, search, filter, or sort change starts a fresh
+  // server-ranked page so pagination never mixes two ordering strategies.
   useEffect(() => {
     locationRequestSequence.current += 1;
     if (!locationActive) {
@@ -300,7 +297,7 @@ export default function VendorsListingScreen() {
     setLocationHasMore(true);
     fetchLocationPage(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locationActive, geoSelection, deviceOrigin, displayCategory, filters.minimumRating, filters.maximumPrice, filters.radiusKm, filters.sort, query]);
+  }, [locationActive, geoSelection, deviceOrigin, displayCategory, filters.minimumRating, filters.maximumPrice, filters.sort, query]);
 
   const loadMoreLocation = useCallback(() => {
     if (locationLoading || !locationHasMore || !locationActive) return;
@@ -412,11 +409,11 @@ export default function VendorsListingScreen() {
     [applySearchAndSort, vendors],
   );
 
-  // Taluka results are fully filtered and sorted by the bounded RPC so tier
-  // order can never be destroyed client-side.
+  // Location results are fully filtered and sorted by their bounded RPCs so
+  // neither Taluka tier order nor GPS membership ranking is changed here.
   const locationFilteredVendors = useMemo(
-    () => talukaActive || gpsActive ? locationCards : applySearchAndSort(locationCards),
-    [applySearchAndSort, gpsActive, locationCards, talukaActive],
+    () => locationCards,
+    [locationCards],
   );
 
   const listRows: ListRow[] = useMemo(() => {
@@ -424,7 +421,12 @@ export default function VendorsListingScreen() {
     const source = talukaActive
       ? locationFilteredVendors
       : gpsActive
-        ? [...locationFilteredVendors, ...filteredVendors.filter((vendor) => !nearbyIds.has(vendor.id))]
+        ? [
+          ...locationFilteredVendors,
+          ...(!locationHasMore
+            ? filteredVendors.filter((vendor) => !nearbyIds.has(vendor.id))
+            : []),
+        ]
         : filteredVendors;
     if (!talukaActive) return source.map((vendor) => ({ kind: "vendor", vendor }));
     const rows: ListRow[] = [];
@@ -438,14 +440,13 @@ export default function VendorsListingScreen() {
       if (meta) previousTier = meta.tier;
     }
     return rows;
-  }, [filteredVendors, gpsActive, locationCardMeta, locationFilteredVendors, talukaActive]);
+  }, [filteredVendors, gpsActive, locationCardMeta, locationFilteredVendors, locationHasMore, talukaActive]);
   const visibleVendorCount = listRows.filter((row) => row.kind === "vendor").length;
 
   const activeFilterCount = [
     filters.sort !== "popular",
     filters.maximumPrice > 0,
     filters.minimumRating > 0,
-    filters.radiusKm !== DEFAULT_NEARBY_RADIUS_KM,
   ].filter(Boolean).length;
 
   const openFilters = (section: "sort" | "price" | "rating" | "filters") => {
@@ -520,6 +521,7 @@ export default function VendorsListingScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "left", "right"]}>
+      {(vendorsLoading && !approvedVendors.length) || (locationActive && locationLoading && visibleVendorCount === 0) ? <PageLoader /> : null}
       <PublicWebNavbar activeRoute="Categories" />
       <View style={[styles.top, { width: contentWidth }]}>
         <HomeReveal direction="down">

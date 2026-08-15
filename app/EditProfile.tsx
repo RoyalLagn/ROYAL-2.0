@@ -10,6 +10,7 @@ import {
 import { getPublicAuthError, updatePublicProfile } from "@/services/publicAuth";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import SquareImageEditor from "@/components/vendor/SquareImageEditor";
+import PageLoader from "@/components/loading/PageLoader";
 
 export default function EditProfile() {
   const router = useRouter();
@@ -122,7 +123,7 @@ export default function EditProfile() {
   };
 
   if (loading || !profile) {
-    return <View style={[styles.loading, { backgroundColor: background }]}><ActivityIndicator color={pink} /></View>;
+    return <PageLoader />;
   }
 
   return (
@@ -254,7 +255,6 @@ function Field({ icon: Icon, label, value, onChangeText, placeholder, keyboardTy
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: { minHeight: 66, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 12 },
   back: { width: 41, height: 41, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   flex: { flex: 1, minWidth: 0 },

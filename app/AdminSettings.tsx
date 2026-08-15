@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Bell, ChevronRight, FolderTree, MapPinned, PanelsTopLeft, ShieldCheck, Users, WalletCards } from "lucide-react-native";
+import { Bell, ChevronRight, CircleHelp, FolderTree, MapPinned, PanelsTopLeft, ShieldCheck, Users, WalletCards } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
@@ -16,6 +16,7 @@ const destinations = [
   { title: "Category directory", description: "Inspect live marketplace categories", route: "/AdminCategories", icon: FolderTree },
   { title: "Location Management", description: "Manage states, districts, Talukas and PIN mappings", route: "/AdminGeoLocations", icon: MapPinned },
   { title: "Subscription configuration", description: "Manage plans, offers and access", route: "/subscriptions-admin", icon: WalletCards },
+  { title: "Help & Support", description: "Set the email and contact number shown across the platform", route: "/AdminHelp", icon: CircleHelp },
 ];
 export default function AdminSettings() { const router = useRouter(); const { identity } = useAdminAuth(); return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}><ScrollView contentContainerStyle={{ paddingBottom: 120 }}><ResponsiveContainer><AdminPageHeader title="Settings" subtitle="Administration access and platform configuration" />
   <View className="bg-card border border-border rounded-2xl p-4 mb-5 flex-row items-center"><View className="w-11 h-11 rounded-xl bg-primary/10 items-center justify-center"><ShieldCheck size={20} className="text-primary" /></View><View className="flex-1 ml-3"><Text className="text-foreground font-bold">{identity?.profile.full_name || "Administrator"}</Text><Text className="text-muted-foreground text-xs capitalize mt-1">{(identity?.profile.role || "admin").replace("_", " ")}</Text></View><ThemeToggle /></View>

@@ -3,7 +3,7 @@ import '@/global.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, Platform, Pressable, View, Text, StyleSheet } from 'react-native';
+import { Platform, Pressable, View, Text, StyleSheet } from 'react-native';
 import React, { useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { typeScale } from "@/constants/typography";
@@ -44,6 +44,8 @@ import { SCREEN_TRANSITION } from '@/utils/motion';
 import { useWebNavigationFocusSafety } from '@/hooks/useWebNavigationFocusSafety';
 import { installAppAlert } from '@/utils/webAlert';
 import AppDialogProvider from '@/components/dialogs/AppDialogProvider';
+import { PageLoaderProvider } from '@/components/loading/PageLoader';
+import { AppFeedbackProvider } from '@/context/AppFeedbackContext';
 
 // Route every Alert.alert call through the cross-platform RoyalLagn dialog.
 installAppAlert();
@@ -122,18 +124,13 @@ export default function RootLayout() {
     }
   }, [fontsReady]);
 
-  if (!fontsReady) {
-    return (
-      <View style={styles.fontLoading}>
-        <ActivityIndicator color="#E91E63" />
-      </View>
-    );
-  }
+  if (!fontsReady) return null;
 
   return (
-    <ErrorBoundary>
-      <WebNavigationFocusSafety />
-      <PublicAuthProvider>
+    <PageLoaderProvider>
+      <ErrorBoundary>
+          <WebNavigationFocusSafety />
+          <PublicAuthProvider>
           <CategoryProvider>
             <AdminAuthProvider>
               <VendorAuthProvider>
@@ -147,14 +144,15 @@ export default function RootLayout() {
                               <ThemeProvider>
                                 <AppDialogProvider>
                                   <SafeAreaProvider>
-                                    <ResponsiveLayoutProvider>
-                                      <PushTokenRegistrar />
-                                      <StatusBar style="dark" backgroundColor="#FFFFFF" translucent={false} />
-                                      <View className="bg-background" style={styles.app}>
-                                        <AdminWorkspaceShell>
-                                          <View style={styles.stack}>
-                                            <AdminRouteGuard>
-                                              <VendorRouteGuard>
+                                    <AppFeedbackProvider>
+                                      <ResponsiveLayoutProvider>
+                                        <PushTokenRegistrar />
+                                        <StatusBar style="dark" backgroundColor="#FFFFFF" translucent={false} />
+                                        <View className="bg-background" style={styles.app}>
+                                          <AdminWorkspaceShell>
+                                            <View style={styles.stack}>
+                                              <AdminRouteGuard>
+                                                <VendorRouteGuard>
                                               {/* A single, app-wide transition preset instead of
                                                   per-screen configuration -- see utils/motion.ts
                                                   for why `fade_from_bottom` (soft fade + small
@@ -162,14 +160,20 @@ export default function RootLayout() {
                                                   custom reanimated screen wrapper. Every one of the
                                                   ~90 screens under app/ inherits this automatically;
                                                   back navigation reverses it natively. */}
-                                                <Stack screenOptions={{ headerShown: false, animation: SCREEN_TRANSITION }} />
-                                              </VendorRouteGuard>
-                                            </AdminRouteGuard>
-                                          </View>
-                                        </AdminWorkspaceShell>
-                                        <VendorBottomNav />
-                                      </View>
-                                    </ResponsiveLayoutProvider>
+                                                <Stack
+                                                  screenOptions={{
+                                                    headerShown: false,
+                                                    animation: SCREEN_TRANSITION,
+                                                  }}
+                                                />
+                                                </VendorRouteGuard>
+                                              </AdminRouteGuard>
+                                            </View>
+                                          </AdminWorkspaceShell>
+                                          <VendorBottomNav />
+                                        </View>
+                                      </ResponsiveLayoutProvider>
+                                    </AppFeedbackProvider>
                                   </SafeAreaProvider>
                                 </AppDialogProvider>
                               </ThemeProvider>
@@ -183,20 +187,15 @@ export default function RootLayout() {
               </VendorAuthProvider>
             </AdminAuthProvider>
           </CategoryProvider>
-        </PublicAuthProvider>
-    </ErrorBoundary>
+          </PublicAuthProvider>
+      </ErrorBoundary>
+    </PageLoaderProvider>
   );
 }
 
 const styles = StyleSheet.create({
   app: { flex: 1 },
   stack: { flex: 1, minHeight: 0, zIndex: 0 },
-  fontLoading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-  },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',

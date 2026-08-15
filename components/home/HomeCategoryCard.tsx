@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { type ImageURISource, Platform, Pressable, StyleSheet, Text, type TextStyle, type ViewStyle, View, } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import Animated, {
-  useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, } from "react-native-reanimated";
+  useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withTiming, } from "react-native-reanimated";
 import SafeImage from "@/components/SafeImage";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
+import { MotionDistance, MotionTiming } from "@/utils/motion";
 
 type HomeCategoryCardProps = {
   name: string;
@@ -14,6 +15,8 @@ type HomeCategoryCardProps = {
   cardWidth: number;
   dark: boolean;
   onPress: () => void;
+  animateEntrance?: boolean;
+  entranceDelay?: number;
 };
 
 function Sparkle({ color, size }: { color: string; size: number }) {
@@ -34,9 +37,12 @@ function HomeCategoryCard({
   cardWidth,
   dark,
   onPress,
+  animateEntrance = false,
+  entranceDelay = 0,
 }: HomeCategoryCardProps) {
   const reducedMotion = useReducedMotion();
   const pressed = useSharedValue(1);
+  const entrance = useSharedValue(animateEntrance ? 0 : 1);
   const colors = brandColors(dark);
   // Slightly taller portrait frame than the prior 0.78 ratio.
   const cardHeight = Math.round(cardWidth / 0.70);
@@ -50,9 +56,21 @@ function HomeCategoryCard({
   const sparkleColor = dark ? "#FFFFFFCC" : colors.primaryForeground;
   const frameFill = colors.frameFill;
 
+  useEffect(() => {
+    if (!animateEntrance) {
+      entrance.value = 1;
+      return;
+    }
+    entrance.value = 0;
+    entrance.value = withDelay(entranceDelay, withTiming(1, MotionTiming.fast));
+  }, [animateEntrance, entrance, entranceDelay]);
+
   const pressStyle = useAnimatedStyle<ViewStyle>(() => ({
-    opacity: pressed.value,
-    transform: [{ scale: pressed.value }],
+    opacity: pressed.value * entrance.value,
+    transform: [
+      { translateY: reducedMotion ? 0 : (1 - entrance.value) * MotionDistance.cardEnter },
+      { scale: pressed.value },
+    ],
   }));
 
   const handlePressIn = () => {

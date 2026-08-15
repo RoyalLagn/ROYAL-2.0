@@ -29,19 +29,11 @@ type Colors = typeof vendorTheme.light;
 type ChecklistMeta = { label: string; icon: React.ComponentType<{ size?: number; color?: string }> };
 
 export const READINESS_CHECKLIST_GAP = 8;
-// Preserve enough room for the section icon, a two-line label, status, and
-// chevron. Phones fall back to one column; tablet-sized vendor surfaces use
-// two; the bounded desktop dashboard can comfortably hold three.
-export const READINESS_CHECKLIST_MIN_CARD_WIDTH = 210;
+export const READINESS_CHECKLIST_COLUMNS = 2;
 
-/** Columns for the readiness checklist based on the measured grid width. */
-export function readinessChecklistColumns(gridWidth: number) {
-  if (gridWidth <= 0) return 1;
-  const gap = READINESS_CHECKLIST_GAP;
-  const min = READINESS_CHECKLIST_MIN_CARD_WIDTH;
-  if (gridWidth >= min * 3 + gap * 2) return 3;
-  if (gridWidth >= min * 2 + gap) return 2;
-  return 1;
+/** Keep checklist scanning predictable with two equal cards per row. */
+export function readinessChecklistColumns(_gridWidth: number) {
+  return READINESS_CHECKLIST_COLUMNS;
 }
 
 export function readinessChecklistItemWidth(
@@ -127,6 +119,7 @@ export default function ChecklistItem({
   const stateOpacity = useSharedValue(1);
   const highlightGlow = useSharedValue(0);
   const StatusIcon = meta.icon;
+  const compact = itemWidth == null || itemWidth < 220;
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -157,6 +150,7 @@ export default function ChecklistItem({
 
   const rowStyle: ViewStyle[] = [
     styles.completionItem,
+    ...(compact ? [styles.completionItemCompact] : []),
     itemWidth ? { width: itemWidth } : styles.completionItemFallback,
     { backgroundColor: colors.surfaceSoft },
   ];
@@ -190,7 +184,7 @@ export default function ChecklistItem({
           </Text>
         </Animated.View>
       </View>
-      <View style={styles.chevron}>
+      <View style={[styles.chevron, compact && styles.chevronCompact]}>
         <ChevronRight size={15} color={colors.muted} />
       </View>
     </AnimatedPressable>
@@ -225,9 +219,17 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
   },
+  completionItemCompact: {
+    minHeight: 116,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: "column",
+    alignItems: "stretch",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   completionItemFallback: {
-    width: "100%",
-    alignSelf: "stretch",
+    width: "48%",
   },
   highlightGlow: {
     ...StyleSheet.absoluteFillObject,
@@ -251,6 +253,13 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
+  },
+  chevronCompact: {
+    position: "absolute",
+    top: 12,
+    right: 10,
+    width: 24,
+    height: 38,
   },
   completionLabel: {
     fontSize: typeScale.bodyCompact,

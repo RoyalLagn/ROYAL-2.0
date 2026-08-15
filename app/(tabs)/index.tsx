@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions, } from "react-native";
+import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions, type ViewProps, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -24,14 +24,27 @@ import HomeVendorCard from "@/components/home/HomeVendorCard";
 import { shareRoyalLagnApp } from "@/services/AppShareService";
 import { useCategories } from "@/context/CategoryContext";
 import { VendorCardSkeletonRow } from "@/components/loading/Skeleton";
+import PageLoader from "@/components/loading/PageLoader";
 import { BREAKPOINTS } from "@/utils/responsiveLayout";
 import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
+import Animated, {
+  type SharedValue,
+  useAnimatedReaction,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { MotionDistance, MotionDuration, MotionStagger, MotionTiming } from "@/utils/motion";
 import {
   getCurrentDeviceLocation,
   getDevicePermissionStatus,
   reverseGeocodeLabel,
 } from "@/services/deviceLocation";
+import { useCustomerLocation } from "@/context/LocationContext";
+import { rankVendorsByLocationAndMembership } from "@/locations/domain";
 
 const PINK = brandPalette.light.primaryStrong;
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
@@ -41,6 +54,50 @@ const FLOWER_ORNAMENT = require("../../assets/images/optimized/flowersvg.webp");
 /** Lightweight vendor-card fallback — avoids bundling multi‑MB category-fallback PNGs on Home. */
 const VENDOR_CARD_PLACEHOLDER = require("../../assets/images/optimized/vendor-placeholder.webp");
 const LIST_BUSINESS_BG = require("../../assets/images/optimized/list-business-bg.webp");
+
+function HomeSectionReveal({
+  children,
+  scrollY,
+  viewportHeight,
+  style,
+  ...props
+}: ViewProps & {
+  scrollY: SharedValue<number>;
+  viewportHeight: number;
+}) {
+  const reducedMotion = useReducedMotion();
+  const sectionTop = useSharedValue(Number.MAX_SAFE_INTEGER);
+  const progress = useSharedValue(0);
+
+  useAnimatedReaction(
+    () => scrollY.value + viewportHeight - MotionDistance.screenEnter >= sectionTop.value,
+    (visible) => {
+      if (visible && progress.value === 0) {
+        progress.value = withTiming(1, reducedMotion ? MotionTiming.fast : MotionTiming.base);
+      }
+    },
+    [reducedMotion, viewportHeight],
+  );
+
+  const revealStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{
+      translateY: reducedMotion ? 0 : (1 - progress.value) * MotionDistance.cardEnter,
+    }],
+  }));
+
+  return (
+    <Animated.View
+      {...props}
+      onLayout={(event) => {
+        sectionTop.value = event.nativeEvent.layout.y;
+      }}
+      style={[style, revealStyle]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -60,11 +117,20 @@ export default function HomeScreen() {
   const { getRating } = useReviewRatings();
   const { unreadCount } = useNotifications();
   const { profile } = usePublicAuth();
-  const { homeCategories: categories } = useCategories();
+  const {
+    preference: customerLocationPreference,
+    location: customerLocation,
+    loading: customerLocationLoading,
+  } = useCustomerLocation();
+  const { homeCategories: categories, loading: categoriesLoading } = useCategories();
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [homeLocation, setHomeLocation] = useState<string | null>(null);
   const [homeLocationLoading, setHomeLocationLoading] = useState(false);
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: viewportHeight } = useWindowDimensions();
+  const homeScrollY = useSharedValue(0);
+  const handleHomeScroll = useAnimatedScrollHandler((event) => {
+    homeScrollY.value = event.contentOffset.y;
+  });
   const isDesktop = screenWidth >= 1100;
   const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
   const featureWidth = Math.min(screenWidth - horizontalInset * 2, 1280);
@@ -206,31 +272,17 @@ export default function HomeScreen() {
       ? "Good Afternoon"
       : "Good Evening";
   const nearbyVendors = useMemo(() => {
-    const eligible = liveVendors
+    const ratedVendors = liveVendors
       .map((vendor) => {
-        const current = getRating(vendor.id, vendor.rating, 0);
+        const current = getRating(vendor.id, vendor.rating, vendor.reviews);
         return { ...vendor, rating: current.rating, reviews: current.reviews };
       })
-      .filter((vendor) =>
-        (!filters.minimumRating || vendor.rating >= filters.minimumRating)
-        && (!filters.maximumBudget || (
-          vendor.startingPriceValue > 0
-          && vendor.startingPriceValue <= filters.maximumBudget
-        ))
-        && (!filters.category || vendor.category === filters.category)
-        && (!filters.availabilityOnly || vendor.isAvailable)
-        && !filters.nearbyOnly
-      )
-      .sort((a, b) => {
-        if (filters.sort === "rating") return b.rating - a.rating;
-        if (filters.sort === "price") {
-          return (a.startingPriceValue || Number.MAX_SAFE_INTEGER)
-            - (b.startingPriceValue || Number.MAX_SAFE_INTEGER);
-        }
-        return b.rating - a.rating || b.reviews - a.reviews;
-      });
-    return eligible;
-  }, [filters, getRating, liveVendors]);
+      .sort((a, b) => b.rating - a.rating || b.reviews - a.reviews);
+    return rankVendorsByLocationAndMembership(
+      ratedVendors,
+      customerLocationPreference,
+    );
+  }, [customerLocationPreference, getRating, liveVendors]);
 
   const topRatedVendors = useMemo(() => {
     // Show every vendor using the marketplace priority order. Rating remains
@@ -247,9 +299,12 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
-      <ScrollView
+      {vendorsLoading || (categoriesLoading && !categories.length) ? <PageLoader /> : null}
+      <Animated.ScrollView
         style={{ backgroundColor: bg }}
         showsVerticalScrollIndicator={false}
+        onScroll={handleHomeScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={[
           s.scroll,
           { paddingBottom: isDesktop ? 32 : 0, backgroundColor: bg },
@@ -452,7 +507,11 @@ export default function HomeScreen() {
         )}
 
         {/* ── Top Categories ── */}
-        <View style={[s.section, { width: featureWidth, marginBottom: compactSectionSpacing }]}>
+        <HomeSectionReveal
+          scrollY={homeScrollY}
+          viewportHeight={viewportHeight}
+          style={[s.section, { width: featureWidth, marginBottom: compactSectionSpacing }]}
+        >
           <SectionHeader
             title="Top Categories"
             subtitle="Everything you need for the celebration"
@@ -462,7 +521,7 @@ export default function HomeScreen() {
           />
 
           <View style={s.catGrid}>
-            {displayedCategories.map((cat) => (
+            {displayedCategories.map((cat, index) => (
               <HomeCategoryCard
                 key={cat.id}
                 name={cat.name}
@@ -470,6 +529,11 @@ export default function HomeScreen() {
                 itemWidth={categoryItemWidth}
                 cardWidth={categoryCardWidth}
                 dark={isDark}
+                animateEntrance={showAllCategories && index >= PRIMARY_CATEGORY_COUNT}
+                entranceDelay={Math.min(
+                  Math.max(0, index - PRIMARY_CATEGORY_COUNT) * MotionStagger.item,
+                  MotionDuration.fast,
+                )}
                 onPress={() => openCategory(cat.name)}
               />
             ))}
@@ -492,10 +556,14 @@ export default function HomeScreen() {
               {showAllCategories ? "Fewer Categories" : "More Categories"}
             </Text>
           </Pressable>
-        </View>
+        </HomeSectionReveal>
 
         {/* ── Trending searches ── */}
-        <View style={[s.trendingSection, { width: featureWidth, marginBottom: sectionSpacing }]}>
+        <HomeSectionReveal
+          scrollY={homeScrollY}
+          viewportHeight={viewportHeight}
+          style={[s.trendingSection, { width: featureWidth, marginBottom: sectionSpacing }]}
+        >
           <SectionHeader
             title="Trending Searches"
             subtitle="Popular ways to start your search"
@@ -516,19 +584,25 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </View>
+        </HomeSectionReveal>
 
-        {/* General recommendations; GPS discovery stays on /NearbyVendors. */}
-        <View style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}>
+        {/* All vendors, automatically ranked by saved location and membership. */}
+        <HomeSectionReveal
+          scrollY={homeScrollY}
+          viewportHeight={viewportHeight}
+          style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}
+        >
           <SectionHeader
-            title="Popular Vendors"
-            subtitle="Reviewed professionals for your celebration"
+            title="Near Me"
+            subtitle={customerLocationPreference
+              ? `Nearby first for ${customerLocation}`
+              : "Nearby and premium vendors first"}
             dark={isDark}
             actionLabel="View All"
-            onActionPress={() => router.push("/NearbyVendors")}
+            onActionPress={() => router.push({ pathname: "/Search", params: { sort: "recommended" } })}
           />
 
-          {vendorsLoading ? (
+          {vendorsLoading || customerLocationLoading ? (
             <View style={s.vendorScroll}>
               <VendorCardSkeletonRow
                 count={isDesktop ? 4 : 3}
@@ -568,13 +642,17 @@ export default function HomeScreen() {
             })}
           </ScrollView>
           )}
-          {!vendorsLoading && !nearbyVendors.length ? (
-            <Text style={[s.emptyVendors, { color: muted }]}>No vendors match these filters. Try clearing one filter.</Text>
+          {!vendorsLoading && !customerLocationLoading && !nearbyVendors.length ? (
+            <Text style={[s.emptyVendors, { color: muted }]}>No approved vendors are available right now.</Text>
           ) : null}
-        </View>
+        </HomeSectionReveal>
 
         {/* ── Top Rated Vendors ── */}
-        <View style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}>
+        <HomeSectionReveal
+          scrollY={homeScrollY}
+          viewportHeight={viewportHeight}
+          style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}
+        >
           <SectionHeader
             title="Top Rated Vendors"
             subtitle="Browse vendors ordered by customer ratings"
@@ -632,10 +710,14 @@ export default function HomeScreen() {
           {!vendorsLoading && !topRatedVendors.length ? (
             <Text style={[s.emptyVendors, { color: muted }]}>No rated vendors yet.</Text>
           ) : null}
-        </View>
+        </HomeSectionReveal>
 
         {/* ── List Your Business ── */}
-        <View style={[s.listBanner, { width: featureWidth }]}>
+        <HomeSectionReveal
+          scrollY={homeScrollY}
+          viewportHeight={viewportHeight}
+          style={[s.listBanner, { width: featureWidth }]}
+        >
           <Image
             source={LIST_BUSINESS_BG}
             style={{ width: "100%", height: listBannerHeight }}
@@ -663,9 +745,9 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           </LinearGradient>
-        </View>
+        </HomeSectionReveal>
 
-      </ScrollView>
+      </Animated.ScrollView>
       <HomeFilterModal
         visible={filtersVisible}
         dark={isDark}

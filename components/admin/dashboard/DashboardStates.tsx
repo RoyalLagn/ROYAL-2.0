@@ -21,7 +21,7 @@ export function DashboardSkeleton() {
 
 export function DashboardError({ message }: { message: string }) {
   return (
-    <View className="bg-card border border-red-300 rounded-2xl p-4">
+    <View className="bg-red-500/5 border border-red-300 rounded-xl p-4">
       <Text className="text-red-500 text-sm">{message}</Text>
     </View>
   );
@@ -29,7 +29,7 @@ export function DashboardError({ message }: { message: string }) {
 
 export function DashboardEmpty({ message }: { message: string }) {
   return (
-    <View className="bg-card border border-border rounded-2xl p-6 items-center">
+    <View className="bg-background border border-border rounded-xl p-6 items-center">
       <Text className="text-muted-foreground text-sm text-center">{message}</Text>
     </View>
   );

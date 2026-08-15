@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,6 +7,7 @@ import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
 import PortfolioAlbums from "@/components/vendor-profile/PortfolioAlbums";
 import { getApprovedPublicVendorById, type PublicVendorListing } from "@/services/publicVendorListings";
 import { fonts, typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import PageLoader from "@/components/loading/PageLoader";
 
 export default function VendorPortfolio() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function VendorPortfolio() {
 
   return (
     <View style={styles.root}>
+      {loading ? <PageLoader /> : null}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -56,7 +58,7 @@ export default function VendorPortfolio() {
             <Text numberOfLines={1} style={styles.subtitle}>{vendor ? `${vendor.name} · ${vendor.portfolioAlbums.length} albums` : "Vendor albums"}</Text>
           </View>
         </View>
-        {loading ? <ActivityIndicator color="#E91E63" style={styles.loader} /> : vendor?.portfolioAlbums.length ? (
+        {loading ? null : vendor?.portfolioAlbums.length ? (
           <PortfolioAlbums
             albums={vendor.portfolioAlbums}
             mode="all"
@@ -82,7 +84,6 @@ const styles = StyleSheet.create({
   copy: { flex: 1, minWidth: 0 },
   title: { color: "#24181E", ...typeStyles.pageTitle, fontFamily: fonts.serif.bold },
   subtitle: { color: "#796A72", fontSize: typeScale.metadata, lineHeight: typeLeading.label, marginTop: 1 },
-  loader: { marginTop: 80 },
   empty: { margin: 16, minHeight: 190, borderWidth: 1, borderColor: "#FBCFE8", borderRadius: 20, backgroundColor: "#FDF2F8", alignItems: "center", justifyContent: "center", padding: 24 },
   emptyTitle: { color: "#24181E", ...typeStyles.editorialSectionTitle },
   emptyText: { color: "#796A72", fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, textAlign: "center", marginTop: 6 },

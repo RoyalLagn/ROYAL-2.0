@@ -85,7 +85,7 @@ export const adminNavigationGroups: { label: string; items: AdminNavigationItem[
       { key: "locations", label: "Locations", route: "/AdminGeoLocations", icon: MapPinned },
       { key: "reports", label: "Reports", route: "/AdminReports", icon: FileBarChart },
       { key: "settings", label: "Settings", route: "/AdminSettings", icon: Settings },
-      { key: "help", label: "Help", route: "/AdminHelp", icon: CircleHelp },
+      { key: "help", label: "Help & Support", route: "/AdminHelp", icon: CircleHelp },
     ],
   },
 ];

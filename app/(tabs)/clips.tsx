@@ -23,6 +23,7 @@ import type {
 } from "@/clips/types";
 import { EnquiryExternalOpenError, EnquiryService } from "@/services/enquiries";
 import { typeScale, typeLeading } from "@/constants/typography";
+import PageLoader from "@/components/loading/PageLoader";
 import { getPublicClipsEnabled } from "@/services/publicClipsAvailability";
 
 const EMPTY_ENGAGEMENT: ClipEngagementState = { liked: false, saved: false };
@@ -49,7 +50,7 @@ export default function ClipsScreen() {
     return () => { active = false; };
   }, []);
 
-  if (enabled === null) return <View style={[styles.availabilityRoot, { backgroundColor: dark ? "#080608" : "#FFFFFF" }]}><ActivityIndicator size="large" color="#E91E63" /></View>;
+  if (enabled === null) return <View style={[styles.availabilityRoot, { backgroundColor: dark ? "#080608" : "#FFFFFF" }]}><PageLoader /></View>;
   if (!enabled) return <ClipsComingSoon dark={dark} />;
   return <ClipsFeed />;
 }
@@ -444,6 +445,7 @@ function ClipsFeed() {
   ), [activeIndex, background, compactPlayer, contactVendor, containerHeight, counts, dark, desktop, engagement, feedWidth, foreground, handleHoldChange, immersiveHold, isFocused, muted, openVendor, playerHeight, playerWidth, toggleLike, toggleSave]);
 
   return <View style={[styles.root, { backgroundColor: background }, Platform.OS === "web" ? styles.rootWeb : null]}>
+    {loading || refreshing ? <PageLoader /> : null}
     <StatusBar style="light" backgroundColor="transparent" translucent={!desktop} />
     {!desktop ? <Animated.View
       pointerEvents={immersiveHold ? "none" : "box-none"}

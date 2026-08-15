@@ -8,6 +8,7 @@ import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorks
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
 // Search tags: the keywords customers use to discover this business in
 // search. Only the `tags` column is touched here.
@@ -32,6 +33,8 @@ export default function VendorEditTags() {
     () => tags.split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 12),
     [tags],
   );
+  const hasUnsavedChanges = Boolean(data.vendor) && tags !== (data.vendor?.tags ?? []).join(", ");
+  useUnsavedChangesGuard(hasUnsavedChanges);
 
   const save = async () => {
     if (saving || !data.vendor?.id) return;

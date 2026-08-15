@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, Platform, StyleSheet, Text, View, } from "react-native";
+import { Animated, Easing, Platform, StyleSheet, Text, View, } from "react-native";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
+import { MotionDuration } from "@/utils/motion";
 // Tab Pressables use a function `style={(state) => [...]}` prop (to react
 // to pressed/hovered). NativeWind's native Pressable interop does not
 // resolve that render-prop form on Android -- it silently drops the whole
@@ -30,7 +31,8 @@ function VendorProfileTabs({
   useEffect(() => {
     Animated.timing(progress, {
       toValue: selected === "clips" ? 1 : 0,
-      duration: 275,
+      duration: MotionDuration.fast,
+      easing: Easing.bezier(0.22, 1, 0.36, 1),
       useNativeDriver: Platform.OS !== "web",
     }).start();
   }, [progress, selected]);

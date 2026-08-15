@@ -9,6 +9,7 @@ import { useVendorEnquiries } from "@/hooks/useEnquiries";
 import { ENQUIRY_STATUSES, EnquiryService, enquirySourceLabel, enquiryStatusLabel, type EnquiryStatus, type TrackedEnquiry } from "@/services/enquiries";
 import { SkeletonList } from "@/components/loading/Skeleton";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import { useAppFeedback } from "@/context/AppFeedbackContext";
 
 type Filter = "all" | EnquiryStatus;
 type Sort = "newest" | "oldest" | "follow_up";
@@ -16,6 +17,7 @@ type Sort = "newest" | "oldest" | "follow_up";
 export default function VendorEnquiries() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const { showSuccess } = useAppFeedback();
   const workspace = useVendorWorkspace();
   const { items, loading, error, refresh, analytics } = useVendorEnquiries(workspace.data.vendor?.id);
   const [filter, setFilter] = useState<Filter>("all");
@@ -37,7 +39,7 @@ export default function VendorEnquiries() {
     if (!selected || saving) return;
     if (followUp && !/^\d{4}-\d{2}-\d{2}$/.test(followUp)) return Alert.alert("Check follow-up date", "Use YYYY-MM-DD.");
     setSaving(true);
-    try { await EnquiryService.updateVendor(selected.id, status, notes, followUp || null); setSelected(null); await refresh(true); }
+    try { await EnquiryService.updateVendor(selected.id, status, notes, followUp || null); setSelected(null); await refresh(true); showSuccess("Lead updated"); }
     catch (cause) { Alert.alert("Enquiry not updated", cause instanceof Error ? cause.message : "Please try again."); }
     finally { setSaving(false); }
   };

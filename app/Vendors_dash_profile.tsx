@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Image, Modal, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import {
   BriefcaseBusiness,
@@ -27,11 +27,13 @@ import { supabase } from "@/services/supabase";
 import { deleteManagedProfileImage } from "@/services/cloudinary";
 import { decorativeType, fonts, typeScale, typeLeading } from "@/constants/typography";
 import Pressable from "@/components/InteropSafePressable";
+import { useAppFeedback } from "@/context/AppFeedbackContext";
 
 export default function VendorProfile() {
   const router = useRouter();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const { showSuccess } = useAppFeedback();
   const { data, completion, refresh } = useVendorWorkspace();
   const [photoOpen, setPhotoOpen] = useState(false);
   const performVendorLogout = useVendorLogout();
@@ -57,10 +59,6 @@ export default function VendorProfile() {
     }
   };
   const logout = () => {
-    if (Platform.OS === "web") {
-      void executeLogout();
-      return;
-    }
     Alert.alert("Log out of Vendor workspace?", "You can sign in again from the role-selection screen.", [
       { text: "Cancel", style: "cancel" },
       { text: "Log out", style: "destructive", onPress: () => void executeLogout() },
@@ -83,14 +81,10 @@ export default function VendorProfile() {
             { kind: "vendor", vendorId: vendor.id },
             previousLogoUrl,
           ).catch((cleanupError) => {
-            Alert.alert(
-              "Logo removed",
-              cleanupError instanceof Error
-                ? "The profile was updated, but the previous image could not be cleaned up yet."
-                : "The profile was updated.",
-            );
+            if (__DEV__) console.warn("Previous vendor logo cleanup failed", cleanupError);
           });
           setPhotoOpen(false);
+          showSuccess("Business logo removed");
         },
       },
     ]);

@@ -1,6 +1,7 @@
 import React from "react";
-import { type ImageURISource, Pressable, StyleSheet, Text, View, } from "react-native";
+import { type ImageURISource, StyleSheet, Text, View, } from "react-native";
 import SafeImage from "@/components/SafeImage";
+import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 
 export type CategoryCardItem = {
@@ -33,7 +34,7 @@ function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
   const imageWidth = compact ? 108 : 150;
 
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={`Browse ${category.name}`}
       onPress={onPress}
@@ -74,7 +75,7 @@ function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
           style={{ width: imageWidth, height: cardHeight }}
         />
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

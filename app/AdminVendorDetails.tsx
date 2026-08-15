@@ -15,6 +15,7 @@ import type { AdminVendorRecord, VendorDetails } from "@/types/adminVendors";
 import { KPIChip } from "@/components/admin/ui/KPIChip";
 import { normalizeWhatsAppPhone } from "@/services/contactActions";
 import { buildVendorPublicProfileUrl, regenerateVendorSlug, setVendorPublicProfileEnabled } from "@/services/vendorPublicProfile";
+import PageLoader from "@/components/loading/PageLoader";
 
 const PHONE_UNAVAILABLE_MESSAGE = "Phone number not available.";
 
@@ -42,7 +43,7 @@ export default function AdminVendorDetailsScreen() {
   }, [id]);
   useEffect(() => { void load(); }, [load]);
 
-  if (loading) return <SafeAreaView className="flex-1 bg-background items-center justify-center"><ActivityIndicator color="#E91E63" /><Text className="text-muted-foreground mt-3">Loading vendor profile…</Text></SafeAreaView>;
+  if (loading) return <PageLoader />;
   if (error || !details) return <SafeAreaView className="flex-1 bg-background items-center justify-center px-6"><Text className="text-red-500 text-center">{error || "Vendor not found."}</Text><Pressable className="min-h-11 mt-4 justify-center" onPress={() => void load()}><Text className="text-primary font-semibold">Try again</Text></Pressable></SafeAreaView>;
 
   const { record, vendor, application } = details;

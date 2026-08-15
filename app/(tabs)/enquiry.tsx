@@ -9,6 +9,7 @@ import { useCustomerEnquiries } from "@/hooks/useEnquiries";
 import { EnquiryExternalOpenError, EnquiryService, enquirySourceLabel, enquiryStatusLabel, type CustomerConfirmation, type TrackedEnquiry } from "@/services/enquiries";
 import { SkeletonList } from "@/components/loading/Skeleton";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import PageLoader from "@/components/loading/PageLoader";
 
 export default function EnquiryScreen() {
   const router = useRouter();
@@ -40,7 +41,9 @@ export default function EnquiryScreen() {
     finally { setSaving(false); }
   };
 
-  return <SafeAreaView style={[styles.page, { backgroundColor: colors.background }]}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  return <SafeAreaView style={[styles.page, { backgroundColor: colors.background }]}>
+  {authLoading || loading ? <PageLoader /> : null}
+  <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <View style={styles.heading}><View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>My Enquiries</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Tracked contact attempts and vendor progress</Text></View>{isPublicAuthenticated ? <Pressable accessibilityLabel="Refresh enquiries" onPress={() => void refresh()} style={[styles.refresh, { backgroundColor: colors.surface, borderColor: colors.border }]}><RefreshCw size={17} color="#E91E63" /></Pressable> : null}</View>
     <View style={styles.truthNote}><MessageSquareHeart size={17} color="#C52D60" /><Text style={styles.truthText}>Call Click means the dialler opened. WhatsApp Click means WhatsApp opened. Neither confirms a connected call or sent message.</Text></View>
     {authLoading || loading ? <SkeletonList count={4} height={128} /> : null}

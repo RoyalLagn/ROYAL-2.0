@@ -3,7 +3,8 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "rea
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Check, Copy, Pause, Play, Share2, Trash2, UserCog } from "lucide-react-native";
-import { AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
+import { AdminErrorState } from "@/components/admin/ui/AdminState";
+import PageLoader from "@/components/loading/PageLoader";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
 import { CRMCard } from "@/components/admin/crm/ui/CRMCard";
@@ -29,7 +30,7 @@ export default function AdminCrmMarketingWorkspaceDetail() {
   const [copied, setCopied] = useState(false);
 
   if (loading && !workspace) {
-    return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}><AdminLoadingState label="Loading workspace…" /></SafeAreaView>;
+    return <PageLoader />;
   }
   if (error && !workspace) {
     return (

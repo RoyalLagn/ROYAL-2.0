@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { CheckCircle2, Phone, ShieldAlert } from "lucide-react-native";
@@ -12,6 +12,7 @@ import { CrmSkeletonGrid } from "@/components/admin/crm/ui/SkeletonLoader";
 import { useMarketingWorkspaceSession } from "@/hooks/crm/useMarketingWorkspaceSession";
 import { useMarketingWorkspaceVendors } from "@/hooks/crm/useMarketingWorkspaceVendors";
 import type { MarketingInterestStatus } from "@/types/crm/marketingWorkspace";
+import PageLoader from "@/components/loading/PageLoader";
 
 const interestFilters: { key: "all" | MarketingInterestStatus; label: string }[] = [
   { key: "all", label: "All" },
@@ -43,12 +44,7 @@ export default function CrmMarketingWorkspace() {
   }, [session, refreshProgress, refreshVendors]));
 
   if (loading) {
-    return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color="#E91E63" />
-        <Text className="text-muted-foreground mt-3">Opening workspace…</Text>
-      </SafeAreaView>
-    );
+    return <PageLoader />;
   }
 
   if (error || !session) {

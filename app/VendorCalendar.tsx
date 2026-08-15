@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyhole, Save } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -23,10 +23,21 @@ import {
   setVendorAvailabilityException,
   type AvailabilityStatus,
 } from "@/services/vendorAvailability";
+import { useAppFeedback } from "@/context/AppFeedbackContext";
 
 const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const defaultHours = (): VendorBusinessHourEntry[] =>
-  DAY_LABELS.map((_, day) => ({ day, opens: "09:00", closes: "18:00", closed: day === 0 }));
+  DAY_LABELS.map((_, day) => ({ day, opens: "09:00", closes: "18:00", closed: false }));
+
+const validTime = (value: string) => {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours <= 23 && minutes <= 59 ? hours * 60 + minutes : null;
+};
+
+const cleanTime = (value: string) => value.replace(/[^0-9:]/g, "").slice(0, 5);
 
 const statuses = [
   { id: "tentative", label: "Tentative", icon: Clock3 },
@@ -34,16 +45,19 @@ const statuses = [
 ] as const;
 const statusColors: Record<AvailabilityStatus, { background: string; text: string }> = {
   available: { background: "#16A34A", text: "#FFFFFF" },
-  tentative: { background: "#F4B400", text: "#3C2A00" },
-  blocked: { background: "#E53935", text: "#FFFFFF" },
+  tentative: { background: "#FACC15", text: "#3C2A00" },
+  blocked: { background: "#DC2626", text: "#FFFFFF" },
 };
 const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const STATUS_GAP = 8;
 
 export default function VendorCalendar() {
+  const { width } = useWindowDimensions();
+  const compactHours = width < 560;
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const { showSuccess } = useAppFeedback();
   const { data, refresh } = useVendorWorkspace();
   const insets = useSafeAreaInsets();
   // Grid/button sizes are derived from each row's own measured `onLayout`
@@ -81,7 +95,7 @@ export default function VendorCalendar() {
     if (!existing?.length) { setHours(defaultHours()); return; }
     setHours(DAY_LABELS.map((_, day) => {
       const found = existing.find((entry: VendorBusinessHourEntry) => entry.day === day);
-      return found ?? { day, opens: "09:00", closes: "18:00", closed: true };
+      return found ?? { day, opens: "09:00", closes: "18:00", closed: false };
     }));
   }, [data.vendor]);
 
@@ -93,6 +107,17 @@ export default function VendorCalendar() {
 
   const saveHours = async () => {
     if (hoursSaving || !data.vendor?.id) return;
+    const invalidEntry = hours.find((entry) => {
+      if (entry.closed) return false;
+      const opens = validTime(entry.opens);
+      const closes = validTime(entry.closes);
+      return opens === null || closes === null || opens >= closes;
+    });
+    if (invalidEntry) {
+      const message = `Enter valid opening and closing times for ${DAY_LABELS[invalidEntry.day]}. Closing time must be later than opening time.`;
+      setHoursError(message);
+      return Alert.alert("Check working hours", message);
+    }
     setHoursSaving(true);
     setHoursError("");
     try {
@@ -192,8 +217,7 @@ export default function VendorCalendar() {
       return;
     }
     void refresh();
-    Alert.alert(
-      "Availability saved",
+    showSuccess(
       status === "available"
         ? bookingBlockedDates.has(selected)
           ? `${selected} still has a confirmed booking and remains blocked.`
@@ -284,51 +308,86 @@ export default function VendorCalendar() {
 
       <View style={[styles.editor, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
         <Text style={[styles.editorTitle, { color: colors.text }]}>Weekly working hours</Text>
-        <Text style={[styles.subtitle, { color: colors.muted }]}>Shown to customers on your public profile as your regular schedule.</Text>
+        <Text style={[styles.subtitle, { color: colors.muted }]}>All days are available by default. Turn off only the days your business is regularly closed.</Text>
         <View style={styles.hoursList}>
           {hours.map((entry) => (
-            <View key={entry.day} style={[styles.hourRow, { borderColor: colors.border }]}>
-              <Text style={[styles.hourDay, { color: colors.text }]}>{DAY_LABELS[entry.day]}</Text>
+            <View key={entry.day} style={[styles.hourRow, compactHours && styles.hourRowCompact, { borderColor: colors.border }]}>
+              <View style={[styles.hourDayRow, compactHours && styles.hourDayRowCompact]}>
+                <Text style={[styles.hourDay, { color: colors.text }]}>{DAY_LABELS[entry.day]}</Text>
+                {compactHours ? <AvailabilityToggle entry={entry} colors={colors} onChange={(open) => updateHourEntry(entry.day, {
+                  closed: !open,
+                  opens: open && validTime(entry.opens) === null ? "09:00" : entry.opens,
+                  closes: open && validTime(entry.closes) === null ? "18:00" : entry.closes,
+                })} /> : null}
+              </View>
               {entry.closed ? (
-                <Text style={[styles.hourClosedText, { color: colors.muted }]}>Closed</Text>
+                <Text style={[styles.hourClosedText, { color: colors.muted }]}>Not available</Text>
               ) : (
                 <View style={styles.hourInputs}>
                   <TextInput
                     value={entry.opens}
-                    onChangeText={(value) => updateHourEntry(entry.day, { opens: value })}
+                    onChangeText={(value) => updateHourEntry(entry.day, { opens: cleanTime(value) })}
                     placeholder="09:00"
                     placeholderTextColor={colors.muted}
+                    keyboardType="numbers-and-punctuation"
+                    maxLength={5}
+                    accessibilityLabel={`${DAY_LABELS[entry.day]} opening time`}
                     style={[styles.hourInput, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
                   />
                   <Text style={[styles.hourSeparator, { color: colors.muted }]}>–</Text>
                   <TextInput
                     value={entry.closes}
-                    onChangeText={(value) => updateHourEntry(entry.day, { closes: value })}
+                    onChangeText={(value) => updateHourEntry(entry.day, { closes: cleanTime(value) })}
                     placeholder="18:00"
                     placeholderTextColor={colors.muted}
+                    keyboardType="numbers-and-punctuation"
+                    maxLength={5}
+                    accessibilityLabel={`${DAY_LABELS[entry.day]} closing time`}
                     style={[styles.hourInput, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
                   />
                 </View>
               )}
-              <Switch
-                value={!entry.closed}
-                onValueChange={(open) => updateHourEntry(entry.day, { closed: !open })}
-                trackColor={{ true: colors.pink, false: colors.border }}
-              />
+              {!compactHours ? <AvailabilityToggle entry={entry} colors={colors} onChange={(open) => updateHourEntry(entry.day, {
+                closed: !open,
+                opens: open && validTime(entry.opens) === null ? "09:00" : entry.opens,
+                closes: open && validTime(entry.closes) === null ? "18:00" : entry.closes,
+              })} /> : null}
             </View>
           ))}
         </View>
         <View style={styles.hoursSaveRow}>
           {hoursError ? <Text style={styles.hoursError}>{hoursError}</Text>
             : hoursSaved ? <Text style={[styles.hoursSaved, { color: colors.success }]}>Working hours updated</Text>
-            : <Text style={[styles.hoursHint, { color: colors.muted }]}>Toggle a day off to mark it closed.</Text>}
-          <Pressable disabled={hoursSaving} onPress={() => void saveHours()} style={[styles.hoursSave, { backgroundColor: colors.pink }, hoursSaving && { opacity: 0.6 }]}>
+            : <Text style={[styles.hoursHint, { color: colors.muted }]}>Available days appear on your public profile.</Text>}
+          <Pressable disabled={hoursSaving} accessibilityRole="button" accessibilityState={{ disabled: hoursSaving }} onPress={() => void saveHours()} style={({ pressed }) => [styles.hoursSave, { backgroundColor: colors.pink }, hoursSaving && styles.disabled, pressed && styles.pressed]}>
             {hoursSaving ? <ActivityIndicator color="#FFF" size="small" /> : <><Save size={14} color="#FFF" /><Text style={styles.hoursSaveText}>Save hours</Text></>}
           </Pressable>
         </View>
       </View>
     </ScrollView>
   </View>;
+}
+
+function AvailabilityToggle({ entry, colors, onChange }: {
+  entry: VendorBusinessHourEntry;
+  colors: (typeof vendorTheme)[keyof typeof vendorTheme];
+  onChange: (open: boolean) => void;
+}) {
+  const open = !entry.closed;
+  return (
+    <View style={styles.availabilityControl}>
+      <Text style={[styles.availabilityLabel, { color: open ? colors.success : colors.muted }]}>{open ? "Available" : "Closed"}</Text>
+      <Switch
+        value={open}
+        onValueChange={onChange}
+        trackColor={{ true: colors.pink, false: colors.border }}
+        thumbColor="#FFFFFF"
+        ios_backgroundColor={colors.border}
+        accessibilityLabel={`${DAY_LABELS[entry.day]} availability`}
+        accessibilityHint="Turn off to mark this day as regularly closed"
+      />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -344,17 +403,23 @@ const styles = StyleSheet.create({
   markAvailable: { minHeight: 46, borderWidth: 1, borderRadius: 14, marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   markAvailableText: { fontSize: typeScale.metadata, fontWeight: "700" },
   hoursList: { marginTop: 14, gap: 4 },
-  hourRow: { flexDirection: "row", alignItems: "center", gap: 9, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
-  hourDay: { width: 84, fontSize: typeScale.metadata, fontWeight: "700" },
-  hourClosedText: { flex: 1, fontSize: typeScale.metadata, fontStyle: "italic" },
-  hourInputs: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
-  hourInput: { flex: 1, minHeight: 38, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, fontSize: typeScale.metadata, textAlign: "center" },
+  hourRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth },
+  hourRowCompact: { alignItems: "stretch", flexDirection: "column", gap: 9 },
+  hourDayRow: { width: 90, flexShrink: 0 },
+  hourDayRowCompact: { width: "100%", minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  hourDay: { fontSize: typeScale.metadata, fontWeight: "700" },
+  hourClosedText: { flex: 1, fontSize: typeScale.metadata, fontWeight: "600" },
+  hourInputs: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 7 },
+  hourInput: { flex: 1, flexBasis: 0, minWidth: 0, minHeight: 42, borderWidth: 1, borderRadius: 11, paddingHorizontal: 10, fontSize: typeScale.metadata, textAlign: "center" },
   hourSeparator: { fontSize: typeScale.metadata, fontWeight: "700" },
+  availabilityControl: { width: 116, minHeight: 44, flexShrink: 0, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 7 },
+  availabilityLabel: { fontSize: typeScale.caption, fontWeight: "700" },
   hoursSaveRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 16 },
   hoursHint: { flex: 1, fontSize: typeScale.caption },
   hoursSaved: { flex: 1, fontSize: typeScale.caption, fontWeight: "700" },
-  hoursError: { flex: 1, color: "#D33B55", fontSize: typeScale.caption, lineHeight: typeLeading.label, fontWeight: "700" },
+  hoursError: { flex: 1, color: "#DC2626", fontSize: typeScale.caption, lineHeight: typeLeading.label, fontWeight: "700" },
   hoursSave: { minHeight: 40, minWidth: 118, borderRadius: 13, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   hoursSaveText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
+  disabled: { opacity: .6 },
   lockNotice: { minHeight: 44, borderRadius: 14, marginTop: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 }, lockText: { flex: 1, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
 });

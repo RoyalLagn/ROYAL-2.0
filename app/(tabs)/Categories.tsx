@@ -11,6 +11,7 @@ import CategoryPageHeader from "@/components/categories/CategoryPageHeader";
 import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import { useCategories } from "@/context/CategoryContext";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import PageLoader from "@/components/loading/PageLoader";
 
 const INITIAL_ANIMATED_CARDS = 6;
 const SKELETON_DELAY_MS = 200;
@@ -200,6 +201,7 @@ export default function CategoriesScreen() {
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
+      {loading && !categories.length ? <PageLoader /> : null}
       <View style={[s.topContent, { width: contentWidth }]}>
         <Animated.View style={headerStyle}>
           <CategoryPageHeader dark={isDark} onBack={goBack} entrance={entrance} reducedMotion={reducedMotion} />

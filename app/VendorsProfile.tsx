@@ -41,8 +41,16 @@ import { EnquiryExternalOpenError, EnquiryService, type EnquiryChannel } from "@
 import { shareVendorProfile } from "@/services/vendorShare";
 import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
 import { SkeletonBone, SkeletonList } from "@/components/loading/Skeleton";
+import PageLoader from "@/components/loading/PageLoader";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { MotionDistance, MotionTiming } from "@/utils/motion";
 
 const PINK = "#E91E63";
 
@@ -61,6 +69,24 @@ function SectionHeading({ children, dark }: { children: React.ReactNode; dark: b
       </View>
     </View>
   );
+}
+
+function ProfileTabPanel({ children }: React.PropsWithChildren) {
+  const reducedMotion = useReducedMotion();
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withTiming(1, MotionTiming.fast);
+  }, [progress]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{
+      translateY: reducedMotion ? 0 : (1 - progress.value) * MotionDistance.cardEnter,
+    }],
+  }));
+
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>;
 }
 
 export default function VendorsProfile() {
@@ -216,6 +242,7 @@ export default function VendorsProfile() {
   if (loading || !vendor) {
     return (
       <View style={[styles.root, { backgroundColor: background }]}>
+        {loading ? <PageLoader /> : null}
         <PublicWebNavbar activeRoute="Categories" />
         {loading ? (
           <View accessibilityLabel="Loading vendor profile" style={styles.loadingWrap}>
@@ -367,6 +394,7 @@ export default function VendorsProfile() {
               onChange={selectProfileTab}
             />
 
+            <ProfileTabPanel key={selectedTab}>
             {selectedTab === "portfolio" ? (
               vendor.portfolioAlbums.length ? <View style={styles.portfolioSection}>
                 <SectionErrorBoundary label="Portfolio" key={`portfolio-${vendor.id}`}>
@@ -401,6 +429,7 @@ export default function VendorsProfile() {
                 />
               </SectionErrorBoundary>
             )}
+            </ProfileTabPanel>
 
             <View style={[styles.sectionCard, sectionCardStyle]}>
               <SectionHeading dark={dark}>About</SectionHeading>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Animated, FlatList, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
+import { Animated, FlatList, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Film, Images, Play, Sparkles } from "lucide-react-native";
@@ -9,6 +9,7 @@ import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
 import { getApprovedPublicVendorById, type PublicVendorListing } from "@/services/publicVendorListings";
 import { portfolioMediaUrl, type VendorPortfolioMedia } from "@/services/vendorPortfolio";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import PageLoader from "@/components/loading/PageLoader";
 
 const USE_NATIVE_DRIVER = Platform.OS !== "web";
 
@@ -149,14 +150,14 @@ export default function VendorAlbum() {
     else router.replace("/Categories");
   };
 
-  if (loading || !vendor || !album) {
+  if (loading) return <PageLoader />;
+
+  if (!vendor || !album) {
     return (
       <View style={styles.root}>
         <View style={[styles.empty, { paddingTop: insets.top + 20 }]}>
-          {loading ? <ActivityIndicator color="#E91E63" /> : <>
-            <Text style={styles.emptyTitle}>Album unavailable</Text>
-            <Pressable onPress={goBack} style={styles.backHome}><Text style={styles.backHomeText}>Go back</Text></Pressable>
-          </>}
+          <Text style={styles.emptyTitle}>Album unavailable</Text>
+          <Pressable onPress={goBack} style={styles.backHome}><Text style={styles.backHomeText}>Go back</Text></Pressable>
         </View>
         <StandaloneMobileTabBar activeRoute="Categories" />
       </View>

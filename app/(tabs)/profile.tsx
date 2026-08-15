@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
+import PageLoader from "@/components/loading/PageLoader";
 import {
   Alert,
   Image,
-  Linking,
   Modal,
   Platform,
   type PressableStateCallbackType,
@@ -30,7 +30,6 @@ import {
   Edit,
   HelpCircle,
   LogOut,
-  Mail,
   Phone,
   Shield,
   Trash2,
@@ -355,12 +354,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const openSupportEmail = async () => {
-    const url = "mailto:support@royallagn.com?subject=RoyalLagn%20support";
-    if (await Linking.canOpenURL(url)) Linking.openURL(url);
-    else Alert.alert("Email support", "Contact support@royallagn.com");
-  };
-
   const accountOptions = [
     {
       icon: Bookmark,
@@ -400,12 +393,6 @@ export default function ProfileScreen() {
       title: "Terms & Conditions",
       description: "Review service terms and policies",
       onPress: () => router.push("/Terms"),
-    },
-    {
-      icon: Mail,
-      title: "Contact Us",
-      description: "Reach the RoyalLagn support team",
-      onPress: () => void openSupportEmail(),
     },
   ];
 
@@ -522,6 +509,7 @@ export default function ProfileScreen() {
       className="flex-1 bg-background"
       edges={["top", "left", "right"]}
     >
+      {authLoading ? <PageLoader /> : null}
       {!isDesktop ? (
         <View style={[styles.mobileHeader, { paddingHorizontal: pagePadding }]}>
           <View>

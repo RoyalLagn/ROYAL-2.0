@@ -16,6 +16,7 @@ import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import ImageFadeIn from "@/components/loading/ImageFadeIn";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import Pressable from "@/components/InteropSafePressable";
+import { useAppFeedback } from "@/context/AppFeedbackContext";
 
 export default function VendorGallery() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function VendorGallery() {
   const insets = useSafeAreaInsets();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const { showSuccess } = useAppFeedback();
   const dark = colorScheme === "dark";
   const canvas = dark ? colors.background : "#FFF9FB";
   const { access, requireFeature } = useSubscriptionAccess();
@@ -148,7 +150,7 @@ export default function VendorGallery() {
     try {
       await replaceHeroMedia(data.vendor.id, heroDraft);
       await refresh();
-      Alert.alert("Hero gallery saved", heroDraft.length ? "Your selected images will appear in this order." : "RoyalLagn will choose stable album images automatically.");
+      showSuccess(heroDraft.length ? "Hero gallery updated" : "Automatic hero gallery restored");
     } catch (caught) {
       showFailure("Hero gallery not saved", caught);
     } finally {
@@ -178,6 +180,7 @@ export default function VendorGallery() {
     const duplicate = data.albums.some((album) =>
       album.id !== editingAlbum?.id && album.title.trim().toLowerCase() === title.trim().toLowerCase());
     if (duplicate) return Alert.alert("Album name already used", "Choose a different name for this album.");
+    const wasEditing = Boolean(editingAlbum);
     setSaving(true);
     const payload = { vendor_id: data.vendor.id, title: title.trim(), description: description.trim() || null, is_visible: isVisible };
     const result = editingAlbum
@@ -188,6 +191,7 @@ export default function VendorGallery() {
     if (!editingAlbum && result.data?.id) setSelectedAlbumId(result.data.id);
     setAlbumModal(false);
     await refresh();
+    showSuccess(wasEditing ? "Album updated" : "Album created");
     if (addMediaAfterSave && result.data?.id) {
       await prepareUpload(result.data.id, title.trim(), 0);
     }
@@ -210,6 +214,7 @@ export default function VendorGallery() {
       if (removeError) throw removeError;
       setSelectedAlbumId(null);
       setAlbumPreview(null);
+      showSuccess("Album deleted");
     } catch (caught) {
       showFailure("Album not deleted", caught, "Nothing was removed. Please check your connection and try again.");
     } finally {
@@ -251,6 +256,7 @@ export default function VendorGallery() {
     setPreview(null);
     setSelectedAlbumId(target.id);
     await refresh();
+    showSuccess("Media moved");
   };
   const moveAlbumMediaTo = async (target: any) => {
     if (!requireFeature("manage_albums")) return;
@@ -262,6 +268,7 @@ export default function VendorGallery() {
     }
     setDeletingAlbumId(moveAlbumSource.id);
     const moved: typeof sourceItems = [];
+    let movedSuccessfully = false;
     try {
       for (let index = 0; index < sourceItems.length; index += 1) {
         const { error: moveError } = await supabase.from("vendor_portfolio_media")
@@ -275,6 +282,7 @@ export default function VendorGallery() {
       if (removeError) throw removeError;
       setMoveAlbumSource(null);
       setSelectedAlbumId(target.id);
+      movedSuccessfully = true;
     } catch (caught) {
       if (moved.length && moved.length < sourceItems.length) {
         // Roll the already-moved items back to the source album so a
@@ -290,6 +298,7 @@ export default function VendorGallery() {
     } finally {
       await refresh();
       setDeletingAlbumId(null);
+      if (movedSuccessfully) showSuccess("Album media moved");
     }
   };
   const prepareUpload = async (
@@ -396,10 +405,14 @@ export default function VendorGallery() {
     const pending = pendingAssets
       .map((asset, index) => ({ asset, index, task: uploadProgress[`${asset.uri}-${index}`] }))
       .filter(({ task }) => !task || task.status === "waiting" || task.status === "failed");
-    for (const item of pending) await uploadOne(item.asset, item.index);
+    let uploadedCount = 0;
+    for (const item of pending) {
+      if (await uploadOne(item.asset, item.index)) uploadedCount += 1;
+    }
     if (pending.length) {
       await refresh();
     }
+    if (uploadedCount) showSuccess(`${uploadedCount} media item${uploadedCount === 1 ? "" : "s"} uploaded`);
   };
   const removePendingAsset = (removeIndex: number) => {
     if (uploading) return;
@@ -420,8 +433,9 @@ export default function VendorGallery() {
     const { error: coverError } = await supabase.from("vendor_portfolio_media").update({ is_cover: true }).eq("id", item.id).eq("vendor_id", data.vendor?.id);
     if (coverError) return showFailure("Cover not updated", coverError);
     const { error: unsetError } = await supabase.from("vendor_portfolio_media").update({ is_cover: false }).eq("album_id", item.album_id).neq("id", item.id);
-    if (unsetError) showFailure("Cover not updated", unsetError);
+    if (unsetError) return showFailure("Cover not updated", unsetError);
     await refresh();
+    showSuccess("Album cover updated");
   };
   const reorderMedia = async (item: any, direction: -1 | 1) => {
     if (!requireFeature("manage_albums")) return;
@@ -436,7 +450,10 @@ export default function VendorGallery() {
     if (orderError) {
       await supabase.from("vendor_portfolio_media").update({ display_order: currentOrder }).eq("id", item.id).eq("vendor_id", data.vendor?.id);
       showFailure("Order not updated", orderError);
-    } else refresh();
+    } else {
+      await refresh();
+      showSuccess("Media order updated");
+    }
   };
   const reorderAlbum = async (direction: -1 | 1) => {
     if (!requireFeature("manage_albums")) return;
@@ -452,7 +469,10 @@ export default function VendorGallery() {
     if (orderError) {
       await supabase.from("vendor_portfolio_albums").update({ display_order: currentOrder }).eq("id", activeAlbum.id).eq("vendor_id", data.vendor?.id);
       showFailure("Album order not updated", orderError);
-    } else refresh();
+    } else {
+      await refresh();
+      showSuccess("Album order updated");
+    }
   };
   const removeMedia = (item: any) => {
     if (!requireFeature("manage_albums")) return;
@@ -470,6 +490,7 @@ export default function VendorGallery() {
             }
             setPreview(null);
             await refresh();
+            showSuccess("Media deleted");
           }
           catch (caught) { showFailure("Media not deleted", caught, "Nothing was removed. Please check your connection and try again."); }
         }},

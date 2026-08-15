@@ -3,7 +3,8 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Edit3, ExternalLink, FileText, MapPin, Phone } from "lucide-react-native";
-import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
+import { AdminEmptyState, AdminErrorState } from "@/components/admin/ui/AdminState";
+import PageLoader from "@/components/loading/PageLoader";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
 import { CRMCard } from "@/components/admin/crm/ui/CRMCard";
@@ -79,11 +80,7 @@ export default function AdminCrmVendorProfile() {
   const [followupNotes, setFollowupNotes] = useState("");
 
   if (loading && !vendor) {
-    return (
-      <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-        <AdminLoadingState label="Loading vendor…" />
-      </SafeAreaView>
-    );
+    return <PageLoader />;
   }
 
   if (error && !vendor) {

@@ -12,13 +12,16 @@ import { ClipManagementService, pickClipThumbnail } from "@/clips/services";
 import type { ClipVisibility } from "@/clips/types";
 import { ClipStatusBadge } from "@/clips/components";
 import PremiumRouteGate from "@/components/subscriptions/PremiumRouteGate";
+import PageLoader from "@/components/loading/PageLoader";
 import { typeScale } from "@/constants/typography";
+import { useAppFeedback } from "@/context/AppFeedbackContext";
 
 export default function VendorClipEdit() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const { showSuccess } = useAppFeedback();
   const { registrationCategories: categories } = useCategories();
   const [clip, setClip] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -90,7 +93,10 @@ export default function VendorClipEdit() {
         notFound ? "This Clip was deleted or is no longer accessible." : result.error.message,
         notFound ? [{ text: "OK", onPress: () => router.back() }] : undefined,
       );
-    } else router.back();
+    } else {
+      showSuccess("Clip updated");
+      router.back();
+    }
   };
   const replaceThumbnail = async () => {
     const uri = await pickClipThumbnail();
@@ -99,13 +105,16 @@ export default function VendorClipEdit() {
     try {
       const result = await ClipManagementService.replaceThumbnail(clip.id, clip.vendor_id, uri);
       if (result.error) throw result.error;
-      if (mounted.current) setClip(result.data);
+      if (mounted.current) {
+        setClip(result.data);
+        showSuccess("Cover thumbnail updated");
+      }
     } catch (error) {
       if (mounted.current) Alert.alert("Thumbnail not replaced", error instanceof Error ? error.message : "Try again.");
     } finally { if (mounted.current) setSaving(false); }
   };
 
-  if (loading) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.pink} /></View>;
+  if (loading) return <PageLoader />;
 
   if (loadError || !clip) {
     return (

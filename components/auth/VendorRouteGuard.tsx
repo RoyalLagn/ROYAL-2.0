@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { usePathname, useRouter } from "expo-router";
 import { useVendorAuth } from "@/context/VendorAuthContext";
 import { isProtectedVendorRoute } from "@/vendor/navigation";
-import BrandedLoader from "@/components/loading/BrandedLoader";
+import PageLoader from "@/components/loading/PageLoader";
 
 /**
  * Guards every authenticated Vendor workspace route (see
@@ -28,9 +28,7 @@ export function VendorRouteGuard({ children }: { children: React.ReactNode }) {
   }, [isVendorAuthenticated, loading, protectedRoute, resolution, router]);
 
   if (protectedRoute && (loading || !isVendorAuthenticated)) {
-    // Vendor session/workspace resolution is exactly the "no usable screen
-    // can yet be displayed" case the branded loader is reserved for.
-    return <BrandedLoader message="Preparing your vendor workspace..." />;
+    return <PageLoader />;
   }
   return <>{children}</>;
 }

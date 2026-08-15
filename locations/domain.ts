@@ -91,6 +91,25 @@ export function vendorMembershipPriority(planName?: string | null) {
   return 0;
 }
 
+export function formatCanonicalVendorLocation(parts: {
+  localityName?: string | null;
+  talukaName?: string | null;
+  districtName?: string | null;
+  stateName?: string | null;
+}) {
+  const seen = new Set<string>();
+  return [parts.localityName, parts.talukaName, parts.districtName, parts.stateName]
+    .map((part) => part?.trim() ?? "")
+    .filter((part) => {
+      if (!part) return false;
+      const key = part.toLocaleLowerCase("en-IN");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(", ");
+}
+
 /**
  * Keeps location as the primary ranking signal, then promotes paid membership
  * within the same proximity group. The incoming order remains the final

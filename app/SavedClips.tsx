@@ -13,6 +13,7 @@ import {
   ClipViewerHandoff, SavedClipEvents, SavedClipService, type SavedClipItem,
 } from "@/clips/services";
 import { typeScale, typeLeading } from "@/constants/typography";
+import PageLoader from "@/components/loading/PageLoader";
 
 function Skeleton({ width }: { width: number }) {
   return <View style={{ width }}>
@@ -120,6 +121,7 @@ export default function SavedClipsScreen() {
   }, [router]);
 
   return <SafeAreaView style={[styles.root, { backgroundColor: dark ? "#0A0809" : "#FFFFFF" }]} edges={["top"]}>
+    {authLoading || loading ? <PageLoader /> : null}
     <View style={[styles.header, { borderBottomColor: dark ? "#2C2227" : "#F1DCE5" }]}>
       <Pressable accessibilityLabel="Back" onPress={() => router.back()} style={styles.back}><ChevronLeft size={23} color={dark ? "#FFF" : "#21151B"} /></Pressable>
       <View style={styles.headerText}><Text style={[styles.title, { color: dark ? "#FFF" : "#21151B" }]}>Saved Clips</Text><Text style={styles.subtitle}>{items.length ? `${items.length} wedding inspiration${items.length === 1 ? "" : "s"}` : "Your wedding inspiration collection"}</Text></View>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Alert,
-  Linking,
+  ActivityIndicator,
   Platform,
   Pressable,
   ScrollView,
@@ -24,6 +24,8 @@ import {
   HelpCircle,
   ImagePlus,
   Info,
+  Mail,
+  Phone,
   Plus,
   Save,
   Send,
@@ -35,6 +37,8 @@ import { useColorScheme } from "nativewind";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
+import { useSupportSettings } from "@/hooks/useSupportSettings";
+import { canOpenSupportUrl, supportEmailUrl, supportPhoneUrl } from "@/services/supportSettings";
 
 export type FrontendScreenMode =
   | "form"
@@ -100,6 +104,7 @@ export default function FrontendScreen({
     Object.fromEntries(items.map((item) => [item, true]))
   );
   const settingsStorageKey = `royallagn.frontend-settings.${title}`;
+  const { settings: supportSettings, loading: supportLoading } = useSupportSettings(mode === "help");
 
   // Preferences here have no backing account column yet -- persisting them
   // locally at least means a toggle survives a reload instead of silently
@@ -129,13 +134,27 @@ export default function FrontendScreen({
   const sendSupportMessage = async () => {
     const body = message.trim();
     if (!body) return Alert.alert("Add a message", "Let us know what you need help with first.");
-    const url = `mailto:support@royallagn.com?subject=${encodeURIComponent(`${title} support`)}&body=${encodeURIComponent(body)}`;
-    if (await Linking.canOpenURL(url)) {
-      Linking.openURL(url);
+    if (!supportSettings.showEmail || !supportSettings.email) {
+      return Alert.alert("Email unavailable", "Email support is not currently available. Please use the contact number shown here.");
+    }
+    const url = supportEmailUrl(supportSettings.email, `${title} support`, body);
+    if (await canOpenSupportUrl(url)) {
       setMessage("");
     } else {
-      Alert.alert("Email support", "Contact support@royallagn.com");
+      Alert.alert("Email support", `Contact ${supportSettings.email}`);
     }
+  };
+
+  const openSupportEmail = async () => {
+    if (!supportSettings.email) return;
+    const opened = await canOpenSupportUrl(supportEmailUrl(supportSettings.email, `${title} support`));
+    if (!opened) Alert.alert("Email support", `Contact ${supportSettings.email}`);
+  };
+
+  const openSupportPhone = async () => {
+    if (!supportSettings.phone) return;
+    const opened = await canOpenSupportUrl(supportPhoneUrl(supportSettings.phone));
+    if (!opened) Alert.alert("Call support", `Contact ${supportSettings.phone}`);
   };
 
   const surfaceShadow = Platform.OS === "web"
@@ -421,10 +440,41 @@ export default function FrontendScreen({
                 ))}
               </View>
 
-              <View
-                className="flex-1 bg-card border border-border/80 rounded-3xl p-5"
-                style={surfaceShadow}
-              >
+              <View className="flex-1 gap-4">
+                <View className="bg-card border border-border/80 rounded-3xl p-5" style={surfaceShadow}>
+                  <Text className="text-foreground text-lg font-bold mb-1">Contact support</Text>
+                  <Text className="text-muted-foreground text-xs mb-4">
+                    Choose one of the support options currently available.
+                  </Text>
+                  <View className="flex-row flex-wrap gap-3">
+                    {supportLoading ? <ActivityIndicator size="small" color="#E91E63" /> : null}
+                    {!supportLoading && supportSettings.showEmail && supportSettings.email ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Email support at ${supportSettings.email}`}
+                        className="min-h-11 px-4 rounded-xl border border-primary/25 bg-primary/5 flex-row items-center active:opacity-75"
+                        onPress={() => void openSupportEmail()}
+                      >
+                        <Mail size={17} className="text-primary" />
+                        <Text className="text-foreground text-sm font-semibold ml-2">{supportSettings.email}</Text>
+                      </Pressable>
+                    ) : null}
+                    {!supportLoading && supportSettings.showPhone && supportSettings.phone ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Call support at ${supportSettings.phone}`}
+                        className="min-h-11 px-4 rounded-xl border border-primary/25 bg-primary/5 flex-row items-center active:opacity-75"
+                        onPress={() => void openSupportPhone()}
+                      >
+                        <Phone size={17} className="text-primary" />
+                        <Text className="text-foreground text-sm font-semibold ml-2">{supportSettings.phone}</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </View>
+
+                {!supportLoading && supportSettings.showEmail && supportSettings.email ? (
+                  <View className="bg-card border border-border/80 rounded-3xl p-5" style={surfaceShadow}>
                 <Text className="text-foreground text-lg font-bold mb-1">Still need help?</Text>
                 <Text className="text-muted-foreground text-xs mb-4">
                   Tell us what you need and our support team will guide you.
@@ -447,6 +497,8 @@ export default function FrontendScreen({
                   <Send size={17} color="#FFFFFF" />
                   <Text className="text-white font-semibold ml-2">Send Message</Text>
                 </Pressable>
+                  </View>
+                ) : null}
               </View>
             </View>
           )}

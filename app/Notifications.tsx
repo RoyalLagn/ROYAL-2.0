@@ -21,6 +21,7 @@ import {
   useNotifications,
 } from "@/context/NotificationContext";
 import { SkeletonList } from "@/components/loading/Skeleton";
+import PageLoader from "@/components/loading/PageLoader";
 
 const notificationIcons: Record<NotificationType, React.ElementType> = {
   vendor_approval: BadgeCheck,
@@ -201,6 +202,7 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+      {loading ? <PageLoader /> : null}
       <View style={[styles.header, { borderBottomColor: isDark ? "#333333" : "#F0D9E4" }]}>
         <AuthBackButton fallbackRoute="/(tabs)" />
         <Text className="text-foreground text-xl font-bold">Notifications</Text>

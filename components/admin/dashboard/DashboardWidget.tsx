@@ -29,25 +29,39 @@ export function DashboardWidget({
   onRefresh,
   children,
 }: Props) {
-  const { iconSize, isPhone } = useResponsiveLayout();
+  const { cardPadding, iconSize, isPhone } = useResponsiveLayout();
   return (
-    <ResponsiveCard className="overflow-hidden">
-      <View className={`flex-row items-center ${isPhone ? "mb-3" : "mb-5"}`}>
-        {Icon ? <View className="w-9 h-9 rounded-lg bg-primary/10 items-center justify-center mr-3"><Icon size={Math.max(17, iconSize - 3)} className="text-primary" /></View> : null}
+    <ResponsiveCard
+      className="overflow-hidden bg-card"
+      style={{ padding: 0, borderRadius: 16 }}
+    >
+      <View
+        className="flex-row items-center border-b border-border"
+        style={{ paddingHorizontal: cardPadding, paddingVertical: isPhone ? 14 : 16 }}
+      >
+        {Icon ? <View className="w-9 h-9 rounded-xl bg-primary/10 items-center justify-center mr-3"><Icon size={Math.max(17, iconSize - 3)} className="text-primary" /></View> : null}
         <View className="flex-1">
           <Text className="text-foreground font-bold" style={typeStyles.cardTitle} numberOfLines={2}>{title}</Text>
           {subtitle ? <Text className="text-muted-foreground mt-0.5" style={typeStyles.bodyCompact} numberOfLines={2}>{subtitle}</Text> : null}
         </View>
         {onRefresh ? (
-          <Pressable accessibilityRole="button" accessibilityLabel={`Refresh ${title}`} className="min-w-11 min-h-11 rounded-xl items-center justify-center active:bg-muted" onPress={onRefresh}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Refresh ${title}`}
+            className="min-w-11 min-h-11 rounded-xl border border-border bg-background items-center justify-center active:bg-muted"
+            style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}
+            onPress={onRefresh}
+          >
             <RefreshCw size={17} className="text-muted-foreground" />
           </Pressable>
         ) : null}
       </View>
-      {loading ? <DashboardSkeleton />
-        : error ? <DashboardError message={error} />
-          : empty ? <DashboardEmpty message={emptyMessage} />
-            : children}
+      <View style={{ padding: cardPadding }}>
+        {loading ? <DashboardSkeleton />
+          : error ? <DashboardError message={error} />
+            : empty ? <DashboardEmpty message={emptyMessage} />
+              : children}
+      </View>
     </ResponsiveCard>
   );
 }

@@ -9,6 +9,7 @@ import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
 import PublicWebNavbar from "@/components/PublicWebNavbar";
 import VendorListingCard from "@/components/listing/VendorListingCard";
 import { SkeletonList } from "@/components/loading/Skeleton";
+import PageLoader from "@/components/loading/PageLoader";
 import { useFavorites } from "@/context/FavoritesContext";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import { useCategories } from "@/context/CategoryContext";
@@ -245,6 +246,7 @@ export default function NearbyVendorsScreen() {
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "left", "right"]}>
+      {showLoadingSkeleton ? <PageLoader /> : null}
       <PublicWebNavbar activeRoute="Home" />
       <FlatList
         data={stage === "ready" ? cards : []}

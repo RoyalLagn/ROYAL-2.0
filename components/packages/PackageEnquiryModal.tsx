@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { CalendarDays, Send, X } from "lucide-react-native";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import type { VendorPackage } from "@/services/vendorPackages";
 import { EnquiryService } from "@/services/enquiries";
 import { typeScale } from "@/constants/typography";
+import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 
 type Props = { visible: boolean; vendorId: string; vendorName: string; item: VendorPackage | null; dark?: boolean; onClose: () => void; onSignInRequired: () => void; onSent: () => void };
 
@@ -56,8 +57,12 @@ export default function PackageEnquiryModal({ visible, vendorId, vendorName, ite
     } finally { setSending(false); }
   };
 
-  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-    <View style={[styles.backdrop, width >= 700 && styles.centered]}><View style={[styles.sheet, width >= 700 && styles.desktop, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+  return <AnimatedBottomSheet
+    visible={visible}
+    onRequestClose={onClose}
+    variant={width >= 700 ? "center" : "sheet"}
+    sheetStyle={[styles.sheet, width >= 700 && styles.desktop, { backgroundColor: colors.surface, borderColor: colors.border }]}
+  >
       <View style={styles.header}><View style={styles.icon}><Send size={20} color="#E91E63" /></View><View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>Enquire about package</Text><Text style={[styles.subtitle, { color: colors.muted }]}>{item?.title}</Text></View><Pressable onPress={onClose} accessibilityLabel="Close enquiry" style={[styles.close, { backgroundColor: colors.background }]}><X size={20} color={colors.text} /></Pressable></View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
         <Field label="Phone" value={phone} onChangeText={setPhone} placeholder="Your contact number" colors={colors} keyboardType="phone-pad" />
@@ -65,12 +70,11 @@ export default function PackageEnquiryModal({ visible, vendorId, vendorName, ite
         <Field label="Message" value={message} onChangeText={setMessage} placeholder="Tell the vendor what you need" colors={colors} multiline />
       </ScrollView>
       <Pressable disabled={sending || authLoading} onPress={() => void send()} style={[styles.send, (sending || authLoading) && styles.disabled]}>{sending ? <ActivityIndicator color="#FFF" /> : <><Send size={16} color="#FFF" /><Text style={styles.sendText}>{isPublicAuthenticated ? "Send package enquiry" : "Sign in to enquire"}</Text></>}</Pressable>
-    </View></View>
-  </Modal>;
+  </AnimatedBottomSheet>;
 }
 
 function Field({ label, colors, icon, multiline, ...props }: any) { return <View style={styles.field}><Text style={[styles.label, { color: colors.text }]}>{label}</Text><View style={[styles.inputWrap, multiline && styles.textareaWrap, { backgroundColor: colors.background, borderColor: colors.border }]}>{icon}{<TextInput {...props} multiline={multiline} placeholderTextColor={colors.muted} style={[styles.input, multiline && styles.textarea, { color: colors.text }]} />}</View></View>; }
 function isValidDate(value: string) { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false; const date = new Date(`${value}T00:00:00.000Z`); return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value; }
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(12,7,10,.56)" }, centered: { justifyContent: "center", alignItems: "center", padding: 24 }, sheet: { width: "100%", maxHeight: "92%", borderWidth: 1, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 18, paddingBottom: 26 }, desktop: { maxWidth: 620, borderRadius: 28 }, header: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 14 }, icon: { width: 42, height: 42, borderRadius: 14, backgroundColor: "#FFF0F5", alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, title: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" }, subtitle: { fontSize: typeScale.caption, marginTop: 2 }, close: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, form: { gap: 12 }, two: { flexDirection: "row", flexWrap: "wrap", gap: 10 }, field: { flex: 1, minWidth: 190 }, label: { fontSize: typeScale.caption, fontWeight: "700", marginBottom: 6 }, inputWrap: { minHeight: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 7 }, textareaWrap: { minHeight: 110, alignItems: "flex-start", paddingTop: 11 }, input: { flex: 1, fontSize: typeScale.bodyCompact, minHeight: 44 }, textarea: { minHeight: 88, textAlignVertical: "top" }, send: { minHeight: 50, backgroundColor: "#E91E63", borderRadius: 15, marginTop: 16, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" }, sendText: { color: "#FFF", fontSize: typeScale.bodyCompact, fontWeight: "700" }, disabled: { opacity: .55 },
+  sheet: { width: "100%", maxHeight: "92%", borderWidth: 1, padding: 18 }, desktop: { maxWidth: 620, borderRadius: 28, paddingBottom: 26 }, header: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 14 }, icon: { width: 42, height: 42, borderRadius: 14, backgroundColor: "#FFF0F5", alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, title: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" }, subtitle: { fontSize: typeScale.caption, marginTop: 2 }, close: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, form: { gap: 12 }, two: { flexDirection: "row", flexWrap: "wrap", gap: 10 }, field: { flex: 1, minWidth: 190 }, label: { fontSize: typeScale.caption, fontWeight: "700", marginBottom: 6 }, inputWrap: { minHeight: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 7 }, textareaWrap: { minHeight: 110, alignItems: "flex-start", paddingTop: 11 }, input: { flex: 1, fontSize: typeScale.bodyCompact, minHeight: 44 }, textarea: { minHeight: 88, textAlignVertical: "top" }, send: { minHeight: 50, backgroundColor: "#E91E63", borderRadius: 15, marginTop: 16, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" }, sendText: { color: "#FFF", fontSize: typeScale.bodyCompact, fontWeight: "700" }, disabled: { opacity: .55 },
 });

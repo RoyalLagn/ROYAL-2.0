@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,16 @@ import {
   Image,
   StyleSheet,
   useWindowDimensions,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from "react-native-reanimated";
 import CategoryBadge from "@/components/categories/CategoryBadge";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Heart, Star, MapPin, Grid2x2, List } from "lucide-react-native";
@@ -15,12 +24,14 @@ import { useColorScheme } from "nativewind";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useFavorites, FavoriteVendor } from "@/context/FavoritesContext";
 import { typeScale, typeLeading } from "@/constants/typography";
+import PageLoader from "@/components/loading/PageLoader";
+import { MotionDistance, MotionStagger, MotionTiming } from "@/utils/motion";
 
 export default function FavoritesScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
-  const { favorites, markFavoritesViewed, removeFavorite } = useFavorites();
+  const { favorites, loading, markFavoritesViewed, removeFavorite } = useFavorites();
   const { width: W } = useWindowDimensions();
   const CARD_W = (W - 48) / 2;
 
@@ -51,6 +62,7 @@ export default function FavoritesScreen() {
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
+      {loading ? <PageLoader /> : null}
 
       {/* ── Header ── */}
       <View style={[s.header, { backgroundColor: isDark ? "#1E1E1E" : "#FFF", borderBottomWidth: 1, borderBottomColor: isDark ? "#2A2A2A" : "#F0E6F0" }]}>
@@ -278,19 +290,31 @@ function ListCard({ vendor, card, text, muted, border, isDark, onPress, onRemove
 function EmptyState({ isDark, text, muted, router, hasAny, selectedCat }: {
   isDark: boolean; text: string; muted: string; router: any; hasAny: boolean; selectedCat: string;
 }) {
+  const reducedMotion = useReducedMotion();
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withTiming(1, MotionTiming.base);
+  }, [progress]);
+
+  const entranceStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: reducedMotion ? 0 : (1 - progress.value) * MotionDistance.cardEnter }],
+  }));
+
   return (
-    <View style={s.empty}>
+    <Animated.View style={[s.empty, entranceStyle]}>
       {/* Decorative hearts */}
       <View style={s.emptyDecor}>
-        <View style={[s.decorHeart, s.decorHeart1, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
+        <EmptyDecorHeart delay={0} style={[s.decorHeart, s.decorHeart1, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
           <Heart size={20} color="#E91E6360" fill="#E91E6330" />
-        </View>
-        <View style={[s.decorHeart, s.decorHeart2, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
+        </EmptyDecorHeart>
+        <EmptyDecorHeart delay={MotionStagger.item} style={[s.decorHeart, s.decorHeart2, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
           <Heart size={28} color="#E91E6370" fill="#E91E6340" />
-        </View>
-        <View style={[s.decorHeart, s.decorHeart3, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
+        </EmptyDecorHeart>
+        <EmptyDecorHeart delay={MotionStagger.item * 2} style={[s.decorHeart, s.decorHeart3, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
           <Heart size={16} color="#E91E6350" fill="#E91E6320" />
-        </View>
+        </EmptyDecorHeart>
       </View>
       <View style={[s.emptyIconWrap, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
         <Heart size={40} color="#E91E63" fill="#E91E63" />
@@ -310,8 +334,30 @@ function EmptyState({ isDark, text, muted, router, hasAny, selectedCat }: {
         <Heart size={16} color="#FFF" style={{ marginRight: 6 }} />
         <Text style={s.exploreTxt}>Browse Vendors</Text>
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
+}
+
+function EmptyDecorHeart({ children, delay, style }: React.PropsWithChildren<{
+  delay: number;
+  style: StyleProp<ViewStyle>;
+}>) {
+  const reducedMotion = useReducedMotion();
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withDelay(delay, withTiming(1, MotionTiming.fast));
+  }, [delay, progress]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [
+      { translateY: reducedMotion ? 0 : (1 - progress.value) * 4 },
+      { scale: reducedMotion ? 1 : 0.94 + progress.value * 0.06 },
+    ],
+  }));
+
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
 }
 
 const s = StyleSheet.create({

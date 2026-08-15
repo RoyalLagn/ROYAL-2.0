@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Clock3, XCircle } from "lucide-react-native";
@@ -11,6 +11,7 @@ import {
   resolveVendorDestination,
   type VendorResolution,
 } from "@/services/vendorAuth";
+import PageLoader from "@/components/loading/PageLoader";
 
 /**
  * The ?status= query param is only used for the very first paint (avoids a
@@ -128,11 +129,7 @@ export default function VendorAuthStatusScreen() {
   }, [router, teardownRealtime]);
 
   if (loading) {
-    return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color="#E91E63" />
-      </SafeAreaView>
-    );
+    return <PageLoader />;
   }
 
   if (error) {

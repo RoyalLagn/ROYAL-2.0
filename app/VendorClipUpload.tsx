@@ -15,6 +15,8 @@ import type { ClipDraftRecord, ClipUpload } from "@/clips/types";
 import { validateClipSource } from "@/clips/utils/validation";
 import PremiumRouteGate from "@/components/subscriptions/PremiumRouteGate";
 import { typeScale } from "@/constants/typography";
+import PageLoader from "@/components/loading/PageLoader";
+import { useAppFeedback } from "@/context/AppFeedbackContext";
 
 function Preview({ source }: { source: ClipUpload }) {
   const player = useVideoPlayer(source.uri, (instance) => { instance.loop = true; });
@@ -27,6 +29,7 @@ export default function VendorClipUpload() {
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const { showSuccess, showError } = useAppFeedback();
   const { data, loading } = useVendorWorkspace();
   const { registrationCategories: categories } = useCategories();
   const queue = useClipUploadQueue();
@@ -90,8 +93,12 @@ export default function VendorClipUpload() {
       source: sources[0] ?? null, customThumbnailUri: thumbnailUri,
       updatedAt: new Date().toISOString(),
     };
-    await ClipDraftService.save(record);
-    Alert.alert("Draft saved", "You can resume this Clip from Your Clips.");
+    try {
+      await ClipDraftService.save(record);
+      showSuccess("Clip draft saved");
+    } catch {
+      showError("Clip draft could not be saved");
+    }
   };
 
   const drafts = useMemo(() => sources.map((source, index) => ({
@@ -150,7 +157,7 @@ export default function VendorClipUpload() {
     ]);
   }, [data.vendor?.id, limitFailure, retryQueueItem, router]);
 
-  if (loading) return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.pink} /></View>;
+  if (loading) return <PageLoader />;
   return <PremiumRouteGate feature="upload_clips"><View style={[styles.root, { backgroundColor: colors.background }]}>
     <VendorHeader />
     <ScrollView contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll]} keyboardShouldPersistTaps="handled">

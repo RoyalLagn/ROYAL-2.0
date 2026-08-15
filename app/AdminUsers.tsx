@@ -8,10 +8,11 @@ import {
   RefreshControl,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CalendarDays, Clock3, Mail, MoreVertical, Phone, RefreshCw, Trash2, UserCheck, UserRound, Users, UserX, X } from "lucide-react-native";
+import { CalendarDays, Clock3, Mail, MoreVertical, Phone, RefreshCw, Search, Trash2, UserCheck, UserRound, Users, UserX, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
@@ -19,12 +20,9 @@ import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { AdminUserService, type AdminPublicUser } from "@/services/adminUsers";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
-import CompactSearchBar from "@/components/listing/CompactSearchBar";
-import { useColorScheme } from "nativewind";
 
 export default function AdminUsers() {
   const { isPhone } = useResponsiveLayout();
-  const { colorScheme } = useColorScheme();
   const [users, setUsers] = useState<AdminPublicUser[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
@@ -122,38 +120,34 @@ export default function AdminUsers() {
           <AdminPageHeader
             title="Public User Management"
             subtitle="Live customer profiles from Supabase"
-            action={<Pressable accessibilityLabel="Refresh users" className="min-w-11 min-h-11 items-center justify-center" onPress={() => void load(true)}><RefreshCw size={20} className="text-primary" /></Pressable>}
+            action={<Pressable accessibilityLabel="Refresh users" className="min-w-11 min-h-11 rounded-xl border border-border bg-card items-center justify-center active:bg-muted" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => void load(true)}><RefreshCw size={19} className="text-primary" /></Pressable>}
           />
         </ResponsiveContainer>
 
         <ResponsiveContainer>
           <View className="flex-row gap-3 mb-4">
-            <View className="flex-1 bg-card border border-border rounded-2xl p-4">
-              <View className="w-10 h-10 rounded-xl bg-primary/10 items-center justify-center mb-3"><Users size={19} className="text-primary" /></View>
-              <Text className="text-foreground text-2xl font-bold">{users.length}</Text>
-              <Text className="text-muted-foreground text-xs mt-1">Registered customers</Text>
+            <View className="flex-1 min-h-24 bg-card border border-border rounded-2xl p-4 flex-row items-center gap-3">
+              <View className="w-11 h-11 rounded-xl bg-primary/10 items-center justify-center"><Users size={20} className="text-primary" /></View>
+              <View className="flex-1 min-w-0"><Text className="text-muted-foreground text-xs font-semibold">Registered customers</Text><Text className="text-foreground text-2xl font-bold mt-1">{users.length}</Text></View>
             </View>
-            <View className="flex-1 bg-card border border-border rounded-2xl p-4">
-              <View className="w-10 h-10 rounded-xl bg-emerald-500/10 items-center justify-center mb-3"><UserRound size={19} color="#168A5B" /></View>
-              <Text className="text-foreground text-2xl font-bold">{users.filter((user) => user.is_active).length}</Text>
-              <Text className="text-muted-foreground text-xs mt-1">Active accounts</Text>
+            <View className="flex-1 min-h-24 bg-card border border-border rounded-2xl p-4 flex-row items-center gap-3">
+              <View className="w-11 h-11 rounded-xl bg-emerald-500/10 items-center justify-center"><UserRound size={20} color="#168A5B" /></View>
+              <View className="flex-1 min-w-0"><Text className="text-muted-foreground text-xs font-semibold">Active accounts</Text><Text className="text-foreground text-2xl font-bold mt-1">{users.filter((user) => user.is_active).length}</Text></View>
             </View>
           </View>
 
-          <View className="mb-4">
-            <CompactSearchBar
-              value={searchInput}
-              onChangeText={setSearchInput}
-              placeholder="Search users by name, email or phone…"
-              accessibilityLabel="Search users"
-              dark={colorScheme === "dark"}
-            />
+          <View className="bg-card border border-border rounded-2xl p-4 mb-4 gap-3">
+            <View className="h-12 px-3 rounded-xl bg-background border border-border flex-row items-center gap-2">
+              <Search size={18} className="text-muted-foreground" />
+              <TextInput accessibilityLabel="Search users" value={searchInput} onChangeText={setSearchInput} placeholder="Search by name, email, phone or user ID" placeholderTextColor="#7A8190" className="flex-1 min-w-0 text-foreground text-body" />
+              {searchInput ? <Pressable accessibilityLabel="Clear search" className="w-8 h-8 rounded-lg items-center justify-center active:bg-muted" onPress={() => setSearchInput("")}><X size={15} className="text-muted-foreground" /></Pressable> : null}
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              {(["all", "active", "inactive"] as const).map((value) => <Pressable key={value} onPress={() => { setStatus(value); setPage(1); }} className={status === value ? "min-h-10 px-4 rounded-xl bg-primary border border-primary items-center justify-center" : "min-h-10 px-4 rounded-xl bg-background border border-border items-center justify-center"} style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}><Text className={status === value ? "text-white text-xs font-semibold capitalize" : "text-foreground text-xs font-semibold capitalize"}>{value}</Text></Pressable>)}
+              <View className="w-px bg-border mx-1" />
+              {(["newest", "oldest", "name"] as const).map((value) => <Pressable key={value} onPress={() => setSort(value)} className={sort === value ? "min-h-10 px-4 rounded-xl bg-primary/10 border border-primary/20 items-center justify-center" : "min-h-10 px-4 rounded-xl border border-transparent items-center justify-center"} style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}><Text className={sort === value ? "text-primary text-xs font-semibold capitalize" : "text-muted-foreground text-xs font-semibold capitalize"}>{value}</Text></Pressable>)}
+            </ScrollView>
           </View>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
-            {(["all", "active", "inactive"] as const).map((value) => <Pressable key={value} onPress={() => { setStatus(value); setPage(1); }} className={status === value ? "px-4 py-2 rounded-xl bg-primary" : "px-4 py-2 rounded-xl bg-card border border-border"}><Text className={status === value ? "text-white text-xs font-semibold capitalize" : "text-foreground text-xs font-semibold capitalize"}>{value}</Text></Pressable>)}
-            {(["newest", "oldest", "name"] as const).map((value) => <Pressable key={value} onPress={() => setSort(value)} className={sort === value ? "px-4 py-2 rounded-xl bg-primary/10" : "px-4 py-2 rounded-xl"}><Text className={sort === value ? "text-primary text-xs font-semibold capitalize" : "text-muted-foreground text-xs capitalize"}>{value}</Text></Pressable>)}
-          </ScrollView>
 
           {loading ? <AdminLoadingState label="Loading live customer profiles…" />
             : error ? <AdminErrorState message={error} onRetry={() => void load()} />
@@ -169,7 +163,7 @@ export default function AdminUsers() {
         onStatus={(user, active) => void updateUserStatus(user, active)}
         onDelete={deleteUser}
       />
-      <AdminFooter activeTab="profile" />
+      <AdminFooter />
     </SafeAreaView>
   );
 }
@@ -206,22 +200,22 @@ function UserCard({ user, compact, onActions }: { user: AdminPublicUser; compact
                 {user.is_active ? "Active" : "Inactive"}
               </Text>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Open actions for ${user.full_name}`} className="min-w-11 min-h-11 -mr-2 -mt-2 rounded-xl items-center justify-center" onPress={onActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Open actions for ${user.full_name}`} className="min-w-11 min-h-11 -mr-2 -mt-2 rounded-xl border border-border bg-background items-center justify-center active:bg-muted" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={onActions}>
               <MoreVertical size={19} className="text-muted-foreground" />
             </Pressable>
           </View>
         </View>
       </View>
 
-      <View className="mt-4 py-3 border-y border-border/70 gap-3">
-        <View className="flex-row items-center min-w-0">
+      <View className={`mt-4 p-3 rounded-xl bg-background border border-border gap-3 ${compact ? "" : "flex-row"}`}>
+        <View className="flex-row items-center min-w-0 flex-1">
           <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center"><Mail size={15} className="text-primary" /></View>
           <View className="flex-1 min-w-0 ml-2.5">
             <Text className="text-muted-foreground text-caption">Email address</Text>
             <Text className="text-foreground text-xs font-medium mt-0.5" numberOfLines={1}>{user.email || "Not provided"}</Text>
           </View>
         </View>
-        <View className="flex-row items-center min-w-0">
+        <View className="flex-row items-center min-w-0 flex-1">
           <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center"><Phone size={15} className="text-primary" /></View>
           <View className="flex-1 min-w-0 ml-2.5">
             <Text className="text-muted-foreground text-caption">Phone number</Text>

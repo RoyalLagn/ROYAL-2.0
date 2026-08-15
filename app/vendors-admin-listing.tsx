@@ -189,7 +189,8 @@ export default function VendorsAdminListing() {
                 accessibilityRole="button"
                 accessibilityLabel="Export filtered vendors"
                 accessibilityState={{ disabled: exporting, busy: exporting }}
-                className="min-w-11 min-h-11 rounded-xl items-center justify-center active:opacity-70"
+                className="min-w-11 min-h-11 rounded-xl border border-border bg-card items-center justify-center active:bg-muted"
+                style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}
                 disabled={exporting}
                 onPress={() => void exportFilteredVendors()}
               >
@@ -201,7 +202,7 @@ export default function VendorsAdminListing() {
 
         <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
           <ResponsiveSection>
-            <View className="bg-card border border-border rounded-2xl px-4 py-4 flex-row items-center gap-4">
+            <View className="bg-card border border-border rounded-2xl px-5 py-5 flex-row items-center gap-4">
               <View className="flex-1 min-w-0">
                 <View className="flex-row items-center gap-2">
                   <Text className="text-foreground text-base font-bold">Vendor Registration</Text>
@@ -244,11 +245,13 @@ export default function VendorsAdminListing() {
         </ResponsiveContainer>
         <ResponsiveContainer className="bg-background pt-1" style={{ maxWidth: 1600, alignSelf: "center" }}>
           <ResponsiveSection>
+            <View className="bg-card border border-border rounded-2xl p-4">
             <VendorFilterBar filters={vendors.filters} onChange={vendors.updateFilters} onMore={() => setFiltersOpen(true)} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
-              {savedFilters.map((preset) => <Pressable key={preset.id} className="min-h-10 px-4 rounded-xl bg-muted/60 items-center justify-center active:opacity-70" onPress={() => vendors.updateFilters(preset.filters)}><Text className="text-foreground text-xs font-semibold">{preset.name}</Text></Pressable>)}
-              <Pressable className="min-h-10 px-4 rounded-xl bg-primary/10 items-center justify-center active:opacity-70" onPress={() => setSaveOpen(true)}><Text className="text-primary text-xs font-semibold">+ Save filter</Text></Pressable>
+              {savedFilters.map((preset) => <Pressable key={preset.id} className="min-h-10 px-4 rounded-xl border border-border bg-background items-center justify-center" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => vendors.updateFilters(preset.filters)}><Text className="text-foreground text-xs font-semibold">{preset.name}</Text></Pressable>)}
+              <Pressable className="min-h-10 px-4 rounded-xl bg-primary/10 items-center justify-center" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => setSaveOpen(true)}><Text className="text-primary text-xs font-semibold">+ Save filter</Text></Pressable>
             </ScrollView>
+            </View>
           </ResponsiveSection>
           {progress ? <ResponsiveSection><ActionProgress {...progress} /></ResponsiveSection> : null}
 

@@ -22,12 +22,14 @@ import {
 } from "@/services/vendorPublicProfile";
 import { copyProfileLink, downloadQrCode, shareProfileLink, shareQrCode } from "@/components/vendor-marketing/shareActions";
 import { typeScale, typeLeading } from "@/constants/typography";
+import { useAppFeedback } from "@/context/AppFeedbackContext";
 
 export default function VendorMarketingCenter() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const { showSuccess, showError } = useAppFeedback();
   const { data, loading, error, completion, refresh } = useVendorWorkspace();
   const desktop = width >= 900;
   const qrRef = useRef<any>(null);
@@ -64,8 +66,10 @@ export default function VendorMarketingCenter() {
 
   const handleCopyLink = useCallback(() => {
     if (!vendor?.id || !url) return;
-    void copyProfileLink(vendor.id, url);
-  }, [vendor?.id, url]);
+    void copyProfileLink(vendor.id, url)
+      .then(() => showSuccess("Profile link copied"))
+      .catch(() => showError("Profile link could not be copied"));
+  }, [showError, showSuccess, vendor?.id, url]);
 
   const handleShareProfile = useCallback(() => {
     if (!vendor?.id || !slug) return;

@@ -4,7 +4,6 @@ import Pressable from "@/components/InteropSafePressable";
 import { Check, X } from "lucide-react-native";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 import { typeScale, typeLeading } from "@/constants/typography";
-import { DEFAULT_NEARBY_RADIUS_KM, NEARBY_RADIUS_OPTIONS_KM } from "@/services/vendorDiscovery";
 
 const PINK = "#E91E63";
 
@@ -14,7 +13,6 @@ export type ListingFilters = {
   sort: ListingSort;
   maximumPrice: number;
   minimumRating: number;
-  radiusKm: number;
 };
 
 type PriceOption = { label: string; value: number };
@@ -91,8 +89,8 @@ export default function ListingFilterModal({
     </Pressable>
   );
 
-  const sections: readonly ("sort" | "price" | "rating" | "radius")[] = initialSection === "filters"
-    ? ["sort", "price", "rating", "radius"]
+  const sections: readonly ("sort" | "price" | "rating")[] = initialSection === "filters"
+    ? ["sort", "price", "rating"]
     : [initialSection];
 
   return (
@@ -137,18 +135,10 @@ export default function ListingFilterModal({
                 </View>
               </View>
             ) : null}
-            {sections.includes("radius") ? (
-              <View>
-                <Text style={[styles.label, { color: muted }]}>DISTANCE RADIUS</Text>
-                <View style={styles.options}>
-                  {NEARBY_RADIUS_OPTIONS_KM.map((radius) => option(`${radius} km`, draft.radiusKm === radius, () => setDraft((current) => ({ ...current, radiusKm: radius }))))}
-                </View>
-              </View>
-            ) : null}
           </ScrollView>
 
           <View style={styles.actions}>
-            <Pressable accessibilityRole="button" onPress={() => setDraft({ sort: "popular", maximumPrice: 0, minimumRating: 0, radiusKm: DEFAULT_NEARBY_RADIUS_KM })} onFocus={() => setFocusedControl("reset")} onBlur={() => setFocusedControl("")} style={({ hovered, pressed }) => [styles.reset, { borderColor: hovered || focusedControl === "reset" ? PINK : border }, (hovered || focusedControl === "reset") && styles.controlHovered, pressed && styles.controlPressed]}>
+            <Pressable accessibilityRole="button" onPress={() => setDraft({ sort: "popular", maximumPrice: 0, minimumRating: 0 })} onFocus={() => setFocusedControl("reset")} onBlur={() => setFocusedControl("")} style={({ hovered, pressed }) => [styles.reset, { borderColor: hovered || focusedControl === "reset" ? PINK : border }, (hovered || focusedControl === "reset") && styles.controlHovered, pressed && styles.controlPressed]}>
               <Text style={[styles.resetText, { color: text }]}>Reset</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => onApply(draft)} onFocus={() => setFocusedControl("apply")} onBlur={() => setFocusedControl("")} style={({ hovered, pressed }) => [styles.apply, (hovered || focusedControl === "apply") && styles.applyHovered, pressed && styles.controlPressed]}>

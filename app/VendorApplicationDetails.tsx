@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, X } from "lucide-react-native";
 import { supabase } from "@/services/supabase";
 import { AdminVendorService } from "@/services/adminVendorService";
+import PageLoader from "@/components/loading/PageLoader";
 
 type Details = Record<string, any> & { categories?: { name: string } | null };
 export default function VendorApplicationDetails() {
@@ -40,7 +41,7 @@ export default function VendorApplicationDetails() {
       Alert.alert(`${decision === "approved" ? "Approval" : "Rejection"} failed`, cause instanceof Error ? cause.message : "Please try again.");
     } finally { setWorking(false); }
   };
-  if (loading) return <SafeAreaView className="flex-1 bg-background items-center justify-center"><ActivityIndicator color="#EC4899" /></SafeAreaView>;
+  if (loading) return <PageLoader />;
   if (!item) return <SafeAreaView className="flex-1 bg-background items-center justify-center px-6"><Text className="text-foreground font-bold">Application not found</Text><TouchableOpacity className="min-h-11 mt-3 justify-center" onPress={() => router.replace("/VendorApplications")}><Text className="text-primary font-semibold">Back to approvals</Text></TouchableOpacity></SafeAreaView>;
   const rows = [
     ["Owner Name", item.full_name], ["Email", item.email], ["Phone", item.phone], ["Business Name", item.business_name],

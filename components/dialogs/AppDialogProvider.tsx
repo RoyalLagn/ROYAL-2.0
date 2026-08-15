@@ -12,6 +12,13 @@ import { CheckCircle2, Info, TriangleAlert, X } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeLeading, typeScale } from "@/constants/typography";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { MotionTiming } from "@/utils/motion";
 import { registerAppAlertPresenter, type AppAlertRequest } from "@/utils/webAlert";
 // This provider backs every Alert.alert() call app-wide (see
 // utils/webAlert.ts). Its action/close buttons use a function
@@ -25,6 +32,26 @@ import Pressable from "@/components/InteropSafePressable";
 
 type QueuedAlert = AppAlertRequest & { id: number };
 let nextAlertId = 0;
+
+function DialogCardMotion({ children, style }: React.PropsWithChildren<{ style: object | object[] }>) {
+  const reducedMotion = useReducedMotion();
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withTiming(1, reducedMotion ? MotionTiming.fast : MotionTiming.base);
+  }, [progress, reducedMotion]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ scale: reducedMotion ? 1 : 0.96 + progress.value * 0.04 }],
+  }));
+
+  return (
+    <Animated.View accessibilityRole="alert" style={[style, animatedStyle]}>
+      {children}
+    </Animated.View>
+  );
+}
 
 function dialogTone(request: AppAlertRequest) {
   if (request.buttons.some((button) => button.style === "destructive")) return "destructive" as const;
@@ -93,10 +120,7 @@ export default function AppDialogProvider({ children }: React.PropsWithChildren)
             onPress={dismissWithoutChoice}
           />
           {active ? (
-            <View
-              accessibilityRole="alert"
-              style={[styles.card, cardStyle]}
-            >
+            <DialogCardMotion style={[styles.card, cardStyle]}>
               <View style={styles.headingRow}>
                 <View style={[styles.icon, { backgroundColor: `${toneColor}16` }]}>
                   <ToneIcon size={21} color={toneColor} strokeWidth={2} />
@@ -153,7 +177,7 @@ export default function AppDialogProvider({ children }: React.PropsWithChildren)
                   );
                 })}
               </View>
-            </View>
+            </DialogCardMotion>
           ) : null}
         </View>
       </Modal>

@@ -81,7 +81,8 @@ export function DashboardClipViewsChart() {
             accessibilityRole="button"
             accessibilityLabel="Show previous month"
             onPress={() => setMonth((value) => changeMonth(value, -1))}
-            className="w-10 h-10 rounded-xl border border-border bg-background items-center justify-center"
+            className="w-10 h-10 rounded-xl border border-border bg-background items-center justify-center active:bg-muted"
+            style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}
           >
             <ChevronLeft size={18} className="text-foreground" />
           </Pressable>
@@ -95,7 +96,8 @@ export function DashboardClipViewsChart() {
             accessibilityState={{ disabled: monthKey(month) >= monthKey(currentMonth) }}
             disabled={monthKey(month) >= monthKey(currentMonth)}
             onPress={() => setMonth((value) => changeMonth(value, 1))}
-            className="w-10 h-10 rounded-xl border border-border bg-background items-center justify-center disabled:opacity-30"
+            className="w-10 h-10 rounded-xl border border-border bg-background items-center justify-center active:bg-muted disabled:opacity-30"
+            style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}
           >
             <ChevronRight size={18} className="text-foreground" />
           </Pressable>
@@ -106,7 +108,7 @@ export function DashboardClipViewsChart() {
         </View>
       </View>
 
-      <View className="bg-background rounded-2xl px-3 pt-4 pb-2 min-h-[290px] justify-center">
+      <View className="bg-background border border-border rounded-xl px-3 pt-4 pb-2 min-h-[290px] justify-center">
         {noViews ? (
           <View className="min-h-[250px] items-center justify-center px-4">
             <Text className="text-foreground text-sm font-bold text-center">No clip views recorded for {period.label}.</Text>

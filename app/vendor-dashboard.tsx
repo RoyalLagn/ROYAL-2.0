@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -16,6 +16,7 @@ import PublicProfileCard from "@/components/vendor/PublicProfileCard";
 import ChecklistItem, { ReadinessChecklistGrid } from "@/components/vendor/ChecklistItem";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import Pressable from "@/components/InteropSafePressable";
+import PageLoader from "@/components/loading/PageLoader";
 
 // Ordered worse -> better so a state "improving" can be detected with a
 // simple index comparison when the vendor returns from a section form.
@@ -141,6 +142,8 @@ export default function VendorDashboard() {
     { label: "Portfolio media", value: String(data.media.length), detail: "Published work", icon: Images },
     { label: "Average rating", value: averageRating, detail: `${data.reviews.length} ${data.reviews.length === 1 ? "review" : "reviews"}`, icon: Star },
   ];
+
+  if (loading && !data.vendor) return <PageLoader />;
 
   return (
     <View style={[styles.page, { backgroundColor: canvas }]}>
@@ -323,9 +326,6 @@ export default function VendorDashboard() {
           </View>
         </VendorDashboardReveal>
       </ScrollView>
-      {loading && !data.vendor ? (
-        <View style={styles.loading}><ActivityIndicator color={colors.pink} /></View>
-      ) : null}
     </View>
   );
 }
@@ -387,5 +387,4 @@ const styles = StyleSheet.create({
   checklistTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
   checklistHint: { fontSize: typeScale.caption },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
-  loading: { position: "absolute", top: "50%", left: 0, right: 0, alignItems: "center", pointerEvents: "none" },
 });

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, RefreshControl, ScrollView, Text, View } from "react-native";
+import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { CalendarCheck, CalendarClock, Plus, ShieldAlert, Users } from "lucide-react-native";
@@ -11,6 +11,7 @@ import { WorkspaceVendorEditor } from "@/components/workspace/WorkspaceVendorEdi
 import { useWorkspaceSession } from "@/hooks/crm/useWorkspaceSession";
 import { CrmWorkspaceSessionService } from "@/services/crm/workspaceSessionService";
 import type { CrmWorkspaceVendorInput } from "@/types/crm/workspace";
+import PageLoader from "@/components/loading/PageLoader";
 
 function formatCountdown(expiresAt: string) {
   const ms = Date.parse(expiresAt) - Date.now();
@@ -45,12 +46,7 @@ export default function CrmWorkspace() {
   };
 
   if (loading) {
-    return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center">
-        <ActivityIndicator color="#E91E63" />
-        <Text className="text-muted-foreground mt-3">Opening workspace…</Text>
-      </SafeAreaView>
-    );
+    return <PageLoader />;
   }
 
   if (error || !session) {

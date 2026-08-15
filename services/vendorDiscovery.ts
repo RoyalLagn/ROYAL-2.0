@@ -26,6 +26,8 @@ export type NearbyVendorPageResult = {
   hasMore: boolean;
 };
 
+export type LocationRankedVendorSort = "popular" | "rating" | "price";
+
 function formatDistanceLabel(distanceKm: number): string {
   if (!Number.isFinite(distanceKm)) return "";
   if (distanceKm < 1) return `${Math.max(Math.round(distanceKm * 1000), 0)} m away`;
@@ -121,7 +123,52 @@ export async function fetchNearbyVendors(input: FetchNearbyVendorsInput): Promis
   };
 }
 
+export type FetchLocationRankedVendorsInput = {
+  latitude: number;
+  longitude: number;
+  categoryDisplayName: string;
+  search?: string;
+  minRating?: number;
+  maxPrice?: number;
+  sort?: LocationRankedVendorSort;
+  limit?: number;
+  offset?: number;
+};
+
+/**
+ * Full category discovery ranked around the customer's position. Unlike the
+ * dedicated Near Me search, this never applies a distance cutoff: vendors in
+ * the nearby bucket are ranked first, and pagination continues into the rest
+ * of the marketplace.
+ */
+export async function fetchLocationRankedVendors(
+  input: FetchLocationRankedVendorsInput,
+): Promise<NearbyVendorPageResult> {
+  const limit = input.limit ?? NEARBY_PAGE_SIZE;
+  const offset = input.offset ?? 0;
+  const { data, error } = await supabase.rpc("get_location_ranked_vendors", {
+    user_lat: input.latitude,
+    user_lng: input.longitude,
+    p_category_names: databaseCategoryCandidates(input.categoryDisplayName),
+    p_search: input.search?.trim() || null,
+    p_min_rating: input.minRating ?? null,
+    p_max_price: input.maxPrice ?? null,
+    p_sort: input.sort ?? "popular",
+    p_nearby_threshold_km: LISTING_NEARBY_THRESHOLD_KM,
+    p_limit: limit,
+    p_offset: offset,
+  });
+  if (error) throw error;
+  const cards = (data ?? []).map(mapNearbyRow);
+  return {
+    cards,
+    nextOffset: offset + cards.length,
+    hasMore: cards.length === limit,
+  };
+}
+
 /** The radius choices exposed in the "Near Me" UI, 10 km selected by
  * default per product requirements. */
 export const NEARBY_RADIUS_OPTIONS_KM = [5, 10, 20, 50] as const;
 export const DEFAULT_NEARBY_RADIUS_KM = 10;
+export const LISTING_NEARBY_THRESHOLD_KM = 20;

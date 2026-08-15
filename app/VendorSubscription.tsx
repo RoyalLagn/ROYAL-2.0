@@ -164,6 +164,17 @@ export default function VendorSubscription() {
     }
   };
 
+  const confirmDowngrade = (planId: string, billingOptionId: string | null, planName: string) => {
+    Alert.alert(
+      "Schedule plan downgrade?",
+      `You'll move to ${planName} when your current billing period ends. Your current access stays unchanged until then.`,
+      [
+        { text: "Keep current plan", style: "cancel" },
+        { text: "Schedule downgrade", onPress: () => void scheduleDowngrade(planId, billingOptionId, planName) },
+      ],
+    );
+  };
+
   const choosePlan = (plan: (typeof plans)[number]) => {
     const billingOption = billingOptionFor(plan);
     if (!billingOption) return Alert.alert("Billing unavailable", `${selectedInterval === "year" ? "Yearly" : "Monthly"} billing is not enabled for ${plan.name}.`);
@@ -171,7 +182,7 @@ export default function VendorSubscription() {
     const currentPlan = plans.find((candidate) => candidate.id === access?.plan_id);
     if (access?.has_access && currentPlan && access.plan_id !== plan.id) {
       if (plan.display_order < currentPlan.display_order || plan.price === 0) {
-        return scheduleDowngrade(plan.id, billingOption.id, plan.name);
+        return confirmDowngrade(plan.id, billingOption.id, plan.name);
       }
       if (access.billing_interval && access.billing_interval !== selectedInterval) {
         return subscribe(plan.id, billingOption.id, selectedOffer?.id ?? null, true, plan.name);

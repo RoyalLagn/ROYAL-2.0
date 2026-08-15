@@ -45,6 +45,11 @@ export const MotionDistance = {
   sheetPeek: 24,
 } as const;
 
+/** Short group delays; decorative entrances must never hold interaction. */
+export const MotionStagger = {
+  item: 40,
+} as const;
+
 // ---------------------------------------------------------------------------
 // Press feedback -- used by AnimatedPressable/AnimatedCard.
 // ---------------------------------------------------------------------------

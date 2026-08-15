@@ -18,6 +18,7 @@ import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { DropdownArrow, Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 import { typeScale } from "@/constants/typography";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
 // Business information: business_name, owner_name, category_id. Everything
 // else on the vendor record (description, contact, location, brand, tags,
@@ -51,6 +52,12 @@ export default function VendorEditBusinessInfo() {
   }, [data.vendor]);
 
   const selectedCategory = categories.find((item) => item.id === categoryId);
+  const hasUnsavedChanges = Boolean(data.vendor) && (
+    businessName !== (data.vendor?.business_name ?? "")
+    || ownerName !== (data.vendor?.owner_name ?? "")
+    || categoryId !== (data.vendor?.category_id ?? "")
+  );
+  useUnsavedChangesGuard(hasUnsavedChanges);
   const clearFeedback = () => { setSaved(false); setSaveError(""); };
 
   const save = async () => {

@@ -18,6 +18,8 @@ import { useVendorClipOverview } from "@/clips/hooks";
 import type { ClipStatus } from "@/clips/types";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import { typeScale, typeLeading } from "@/constants/typography";
+import PageLoader from "@/components/loading/PageLoader";
+import { useAppFeedback } from "@/context/AppFeedbackContext";
 
 type ClipGroup = "approved" | "pending" | "draft" | "hidden" | "rejected";
 
@@ -26,6 +28,7 @@ export default function VendorClips() {
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const { showSuccess } = useAppFeedback();
   const { data, loading: workspaceLoading } = useVendorWorkspace();
   const { drafts, loading, error, overview, refresh } = useVendorClipOverview(data.vendor?.id);
   const { hasFeature, requireFeature } = useSubscriptionAccess();
@@ -75,7 +78,7 @@ export default function VendorClips() {
         setDeletingId(clip.id);
         try {
           await ClipManagementService.remove(clip.id);
-          Alert.alert("Clip deleted", "The Clip was deleted successfully.");
+          showSuccess("Clip deleted");
         } catch (caught) {
           const message = caught instanceof Error ? caught.message : "Unknown deletion error";
           console.error(`[VendorClips] Clip deletion failed (${clip.id}): ${message}`);
@@ -102,7 +105,7 @@ export default function VendorClips() {
   ));
 
   if (workspaceLoading || loading) {
-    return <View style={[styles.center, { backgroundColor: colors.background }]}><ActivityIndicator color={colors.pink} /></View>;
+    return <PageLoader />;
   }
   if (!data.vendor?.is_verified) {
     return <View style={[styles.center, { backgroundColor: colors.background, padding: 24 }]}><Video size={42} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.text }]}>Approved Vendor access required</Text><Text style={[styles.emptyText, { color: colors.muted }]}>Clips management becomes available after Vendor approval.</Text></View>;

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
+import { Alert, Platform, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
 // NativeWind's native Pressable interop doesn't resolve a function
 // `style={(state) => [...]}` prop on Android (whole style silently drops).
 // InteropSafePressable resolves it first. See VendorCalendar.tsx /
@@ -14,6 +14,7 @@ import type { PublicClip } from "@/clips/types";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { PublicClipService } from "@/clips/services";
 import { useFavorites } from "@/context/FavoritesContext";
+import PageLoader from "@/components/loading/PageLoader";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import PackagesCard from "@/components/vendor-profile/PackagesCard";
 import PackageDetailsModal from "@/components/packages/PackageDetailsModal";
@@ -271,11 +272,7 @@ export default function VendorPublicProfileScreen() {
   );
 
   if (state === "loading") {
-    return (
-      <View style={[styles.root, styles.centered, { backgroundColor: background }]}>
-        <ActivityIndicator color={PINK} size="large" />
-      </View>
-    );
+    return <PageLoader />;
   }
 
   if (state === "not_found" || !vendor) {

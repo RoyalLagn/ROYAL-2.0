@@ -67,6 +67,7 @@ export type FavoriteToggleResult = "added" | "removed" | "ignored";
 
 type FavoritesContextType = {
   favorites: FavoriteVendor[];
+  loading: boolean;
   hasUnviewedFavorites: boolean;
   favoriteIndicatorToken: number;
   favoriteArrivalToken: number;
@@ -82,6 +83,7 @@ type FavoritesContextType = {
 
 const FavoritesContext = createContext<FavoritesContextType>({
   favorites: [],
+  loading: true,
   hasUnviewedFavorites: false,
   favoriteIndicatorToken: 0,
   favoriteArrivalToken: 0,
@@ -96,6 +98,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const { session } = usePublicAuth();
   const profileId = session?.user.id ?? null;
   const [favorites, setFavorites] = useState<FavoriteVendor[]>([]);
+  const [loading, setLoading] = useState(true);
   const [hasUnviewedFavorites, setHasUnviewedFavorites] = useState(false);
   const [favoriteIndicatorToken, setFavoriteIndicatorToken] = useState(0);
   const [favoriteArrivalToken, setFavoriteArrivalToken] = useState(0);
@@ -118,6 +121,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   // vendors never show up. Re-runs whenever the signed-in identity changes.
   useEffect(() => {
     let active = true;
+    setLoading(true);
     hydratedRef.current = false;
     (async () => {
       const storedIds = await loadStoredFavoriteIds(profileId);
@@ -162,6 +166,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
         // Live marketplace unavailable -- keep whatever was already showing.
       } finally {
         hydratedRef.current = true;
+        if (active) setLoading(false);
       }
     })();
     return () => {
@@ -316,6 +321,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<FavoritesContextType>(() => ({
     favorites,
+    loading,
     hasUnviewedFavorites,
     favoriteIndicatorToken,
     favoriteArrivalToken,
@@ -328,6 +334,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     favoriteArrivalToken,
     favoriteIndicatorToken,
     favorites,
+    loading,
     hasUnviewedFavorites,
     isFavorite,
     markFavoritesViewed,

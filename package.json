@@ -45,6 +45,7 @@
     "@supabase/supabase-js": "^2.110.7",
     "chart.js": "^4.5.1",
     "expo": "~54.0.35",
+    "expo-blur": "~15.0.8",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-device": "~8.0.10",

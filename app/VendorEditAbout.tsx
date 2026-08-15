@@ -8,6 +8,7 @@ import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorks
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
 const listToText = (values?: string[] | null) => (values ?? []).join(", ");
 const textToList = (value: string, limit: number) =>
@@ -42,6 +43,13 @@ export default function VendorEditAbout() {
 
   const awardList = useMemo(() => textToList(awards, 15), [awards]);
   const languageList = useMemo(() => textToList(languages, 15), [languages]);
+  const hasUnsavedChanges = Boolean(data.vendor) && (
+    description !== (data.vendor?.description ?? "")
+    || experience !== (data.vendor?.experience != null ? String(data.vendor.experience) : "")
+    || awards !== listToText(data.vendor?.awards)
+    || languages !== listToText(data.vendor?.languages)
+  );
+  useUnsavedChangesGuard(hasUnsavedChanges);
   const clearFeedback = () => { setSaved(false); setSaveError(""); };
 
   const save = async () => {

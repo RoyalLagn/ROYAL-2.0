@@ -1,9 +1,9 @@
 import React, { useEffect } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useVendorSession } from "@/context/VendorSessionContext";
 import type { SubscriptionFeatureKey } from "@/subscriptions/types";
+import PageLoader from "@/components/loading/PageLoader";
 
 export default function PremiumRouteGate({ feature, children }: React.PropsWithChildren<{ feature: SubscriptionFeatureKey }>) {
   const router = useRouter();
@@ -15,8 +15,7 @@ export default function PremiumRouteGate({ feature, children }: React.PropsWithC
       router.replace({ pathname: "/VendorSubscription", params: { requiredFeature: feature } });
     }
   }, [allowed, feature, loading, platformAvailable, router]);
-  if (loading && !platformAvailable) return <View style={styles.loading}><ActivityIndicator color="#E91E63" /></View>;
-  if (!allowed) return <View style={styles.loading}><ActivityIndicator color="#E91E63" /></View>;
+  if (loading && !platformAvailable) return <PageLoader />;
+  if (!allowed) return <PageLoader />;
   return <>{children}</>;
 }
-const styles = StyleSheet.create({ loading: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF" } });

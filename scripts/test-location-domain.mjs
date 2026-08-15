@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   findSupportedSelection,
   formatLocationPreference,
+  formatCanonicalVendorLocation,
   getVendorProximity,
   rankVendorsByLocation,
   rankVendorsByLocationAndMembership,
@@ -47,6 +48,24 @@ assert.equal(vendorNearbyLabel(vendors[0], preference), null);
 assert.deepEqual(
   rankVendorsByLocation(vendors, preference).map((vendor) => vendor.id),
   ["pin", "area", "city", "city-second", "other"],
+);
+assert.equal(
+  formatCanonicalVendorLocation({
+    localityName: "Chakan",
+    talukaName: "Khed",
+    districtName: "Pune",
+    stateName: "Maharashtra",
+  }),
+  "Chakan, Khed, Pune, Maharashtra",
+);
+assert.equal(
+  formatCanonicalVendorLocation({
+    localityName: "Khed",
+    talukaName: "Khed",
+    districtName: "Pune",
+    stateName: "Maharashtra",
+  }),
+  "Khed, Pune, Maharashtra",
 );
 assert.deepEqual(
   rankVendorsByLocation(vendors, preference, true).map((vendor) => vendor.id),

@@ -12,6 +12,7 @@ import {
 import { mapVendorServiceLocation } from "@/services/locations";
 import type { VendorServiceLocation } from "@/locations/types";
 import { effectiveAvailabilityStatus } from "@/services/vendorAvailability";
+import { formatCanonicalVendorLocation } from "@/locations/domain";
 
 export type PublicVendorAvailability = {
   date: string;
@@ -28,6 +29,13 @@ export type VendorBusinessHourEntry = {
 export type VendorFaq = {
   question: string;
   answer: string;
+};
+
+type PublicVendorCanonicalLocation = {
+  locality_name: string | null;
+  taluka_name: string | null;
+  district_name: string | null;
+  state_name: string | null;
 };
 
 export type PublicVendorListing = {
@@ -188,6 +196,7 @@ export { normalizeMarketplaceCategoryName, databaseCategoryCandidates };
 function normalizeVendor(
   row: any,
   reviewSummary?: ReviewSummary,
+  canonicalLocation?: PublicVendorCanonicalLocation | null,
 ): PublicVendorListing | null {
   const databaseCategory = relatedOne<{ name?: string }>(row.categories)?.name?.trim();
   if (!row.is_verified || !databaseCategory) return null;
@@ -242,9 +251,17 @@ function normalizeVendor(
   const primaryLocation = serviceLocations.find((item: VendorServiceLocation) => item.isPrimary)
     ?? serviceLocations[0]
     ?? null;
-  const location = primaryLocation
+  const canonicalLocationLabel = canonicalLocation
+    ? formatCanonicalVendorLocation({
+      localityName: canonicalLocation.locality_name,
+      talukaName: canonicalLocation.taluka_name,
+      districtName: canonicalLocation.district_name,
+      stateName: canonicalLocation.state_name,
+    })
+    : "";
+  const location = canonicalLocationLabel || (primaryLocation
     ? [primaryLocation.areaName, primaryLocation.cityName, primaryLocation.state].filter(Boolean).join(", ")
-    : [row.city, row.state].filter(Boolean).join(", ");
+    : [row.city, row.state].filter(Boolean).join(", "));
 
   const faqs: VendorFaq[] = (row.vendor_faqs ?? [])
     .slice()
@@ -301,6 +318,16 @@ async function getPublicVendorMembershipPlan(vendorId: string): Promise<string |
   });
   if (error) return null;
   return typeof data === "string" ? data : null;
+}
+
+async function getPublicVendorCanonicalLocation(vendorId: string): Promise<PublicVendorCanonicalLocation | null> {
+  const { data, error } = await supabase.rpc("get_public_vendor_location", {
+    target_vendor_id: vendorId,
+  }).maybeSingle();
+  // Keep older deployments functional until the additive migration reaches
+  // them; the existing service-location/city fallback remains intact.
+  if (error) return null;
+  return data as PublicVendorCanonicalLocation | null;
 }
 
 function canUseLegacyVendorQuery(error: { message?: string; code?: string } | null) {
@@ -385,7 +412,7 @@ export async function getApprovedPublicVendors(
 export async function getApprovedPublicVendorById(
   vendorId: string,
 ): Promise<PublicVendorListing | null> {
-  const [locationResult, reviewSummaries, membershipPlan] = await Promise.all([
+  const [locationResult, reviewSummaries, membershipPlan, canonicalLocation] = await Promise.all([
     supabase
       .from("vendors")
       .select(PUBLIC_VENDOR_DETAIL_SELECT)
@@ -394,6 +421,7 @@ export async function getApprovedPublicVendorById(
       .maybeSingle(),
     listReviewSummaries([vendorId]).catch((): Record<string, ReviewSummary> => ({})),
     getPublicVendorMembershipPlan(vendorId),
+    getPublicVendorCanonicalLocation(vendorId),
   ]);
   let data: any = locationResult.data;
   let error: any = locationResult.error;
@@ -409,7 +437,7 @@ export async function getApprovedPublicVendorById(
   }
   if (error) throw error;
   if (data) data.membership_plan = membershipPlan;
-  return data ? normalizeVendor(data, reviewSummaries[vendorId]) : null;
+  return data ? normalizeVendor(data, reviewSummaries[vendorId], canonicalLocation) : null;
 }
 
 export async function getApprovedPublicVendorBySlug(
@@ -435,12 +463,13 @@ export async function getApprovedPublicVendorBySlug(
   }
   if (error) throw error;
   if (!data) return null;
-  const [reviewSummaries, membershipPlan] = await Promise.all([
+  const [reviewSummaries, membershipPlan, canonicalLocation] = await Promise.all([
     listReviewSummaries([data.id]).catch((): Record<string, ReviewSummary> => ({})),
     getPublicVendorMembershipPlan(data.id),
+    getPublicVendorCanonicalLocation(data.id),
   ]);
   data.membership_plan = membershipPlan;
-  return normalizeVendor(data, reviewSummaries[data.id]);
+  return normalizeVendor(data, reviewSummaries[data.id], canonicalLocation);
 }
 
 export function subscribeToPublicVendorChanges(onChange: () => void) {

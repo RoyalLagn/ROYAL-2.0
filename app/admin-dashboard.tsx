@@ -40,14 +40,14 @@ function DashboardContent() {
           </ResponsiveSection>
 
           <View className={desktop ? "flex-row gap-5 items-start" : "gap-0"}>
-            <View style={desktop ? { flex: 0.82, minWidth: 0 } : undefined}>
+            <View style={desktop ? { flex: 1, minWidth: 0 } : undefined}>
               <ResponsiveSection>
                 <DashboardWidget title="Pending Tasks" subtitle="Current administrator workload" icon={ListTodo} loading={loading && !snapshot} error={snapshot?.statistics.error || snapshot?.health.error} onRefresh={() => void refresh()}>
                   {statistics && health ? <PendingTasks statistics={statistics} health={health} /> : <DashboardEmpty message="Tasks are unavailable." />}
                 </DashboardWidget>
               </ResponsiveSection>
             </View>
-            <View style={desktop ? { flex: 1.18, minWidth: 0 } : undefined}>
+            <View style={desktop ? { flex: 1, minWidth: 0 } : undefined}>
               <ResponsiveSection>
                 <DashboardClipViewsChart />
               </ResponsiveSection>
