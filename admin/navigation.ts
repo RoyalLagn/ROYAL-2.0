@@ -8,6 +8,7 @@ import {
   Clapperboard,
   CreditCard,
   FileBarChart,
+  HandCoins,
   FolderTree,
   MessageSquareText,
   MapPinned,
@@ -29,6 +30,7 @@ export type AdminNavigationKey =
   | "reviews"
   | "subscriptions"
   | "payments"
+  | "finance"
   | "crm"
   | "hero"
   | "push"
@@ -68,6 +70,7 @@ export const adminNavigationGroups: { label: string; items: AdminNavigationItem[
     items: [
       { key: "subscriptions", label: "Subscriptions", route: "/subscriptions-admin", icon: WalletCards },
       { key: "payments", label: "Payments", route: "/payments-admin", icon: CreditCard },
+      { key: "finance", label: "Finance", route: "/AdminFinance", icon: HandCoins },
     ],
   },
   {

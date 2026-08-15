@@ -21,10 +21,11 @@ Deno.serve(async (request) => {
     const payload = JSON.parse(rawBody);
     const eventType = String(payload.event ?? "unknown");
     const paymentEntity = payload?.payload?.payment?.entity;
+    const refundEntity = payload?.payload?.refund?.entity;
     const orderEntity = payload?.payload?.order?.entity;
     const orderId = paymentEntity?.order_id ?? orderEntity?.id;
     const providerEventId = request.headers.get("x-razorpay-event-id")
-      ?? `${eventType}:${paymentEntity?.id ?? orderId ?? await hmacHex("royallagn-event", rawBody)}`;
+      ?? `${eventType}:${refundEntity?.id ?? paymentEntity?.id ?? orderId ?? await hmacHex("royallagn-event", rawBody)}`;
     const admin = serviceClient();
     const { data: eventRow, error: eventError } = await admin.from("subscription_webhook_events").insert({
       provider: "razorpay",
@@ -35,11 +36,12 @@ Deno.serve(async (request) => {
     if (eventError?.code === "23505") return json({ received: true, idempotent: true });
     if (eventError) throw eventError;
 
-    const { data: payment } = orderId ? await admin
-      .from("subscription_payments")
-      .select("id,vendor_id")
-      .eq("razorpay_order_id", orderId)
-      .maybeSingle() : { data: null };
+    const paymentLookup = admin.from("subscription_payments").select("id,vendor_id,amount,amount_minor,metadata");
+    const { data: payment } = orderId
+      ? await paymentLookup.eq("razorpay_order_id", orderId).maybeSingle()
+      : refundEntity?.payment_id
+        ? await paymentLookup.eq("razorpay_payment_id", refundEntity.payment_id).maybeSingle()
+        : { data: null };
     if (!payment) {
       await admin.from("subscription_webhook_events").update({ processing_status: "ignored", processed_at: new Date().toISOString() }).eq("id", eventRow.id);
       return json({ received: true, ignored: true });
@@ -73,7 +75,20 @@ Deno.serve(async (request) => {
         kind: "subscription",
       });
     } else if (eventType === "refund.processed") {
-      await admin.from("subscription_payments").update({ payment_status: "refunded", refunded_at: new Date().toISOString() }).eq("id", payment.id);
+      const previousRefundMinor = Number(payment.metadata?.refunded_amount_minor ?? 0);
+      const eventRefundMinor = Number(refundEntity?.amount ?? payment.amount_minor);
+      const refundedAmountMinor = Math.min(payment.amount_minor, previousRefundMinor + eventRefundMinor);
+      const fullyRefunded = refundedAmountMinor >= payment.amount_minor;
+      await admin.from("subscription_payments").update({
+        payment_status: fullyRefunded ? "refunded" : "partially_refunded",
+        refunded_at: refundEntity?.created_at ? new Date(Number(refundEntity.created_at) * 1000).toISOString() : new Date().toISOString(),
+        metadata: {
+          ...(payment.metadata ?? {}),
+          refunded_amount_minor: refundedAmountMinor,
+          refunded_amount: refundedAmountMinor / 100,
+          latest_refund_id: refundEntity?.id ?? null,
+        },
+      }).eq("id", payment.id);
     }
     await admin.from("subscription_webhook_events").update({
       payment_id: payment.id,
@@ -86,4 +101,3 @@ Deno.serve(async (request) => {
     return json({ error: error instanceof Error ? error.message : "Webhook processing failed" }, 400);
   }
 });
-

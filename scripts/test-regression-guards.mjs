@@ -445,4 +445,38 @@ assert.match(
   "scripts/run-smoke-tests.mjs must exit non-zero when a check fails.",
 );
 
+// --- Admin Finance must stay scoped, protected, and payment-backed ------
+const [adminFinanceSource, financeServiceSource, financeMigrationSource, adminNavigationSource] = await Promise.all([
+  read("app/AdminFinance.tsx"),
+  read("services/adminFinanceService.ts"),
+  read("supabase/migrations/20260815170000_admin_finance_control_center.sql"),
+  read("admin/navigation.ts"),
+]);
+for (const excludedModule of ["Cash Flow", "Invoices & Payments", "Vendor Subscription Analytics"]) {
+  assert.doesNotMatch(adminFinanceSource, new RegExp(excludedModule, "i"), `Admin Finance must not add the excluded ${excludedModule} module.`);
+}
+assert.match(adminNavigationSource, /route:\s*["']\/AdminFinance["']/, "The admin navigation must expose the Finance control center.");
+assert.match(financeServiceSource, /status === ["']recorded["']/, "Finance summaries must ignore void ledger records.");
+assert.match(financeMigrationSource, /subscription_payments_sync_finance/, "Verified subscription payments must sync into the finance ledger.");
+assert.match(financeMigrationSource, /private\.is_admin\(\)/, "Finance tables and RPCs must remain admin-only.");
+assert.match(financeMigrationSource, /prevent_closed_finance_month_change/, "Closed finance periods must remain protected from manual ledger changes.");
+for (const guard of ["finance_budgets_closed_month_guard", "finance_budget_items_closed_month_guard", "finance_tax_records_closed_month_guard", "finance_cloudinary_usage_closed_month_guard"]) {
+  assert.match(financeMigrationSource, new RegExp(guard), `${guard} must protect closed monthly records outside the UI.`);
+}
+assert.match(financeMigrationSource, /finance_month_is_closed\(existing_date\)[\s\S]*return new/, "Payment status updates must not mutate a closed ledger or break payment verification.");
+assert.match(financeMigrationSource, /payment\.payment_status = 'verified'[\s\S]*payment\.amount > 0/, "Zero-value promotional payments must not be backfilled as earned revenue.");
+assert.match(financeMigrationSource, /finance_range_touches_closed\(new\.period_start, new\.period_end\)[\s\S]*finance_range_touches_closed\(old\.period_start, old\.period_end\)/, "Tax records must protect every closed month intersecting both their old and new ranges.");
+const financeUiSource = await read("components/admin/finance/FinanceUI.tsx");
+assert.match(financeUiSource, /disabled:\s*props\.editable === false/, "Finance fields must only announce disabled when editable is explicitly false.");
+assert.doesNotMatch(financeUiSource, /outlineStyle:\s*["']none["']/, "Finance inputs must retain a visible web keyboard-focus outline.");
+const [financeLinksMigrationSource, financeWebhookSource] = await Promise.all([
+  read("supabase/migrations/20260815200000_complete_admin_finance_data_links.sql"),
+  read("supabase/functions/razorpay-webhook/index.ts"),
+]);
+assert.match(financeLinksMigrationSource, /source_event_key[\s\S]*:receipt[\s\S]*:refund/, "Payment receipts and refunds must remain separate linked ledger events.");
+assert.match(financeLinksMigrationSource, /admin_save_finance_budget[\s\S]*jsonb_to_recordset/, "Budget header and category items must save through one atomic database operation.");
+assert.match(financeLinksMigrationSource, /alter publication supabase_realtime add table public\.%I/, "Finance realtime listeners must be backed by the Supabase publication.");
+assert.match(financeWebhookSource, /refundEntity\?\.payment_id[\s\S]*razorpay_payment_id/, "Refund webhooks must resolve the source payment even without an order payload.");
+assert.match(financeWebhookSource, /refunded_amount_minor[\s\S]*partially_refunded/, "Refund webhooks must accumulate partial refunds instead of treating every refund as full.");
+
 console.log("Regression guard checks passed.");

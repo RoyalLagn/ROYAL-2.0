@@ -20,6 +20,7 @@ export const adminWorkspaceRoutes = new Set([
   "/AdminReviews",
   "/subscriptions-admin",
   "/payments-admin",
+  "/AdminFinance",
   "/AdminCrm",
   "/AdminHero",
   "/AdminPushNotifications",

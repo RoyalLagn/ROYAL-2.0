@@ -6,7 +6,7 @@ import {
   BarChart3,
   Users,
   Crown,
-  Wallet,
+  HandCoins,
   CircleUserRound,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,7 +14,7 @@ import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import { brandPalette } from "@/constants/brandPalette";
 import { floatingNavigationTokens } from "@/constants/navigationTokens";
 
-type TabKey = "dashboard" | "vendors" | "subscriptions" | "payments" | "profile";
+type TabKey = "dashboard" | "vendors" | "subscriptions" | "payments" | "finance" | "profile";
 
 type TabItem = {
   key: TabKey;
@@ -28,7 +28,7 @@ const tabs: TabItem[] = [
   { key: "dashboard", label: "Dashboard", icon: BarChart3, route: "/admin-dashboard" },
   { key: "vendors", label: "Vendors", icon: Users, route: "/vendors-admin-listing" },
   { key: "subscriptions", label: "Subscriptions", shortLabel: "Plans", icon: Crown, route: "/subscriptions-admin" },
-  { key: "payments", label: "Payments", icon: Wallet, route: "/payments-admin" },
+  { key: "finance", label: "Finance", icon: HandCoins, route: "/AdminFinance" },
   { key: "profile", label: "Profile", icon: CircleUserRound, route: "/AdminProfile" },
 ];
 
