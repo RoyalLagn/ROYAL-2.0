@@ -68,10 +68,13 @@ export default function AppDialogProvider({ children }: React.PropsWithChildren)
   const [queue, setQueue] = useState<QueuedAlert[]>([]);
   const active = queue[0] ?? null;
 
-  useEffect(() => registerAppAlertPresenter((request) => {
-    nextAlertId += 1;
-    setQueue((current) => [...current, { ...request, id: nextAlertId }]);
-  }), []);
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    return registerAppAlertPresenter((request) => {
+      nextAlertId += 1;
+      setQueue((current) => [...current, { ...request, id: nextAlertId }]);
+    });
+  }, []);
 
   const dismiss = useCallback((button?: AlertButton) => {
     setQueue((current) => current.slice(1));

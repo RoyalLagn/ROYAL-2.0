@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions, type ViewProps, } from "react-native";
+import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -21,6 +21,7 @@ import {
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import HomeCategoryCard from "@/components/home/HomeCategoryCard";
 import HomeVendorCard from "@/components/home/HomeVendorCard";
+import HomeSectionReveal from "@/components/home/HomeSectionReveal";
 import { shareRoyalLagnApp } from "@/services/AppShareService";
 import { useCategories } from "@/context/CategoryContext";
 import { VendorCardSkeletonRow } from "@/components/loading/Skeleton";
@@ -29,15 +30,10 @@ import { BREAKPOINTS } from "@/utils/responsiveLayout";
 import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
 import Animated, {
-  type SharedValue,
-  useAnimatedReaction,
   useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
-  withTiming,
 } from "react-native-reanimated";
-import { MotionDistance, MotionDuration, MotionStagger, MotionTiming } from "@/utils/motion";
+import { MotionDuration, MotionStagger } from "@/utils/motion";
 import {
   getCurrentDeviceLocation,
   getDevicePermissionStatus,
@@ -54,50 +50,6 @@ const FLOWER_ORNAMENT = require("../../assets/images/optimized/flowersvg.webp");
 /** Lightweight vendor-card fallback — avoids bundling multi‑MB category-fallback PNGs on Home. */
 const VENDOR_CARD_PLACEHOLDER = require("../../assets/images/optimized/vendor-placeholder.webp");
 const LIST_BUSINESS_BG = require("../../assets/images/optimized/list-business-bg.webp");
-
-function HomeSectionReveal({
-  children,
-  scrollY,
-  viewportHeight,
-  style,
-  ...props
-}: ViewProps & {
-  scrollY: SharedValue<number>;
-  viewportHeight: number;
-}) {
-  const reducedMotion = useReducedMotion();
-  const sectionTop = useSharedValue(Number.MAX_SAFE_INTEGER);
-  const progress = useSharedValue(0);
-
-  useAnimatedReaction(
-    () => scrollY.value + viewportHeight - MotionDistance.screenEnter >= sectionTop.value,
-    (visible) => {
-      if (visible && progress.value === 0) {
-        progress.value = withTiming(1, reducedMotion ? MotionTiming.fast : MotionTiming.base);
-      }
-    },
-    [reducedMotion, viewportHeight],
-  );
-
-  const revealStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{
-      translateY: reducedMotion ? 0 : (1 - progress.value) * MotionDistance.cardEnter,
-    }],
-  }));
-
-  return (
-    <Animated.View
-      {...props}
-      onLayout={(event) => {
-        sectionTop.value = event.nativeEvent.layout.y;
-      }}
-      style={[style, revealStyle]}
-    >
-      {children}
-    </Animated.View>
-  );
-}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -298,7 +250,7 @@ export default function HomeScreen() {
   }, [liveVendors, getRating]);
 
   return (
-    <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
+    <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top", "left", "right"]}>
       {vendorsLoading || (categoriesLoading && !categories.length) ? <PageLoader /> : null}
       <Animated.ScrollView
         style={{ backgroundColor: bg }}

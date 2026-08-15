@@ -81,7 +81,7 @@ export function DashboardClipViewsChart() {
             accessibilityRole="button"
             accessibilityLabel="Show previous month"
             onPress={() => setMonth((value) => changeMonth(value, -1))}
-            className="w-10 h-10 rounded-xl border border-border bg-background items-center justify-center active:bg-muted"
+            className="w-12 h-12 rounded-xl border border-border bg-background items-center justify-center active:bg-muted"
             style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}
           >
             <ChevronLeft size={18} className="text-foreground" />
@@ -96,7 +96,7 @@ export function DashboardClipViewsChart() {
             accessibilityState={{ disabled: monthKey(month) >= monthKey(currentMonth) }}
             disabled={monthKey(month) >= monthKey(currentMonth)}
             onPress={() => setMonth((value) => changeMonth(value, 1))}
-            className="w-10 h-10 rounded-xl border border-border bg-background items-center justify-center active:bg-muted disabled:opacity-30"
+            className="w-12 h-12 rounded-xl border border-border bg-background items-center justify-center active:bg-muted disabled:opacity-30"
             style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}
           >
             <ChevronRight size={18} className="text-foreground" />

@@ -55,13 +55,13 @@ export function TerritoryCard({
       </Pressable>
 
       <View className="flex-row items-center justify-end gap-1 mt-3 pt-3 border-t border-border">
-        <Pressable accessibilityLabel="Move up" disabled={!canMoveUp} onPress={onMoveUp} className="w-9 h-9 rounded-xl items-center justify-center" style={{ opacity: canMoveUp ? 1 : 0.3 }}>
+        <Pressable accessibilityLabel="Move up" disabled={!canMoveUp} onPress={onMoveUp} className="w-11 h-11 rounded-xl items-center justify-center" style={{ opacity: canMoveUp ? 1 : 0.3 }}>
           <ChevronUp size={16} className="text-muted-foreground" />
         </Pressable>
-        <Pressable accessibilityLabel="Move down" disabled={!canMoveDown} onPress={onMoveDown} className="w-9 h-9 rounded-xl items-center justify-center" style={{ opacity: canMoveDown ? 1 : 0.3 }}>
+        <Pressable accessibilityLabel="Move down" disabled={!canMoveDown} onPress={onMoveDown} className="w-11 h-11 rounded-xl items-center justify-center" style={{ opacity: canMoveDown ? 1 : 0.3 }}>
           <ChevronDown size={16} className="text-muted-foreground" />
         </Pressable>
-        <Pressable accessibilityLabel={`Rename ${node.name}`} onPress={onEdit} className="w-9 h-9 rounded-xl items-center justify-center">
+        <Pressable accessibilityLabel={`Rename ${node.name}`} onPress={onEdit} className="w-11 h-11 rounded-xl items-center justify-center">
           <Edit3 size={15} className="text-primary" />
         </Pressable>
         <Switch
@@ -70,7 +70,7 @@ export function TerritoryCard({
           trackColor={{ false: "#E7E1E4", true: "#F4A9C4" }}
           thumbColor={node.is_active ? "#E91E63" : "#FFFFFF"}
         />
-        <Pressable accessibilityLabel={`Delete ${node.name}`} onPress={onDelete} className="w-9 h-9 rounded-xl items-center justify-center">
+        <Pressable accessibilityLabel={`Delete ${node.name}`} onPress={onDelete} className="w-11 h-11 rounded-xl items-center justify-center">
           <Trash2 size={15} color="#DC3545" />
         </Pressable>
       </View>

@@ -47,7 +47,7 @@ function NavItem({
     <Pressable
       accessibilityRole="link"
       accessibilityState={{ selected: active }}
-      onPress={onPress}
+      onPress={() => { if (!active) onPress(); }}
       className="relative h-16 px-3 items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
     >
       <Text

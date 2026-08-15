@@ -2,10 +2,10 @@ import React, { type ReactNode, useState } from "react";
 import { ScrollView, StyleSheet, Text } from "react-native";
 import Pressable from "@/components/InteropSafePressable";
 import { ArrowUpDown, ChevronDown, Star, Tag } from "lucide-react-native";
-import { brandColors } from "@/constants/brandPalette";
+import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale } from "@/constants/typography";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 type CategoryFilterChipsProps = {
   dark: boolean;

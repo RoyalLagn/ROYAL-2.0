@@ -15,7 +15,7 @@ export default function ReviewPhotoUploader({ photos, dark = false, disabled = f
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
       {photos.map((uri, index) => <View key={`${uri}-${index}`} style={[styles.photoWrap, { borderColor: c.border }]}>
         <Image source={{ uri }} style={styles.photo} />
-        <Pressable accessibilityRole="button" accessibilityLabel={`Remove photo ${index + 1}`} onPress={() => onRemove(uri, index)} style={styles.remove}><X color="#FFF" size={13} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove photo ${index + 1}`} hitSlop={12} onPress={() => onRemove(uri, index)} style={[styles.remove, { backgroundColor: c.photoScrim }]}><X color={c.onPink} size={13} /></Pressable>
       </View>)}
       {photos.length < maxPhotos ? <Pressable accessibilityRole="button" disabled={disabled} accessibilityLabel="Add review photos" onPress={onAdd} style={({ pressed, hovered }) => [styles.add, { backgroundColor: c.soft, borderColor: c.border }, pressed && styles.pressed, hovered && Platform.OS === "web" && styles.hovered]}>
         <Camera color={c.pink} size={21} /><Text style={[styles.addText, { color: c.pink }]}>Add photo</Text>
@@ -27,7 +27,7 @@ export default function ReviewPhotoUploader({ photos, dark = false, disabled = f
 const styles = StyleSheet.create({
   wrap: { gap: 8 }, label: { fontSize: typeScale.body, fontWeight: "600" }, row: { gap: 9 },
   photoWrap: { width: 78, height: 78, borderRadius: 13, borderWidth: 1, overflow: "hidden" }, photo: { width: "100%", height: "100%" },
-  remove: { position: "absolute", top: 4, right: 4, width: 24, height: 24, borderRadius: 12, backgroundColor: "rgba(24,15,19,.72)", alignItems: "center", justifyContent: "center" },
+  remove: { position: "absolute", top: 4, right: 4, width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   add: { width: 92, height: 78, borderRadius: 13, borderWidth: 1, borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 5 },
   addText: { fontSize: typeScale.metadata, fontWeight: "600" }, hint: { fontSize: typeScale.metadata }, pressed: { opacity: .8 }, hovered: { transform: [{ translateY: -1 }] },
 });

@@ -11,7 +11,7 @@ import { formatSubscriptionPrice, subscriptionStatusLabel } from "@/subscription
 import { typeScale } from "@/constants/typography";
 import { adminPalette } from "@/theme";
 
-const pink = "#E91E63";
+const pink = adminPalette.brand;
 export default function PaymentsAdmin() {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

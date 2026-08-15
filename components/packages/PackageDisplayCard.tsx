@@ -6,6 +6,7 @@ import Pressable from "@/components/InteropSafePressable";
 import { CalendarRange, Check, Clock3, Gift, Minus, PackageCheck, Sparkles } from "lucide-react-native";
 import type { VendorPackage, VendorPackageItem } from "@/services/vendorPackages";
 import { typeScale, typeLeading } from "@/constants/typography";
+import { brandPalette } from "@/constants/brandPalette";
 
 type Props = {
   item: VendorPackage;
@@ -93,5 +94,5 @@ const styles = StyleSheet.create({
   facts: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 }, fact: { flexDirection: "row", alignItems: "center", gap: 5 }, factText: { fontSize: typeScale.caption, fontWeight: "700" },
   section: { marginTop: 17 }, sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 8 }, sectionTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700" }, itemRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, paddingVertical: 4 }, dot: { width: 5, height: 5, borderRadius: 3, marginTop: 6 }, itemText: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, fontWeight: "600" }, itemDescription: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 1 }, addOnPrice: { fontSize: typeScale.caption, fontWeight: "700", marginLeft: 8 },
   detail: { flexDirection: "row", gap: 9, marginTop: 16 }, detailTitle: { fontSize: typeScale.metadata, fontWeight: "700" }, detailText: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 2 },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, borderTopWidth: 1, marginTop: 18, paddingTop: 14 }, action: { minHeight: 42, borderRadius: 13, paddingHorizontal: 14, alignItems: "center", justifyContent: "center", flexGrow: 1 }, actionPrimary: { backgroundColor: "#E91E63" }, actionText: { fontSize: typeScale.metadata, fontWeight: "700" }, pressed: { opacity: .82, transform: [{ scale: .98 }] },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, borderTopWidth: 1, marginTop: 18, paddingTop: 14 }, action: { minHeight: 42, borderRadius: 13, paddingHorizontal: 14, alignItems: "center", justifyContent: "center", flexGrow: 1 }, actionPrimary: { backgroundColor: brandPalette.light.primary }, actionText: { fontSize: typeScale.metadata, fontWeight: "700" }, pressed: { opacity: .82, transform: [{ scale: .98 }] },
 });

@@ -39,7 +39,7 @@ export function AuthBackButton({
         hitSlop={8}
         onPress={goBack}
         android_ripple={{ color: "rgba(17,24,39,0.10)", borderless: true }}
-        className="w-11 h-11 items-center justify-center rounded-full active:opacity-60"
+        className="w-12 h-12 items-center justify-center rounded-full active:opacity-60"
       >
         <ArrowLeft size={24} className="text-foreground" strokeWidth={2} />
       </Pressable>

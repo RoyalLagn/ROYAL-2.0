@@ -9,8 +9,9 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { brandPalette } from "@/constants/brandPalette";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 const AnimatedHeart = Animated.createAnimatedComponent(Heart);
 
 export type FavoriteFlight = {

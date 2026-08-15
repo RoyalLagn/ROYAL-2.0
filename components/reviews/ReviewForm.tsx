@@ -22,21 +22,21 @@ export default function ReviewForm({ initialValue, dark = false, submitting = fa
   return <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
     <Text style={[styles.heading, { color: c.text }]}>{initialValue ? "Edit your review" : "Share your experience"}</Text>
     <Text style={[styles.label, { color: c.text }]}>Your rating</Text>
-    <View accessibilityRole="radiogroup" style={styles.stars}>{([1,2,3,4,5] as const).map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: rating === value }} accessibilityLabel={`${value} stars`} onPress={() => setRating(value)} hitSlop={7}><Text style={[styles.star, { color: value <= rating ? c.gold : dark ? "#51484C" : "#E3D8DC" }]}>★</Text></Pressable>)}</View>
-    <TextInput value={text} onChangeText={setText} editable={!submitting} maxLength={2000} multiline placeholder="Write a comment…" placeholderTextColor={c.muted} style={[input, styles.textarea]} />
+    <View accessibilityRole="radiogroup" accessibilityLabel="Review rating" style={styles.stars}>{([1,2,3,4,5] as const).map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: rating === value, disabled: submitting }} accessibilityLabel={`${value} stars`} disabled={submitting} onPress={() => setRating(value)} hitSlop={7}><Text style={[styles.star, { color: value <= rating ? c.gold : c.inactiveStar }]}>★</Text></Pressable>)}</View>
+    <TextInput accessibilityLabel="Review comment" accessibilityHint="Describe your experience with this vendor" accessibilityState={{ disabled: submitting }} value={text} onChangeText={setText} editable={!submitting} maxLength={2000} multiline placeholder="Write a comment…" placeholderTextColor={c.muted} style={[input, styles.textarea]} />
     <ReviewPhotoUploader photos={photos} dark={dark} disabled={submitting} onAdd={onAddPhotos} onRemove={onRemovePhoto} />
-    {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-    <View style={styles.buttons}>{onCancel ? <Pressable disabled={submitting} onPress={onCancel} style={[styles.cancel, { borderColor: c.border }]}><Text style={[styles.cancelText, { color: c.muted }]}>Cancel</Text></Pressable> : null}
-      <Pressable disabled={!valid || submitting} onPress={() => {
+    {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.error, { color: c.destructive }]}>{error}</Text> : null}
+    <View style={styles.buttons}>{onCancel ? <Pressable accessibilityRole="button" accessibilityState={{ disabled: submitting }} disabled={submitting} onPress={onCancel} style={[styles.cancel, { borderColor: c.border }]}><Text style={[styles.cancelText, { color: c.muted }]}>Cancel</Text></Pressable> : null}
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: !valid || submitting, busy: submitting }} accessibilityLabel={submitLabel ?? (initialValue ? "Update review" : "Submit review")} disabled={!valid || submitting} onPress={() => {
         const comment = text.trim();
         onSubmit({ rating, title: initialValue?.title?.trim() || comment.slice(0, 100), text: comment, photos });
-      }} style={({ pressed }) => [styles.submit, { backgroundColor: c.pink, opacity: valid && !submitting ? 1 : .45 }, pressed && styles.pressed]}>{submitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>{submitLabel ?? (initialValue ? "Update Review" : "Submit Review")}</Text>}</Pressable>
+      }} style={({ pressed }) => [styles.submit, { backgroundColor: c.pink, opacity: valid && !submitting ? 1 : .45 }, pressed && styles.pressed]}>{submitting ? <ActivityIndicator color={c.onPink} /> : <Text style={[styles.submitText, { color: c.onPink }]}>{submitLabel ?? (initialValue ? "Update Review" : "Submit Review")}</Text>}</Pressable>
     </View>
   </View>;
 }
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 20, padding: 17, gap: 12 }, heading: { ...typeStyles.editorialSectionTitle }, label: { ...typeStyles.label }, stars: { flexDirection: "row", gap: 8 }, star: { fontSize: typeScale.editorialPageTitle, lineHeight: typeLeading.editorialPageTitle },
   input: { minHeight: 48, borderWidth: 1, borderRadius: 13, paddingHorizontal: 14, fontSize: typeScale.body }, textarea: { minHeight: 116, paddingTop: 13, textAlignVertical: "top" },
-  error: { color: "#D94B55", fontSize: typeScale.bodyCompact }, buttons: { flexDirection: "row", justifyContent: "flex-end", gap: 10 }, cancel: { minHeight: 44, borderWidth: 1, borderRadius: 23, paddingHorizontal: 18, justifyContent: "center" }, cancelText: { fontWeight: "600" },
-  submit: { minWidth: 140, minHeight: 44, borderRadius: 23, paddingHorizontal: 19, alignItems: "center", justifyContent: "center" }, submitText: { color: "#FFF", fontSize: typeScale.body, fontWeight: "700" }, pressed: { transform: [{ scale: .98 }], opacity: .86 },
+  error: { fontSize: typeScale.bodyCompact }, buttons: { flexDirection: "row", justifyContent: "flex-end", gap: 10 }, cancel: { minHeight: 48, borderWidth: 1, borderRadius: 23, paddingHorizontal: 18, justifyContent: "center" }, cancelText: { fontWeight: "600" },
+  submit: { minWidth: 140, minHeight: 48, borderRadius: 23, paddingHorizontal: 19, alignItems: "center", justifyContent: "center" }, submitText: { fontSize: typeScale.body, fontWeight: "700" }, pressed: { transform: [{ scale: .98 }], opacity: .86 },
 });

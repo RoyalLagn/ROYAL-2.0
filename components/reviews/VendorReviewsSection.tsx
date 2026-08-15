@@ -29,20 +29,21 @@ export default function VendorReviewsSection(props: VendorReviewsSectionProps) {
   const c = reviewPalette(dark);
   return <View style={styles.section}>
     <View style={styles.headingRow}>
-      <View style={styles.headingWrap}><Text style={[styles.heading, { color: c.text }]}>Reviews & Ratings</Text><View style={styles.ornament}><View style={styles.line} /><View style={styles.dot} /><View style={styles.line} /></View></View>
+      <View style={styles.headingWrap}><Text style={[styles.heading, { color: c.text }]}>Reviews & Ratings</Text><View style={styles.ornament}><View style={[styles.line, { backgroundColor: c.ornament }]} /><View style={[styles.dot, { backgroundColor: c.ornament }]} /><View style={[styles.line, { backgroundColor: c.ornament }]} /></View></View>
       {props.onWriteReview ? <Pressable
         accessibilityRole="button"
         accessibilityLabel="Write a Review"
+        accessibilityState={{ disabled: props.canWriteReview === false }}
         disabled={props.canWriteReview === false}
         onPress={props.onWriteReview}
         style={({ pressed, hovered }) => [
           styles.writeButton,
-          { backgroundColor: c.pink, opacity: props.canWriteReview === false ? 0.5 : 1 },
-          hovered && Platform.OS === "web" && styles.writeButtonHover,
+          { backgroundColor: c.pink, opacity: props.canWriteReview === false ? 0.5 : 1, shadowColor: c.shadow },
+          hovered && Platform.OS === "web" && [styles.writeButtonHover, { backgroundColor: c.pinkHover }],
           pressed && styles.writeButtonPressed,
         ]}
       >
-        <Text style={styles.writeButtonText}>Write a Review</Text>
+        <Text style={[styles.writeButtonText, { color: c.onPink }]}>Write a Review</Text>
       </Pressable> : null}
     </View>
     <ReviewSummary average={props.average} total={props.total} counts={props.counts} dark={dark} />
@@ -53,24 +54,24 @@ export default function VendorReviewsSection(props: VendorReviewsSectionProps) {
       onAddPhotos={props.onAddPhotos ?? (() => undefined)} onRemovePhoto={props.onRemovePhoto ?? (() => undefined)}
     /> : null}
     <ReviewFilters sort={props.sort} star={props.starFilter} dark={dark} onSortChange={props.onSortChange} onStarChange={props.onStarFilterChange} />
-    {props.loading ? <View style={styles.state}><ActivityIndicator color={c.pink} /><Text style={[styles.stateText, { color: c.muted }]}>Loading reviews…</Text></View>
-      : props.error ? <View style={[styles.stateCard, { backgroundColor: c.soft, borderColor: c.border }]}><Text style={[styles.stateTitle, { color: c.text }]}>Reviews could not be loaded</Text><Text style={[styles.stateText, { color: c.muted }]}>{props.error}</Text>{props.onRetry ? <Pressable onPress={props.onRetry} style={[styles.smallButton, { borderColor: c.pink }]}><Text style={[styles.smallButtonText, { color: c.pink }]}>Try again</Text></Pressable> : null}</View>
+    {props.loading ? <View accessibilityRole="progressbar" accessibilityLabel="Loading reviews" style={styles.state}><ActivityIndicator color={c.pink} /><Text style={[styles.stateText, { color: c.muted }]}>Loading reviews…</Text></View>
+      : props.error ? <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.stateCard, { backgroundColor: c.soft, borderColor: c.border }]}><Text style={[styles.stateTitle, { color: c.text }]}>Reviews could not be loaded</Text><Text style={[styles.stateText, { color: c.muted }]}>{props.error}</Text>{props.onRetry ? <Pressable accessibilityRole="button" accessibilityLabel="Retry loading reviews" onPress={props.onRetry} style={[styles.smallButton, { borderColor: c.pink }]}><Text style={[styles.smallButtonText, { color: c.pink }]}>Try again</Text></Pressable> : null}</View>
       : props.reviews.length === 0 ? <View style={[styles.stateCard, { backgroundColor: c.soft, borderColor: c.border }]}><Text style={[styles.stateTitle, { color: c.text }]}>No reviews yet</Text><Text style={[styles.stateText, { color: c.muted }]}>Be the first customer to share an experience with this vendor.</Text></View>
       : <View style={styles.list}>{props.reviews.map(review => <ReviewCard key={review.id} review={review} dark={dark} onHelpful={props.onHelpful} onEdit={props.onEdit} onDelete={props.onDelete} />)}</View>}
-    {props.hasMore && props.onLoadMore ? <Pressable disabled={props.loadingMore} onPress={props.onLoadMore} style={[styles.loadMore, { borderColor: c.border, backgroundColor: c.surface }]}>{props.loadingMore ? <ActivityIndicator color={c.pink} /> : <Text style={[styles.loadMoreText, { color: c.pink }]}>Load more reviews</Text>}</Pressable> : null}
+    {props.hasMore && props.onLoadMore ? <Pressable accessibilityRole="button" accessibilityState={{ disabled: props.loadingMore, busy: props.loadingMore }} disabled={props.loadingMore} onPress={props.onLoadMore} style={[styles.loadMore, { borderColor: c.border, backgroundColor: c.surface }]}>{props.loadingMore ? <ActivityIndicator color={c.pink} /> : <Text style={[styles.loadMoreText, { color: c.pink }]}>Load more reviews</Text>}</Pressable> : null}
   </View>;
 }
 const styles = StyleSheet.create({
   section: { width: "100%", gap: 16, paddingTop: 5 },
   headingRow: { width: "100%", flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 },
   headingWrap: { alignItems: "flex-start" }, heading: { ...typeStyles.editorialSectionTitle },
-  writeButton: { minHeight: 42, borderRadius: 22, paddingHorizontal: 17, alignItems: "center", justifyContent: "center", shadowColor: "#A32E59", shadowOpacity: 0.12, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
-  writeButtonText: { color: "#FFFFFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  writeButtonHover: { transform: [{ translateY: -1 }], backgroundColor: "#CF2E65" },
+  writeButton: { minHeight: 48, borderRadius: 22, paddingHorizontal: 17, alignItems: "center", justifyContent: "center", shadowOpacity: 0.12, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  writeButtonText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  writeButtonHover: { transform: [{ translateY: -1 }] },
   writeButtonPressed: { transform: [{ scale: 0.98 }], opacity: 0.86 },
-  ornament: { width: 88, height: 8, flexDirection: "row", alignItems: "center", gap: 4 }, line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#D8A55B" }, dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#D8A55B" },
+  ornament: { width: 88, height: 8, flexDirection: "row", alignItems: "center", gap: 4 }, line: { flex: 1, height: StyleSheet.hairlineWidth }, dot: { width: 4, height: 4, borderRadius: 2 },
   list: { gap: 12 }, state: { minHeight: 130, alignItems: "center", justifyContent: "center", gap: 10 }, stateCard: { minHeight: 130, borderWidth: 1, borderRadius: 18, alignItems: "center", justifyContent: "center", padding: 22, gap: 7 },
   stateTitle: { ...typeStyles.editorialCardTitle, textAlign: "center" }, stateText: { ...typeStyles.body, textAlign: "center" },
-  smallButton: { marginTop: 5, minHeight: 38, paddingHorizontal: 16, borderWidth: 1, borderRadius: 20, justifyContent: "center" }, smallButtonText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  loadMore: { alignSelf: "center", minWidth: 180, minHeight: 44, borderWidth: 1, borderRadius: 23, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, loadMoreText: { fontSize: typeScale.body, fontWeight: "700" },
+  smallButton: { marginTop: 5, minHeight: 48, paddingHorizontal: 16, borderWidth: 1, borderRadius: 20, justifyContent: "center" }, smallButtonText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  loadMore: { alignSelf: "center", minWidth: 180, minHeight: 48, borderWidth: 1, borderRadius: 23, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 }, loadMoreText: { fontSize: typeScale.body, fontWeight: "700" },
 });

@@ -39,7 +39,7 @@ export function VendorFilterBar({
             placeholderTextColor="#7A8190"
             className="flex-1 min-w-0 text-foreground text-body"
           />
-          {query ? <Pressable accessibilityLabel="Clear search" className="w-8 h-8 rounded-lg items-center justify-center active:bg-muted" onPress={() => setQuery("")}><X size={15} className="text-muted-foreground" /></Pressable> : null}
+          {query ? <Pressable accessibilityLabel="Clear search" className="w-11 h-11 rounded-xl items-center justify-center active:bg-muted" onPress={() => setQuery("")}><X size={15} className="text-muted-foreground" /></Pressable> : null}
         </View>
         <Pressable accessibilityRole="button" accessibilityLabel="Open advanced filters" className="w-12 h-12 rounded-xl bg-card border border-border items-center justify-center active:bg-muted" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={onMore}>
           <SlidersHorizontal size={19} className="text-primary" />
@@ -47,7 +47,7 @@ export function VendorFilterBar({
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
         {statuses.map((status) => (
-          <Pressable key={status} className={`min-h-10 px-4 rounded-xl border items-center justify-center ${filters.status === status ? "bg-primary border-primary" : "bg-background border-border"}`} style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => onChange({ status })}>
+          <Pressable key={status} className={`min-h-11 px-4 rounded-xl border items-center justify-center ${filters.status === status ? "bg-primary border-primary" : "bg-background border-border"}`} style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => onChange({ status })}>
             <Text className={`text-xs font-semibold capitalize ${filters.status === status ? "text-white" : "text-foreground"}`}>{status}</Text>
           </Pressable>
         ))}

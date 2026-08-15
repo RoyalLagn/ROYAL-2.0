@@ -4,8 +4,8 @@ import { Image, type ImageSourcePropType, type ImageStyle, type StyleProp } from
 type MembershipBadgeAsset = { source: ImageSourcePropType };
 
 export const MEMBERSHIP_BADGE_ASSETS: Record<string, MembershipBadgeAsset> = {
-  premium: { source: require("@/assets/SVG/premium-badge-v2.webp") },
-  elite: { source: require("@/assets/SVG/elite-badge-v2.webp") },
+  premium: { source: require("@/assets/badges/premium-badge-v2.webp") },
+  elite: { source: require("@/assets/badges/elite-badge-v2.webp") },
 };
 
 export function membershipBadgeFor(planName?: string | null): MembershipBadgeAsset | null {

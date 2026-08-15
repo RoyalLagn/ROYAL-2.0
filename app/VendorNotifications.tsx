@@ -9,6 +9,10 @@ import { useVendorNotifications, type VendorNotification } from "@/context/Vendo
 import { SkeletonList } from "@/components/loading/Skeleton";
 import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import { vendorWorkspaceRoutes } from "@/vendor/navigation";
+import { safeInternalTarget } from "@/utils/safeNavigation";
+
+const VENDOR_NOTIFICATION_ROUTES = new Set(vendorWorkspaceRoutes);
 
 const vendorNotificationDestination = (notification: VendorNotification) => {
   if (notification.target_path) return notification.target_path;
@@ -22,13 +26,9 @@ const vendorNotificationDestination = (notification: VendorNotification) => {
 };
 
 function openDestination(router: ReturnType<typeof useRouter>, path: string) {
-  const [pathname, query = ""] = path.split("?");
-  if (!query) {
-    router.push(pathname as never);
-    return;
-  }
-  const params = Object.fromEntries(new URLSearchParams(query).entries());
-  router.push({ pathname, params } as never);
+  const target = safeInternalTarget(path, VENDOR_NOTIFICATION_ROUTES);
+  if (!target) return;
+  router.push((target.params ? target : target.pathname) as never);
 }
 
 export default function VendorNotifications() {

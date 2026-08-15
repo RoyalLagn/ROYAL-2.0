@@ -48,7 +48,7 @@ export default function VendorHeader(_props: { unread?: number }) {
           <Pressable
             accessibilityRole="link"
             accessibilityLabel="Vendor dashboard home"
-            onPress={() => router.replace("/vendor-dashboard")}
+            onPress={() => { if (activeRoute !== "/vendor-dashboard") router.replace("/vendor-dashboard"); }}
             style={({ pressed }) => [styles.desktopBrand, pressed && styles.pressed]}
           >
             <RoyalLagnLogo width={172} height={52} scale={1.9} />
@@ -62,7 +62,7 @@ export default function VendorHeader(_props: { unread?: number }) {
                   key={route}
                   accessibilityRole="link"
                   accessibilityState={{ selected: active }}
-                  onPress={() => router.replace(route)}
+                  onPress={() => { if (!active) router.replace(route); }}
                   style={({ pressed }) => [styles.desktopNavItem, pressed && styles.pressed]}
                 >
                   <Text style={[styles.desktopNavText, { color: active ? colors.pink : colors.muted }, active && styles.desktopNavTextActive]}>
@@ -75,8 +75,9 @@ export default function VendorHeader(_props: { unread?: number }) {
           </View>
 
           <View style={styles.desktopActions}>
-            <Pressable
-              onPress={() => router.push("/VendorSubscription")}
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => { if (!normalizedPath.startsWith("/vendorsubscription")) router.push("/VendorSubscription"); }}
               accessibilityLabel="Manage subscription"
               style={({ pressed }) => [
                 styles.desktopIconButton,
@@ -87,7 +88,8 @@ export default function VendorHeader(_props: { unread?: number }) {
               <Crown size={20} color={normalizedPath.startsWith("/vendorsubscription") ? colors.pink : colors.text} />
             </Pressable>
             <Pressable
-              onPress={() => router.push("/VendorEnquiries")}
+              accessibilityRole="button"
+              onPress={() => { if (!normalizedPath.startsWith("/vendorenquiries")) router.push("/VendorEnquiries"); }}
               accessibilityLabel="Open enquiries"
               style={({ pressed }) => [
                 styles.desktopIconButton,
@@ -98,7 +100,8 @@ export default function VendorHeader(_props: { unread?: number }) {
               <MessageSquareText size={20} color={normalizedPath.startsWith("/vendorenquiries") ? colors.pink : colors.text} />
             </Pressable>
             <Pressable
-              onPress={() => router.push("/VendorNotifications")}
+              accessibilityRole="button"
+              onPress={() => { if (!normalizedPath.startsWith("/vendornotifications")) router.push("/VendorNotifications"); }}
               accessibilityLabel="Open notifications"
               style={({ pressed }) => [
                 styles.desktopIconButton,
@@ -107,7 +110,7 @@ export default function VendorHeader(_props: { unread?: number }) {
               ]}
             >
               <Bell size={20} color={normalizedPath.startsWith("/vendornotifications") ? colors.pink : colors.text} />
-              {unread > 0 ? <View style={[styles.badge, { backgroundColor: colors.pink }]}><Text style={styles.badgeText}>{Math.min(unread, 9)}</Text></View> : null}
+              {unread > 0 ? <View style={[styles.badge, { backgroundColor: colors.pink }]}><Text style={[styles.badgeText, { color: colors.onPrimary }]}>{unread > 9 ? "9+" : unread}</Text></View> : null}
             </Pressable>
           </View>
         </View>
@@ -116,8 +119,8 @@ export default function VendorHeader(_props: { unread?: number }) {
   }
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 8, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-      <Pressable onPress={() => router.push("/VendorSubscription")} accessibilityLabel="Manage subscription"
+    <View style={[styles.header, { paddingTop: insets.top + 8, paddingLeft: Math.max(insets.left, 16), paddingRight: Math.max(insets.right, 16), backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+      <Pressable accessibilityRole="button" onPress={() => { if (!normalizedPath.startsWith("/vendorsubscription")) router.push("/VendorSubscription"); }} accessibilityLabel="Manage subscription"
         style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}>
         <Crown size={20} color={normalizedPath.startsWith("/vendorsubscription") ? colors.pink : colors.text} />
       </Pressable>
@@ -125,14 +128,14 @@ export default function VendorHeader(_props: { unread?: number }) {
         <RoyalLagnLogo width={168} height={46} />
       </View>
       <View style={styles.actions}>
-        <Pressable onPress={() => router.push("/VendorEnquiries")} accessibilityLabel="Open enquiries"
-          style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Pressable accessibilityRole="button" onPress={() => { if (!normalizedPath.startsWith("/vendorenquiries")) router.push("/VendorEnquiries"); }} accessibilityLabel="Open enquiries"
+          style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}>
           <MessageSquareText size={19} color={colors.text} />
         </Pressable>
-        <Pressable onPress={() => router.push("/VendorNotifications")} accessibilityLabel="Open notifications"
-          style={[styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Pressable accessibilityRole="button" onPress={() => { if (!normalizedPath.startsWith("/vendornotifications")) router.push("/VendorNotifications"); }} accessibilityLabel="Open notifications"
+          style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}>
           <Bell size={19} color={colors.text} />
-          {unread > 0 && <View style={[styles.badge, { backgroundColor: colors.pink }]}><Text style={styles.badgeText}>{Math.min(unread, 9)}</Text></View>}
+          {unread > 0 && <View style={[styles.badge, { backgroundColor: colors.pink }]}><Text style={[styles.badgeText, { color: colors.onPrimary }]}>{unread > 9 ? "9+" : unread}</Text></View>}
         </Pressable>
       </View>
     </View>
@@ -140,9 +143,9 @@ export default function VendorHeader(_props: { unread?: number }) {
 }
 
 const styles = StyleSheet.create({
-  header: { minHeight: 68, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: StyleSheet.hairlineWidth },
+  header: { minHeight: 72, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: StyleSheet.hairlineWidth },
   brandWrap: { position: "absolute", left: "50%", width: 168, height: 46, marginLeft: -84, alignItems: "center", justifyContent: "center" },
-  actions: { width: 88, flexDirection: "row", gap: 8 },
+  actions: { width: 96, flexDirection: "row", gap: 8 },
   desktopHeader: { width: "100%", minHeight: 72, flexShrink: 0, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 50 },
   desktopInner: { width: "100%", maxWidth: 1280, height: 72, paddingHorizontal: 24, alignSelf: "center", flexDirection: "row", alignItems: "center" },
   desktopBrand: { width: 182, height: 56, alignItems: "flex-start", justifyContent: "center" },
@@ -152,9 +155,9 @@ const styles = StyleSheet.create({
   desktopNavTextActive: { fontFamily: typeStyles.button.fontFamily },
   desktopActiveLine: { position: "absolute", left: 12, right: 12, bottom: 0, height: 3, borderTopLeftRadius: 3, borderTopRightRadius: 3 },
   desktopActions: { width: 182, flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 8 },
-  desktopIconButton: { position: "relative", width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
-  iconButton: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  desktopIconButton: { position: "relative", width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  iconButton: { width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   pressed: { transform: [{ scale: 0.98 }], opacity: 0.88 },
   badge: { position: "absolute", top: -3, right: -3, minWidth: 17, height: 17, borderRadius: 9, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  badgeText: { color: "#FFF", ...typeStyles.caption },
+  badgeText: { ...typeStyles.caption },
 });

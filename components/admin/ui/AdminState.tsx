@@ -1,8 +1,10 @@
 import React from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { SkeletonBone, SkeletonLines } from "@/components/loading/Skeleton";
-export function AdminLoadingState({ label = "Loading…" }: { label?: string }) { return <View className="py-16 items-center"><ActivityIndicator color="#E91E63" /><Text className="text-muted-foreground text-sm mt-3">{label}</Text></View>; }
-export function AdminErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) { return <View className="bg-destructive/5 border border-destructive/30 rounded-2xl p-5"><Text className="text-destructive font-body text-body">{message}</Text>{onRetry ? <Pressable className="min-h-11 mt-3 justify-center" onPress={onRetry}><Text className="text-primary font-inter-semibold text-body">Try again</Text></Pressable> : null}</View>; }
+import { adminPalette } from "@/theme";
+
+export function AdminLoadingState({ label = "Loading…" }: { label?: string }) { return <View className="py-16 items-center" accessibilityLiveRegion="polite"><ActivityIndicator color={adminPalette.brand} /><Text className="text-muted-foreground text-sm mt-3">{label}</Text></View>; }
+export function AdminErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) { return <View accessibilityRole="alert" className="bg-destructive/5 border border-destructive/30 rounded-2xl p-5"><Text className="text-destructive font-body text-body">{message}</Text>{onRetry ? <Pressable accessibilityRole="button" className="min-h-11 self-start px-3 mt-3 rounded-xl justify-center active:bg-primary/10" onPress={onRetry}><Text className="text-primary font-inter-semibold text-body">Try again</Text></Pressable> : null}</View>; }
 export function AdminEmptyState({ title, message }: { title: string; message: string }) { return <View className="bg-card border border-border rounded-2xl p-8 items-center"><Text className="text-foreground font-inter-bold text-card-title">{title}</Text><Text className="text-muted-foreground font-body text-body text-center mt-2">{message}</Text></View>; }
 
 /** One admin-table row placeholder, roughly matching VendorCard's shape
@@ -40,7 +42,7 @@ export function AdminTableSkeleton({ rows = 5 }: { rows?: number }) {
 export function AdminRefreshIndicator({ label = "Updating…" }: { label?: string }) {
   return (
     <View className="flex-row items-center gap-2 py-2">
-      <ActivityIndicator size="small" color="#E91E63" />
+      <ActivityIndicator size="small" color={adminPalette.brand} />
       <Text className="text-muted-foreground text-xs">{label}</Text>
     </View>
   );

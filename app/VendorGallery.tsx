@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Crosshair, Eye, FolderOpen, ImagePlus, Images, LockKeyhole, MoreHorizontal, Move, Pencil, Play, Plus, RotateCcw, Sparkles, Star, Trash2, Upload, X } from "lucide-react-native";
@@ -14,7 +14,8 @@ import PortfolioVideoPlayer from "@/components/vendor/PortfolioVideoPlayer";
 import { portfolioAssetFingerprint, portfolioMediaUrl, PORTFOLIO_LIMITS, replaceHeroMedia, updateMediaFocalPoint } from "@/services/vendorPortfolio";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import ImageFadeIn from "@/components/loading/ImageFadeIn";
-import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import { typeScale } from "@/constants/typography";
+import { vendorGalleryStyles as styles } from "@/components/vendor/gallery/vendorGalleryStyles";
 import Pressable from "@/components/InteropSafePressable";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
 
@@ -584,7 +585,7 @@ export default function VendorGallery() {
       {!loading && !data.vendor && <View style={[styles.setupNotice, { backgroundColor: colors.surfaceSoft, borderColor: colors.border }]}>
         <Text style={[styles.setupTitle, { color: colors.text }]}>Vendor profile connection required</Text>
         <Text style={[styles.setupBody, { color: colors.muted }]}>Preview mode can display the gallery, but saving and uploading requires your Vendor account so every album stays private to its owner.</Text>
-        <Pressable onPress={() => router.replace("/DashboardCenter")} style={[styles.connectButton, { backgroundColor: colors.pink }]}><Text style={styles.primaryText}>Connect Vendor Account</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Connect vendor account" onPress={() => router.replace("/DashboardCenter")} style={[styles.connectButton, { backgroundColor: colors.pink }]}><Text style={styles.primaryText}>Connect Vendor Account</Text></Pressable>
       </View>}
       {loading && !data.albums.length ? <View style={styles.skeletonGrid}>
         {[0, 1, 2].map((item) => <View key={item} style={[styles.skeletonCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -618,11 +619,13 @@ export default function VendorGallery() {
           />
           {readyHeroImages.length > 1 ? <>
             <Pressable
+              accessibilityRole="button"
               accessibilityLabel="Previous hero image"
               onPress={() => setHeroPreviewId(readyHeroImages[(heroPreviewIndex - 1 + readyHeroImages.length) % readyHeroImages.length].id)}
               style={({ pressed }) => [styles.heroStageNav, styles.heroStageNavLeft, pressed && styles.pressScale]}
             ><ChevronLeft size={24} color="#2B1520" /></Pressable>
             <Pressable
+              accessibilityRole="button"
               accessibilityLabel="Next hero image"
               onPress={() => setHeroPreviewId(readyHeroImages[(heroPreviewIndex + 1) % readyHeroImages.length].id)}
               style={({ pressed }) => [styles.heroStageNav, styles.heroStageNavRight, pressed && styles.pressScale]}
@@ -672,23 +675,29 @@ export default function VendorGallery() {
           <Text style={[styles.heroReorderLabel, { color: colors.muted }]}>Position {heroPreviewOrder + 1} of {heroDraft.length}</Text>
           <Pressable
             disabled={heroPreviewOrder === 0}
+            accessibilityRole="button"
             accessibilityLabel="Move selected hero image earlier"
+            accessibilityState={{ disabled: heroPreviewOrder === 0 }}
             onPress={() => moveHeroImage(heroPreview.id, -1)}
             style={({ pressed }) => [styles.heroReorderButton, { backgroundColor: colors.surface }, heroPreviewOrder === 0 && styles.disabled, pressed && styles.pressScale]}
           ><ChevronLeft size={17} color={colors.text} /><Text style={[styles.heroReorderText, { color: colors.text }]}>Earlier</Text></Pressable>
           <Pressable
             disabled={heroPreviewOrder === heroDraft.length - 1}
+            accessibilityRole="button"
             accessibilityLabel="Move selected hero image later"
+            accessibilityState={{ disabled: heroPreviewOrder === heroDraft.length - 1 }}
             onPress={() => moveHeroImage(heroPreview.id, 1)}
             style={({ pressed }) => [styles.heroReorderButton, { backgroundColor: colors.surface }, heroPreviewOrder === heroDraft.length - 1 && styles.disabled, pressed && styles.pressScale]}
           ><Text style={[styles.heroReorderText, { color: colors.text }]}>Later</Text><ChevronRight size={17} color={colors.text} /></Pressable>
         </View> : null}
         <View style={styles.heroActions}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Use automatic hero gallery selection"
             onPress={() => requireFeature("upload_gallery", () => setHeroDraft([]))}
             style={({ pressed }) => [styles.heroAutomatic, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressLift]}
           ><Sparkles size={17} color={colors.text} /><Text style={[styles.heroAutomaticText, { color: colors.text }]}>Use automatic</Text></Pressable>
-          <Pressable disabled={savingHero} onPress={saveHeroGallery} style={({ pressed }) => [styles.heroSave, { backgroundColor: colors.pink, shadowColor: colors.shadow }, pressed && styles.pressLift]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Save hero gallery" accessibilityState={{ disabled: savingHero, busy: savingHero }} disabled={savingHero} onPress={saveHeroGallery} style={({ pressed }) => [styles.heroSave, { backgroundColor: colors.pink, shadowColor: colors.shadow }, pressed && styles.pressLift]}>
             {savingHero ? <ActivityIndicator color="#FFF" /> : <><Sparkles size={17} color="#FFF" /><Text style={styles.primaryText}>Save hero gallery</Text></>}
           </Pressable>
         </View>
@@ -962,12 +971,12 @@ export default function VendorGallery() {
           </Text>
         </View>}
         {preview && <View style={styles.previewActions}>
-          <Pressable accessibilityLabel="Move media earlier" onPress={() => reorderMedia(preview, -1)} style={styles.previewButton}><Text style={styles.previewText}>← Earlier</Text></Pressable>
-          <Pressable accessibilityLabel="Move media later" onPress={() => reorderMedia(preview, 1)} style={styles.previewButton}><Text style={styles.previewText}>Later →</Text></Pressable>
-          {data.albums.length > 1 && <Pressable onPress={() => requireFeature("manage_albums", () => setMoveMediaItem(preview))} style={styles.previewButton}><Move size={17} color="#FFF" /><Text style={styles.previewText}>Move</Text></Pressable>}
-          {!preview.is_cover && <Pressable onPress={() => { setCover(preview); setPreview(null); }} style={styles.previewButton}><Star size={17} color="#FFF" /><Text style={styles.previewText}>Set cover</Text></Pressable>}
-          {preview.resource_type === "image" && <Pressable onPress={() => requireFeature("upload_gallery", () => { setFocalMedia(preview); setPreview(null); })} style={styles.previewButton}><Crosshair size={17} color="#FFF" /><Text style={styles.previewText}>Focal point</Text></Pressable>}
-          <Pressable onPress={() => removeMedia(preview)} style={styles.previewButton}><Trash2 size={17} color="#FFF" /><Text style={styles.previewText}>Delete</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Move media earlier" onPress={() => reorderMedia(preview, -1)} style={styles.previewButton}><Text style={styles.previewText}>← Earlier</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Move media later" onPress={() => reorderMedia(preview, 1)} style={styles.previewButton}><Text style={styles.previewText}>Later →</Text></Pressable>
+          {data.albums.length > 1 && <Pressable accessibilityRole="button" accessibilityLabel="Move media to another album" onPress={() => requireFeature("manage_albums", () => setMoveMediaItem(preview))} style={styles.previewButton}><Move size={17} color="#FFF" /><Text style={styles.previewText}>Move</Text></Pressable>}
+          {!preview.is_cover && <Pressable accessibilityRole="button" accessibilityLabel="Set media as album cover" onPress={() => { setCover(preview); setPreview(null); }} style={styles.previewButton}><Star size={17} color="#FFF" /><Text style={styles.previewText}>Set cover</Text></Pressable>}
+          {preview.resource_type === "image" && <Pressable accessibilityRole="button" accessibilityLabel="Set image focal point" onPress={() => requireFeature("upload_gallery", () => { setFocalMedia(preview); setPreview(null); })} style={styles.previewButton}><Crosshair size={17} color="#FFF" /><Text style={styles.previewText}>Focal point</Text></Pressable>}
+          <Pressable accessibilityRole="button" accessibilityLabel="Delete media" onPress={() => removeMedia(preview)} style={styles.previewButton}><Trash2 size={17} color="#FFF" /><Text style={styles.previewText}>Delete</Text></Pressable>
         </View>}
       </View>
     </Modal>
@@ -1032,155 +1041,3 @@ export default function VendorGallery() {
     </Modal>
   </View>;
 }
-
-const styles = StyleSheet.create({
-  page: { flex: 1 },
-  content: { position: "relative", padding: 16, paddingTop: 22, paddingBottom: 112, alignSelf: "center", width: "100%" },
-  desktop: { maxWidth: 1180, paddingHorizontal: 28, paddingTop: 30, paddingBottom: 56 },
-  ambientGlow: { position: "absolute", top: -90, right: -110, width: 250, height: 250, borderRadius: 125, backgroundColor: "rgba(233,30,99,.055)" },
-  flex: { flex: 1, minWidth: 0 },
-  headingRow: { flexDirection: "row", gap: 20, alignItems: "center", marginBottom: 22 },
-  headingStack: { flexDirection: "column", alignItems: "stretch", gap: 15 },
-  eyebrow: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700", letterSpacing: 1.8, marginBottom: 8 },
-  title: { ...typeStyles.pageTitle },
-  subtitle: { ...typeStyles.body, marginTop: 5 },
-  headingSubtitle: { maxWidth: 510 },
-  primary: { minHeight: 48, paddingHorizontal: 18, borderRadius: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
-  createAlbumButton: { minHeight: 48, borderRadius: 14 },
-  primaryText: { color: "#FFF", fontWeight: "700", fontSize: typeScale.body },
-  pressScale: { transform: [{ scale: .97 }], opacity: .92 },
-  pressLift: { transform: [{ translateY: 1 }, { scale: .985 }], opacity: .94 },
-  disabled: { opacity: .36 },
-  error: { fontSize: typeScale.bodyCompact, marginBottom: 16 },
-  summaryGrid: { gap: 10, paddingHorizontal: 1, paddingBottom: 22 },
-  summaryGridDesktop: { width: "100%" },
-  summaryCard: { width: 150, minHeight: 144, borderWidth: 1, borderRadius: 16, padding: 15 },
-  summaryCardDesktop: { minHeight: 126, paddingHorizontal: 18, paddingVertical: 16 },
-  summaryIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center", marginBottom: 10 },
-  summaryValue: { fontSize: typeScale.pageTitle, lineHeight: typeLeading.metric, fontWeight: "700", letterSpacing: -.5 },
-  summaryLabel: { fontSize: typeScale.metadata, lineHeight: typeLeading.label, marginTop: 1 },
-  summaryDetail: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700", marginTop: 8 },
-  statProgress: { height: 4, borderRadius: 999, overflow: "hidden", marginTop: 10 },
-  statProgressFill: { height: "100%", borderRadius: 999 },
-  skeletonGrid: { flexDirection: "row", gap: 12, paddingBottom: 28, overflow: "hidden" },
-  skeletonCard: { width: 260, height: 286, padding: 10, borderRadius: 24 },
-  skeletonCover: { width: "100%", height: 184, borderRadius: 18 },
-  skeletonLine: { height: 9, borderRadius: 5, marginTop: 12 },
-  empty: { borderWidth: 0, borderRadius: 24, padding: 30, alignItems: "center", marginTop: 8, shadowColor: "#7D3D58", shadowOffset: { width: 0, height: 8 }, shadowOpacity: .08, shadowRadius: 18, elevation: 2 },
-  emptyIcon: { width: 60, height: 60, borderRadius: 21, alignItems: "center", justifyContent: "center", marginBottom: 14 },
-  emptyTitle: { fontSize: typeScale.sectionTitle, fontWeight: "700", letterSpacing: -.3 },
-  emptyBody: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, textAlign: "center", maxWidth: 430, marginVertical: 8, marginBottom: 16 },
-  heroManager: { borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 28 },
-  heroManagerDesktop: { padding: 20 },
-  heroManagerHeader: { flexDirection: "row", alignItems: "flex-start", gap: 11, marginBottom: 16 },
-  heroTitleIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  sectionTitle: { fontSize: typeScale.editorialCardTitle, lineHeight: typeLeading.editorialCardTitle, fontWeight: "700", letterSpacing: -.35 },
-  heroCount: { overflow: "hidden", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7, fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700" },
-  heroStage: { width: "100%", aspectRatio: 1.62, borderRadius: 14, overflow: "hidden" },
-  heroStageNav: { position: "absolute", top: "50%", marginTop: -22, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,.92)", alignItems: "center", justifyContent: "center", shadowColor: "#1A0911", shadowOffset: { width: 0, height: 4 }, shadowOpacity: .17, shadowRadius: 10, elevation: 4 },
-  heroStageNavLeft: { left: 12 },
-  heroStageNavRight: { right: 12 },
-  heroStageFooter: { position: "absolute", left: 15, right: 15, bottom: 13, flexDirection: "row", alignItems: "flex-end", gap: 10 },
-  heroStageMeta: { flex: 1 },
-  heroStagePosition: { color: "#FFF", fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" },
-  heroStageHint: { color: "rgba(255,255,255,.76)", fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },
-  heroSelectedBadge: { minHeight: 30, borderRadius: 999, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 5 },
-  heroSelectedText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
-  heroPicker: { gap: 10, paddingTop: 12, paddingBottom: 10, paddingHorizontal: 1 },
-  heroThumb: { width: 78, height: 68, borderWidth: 2, borderColor: "transparent", borderRadius: 15, overflow: "hidden" },
-  heroOrder: { position: "absolute", right: 5, top: 5, minWidth: 29, height: 24, borderRadius: 12, paddingHorizontal: 6, flexDirection: "row", gap: 2, alignItems: "center", justifyContent: "center" },
-  heroOrderText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
-  heroUnselectedDot: { position: "absolute", right: 7, top: 7, width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: "rgba(255,255,255,.92)", backgroundColor: "rgba(18,8,13,.22)" },
-  heroReorder: { minHeight: 48, borderRadius: 15, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 7 },
-  heroReorderLabel: { flex: 1, fontSize: typeScale.caption, fontWeight: "700" },
-  heroReorderButton: { minHeight: 34, borderRadius: 11, paddingHorizontal: 9, flexDirection: "row", alignItems: "center", gap: 3 },
-  heroReorderText: { fontSize: typeScale.caption, fontWeight: "700" },
-  heroActions: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 12 },
-  heroAutomatic: { minHeight: 46, flex: 1, borderRadius: 15, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
-  heroAutomaticText: { fontSize: typeScale.caption, fontWeight: "700" },
-  heroSave: { minHeight: 48, flex: 1.2, borderRadius: 14, paddingHorizontal: 12, flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center" },
-  sectionHeadingRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 16, marginBottom: 14, paddingHorizontal: 2 },
-  albumSectionTitle: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle },
-  sectionCaption: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 2 },
-  sectionLink: { fontSize: typeScale.caption, fontWeight: "700", paddingBottom: 2 },
-  albumStrip: { gap: 12, paddingHorizontal: 1, paddingBottom: 24 },
-  album: { position: "relative", width: 252, height: 276, borderWidth: 1, borderRadius: 16, overflow: "hidden" },
-  albumSelectArea: { flex: 1, borderRadius: 15, overflow: "hidden" },
-  albumPressed: { transform: [{ scale: .985 }], opacity: .94 },
-  albumCover: { width: "100%", height: 176, alignItems: "center", justifyContent: "center", overflow: "hidden", borderTopLeftRadius: 15, borderTopRightRadius: 15 },
-  albumMediaBadge: { position: "absolute", left: 13, bottom: 12, minHeight: 28, borderRadius: 999, paddingHorizontal: 9, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(18,8,13,.58)" },
-  albumMediaBadgeText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
-  albumBody: { flex: 1, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14 },
-  albumTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  albumTitle: { flex: 1, fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, fontWeight: "700" },
-  albumCount: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 5 },
-  publishBadge: { minHeight: 24, borderRadius: 999, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 4 },
-  publishDot: { width: 5, height: 5, borderRadius: 3 },
-  publishText: { fontSize: typeScale.caption, fontWeight: "700" },
-  albumCapacity: { height: 4, borderRadius: 999, overflow: "hidden", marginTop: 11, width: "100%" },
-  albumMenuButton: { position: "absolute", top: 12, right: 12, zIndex: 3, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,.92)", alignItems: "center", justifyContent: "center", shadowColor: "#1A0911", shadowOffset: { width: 0, height: 4 }, shadowOpacity: .15, shadowRadius: 9, elevation: 3 },
-  albumActiveRing: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, borderRadius: 16, borderWidth: 2, zIndex: 4 },
-  albumActionSheet: { width: "100%", maxWidth: 520, alignSelf: "center", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 16, paddingTop: 10, paddingBottom: 30, shadowOffset: { width: 0, height: -8 }, shadowOpacity: .12, shadowRadius: 26, elevation: 8 },
-  albumActionHandle: { width: 38, height: 4, borderRadius: 999, alignSelf: "center", marginBottom: 18 },
-  albumActionHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 16 },
-  albumActionClose: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  albumActionItem: { minHeight: 68, borderRadius: 18, padding: 10, flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 9 },
-  albumActionIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  albumActionTitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" },
-  albumActionHint: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3 },
-  albumDetails: { borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 24 },
-  albumDetailsDesktop: { padding: 20 },
-  albumHeading: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 16 },
-  detailTitle: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle },
-  detailSubtitle: { maxWidth: 520 },
-  iconButton: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  orderRow: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 7, marginBottom: 12 },
-  orderLabel: { flex: 1, fontSize: typeScale.caption },
-  orderButton: { height: 36, borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 3 },
-  orderText: { fontSize: typeScale.caption, fontWeight: "700" },
-  upload: { minHeight: 52, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 16 },
-  uploadTask: { marginBottom: 8 }, uploadTaskLabel: { flexDirection: "row", gap: 8, marginBottom: 5 }, uploadName: { flex: 1, fontSize: typeScale.caption }, uploadPercent: { fontSize: typeScale.caption, fontWeight: "700" },
-  progress: { height: 5, borderRadius: 4, overflow: "hidden" }, mediaGrid: { flexDirection: "row", flexWrap: "wrap" }, tile: { width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#050505" },
-  lockedTile: { opacity: 0.82 }, lockedOverlay: { position: "absolute", left: 7, right: 7, top: 7, minHeight: 32, borderRadius: 10, backgroundColor: "rgba(20,10,15,.76)", paddingHorizontal: 9, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }, lockedOverlayText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
-  play: { position: "absolute", top: "50%", left: "50%", marginLeft: -19, marginTop: -19, width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(0,0,0,.55)", alignItems: "center", justifyContent: "center" },
-  coverBadge: { position: "absolute", left: 7, bottom: 7, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 4, flexDirection: "row", alignItems: "center", gap: 3 }, coverText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
-  durationBadge: { position: "absolute", right: 7, bottom: 7, paddingHorizontal: 6, paddingVertical: 4, backgroundColor: "rgba(0,0,0,.62)", borderRadius: 7 }, durationText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
-  viewBadge: { position: "absolute", right: 7, top: 7, width: 27, height: 27, borderRadius: 9, backgroundColor: "rgba(0,0,0,.42)", alignItems: "center", justifyContent: "center" },
-  mediaEmpty: { alignItems: "center", paddingVertical: 34 }, modalBackdrop: { flex: 1, backgroundColor: "rgba(20,10,15,.45)", justifyContent: "flex-end", padding: Platform.OS === "web" ? 20 : 0 },
-  sheet: { width: "100%", maxWidth: 520, alignSelf: "center", borderWidth: 1, borderRadius: 26, padding: 20, paddingBottom: 30 }, sheetHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
-  inputLabel: { fontSize: typeScale.metadata, fontWeight: "700", marginBottom: 7 }, input: { minHeight: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, marginBottom: 15, fontSize: typeScale.body }, textarea: { minHeight: 96, paddingTop: 13, textAlignVertical: "top" },
-  modalHint: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginBottom: 14, marginTop: -3 },
-  visibilityRow: { minHeight: 66, borderWidth: 1, borderRadius: 15, paddingHorizontal: 13, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 15 },
-  visibilityTitle: { fontSize: typeScale.metadata, fontWeight: "700" }, visibilityHint: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3 },
-  save: { minHeight: 48, borderRadius: 15, alignItems: "center", justifyContent: "center", marginTop: 4 },
-  albumSaveActions: { flexDirection: "row", gap: 9 }, albumSaveSecondary: { flex: 1, borderWidth: 1 }, albumSavePrimary: { flex: 1.35, flexDirection: "row", gap: 7 },
-  setupNotice: { borderWidth: 1, borderRadius: 16, padding: 13, marginBottom: 15 },
-  subscriptionNotice: { borderRadius: 16, padding: 13, marginBottom: 15, flexDirection: "row", alignItems: "center", gap: 10 }, subscriptionNoticeText: { flex: 1, fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "600" },
-  setupTitle: { fontSize: typeScale.metadata, fontWeight: "700" }, setupBody: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 4 },
-  connectButton: { alignSelf: "flex-start", minHeight: 36, paddingHorizontal: 13, borderRadius: 11, alignItems: "center", justifyContent: "center", marginTop: 10 },
-  capacityNotice: { borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 13 },
-  capacityText: { flex: 1, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
-  uploadSheet: { width: "100%", maxWidth: 620, maxHeight: "88%", alignSelf: "center", borderWidth: 1, borderRadius: 26, padding: 20 },
-  uploadList: { maxHeight: 470, marginBottom: 14 }, uploadAsset: { minHeight: 76, borderWidth: 1, borderRadius: 16, padding: 8, flexDirection: "row", alignItems: "center", gap: 10 },
-  uploadThumb: { width: 58, height: 58, borderRadius: 12, overflow: "hidden", backgroundColor: "#050505" }, miniPlay: { position: "absolute", inset: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,.18)" },
-  uploadAssetName: { fontSize: typeScale.metadata, fontWeight: "700" }, uploadAssetMeta: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 }, uploadStatus: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3, marginBottom: 6 },
-  taskAction: { width: 34, height: 34, alignItems: "center", justifyContent: "center" },
-  uploadFooter: { paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", gap: 14 },
-  overallProgress: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 5 },
-  uploadStart: { width: 122, marginTop: 0, flexDirection: "row", gap: 7 },
-  destination: { minHeight: 66, padding: 9, borderWidth: 1, borderRadius: 16, flexDirection: "row", alignItems: "center", gap: 10 },
-  destinationIcon: { width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  focalImage: { width: "100%", aspectRatio: 1.45, overflow: "hidden", borderRadius: 18, backgroundColor: "#21171C", marginBottom: 14 },
-  focalMarker: { position: "absolute", width: 42, height: 42, marginLeft: -21, marginTop: -21, borderRadius: 21, backgroundColor: "rgba(233,30,99,.78)", borderWidth: 2, borderColor: "#FFF", alignItems: "center", justifyContent: "center" },
-  albumPreviewBackdrop: { flex: 1 }, albumPreviewHeader: { minHeight: 82, paddingTop: 16, paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", gap: 11 },
-  previewEyebrow: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.3 }, albumPreviewTitle: { fontSize: typeScale.cardTitle, fontWeight: "700", marginTop: 2 },
-  previewCount: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 }, albumPreviewContent: { width: "100%", maxWidth: 1040, alignSelf: "center", padding: 16, paddingBottom: 40 },
-  albumPreviewHero: { borderWidth: 1, borderRadius: 22, padding: 22, alignItems: "center", marginBottom: 14 }, previewFolder: { width: 50, height: 50, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  albumPreviewName: { fontSize: typeScale.metric, fontWeight: "700", textAlign: "center", marginTop: 12 }, albumPreviewDescription: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab, textAlign: "center", maxWidth: 520, marginTop: 6 },
-  previewBackdrop: { flex: 1, backgroundColor: "rgba(10,7,9,.96)", alignItems: "center", justifyContent: "center" }, previewClose: { position: "absolute", right: 20, top: 55, zIndex: 3, padding: 10 },
-  previewImage: { width: "100%", height: "68%" }, previewZoomContent: { flexGrow: 1, alignItems: "center", justifyContent: "center" }, previewZoomImage: { width: "100%", height: "100%" },
-  previewNav: { position: "absolute", top: "47%", zIndex: 3, width: 48, height: 48, borderRadius: 24, backgroundColor: "rgba(255,255,255,.13)", alignItems: "center", justifyContent: "center" },
-  previewNavLeft: { left: 12 }, previewNavRight: { right: 12 },
-  previewDetails: { position: "absolute", bottom: 91, alignItems: "center" }, previewPosition: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" }, previewMeta: { color: "rgba(255,255,255,.64)", fontSize: typeScale.caption, marginTop: 3 },
-  previewActions: { position: "absolute", bottom: 32, left: 16, right: 16, flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8 }, previewButton: { backgroundColor: "rgba(255,255,255,.14)", paddingHorizontal: 13, height: 42, borderRadius: 14, flexDirection: "row", gap: 6, alignItems: "center" }, previewText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
-} as const);

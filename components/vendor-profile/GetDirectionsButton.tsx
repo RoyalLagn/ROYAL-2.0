@@ -5,8 +5,9 @@ import { Linking, StyleSheet, Text } from "react-native";
 import Pressable from "@/components/InteropSafePressable";
 import { MapPin } from "lucide-react-native";
 import { typeScale } from "@/constants/typography";
+import { brandPalette } from "@/constants/brandPalette";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 export default function GetDirectionsButton({
   address,

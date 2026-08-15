@@ -26,6 +26,9 @@ import { useFavorites, FavoriteVendor } from "@/context/FavoritesContext";
 import { typeScale, typeLeading } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { MotionDistance, MotionStagger, MotionTiming } from "@/utils/motion";
+import { brandPalette } from "@/constants/brandPalette";
+
+const PINK = brandPalette.light.primary;
 
 export default function FavoritesScreen() {
   const { colorScheme } = useColorScheme();
@@ -61,7 +64,7 @@ export default function FavoritesScreen() {
   };
 
   return (
-    <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
+    <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top", "left", "right"]}>
       {loading ? <PageLoader /> : null}
 
       {/* ── Header ── */}
@@ -81,13 +84,13 @@ export default function FavoritesScreen() {
               onPress={() => setGridView((v) => !v)}
             >
               {gridView
-                ? <List size={18} color="#E91E63" />
-                : <Grid2x2 size={18} color="#E91E63" />}
+                ? <List size={18} color={PINK} />
+                : <Grid2x2 size={18} color={PINK} />}
             </TouchableOpacity>
           )}
           {favorites.length > 0 && (
             <View style={s.heartBadge}>
-              <Heart size={15} color="#E91E63" fill="#E91E63" />
+              <Heart size={15} color={PINK} fill={PINK} />
               <Text style={s.heartBadgeNum}>{favorites.length}</Text>
             </View>
           )}
@@ -116,7 +119,7 @@ export default function FavoritesScreen() {
                   >
                     <Text style={[s.chipTxt, { color: active ? "#FFF" : text }]}>{cat}</Text>
                     <View style={[s.chipCount, { backgroundColor: active ? "rgba(255,255,255,0.25)" : isDark ? "#2A2A2A" : "#F3E6EF" }]}>
-                      <Text style={[s.chipCountTxt, { color: active ? "#FFF" : "#E91E63" }]}>{count}</Text>
+                      <Text style={[s.chipCountTxt, { color: active ? "#FFF" : PINK }]}>{count}</Text>
                     </View>
                   </TouchableOpacity>
                 );
@@ -178,7 +181,7 @@ export default function FavoritesScreen() {
         <View style={s.overlay}>
           <View style={[s.modal, { backgroundColor: card }]}>
             <View style={s.modalIconWrap}>
-              <Heart size={28} color="#E91E63" fill="#E91E63" />
+              <Heart size={28} color={PINK} fill={PINK} />
             </View>
             <Text style={[s.modalTitle, { color: text }]}>Remove from Favourites?</Text>
             <Text style={[s.modalDesc, { color: muted }]}>
@@ -215,7 +218,7 @@ function GridCard({ vendor, isDark, text, muted, cardWidth, onPress, onRemove }:
         <View style={s.gridOverlay} />
         {/* Top heart */}
         <TouchableOpacity style={s.gridHeart} onPress={onRemove}>
-          <Heart size={16} color="#FFF" fill="#E91E63" />
+          <Heart size={16} color="#FFF" fill={PINK} />
         </TouchableOpacity>
         {/* Category badge */}
         <View style={s.gridCatBadge}>
@@ -230,8 +233,8 @@ function GridCard({ vendor, isDark, text, muted, cardWidth, onPress, onRemove }:
       <View style={[s.gridBody, { backgroundColor: isDark ? "#1E1E1E" : "#FFF" }]}>
         <Text style={[s.gridName, { color: text }]} numberOfLines={2}>{vendor.name}</Text>
         <View style={s.gridMeta}>
-          <MapPin size={10} color="#E91E63" />
-          <Text style={[s.gridLocation, { color: "#E91E63" }]} numberOfLines={1}> {vendor.location}</Text>
+          <MapPin size={10} color={PINK} />
+          <Text style={[s.gridLocation, { color: PINK }]} numberOfLines={1}> {vendor.location}</Text>
         </View>
         <Text style={[s.gridPrice, { color: isDark ? "#F5A0C0" : "#BE185D" }]}>{vendor.startingPrice}</Text>
       </View>
@@ -263,7 +266,7 @@ function ListCard({ vendor, card, text, muted, border, isDark, onPress, onRemove
         <View style={s.listNameRow}>
           <Text style={[s.listName, { color: text }]} numberOfLines={2}>{vendor.name}</Text>
           <TouchableOpacity onPress={onRemove} style={s.listHeartBtn}>
-            <Heart size={18} color="#E91E63" fill="#E91E63" />
+            <Heart size={18} color={PINK} fill={PINK} />
           </TouchableOpacity>
         </View>
         <View style={s.listRatingRow}>
@@ -272,7 +275,7 @@ function ListCard({ vendor, card, text, muted, border, isDark, onPress, onRemove
           <Text style={[s.listRatingCount, { color: muted }]}> ({vendor.reviews})</Text>
         </View>
         <View style={s.listMetaRow}>
-          <MapPin size={11} color="#E91E63" />
+          <MapPin size={11} color={PINK} />
           <Text style={[s.listLocation, { color: muted }]} numberOfLines={1}> {vendor.location}</Text>
         </View>
         <Text style={[s.listTags, { color: muted }]} numberOfLines={1}>
@@ -307,17 +310,17 @@ function EmptyState({ isDark, text, muted, router, hasAny, selectedCat }: {
       {/* Decorative hearts */}
       <View style={s.emptyDecor}>
         <EmptyDecorHeart delay={0} style={[s.decorHeart, s.decorHeart1, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
-          <Heart size={20} color="#E91E6360" fill="#E91E6330" />
+          <Heart size={20} color={`${PINK}60`} fill={`${PINK}30`} />
         </EmptyDecorHeart>
         <EmptyDecorHeart delay={MotionStagger.item} style={[s.decorHeart, s.decorHeart2, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
-          <Heart size={28} color="#E91E6370" fill="#E91E6340" />
+          <Heart size={28} color={`${PINK}70`} fill={`${PINK}40`} />
         </EmptyDecorHeart>
         <EmptyDecorHeart delay={MotionStagger.item * 2} style={[s.decorHeart, s.decorHeart3, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
-          <Heart size={16} color="#E91E6350" fill="#E91E6320" />
+          <Heart size={16} color={`${PINK}50`} fill={`${PINK}20`} />
         </EmptyDecorHeart>
       </View>
       <View style={[s.emptyIconWrap, { backgroundColor: isDark ? "#252525" : "#FFF0F7" }]}>
-        <Heart size={40} color="#E91E63" fill="#E91E63" />
+        <Heart size={40} color={PINK} fill={PINK} />
       </View>
       <Text style={[s.emptyTitle, { color: text }]}>
         {hasAny ? `No ${selectedCat} saved` : "No Favourites Yet"}
@@ -369,14 +372,14 @@ const s = StyleSheet.create({
   pageSubtitle:   { fontSize: typeScale.body, marginTop: 2 },
   headerRight:    { flexDirection: "row", alignItems: "center", gap: 10 },
   viewToggle:     { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  heartBadge:     { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#E91E6318", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50 },
-  heartBadgeNum:  { color: "#E91E63", fontWeight: "700", fontSize: typeScale.body },
+  heartBadge:     { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: `${PINK}18`, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 50 },
+  heartBadgeNum:  { color: PINK, fontWeight: "700", fontSize: typeScale.body },
 
   /* Chips */
   chipsWrap:      { paddingVertical: 10 },
   chipsRow:       { paddingHorizontal: 16, gap: 8, alignItems: "center" },
   chip:           { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 50, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5 },
-  chipActive:     { backgroundColor: "#E91E63", borderColor: "#E91E63" },
+  chipActive:     { backgroundColor: PINK, borderColor: PINK },
   chipTxt:        { fontSize: typeScale.bodyCompact, fontWeight: "600" },
   chipCount:      { borderRadius: 50, paddingHorizontal: 5, paddingVertical: 1 },
   chipCountTxt:   { fontSize: typeScale.caption, fontWeight: "700" },
@@ -389,7 +392,7 @@ const s = StyleSheet.create({
   gridImg:        { width: "100%", height: "100%" },
   gridOverlay:    { position: "absolute", bottom: 0, left: 0, right: 0, height: 80, backgroundColor: "rgba(0,0,0,0.35)" },
   gridHeart:      { position: "absolute", top: 8, right: 8, width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" },
-  gridCatBadge:   { position: "absolute", bottom: 8, left: 8, backgroundColor: "#E91E63CC", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 50 },
+  gridCatBadge:   { position: "absolute", bottom: 8, left: 8, backgroundColor: `${PINK}CC`, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 50 },
   gridCatTxt:     { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
   gridRatingBadge:{ position: "absolute", top: 8, left: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 50 },
   gridRatingTxt:  { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
@@ -416,7 +419,7 @@ const s = StyleSheet.create({
   listLocation:   { fontSize: typeScale.metadata, flex: 1 },
   listTags:       { fontSize: typeScale.metadata, marginBottom: 6 },
   listPriceBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 50 },
-  listPriceTxt:   { color: "#E91E63", fontSize: typeScale.metadata, fontWeight: "700" },
+  listPriceTxt:   { color: PINK, fontSize: typeScale.metadata, fontWeight: "700" },
 
   /* Empty */
   empty:          { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40, paddingBottom: 40 },
@@ -428,7 +431,7 @@ const s = StyleSheet.create({
   emptyIconWrap:  { width: 90, height: 90, borderRadius: 45, alignItems: "center", justifyContent: "center", marginBottom: 18 },
   emptyTitle:     { fontSize: typeScale.sectionTitle, fontWeight: "700", marginBottom: 10, textAlign: "center" },
   emptyDesc:      { fontSize: typeScale.body, textAlign: "center", lineHeight: typeLeading.cardTitle, marginBottom: 28 },
-  exploreBtn:     { flexDirection: "row", alignItems: "center", backgroundColor: "#E91E63", paddingHorizontal: 28, paddingVertical: 14, borderRadius: 50 },
+  exploreBtn:     { flexDirection: "row", alignItems: "center", backgroundColor: PINK, paddingHorizontal: 28, paddingVertical: 14, borderRadius: 50 },
   exploreTxt:     { color: "#FFF", fontWeight: "700", fontSize: typeScale.body },
 
   /* Modal */
@@ -440,6 +443,6 @@ const s = StyleSheet.create({
   modalBtns:      { flexDirection: "row", gap: 12 },
   cancelBtn:      { flex: 1, paddingVertical: 13, borderRadius: 50, alignItems: "center" },
   cancelTxt:      { fontWeight: "600", fontSize: typeScale.body },
-  removeBtn:      { flex: 1, paddingVertical: 13, borderRadius: 50, alignItems: "center", backgroundColor: "#E91E63" },
+  removeBtn:      { flex: 1, paddingVertical: 13, borderRadius: 50, alignItems: "center", backgroundColor: PINK },
   removeTxt:      { color: "#FFF", fontWeight: "700", fontSize: typeScale.body },
 });

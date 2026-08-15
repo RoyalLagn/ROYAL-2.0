@@ -9,6 +9,7 @@ const CHECKS = [
   { name: "packages", script: "scripts/test-package-domain.mjs", strip: true },
   { name: "contacts", script: "scripts/test-contact-actions.mjs", strip: true },
   { name: "external-links", script: "scripts/test-external-link-normalization.mjs", strip: true },
+  { name: "safe-navigation", script: "scripts/test-safe-navigation.mjs", strip: true },
   { name: "locations", script: "scripts/test-location-domain.mjs", strip: true },
   { name: "location-discovery", script: "scripts/test-location-discovery-domain.mjs", strip: true },
   { name: "auth-validation", script: "scripts/test-auth-validation.mjs", strip: true },

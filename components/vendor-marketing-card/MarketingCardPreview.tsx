@@ -72,7 +72,7 @@ const BASE_WIDTH = 1500;
 const BASE_HEIGHT = 1000;
 export const CARD_ASPECT_RATIO = BASE_WIDTH / BASE_HEIGHT; // 3:2 landscape
 
-const LOGO = require("@/assets/Logo/light-logo.png");
+const LOGO = require("@/assets/logos/light-logo.png");
 
 // Brand palette, sampled from the master card.
 const ROSE = "#E8117F";
@@ -115,7 +115,7 @@ function clip(value: string | null | undefined, max: number) {
 }
 
 // ---------------------------------------------------------------------
-// Brand asset crops. assets/Logo/light-logo.png is a single 1536x1024
+// Brand asset crops. assets/logos/light-logo.png is a single 1536x1024
 // lockup (emblem + wordmark) surrounded by transparent padding. Rather
 // than ship two more image files we window into it: the fractions below
 // are the measured bounding boxes of the full lockup and of the circular

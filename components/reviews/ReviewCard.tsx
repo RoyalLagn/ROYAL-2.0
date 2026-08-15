@@ -12,7 +12,7 @@ export default function ReviewCard({ review, dark = false, onHelpful, onEdit, on
   const c = reviewPalette(dark);
   const [avatarFailed, setAvatarFailed] = useState(false);
   const initial = review.customerName.trim().charAt(0).toUpperCase() || "?";
-  return <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+  return <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border, shadowColor: c.shadow }]}>
     <View style={styles.authorRow}>
       {review.customerAvatar && !avatarFailed ? <Image source={reviewImageSource(review.customerAvatar)} onError={() => setAvatarFailed(true)} style={styles.avatar} /> : <View style={[styles.fallback, { backgroundColor: c.soft }]}><Text style={[styles.initial, { color: c.pink }]}>{initial}</Text></View>}
       <View style={styles.authorCopy}><Text numberOfLines={1} style={[styles.name, { color: c.text }]}>{review.customerName}</Text>
@@ -20,24 +20,24 @@ export default function ReviewCard({ review, dark = false, onHelpful, onEdit, on
       </View>
       <Text style={[styles.date, { color: c.muted }]}>{formatDate(review.createdAt)}</Text>
     </View>
-    <Text accessibilityLabel={`${review.rating} out of 5 stars`} style={[styles.stars, { color: c.gold }]}>{"★".repeat(review.rating)}<Text style={{ color: dark ? "#51484C" : "#E9DFE3" }}>{"★".repeat(5 - review.rating)}</Text></Text>
+    <Text accessibilityLabel={`${review.rating} out of 5 stars`} style={[styles.stars, { color: c.gold }]}>{"★".repeat(review.rating)}<Text style={{ color: c.inactiveStar }}>{"★".repeat(5 - review.rating)}</Text></Text>
     <Text style={[styles.body, { color: c.muted }]}>{review.text}</Text>
     {review.photos?.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>{review.photos.map((photo, i) => <Image key={i} source={reviewImageSource(photo)} style={[styles.photo, { backgroundColor: c.soft }]} />)}</ScrollView> : null}
     <View style={[styles.actions, { borderTopColor: c.border }]}>
-      <Pressable disabled={!onHelpful || helpfulBusy} onPress={() => onHelpful?.(review)} style={styles.action}><ThumbsUp size={16} color={review.isHelpful ? c.pink : c.muted} fill={review.isHelpful ? c.pink : "transparent"} /><Text style={[styles.actionText, { color: review.isHelpful ? c.pink : c.muted }]}>Helpful ({review.helpfulCount})</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Mark ${review.customerName}'s review as helpful`} accessibilityState={{ disabled: !onHelpful || helpfulBusy, busy: helpfulBusy, selected: review.isHelpful }} disabled={!onHelpful || helpfulBusy} onPress={() => onHelpful?.(review)} style={styles.action}><ThumbsUp size={16} color={review.isHelpful ? c.pink : c.muted} fill={review.isHelpful ? c.pink : "transparent"} /><Text style={[styles.actionText, { color: review.isHelpful ? c.pink : c.muted }]}>Helpful ({review.helpfulCount})</Text></Pressable>
       {review.isOwner ? <View style={styles.ownerActions}>
-        {onEdit ? <Pressable onPress={() => onEdit(review)} style={styles.action}><Pencil size={15} color={c.pink} /><Text style={[styles.actionText, { color: c.pink }]}>Edit</Text></Pressable> : null}
-        {onDelete ? <Pressable onPress={() => onDelete(review)} style={styles.action}><Trash2 size={15} color="#D95555" /><Text style={[styles.actionText, { color: "#D95555" }]}>Delete</Text></Pressable> : null}
+        {onEdit ? <Pressable accessibilityRole="button" accessibilityLabel="Edit review" onPress={() => onEdit(review)} style={styles.action}><Pencil size={15} color={c.pink} /><Text style={[styles.actionText, { color: c.pink }]}>Edit</Text></Pressable> : null}
+        {onDelete ? <Pressable accessibilityRole="button" accessibilityLabel="Delete review" onPress={() => onDelete(review)} style={styles.action}><Trash2 size={15} color={c.destructive} /><Text style={[styles.actionText, { color: c.destructive }]}>Delete</Text></Pressable> : null}
       </View> : null}
     </View>
   </View>;
 }
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 18, padding: 16, gap: 8, shadowColor: "#94546C", shadowOpacity: .045, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
+  card: { borderWidth: 1, borderRadius: 18, padding: 16, gap: 8, shadowOpacity: .045, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
   authorRow: { flexDirection: "row", alignItems: "center", gap: 10 }, avatar: { width: 42, height: 42, borderRadius: 21 }, fallback: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" }, initial: { fontFamily: fonts.serif.bold, fontSize: typeScale.editorialCardTitle },
   authorCopy: { flex: 1, minWidth: 0 }, name: { fontSize: typeScale.body, fontWeight: "700" }, verified: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }, verifiedText: { fontSize: typeScale.caption, fontWeight: "600" }, date: { fontSize: typeScale.caption },
   stars: { fontSize: typeScale.body, letterSpacing: 1 }, body: { fontSize: typeScale.body, lineHeight: typeLeading.cardTitle },
   photos: { gap: 8, paddingTop: 3 }, photo: { width: 108, height: 90, borderRadius: 12 },
   actions: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11, marginTop: 5, flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
-  action: { minHeight: 32, flexDirection: "row", alignItems: "center", gap: 6 }, actionText: { fontSize: typeScale.metadata, fontWeight: "600" }, ownerActions: { flexDirection: "row", gap: 14 },
+  action: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 6 }, actionText: { fontSize: typeScale.metadata, fontWeight: "600" }, ownerActions: { flexDirection: "row", gap: 14 },
 });

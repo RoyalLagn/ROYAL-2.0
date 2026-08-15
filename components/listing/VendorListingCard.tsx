@@ -8,10 +8,10 @@ import { MembershipBadge, membershipBadgeFor } from "@/components/vendor/Members
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
-import { brandColors } from "@/constants/brandPalette";
+import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading, typeStyles } from "@/constants/typography";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 type VendorListingCardProps = {
   vendor: PublicVendorListing;

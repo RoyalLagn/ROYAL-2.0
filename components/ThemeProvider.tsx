@@ -1,9 +1,10 @@
 // ThemeProvider.tsx
 import { useColorScheme } from 'nativewind';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, useColorScheme as useSystemColorScheme, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { lightTheme, darkTheme } from '../theme';
+import { brandPalette } from '@/constants/brandPalette';
 
 interface ThemeProviderProps {
   children: React.ReactNode;
@@ -31,23 +32,33 @@ export function useAppTheme() {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { setColorScheme: setNativeWindColorScheme } = useColorScheme();
-  const [colorScheme, setColorScheme] = useState<AppColorScheme>('light');
+  const systemColorScheme = useSystemColorScheme();
+  const [followsSystem, setFollowsSystem] = useState(true);
+  const [colorScheme, setColorScheme] = useState<AppColorScheme>(systemColorScheme === 'dark' ? 'dark' : 'light');
 
   useEffect(() => {
     const restoreTheme = async () => {
       const saved = Platform.OS === 'web'
         ? globalThis.localStorage?.getItem(THEME_KEY)
         : await SecureStore.getItemAsync(THEME_KEY);
-      if (saved === 'light' || saved === 'dark') setColorScheme(saved);
+      if (saved === 'light' || saved === 'dark') {
+        setFollowsSystem(false);
+        setColorScheme(saved);
+      }
     };
     restoreTheme().catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (followsSystem) setColorScheme(systemColorScheme === 'dark' ? 'dark' : 'light');
+  }, [followsSystem, systemColorScheme]);
 
   useEffect(() => {
     setNativeWindColorScheme(colorScheme);
   }, [colorScheme, setNativeWindColorScheme]);
 
   const toggleColorScheme = useCallback(() => {
+    setFollowsSystem(false);
     setColorScheme((current) => {
       const next = current === 'dark' ? 'light' : 'dark';
       if (Platform.OS === 'web') globalThis.localStorage?.setItem(THEME_KEY, next);
@@ -88,7 +99,12 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       <View
         style={[
           themeVars,
-          { flex: 1, backgroundColor: colorScheme === 'dark' ? '#070B14' : '#FFFFFF' },
+          {
+            flex: 1,
+            backgroundColor: colorScheme === 'dark'
+              ? brandPalette.dark.background
+              : brandPalette.light.background,
+          },
         ]}
         className={`${colorScheme} flex-1 bg-background`}
       >

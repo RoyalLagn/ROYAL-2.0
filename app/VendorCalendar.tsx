@@ -15,6 +15,7 @@ import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import { interactionTokens } from "@/constants/interactionTokens";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { updateVendorPublicProfile, type VendorBusinessHourEntry } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
@@ -232,7 +233,7 @@ export default function VendorCalendar() {
       <Text style={[styles.title, { color: colors.text }]}>Availability</Text>
       <Text style={[styles.subtitle, { color: colors.muted }]}>Keep customer expectations accurate with an up-to-date working calendar.</Text>
       <View style={[styles.calendar, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
-        <View style={styles.monthRow}><Pressable onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} style={styles.arrow}><ChevronLeft size={20} color={colors.text} /></Pressable><Text style={[styles.month, { color: colors.text }]}>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</Text><Pressable onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} style={styles.arrow}><ChevronRight size={20} color={colors.text} /></Pressable></View>
+        <View style={styles.monthRow}><Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} style={styles.arrow}><ChevronLeft size={20} color={colors.text} /></Pressable><Text style={[styles.month, { color: colors.text }]}>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</Text><Pressable accessibilityRole="button" accessibilityLabel="Next month" onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} style={styles.arrow}><ChevronRight size={20} color={colors.text} /></Pressable></View>
         <View onLayout={(event) => setCalendarGridWidth(event.nativeEvent.layout.width)} style={styles.grid}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <Text key={`${day}${index}`} style={[styles.weekday, cellSize ? { width: cellSize } : null, { color: colors.muted }]}>{day}</Text>)}
           {days.map((date, index) => {
             if (!date) return <View key={`blank${index}`} style={[styles.day, cellSize ? { width: cellSize, height: cellSize } : null]} />;
@@ -281,7 +282,7 @@ export default function VendorCalendar() {
         <View onLayout={(event) => setStatusRowWidth(event.nativeEvent.layout.width)} style={styles.statusGrid}>{statuses.map(({ id, label, icon: Icon }) => {
           const active = dateStatus(selected) === id;
           const palette = statusColors[id];
-          return <Pressable key={id} disabled={savingStatus !== null || selected < today} onPress={() => update(id)} style={({ pressed }) => [styles.status, statusButtonWidth ? { width: statusButtonWidth } : null, { backgroundColor: active ? palette.background : colors.background }, selected < today && styles.statusDisabled, pressed && styles.pressed]}>
+          return <Pressable key={id} accessibilityRole="radio" accessibilityLabel={`Set availability to ${label}`} accessibilityState={{ checked: active, disabled: savingStatus !== null || selected < today, busy: savingStatus === id }} disabled={savingStatus !== null || selected < today} onPress={() => update(id)} style={({ pressed }) => [styles.status, statusButtonWidth ? { width: statusButtonWidth } : null, { backgroundColor: active ? palette.background : colors.background }, selected < today && styles.statusDisabled, pressed && styles.pressed]}>
             {savingStatus === id
               ? <ActivityIndicator size="small" color={active ? palette.text : colors.pink} />
               : <Icon size={19} color={active ? palette.text : colors.muted} />}
@@ -290,6 +291,9 @@ export default function VendorCalendar() {
         })}</View>
         {selected >= today && savedStatuses[selected] ? (
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Remove exception and mark date available"
+            accessibilityState={{ disabled: savingStatus !== null, busy: savingStatus === "available" }}
             disabled={savingStatus !== null}
             onPress={() => update("available")}
             style={[styles.markAvailable, { borderColor: statusColors.available.background }]}
@@ -356,8 +360,8 @@ export default function VendorCalendar() {
           ))}
         </View>
         <View style={styles.hoursSaveRow}>
-          {hoursError ? <Text style={styles.hoursError}>{hoursError}</Text>
-            : hoursSaved ? <Text style={[styles.hoursSaved, { color: colors.success }]}>Working hours updated</Text>
+          {hoursError ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.hoursError, { color: colors.destructive }]}>{hoursError}</Text>
+            : hoursSaved ? <Text accessibilityLiveRegion="polite" style={[styles.hoursSaved, { color: colors.success }]}>Working hours updated</Text>
             : <Text style={[styles.hoursHint, { color: colors.muted }]}>Available days appear on your public profile.</Text>}
           <Pressable disabled={hoursSaving} accessibilityRole="button" accessibilityState={{ disabled: hoursSaving }} onPress={() => void saveHours()} style={({ pressed }) => [styles.hoursSave, { backgroundColor: colors.pink }, hoursSaving && styles.disabled, pressed && styles.pressed]}>
             {hoursSaving ? <ActivityIndicator color="#FFF" size="small" /> : <><Save size={14} color="#FFF" /><Text style={styles.hoursSaveText}>Save hours</Text></>}
@@ -394,13 +398,13 @@ const styles = StyleSheet.create({
   page: { flex: 1 }, content: { padding: 16, paddingTop: 22, paddingBottom: 24, width: "100%", maxWidth: 780, alignSelf: "center" },
   eyebrow: { ...typeStyles.caption, letterSpacing: 1.1, marginBottom: 5 }, title: { ...typeStyles.pageTitle },
   subtitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 4 }, calendar: { borderRadius: 24, padding: 15, marginTop: 20, shadowOffset: { width: 0, height: 9 }, shadowOpacity: .08, shadowRadius: 22, elevation: 3 },
-  monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }, month: { fontSize: typeScale.cardTitle, fontWeight: "700" }, arrow: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
+  monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }, month: { fontSize: typeScale.cardTitle, fontWeight: "700" }, arrow: { width: interactionTokens.minimumTouchTarget, height: interactionTokens.minimumTouchTarget, alignItems: "center", justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap" }, weekday: { width: "14.285%", textAlign: "center", fontSize: typeScale.caption, fontWeight: "700", paddingVertical: 8 },
   day: { width: "14.285%", borderRadius: 12, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] }, dayText: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" }, pastDay: { opacity: .6 },
   legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13, paddingTop: 16 }, legendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, legendSwatch: { width: 10, height: 10, borderRadius: 3 }, legendText: { fontSize: typeScale.caption, fontWeight: "700" },
   editor: { borderRadius: 22, padding: 16, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .07, shadowRadius: 18, elevation: 2 }, editorTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
   statusGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 }, status: { flex: 1, minWidth: 120, minHeight: 68, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 }, statusDisabled: { opacity: .45 }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
-  markAvailable: { minHeight: 46, borderWidth: 1, borderRadius: 14, marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  markAvailable: { minHeight: 48, borderWidth: 1, borderRadius: 14, marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   markAvailableText: { fontSize: typeScale.metadata, fontWeight: "700" },
   hoursList: { marginTop: 14, gap: 4 },
   hourRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth },
@@ -410,15 +414,15 @@ const styles = StyleSheet.create({
   hourDay: { fontSize: typeScale.metadata, fontWeight: "700" },
   hourClosedText: { flex: 1, fontSize: typeScale.metadata, fontWeight: "600" },
   hourInputs: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 7 },
-  hourInput: { flex: 1, flexBasis: 0, minWidth: 0, minHeight: 42, borderWidth: 1, borderRadius: 11, paddingHorizontal: 10, fontSize: typeScale.metadata, textAlign: "center" },
+  hourInput: { flex: 1, flexBasis: 0, minWidth: 0, minHeight: interactionTokens.minimumTouchTarget, borderWidth: 1, borderRadius: 11, paddingHorizontal: 10, fontSize: typeScale.metadata, textAlign: "center" },
   hourSeparator: { fontSize: typeScale.metadata, fontWeight: "700" },
-  availabilityControl: { width: 116, minHeight: 44, flexShrink: 0, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 7 },
+  availabilityControl: { width: 116, minHeight: interactionTokens.minimumTouchTarget, flexShrink: 0, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 7 },
   availabilityLabel: { fontSize: typeScale.caption, fontWeight: "700" },
   hoursSaveRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 16 },
   hoursHint: { flex: 1, fontSize: typeScale.caption },
   hoursSaved: { flex: 1, fontSize: typeScale.caption, fontWeight: "700" },
-  hoursError: { flex: 1, color: "#DC2626", fontSize: typeScale.caption, lineHeight: typeLeading.label, fontWeight: "700" },
-  hoursSave: { minHeight: 40, minWidth: 118, borderRadius: 13, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  hoursError: { flex: 1, fontSize: typeScale.caption, lineHeight: typeLeading.label, fontWeight: "700" },
+  hoursSave: { minHeight: interactionTokens.minimumTouchTarget, minWidth: 118, borderRadius: 13, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   hoursSaveText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
   disabled: { opacity: .6 },
   lockNotice: { minHeight: 44, borderRadius: 14, marginTop: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 }, lockText: { flex: 1, fontSize: typeScale.caption, lineHeight: typeLeading.caption },

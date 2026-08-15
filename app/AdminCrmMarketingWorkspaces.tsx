@@ -44,7 +44,7 @@ function WorkspaceRow({ workspace, completion, assigned, deleting, onPress, onDe
               accessibilityLabel="Delete workspace"
               disabled={deleting}
               onPress={onDelete}
-              className="w-8 h-8 items-center justify-center rounded-full"
+              className="w-11 h-11 items-center justify-center rounded-full"
               style={{ backgroundColor: "#FEE2E2" }}
             >
               {deleting ? <ActivityIndicator size="small" color="#DC3545" /> : <Trash2 size={14} color="#DC3545" />}

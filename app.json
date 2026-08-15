@@ -3,10 +3,10 @@
     "name": "RoyalLagn",
     "slug": "royallagn",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/images/app-icon.png",
+    "orientation": "default",
+    "icon": "./assets/logos/appicon.png",
     "scheme": "royallagn",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -15,19 +15,21 @@
     },
     "android": {
       "versionCode": 3,
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "blockedPermissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/app-icon.png",
+        "foregroundImage": "./assets/logos/appicon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.royallagn.app"
     },
     "web": {
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/logos/appicon.png"
     },
     "plugins": [
       "expo-router",
@@ -55,7 +57,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/app-icon.png",
+          "icon": "./assets/logos/appicon.png",
           "color": "#E91E63",
           "sounds": [],
           "defaultChannel": "default"

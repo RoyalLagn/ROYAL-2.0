@@ -11,6 +11,7 @@ import Animated, {
 import { useAppTheme } from "@/components/ThemeProvider";
 import { MotionDistance, MotionDuration } from "@/utils/motion";
 import { typeScale, typeLeading } from "@/constants/typography";
+import { brandPalette } from "@/constants/brandPalette";
 
 /**
  * Shared empty/error-state block. Distinguishes "nothing here yet" from
@@ -44,11 +45,12 @@ export default function EmptyState({ icon: Icon, title, message, tone = "empty",
     transform: [{ translateY: translateY.value }],
   }));
 
-  const tint = tone === "error" ? "#D33B55" : "#E91E63";
-  const surface = isDark ? "#171015" : "#FFFFFF";
-  const border = isDark ? "#2E232A" : "#F0DDE5";
-  const text = isDark ? "#F5EBEF" : "#241820";
-  const muted = isDark ? "#B3A4AC" : "#7A6670";
+  const palette = isDark ? brandPalette.dark : brandPalette.light;
+  const tint = tone === "error" ? palette.destructive : palette.primary;
+  const surface = palette.card;
+  const border = palette.border;
+  const text = palette.foreground;
+  const muted = palette.mutedForeground;
 
   return (
     <Animated.View style={[styles.wrap, { backgroundColor: surface, borderColor: border }, animatedStyle]}>
@@ -58,7 +60,7 @@ export default function EmptyState({ icon: Icon, title, message, tone = "empty",
       <Text style={[styles.title, { color: text }]}>{title}</Text>
       {message ? <Text style={[styles.message, { color: muted }]}>{message}</Text> : null}
       {actionLabel && onAction ? (
-        <Pressable onPress={onAction} style={[styles.action, { backgroundColor: tint }]}>
+        <Pressable accessibilityRole="button" onPress={onAction} style={({ pressed }) => [styles.action, { backgroundColor: tint }, pressed && styles.actionPressed]}>
           <Text style={styles.actionText}>{actionLabel}</Text>
         </Pressable>
       ) : null}
@@ -71,6 +73,7 @@ const styles = StyleSheet.create({
   icon: { width: 52, height: 52, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 12 },
   title: { fontSize: typeScale.body, fontWeight: "700", textAlign: "center" },
   message: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab, textAlign: "center", marginTop: 6, maxWidth: 320 },
-  action: { minHeight: 42, borderRadius: 13, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", marginTop: 16 },
+  action: { minHeight: 44, borderRadius: 13, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", marginTop: 16 },
+  actionPressed: { transform: [{ scale: 0.98 }], opacity: 0.92 },
   actionText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
 });

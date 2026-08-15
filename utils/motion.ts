@@ -90,18 +90,16 @@ export const MotionTiming = {
 };
 
 /**
- * The single native-stack transition preset used across the whole app (see
- * app/_layout.tsx). `fade_from_bottom` is react-native-screens' built-in
- * "soft fade + small upward settle" preset -- it is native-driven (no JS
- * thread cost, works with the iOS interactive swipe-back gesture out of the
- * box) which is why we use the platform preset here instead of a bespoke
- * reanimated screen wrapper: a custom JS-driven transition would fight the
- * native-stack's own gesture-driven pop animation and risk jank without
- * adding a new dependency (react-native-screens/native-stack is already the
- * router's transport). Back navigation automatically reverses this same
- * animation -- there is nothing extra to configure per screen.
+ * Platform-native stack transitions. iOS keeps its standard push/pop motion
+ * and interactive edge swipe; Android uses the native fade-from-bottom
+ * transition; web gets a restrained crossfade.
  */
-export const SCREEN_TRANSITION = "fade_from_bottom" as const;
+export const SCREEN_TRANSITION = Platform.select({
+  ios: "default" as const,
+  android: "fade_from_bottom" as const,
+  web: "fade" as const,
+  default: "default" as const,
+});
 
 /** Modal/bottom-sheet presentation transition (native-stack preset). */
 export const MODAL_TRANSITION = "fade" as const;

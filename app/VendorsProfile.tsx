@@ -42,7 +42,7 @@ import { shareVendorProfile } from "@/services/vendorShare";
 import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
 import { SkeletonBone, SkeletonList } from "@/components/loading/Skeleton";
 import PageLoader from "@/components/loading/PageLoader";
-import { brandColors } from "@/constants/brandPalette";
+import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
 import Animated, {
   useAnimatedStyle,
@@ -52,7 +52,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { MotionDistance, MotionTiming } from "@/utils/motion";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 function enhanceImage(uri: string) {
   return uri.replace(/([?&])w=\d+/, "$1w=1200");

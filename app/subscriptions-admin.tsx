@@ -13,7 +13,7 @@ import { adminPalette } from "@/theme";
 import { MembershipBadge } from "@/components/vendor/MembershipBadge";
 
 type Tab = "plans" | "vendors" | "offers";
-const pink = "#E91E63";
+const pink = adminPalette.brand;
 const emptyPlan: AdminPlanInput = { name: "", slug: "", description: "", price: 0, discounted_price: null, billing_interval: "custom", billing_interval_count: 1, duration_days: null, trial_enabled: false, trial_days: 0, grace_period_days: 0, is_active: true, is_featured: false, status: "active", is_permanent: false };
 const emptyOffer = { name: "", code: "", description: "", discount_type: "percentage", discount_value: 0, start_date: "", end_date: "", is_global: true, is_active: true, applicable_plan_ids: [], applicable_vendor_ids: [], applicable_billing_intervals: [], uses_per_vendor: 1 };
 const emptyBillingOption: AdminBillingOptionInput = { plan_id: "", billing_interval: "month", interval_count: 1, price: 0, discounted_price: null, discount_percentage: 0, trial_enabled: false, trial_days: 0, grace_period_days: 0, is_active: true, display_order: 0 };

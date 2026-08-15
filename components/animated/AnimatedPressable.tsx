@@ -1,6 +1,6 @@
 import React, { useCallback, useRef } from "react";
 import type { GestureResponderEvent, PressableProps, StyleProp, ViewStyle } from "react-native";
-import { Pressable } from "react-native";
+import { Platform, Pressable } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -46,6 +46,9 @@ export default function AnimatedPressable({
   preventDuplicatePress = true,
   duplicatePressWindowMs = 700,
   disabled,
+  android_ripple,
+  accessibilityState,
+  hitSlop,
   ...rest
 }: AnimatedPressableProps) {
   const reducedMotion = useReducedMotion();
@@ -100,6 +103,9 @@ export default function AnimatedPressable({
     <AnimatedRNPressable
       {...rest}
       disabled={disabled}
+      hitSlop={hitSlop ?? 4}
+      accessibilityState={disabled ? { ...accessibilityState, disabled: true } : accessibilityState}
+      android_ripple={android_ripple ?? (Platform.OS === "android" ? { color: "rgba(127,127,127,0.14)", borderless: false } : undefined)}
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}

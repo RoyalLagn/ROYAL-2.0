@@ -12,16 +12,16 @@ export default function ReviewFilters({ sort, star, dark = false, onSortChange, 
   const chip = (selected: boolean) => [styles.chip, { borderColor: selected ? c.pink : c.border, backgroundColor: selected ? c.soft : c.surface }];
   return <View style={styles.wrap}>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-      {sorts.map((item) => <Pressable key={item.key} onPress={() => onSortChange(item.key)} style={chip(sort === item.key)}><Text style={[styles.text, { color: sort === item.key ? c.pink : c.muted }]}>{item.label}</Text></Pressable>)}
+      {sorts.map((item) => <Pressable key={item.key} accessibilityRole="radio" accessibilityLabel={`Sort reviews by ${item.label}`} accessibilityState={{ checked: sort === item.key }} onPress={() => onSortChange(item.key)} style={chip(sort === item.key)}><Text style={[styles.text, { color: sort === item.key ? c.pink : c.muted }]}>{item.label}</Text></Pressable>)}
     </ScrollView>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-      <Pressable onPress={() => onStarChange(null)} style={chip(star === null)}><Text style={[styles.text, { color: star === null ? c.pink : c.muted }]}>All stars</Text></Pressable>
-      {([5,4,3,2,1] as const).map((value) => <Pressable key={value} onPress={() => onStarChange(value)} style={chip(star === value)}><Text style={[styles.text, { color: star === value ? c.pink : c.muted }]}>{value} ★</Text></Pressable>)}
+      <Pressable accessibilityRole="radio" accessibilityLabel="Show all star ratings" accessibilityState={{ checked: star === null }} onPress={() => onStarChange(null)} style={chip(star === null)}><Text style={[styles.text, { color: star === null ? c.pink : c.muted }]}>All stars</Text></Pressable>
+      {([5,4,3,2,1] as const).map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityLabel={`Show ${value}-star reviews`} accessibilityState={{ checked: star === value }} onPress={() => onStarChange(value)} style={chip(star === value)}><Text style={[styles.text, { color: star === value ? c.pink : c.muted }]}>{value} ★</Text></Pressable>)}
     </ScrollView>
   </View>;
 }
 const styles = StyleSheet.create({
   wrap: { gap: 9 }, row: { gap: 8, paddingRight: 2 },
-  chip: { borderWidth: 1, borderRadius: 20, minHeight: 37, paddingHorizontal: 14, alignItems: "center", justifyContent: "center" },
+  chip: { borderWidth: 1, borderRadius: 24, minHeight: 48, paddingHorizontal: 14, alignItems: "center", justifyContent: "center" },
   text: { fontSize: typeScale.bodyCompact, fontWeight: "600" },
 });

@@ -191,13 +191,13 @@ export default function AdminCrmCategories() {
                       </View>
                     </View>
                     <View className="flex-row items-center justify-end gap-1 mt-3 pt-3 border-t border-border">
-                      <Pressable accessibilityLabel="Move up" disabled={!index || Boolean(query.trim())} onPress={() => void move(index, -1)} className="w-9 h-9 rounded-xl items-center justify-center" style={{ opacity: !index || query.trim() ? 0.3 : 1 }}>
+                      <Pressable accessibilityLabel="Move up" disabled={!index || Boolean(query.trim())} onPress={() => void move(index, -1)} className="w-11 h-11 rounded-xl items-center justify-center" style={{ opacity: !index || query.trim() ? 0.3 : 1 }}>
                         <ChevronUp size={16} className="text-muted-foreground" />
                       </Pressable>
-                      <Pressable accessibilityLabel="Move down" disabled={index === filtered.length - 1 || Boolean(query.trim())} onPress={() => void move(index, 1)} className="w-9 h-9 rounded-xl items-center justify-center" style={{ opacity: index === filtered.length - 1 || query.trim() ? 0.3 : 1 }}>
+                      <Pressable accessibilityLabel="Move down" disabled={index === filtered.length - 1 || Boolean(query.trim())} onPress={() => void move(index, 1)} className="w-11 h-11 rounded-xl items-center justify-center" style={{ opacity: index === filtered.length - 1 || query.trim() ? 0.3 : 1 }}>
                         <ChevronDown size={16} className="text-muted-foreground" />
                       </Pressable>
-                      <Pressable accessibilityLabel={`Rename ${category.name}`} onPress={() => openEditor(category)} className="w-9 h-9 rounded-xl items-center justify-center">
+                      <Pressable accessibilityLabel={`Rename ${category.name}`} onPress={() => openEditor(category)} className="w-11 h-11 rounded-xl items-center justify-center">
                         <Edit3 size={15} className="text-primary" />
                       </Pressable>
                       <Switch
@@ -206,7 +206,7 @@ export default function AdminCrmCategories() {
                         trackColor={{ false: "#E7E1E4", true: "#F4A9C4" }}
                         thumbColor={category.is_active ? "#E91E63" : "#FFFFFF"}
                       />
-                      <Pressable accessibilityLabel={`Delete ${category.name}`} onPress={() => setConfirmDelete(category)} className="w-9 h-9 rounded-xl items-center justify-center">
+                      <Pressable accessibilityLabel={`Delete ${category.name}`} onPress={() => setConfirmDelete(category)} className="w-11 h-11 rounded-xl items-center justify-center">
                         <Trash2 size={15} color="#DC3545" />
                       </Pressable>
                     </View>

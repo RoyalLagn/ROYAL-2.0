@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "expo-router";
 import { useVendorAuth } from "@/context/VendorAuthContext";
 import { isProtectedVendorRoute } from "@/vendor/navigation";
@@ -18,9 +18,15 @@ export function VendorRouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { resolution, loading, isVendorAuthenticated } = useVendorAuth();
   const protectedRoute = isProtectedVendorRoute(pathname);
+  const redirecting = useRef(false);
 
   useEffect(() => {
-    if (!protectedRoute || loading || isVendorAuthenticated) return;
+    if (!protectedRoute || loading || isVendorAuthenticated) {
+      redirecting.current = false;
+      return;
+    }
+    if (redirecting.current) return;
+    redirecting.current = true;
     // Reuse the destination the context already resolved instead of
     // resolving again -- one fetch, one decision, one redirect.
     if (router.canDismiss()) router.dismissAll();

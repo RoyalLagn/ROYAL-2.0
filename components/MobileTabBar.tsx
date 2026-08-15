@@ -30,12 +30,8 @@ import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
 import { typeScale, typeLeading } from "@/constants/typography";
 
 import { brandPalette } from "@/constants/brandPalette";
+import { floatingNavigationColors, floatingNavigationTokens } from "@/constants/navigationTokens";
 
-/** AA-friendly active pink for small tab labels on light backgrounds. */
-const PINK = brandPalette.light.primaryStrong;
-const ACTIVE_DARK = "#F9A8D4";
-const INACTIVE_LIGHT = "#52525B";
-const INACTIVE_DARK = "#A0A0A5";
 const CENTER_ROUTE = "clips";
 const TAB_COUNT = 5;
 const CUSTOMER_TAB_ROUTES = new Set([
@@ -67,7 +63,7 @@ const ICONS: Record<string, React.ComponentType<any>> = {
   profile: AnimatedUser,
 };
 
-export const MOBILE_TAB_BASE_HEIGHT = 58;
+export const MOBILE_TAB_BASE_HEIGHT = floatingNavigationTokens.baseHeight;
 
 type AnimatedTabProps = {
   routeName: string;
@@ -103,8 +99,11 @@ function AnimatedTab({
   } = useFavorites();
   const isCenter = routeName === CENTER_ROUTE;
   const isFavorites = routeName === "favorites";
-  const activeColor = isDark ? ACTIVE_DARK : PINK;
-  const inactiveColor = isDark ? INACTIVE_DARK : INACTIVE_LIGHT;
+  const tabColors = isDark
+    ? floatingNavigationTokens.customerTabs.dark
+    : floatingNavigationTokens.customerTabs.light;
+  const activeColor = tabColors.active;
+  const inactiveColor = tabColors.inactive;
   const Icon = ICONS[routeName] ?? AnimatedHome;
   const previousArrivalToken = useRef(favoriteArrivalToken);
 
@@ -152,14 +151,19 @@ function AnimatedTab({
     backgroundColor: interpolateColor(
       active.value,
       [0, 1],
-      [isDark ? "#D92B69" : "#E93370", activeColor],
+      [
+        isDark
+          ? floatingNavigationTokens.centerInactiveDark
+          : floatingNavigationTokens.centerInactiveLight,
+        activeColor,
+      ],
     ),
     shadowOpacity: interpolate(active.value, [0, 1], [0.2, 0.32]),
   }));
 
   const iconProps = useAnimatedProps(() => ({
     color: isCenter
-      ? "#FFFFFF"
+      ? brandPalette.light.primaryForeground
       : isFavorites && arrival.value > 0.01
         ? activeColor
         : interpolateColor(active.value, [0, 1], [inactiveColor, activeColor]),
@@ -179,9 +183,7 @@ function AnimatedTab({
 
   return (
     <Pressable
-      // Route destinations — use link semantics, not tablist/tab (those are for
-      // in-page panels). Selected route is exposed via accessibilityState.selected.
-      accessibilityRole="link"
+      accessibilityRole="tab"
       accessibilityState={{ selected: focused }}
       accessibilityLabel={isFavorites && hasUnviewedFavorites
         ? `${labelText}, new favorites available`
@@ -191,6 +193,7 @@ function AnimatedTab({
       onLongPress={onLongPress}
       onPressIn={pressIn}
       onPressOut={pressOut}
+      android_ripple={Platform.OS === "android" ? { color: isDark ? "rgba(236,72,153,.14)" : "rgba(233,30,99,.09)", borderless: false } : undefined}
       style={styles.item}
     >
       {isCenter ? (
@@ -257,6 +260,7 @@ export function MobileTabBar({
   const { colorScheme } = useAppTheme();
   const reducedMotion = useReducedMotion();
   const isDark = colorScheme === "dark";
+  const navigationColors = floatingNavigationColors(isDark);
   const [itemsWidth, setItemsWidth] = useState(0);
   const orderedRoutes = useMemo(
     () => state.routes.filter((route) => CUSTOMER_TAB_ROUTES.has(route.name)),
@@ -302,7 +306,9 @@ export function MobileTabBar({
         styles.safeWrap,
         {
           paddingBottom: Math.max(insets.bottom, 8),
-          backgroundColor: isDark ? "#070B14" : "#FFFFFF",
+          paddingLeft: Math.max(insets.left, floatingNavigationTokens.horizontalInset),
+          paddingRight: Math.max(insets.right, floatingNavigationTokens.horizontalInset),
+          backgroundColor: navigationColors.canvas,
         },
       ]}
     >
@@ -310,8 +316,8 @@ export function MobileTabBar({
         style={[
           styles.bar,
           {
-            backgroundColor: isDark ? "#0E141F" : "#FFFFFF",
-            borderColor: isDark ? "#5A2B3F" : "#F3D4DF",
+            backgroundColor: navigationColors.surface,
+            borderColor: navigationColors.border,
           },
         ]}
       >
@@ -321,7 +327,7 @@ export function MobileTabBar({
               pointerEvents="none"
               style={[
                 styles.activeIndicator,
-                { backgroundColor: isDark ? "rgba(236,72,153,.13)" : "#FFF0F6" },
+                { backgroundColor: navigationColors.indicator },
                 indicatorStyle,
               ]}
             />
@@ -387,6 +393,7 @@ export function StandaloneMobileTabBar({
   const { colorScheme } = useAppTheme();
   const reducedMotion = useReducedMotion();
   const isDark = colorScheme === "dark";
+  const navigationColors = floatingNavigationColors(isDark);
   const [itemsWidth, setItemsWidth] = useState(0);
   const selectedIndex = Math.max(
     0,
@@ -420,7 +427,9 @@ export function StandaloneMobileTabBar({
         styles.safeWrap,
         {
           paddingBottom: Math.max(insets.bottom, 8),
-          backgroundColor: isDark ? "#070B14" : "#FFFFFF",
+          paddingLeft: Math.max(insets.left, floatingNavigationTokens.horizontalInset),
+          paddingRight: Math.max(insets.right, floatingNavigationTokens.horizontalInset),
+          backgroundColor: navigationColors.canvas,
         },
       ]}
     >
@@ -428,8 +437,8 @@ export function StandaloneMobileTabBar({
         style={[
           styles.bar,
           {
-            backgroundColor: isDark ? "#0E141F" : "#FFFFFF",
-            borderColor: isDark ? "#5A2B3F" : "#F3D4DF",
+            backgroundColor: navigationColors.surface,
+            borderColor: navigationColors.border,
           },
         ]}
       >
@@ -442,7 +451,7 @@ export function StandaloneMobileTabBar({
               pointerEvents="none"
               style={[
                 styles.activeIndicator,
-                { backgroundColor: isDark ? "rgba(236,72,153,.13)" : "#FFF0F6" },
+                { backgroundColor: navigationColors.indicator },
                 indicatorStyle,
               ]}
             />
@@ -457,6 +466,7 @@ export function StandaloneMobileTabBar({
               isDark={isDark}
               reducedMotion={reducedMotion}
               onPress={() => {
+                if (tab.routeName === activeRoute) return;
                 if (tab.routeName === "profile") {
                   void openAuthenticationGateway();
                   return;
@@ -477,30 +487,33 @@ const styles = StyleSheet.create({
   safeWrap: {
     width: "100%",
     flexShrink: 0,
+    paddingHorizontal: floatingNavigationTokens.horizontalInset,
   },
   bar: {
-    minHeight: 58,
-    marginHorizontal: 10,
+    width: "100%",
+    maxWidth: floatingNavigationTokens.tabletMaxWidth,
+    alignSelf: "center",
+    minHeight: floatingNavigationTokens.baseHeight,
     borderWidth: 1,
-    borderRadius: 31,
+    borderRadius: floatingNavigationTokens.barRadius,
     overflow: "visible",
-    shadowColor: "#573341",
+    shadowColor: floatingNavigationTokens.shadow,
     shadowOpacity: 0.13,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: -4 },
     elevation: 12,
   },
   items: {
-    minHeight: 58,
+    minHeight: floatingNavigationTokens.baseHeight,
     flexDirection: "row",
     alignItems: "stretch",
     position: "relative",
   },
   activeIndicator: {
     position: "absolute",
-    top: 5,
-    bottom: 5,
-    borderRadius: 25,
+    top: floatingNavigationTokens.indicatorInset,
+    bottom: floatingNavigationTokens.indicatorInset,
+    borderRadius: floatingNavigationTokens.indicatorRadius,
   },
   item: {
     flex: 1,
@@ -522,7 +535,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: PINK,
+    backgroundColor: floatingNavigationTokens.customerTabs.light.active,
   },
   homeVisual: {
     width: 44,
@@ -536,10 +549,10 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: brandPalette.light.primaryForeground,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: PINK,
+    shadowColor: floatingNavigationTokens.customerTabs.light.active,
     shadowRadius: 11,
     shadowOffset: { width: 0, height: 5 },
     elevation: 9,

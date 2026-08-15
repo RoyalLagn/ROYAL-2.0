@@ -45,7 +45,7 @@ export function VendorCard({
             </View>
           </View>
           {!selectionMode ? (
-            <Pressable accessibilityLabel={`Actions for ${vendor.business_name}`} onPress={onMenu} className="w-9 h-9 items-center justify-center -mr-2 -mt-1">
+            <Pressable accessibilityLabel={`Actions for ${vendor.business_name}`} onPress={onMenu} className="w-11 h-11 items-center justify-center -mr-2 -mt-1">
               <MoreVertical size={18} className="text-muted-foreground" />
             </Pressable>
           ) : null}

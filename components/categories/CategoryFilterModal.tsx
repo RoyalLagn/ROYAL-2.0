@@ -3,8 +3,10 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { Check, X } from "lucide-react-native";
 import type { CategoryCardItem } from "./CategoryCard";
 import { typeScale, typeLeading } from "@/constants/typography";
+import { brandPalette } from "@/constants/brandPalette";
+import { interactionTokens } from "@/constants/interactionTokens";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 type CategoryFilterModalProps = {
   visible: boolean;
@@ -61,7 +63,7 @@ export default function CategoryFilterModal({
                 <Pressable
                   key={id ?? "all"}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: active }}
+                  accessibilityState={{ checked: active }}
                   accessibilityLabel={`Filter by ${category.name}`}
                   onPress={() => setDraft(id)}
                   style={[
@@ -80,7 +82,7 @@ export default function CategoryFilterModal({
           </ScrollView>
 
           <View style={styles.actions}>
-            <Pressable accessibilityRole="button" onPress={() => setDraft(null)} style={[styles.reset, { borderColor: border }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Reset category filters" onPress={() => setDraft(null)} style={[styles.reset, { borderColor: border }]}>
               <Text style={[styles.resetText, { color: text }]}>Reset</Text>
             </Pressable>
             <Pressable accessibilityRole="button" onPress={() => onApply(draft)} style={styles.apply}>
@@ -100,10 +102,10 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 15 },
   title: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700", letterSpacing: -0.3 },
   subtitle: { marginTop: 3, fontSize: typeScale.metadata, lineHeight: typeLeading.label },
-  close: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+  close: { width: interactionTokens.minimumTouchTarget, height: interactionTokens.minimumTouchTarget, alignItems: "center", justifyContent: "center" },
   optionsScroll: { flexGrow: 0 },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingBottom: 4 },
-  option: { minHeight: 44, maxWidth: "100%", borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 7 },
+  option: { minHeight: interactionTokens.minimumTouchTarget, maxWidth: "100%", borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 7 },
   optionText: { maxWidth: 220, fontSize: typeScale.metadata, fontWeight: "700" },
   actions: { flexDirection: "row", gap: 9, marginTop: 18 },
   reset: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 14, alignItems: "center", justifyContent: "center" },

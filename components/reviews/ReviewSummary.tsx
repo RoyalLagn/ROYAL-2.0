@@ -22,11 +22,11 @@ export default function ReviewSummary({ average, total, counts, dark = false, on
         <Text accessibilityLabel={`${average.toFixed(1)} out of 5 stars`} style={[styles.stars, { color: c.gold }]}>★★★★★</Text>
         <Text style={[styles.count, { color: c.muted }]}>{total.toLocaleString()} {total === 1 ? "review" : "reviews"}</Text>
         {onWriteReview ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="Write a Review" disabled={!canWriteReview} onPress={onWriteReview} style={({ pressed, hovered }) => [
-            styles.button, { backgroundColor: canWriteReview ? c.pink : c.soft, opacity: canWriteReview ? 1 : 0.55 },
+          <Pressable accessibilityRole="button" accessibilityLabel="Write a Review" accessibilityState={{ disabled: !canWriteReview }} disabled={!canWriteReview} onPress={onWriteReview} style={({ pressed, hovered }) => [
+            styles.button, { backgroundColor: canWriteReview ? c.pink : c.soft, opacity: canWriteReview ? 1 : 0.55, shadowColor: c.shadow },
             pressed && styles.pressed, hovered && Platform.OS === "web" && styles.hovered,
           ]}>
-            <Text style={styles.buttonText}>Write a Review</Text>
+            <Text style={[styles.buttonText, { color: c.onPink }]}>Write a Review</Text>
           </Pressable>
         ) : null}
       </View>
@@ -35,13 +35,13 @@ export default function ReviewSummary({ average, total, counts, dark = false, on
   );
 }
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 20, padding: 18, flexDirection: "row", flexWrap: "wrap", gap: 22, shadowColor: "#9E5870", shadowOpacity: .07, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 2 },
+  card: { borderWidth: 1, borderRadius: 20, padding: 18, flexDirection: "row", flexWrap: "wrap", gap: 22, shadowOpacity: .07, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 2 },
   score: { width: 152, alignItems: "flex-start" },
   average: { ...typeStyles.metric },
   stars: { fontSize: typeScale.body, letterSpacing: 2 },
   count: { fontSize: typeScale.bodyCompact, marginTop: 5, marginBottom: 14 },
-  button: { minHeight: 42, borderRadius: 22, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" },
-  buttonText: { color: "#FFF", fontSize: typeScale.body, fontWeight: "700" },
+  button: { minHeight: 48, borderRadius: 22, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" },
+  buttonText: { fontSize: typeScale.body, fontWeight: "700" },
   pressed: { opacity: .86, transform: [{ scale: .98 }] },
   hovered: { transform: [{ translateY: -1 }] },
 });

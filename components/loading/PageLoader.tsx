@@ -30,8 +30,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { MotionDuration, MotionEasing, MotionTiming } from "@/utils/motion";
+import { brandPalette } from "@/constants/brandPalette";
 
-const LOADER_SOURCE = require("../../assets/Logo/loader.png");
+const LOADER_SOURCE = require("../../assets/logos/loader.png");
 const IMAGE_ASPECT_RATIO = 1243 / 1265;
 const MIN_VISIBLE_MS = 700;
 const DOT_COUNT = 3;
@@ -268,6 +269,6 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: "#E91E63",
+    backgroundColor: brandPalette.light.primary,
   },
 });

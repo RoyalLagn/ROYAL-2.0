@@ -225,14 +225,18 @@ assert.doesNotMatch(
   /<CRMCard[^>]*className=["'][^"']*\bflex-1\b/,
   "AnalyticsCard must not place grid sizing on CRMCard's nested surface.",
 );
-const publicProfileSource = await read("app/(tabs)/profile.tsx");
+const [publicProfileSource, publicProfileStylesSource, publicProfilePartsSource] = await Promise.all([
+  read("app/(tabs)/profile.tsx"),
+  read("components/profile/profileScreenStyles.ts"),
+  read("components/profile/ProfileScreenParts.tsx"),
+]);
 assert.match(
-  publicProfileSource,
+  publicProfilePartsSource,
   /import Pressable from ["']@\/components\/InteropSafePressable["'];/,
   "Public Profile rows must resolve callback styles before NativeWind native interop.",
 );
 assert.doesNotMatch(
-  publicProfileSource,
+  publicProfilePartsSource,
   /import \{[^}]*\bPressable\b[^}]*\} from ["']react-native["'];/,
   "Public Profile must not bypass the Android-safe Pressable wrapper.",
 );
@@ -247,12 +251,12 @@ assert.match(
   "Public Profile account rows must use deterministic native separators instead of alpha-token borders.",
 );
 assert.match(
-  publicProfileSource,
+  publicProfileStylesSource,
   /nativeSurfaceLight:[\s\S]*?backgroundColor: "#FDF2F8",[\s\S]*?borderColor: "#FBCFE8",/,
   "Public Profile Android grouped cards must retain their explicit light pink surface and border colors.",
 );
 assert.match(
-  publicProfileSource,
+  publicProfileStylesSource,
   /nativeSeparatorLight:[\s\S]*?borderBottomWidth: StyleSheet\.hairlineWidth,[\s\S]*?borderBottomColor: "#F8D8E5",/,
   "Public Profile Android separators must stay explicit hairlines rather than platform-dependent token borders.",
 );
@@ -346,19 +350,25 @@ assert.match(
   "BecomeVendor categories must expose checked radio semantics.",
 );
 const enquiriesSource = keyboardSources[0];
+const interactionTokenSource = await read("constants/interactionTokens.ts");
 assert.ok(
   (enquiriesSource.match(/accessibilityRole=["']radio["']/g) ?? []).length >= 3,
   "VendorEnquiries filters, sorting, and lead statuses must remain radio groups.",
 );
 assert.match(
   enquiriesSource,
-  /filterTouchTarget: \{ minWidth: 44, minHeight: 44/,
-  "VendorEnquiries filter targets must remain at least 44x44.",
+  /filterTouchTarget: \{ minWidth: interactionTokens\.minimumTouchTarget, minHeight: interactionTokens\.minimumTouchTarget/,
+  "VendorEnquiries filter targets must use the shared minimum touch target.",
 );
 assert.match(
   enquiriesSource,
-  /sortTouchTarget: \{ minWidth: 44, minHeight: 44/,
-  "VendorEnquiries sort targets must remain at least 44x44.",
+  /sortTouchTarget: \{ minWidth: interactionTokens\.minimumTouchTarget, minHeight: interactionTokens\.minimumTouchTarget/,
+  "VendorEnquiries sort targets must use the shared minimum touch target.",
+);
+assert.match(
+  interactionTokenSource,
+  /minimumTouchTarget: 48/,
+  "The shared minimum touch target must remain at least 48dp for Android.",
 );
 
 // --- Native PDF exports must stay independent from browser-only libraries --

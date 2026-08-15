@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { usePathname, useRouter } from "expo-router";
 import { useAdminAuth } from "@/context/AdminAuthContext";
@@ -11,9 +11,16 @@ export function AdminRouteGuard({ children }: { children: React.ReactNode }) {
   const { isAdminAuthenticated, loading } = useAdminAuth();
   const protectedRoute = isProtectedAdminRoute(pathname);
   const mobileAdminRoute = protectedRoute && Platform.OS !== "web";
+  const redirecting = useRef(false);
 
   useEffect(() => {
-    if (mobileAdminRoute || (protectedRoute && !loading && !isAdminAuthenticated)) {
+    const shouldRedirect = mobileAdminRoute || (protectedRoute && !loading && !isAdminAuthenticated);
+    if (!shouldRedirect) {
+      redirecting.current = false;
+      return;
+    }
+    if (!redirecting.current) {
+      redirecting.current = true;
       // Only redirect. Signing out here would also destroy a public or vendor
       // session, because all roles share one Supabase session — and a customer
       // landing on an admin URL must not be logged out of their own account.

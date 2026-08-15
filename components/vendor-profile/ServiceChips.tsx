@@ -5,8 +5,9 @@ import { Platform, StyleSheet, Text, useWindowDimensions, View } from "react-nat
 import Pressable from "@/components/InteropSafePressable";
 import { Sparkles, type LucideIcon } from "lucide-react-native";
 import { typeScale, typeLeading } from "@/constants/typography";
+import { brandPalette } from "@/constants/brandPalette";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 export type VendorService = {
   id?: string;

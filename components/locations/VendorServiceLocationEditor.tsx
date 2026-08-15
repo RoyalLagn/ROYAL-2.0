@@ -136,7 +136,7 @@ export function VendorServiceLocationEditor({
     } finally {
       setLookingUp(false);
     }
-  }, [lookingUp, onChange, value]);
+  }, [enforceApplicationAvailability, lookingUp, onChange, value]);
 
   const hydratedSelection = useRef(false);
   useEffect(() => {

@@ -30,8 +30,9 @@ import {
   type PushCampaign,
 } from "@/types/pushNotifications";
 import { typeScale } from "@/constants/typography";
+import { adminPalette } from "@/theme";
 
-const PINK = "#E91E63";
+const PINK = adminPalette.brand;
 
 type Draft = {
   title: string;
@@ -399,7 +400,7 @@ export default function AdminPushNotifications() {
                       <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
                         <Pressable
                           onPress={() => selectVendorCategory(null)}
-                          className="min-h-10 px-3 rounded-xl flex-row items-center"
+                          className="min-h-11 px-3 rounded-xl flex-row items-center"
                           style={{
                             backgroundColor: !draft.vendorCategoryId ? "#FFF0F6" : "transparent",
                           }}
@@ -413,7 +414,7 @@ export default function AdminPushNotifications() {
                             <Pressable
                               key={category.id}
                               onPress={() => selectVendorCategory(category)}
-                              className="min-h-10 px-3 rounded-xl flex-row items-center"
+                              className="min-h-11 px-3 rounded-xl flex-row items-center"
                               style={{ backgroundColor: selected ? "#FFF0F6" : "transparent" }}
                             >
                               <Text className="text-foreground text-sm flex-1" numberOfLines={1}>
@@ -568,7 +569,7 @@ export default function AdminPushNotifications() {
                   <Pressable
                     key={mode}
                     onPress={() => setDraft((current) => ({ ...current, destinationMode: mode }))}
-                    className="px-3 min-h-9 rounded-full border items-center justify-center"
+                    className="px-3 min-h-11 rounded-full border items-center justify-center"
                     style={{
                       borderColor: selected ? PINK : "#E7D7DE",
                       backgroundColor: selected ? "#FFF0F6" : "transparent",
@@ -590,7 +591,7 @@ export default function AdminPushNotifications() {
                     <Pressable
                       key={preset.label}
                       onPress={() => setDraft((current) => ({ ...current, presetPath: preset.value }))}
-                      className="min-h-10 px-3 rounded-xl flex-row items-center"
+                      className="min-h-11 px-3 rounded-xl flex-row items-center"
                       style={{ backgroundColor: selected ? "#FFF0F6" : "transparent" }}
                     >
                       <Text className="text-foreground text-sm flex-1">{preset.label}</Text>
@@ -622,7 +623,7 @@ export default function AdminPushNotifications() {
                         <Pressable
                           key={category.id}
                           onPress={() => setDraft((current) => ({ ...current, categorySlug: category.slug }))}
-                          className="min-h-10 px-3 rounded-xl flex-row items-center"
+                          className="min-h-11 px-3 rounded-xl flex-row items-center"
                           style={{ backgroundColor: selected ? "#FFF0F6" : "transparent" }}
                         >
                           <Text className="text-foreground text-sm flex-1">{category.name}</Text>

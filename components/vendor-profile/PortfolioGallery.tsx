@@ -4,8 +4,9 @@ import { Image, type ImageSourcePropType, Platform, ScrollView, StyleSheet, Text
 // [...]}` props on Android; InteropSafePressable resolves it first.
 import Pressable from "@/components/InteropSafePressable";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import { brandPalette } from "@/constants/brandPalette";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 export type PortfolioItem = {
   id: string | number;

@@ -58,37 +58,37 @@ typography:
     lineHeight: 1.28
   body:
     fontFamily: "Inter_400Regular, system-ui, sans-serif"
-    fontSize: "13px"
+    fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.5
   body-compact:
     fontFamily: "Inter_400Regular, system-ui, sans-serif"
-    fontSize: "12px"
+    fontSize: "13px"
     fontWeight: 400
     lineHeight: 1.5
   metadata:
     fontFamily: "Inter_400Regular, system-ui, sans-serif"
-    fontSize: "11px"
+    fontSize: "12px"
     fontWeight: 400
     lineHeight: 1.45
   label:
     fontFamily: "Inter_600SemiBold, system-ui, sans-serif"
-    fontSize: "11px"
+    fontSize: "12px"
     fontWeight: 600
     lineHeight: 1.4
   button:
     fontFamily: "Inter_700Bold, system-ui, sans-serif"
-    fontSize: "12px"
+    fontSize: "13px"
     fontWeight: 700
     lineHeight: 1.33
   tab:
     fontFamily: "Inter_600SemiBold, system-ui, sans-serif"
-    fontSize: "12px"
+    fontSize: "13px"
     fontWeight: 600
     lineHeight: 1.42
   caption:
     fontFamily: "Inter_500Medium, system-ui, sans-serif"
-    fontSize: "10px"
+    fontSize: "11px"
     fontWeight: 500
     lineHeight: 1.4
   metric:
@@ -181,6 +181,7 @@ The palette combines bridal pink and petal-tinted neutrals with warm ink in ligh
 
 - **Blush Veil** (`#FCE7F3`): Secondary controls, selected backgrounds, input tint, and soft branded framing.
 - **Petal Mist** (`#FDF2F8`): Low-emphasis sections, chips, and quiet tonal separation.
+- **Action Tint** (`#FFF0F5` light, `#251820` dark): Compact icon wells and selected-control fills that need a quieter signal than the primary action color.
 
 ### Tertiary
 
@@ -228,12 +229,12 @@ The palette combines bridal pink and petal-tinted neutrals with warm ink in ligh
 - **Page Title** (Inter Bold, 24/30): Functional Public, Vendor, and Admin screen titles.
 - **Section Heading** (Inter Bold, 20/26): Operational sections. Public editorial sections may use Playfair Bold at the same 20/26 scale.
 - **Card Title** (Inter Bold, 16/21): Card and panel names. Media-led vendor identity may use Playfair Bold at 18/23.
-- **Body** (Inter Regular, 13/20): Ordinary descriptions and supporting copy, with a 12/18 compact variant for dense interfaces.
-- **Metadata** (Inter Regular, 11/16): Dates, locations, counts, prices, and secondary facts.
-- **Label** (Inter Semibold, 11/15): Field labels, chips, badges, and compact controls.
-- **Button** (Inter Bold, 12/16): Primary and secondary actions.
-- **Tab** (Inter Semibold, 12/17): Navigation and segmented controls.
-- **Caption** (Inter Medium, 10/14): The smallest non-decorative text role; never reduce functional text below this floor.
+- **Body** (Inter Regular, 14/21): Ordinary descriptions and supporting copy, with a 13/19 compact variant for dense interfaces.
+- **Metadata** (Inter Regular, 12/17): Dates, locations, counts, prices, and secondary facts.
+- **Label** (Inter Semibold, 12/16): Field labels, chips, badges, and compact controls.
+- **Button** (Inter Bold, 13/18): Primary and secondary actions.
+- **Tab** (Inter Semibold, 13/18): Navigation and segmented controls.
+- **Caption** (Inter Medium, 11/15): The smallest non-decorative text role; never reduce functional text below this floor.
 
 ### Named Rules
 
@@ -248,6 +249,14 @@ RoyalLagn is mobile-first and safe-area aware. Phone gutters are normally 16px, 
 Responsive behavior is defined at 360, 480, 768, 900, 1024, 1440, and 1920px. Phone surfaces are usually single-column, tablets introduce two or three columns where content permits, and desktop dashboards use bounded content areas and denser multi-column grids. Public discovery favors vertically flowing media and horizontally scrollable categories; operational views favor bounded reading widths, such as the 780px vendor form container.
 
 Spacing follows a compact 6/8/12/16/20/24/32 rhythm. Preserve breathing room around media and page headings, but keep labels, metadata, and dashboard controls deliberately compact.
+
+### Code token mapping
+
+- `constants/brandPalette.ts` is the StyleSheet-safe semantic source for public and vendor colors. NativeWind surfaces continue to use the matching CSS variables from `theme.ts`.
+- `theme.ts` owns the neutral SaaS palette used by admin workspaces through `adminPalette` and the admin theme variables.
+- `constants/navigationTokens.ts` owns the shared geometry and chrome for customer and vendor floating bottom navigation. Routes and interaction behavior remain component-specific.
+- `constants/interactionTokens.ts` owns the shared 48dp minimum touch target used by native controls across public, vendor, and admin surfaces.
+- Feature components may keep local aliases such as `PINK`, but the alias must resolve to a semantic palette value rather than repeating a hex literal.
 
 ## Elevation & Depth
 

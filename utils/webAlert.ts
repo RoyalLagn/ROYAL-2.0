@@ -35,11 +35,12 @@ function browserFallback(request: AppAlertRequest) {
 }
 
 /**
- * Routes every existing React Native Alert.alert call through the shared
- * RoyalLagn dialog provider. A native/browser fallback remains available
- * during the brief interval before the provider mounts.
+ * Routes web Alert.alert calls through the shared RoyalLagn dialog provider.
+ * iOS and Android keep React Native's system alert so button order, dismissal,
+ * accessibility, typography, and destructive actions follow each OS.
  */
 export function installAppAlert() {
+  if (Platform.OS !== "web") return;
   const target = Alert as PatchedAlert;
   if (target.__royallagnAlertInstalled) return;
   target.__royallagnOriginalAlert = Alert.alert.bind(Alert);

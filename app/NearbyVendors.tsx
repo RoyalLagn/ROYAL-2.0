@@ -30,10 +30,10 @@ import {
   DeviceLocationError,
   type DeviceCoordinates,
 } from "@/services/deviceLocation";
-import { brandColors } from "@/constants/brandPalette";
+import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 const VENDOR_CARD_PLACEHOLDER = require("../assets/images/optimized/vendor-placeholder.webp");
 const PAGE_SIZE = 20;
 

@@ -8,20 +8,20 @@ const imageDirectory = new URL("../assets/images/category/", import.meta.url);
 const manifestPath = new URL("../data/categoryImages.cloudinary.json", import.meta.url);
 
 const uploads = [
-  ["DJ.png", "dj"],
-  ["bands.png", "bands"],
-  ["bridal wear.png", "bridal-wear"],
+  ["dj.png", "dj"],
+  ["wedding-bands.png", "bands"],
+  ["bridal-wear.png", "bridal-wear"],
   ["caterers.png", "caterers"],
-  ["dance.png", "music-and-dance"],
-  ["decoraters.png", "decorators"],
-  ["groom wear.png", "groom-wear"],
-  ["invite&cards.png", "invites-and-cards"],
-  ["jewelwry & accessories.png", "jewellery-and-accessories"],
-  ["makeup.png", "makeup-artists"],
-  ["mehendi artist.png", "mehndi-artists"],
+  ["dance-choreography.png", "music-and-dance"],
+  ["decorators.png", "decorators"],
+  ["groom-wear.png", "groom-wear"],
+  ["invites-cards.png", "invites-and-cards"],
+  ["jewellery-accessories.png", "jewellery-and-accessories"],
+  ["makeup-artists.png", "makeup-artists"],
+  ["mehndi-artists.png", "mehndi-artists"],
   ["pandits.png", "pandits"],
-  ["photographer.png", "photographers"],
-  ["pre-wedding shoot.png", "pre-wedding-shoot"],
+  ["photographers.png", "photographers"],
+  ["pre-wedding-shoot.png", "pre-wedding-shoot"],
   ["venues.png", "venues"],
 ];
 

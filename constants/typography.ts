@@ -30,13 +30,13 @@ export const fonts = {
  * moving text to a larger role.
  */
 export const typeScale = {
-  caption: 10,
-  metadata: 11,
-  label: 11,
-  button: 12,
-  tab: 12,
-  bodyCompact: 12,
-  body: 13,
+  caption: 11,
+  metadata: 12,
+  label: 12,
+  button: 13,
+  tab: 13,
+  bodyCompact: 13,
+  body: 14,
   cardTitle: 16,
   editorialCardTitle: 18,
   sectionTitle: 20,
@@ -46,13 +46,13 @@ export const typeScale = {
 } as const;
 
 export const typeLeading = {
-  caption: 14,
-  label: 15,
-  metadata: 16,
-  button: 16,
-  tab: 17,
-  bodyCompact: 18,
-  body: 20,
+  caption: 15,
+  label: 16,
+  metadata: 17,
+  button: 18,
+  tab: 18,
+  bodyCompact: 19,
+  body: 21,
   cardTitle: 21,
   editorialCardTitle: 23,
   sectionTitle: 26,

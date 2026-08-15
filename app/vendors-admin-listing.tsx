@@ -248,8 +248,8 @@ export default function VendorsAdminListing() {
             <View className="bg-card border border-border rounded-2xl p-4">
             <VendorFilterBar filters={vendors.filters} onChange={vendors.updateFilters} onMore={() => setFiltersOpen(true)} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginTop: 10 }}>
-              {savedFilters.map((preset) => <Pressable key={preset.id} className="min-h-10 px-4 rounded-xl border border-border bg-background items-center justify-center" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => vendors.updateFilters(preset.filters)}><Text className="text-foreground text-xs font-semibold">{preset.name}</Text></Pressable>)}
-              <Pressable className="min-h-10 px-4 rounded-xl bg-primary/10 items-center justify-center" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => setSaveOpen(true)}><Text className="text-primary text-xs font-semibold">+ Save filter</Text></Pressable>
+              {savedFilters.map((preset) => <Pressable key={preset.id} className="min-h-11 px-4 rounded-xl border border-border bg-background items-center justify-center" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => vendors.updateFilters(preset.filters)}><Text className="text-foreground text-xs font-semibold">{preset.name}</Text></Pressable>)}
+              <Pressable className="min-h-11 px-4 rounded-xl bg-primary/10 items-center justify-center" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => setSaveOpen(true)}><Text className="text-primary text-xs font-semibold">+ Save filter</Text></Pressable>
             </ScrollView>
             </View>
           </ResponsiveSection>

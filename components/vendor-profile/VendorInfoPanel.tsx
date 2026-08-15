@@ -6,11 +6,11 @@ import Pressable from "@/components/InteropSafePressable";
 import { BadgeCheck, Crown, MapPin, Share2, Star } from "lucide-react-native";
 import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
-import { brandColors } from "@/constants/brandPalette";
+import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
 import { MembershipBadge, membershipBadgeFor } from "@/components/vendor/MembershipBadge";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 export type VendorInfoPanelProps = {
   name: string;

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, TouchableOpacity, Text, useWindowDimensions } from "react-native";
+import { Platform, Pressable, View, Text, useWindowDimensions } from "react-native";
 import { useColorScheme } from "nativewind";
 import { Href, useRouter } from "expo-router";
 import {
@@ -11,6 +11,8 @@ import {
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
+import { brandPalette } from "@/constants/brandPalette";
+import { floatingNavigationTokens } from "@/constants/navigationTokens";
 
 type TabKey = "dashboard" | "vendors" | "subscriptions" | "payments" | "profile";
 
@@ -50,9 +52,12 @@ export default function AdminFooter({ activeTab }: AdminFooterProps) {
     <View
       className="absolute bottom-0 left-0 right-0 flex-row items-center justify-around pt-2 border-t border-border"
       style={{
-        backgroundColor: isDark ? "#1C1917" : "#FFFFFF",
+        backgroundColor: isDark
+          ? floatingNavigationTokens.admin.darkCanvas
+          : floatingNavigationTokens.admin.lightCanvas,
         paddingBottom: Math.max(insets.bottom, 10),
-        paddingHorizontal: responsive.isPhone ? 8 : 24,
+        paddingLeft: Math.max(insets.left, responsive.isPhone ? 8 : 24),
+        paddingRight: Math.max(insets.right, responsive.isPhone ? 8 : 24),
       }}
     >
       {tabs.map((tab) => {
@@ -60,14 +65,21 @@ export default function AdminFooter({ activeTab }: AdminFooterProps) {
         const active = isActive(tab);
 
         return (
-          <TouchableOpacity
+          <Pressable
             key={tab.key}
-            className="items-center justify-center min-w-11 min-h-11 flex-1"
-            onPress={() => router.push(tab.route)}
+            accessibilityRole="tab"
+            accessibilityLabel={`${tab.label} tab`}
+            accessibilityState={{ selected: active }}
+            android_ripple={Platform.OS === "android" ? { color: "rgba(233,30,99,0.10)", borderless: false } : undefined}
+            className="items-center justify-center min-w-12 min-h-12 flex-1 active:opacity-75"
+            onPress={() => {
+              if (active) return;
+              router.replace(tab.route);
+            }}
           >
             {active ? (
               <View className="w-6 h-6 rounded-lg bg-primary items-center justify-center mb-1">
-                <Icon size={14} color="#FFFFFF" />
+                <Icon size={14} color={brandPalette.light.primaryForeground} />
               </View>
             ) : (
               <Icon size={22} className="text-muted-foreground mb-1" />
@@ -78,7 +90,7 @@ export default function AdminFooter({ activeTab }: AdminFooterProps) {
             >
               {responsive.isPhone && tab.shortLabel ? tab.shortLabel : tab.label}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         );
       })}
     </View>

@@ -1,6 +1,7 @@
 import React from "react";
 import { ActivityIndicator, Switch, Text, View } from "react-native";
 import type { GeoTaluka } from "@/locations/types";
+import { adminPalette } from "@/theme";
 
 export function TalukaAvailabilityList({
   districtName,
@@ -33,14 +34,14 @@ export function TalukaAvailabilityList({
           </Text>
         </View>
         {districtName && talukas.length > 0 && onToggleAll ? (
-          bulkSaving ? <ActivityIndicator size="small" color="#E91E63" /> : (
+          bulkSaving ? <ActivityIndicator size="small" color={adminPalette.brand} /> : (
             <View className="items-end">
               <Switch
                 accessibilityLabel={`${allActive ? "Stop accepting" : "Accept"} new vendor applications for all Talukas in ${districtName}`}
                 value={allActive}
                 onValueChange={onToggleAll}
-                trackColor={{ false: "#CBD0D8", true: "#E91E63" }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: "#CBD0D8", true: adminPalette.brand }}
+                thumbColor={adminPalette.surface}
               />
               <Text className="text-muted-foreground text-caption mt-1">All</Text>
             </View>
@@ -50,7 +51,7 @@ export function TalukaAvailabilityList({
 
       {loading ? (
         <View className="min-h-32 items-center justify-center">
-          <ActivityIndicator color="#E91E63" />
+          <ActivityIndicator color={adminPalette.brand} />
           <Text className="text-muted-foreground text-body-compact mt-3">Loading Talukas…</Text>
         </View>
       ) : !districtName ? null : !talukas.length ? (
@@ -70,13 +71,13 @@ export function TalukaAvailabilityList({
                     {taluka.acceptingApplications ? "Accepting applications" : "Applications paused"}
                   </Text>
                 </View>
-                {saving ? <ActivityIndicator size="small" color="#E91E63" /> : (
+                {saving ? <ActivityIndicator size="small" color={adminPalette.brand} /> : (
                   <Switch
                     accessibilityLabel={`${taluka.acceptingApplications ? "Stop accepting" : "Accept"} new vendor applications from ${taluka.name}`}
                     value={taluka.acceptingApplications}
                     onValueChange={(accepting) => onToggle(taluka.id, accepting)}
-                    trackColor={{ false: "#CBD0D8", true: "#E91E63" }}
-                    thumbColor="#FFFFFF"
+                    trackColor={{ false: "#CBD0D8", true: adminPalette.brand }}
+                    thumbColor={adminPalette.surface}
                   />
                 )}
               </View>

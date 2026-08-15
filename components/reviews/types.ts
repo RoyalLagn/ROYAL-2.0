@@ -39,6 +39,13 @@ export type ReviewPalette = {
   border: string;
   pink: string;
   gold: string;
+  destructive: string;
+  inactiveStar: string;
+  onPink: string;
+  ornament: string;
+  photoScrim: string;
+  pinkHover: string;
+  shadow: string;
 };
 
 export const reviewPalette = (dark: boolean): ReviewPalette => ({
@@ -49,6 +56,13 @@ export const reviewPalette = (dark: boolean): ReviewPalette => ({
   border: dark ? "#4B343E" : "#F2D3DD",
   pink: dark ? "#F0659A" : "#DF356F",
   gold: "#E8A52F",
+  destructive: "#D94B55",
+  inactiveStar: dark ? "#51484C" : "#E3D8DC",
+  onPink: "#FFFFFF",
+  ornament: "#D8A55B",
+  photoScrim: "rgba(24,15,19,.72)",
+  pinkHover: "#CF2E65",
+  shadow: dark ? "#000000" : "#9E5870",
 });
 
 export const reviewImageSource = (

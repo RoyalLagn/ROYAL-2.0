@@ -6,8 +6,9 @@ import Pressable from "@/components/InteropSafePressable";
 import { Tag } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import { brandPalette } from "@/constants/brandPalette";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 type StickyQuoteBarProps = {
   price: string;

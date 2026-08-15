@@ -57,8 +57,9 @@ import {
   openInstagram as openInstagramUrl,
   openWebsite as openWebsiteUrl,
 } from "@/services/externalLinks";
+import { brandPalette } from "@/constants/brandPalette";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 function enhanceImage(uri: string) {
   return uri.replace(/([?&])w=\d+/, "$1w=1200");

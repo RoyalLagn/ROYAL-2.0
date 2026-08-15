@@ -1,12 +1,13 @@
 import { Stack } from 'expo-router';
 import '@/global.css';
-import { ThemeProvider } from '@/components/ThemeProvider';
+import { ThemeProvider, useAppTheme } from '@/components/ThemeProvider';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, Pressable, View, Text, StyleSheet } from 'react-native';
 import React, { useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { typeScale } from "@/constants/typography";
+import { brandPalette } from "@/constants/brandPalette";
 // Import each weight from its own submodule rather than the package barrel
 // (`@expo-google-fonts/inter`/`@expo-google-fonts/playfair-display`). The
 // barrel's index.js unconditionally `require()`s every weight file it
@@ -47,7 +48,7 @@ import AppDialogProvider from '@/components/dialogs/AppDialogProvider';
 import { PageLoaderProvider } from '@/components/loading/PageLoader';
 import { AppFeedbackProvider } from '@/context/AppFeedbackContext';
 
-// Route every Alert.alert call through the cross-platform RoyalLagn dialog.
+// Web gets the RoyalLagn dialog; native platforms retain their system alert.
 installAppAlert();
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -73,11 +74,12 @@ class ErrorBoundary extends React.Component<
   render() {
     if (this.state.error) {
       return (
-        <View style={styles.errorContainer}>
+        <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={styles.errorContainer}>
           <Text style={styles.errorTitle}>Something went wrong</Text>
           <Text style={styles.errorText}>{this.state.error.message || 'Unknown error'}</Text>
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Try loading the app again"
             onPress={() => this.setState({ error: null })}
             style={styles.errorRetry}
           >
@@ -93,6 +95,37 @@ class ErrorBoundary extends React.Component<
 function WebNavigationFocusSafety() {
   useWebNavigationFocusSafety();
   return null;
+}
+
+function ThemeAwareStatusBar() {
+  const { colorScheme } = useAppTheme();
+  const dark = colorScheme === 'dark';
+
+  return (
+    <StatusBar
+      style={dark ? 'light' : 'dark'}
+      backgroundColor={Platform.OS === 'android' ? 'transparent' : dark ? brandPalette.dark.background : brandPalette.light.background}
+      translucent={Platform.OS === 'android'}
+    />
+  );
+}
+
+function AppNavigator() {
+  const { colorScheme } = useAppTheme();
+  const backgroundColor = colorScheme === 'dark'
+    ? brandPalette.dark.background
+    : brandPalette.light.background;
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: SCREEN_TRANSITION,
+        gestureEnabled: true,
+        contentStyle: { backgroundColor },
+      }}
+    />
+  );
 }
 
 export default function RootLayout() {
@@ -147,25 +180,13 @@ export default function RootLayout() {
                                     <AppFeedbackProvider>
                                       <ResponsiveLayoutProvider>
                                         <PushTokenRegistrar />
-                                        <StatusBar style="dark" backgroundColor="#FFFFFF" translucent={false} />
+                                        <ThemeAwareStatusBar />
                                         <View className="bg-background" style={styles.app}>
                                           <AdminWorkspaceShell>
                                             <View style={styles.stack}>
                                               <AdminRouteGuard>
                                                 <VendorRouteGuard>
-                                              {/* A single, app-wide transition preset instead of
-                                                  per-screen configuration -- see utils/motion.ts
-                                                  for why `fade_from_bottom` (soft fade + small
-                                                  upward settle, native-driven) was chosen over a
-                                                  custom reanimated screen wrapper. Every one of the
-                                                  ~90 screens under app/ inherits this automatically;
-                                                  back navigation reverses it natively. */}
-                                                <Stack
-                                                  screenOptions={{
-                                                    headerShown: false,
-                                                    animation: SCREEN_TRANSITION,
-                                                  }}
-                                                />
+                                                <AppNavigator />
                                                 </VendorRouteGuard>
                                               </AdminRouteGuard>
                                             </View>
@@ -201,30 +222,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: brandPalette.light.background,
   },
   errorTitle: {
     fontSize: typeScale.sectionTitle,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#000',
+    color: brandPalette.light.foreground,
   },
   errorText: {
     fontSize: typeScale.body,
-    color: '#666',
+    color: brandPalette.light.mutedForeground,
     textAlign: 'center',
   },
   errorRetry: {
-    minHeight: 44,
+    minHeight: 48,
     marginTop: 20,
     paddingHorizontal: 22,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E91E63',
+    backgroundColor: brandPalette.light.primary,
   },
   errorRetryText: {
-    color: '#fff',
+    color: brandPalette.light.primaryForeground,
     fontSize: typeScale.body,
     fontWeight: '700',
   },

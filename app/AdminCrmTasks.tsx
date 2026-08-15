@@ -39,7 +39,7 @@ function FollowupRow({ item, onComplete }: { item: CrmTaskFollowupItem; onComple
             {item.notes ? <Text className="text-muted-foreground text-xs mt-1" numberOfLines={2}>{item.notes}</Text> : null}
           </View>
           {item.phone ? (
-            <Pressable onPress={() => void Linking.openURL(`tel:${item.phone}`)} className="w-9 h-9 rounded-full bg-primary/10 items-center justify-center">
+            <Pressable accessibilityRole="button" accessibilityLabel={`Call ${item.business_name}`} onPress={() => void Linking.openURL(`tel:${item.phone}`)} className="w-11 h-11 rounded-full bg-primary/10 items-center justify-center">
               <Phone size={15} className="text-primary" />
             </Pressable>
           ) : null}
@@ -62,7 +62,7 @@ function DocumentRow({ item }: { item: CrmTaskDocumentItem }) {
           <Text className="text-muted-foreground text-xs mt-1">{item.category_name ?? "Uncategorized"}</Text>
         </View>
         {item.phone ? (
-          <Pressable onPress={() => void Linking.openURL(`tel:${item.phone}`)} className="w-9 h-9 rounded-full bg-primary/10 items-center justify-center">
+          <Pressable accessibilityRole="button" accessibilityLabel={`Call ${item.business_name}`} onPress={() => void Linking.openURL(`tel:${item.phone}`)} className="w-11 h-11 rounded-full bg-primary/10 items-center justify-center">
             <Phone size={15} className="text-primary" />
           </Pressable>
         ) : null}

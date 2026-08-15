@@ -22,6 +22,26 @@ import {
 } from "@/context/NotificationContext";
 import { SkeletonList } from "@/components/loading/Skeleton";
 import PageLoader from "@/components/loading/PageLoader";
+import { safeInternalTarget } from "@/utils/safeNavigation";
+
+const PUBLIC_NOTIFICATION_ROUTES = new Set([
+  "/(tabs)",
+  "/(tabs)/Categories",
+  "/(tabs)/enquiry",
+  "/(tabs)/favorites",
+  "/(tabs)/profile",
+  "/DashboardCenter",
+  "/Help",
+  "/NearbyVendors",
+  "/Notifications",
+  "/PrivacyPolicy",
+  "/SavedClips",
+  "/Search",
+  "/SearchByLocation",
+  "/Terms",
+  "/VendorsListing",
+  "/VendorsProfile",
+]);
 
 const notificationIcons: Record<NotificationType, React.ElementType> = {
   vendor_approval: BadgeCheck,
@@ -58,13 +78,9 @@ const notificationDestination = (notification: RoyalLagnNotification) => {
 };
 
 function openDestination(router: ReturnType<typeof useRouter>, path: string) {
-  const [pathname, query = ""] = path.split("?");
-  if (!query) {
-    router.push(pathname as never);
-    return;
-  }
-  const params = Object.fromEntries(new URLSearchParams(query).entries());
-  router.push({ pathname, params } as never);
+  const target = safeInternalTarget(path, PUBLIC_NOTIFICATION_ROUTES);
+  if (!target) return;
+  router.push((target.params ? target : target.pathname) as never);
 }
 
 function NotificationRow({

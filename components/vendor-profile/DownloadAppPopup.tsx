@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react";
 import { Linking, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Smartphone, X } from "lucide-react-native";
 import { typeScale, typeLeading } from "@/constants/typography";
+import { brandPalette } from "@/constants/brandPalette";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 const PLAY_STORE_URL =
   process.env.EXPO_PUBLIC_PLAY_STORE_URL?.trim() ||
   "https://play.google.com/store/apps/details?id=com.royallagn.app";

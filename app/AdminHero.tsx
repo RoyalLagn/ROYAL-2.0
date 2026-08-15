@@ -32,8 +32,9 @@ import { CategoryService, type CategoryRecord } from "@/services/CategoryService
 import { HeroSlideService } from "@/services/heroSlides";
 import { HERO_IMAGE_ASPECT, HERO_SLIDES_MAX, type HeroSlide } from "@/types/hero";
 import { typeScale } from "@/constants/typography";
+import { adminPalette } from "@/theme";
 
-const PINK = "#E91E63";
+const PINK = adminPalette.brand;
 
 type Draft = {
   imageUrl: string;
@@ -423,7 +424,7 @@ export default function AdminHero() {
                         accessibilityLabel="Move up"
                         disabled={!index || saving}
                         onPress={() => void move(index, -1)}
-                        className="w-9 h-9 rounded-xl items-center justify-center"
+                        className="w-11 h-11 rounded-xl items-center justify-center"
                         style={{ opacity: !index || saving ? 0.3 : 1 }}
                       >
                         <ChevronUp size={16} className="text-muted-foreground" />
@@ -432,7 +433,7 @@ export default function AdminHero() {
                         accessibilityLabel="Move down"
                         disabled={index === slides.length - 1 || saving}
                         onPress={() => void move(index, 1)}
-                        className="w-9 h-9 rounded-xl items-center justify-center"
+                        className="w-11 h-11 rounded-xl items-center justify-center"
                         style={{ opacity: index === slides.length - 1 || saving ? 0.3 : 1 }}
                       >
                         <ChevronDown size={16} className="text-muted-foreground" />
@@ -440,21 +441,21 @@ export default function AdminHero() {
                       <Pressable
                         accessibilityLabel={`Preview ${slide.category_name}`}
                         onPress={() => setPreview(slide)}
-                        className="w-9 h-9 rounded-xl items-center justify-center"
+                        className="w-11 h-11 rounded-xl items-center justify-center"
                       >
                         <Eye size={16} className="text-muted-foreground" />
                       </Pressable>
                       <Pressable
                         accessibilityLabel={`Edit ${slide.category_name}`}
                         onPress={() => openEditor(slide)}
-                        className="w-9 h-9 rounded-xl items-center justify-center"
+                        className="w-11 h-11 rounded-xl items-center justify-center"
                       >
                         <Edit3 size={16} className="text-muted-foreground" />
                       </Pressable>
                       <Pressable
                         accessibilityLabel={`Delete ${slide.category_name}`}
                         onPress={() => setConfirmDelete(slide)}
-                        className="w-9 h-9 rounded-xl items-center justify-center"
+                        className="w-11 h-11 rounded-xl items-center justify-center"
                       >
                         <Trash2 size={16} color="#DC2626" />
                       </Pressable>

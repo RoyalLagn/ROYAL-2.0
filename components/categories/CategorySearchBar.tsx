@@ -3,10 +3,10 @@ import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Pressable from "@/components/InteropSafePressable";
 import { SlidersHorizontal } from "lucide-react-native";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
-import { brandColors } from "@/constants/brandPalette";
+import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale } from "@/constants/typography";
 
-const PINK = "#E91E63";
+const PINK = brandPalette.light.primary;
 
 type CategorySearchBarProps = {
   dark: boolean;

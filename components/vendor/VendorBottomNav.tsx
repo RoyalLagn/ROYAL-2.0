@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  BackHandler,
   Platform,
   Pressable,
   StyleSheet,
@@ -25,12 +24,12 @@ import Animated, {
 import { CalendarDays, Clapperboard, Images, LayoutDashboard, UserRound } from "lucide-react-native";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { typeScale, typeLeading } from "@/constants/typography";
+import { floatingNavigationColors, floatingNavigationTokens } from "@/constants/navigationTokens";
 
-const PINK = "#E91E63";
 const CENTER_ROUTE = "/VendorClips";
 const TAB_COUNT = 5;
 
-export const VENDOR_TAB_BASE_HEIGHT = 58;
+export const VENDOR_TAB_BASE_HEIGHT = floatingNavigationTokens.baseHeight;
 
 const AnimatedCalendar = Animated.createAnimatedComponent(CalendarDays);
 const AnimatedClapperboard = Animated.createAnimatedComponent(Clapperboard);
@@ -86,8 +85,11 @@ function AnimatedVendorTab({
   const progress = useSharedValue(active ? 1 : 0);
   const pressed = useSharedValue(1);
   const center = route === CENTER_ROUTE;
-  const activeColor = dark ? "#EC4899" : PINK;
-  const inactiveColor = dark ? "#AAA0A5" : "#6B6B73";
+  const tabColors = dark
+    ? floatingNavigationTokens.vendorTabs.dark
+    : floatingNavigationTokens.vendorTabs.light;
+  const activeColor = tabColors.active;
+  const inactiveColor = tabColors.inactive;
 
   useEffect(() => {
     progress.value = reducedMotion
@@ -102,14 +104,25 @@ function AnimatedVendorTab({
     ],
   } as ViewStyle));
   const circleStyle = useAnimatedStyle<ViewStyle>(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], [dark ? "#D92B69" : "#E93370", activeColor]),
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [
+        dark
+          ? floatingNavigationTokens.centerInactiveDark
+          : floatingNavigationTokens.centerInactiveLight,
+        activeColor,
+      ],
+    ),
     shadowOpacity: interpolate(progress.value, [0, 1], [0.2, 0.32]),
   }));
   const labelStyle = useAnimatedStyle<TextStyle>(() => ({
     color: interpolateColor(progress.value, [0, 1], [inactiveColor, activeColor]),
   }));
   const iconProps = useAnimatedProps(() => ({
-    color: center ? "#FFFFFF" : interpolateColor(progress.value, [0, 1], [inactiveColor, activeColor]),
+    color: center
+      ? floatingNavigationTokens.light.surface
+      : interpolateColor(progress.value, [0, 1], [inactiveColor, activeColor]),
   }));
 
   const pressIn = () => {
@@ -167,6 +180,7 @@ export default function VendorBottomNav() {
   const reducedMotion = useReducedMotion();
   const [itemsWidth, setItemsWidth] = useState(0);
   const dark = colorScheme === "dark";
+  const navigationColors = floatingNavigationColors(dark);
   const normalizedPath = pathname.toLowerCase();
   const isVendorPage = vendorWorkspaceRoutes.some((route) => normalizedPath.startsWith(route));
   const shouldShow = Platform.OS !== "web" || width < 768;
@@ -184,16 +198,6 @@ export default function VendorBottomNav() {
         : tabs.find((tab) => normalizedPath.startsWith(tab.route.toLowerCase()))?.route ?? "/vendor-dashboard";
   const selectedIndex = Math.max(0, tabs.findIndex((tab) => tab.route === activeRoute));
   const activeIndex = useSharedValue(selectedIndex);
-
-  useEffect(() => {
-    if (!isVendorPage) return;
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (router.canDismiss()) router.dismissAll();
-      router.replace("/(tabs)");
-      return true;
-    });
-    return () => subscription.remove();
-  }, [isVendorPage, router]);
 
   useEffect(() => {
     activeIndex.value = reducedMotion
@@ -224,11 +228,13 @@ export default function VendorBottomNav() {
   return (
     <View pointerEvents="box-none" testID="vendor-bottom-navigation" style={[styles.safeWrap, {
       paddingBottom: Math.max(insets.bottom, 8),
-      backgroundColor: dark ? "#070B14" : "#FFFFFF",
+      paddingLeft: Math.max(insets.left, floatingNavigationTokens.horizontalInset),
+      paddingRight: Math.max(insets.right, floatingNavigationTokens.horizontalInset),
+      backgroundColor: navigationColors.canvas,
     }]}>
       <View pointerEvents="box-none" style={[styles.bar, {
-        backgroundColor: dark ? "#0E141F" : "#FFFFFF",
-        borderColor: dark ? "#5A2B3F" : "#F3D4DF",
+        backgroundColor: navigationColors.surface,
+        borderColor: navigationColors.border,
       }]}>
         <View pointerEvents="box-none" style={styles.items} onLayout={onItemsLayout}>
           {itemsWidth > 0 ? (
@@ -236,7 +242,7 @@ export default function VendorBottomNav() {
               pointerEvents="none"
               style={[
                 styles.activeIndicator,
-                { backgroundColor: dark ? "rgba(236,72,153,.13)" : "#FFF0F6" },
+                { backgroundColor: navigationColors.indicator },
                 indicatorStyle,
               ]}
             />
@@ -258,21 +264,23 @@ export default function VendorBottomNav() {
 }
 
 const styles = StyleSheet.create({
-  safeWrap: { position: "relative", zIndex: 1000, elevation: 30, width: "100%", flexShrink: 0 },
+  safeWrap: { position: "relative", zIndex: 1000, elevation: 30, width: "100%", flexShrink: 0, paddingHorizontal: floatingNavigationTokens.horizontalInset },
   bar: {
-    minHeight: 58,
-    marginHorizontal: 10,
+    width: "100%",
+    maxWidth: floatingNavigationTokens.tabletMaxWidth,
+    alignSelf: "center",
+    minHeight: floatingNavigationTokens.baseHeight,
     borderWidth: 1,
-    borderRadius: 31,
+    borderRadius: floatingNavigationTokens.barRadius,
     overflow: "visible",
-    shadowColor: "#573341",
+    shadowColor: floatingNavigationTokens.shadow,
     shadowOpacity: 0.13,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: -4 },
     elevation: 20,
   },
-  items: { minHeight: 58, flexDirection: "row", alignItems: "stretch", position: "relative" },
-  activeIndicator: { position: "absolute", top: 5, bottom: 5, borderRadius: 25 },
+  items: { minHeight: floatingNavigationTokens.baseHeight, flexDirection: "row", alignItems: "stretch", position: "relative" },
+  activeIndicator: { position: "absolute", top: floatingNavigationTokens.indicatorInset, bottom: floatingNavigationTokens.indicatorInset, borderRadius: floatingNavigationTokens.indicatorRadius },
   tab: { flex: 1, minWidth: 0, minHeight: 58, alignItems: "center", justifyContent: "flex-start", zIndex: 2 },
   regularVisual: { width: 34, height: 31, marginTop: 7, alignItems: "center", justifyContent: "center" },
   centerVisual: { width: 44, height: 40, marginTop: 2, alignItems: "center", justifyContent: "center" },
@@ -281,10 +289,10 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
+    borderColor: floatingNavigationTokens.light.surface,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: PINK,
+    shadowColor: floatingNavigationTokens.vendorTabs.light.active,
     shadowRadius: 11,
     shadowOffset: { width: 0, height: 5 },
     elevation: 9,

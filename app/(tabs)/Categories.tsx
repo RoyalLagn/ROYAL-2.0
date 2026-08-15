@@ -200,7 +200,7 @@ export default function CategoriesScreen() {
   const keyExtractor = useCallback((item: ListEntry) => item.id, []);
 
   return (
-    <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top"]}>
+    <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top", "left", "right"]}>
       {loading && !categories.length ? <PageLoader /> : null}
       <View style={[s.topContent, { width: contentWidth }]}>
         <Animated.View style={headerStyle}>
