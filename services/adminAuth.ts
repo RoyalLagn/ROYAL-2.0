@@ -23,18 +23,21 @@ export type AdminIdentity = {
   profile: AdminProfile;
 };
 
+export type AdminAuthErrorCode =
+  | "invalid_credentials"
+  | "unauthorized"
+  | "disabled"
+  | "missing_session"
+  | "mfa_required"
+  | "invalid_recovery";
+
 const ADMIN_PROFILE_COLUMNS =
   "id,email,full_name,phone,profile_image,role,is_active";
 
 export class AdminAuthError extends Error {
   constructor(
     message: string,
-    readonly code:
-      | "invalid_credentials"
-      | "unauthorized"
-      | "disabled"
-      | "missing_session"
-      | "invalid_recovery",
+    readonly code: AdminAuthErrorCode,
   ) {
     super(message);
     this.name = "AdminAuthError";
@@ -72,7 +75,17 @@ async function signOutLocalSession() {
   await supabase.auth.signOut({ scope: "local" });
 }
 
-export async function verifyAdminSession(
+function shouldClearAdminSession(error: AdminAuthError) {
+  return error.code === "unauthorized" || error.code === "disabled";
+}
+
+/**
+ * Verifies the password/email session and administrator role without requiring
+ * the second factor. This narrower check is intentionally limited to login,
+ * MFA enrollment/challenge and password recovery; workspace access must call
+ * verifyAdminSession(), which also requires aal2.
+ */
+export async function verifyAdminRoleSession(
   session?: Session | null,
   clearUnauthorized = true,
 ): Promise<AdminIdentity> {
@@ -88,11 +101,33 @@ export async function verifyAdminSession(
     const profile = await getAdminProfile(currentSession.user.id);
     return { session: currentSession, user: currentSession.user, profile };
   } catch (error) {
-    if (clearUnauthorized && error instanceof AdminAuthError) {
+    if (
+      clearUnauthorized &&
+      error instanceof AdminAuthError &&
+      shouldClearAdminSession(error)
+    ) {
       await signOutLocalSession();
     }
     throw error;
   }
+}
+
+/** Fully verifies an administrator session, including its TOTP second factor. */
+export async function verifyAdminSession(
+  session?: Session | null,
+  clearUnauthorized = true,
+): Promise<AdminIdentity> {
+  const identity = await verifyAdminRoleSession(session, clearUnauthorized);
+  const { data, error } =
+    await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error) throw error;
+  if (data.currentLevel !== "aal2") {
+    throw new AdminAuthError(
+      "Microsoft Authenticator verification required.",
+      "mfa_required",
+    );
+  }
+  return identity;
 }
 
 export async function loginAdmin(
@@ -109,7 +144,7 @@ export async function loginAdmin(
       "invalid_credentials",
     );
   }
-  return verifyAdminSession(data.session);
+  return verifyAdminRoleSession(data.session);
 }
 
 export async function restoreAdminSession(): Promise<AdminIdentity | null> {
@@ -166,7 +201,7 @@ export async function updateAdminRecoveredPassword(password: string) {
   if (error || !data.session) {
     throw new AdminAuthError("Your recovery session expired.", "invalid_recovery");
   }
-  await verifyAdminSession(data.session);
+  await verifyAdminRoleSession(data.session);
   const { error: updateError } = await supabase.auth.updateUser({ password });
   if (updateError) throw updateError;
   await logoutAdmin();

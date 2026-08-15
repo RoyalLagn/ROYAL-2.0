@@ -64,7 +64,7 @@ export default function AdminForgotPassword() {
           icon={Mail}
           value={email}
           onChangeText={(value) => { setEmail(value); setError(""); }}
-          placeholder="admin@royallagn.com"
+          placeholder="royallagn@gmail.com"
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="email"

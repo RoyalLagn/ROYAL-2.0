@@ -8,7 +8,7 @@ import PageLoader from "@/components/loading/PageLoader";
 export function AdminRouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAdminAuthenticated, loading } = useAdminAuth();
+  const { isAdminAuthenticated, loading, mfaRequirement } = useAdminAuth();
   const protectedRoute = isProtectedAdminRoute(pathname);
   const mobileAdminRoute = protectedRoute && Platform.OS !== "web";
   const redirecting = useRef(false);
@@ -27,9 +27,16 @@ export function AdminRouteGuard({ children }: { children: React.ReactNode }) {
       // Genuinely unauthorized admin sessions are already cleared by
       // verifyAdminSession() in services/adminAuth.ts.
       if (router.canDismiss()) router.dismissAll();
-      router.replace(Platform.OS === "web" ? "/AdminLogin" : "/Login");
+      const destination = Platform.OS !== "web"
+        ? "/Login"
+        : mfaRequirement === "setup"
+          ? "/AdminMfaSetup"
+          : mfaRequirement === "verify"
+            ? "/AdminMfaVerify"
+            : "/AdminLogin";
+      router.replace(destination);
     }
-  }, [isAdminAuthenticated, loading, mobileAdminRoute, protectedRoute, router]);
+  }, [isAdminAuthenticated, loading, mfaRequirement, mobileAdminRoute, protectedRoute, router]);
 
   if (mobileAdminRoute || (protectedRoute && (loading || !isAdminAuthenticated))) {
     return <PageLoader />;

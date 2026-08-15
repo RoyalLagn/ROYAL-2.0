@@ -15,6 +15,7 @@ import {
   getAdminAuthError,
   loginAdmin,
 } from "@/services/adminAuth";
+import { getAdminMfaState } from "@/services/adminMfa";
 import { validateEmail } from "@/utils/authValidation";
 
 export default function AdminLoginScreen() {
@@ -53,6 +54,13 @@ function WebAdminLoginScreen() {
     setError("");
     try {
       const identity = await loginAdmin(email, password);
+      const mfa = await getAdminMfaState();
+      if (mfa.requirement) {
+        router.replace(
+          mfa.requirement === "setup" ? "/AdminMfaSetup" : "/AdminMfaVerify",
+        );
+        return;
+      }
       await refreshAdmin(identity.session);
       if (router.canDismiss()) router.dismissAll();
       router.replace("/admin-dashboard");
@@ -80,7 +88,7 @@ function WebAdminLoginScreen() {
           icon={Mail}
           value={email}
           onChangeText={(value) => { setEmail(value); setError(""); }}
-          placeholder="admin@royallagn.com"
+          placeholder="royallagn@gmail.com"
           keyboardType="email-address"
           textContentType="emailAddress"
           autoComplete="email"

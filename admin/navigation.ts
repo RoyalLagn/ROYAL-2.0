@@ -100,6 +100,8 @@ export const adminAuthRoutes = new Set([
   "/AdminForgotPassword",
   "/AdminOtpVerification",
   "/AdminCreatePassword",
+  "/AdminMfaSetup",
+  "/AdminMfaVerify",
 ]);
 
 export const adminWorkspaceRoutes = new Set([
