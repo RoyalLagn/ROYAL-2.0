@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { CircleAlert, Download, Sparkles } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -24,6 +24,7 @@ import MarketingCardForm, {
 } from "@/components/vendor-marketing-card/MarketingCardForm";
 import { HiddenExportCard, exportMarketingCardPdf } from "@/components/vendor-marketing-card/MarketingCardPdf";
 import { typeScale, typeLeading } from "@/constants/typography";
+import Pressable from "@/components/InteropSafePressable";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^[0-9]{10,15}$/;

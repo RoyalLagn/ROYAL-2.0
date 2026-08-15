@@ -1,9 +1,10 @@
 import React from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import { ChevronLeft, Crown } from "lucide-react-native";
 import Animated, { Extrapolation, interpolate, type SharedValue, useAnimatedStyle } from "react-native-reanimated";
 import { typeStyles } from "@/constants/typography";
 import { brandPalette } from "@/constants/brandPalette";
+import Pressable from "@/components/InteropSafePressable";
 
 const PINK = brandPalette.light.primary;
 

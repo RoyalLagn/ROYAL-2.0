@@ -55,7 +55,7 @@ export function AccountOption({
         : undefined}
       style={({ pressed }) => [
         Platform.OS !== "web" && (tile ? styles.nativeTile : styles.nativeSettingsRow),
-        Platform.OS !== "web" && (isDark ? styles.nativeSurfaceDark : styles.nativeSurfaceLight),
+        Platform.OS !== "web" && tile && (isDark ? styles.nativeSurfaceDark : styles.nativeSurfaceLight),
         Platform.OS !== "web" && !tile && showNativeSeparator && (isDark ? styles.nativeSeparatorDark : styles.nativeSeparatorLight),
         tile && tileWidth ? { width: tileWidth } : undefined,
         webTransition,
@@ -94,7 +94,7 @@ export function AccountOption({
           >
             {title}
           </Text>
-          <Text className="text-muted-foreground text-xs leading-[18px]" numberOfLines={tile ? 2 : 1}>
+          <Text className="text-muted-foreground text-xs leading-[18px]" numberOfLines={tile || Platform.OS !== "web" ? 2 : 1}>
             {description}
           </Text>
         </View>

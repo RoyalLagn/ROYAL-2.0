@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { ChevronDown } from "lucide-react-native";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeScale, typeStyles } from "@/constants/typography";
+import Pressable from "@/components/InteropSafePressable";
 
 type ResultsSummaryProps = {
   count: number;

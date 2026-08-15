@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Crown, Gift, Images, LockKeyhole, ReceiptText, Sparkles, Video } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -15,6 +15,7 @@ import type { SubscriptionCheckoutPreview, SubscriptionPayment, SubscriptionPlan
 import { isSubscriptionOfferEligible, subscriptionPriceBreakdown } from "@/subscriptions/pricing";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { MembershipBadge, membershipBadgeFor } from "@/components/vendor/MembershipBadge";
+import Pressable from "@/components/InteropSafePressable";
 
 const shortDate = (value: string | null | undefined) => value
   ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value))

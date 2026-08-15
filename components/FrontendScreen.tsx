@@ -188,6 +188,7 @@ export default function FrontendScreen({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Go back"
+            hitSlop={Platform.OS === "android" ? 4 : undefined}
             className="w-11 h-11 rounded-full bg-muted border border-border/70 items-center justify-center hover:bg-secondary active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors duration-200"
             onPress={() => router.back()}
           >

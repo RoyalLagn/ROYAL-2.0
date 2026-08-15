@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import type { LucideIcon } from "lucide-react-native";
 import Animated, {
   Easing,
@@ -12,6 +12,7 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { MotionDistance, MotionDuration } from "@/utils/motion";
 import { typeScale, typeLeading } from "@/constants/typography";
 import { brandPalette } from "@/constants/brandPalette";
+import Pressable from "@/components/InteropSafePressable";
 
 /**
  * Shared empty/error-state block. Distinguishes "nothing here yet" from

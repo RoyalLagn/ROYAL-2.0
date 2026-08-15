@@ -316,7 +316,7 @@ export default function ProfileScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Edit profile photo"
-              hitSlop={4}
+              hitSlop={Platform.OS === "android" ? 6 : 4}
               className="w-9 h-9 bg-primary rounded-full items-center justify-center border-[3px] border-card hover:bg-[#D81B60] active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-colors duration-200 ease-out"
               style={mobilePressedScale}
               onPress={openPhotoViewer}

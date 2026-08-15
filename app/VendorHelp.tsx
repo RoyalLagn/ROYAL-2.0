@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { CalendarDays, ChevronRight, CircleHelp, Images, Mail, MessageCircle, Phone, UserRoundPen, Wrench } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -9,6 +9,7 @@ import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { useSupportSettings } from "@/hooks/useSupportSettings";
 import { canOpenSupportUrl, supportEmailUrl, supportPhoneUrl } from "@/services/supportSettings";
+import Pressable from "@/components/InteropSafePressable";
 
 export default function VendorHelp() {
   const router = useRouter();

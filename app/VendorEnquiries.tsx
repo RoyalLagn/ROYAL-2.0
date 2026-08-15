@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { BarChart3, CalendarDays, ChevronRight, Inbox, MessageCircle, Phone, Search, TrendingDown, TrendingUp, X } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -11,6 +11,7 @@ import { SkeletonList } from "@/components/loading/Skeleton";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
 import { interactionTokens } from "@/constants/interactionTokens";
+import Pressable from "@/components/InteropSafePressable";
 
 type Filter = "all" | EnquiryStatus;
 type Sort = "newest" | "oldest" | "follow_up";

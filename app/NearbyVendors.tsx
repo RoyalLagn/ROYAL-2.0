@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, type ListRenderItemInfo, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { FlatList, type ListRenderItemInfo, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { useRouter } from "expo-router";
@@ -10,6 +10,7 @@ import PublicWebNavbar from "@/components/PublicWebNavbar";
 import VendorListingCard from "@/components/listing/VendorListingCard";
 import { SkeletonList } from "@/components/loading/Skeleton";
 import PageLoader from "@/components/loading/PageLoader";
+import Pressable from "@/components/InteropSafePressable";
 import { useFavorites } from "@/context/FavoritesContext";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import { useCategories } from "@/context/CategoryContext";
