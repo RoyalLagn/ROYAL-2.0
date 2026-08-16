@@ -67,6 +67,15 @@ assert.doesNotMatch(
   "app/_layout.tsx must not reintroduce the Playfair barrel import (bundles all 12 weights).",
 );
 
+// --- Responsive startup splash must remain a real two-second handoff -----
+const startupSplashSource = await read("components/loading/StartupSplash.tsx");
+assert.match(startupSplashSource, /const SPLASH_VISIBLE_MS = 1_600;/, "The native branded startup image must remain visible for 1.6 seconds after loading.");
+assert.match(startupSplashSource, /width >= height \? LANDSCAPE_SPLASH : PORTRAIT_SPLASH/, "Startup artwork must follow viewport orientation rather than a device-name guess.");
+assert.match(startupSplashSource, /resizeMode="cover"/, "Startup artwork must cover the complete viewport.");
+assert.match(layoutSource, /<PageLoaderProvider suppressed=\{startupSplashVisible\}>/, "The page loader must not cover the startup splash.");
+assert.match(layoutSource, /Platform\.OS !== 'web'/, "The branded startup splash must remain native-only.");
+assert.match(layoutSource, /webBootLoading \? <PageLoader \/>/, "Web startup and refresh must use the shared page loader instead of the branded splash.");
+
 // --- App alerts must stay cross-platform and app-wide -------------------
 const [dialogProviderSource, alertBridgeSource] = await Promise.all([
   read("components/dialogs/AppDialogProvider.tsx"),

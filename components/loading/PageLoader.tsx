@@ -79,7 +79,10 @@ function LoaderDot({ index, reducedMotion }: { index: number; reducedMotion: boo
  * owns the minimum-visible and exit timing so individual screens never need
  * duplicate timers or presentation logic.
  */
-export function PageLoaderProvider({ children }: React.PropsWithChildren) {
+export function PageLoaderProvider({
+  children,
+  suppressed = false,
+}: React.PropsWithChildren<{ suppressed?: boolean }>) {
   const [activeLoaders, setActiveLoaders] = useState(0);
   const [presented, setPresented] = useState(false);
   const [exitRequested, setExitRequested] = useState(false);
@@ -108,6 +111,13 @@ export function PageLoaderProvider({ children }: React.PropsWithChildren) {
   }, []);
 
   useEffect(() => {
+    if (suppressed) {
+      clearHideTimer();
+      setPresented(false);
+      setExitRequested(false);
+      return;
+    }
+
     if (activeLoaders > 0) {
       clearHideTimer();
       setExitRequested(false);
@@ -130,7 +140,7 @@ export function PageLoaderProvider({ children }: React.PropsWithChildren) {
       hideTimer.current = null;
       setExitRequested(true);
     }, remaining);
-  }, [activeLoaders, clearHideTimer, presented]);
+  }, [activeLoaders, clearHideTimer, presented, suppressed]);
 
   useEffect(() => () => clearHideTimer(), [clearHideTimer]);
 
@@ -147,7 +157,7 @@ export function PageLoaderProvider({ children }: React.PropsWithChildren) {
   return (
     <PageLoaderContext.Provider value={contextValue}>
       {children}
-      {presented ? (
+      {presented && !suppressed ? (
         <Modal
           animationType="none"
           hardwareAccelerated

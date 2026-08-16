@@ -4,7 +4,7 @@ import { ThemeProvider, useAppTheme } from '@/components/ThemeProvider';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, Pressable, View, Text, StyleSheet } from 'react-native';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useFonts } from 'expo-font';
 import { typeScale } from "@/constants/typography";
 import { brandPalette } from "@/constants/brandPalette";
@@ -45,7 +45,8 @@ import { SCREEN_TRANSITION } from '@/utils/motion';
 import { useWebNavigationFocusSafety } from '@/hooks/useWebNavigationFocusSafety';
 import { installAppAlert } from '@/utils/webAlert';
 import AppDialogProvider from '@/components/dialogs/AppDialogProvider';
-import { PageLoaderProvider } from '@/components/loading/PageLoader';
+import PageLoader, { PageLoaderProvider } from '@/components/loading/PageLoader';
+import { StartupSplash } from '@/components/loading/StartupSplash';
 import { AppFeedbackProvider } from '@/context/AppFeedbackContext';
 
 // Web gets the RoyalLagn dialog; native platforms retain their system alert.
@@ -129,6 +130,12 @@ function AppNavigator() {
 }
 
 export default function RootLayout() {
+  const [startupSplashVisible, setStartupSplashVisible] = useState(
+    () => Platform.OS !== 'web',
+  );
+  const [webBootLoading, setWebBootLoading] = useState(
+    () => Platform.OS === 'web',
+  );
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -151,16 +158,25 @@ export default function RootLayout() {
   // there to avoid any visible flash of the fallback font.
   const fontsReady = Platform.OS === 'web' || fontsLoaded || fontError;
 
+  const revealStartupSplash = useCallback(() => {
+    SplashScreen.hideAsync().catch(() => undefined);
+  }, []);
+
+  const finishStartupSplash = useCallback(() => {
+    setStartupSplashVisible(false);
+  }, []);
+
   useEffect(() => {
-    if (fontsReady) {
-      SplashScreen.hideAsync().catch(() => undefined);
-    }
+    if (Platform.OS !== 'web' || !fontsReady) return;
+    SplashScreen.hideAsync().catch(() => undefined);
+    const frame = requestAnimationFrame(() => setWebBootLoading(false));
+    return () => cancelAnimationFrame(frame);
   }, [fontsReady]);
 
   if (!fontsReady) return null;
 
   return (
-    <PageLoaderProvider>
+    <PageLoaderProvider suppressed={startupSplashVisible}>
       <ErrorBoundary>
           <WebNavigationFocusSafety />
           <PublicAuthProvider>
@@ -210,6 +226,13 @@ export default function RootLayout() {
           </CategoryProvider>
           </PublicAuthProvider>
       </ErrorBoundary>
+      {startupSplashVisible ? (
+        <StartupSplash
+          onReady={revealStartupSplash}
+          onFinish={finishStartupSplash}
+        />
+      ) : null}
+      {webBootLoading ? <PageLoader /> : null}
     </PageLoaderProvider>
   );
 }
