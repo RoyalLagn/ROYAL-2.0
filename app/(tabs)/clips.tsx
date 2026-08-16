@@ -94,7 +94,7 @@ function ClipsFeed() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [immersiveHold, setImmersiveHold] = useState(false);
-  const [muted, setMuted] = useState(Platform.OS === "web");
+  const [muted, setMuted] = useState(false);
   const [foreground, setForeground] = useState(AppState.currentState === "active");
   const [engagement, setEngagement] = useState<Record<string, ClipEngagementState>>({});
   const [counts, setCounts] = useState<Record<string, { likes: number; saves: number; views: number }>>({});

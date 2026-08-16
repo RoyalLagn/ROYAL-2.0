@@ -136,18 +136,16 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
 
   const togglePlayback = useCallback(() => {
     if (!active || !hasValidSource) return;
-    setManuallyPaused((current) => {
-      const next = !current;
-      if (next) {
-        player.pause();
-        setControlsVisible(true);
-      } else {
-        player.play();
-        setControlsVisible(false);
-      }
-      showPauseState(next);
-      return next;
-    });
+    const nextPaused = player.playing;
+    setManuallyPaused(nextPaused);
+    if (nextPaused) {
+      player.pause();
+      setControlsVisible(true);
+    } else {
+      player.play();
+      setControlsVisible(false);
+    }
+    showPauseState(nextPaused);
   }, [active, hasValidSource, player, showPauseState]);
 
   const burstHeart = useCallback(() => {

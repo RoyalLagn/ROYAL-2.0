@@ -175,14 +175,20 @@ INTEROP_SAFE_VENDOR_PATHS.forEach((path, index) => {
     `${path} must not bypass the Android-safe Pressable wrapper.`,
   );
 });
-const [publicClipsSource, publicClipVideoSource] = await Promise.all([
+const [publicClipsSource, publicClipVideoSource, vendorClipsReelSource] = await Promise.all([
   read("app/(tabs)/clips.tsx"),
   read("clips/components/PublicClipVideo.tsx"),
+  read("components/vendor-profile/VendorClipsReelViewer.tsx"),
 ]);
 assert.match(
   publicClipsSource,
-  /useState\(Platform\.OS === ["']web["']\)/,
-  "Public Clips must start audible on native while retaining browser-compatible muted autoplay.",
+  /const \[muted, setMuted\] = useState\(false\);/,
+  "Public Clips must start with sound enabled.",
+);
+assert.match(
+  vendorClipsReelSource,
+  /const \[muted, setMuted\] = useState\(false\);/,
+  "Vendor Clip reels must start with sound enabled.",
 );
 assert.match(publicClipVideoSource, /instance\.volume = 1;/, "Public Clips must initialize at audible volume.");
 assert.match(publicClipVideoSource, /instance\.audioMixingMode = ["']doNotMix["'];/, "Native Clips must request audio focus.");

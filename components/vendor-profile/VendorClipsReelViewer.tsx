@@ -69,7 +69,7 @@ export default function VendorClipsReelViewer({
   const listRef = useRef<FlatList<ViewerItem>>(null);
   const viewedIds = useRef(new Set<string>());
   const [foreground, setForeground] = useState(AppState.currentState === "active");
-  const [muted, setMuted] = useState(Platform.OS === "web");
+  const [muted, setMuted] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [engagement, setEngagement] = useState<Record<string, ClipEngagementState>>({});
   const [counts, setCounts] = useState<Record<string, { likes: number; views: number }>>({});
