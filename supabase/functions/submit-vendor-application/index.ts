@@ -64,16 +64,13 @@ Deno.serve(async (request) => {
       callerId = callerData?.user?.id ?? null;
     }
 
-    const cityId = optionalText(body.city_id);
-    const [{ data: city, error: cityError }, { data: category, error: categoryError }] = await Promise.all([
-      cityId
-        ? service.from("supported_cities").select("id,name,state,is_active").eq("id", cityId).eq("is_active", true).maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-      service.from("categories").select("id").eq("id", required.categoryId).maybeSingle(),
-    ]);
-    if (cityError) throw cityError;
+    const requestedCityId = optionalText(body.city_id);
+    const { data: category, error: categoryError } = await service
+      .from("categories")
+      .select("id")
+      .eq("id", required.categoryId)
+      .maybeSingle();
     if (categoryError) throw categoryError;
-    if (cityId && !city) throw new Error("This city is not currently supported by RoyalLagn.");
     if (!category) throw new Error("Choose an active RoyalLagn category.");
 
     const areaId = optionalText(body.area_id);
@@ -82,19 +79,6 @@ Deno.serve(async (request) => {
       ? [...new Set(body.service_area_ids.map(text).filter(Boolean))]
       : [];
     const requestedAreaIds = [...new Set([areaId, ...serviceAreaIds].filter(Boolean))] as string[];
-    if (requestedAreaIds.length && !city) throw new Error("Service areas require a supported primary city.");
-    if (requestedAreaIds.length && city) {
-      const { data: supportedAreas, error: areaError } = await service
-        .from("supported_areas")
-        .select("id")
-        .eq("city_id", city.id)
-        .eq("is_active", true)
-        .in("id", requestedAreaIds);
-      if (areaError) throw areaError;
-      if ((supportedAreas ?? []).length !== requestedAreaIds.length) {
-        throw new Error("One or more service areas are not active in the selected city.");
-      }
-    }
 
     let lookupResponse: Response | null = null;
     let lookup: any = {};
@@ -125,8 +109,42 @@ Deno.serve(async (request) => {
       if (!lookup.geo?.localities?.length) {
         throw new Error(lookup.message || "RoyalLagn is not yet available in this PIN-code location.");
       }
-    } else if (lookupResponse && city && lookup.city?.id !== city.id) {
+    }
+
+    // The verified PIN lookup is authoritative for the managed-city link.
+    // Newer clients send this ID as an early consistency signal, while this
+    // server-side derivation keeps older mobile builds working and prevents
+    // the vendor_applications location trigger from receiving city_id=null.
+    const lookupCityId = optionalText(lookup.city?.id);
+    if (requestedCityId && lookupCityId && requestedCityId !== lookupCityId) {
       throw new Error(`This PIN code belongs to ${lookup.city?.name || lookup.detected?.district || "another city"}, not the selected city.`);
+    }
+    const canonicalCityId = lookupCityId ?? requestedCityId;
+    const { data: city, error: cityError } = canonicalCityId
+      ? await service
+        .from("supported_cities")
+        .select("id,name,state,is_active")
+        .eq("id", canonicalCityId)
+        .eq("is_active", true)
+        .maybeSingle()
+      : { data: null, error: null };
+    if (cityError) throw cityError;
+    if (canonicalCityId && !city) throw new Error("This city is not currently supported by RoyalLagn.");
+    if (!city) {
+      throw new Error("This PIN code is not linked to an active RoyalLagn city yet. Please contact support.");
+    }
+
+    if (requestedAreaIds.length) {
+      const { data: supportedAreas, error: areaError } = await service
+        .from("supported_areas")
+        .select("id")
+        .eq("city_id", city.id)
+        .eq("is_active", true)
+        .in("id", requestedAreaIds);
+      if (areaError) throw areaError;
+      if ((supportedAreas ?? []).length !== requestedAreaIds.length) {
+        throw new Error("One or more service areas are not active in the selected city.");
+      }
     }
 
     const localityOptions = Array.isArray(lookup.geo?.localities) ? lookup.geo.localities : [];

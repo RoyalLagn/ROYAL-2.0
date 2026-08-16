@@ -5,6 +5,7 @@ import {
   verifyAdminSession,
   type AdminIdentity,
 } from "@/services/adminAuth";
+import { ADMIN_MFA_DEV_BYPASS_ENABLED } from "@/services/adminMfaPolicy";
 
 export type AdminMfaRequirement = "setup" | "verify";
 
@@ -31,6 +32,14 @@ function verifiedTotpFactor<T extends { status?: string }>(factors: T[]) {
 /** Returns where a role-verified admin must go before workspace access. */
 export async function getAdminMfaState(): Promise<AdminMfaState> {
   await verifyAdminRoleSession(undefined, false);
+  if (ADMIN_MFA_DEV_BYPASS_ENABLED) {
+    return {
+      currentLevel: null,
+      nextLevel: null,
+      requirement: null,
+      factorId: null,
+    };
+  }
   const [assurance, factors] = await Promise.all([
     supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
     supabase.auth.mfa.listFactors(),

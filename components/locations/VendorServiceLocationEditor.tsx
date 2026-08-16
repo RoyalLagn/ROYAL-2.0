@@ -73,7 +73,14 @@ export function VendorServiceLocationEditor({
     setLookupMessage("");
     setApplicationBlockedMessage("");
     setLocalityOptions([]);
-    onChange({ ...value, pincode: pincode.replace(/\D/g, "").slice(0, 6), geoLocalityId: null });
+    onChange({
+      ...value,
+      pincode: pincode.replace(/\D/g, "").slice(0, 6),
+      primaryCityId: "",
+      primaryAreaId: null,
+      serviceAreaIds: [],
+      geoLocalityId: null,
+    });
   };
 
   const lookup = useCallback(async () => {
@@ -105,7 +112,11 @@ export function VendorServiceLocationEditor({
         );
       }
       if (!localities.length) {
-        onChange({ ...value, geoLocalityId: null });
+        onChange({
+          ...value,
+          primaryCityId: result.city?.id ?? "",
+          geoLocalityId: null,
+        });
         setLookupMessage(result.message ?? "No locations found for this PIN.");
         return;
       }
@@ -114,6 +125,7 @@ export function VendorServiceLocationEditor({
         : localities.find((item) => item.id === value.geoLocalityId) ?? null;
       onChange({
         ...value,
+        primaryCityId: result.city?.id ?? "",
         geoLocalityId: selectedLocality?.id ?? null,
       });
       if (localities.length > 1 && !selectedLocality) {

@@ -80,6 +80,11 @@ assert.match(vendorLocationEditor, /localityOptions\.length > 0[\s\S]*selectedLo
 assert.match(vendorLocationEditor, /Select your area \/ village to continue/);
 assert.match(vendorLocationEditor, /No locations found for this PIN/);
 assert.match(vendorLocationEditor, /<ScrollView[\s\S]*accessibilityRole="radiogroup"/);
+assert.match(
+  vendorLocationEditor,
+  /primaryCityId: result\.city\?\.id \?\? ""/,
+  "PIN verification must retain the canonical supported city for Vendor application submission.",
+);
 
 const vendorProfileLocation = await readFile(new URL("../app/VendorEditLocation.tsx", import.meta.url), "utf8");
 assert.match(vendorProfileLocation, /geoLocalityId: data\.vendor\.geo_pincode_locality_id \?\? null/);
@@ -89,10 +94,25 @@ assert.match(vendorProfileLocation, /select your area \/ village before saving/i
 
 const vendorOnboarding = await readFile(new URL("../app/BecomeVendor.tsx", import.meta.url), "utf8");
 assert.match(vendorOnboarding, /geo_pincode_locality_id: vendorLocation\.geoLocalityId/);
+assert.match(
+  vendorOnboarding,
+  /city_id: vendorLocation\.primaryCityId \|\| null/,
+  "Vendor onboarding must send the city resolved by the PIN lookup.",
+);
 const applicationFunction = await readFile(new URL("../supabase/functions/submit-vendor-application/index.ts", import.meta.url), "utf8");
 assert.match(applicationFunction, /localityOptions\.length > 1 && !geoLocalityId/);
 assert.match(applicationFunction, /localityOptions\.find\(\(item: any\) => item\.id === geoLocalityId\)/);
 assert.match(applicationFunction, /selected locality does not belong to this PIN code/i);
+assert.match(
+  applicationFunction,
+  /const lookupCityId = optionalText\(lookup\.city\?\.id\)[\s\S]*const canonicalCityId = lookupCityId \?\? requestedCityId/,
+  "The Edge Function must independently derive the managed city from the verified PIN response.",
+);
+assert.match(
+  applicationFunction,
+  /city_id: city\?\.id \?\? null/,
+  "The application insert must persist the server-verified city ID.",
+);
 
 assert.match(localityMigration, /where id = target_locality_id and pincode = target_pincode and is_active/);
 assert.match(localityMigration, /raise exception 'The selected locality does not belong to this PIN code'/);
@@ -130,5 +150,15 @@ assert.equal(officialRows.filter((row) => row.pincode === "700001").length, 2);
 assert.equal(normalizeIndiaPostRow({ pin: "560001", officename: "Example Office", district: "Bengaluru", state: "Karnataka" }).pincode, "560001");
 assert.throws(() => validateOfficialRows([{ pincode: "000000", officename: "Invalid", districtname: "Nowhere", statename: "Nowhere" }]));
 assert.match(pincodeFunction, /No Indian postal location was found[\s\S]*status: "unresolved"/);
+
+const official410501Repair = await readFile(
+  new URL("../supabase/migrations/20260815190000_trust_410501_official_localities.sql", import.meta.url),
+  "utf8",
+);
+assert.match(official410501Repair, /\('Bahul'\)/);
+assert.match(official410501Repair, /lower\(taluka\.name\) = 'khed'/);
+assert.match(official410501Repair, /source_trust = greatest\(locality\.source_trust, 3\)/);
+assert.match(official410501Repair, /is_trusted = true/);
+assert.match(official410501Repair, /refresh_geo_pincode_aggregate\('410501'\)/);
 
 console.log("Location-discovery domain tests passed.");

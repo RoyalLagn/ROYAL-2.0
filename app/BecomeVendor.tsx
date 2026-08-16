@@ -306,7 +306,10 @@ export default function BecomeVendor() {
         experience,
         address: "",
         pincode: vendorLocation.pincode,
-        city_id: null,
+        // Keep the legacy managed-city link in sync with the canonical
+        // PIN/locality hierarchy. The Edge Function resolves this again
+        // server-side so older app builds that still send null remain safe.
+        city_id: vendorLocation.primaryCityId || null,
         area_id: null,
         service_area_ids: [],
         geo_pincode_locality_id: vendorLocation.geoLocalityId,

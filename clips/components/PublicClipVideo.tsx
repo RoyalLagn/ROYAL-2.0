@@ -32,6 +32,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   height?: number;
 }) {
   const [manuallyPaused, setManuallyPaused] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [firstFrameRendered, setFirstFrameRendered] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(false);
   const lastTap = useRef(0);
@@ -129,6 +130,25 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   }, [playOpacity, playScale, reduced]);
 
   useEffect(() => {
+    // Audible autoplay is intentionally blocked by some web browsers after a
+    // reload/direct URL visit. Never work around that by muting the Clip.
+    // Keep it unmuted, surface the play state, and let the user's first tap
+    // call play() inside a real interaction so playback begins with sound.
+    if (Platform.OS !== "web" || !active || manuallyPaused || !hasValidSource) {
+      setAutoplayBlocked(false);
+      return;
+    }
+    if (status?.status !== "readyToPlay") return;
+    const timer = setTimeout(() => {
+      if (player.playing) return;
+      setAutoplayBlocked(true);
+      setControlsVisible(true);
+      showPauseState(true);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [active, hasValidSource, manuallyPaused, player, showPauseState, status?.status]);
+
+  useEffect(() => {
     if (active) return;
     setControlsVisible(false);
     showPauseState(false);
@@ -142,11 +162,14 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
       player.pause();
       setControlsVisible(true);
     } else {
+      setAutoplayBlocked(false);
+      player.volume = 1;
+      player.muted = muted;
       player.play();
       setControlsVisible(false);
     }
     showPauseState(nextPaused);
-  }, [active, hasValidSource, player, showPauseState]);
+  }, [active, hasValidSource, muted, player, showPauseState]);
 
   const burstHeart = useCallback(() => {
     if (reduced) {
@@ -219,7 +242,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     </Animated.View>}
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={manuallyPaused ? "Resume Clip" : "Pause Clip"}
+      accessibilityLabel={manuallyPaused || autoplayBlocked ? "Play Clip with sound" : "Pause Clip"}
       onPress={handleTap}
       delayLongPress={260}
       onLongPress={() => {

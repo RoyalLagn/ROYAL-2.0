@@ -87,9 +87,10 @@ assert.match(alertBridgeSource, /Alert\.alert\s*=/, "The shared bridge must cont
 assert.match(dialogProviderSource, /Platform\.OS === "android" \? 48 : 44/, "Dialog actions must keep platform-appropriate touch targets.");
 
 // --- Admin workspace must require Microsoft Authenticator (aal2) -------
-const [adminAuthSource, adminMfaSource, adminContextSource, adminGuardSource, adminRouteSource, adminMfaMigration] = await Promise.all([
+const [adminAuthSource, adminMfaSource, adminMfaPolicySource, adminContextSource, adminGuardSource, adminRouteSource, adminMfaMigration] = await Promise.all([
   read("services/adminAuth.ts"),
   read("services/adminMfa.ts"),
+  read("services/adminMfaPolicy.ts"),
   read("context/AdminAuthContext.tsx"),
   read("components/auth/AdminRouteGuard.tsx"),
   read("admin/navigation.ts"),
@@ -97,6 +98,9 @@ const [adminAuthSource, adminMfaSource, adminContextSource, adminGuardSource, ad
 ]);
 const adminMfaSetupSource = await read("app/AdminMfaSetup.tsx");
 assert.match(adminAuthSource, /data\.currentLevel !== "aal2"/, "Admin workspace identity must require an aal2 session.");
+assert.match(adminAuthSource, /ADMIN_MFA_DEV_BYPASS_ENABLED[\s\S]*return identity/, "Admin MFA bypass must be explicit and isolated from normal verification.");
+assert.match(adminMfaSource, /ADMIN_MFA_DEV_BYPASS_ENABLED[\s\S]*requirement: null/, "Admin login routing must honor the local-only MFA bypass.");
+assert.match(adminMfaPolicySource, /__DEV__[\s\S]*DEV_BYPASS_REQUESTED[\s\S]*isLoopbackWebHost\(\)/, "Admin MFA bypass must require a development build, an explicit flag, and localhost.");
 assert.match(adminAuthSource, /return verifyAdminRoleSession\(data\.session\);/, "Password login must retain its aal1 session for MFA setup or challenge.");
 assert.match(adminAuthSource, /updateAdminRecoveredPassword[\s\S]*verifyAdminRoleSession\(data\.session\)/, "Password recovery must verify the admin role without bypassing the later MFA login challenge.");
 assert.match(adminMfaSource, /challengeAndVerify\([\s\S]*factorId[\s\S]*code: normalizedCode/, "Authenticator codes must be challenged and verified through Supabase MFA.");
@@ -186,12 +190,27 @@ assert.match(
   "Public Clips must start with sound enabled.",
 );
 assert.match(
+  publicClipsSource,
+  /if \(isFocused && !previousFocus\.current\) \{[\s\S]{0,180}setMuted\(false\);/,
+  "Returning to the public Clips tab must reset playback to sound-on.",
+);
+assert.match(
   vendorClipsReelSource,
   /const \[muted, setMuted\] = useState\(false\);/,
   "Vendor Clip reels must start with sound enabled.",
 );
 assert.match(publicClipVideoSource, /instance\.volume = 1;/, "Public Clips must initialize at audible volume.");
 assert.match(publicClipVideoSource, /instance\.audioMixingMode = ["']doNotMix["'];/, "Native Clips must request audio focus.");
+assert.match(
+  publicClipVideoSource,
+  /Platform\.OS !== "web"[\s\S]{0,650}setAutoplayBlocked\(true\)[\s\S]{0,220}showPauseState\(true\)/,
+  "Web Clips must expose an audible-play action when the browser blocks autoplay.",
+);
+assert.match(
+  publicClipVideoSource,
+  /player\.volume = 1;[\s\S]{0,100}player\.muted = muted;[\s\S]{0,100}player\.play\(\);/,
+  "The user-started web playback path must apply audible volume before play.",
+);
 assert.match(publicClipVideoSource, /showMuteControl && active && controlsVisible && !unavailable/, "The Clip mute control must only render during its temporary interaction window.");
 assert.doesNotMatch(publicClipVideoSource, /CONTROL_HIDE_DELAY_MS|controlHideTimer/, "Clip play controls must follow playback state without a delayed hide timer.");
 assert.match(publicClipVideoSource, /player\.pause\(\);\s*setControlsVisible\(true\);/, "Pausing a Clip must immediately reveal its controls.");

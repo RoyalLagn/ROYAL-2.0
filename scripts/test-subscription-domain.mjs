@@ -129,4 +129,31 @@ assert.match(
   "concurrent quote reuse must return a deterministic conflict",
 );
 
+const subscriptionAdminService = await readFile(
+  new URL("../subscriptions/services/SubscriptionAdminService.ts", import.meta.url),
+  "utf8",
+);
+assert.match(
+  subscriptionAdminService,
+  /isFreePlan \? "active" as const/,
+  "the admin service must keep the Free plan active",
+);
+assert.match(
+  subscriptionAdminService,
+  /is_permanent: isFreePlan \|\| Boolean\(input\.is_permanent\)/,
+  "the admin service must keep the Free plan permanent",
+);
+
+const freePlanRepair = await readFile(
+  new URL("../supabase/migrations/20260815180000_repair_permanent_free_plan.sql", import.meta.url),
+  "utf8",
+);
+assert.match(freePlanRepair, /where lower\(slug\) = 'free'/, "the repair must target the Free plan");
+assert.match(freePlanRepair, /is_permanent = true/, "the repair must restore permanent Free access");
+assert.match(
+  freePlanRepair,
+  /create trigger subscription_plans_enforce_free_invariant/,
+  "the database must prevent the Free plan invariant from drifting again",
+);
+
 console.log("subscription domain tests passed");

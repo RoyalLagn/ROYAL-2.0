@@ -201,6 +201,9 @@ function ClipsFeed() {
 
   useEffect(() => {
     if (isFocused && !previousFocus.current) {
+      // Tabs stay mounted between visits. Always begin a new public Clips
+      // visit with sound enabled instead of retaining a previous mute choice.
+      setMuted(false);
       beginNewFeedSession();
     }
     previousFocus.current = isFocused;

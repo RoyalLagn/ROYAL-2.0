@@ -87,16 +87,18 @@ export class SubscriptionAdminService {
   }
 
   static async savePlan(input: AdminPlanInput) {
+    const slug = input.slug.trim().toLowerCase();
+    const isFreePlan = slug === "free";
     const payload = {
-      name: input.name.trim(), slug: input.slug.trim().toLowerCase(), description: input.description?.trim() || null,
+      name: input.name.trim(), slug, description: input.description?.trim() || null,
       price: input.price, discounted_price: input.discounted_price ?? null, currency: input.currency || "INR",
       billing_interval: input.billing_interval, billing_interval_count: input.billing_interval_count,
       duration_days: input.billing_interval === "custom" ? input.duration_days : null,
       trial_enabled: Boolean(input.trial_enabled), trial_days: input.trial_days ?? 0,
       grace_period_days: input.grace_period_days ?? 0,
       is_featured: input.is_featured ?? false,
-      status: input.status ?? (input.is_active === false ? "hidden" : "active"),
-      is_permanent: Boolean(input.is_permanent),
+      status: isFreePlan ? "active" as const : input.status ?? (input.is_active === false ? "hidden" : "active"),
+      is_permanent: isFreePlan || Boolean(input.is_permanent),
       ...(input.display_order != null ? { display_order: input.display_order } : {}),
     };
     if (input.id) {

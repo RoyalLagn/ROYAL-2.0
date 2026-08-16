@@ -3,6 +3,7 @@ import { supabase } from "@/services/supabase";
 import { clearRecoverySession } from "@/services/authRecoverySession";
 import { normalizeEmail } from "@/services/publicAuth";
 import { validateEmail, validatePassword } from "@/utils/authValidation";
+import { ADMIN_MFA_DEV_BYPASS_ENABLED } from "@/services/adminMfaPolicy";
 
 export const ADMIN_ROLES = ["admin", "super_admin"] as const;
 export type AdminRole = (typeof ADMIN_ROLES)[number];
@@ -118,6 +119,7 @@ export async function verifyAdminSession(
   clearUnauthorized = true,
 ): Promise<AdminIdentity> {
   const identity = await verifyAdminRoleSession(session, clearUnauthorized);
+  if (ADMIN_MFA_DEV_BYPASS_ENABLED) return identity;
   const { data, error } =
     await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
   if (error) throw error;
