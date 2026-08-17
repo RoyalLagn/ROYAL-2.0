@@ -7,7 +7,10 @@ import { AdminFinanceService, signedTransactionAmount, summarizeFinance } from "
 import type { FinanceMonthData, FinanceTaxRecord } from "@/types/adminFinance";
 import { FinanceButton, FinanceField, FinanceNotice, FinanceSection, formatMoney } from "./FinanceUI";
 
-const taxLabels: Record<FinanceTaxRecord["tax_type"], string> = { gst_collected: "GST collected", gst_input_credit: "GST input credit", gst_paid: "GST paid", income_tax_provision: "Income tax provision", income_tax_paid: "Income tax paid", other_provision: "Other tax provision" };
+// Single source of truth for tax_type labels — reused by the Revenue
+// dashboard's Tax Summary card so both screens describe the same
+// finance_tax_records rows identically.
+export const taxLabels: Record<FinanceTaxRecord["tax_type"], string> = { gst_collected: "GST collected", gst_input_credit: "GST input credit", gst_paid: "GST paid", income_tax_provision: "Income tax provision", income_tax_paid: "Income tax paid", other_provision: "Other tax provision" };
 
 export function FinanceProfitLoss({ data }: { data: FinanceMonthData }) {
   const summary = useMemo(() => summarizeFinance(data), [data]);

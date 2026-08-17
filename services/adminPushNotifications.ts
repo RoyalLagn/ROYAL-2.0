@@ -94,7 +94,22 @@ export const AdminPushNotificationService = {
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw error;
-    return (data ?? []) as PushCampaign[];
+    const campaigns = (data ?? []) as PushCampaign[];
+    if (!campaigns.length) {
+      // push_campaigns_admin_select (private.is_admin()) is one of the few
+      // admin tables with no public-read fallback, so an empty result here
+      // is genuinely ambiguous: it can mean "no campaigns yet" or "this
+      // session lacks aal2 and RLS silently filtered every row" — a plain
+      // SELECT can't tell those apart. Checking the real, unwrapped MFA
+      // level (not the app's own verifyAdminSession(), which honors the
+      // local dev bypass flag and would hide this) turns that ambiguity
+      // into an accurate message instead of a false "No campaigns yet".
+      const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (assurance && assurance.currentLevel !== "aal2") {
+        throw new Error("Send History requires a fully MFA-verified (aal2) administrator session to read. Complete Authenticator verification, then refresh this page.");
+      }
+    }
+    return campaigns;
   },
 
   async searchVendors(options: {

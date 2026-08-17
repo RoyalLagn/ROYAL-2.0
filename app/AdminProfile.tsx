@@ -21,18 +21,24 @@ import { adminNavigationGroups } from "@/admin/navigation";
 
 export default function AdminProfile() {
   const router = useRouter();
-  const { identity, signOut } = useAdminAuth();
+  const { identity, signOut, signOutAllDevices } = useAdminAuth();
   const { width } = useWindowDimensions();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [loggingOutAll, setLoggingOutAll] = useState(false);
   const showMobileNav = width < 768;
+  const busy = loggingOut || loggingOutAll;
+
+  const goToLogin = () => {
+    if (router.canDismiss()) router.dismissAll();
+    router.replace("/AdminLogin");
+  };
 
   const executeLogout = async () => {
-    if (loggingOut) return;
+    if (busy) return;
     setLoggingOut(true);
     try {
       await signOut();
-      if (router.canDismiss()) router.dismissAll();
-      router.replace("/AdminLogin");
+      goToLogin();
     } catch {
       Alert.alert(
         "Logout failed",
@@ -43,7 +49,7 @@ export default function AdminProfile() {
   };
 
   const logout = () => {
-    if (loggingOut) return;
+    if (busy) return;
     if (Platform.OS === "web") {
       void executeLogout();
       return;
@@ -54,6 +60,36 @@ export default function AdminProfile() {
       [
         { text: "Cancel", style: "cancel" },
         { text: "Log out", style: "destructive", onPress: () => void executeLogout() },
+      ],
+    );
+  };
+
+  const executeLogoutAllDevices = async () => {
+    if (busy) return;
+    setLoggingOutAll(true);
+    try {
+      await signOutAllDevices();
+      goToLogin();
+    } catch (error) {
+      setLoggingOutAll(false);
+      const message = error instanceof Error
+        ? error.message
+        : "Unable to sign out of all devices right now.";
+      Alert.alert("Logout failed", message, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Retry", onPress: () => void executeLogoutAllDevices() },
+      ]);
+    }
+  };
+
+  const logoutAllDevices = () => {
+    if (busy) return;
+    Alert.alert(
+      "Logout from all devices?",
+      "This will sign you out of your admin account on all devices where you are currently logged in.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Logout from all devices", style: "destructive", onPress: () => void executeLogoutAllDevices() },
       ],
     );
   };
@@ -134,10 +170,10 @@ export default function AdminProfile() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Log out of Admin"
-            disabled={loggingOut}
+            disabled={busy}
             onPress={logout}
             className="min-h-12 rounded-2xl border border-red-400 flex-row items-center justify-center mt-5"
-            style={{ opacity: loggingOut ? 0.65 : 1 }}
+            style={{ opacity: busy ? 0.65 : 1 }}
           >
             {loggingOut ? (
               <ActivityIndicator size="small" color="#DC3545" />
@@ -146,6 +182,25 @@ export default function AdminProfile() {
             )}
             <Text className="text-red-500 font-bold ml-2">
               {loggingOut ? "Logging out..." : "Log out"}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Logout from all devices"
+            accessibilityHint="Signs your admin account out on every device where you are currently logged in"
+            disabled={busy}
+            onPress={logoutAllDevices}
+            className="min-h-12 rounded-2xl border border-red-300 flex-row items-center justify-center mt-3"
+            style={{ opacity: busy ? 0.65 : 1 }}
+          >
+            {loggingOutAll ? (
+              <ActivityIndicator size="small" color="#DC3545" />
+            ) : (
+              <LogOut size={18} color="#DC3545" />
+            )}
+            <Text className="text-red-500 font-bold ml-2">
+              {loggingOutAll ? "Logging out everywhere..." : "Logout from all devices"}
             </Text>
           </Pressable>
 

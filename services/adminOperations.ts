@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase";
+import { verifyAdminSession } from "@/services/adminAuth";
 
 export type AdminClipStatus = "draft" | "pending" | "approved" | "hidden" | "rejected" | "deleted";
 export type AdminClip = {
@@ -17,6 +18,7 @@ export type AdminClip = {
   created_at: string;
   published_at: string | null;
   vendor_name: string;
+  category_id: string | null;
   category_name: string;
 };
 
@@ -102,11 +104,13 @@ export const AdminOperationsService = {
   async clips(): Promise<AdminClip[]> {
     const { data, error } = await supabase
       .from("clips")
-      .select("id,vendor_id,title,caption,thumbnail_url,video_url,status,visibility,moderation_reason,views_count,likes_count,saves_count,created_at,published_at,vendors(business_name),categories(name)")
+      .select("id,vendor_id,category_id,title,caption,thumbnail_url,video_url,status,visibility,moderation_reason,views_count,likes_count,saves_count,created_at,published_at,vendors(business_name),categories(name)")
       .order("created_at", { ascending: false });
     if (error) throw error;
     return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
-      id: String(row.id), vendor_id: String(row.vendor_id), title: String(row.title),
+      id: String(row.id), vendor_id: String(row.vendor_id),
+      category_id: row.category_id ? String(row.category_id) : null,
+      title: String(row.title),
       caption: row.caption ? String(row.caption) : null,
       thumbnail_url: String(row.thumbnail_url), video_url: String(row.video_url),
       status: String(row.status) as AdminClipStatus,
@@ -120,6 +124,7 @@ export const AdminOperationsService = {
     }));
   },
 
+  /** @deprecated Superseded by deleteClip() — the moderation workflow (Hide/Reject/Approve) is no longer exposed in the Admin UI. Left in place only because moderate_clip() still exists server-side; nothing calls this anymore. */
   async moderateClip(id: string, decision: "approved" | "hidden" | "rejected", reason?: string) {
     if ((decision === "hidden" || decision === "rejected") && !reason?.trim()) {
       throw new Error("A moderation reason is required.");
@@ -130,6 +135,39 @@ export const AdminOperationsService = {
       reason: decision === "approved" ? null : reason?.trim(),
     });
     if (error) throw error;
+  },
+
+  /**
+   * Permanently deletes a clip: notifies the owning vendor with the given
+   * reason, deletes its Cloudinary video/thumbnail, then hard-deletes the
+   * clip row (engagement/analytics rows cascade automatically). All of this
+   * happens server-side in the admin-delete-clip Edge Function — the client
+   * never determines the vendor or touches Cloudinary/the database directly.
+   * Throws with a `.stage` on the error ("notification" | "media" |
+   * "database" | ...) so the UI can show the precise, accurate failure.
+   */
+  async deleteClip(clipId: string, reason: string): Promise<void> {
+    const identity = await verifyAdminSession(undefined, false);
+    const { data, error } = await supabase.functions.invoke<{ success?: boolean; error?: string; stage?: string }>(
+      "admin-delete-clip",
+      { body: { clipId, reason }, headers: { Authorization: `Bearer ${identity.session.access_token}` } },
+    );
+    if (error) {
+      const context = typeof error === "object" && error && "context" in error ? (error as { context?: Response }).context : null;
+      let detail: { error?: string; stage?: string } | null = null;
+      if (context) {
+        try { detail = await context.clone().json(); } catch { /* no JSON body */ }
+      }
+      const message = detail?.error || error.message || "Unable to delete this clip. Try again.";
+      const wrapped = new Error(message) as Error & { stage?: string };
+      wrapped.stage = detail?.stage;
+      throw wrapped;
+    }
+    if (!data?.success) {
+      const wrapped = new Error(data?.error || "Unable to delete this clip. Try again.") as Error & { stage?: string };
+      wrapped.stage = data?.stage;
+      throw wrapped;
+    }
   },
 
   async enquiries(): Promise<AdminEnquiry[]> {

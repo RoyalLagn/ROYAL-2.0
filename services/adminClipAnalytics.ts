@@ -66,6 +66,32 @@ function nameOf(value: unknown, key: string, fallback: string) {
     : fallback;
 }
 
+// supabase-js does not throw a real `Error`/`PostgrestError` instance for
+// query/RPC failures by default — `{ data, error }` returns `error` as a
+// plain object parsed straight from the response body (see
+// PostgrestBuilder.processResponse in @supabase/postgrest-js). Callers that
+// do `if (error) throw error;` and later check `cause instanceof Error`
+// therefore always miss, silently swallowing the real Postgres/PostgREST
+// message, code, and hint behind a generic fallback string. Wrap it in a
+// real Error here so the actual failure reaches the UI, and log the raw
+// object in development so the full detail (hint/details/code) isn't lost.
+function toAnalyticsError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  const record = error && typeof error === "object" ? (error as Record<string, unknown>) : null;
+  const message = typeof record?.message === "string" && record.message.trim()
+    ? record.message.trim()
+    : "Unable to load clip views.";
+  const hint = [record?.hint, record?.details]
+    .filter((part): part is string => typeof part === "string" && part.trim().length > 0)
+    .join(" — ");
+  if (__DEV__) {
+    console.error("[AdminClipAnalyticsService] admin_clip_analytics failed:", error);
+  }
+  const normalized = new Error(hint ? `${message} (${hint})` : message);
+  if (typeof record?.code === "string") (normalized as Error & { code?: string }).code = record.code;
+  return normalized;
+}
+
 export const AdminClipAnalyticsService = {
   async load(filters: ClipAnalyticsFilters): Promise<ClipAnalyticsResult> {
     const { data, error } = await supabase.rpc("admin_clip_analytics", {
@@ -78,7 +104,7 @@ export const AdminClipAnalyticsService = {
       p_city_id: filters.cityId || null,
       p_area_id: filters.areaId || null,
     });
-    if (error) throw error;
+    if (error) throw toAnalyticsError(error);
     const value = (data ?? {}) as Record<string, any>;
     const summary = value.summary ?? {};
     return {

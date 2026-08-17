@@ -12,6 +12,7 @@ import { restoreSupabaseSession, supabase } from "@/services/supabase";
 import {
   AdminAuthError,
   logoutAdmin,
+  logoutAdminAllDevices,
   verifyAdminSession,
   type AdminIdentity,
 } from "@/services/adminAuth";
@@ -28,6 +29,8 @@ type AdminAuthContextValue = {
   mfaRequirement: AdminMfaRequirement | null;
   refreshAdmin: (session?: Session | null) => Promise<AdminIdentity | null>;
   signOut: () => Promise<void>;
+  /** Revokes every session for this admin account on every device, then signs this device out. Throws (leaving the current session intact) if server-side revocation fails. */
+  signOutAllDevices: () => Promise<void>;
 };
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
@@ -125,6 +128,14 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     setMfaRequirement(null);
   }, []);
 
+  const signOutAllDevices = useCallback(async () => {
+    // Throws before this point if server-side revocation failed — identity
+    // is only cleared once every device's session is actually revoked.
+    await logoutAdminAllDevices();
+    setIdentity(null);
+    setMfaRequirement(null);
+  }, []);
+
   const value = useMemo<AdminAuthContextValue>(() => ({
     identity,
     loading,
@@ -132,7 +143,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     mfaRequirement,
     refreshAdmin,
     signOut,
-  }), [identity, loading, mfaRequirement, refreshAdmin, signOut]);
+    signOutAllDevices,
+  }), [identity, loading, mfaRequirement, refreshAdmin, signOut, signOutAllDevices]);
 
   return (
     <AdminAuthContext.Provider value={value}>

@@ -24,11 +24,7 @@ import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer
 import { AdminPushNotificationService } from "@/services/adminPushNotifications";
 import { CategoryService, type CategoryRecord } from "@/services/CategoryService";
 import type { AdminVendorRecord } from "@/types/adminVendors";
-import {
-  PUSH_DESTINATION_PRESETS,
-  type PushAudience,
-  type PushCampaign,
-} from "@/types/pushNotifications";
+import type { PushAudience, PushCampaign } from "@/types/pushNotifications";
 import { typeScale } from "@/constants/typography";
 import { adminPalette } from "@/theme";
 
@@ -42,10 +38,6 @@ type Draft = {
   vendorCategoryName: string;
   targetVendorId: string;
   targetVendorLabel: string;
-  destinationMode: "preset" | "category" | "custom";
-  presetPath: string;
-  categorySlug: string;
-  customPath: string;
 };
 
 const emptyDraft = (): Draft => ({
@@ -56,10 +48,6 @@ const emptyDraft = (): Draft => ({
   vendorCategoryName: "",
   targetVendorId: "",
   targetVendorLabel: "",
-  destinationMode: "preset",
-  presetPath: "",
-  categorySlug: "",
-  customPath: "",
 });
 
 const AUDIENCE_OPTIONS: { value: PushAudience; label: string; hint: string }[] = [
@@ -86,14 +74,6 @@ function statusColor(status: string) {
   if (status === "partial") return "#D97706";
   if (status === "failed") return "#DC2626";
   return "#6B7280";
-}
-
-function resolveTargetPath(draft: Draft) {
-  if (draft.destinationMode === "category" && draft.categorySlug) {
-    return `/VendorsListing?category=${encodeURIComponent(draft.categorySlug)}`;
-  }
-  if (draft.destinationMode === "custom") return draft.customPath.trim();
-  return draft.presetPath.trim();
 }
 
 function formatWhen(value: string) {
@@ -230,9 +210,6 @@ export default function AdminPushNotifications() {
     if (draft.audience === "vendor" && !draft.targetVendorId) {
       return "Select a specific vendor before sending.";
     }
-    if (draft.destinationMode === "category" && !draft.categorySlug) {
-      return "Select a category destination, or choose No destination.";
-    }
     return null;
   };
 
@@ -256,7 +233,7 @@ export default function AdminPushNotifications() {
         imageUrl: null,
         audience: draft.audience,
         targetVendorId: draft.audience === "vendor" ? draft.targetVendorId : null,
-        targetPath: resolveTargetPath(draft) || null,
+        targetPath: null,
       });
       setConfirmOpen(false);
       setDraft(emptyDraft());
@@ -555,97 +532,6 @@ export default function AdminPushNotifications() {
               className="min-h-28 px-4 py-3 rounded-2xl border border-border bg-background text-foreground text-sm mb-4"
             />
 
-            <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
-              Destination
-            </Text>
-            <View className="flex-row flex-wrap gap-2 mb-3">
-              {([
-                ["preset", "Preset screen"],
-                ["category", "Category listing"],
-                ["custom", "Custom path"],
-              ] as const).map(([mode, label]) => {
-                const selected = draft.destinationMode === mode;
-                return (
-                  <Pressable
-                    key={mode}
-                    onPress={() => setDraft((current) => ({ ...current, destinationMode: mode }))}
-                    className="px-3 min-h-11 rounded-full border items-center justify-center"
-                    style={{
-                      borderColor: selected ? PINK : "#E7D7DE",
-                      backgroundColor: selected ? "#FFF0F6" : "transparent",
-                    }}
-                  >
-                    <Text className="text-xs font-semibold" style={{ color: selected ? PINK : "#6B7280" }}>
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {draft.destinationMode === "preset" ? (
-              <View className="gap-1 mb-4">
-                {PUSH_DESTINATION_PRESETS.map((preset) => {
-                  const selected = draft.presetPath === preset.value;
-                  return (
-                    <Pressable
-                      key={preset.label}
-                      onPress={() => setDraft((current) => ({ ...current, presetPath: preset.value }))}
-                      className="min-h-11 px-3 rounded-xl flex-row items-center"
-                      style={{ backgroundColor: selected ? "#FFF0F6" : "transparent" }}
-                    >
-                      <Text className="text-foreground text-sm flex-1">{preset.label}</Text>
-                      {selected ? <Check size={14} color={PINK} /> : null}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-
-            {draft.destinationMode === "category" ? (
-              <View className="gap-1 mb-4 max-h-56">
-                {categoriesLoading ? (
-                  <View className="py-4 items-center">
-                    <ActivityIndicator color={PINK} />
-                  </View>
-                ) : categoriesError ? (
-                  <AdminErrorState message={categoriesError} onRetry={() => void load(true)} />
-                ) : !categories.length ? (
-                  <AdminEmptyState
-                    title="No categories"
-                    message="Add marketplace categories before using category destinations."
-                  />
-                ) : (
-                  <ScrollView nestedScrollEnabled>
-                    {categories.map((category) => {
-                      const selected = draft.categorySlug === category.slug;
-                      return (
-                        <Pressable
-                          key={category.id}
-                          onPress={() => setDraft((current) => ({ ...current, categorySlug: category.slug }))}
-                          className="min-h-11 px-3 rounded-xl flex-row items-center"
-                          style={{ backgroundColor: selected ? "#FFF0F6" : "transparent" }}
-                        >
-                          <Text className="text-foreground text-sm flex-1">{category.name}</Text>
-                          {selected ? <Check size={14} color={PINK} /> : null}
-                        </Pressable>
-                      );
-                    })}
-                  </ScrollView>
-                )}
-              </View>
-            ) : null}
-
-            {draft.destinationMode === "custom" ? (
-              <TextInput
-                value={draft.customPath}
-                onChangeText={(customPath) => setDraft((current) => ({ ...current, customPath }))}
-                placeholder="/VendorsProfile or /(tabs)/Categories"
-                placeholderTextColor="#9A8A90"
-                className="min-h-12 px-4 rounded-2xl border border-border bg-background text-foreground text-sm mb-4"
-              />
-            ) : null}
-
             <Pressable
               accessibilityRole="button"
               disabled={saving}
@@ -716,11 +602,6 @@ export default function AdminPushNotifications() {
             <Text className="text-muted-foreground text-sm mt-2 leading-5">
               “{draft.title.trim()}” will be sent to {audienceLabel}. Recipients get an inbox item immediately; devices with a registered push token also receive an Expo notification.
             </Text>
-            {resolveTargetPath(draft) ? (
-              <Text className="text-muted-foreground text-xs mt-3">
-                Opens: {resolveTargetPath(draft)}
-              </Text>
-            ) : null}
             <View className="flex-row gap-3 mt-5">
               <Pressable
                 disabled={saving}

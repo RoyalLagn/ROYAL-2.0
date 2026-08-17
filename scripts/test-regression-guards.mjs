@@ -243,26 +243,44 @@ assert.match(clipNativeMediaSource, /unavailable in standard Expo Go/, "Oversize
 assert.match(clipCompressionPlanSource, /Math\.min\(sourceMaxDimension, profile\.maxDimension\)/, "Smart Clip optimization must never upscale low-resolution input.");
 assert.match(clipCompressionPlanSource, /maxDimension: 1920[\s\S]*maxDimension: 1280[\s\S]*maxDimension: 960/, "Smart Clip optimization must preserve 1080p before progressively reducing resolution.");
 assert.match(clipCompressionPlanSource, /source\.fileSizeBytes \* 8\) \/ duration/, "Smart Clip optimization must calculate bitrate from source size and duration.");
-const [clipManagementSource, clipDeleteFunctionSource, clipDeleteMigrationSource, vendorClipsSource, publicClipSource] = await Promise.all([
+const [clipManagementSource, clipDeleteFunctionSource, clipDeleteMigrationSource, vendorClipsSource, publicClipSource, cloudinaryMediaSharedSource, adminDeleteClipSource] = await Promise.all([
   read("clips/services/ClipManagementService.ts"),
   read("supabase/functions/clip-cloudinary-delete/index.ts"),
   read("supabase/migrations/20260812190000_allow_vendor_clip_deletion_without_active_plan.sql"),
   read("app/VendorClips.tsx"),
   read("clips/services/PublicClipService.ts"),
+  read("supabase/functions/_shared/cloudinaryMedia.ts"),
+  read("supabase/functions/admin-delete-clip/index.ts"),
 ]);
+// The actual Cloudinary Admin API delete/verify/fallback mechanics were
+// extracted from clip-cloudinary-delete/index.ts into
+// _shared/cloudinaryMedia.ts so admin-delete-clip reuses the exact same,
+// already-verified logic instead of a second copy — these checks follow
+// that relocation. Ownership verification and the vendor soft-delete
+// completion step are unique to the vendor-facing function and still live
+// there, so those checks are unchanged.
+const clipDeleteInternalsSource = clipDeleteFunctionSource + cloudinaryMediaSharedSource;
 assert.doesNotMatch(clipManagementSource, /vendor_soft_delete_clip[\s\S]*ClipCloudinaryService\.delete/, "The client must not hide a Clip before storage deletion.");
-assert.match(clipDeleteFunctionSource, /vendors!inner\(profile_id\)[\s\S]*Cloudinary[\s\S]*vendor_soft_delete_clip/, "Secure Clip deletion must verify ownership, clear storage, then update the database.");
+assert.match(clipDeleteFunctionSource, /vendors!inner\(profile_id\)[\s\S]*deleteClipCloudinaryAssets[\s\S]*vendor_soft_delete_clip/, "Secure Clip deletion must verify ownership, clear storage, then update the database.");
 assert.match(clipDeleteFunctionSource, /Database deletion failed after storage cleanup/, "Partial Clip deletion failures must be logged for safe retry.");
-assert.doesNotMatch(clipDeleteFunctionSource, /for \(const \[publicId, resourceType\]/, "Clip deletion must not shadow the resolved Cloudinary public ID inside the asset loop.");
-assert.match(clipDeleteFunctionSource, /assetStatus === "deleted" \|\| assetStatus === "not_found"/, "Clip deletion must validate Cloudinary Admin API delete results and treat an already-missing asset idempotently.");
-assert.match(clipDeleteFunctionSource, /signCloudinaryParams[\s\S]*Object\.entries\(params\)[\s\S]*\.sort\([\s\S]*public_id: assetPublicId, timestamp:/, "Cloudinary destroy fallback must sign the exact sorted REST request parameters server-side.");
-assert.match(clipDeleteFunctionSource, /deliveryType = "upload"[\s\S]*Admin API DELETE \/resources \(Basic Auth\)/, "Clip deletion diagnostics must identify the Cloudinary endpoint category and delivery type.");
-assert.match(clipDeleteFunctionSource, /cloudinaryStatus: response\.status[\s\S]*cloudinaryResponse: safeResponseBody/, "Cloudinary failures must log the safe response body and HTTP status.");
-assert.doesNotMatch(clipDeleteFunctionSource, /console\.(?:log|error)\([^\n]*apiSecret|console\.(?:log|error)\([^\n]*apiKey/, "Clip deletion logs must not expose Cloudinary credentials.");
+assert.doesNotMatch(cloudinaryMediaSharedSource, /for \(const \[publicId, resourceType\]/, "Clip deletion must not shadow the resolved Cloudinary public ID inside the asset loop.");
+assert.match(clipDeleteInternalsSource, /assetStatus === "deleted" \|\| assetStatus === "not_found"/, "Clip deletion must validate Cloudinary Admin API delete results and treat an already-missing asset idempotently.");
+assert.match(clipDeleteInternalsSource, /signCloudinaryParams[\s\S]*Object\.entries\(params\)[\s\S]*\.sort\([\s\S]*public_id: assetPublicId, timestamp:/, "Cloudinary destroy fallback must sign the exact sorted REST request parameters server-side.");
+assert.match(clipDeleteInternalsSource, /deliveryType = "upload"[\s\S]*Admin API DELETE \/resources \(Basic Auth\)/, "Clip deletion diagnostics must identify the Cloudinary endpoint category and delivery type.");
+assert.match(clipDeleteInternalsSource, /cloudinaryStatus: response\.status[\s\S]*cloudinaryResponse: safeResponseBody/, "Cloudinary failures must log the safe response body and HTTP status.");
+assert.doesNotMatch(clipDeleteInternalsSource, /console\.(?:log|error)\([^\n]*apiSecret|console\.(?:log|error)\([^\n]*apiKey/, "Clip deletion logs must not expose Cloudinary credentials.");
 assert.doesNotMatch(clipDeleteMigrationSource, /vendor_has_subscription_feature/, "A vendor must be able to delete owned media without an active upload entitlement.");
 assert.match(vendorClipsSource, /deletingRef\.current/, "Vendor Clip deletion must retain its duplicate-tap guard.");
-assert.match(clipDeleteFunctionSource, /missingCloudinarySecrets[\s\S]*CLOUDINARY_API_KEY[\s\S]*CLOUDINARY_API_SECRET/, "Clip deletion must identify missing server-side Cloudinary credentials.");
+assert.match(clipDeleteInternalsSource, /missingCloudinarySecrets[\s\S]*CLOUDINARY_API_KEY[\s\S]*CLOUDINARY_API_SECRET/, "Clip deletion must identify missing server-side Cloudinary credentials.");
 assert.match(publicClipSource, /\.eq\("status", "approved"\)[\s\S]*\.eq\("visibility", "public"\)[\s\S]*\.is\("deleted_at", null\)/, "Public Clip queries must never return deleted or non-public Clips.");
+// New: admin clip deletion must resolve the vendor server-side, notify
+// before touching storage/the database, and never claim success on a
+// partial failure.
+assert.doesNotMatch(adminDeleteClipSource, /body\.vendorId|body\.category_id|body\.categoryId/, "Admin clip deletion must not accept a client-supplied vendor/category as the deletion target.");
+assert.match(adminDeleteClipSource, /private\.is_admin|ADMIN_ROLES/, "Admin clip deletion must verify the caller is an authorized administrator.");
+assert.match(adminDeleteClipSource, /aal2/, "Admin clip deletion must require a real MFA-verified (aal2) session, not just the client-side MFA bypass.");
+assert.match(adminDeleteClipSource, /vendor_notifications["'][\s\S]*deleteClipCloudinaryAssets[\s\S]*admin_hard_delete_clip/, "Admin clip deletion must notify the vendor, then delete media, then hard-delete the clip, in that order.");
+assert.match(adminDeleteClipSource, /stage: "notification"/, "A failed vendor notification must be reported distinctly so the clip is never deleted without notifying the vendor.");
 const crmCardSource = await read("components/admin/crm/ui/CRMCard.tsx");
 const crmAnalyticsSource = await read("components/admin/crm/ui/AnalyticsCard.tsx");
 assert.match(

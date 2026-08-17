@@ -57,11 +57,17 @@ Deno.serve(async (request) => {
     }
     if (providerPayment.status !== "captured") throw new Error(`Payment is ${providerPayment.status ?? "not captured"}`);
 
+    // Same real fee/tax capture as the webhook path (belt-and-suspenders):
+    // only store what Razorpay's own payment record actually reports.
+    const gatewayFeeMinor = typeof providerPayment.fee === "number" ? providerPayment.fee : null;
+    const gatewayTaxMinor = typeof providerPayment.tax === "number" ? providerPayment.tax : null;
     await admin.from("subscription_payments").update({
       payment_status: "captured",
       razorpay_payment_id: providerPaymentId,
       payment_method: providerPayment.method ?? null,
       paid_at: new Date().toISOString(),
+      ...(gatewayFeeMinor !== null ? { gateway_fee_minor: gatewayFeeMinor } : {}),
+      ...(gatewayTaxMinor !== null ? { gateway_tax_minor: gatewayTaxMinor } : {}),
     }).eq("id", payment.id);
     const { data: subscriptionId, error: activationError } = await admin.rpc("activate_verified_subscription_payment", {
       target_payment_id: payment.id,

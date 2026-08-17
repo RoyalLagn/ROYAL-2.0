@@ -12,6 +12,7 @@ import { adminLightTheme, adminPalette } from "@/theme";
 import { typeStyles } from "@/constants/typography";
 import { FinanceButton, FinanceLoading, FinanceNotice, FinanceSection } from "@/components/admin/finance/FinanceUI";
 import { FinanceOverview } from "@/components/admin/finance/FinanceOverview";
+import { FinanceRevenueDashboard } from "@/components/admin/finance/FinanceRevenueDashboard";
 import { FinanceTransactions } from "@/components/admin/finance/FinanceTransactions";
 import { FinanceBudgets } from "@/components/admin/finance/FinanceBudgets";
 import { FinanceProfitLoss, FinanceTaxes } from "@/components/admin/finance/FinanceStatements";
@@ -31,9 +32,9 @@ const tabs: { key: FinanceTab; label: string; icon: React.ElementType }[] = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "revenue", label: "Revenue", icon: Landmark },
   { key: "expenses", label: "Expenses", icon: ReceiptText },
-  { key: "budgets", label: "Budgets", icon: Scale },
   { key: "profit-loss", label: "Profit & Loss", icon: BarChart3 },
   { key: "taxes", label: "Taxes", icon: ShieldCheck },
+  { key: "budgets", label: "Budgets", icon: Scale },
   { key: "forecast", label: "Forecast", icon: Calculator },
   { key: "reports", label: "Reports", icon: Download },
 ];
@@ -50,12 +51,13 @@ export default function AdminFinance() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
 
   const load = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
-    try { setData(await AdminFinanceService.loadMonth(month)); }
+    try { setData(await AdminFinanceService.loadMonth(month)); setLastSyncedAt(new Date().toISOString()); }
     catch (cause) { setError(financeError(cause)); }
     finally { setLoading(false); setRefreshing(false); }
   }, [month]);
@@ -66,7 +68,7 @@ export default function AdminFinance() {
   const periodLabel = useMemo(() => new Date(`${month}T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" }), [month]);
   const moveMonth = (offset: number) => { const next = new Date(`${month}T00:00:00Z`); next.setUTCMonth(next.getUTCMonth() + offset); const value = next.toISOString().slice(0, 7); setMonth(`${value}-01`); setMonthInput(value); };
   const applyMonth = () => { if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthInput)) return setError("Enter a month using YYYY-MM."); setMonth(`${monthInput}-01`); };
-  const content = data ? tab === "overview" ? <FinanceOverview data={data} /> : tab === "revenue" ? <FinanceTransactions data={data} direction="revenue" onChanged={load} /> : tab === "expenses" ? <FinanceTransactions data={data} direction="expense" onChanged={load} /> : tab === "budgets" ? <FinanceBudgets key={`budgets-${data.monthStart}-${data.budget?.id ?? "none"}`} data={data} onChanged={load} /> : tab === "profit-loss" ? <FinanceProfitLoss data={data} /> : tab === "taxes" ? <FinanceTaxes data={data} onChanged={load} /> : tab === "forecast" ? <FinanceForecast data={data} onChanged={load} /> : <FinanceReports data={data} onChanged={load} /> : error && !loading ? <FinanceSection title="Finance setup pending" description="This workspace is not connected to its finance records yet."><Text style={styles.setupText}>Refresh after the finance database setup is completed. If this message remains, contact your platform administrator before recording financial activity elsewhere.</Text><View style={styles.setupActions}><FinanceButton label="Try again" onPress={() => void load(true)} /><FinanceButton label="Open Help & Support" variant="secondary" onPress={() => router.push("/AdminHelp")} /></View></FinanceSection> : null;
+  const content = data ? tab === "overview" ? <FinanceOverview data={data} /> : tab === "revenue" ? <FinanceRevenueDashboard data={data} onChanged={load} lastSyncedAt={lastSyncedAt} syncing={refreshing} onSync={() => void load(true)} /> : tab === "expenses" ? <FinanceTransactions data={data} direction="expense" onChanged={load} /> : tab === "budgets" ? <FinanceBudgets key={`budgets-${data.monthStart}-${data.budget?.id ?? "none"}`} data={data} onChanged={load} /> : tab === "profit-loss" ? <FinanceProfitLoss data={data} /> : tab === "taxes" ? <FinanceTaxes data={data} onChanged={load} /> : tab === "forecast" ? <FinanceForecast data={data} onChanged={load} /> : <FinanceReports data={data} onChanged={load} /> : error && !loading ? <FinanceSection title="Finance setup pending" description="This workspace is not connected to its finance records yet."><Text style={styles.setupText}>Refresh after the finance database setup is completed. If this message remains, contact your platform administrator before recording financial activity elsewhere.</Text><View style={styles.setupActions}><FinanceButton label="Try again" onPress={() => void load(true)} /><FinanceButton label="Open Help & Support" variant="secondary" onPress={() => router.push("/AdminHelp")} /></View></FinanceSection> : null;
 
   return <SafeAreaView style={[styles.page, adminLightTheme]} edges={["top", "left", "right"]}>
     <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={adminPalette.brand} />} contentContainerStyle={styles.scroll}>

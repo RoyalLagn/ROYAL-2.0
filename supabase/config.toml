@@ -263,6 +263,21 @@ verify_jwt = false
 [functions.send-admin-push]
 verify_jwt = true
 
+# Keep platform JWT verification on; the function also re-validates the user
+# access token, requires profiles.role in (admin, super_admin) plus aal2, and
+# revokes only the calling user's own sessions (see supabase/functions/
+# admin-logout-all-devices/index.ts for the full server-side authorization).
+[functions.admin-logout-all-devices]
+verify_jwt = true
+
+# Keep platform JWT verification on; the function also re-validates the user
+# access token, requires profiles.role in (admin, super_admin) plus aal2,
+# resolves the clip's owning vendor server-side (never trusted from the
+# client), notifies that vendor, deletes the Cloudinary video/thumbnail, then
+# permanently deletes the clip row via admin_hard_delete_clip().
+[functions.admin-delete-clip]
+verify_jwt = true
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true

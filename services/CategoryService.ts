@@ -49,9 +49,25 @@ let cache: CategoryRecord[] | null = null;
 let request: Promise<CategoryRecord[]> | null = null;
 let channelSequence = 0;
 
-function slugify(value: string) {
+export function slugify(value: string) {
   return value.trim().toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
+
+export type CreateCategoryInput = {
+  name: string;
+  slug: string;
+  description?: string;
+  iconUrl?: string | null;
+  fallbackImageUrl?: string | null;
+};
+
+export type CategoryUsage = {
+  vendors: number;
+  vendorApplications: number;
+  clips: number;
+  heroSlides: number;
+  total: number;
+};
 
 function presentation(row: CategoryRow, vendorCount: number): CategoryRecord {
   const local = findMarketplaceCategory(row.slug || row.name);
@@ -131,6 +147,63 @@ export const CategoryService = {
     return request;
   },
   invalidate() {
+    cache = null;
+  },
+  /**
+   * Real, live counts of every table with a foreign key to categories(id) —
+   * used to show the admin an accurate usage warning before deletion. Never
+   * hard-coded; always a fresh query against the actual dependent tables.
+   */
+  async usage(categoryId: string): Promise<CategoryUsage> {
+    const countRows = async (table: string) => {
+      const { count, error } = await supabase
+        .from(table)
+        .select("id", { count: "exact", head: true })
+        .eq("category_id", categoryId);
+      if (error) throw error;
+      return count ?? 0;
+    };
+    const [vendors, vendorApplications, clips, heroSlides] = await Promise.all([
+      countRows("vendors"),
+      countRows("vendor_applications"),
+      countRows("clips"),
+      countRows("hero_slides"),
+    ]);
+    return { vendors, vendorApplications, clips, heroSlides, total: vendors + vendorApplications + clips + heroSlides };
+  },
+  /**
+   * Permanently deletes the category row. vendors/vendor_applications/clips/
+   * hero_slides.category_id are ON DELETE SET NULL (see migration
+   * 20260817160000_categories_deletable_with_safe_disassociation.sql) — the
+   * dependent rows themselves, and everything that references *them*
+   * (profiles, portfolio media, reviews, enquiries, users), are never
+   * touched by this. Gated by the existing categories_admin_delete RLS
+   * policy (private.is_admin()) — no service_role, no bypass.
+   */
+  async remove(categoryId: string) {
+    const { error } = await supabase.from("categories").delete().eq("id", categoryId);
+    if (error) throw error;
+    cache = null;
+  },
+  /**
+   * Inserts into the same public.categories table every other category read
+   * comes from — new rows are picked up everywhere CategoryService.list()/
+   * CategoryContext is already used (home, search, vendor registration,
+   * Admin Categories) with no separate configuration. id/created_at/
+   * updated_at are left to the database defaults; is_active, sort_order,
+   * show_on_home/search/vendor_registration all take their normal column
+   * defaults (active, 100, true/true/true) so a new category behaves exactly
+   * like an existing one from the moment it's created.
+   */
+  async create(input: CreateCategoryInput) {
+    const { error } = await supabase.from("categories").insert({
+      name: input.name,
+      slug: input.slug,
+      description: input.description ?? "",
+      icon_url: input.iconUrl ?? null,
+      fallback_image_url: input.fallbackImageUrl ?? null,
+    });
+    if (error) throw error;
     cache = null;
   },
   subscribe(onChange: () => void) {

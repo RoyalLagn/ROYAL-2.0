@@ -161,6 +161,47 @@ export async function logoutAdmin() {
   if (error) throw error;
 }
 
+async function readFunctionErrorMessage(error: unknown): Promise<string | null> {
+  const context =
+    typeof error === "object" && error && "context" in error
+      ? (error as { context?: Response }).context
+      : null;
+  if (!context) return null;
+  try {
+    const payload = await context.clone().json();
+    if (typeof payload?.error === "string" && payload.error.trim()) return payload.error.trim();
+  } catch {
+    // Fall through — no readable JSON error body.
+  }
+  return null;
+}
+
+/**
+ * Revokes every active session for the current administrator account across
+ * every device (server-side, via the admin-logout-all-devices Edge
+ * Function), then clears this device's own local session exactly like the
+ * normal logout. If the server-side revocation fails, this throws before
+ * touching the local session, so a failed attempt never leaves the admin
+ * logged out here while other devices remain logged in undetected.
+ */
+export async function logoutAdminAllDevices() {
+  const identity = await verifyAdminSession(undefined, false);
+  const { data, error } = await supabase.functions.invoke<{ success?: boolean }>(
+    "admin-logout-all-devices",
+    { headers: { Authorization: `Bearer ${identity.session.access_token}` } },
+  );
+  if (error) {
+    const detail = await readFunctionErrorMessage(error);
+    throw new Error(detail || error.message || "Unable to sign out of all devices. Try again.");
+  }
+  if (!data?.success) {
+    throw new Error("Unable to sign out of all devices. Try again.");
+  }
+  clearRecoverySession();
+  const { error: localError } = await supabase.auth.signOut({ scope: "local" });
+  if (localError) throw localError;
+}
+
 export async function sendAdminRecoveryOtp(email: string) {
   const normalized = normalizeEmail(email);
   if (!validateEmail(normalized)) {

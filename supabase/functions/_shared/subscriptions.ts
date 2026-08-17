@@ -88,6 +88,8 @@ export function safeProviderPayload(payload: any) {
       currency: payment.currency,
       status: payment.status,
       method: payment.method,
+      fee: payment.fee,
+      tax: payment.tax,
       error_code: payment.error_code,
       error_description: payment.error_description,
     } : null,

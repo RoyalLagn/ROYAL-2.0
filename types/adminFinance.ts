@@ -18,6 +18,8 @@ export type FinanceTransaction = {
   amount: number;
   tax_amount: number;
   gateway_fee: number;
+  /** True when gateway_fee reflects a real captured Razorpay fee (post-2026-08-17 verified payments). False means the value is a historical 0 placeholder, not a real fee. */
+  gateway_fee_captured: boolean;
   source: "manual" | "subscription_payment" | "refund" | "adjustment";
   source_payment_id: string | null;
   payment_method: string | null;
@@ -104,15 +106,47 @@ export type FinanceMonthData = {
 export type FinanceSummary = {
   grossRevenue: number;
   gatewayFees: number;
+  /** How many revenue transactions actually have a captured Razorpay fee vs. how many are counted (source != refund). */
+  gatewayFeeCoverage: { capturedCount: number; totalCount: number };
   netRevenue: number;
   expenses: number;
   profitBeforeTax: number;
   estimatedTax: number;
   netProfit: number;
+  /** (netProfit / netRevenue) * 100. Null when netRevenue <= 0 (division guard; margin is not meaningful). */
+  profitMargin: number | null;
   budget: number;
   budgetRemaining: number;
   revenueTarget: number;
   revenueTargetGap: number;
+};
+
+/**
+ * A plain sum of finance_tax_records within ONE existing tax_type — never a
+ * cross-type combination or invented formula. The app's one and only
+ * aggregate "total tax" figure remains FinanceSummary.estimatedTax (the same
+ * "Estimated tax provision" already shown on Overview and Profit & Loss);
+ * this type is for the per-category informational breakdown only.
+ */
+export type FinanceTaxTypeTotal = {
+  type: FinanceTaxRecord["tax_type"];
+  amount: number;
+  recordCount: number;
+};
+
+export type FinanceRevenueSourceRow = {
+  categoryId: string;
+  name: string;
+  amount: number;
+  transactionCount: number;
+};
+
+export type FinanceRevenueTrendPoint = {
+  bucketStart: string;
+  gross: number;
+  gatewayFee: number;
+  net: number;
+  transactionCount: number;
 };
 
 export type FinanceTransactionInput = {

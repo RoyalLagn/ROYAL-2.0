@@ -50,14 +50,3 @@ export type PushTokenRecord = {
   created_at: string;
   updated_at: string;
 };
-
-export const PUSH_DESTINATION_PRESETS = [
-  { label: "No destination", value: "" },
-  { label: "Home", value: "/(tabs)" },
-  { label: "Categories", value: "/(tabs)/Categories" },
-  { label: "Favorites", value: "/(tabs)/favorites" },
-  { label: "Customer profile", value: "/(tabs)/profile" },
-  { label: "Vendor dashboard", value: "/vendor-dashboard" },
-  { label: "Vendor enquiries", value: "/VendorEnquiries" },
-  { label: "Vendor subscription", value: "/VendorSubscription" },
-] as const;

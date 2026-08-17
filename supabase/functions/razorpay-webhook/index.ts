@@ -48,11 +48,19 @@ Deno.serve(async (request) => {
     }
 
     if (["payment.captured", "order.paid"].includes(eventType) && paymentEntity?.id) {
+      // Razorpay's payment entity carries its own actual gateway fee/tax
+      // (in paise) once captured. Only store what Razorpay actually reports —
+      // never default a missing value to 0, so the finance dashboard can
+      // show "Unavailable" instead of a fabricated figure.
+      const gatewayFeeMinor = typeof paymentEntity.fee === "number" ? paymentEntity.fee : null;
+      const gatewayTaxMinor = typeof paymentEntity.tax === "number" ? paymentEntity.tax : null;
       await admin.from("subscription_payments").update({
         payment_status: "captured",
         razorpay_payment_id: paymentEntity.id,
         payment_method: paymentEntity.method ?? null,
         paid_at: new Date().toISOString(),
+        ...(gatewayFeeMinor !== null ? { gateway_fee_minor: gatewayFeeMinor } : {}),
+        ...(gatewayTaxMinor !== null ? { gateway_tax_minor: gatewayTaxMinor } : {}),
       }).eq("id", payment.id);
       const { error: activationError } = await admin.rpc("activate_verified_subscription_payment", {
         target_payment_id: payment.id,
