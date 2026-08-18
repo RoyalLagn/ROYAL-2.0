@@ -39,7 +39,7 @@ function DashboardContent() {
             </DashboardWidget>
           </ResponsiveSection>
 
-          <View className={desktop ? "flex-row gap-5 items-start" : "gap-0"}>
+          <View className={desktop ? "flex-row gap-5 items-start" : "gap-0"} style={{ zIndex: 20 }}>
             <View style={desktop ? { flex: 1, minWidth: 0 } : undefined}>
               <ResponsiveSection>
                 <DashboardWidget title="Pending Tasks" subtitle="Current administrator workload" icon={ListTodo} loading={loading && !snapshot} error={snapshot?.statistics.error || snapshot?.health.error} onRefresh={() => void refresh()}>
@@ -54,7 +54,7 @@ function DashboardContent() {
             </View>
           </View>
 
-          <ResponsiveSection>
+          <ResponsiveSection style={{ zIndex: 10 }}>
             <EquityRevenueDashboard />
           </ResponsiveSection>
         </ResponsiveContainer>

@@ -15,6 +15,7 @@ type Props = {
   empty?: boolean;
   emptyMessage?: string;
   onRefresh?: () => void;
+  allowOverflow?: boolean;
   children: React.ReactNode;
 };
 
@@ -27,13 +28,14 @@ export function DashboardWidget({
   empty,
   emptyMessage = "No information is available.",
   onRefresh,
+  allowOverflow = false,
   children,
 }: Props) {
   const { cardPadding, iconSize, isPhone } = useResponsiveLayout();
   return (
     <ResponsiveCard
-      className="overflow-hidden bg-card"
-      style={{ padding: 0, borderRadius: 16 }}
+      className={`${allowOverflow ? "overflow-visible" : "overflow-hidden"} bg-card`}
+      style={{ padding: 0, borderRadius: 16, zIndex: allowOverflow ? 10 : undefined }}
     >
       <View
         className="flex-row items-center border-b border-border"

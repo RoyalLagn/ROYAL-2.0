@@ -522,8 +522,8 @@ export default function FrontendScreen({
                     key={index}
                     className={`p-5 flex-row items-start ${index > 0 ? "border-t border-border/70" : ""}`}
                   >
-                    <View className="w-7 h-7 rounded-full bg-primary/10 items-center justify-center mr-3 mt-0.5">
-                      <Text className="text-primary text-xs font-bold">{index + 1}</Text>
+                    <View className="min-w-14 h-7 px-2 rounded-full bg-primary/10 items-center justify-center mr-3 mt-0.5">
+                      <Text className="text-primary text-xs font-bold">Sr. {index + 1}</Text>
                     </View>
                     <Text className="text-foreground text-sm leading-6 flex-1">{paragraph}</Text>
                   </View>

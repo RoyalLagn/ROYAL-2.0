@@ -3,15 +3,19 @@ import { Platform, Pressable, Text, View } from "react-native";
 import { Calendar } from "lucide-react-native";
 import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
+import { DateField as WebDateField } from "./DateField.web";
 
 export type DateFieldProps = {
   label: string;
   value: string; // "YYYY-MM-DD", or "" for unset
   onChange: (value: string) => void;
   placeholder?: string;
+  displayValue?: string;
+  hideLabel?: boolean;
   // Inclusive lower bound, "YYYY-MM-DD" — used to stop End Date from being
   // picked earlier than Start Date directly inside the native picker.
   minimumDate?: string;
+  maximumDate?: string;
 };
 
 // Same "YYYY-MM-DD" the rest of the CRM (create payload, RPCs) already
@@ -37,10 +41,15 @@ function parseDate(value: string): Date | undefined {
 // TextInput boxes elsewhere on this screen (same border/rounded-2xl/h-12/
 // px-4/bg-background), but backed by the platform's real date picker
 // instead of manual typing.
-export function DateField({ label, value, onChange, placeholder = "Select a date", minimumDate }: DateFieldProps) {
+export function DateField({ label, value, onChange, placeholder = "Select a date", displayValue, hideLabel = false, minimumDate, maximumDate }: DateFieldProps) {
   const [iosOpen, setIosOpen] = useState(false);
+
+  if (Platform.OS === "web") {
+    return <WebDateField label={label} value={value} onChange={onChange} placeholder={placeholder} displayValue={displayValue} hideLabel={hideLabel} minimumDate={minimumDate} maximumDate={maximumDate} />;
+  }
   const selected = parseDate(value);
   const min = minimumDate ? parseDate(minimumDate) : undefined;
+  const max = maximumDate ? parseDate(maximumDate) : undefined;
 
   const handleChange = (event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === "ios") {
@@ -59,6 +68,7 @@ export function DateField({ label, value, onChange, placeholder = "Select a date
         value: selected ?? new Date(),
         mode: "date",
         minimumDate: min,
+        maximumDate: max,
         onChange: handleChange,
       });
     } else {
@@ -67,16 +77,19 @@ export function DateField({ label, value, onChange, placeholder = "Select a date
   };
 
   return (
-    <View className="mb-3">
-      <Text className="text-foreground text-xs font-semibold mb-1.5">{label}</Text>
+    <View className={hideLabel ? "mb-0" : "mb-3"}>
+      {!hideLabel ? <Text className="text-foreground text-xs font-semibold mb-1.5">{label}</Text> : null}
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${label}, ${displayValue || value || placeholder}`}
         onPress={openPicker}
-        className="h-12 border border-border rounded-2xl px-4 flex-row items-center justify-between bg-background"
+        className="h-12 border border-border rounded-2xl px-4 flex-row items-center justify-between bg-card"
+        style={({ pressed }) => pressed ? { transform: [{ scale: 0.98 }], opacity: 0.9 } : undefined}
       >
-        <Text className={value ? "text-foreground" : "text-muted-foreground"}>{value || placeholder}</Text>
-        <Pressable accessibilityLabel={`Open ${label.toLowerCase()} picker`} onPress={openPicker} hitSlop={8}>
-          <Calendar size={18} className="text-muted-foreground" />
-        </Pressable>
+        <Text className={value ? "text-foreground" : "text-muted-foreground"}>{displayValue || value || placeholder}</Text>
+        <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center">
+          <Calendar size={16} className="text-primary" />
+        </View>
       </Pressable>
 
       {Platform.OS === "ios" ? (
@@ -97,6 +110,7 @@ export function DateField({ label, value, onChange, placeholder = "Select a date
               mode="date"
               display="inline"
               minimumDate={min}
+              maximumDate={max}
               onChange={handleChange}
             />
           </View>

@@ -1,14 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CalendarDays, ChevronLeft, ChevronRight, MessageCircle, Phone, RefreshCw, Search, Store } from "lucide-react-native";
+import { MessageCircle, Phone, RefreshCw, Search, Store } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
+import { DateField } from "@/components/admin/crm/ui/DateField";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { AdminOperationsService, type AdminEnquiry } from "@/services/adminOperations";
 import { CategoryService, type CategoryRecord } from "@/services/CategoryService";
+import { HierarchySelect } from "@/components/admin/locations/HierarchySelect";
 
 const PAGE_SIZE = 15;
 
@@ -25,23 +27,11 @@ function todayIstKey() {
   return new Date().toLocaleDateString("en-CA", { timeZone: ENQUIRY_TIMEZONE });
 }
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function formatDateKeyLabel(dateKey: string) {
   const [year, month, day] = dateKey.split("-").map(Number);
   return `${day} ${MONTH_NAMES[month - 1]} ${year}`;
 }
-// Pure calendar-grid arithmetic (days in month, weekday of day 1) is a fact
-// about the Gregorian calendar, not a specific instant in time, so ordinary
-// local Date math is safe here — this never touches the IST enquiry-day
-// bucketing above.
-function daysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
-}
-function firstWeekdayMondayIndexed(year: number, month: number) {
-  return (new Date(year, month, 1).getDay() + 6) % 7;
-}
-
 type DayCounts = { total: number; call: number; whatsapp: number };
 const emptyDayCounts: DayCounts = { total: 0, call: 0, whatsapp: 0 };
 
@@ -56,6 +46,8 @@ type VendorEnquirySummary = {
 };
 
 export default function AdminEnquiries() {
+  const { width } = useWindowDimensions();
+  const desktop = width >= 768;
   const [items, setItems] = useState<AdminEnquiry[]>([]);
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [query, setQuery] = useState("");
@@ -65,10 +57,6 @@ export default function AdminEnquiries() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const todayKey = useMemo(() => todayIstKey(), []);
-  const [calendarMonth, setCalendarMonth] = useState(() => {
-    const [year, month] = todayKey.split("-").map(Number);
-    return { year, month: month - 1 };
-  });
   const [selectedDate, setSelectedDate] = useState(todayKey);
 
   const load = useCallback(async (refresh = false) => {
@@ -127,16 +115,6 @@ export default function AdminEnquiries() {
 
   const selectedDateCounts = dayCounts.get(selectedDate) ?? emptyDayCounts;
 
-  const goToMonth = (delta: number) => setCalendarMonth((current) => {
-    const total = current.year * 12 + current.month + delta;
-    return { year: Math.floor(total / 12), month: ((total % 12) + 12) % 12 };
-  });
-  const goToToday = () => {
-    const [year, month] = todayKey.split("-").map(Number);
-    setCalendarMonth({ year, month: month - 1 });
-    setSelectedDate(todayKey);
-  };
-
   const vendorSummaries = useMemo(() => {
     const grouped = new Map<string, VendorEnquirySummary>();
     channelEnquiries.forEach((item) => {
@@ -166,6 +144,8 @@ export default function AdminEnquiries() {
   const visible = vendorSummaries.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const totalCalls = vendorSummaries.reduce((sum, vendor) => sum + vendor.callCount, 0);
   const totalWhatsApp = vendorSummaries.reduce((sum, vendor) => sum + vendor.whatsappCount, 0);
+  const categoryOptions = useMemo(() => [{ id: "all", name: "All categories" }, ...categories.map((category) => ({ id: category.id, name: category.name }))], [categories]);
+  const selectedCategoryName = categoryOptions.find((category) => category.id === categoryId)?.name ?? "All categories";
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
@@ -174,7 +154,7 @@ export default function AdminEnquiries() {
         contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}
       >
-        <ResponsiveContainer>
+        <ResponsiveContainer style={{ maxWidth: 1180, alignSelf: "center" }}>
           <AdminPageHeader
             title="Enquiries"
             subtitle="Compare Call and WhatsApp interest by category and vendor"
@@ -187,35 +167,30 @@ export default function AdminEnquiries() {
             <SummaryMetric label="WhatsApp enquiries" value={totalWhatsApp} icon={MessageCircle} />
           </View>
 
-          <Text className="text-foreground font-bold mb-2">Filter by category</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 14 }}>
-            <CategoryFilter label="All categories" selected={categoryId === "all"} onPress={() => { setCategoryId("all"); setPage(1); }} />
-            {categories.map((category) => (
-              <CategoryFilter key={category.id} label={category.name} selected={categoryId === category.id} onPress={() => { setCategoryId(category.id); setPage(1); }} />
-            ))}
-          </ScrollView>
-
-          <View className="bg-card border border-border rounded-2xl px-4 h-12 flex-row items-center mb-4">
-            <Search size={18} className="text-muted-foreground" />
-            <TextInput
-              value={query}
-              onChangeText={(value) => { setQuery(value); setPage(1); }}
-              placeholder="Search vendors"
-              placeholderTextColor="#8A8589"
-              className="flex-1 h-12 ml-3 text-foreground"
-            />
+          <View className="mb-5" style={{ zIndex: 20 }}>
+            <View className={desktop ? "flex-row items-start gap-3" : "gap-3"}>
+              <View style={desktop ? { width: 260 } : undefined}>
+                <HierarchySelect label="Category" value={selectedCategoryName} options={categoryOptions} selectedId={categoryId} onSelect={(id) => { setCategoryId(id); setPage(1); }} />
+              </View>
+              <View className="flex-1 min-w-0">
+                <Text className="text-foreground text-xs font-semibold mb-1.5">Search vendors</Text>
+                <View className="bg-card border border-border rounded-2xl px-4 h-12 flex-row items-center">
+                  <Search size={18} className="text-muted-foreground" />
+                  <TextInput
+                    accessibilityLabel="Search vendors"
+                    value={query}
+                    onChangeText={(value) => { setQuery(value); setPage(1); }}
+                    placeholder="Search by vendor name"
+                    placeholderTextColor="#787178"
+                    className="flex-1 h-12 ml-3 text-foreground"
+                  />
+                </View>
+              </View>
+              <View style={desktop ? { width: 240 } : undefined}>
+                <DateField label="Enquiry date" value={selectedDate} onChange={setSelectedDate} />
+              </View>
+            </View>
           </View>
-
-          <EnquiryCalendarSection
-            calendarMonth={calendarMonth}
-            selectedDate={selectedDate}
-            dayCounts={dayCounts}
-            todayKey={todayKey}
-            onSelectDate={setSelectedDate}
-            onPrevMonth={() => goToMonth(-1)}
-            onNextMonth={() => goToMonth(1)}
-            onToday={goToToday}
-          />
           <SelectedDaySummary dateKey={selectedDate} counts={selectedDateCounts} />
 
           <View className="flex-row items-center justify-between mb-3">
@@ -236,83 +211,6 @@ export default function AdminEnquiries() {
       </ScrollView>
       <AdminFooter activeTab="profile" />
     </SafeAreaView>
-  );
-}
-
-function EnquiryCalendarSection({
-  calendarMonth, selectedDate, dayCounts, todayKey, onSelectDate, onPrevMonth, onNextMonth, onToday,
-}: {
-  calendarMonth: { year: number; month: number };
-  selectedDate: string;
-  dayCounts: Map<string, DayCounts>;
-  todayKey: string;
-  onSelectDate: (dateKey: string) => void;
-  onPrevMonth: () => void;
-  onNextMonth: () => void;
-  onToday: () => void;
-}) {
-  const { year, month } = calendarMonth;
-  const totalDays = daysInMonth(year, month);
-  const leadingBlanks = firstWeekdayMondayIndexed(year, month);
-  const cells: (string | null)[] = [
-    ...Array.from({ length: leadingBlanks }, () => null),
-    ...Array.from({ length: totalDays }, (_, index) => `${year}-${String(month + 1).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`),
-  ];
-
-  return (
-    <View className="bg-card border border-border rounded-2xl p-2.5 mb-5">
-      <View className="flex-row items-center justify-between h-8">
-        <Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={onPrevMonth} className="w-7 h-7 rounded-lg bg-background items-center justify-center">
-          <ChevronLeft size={16} className="text-foreground" />
-        </Pressable>
-        <View className="flex-row items-center gap-1.5">
-          <CalendarDays size={14} className="text-primary" />
-          <Text className="text-foreground font-bold text-sm">{MONTH_NAMES[month]} {year}</Text>
-        </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Next month" onPress={onNextMonth} className="w-7 h-7 rounded-lg bg-background items-center justify-center">
-          <ChevronRight size={16} className="text-foreground" />
-        </Pressable>
-      </View>
-      <Pressable accessibilityRole="button" accessibilityLabel="Jump to today" onPress={onToday} className="self-center mt-1 mb-1 px-2.5 h-5 rounded-full bg-primary/10 items-center justify-center">
-        <Text className="text-primary text-caption font-bold">Today</Text>
-      </Pressable>
-
-      <View className="flex-row">
-        {WEEKDAY_LABELS.map((label) => (
-          <View key={label} style={{ width: `${100 / 7}%` }} className="items-center py-0.5">
-            <Text className="text-muted-foreground text-caption font-bold">{label}</Text>
-          </View>
-        ))}
-      </View>
-      <View className="flex-row flex-wrap">
-        {cells.map((dateKey, index) => {
-          if (!dateKey) return <View key={`blank-${index}`} style={{ width: `${100 / 7}%`, height: 38 }} className="p-px" />;
-          const counts = dayCounts.get(dateKey);
-          const selected = dateKey === selectedDate;
-          const isToday = dateKey === todayKey;
-          const dayNumber = Number(dateKey.slice(-2));
-          return (
-            <View key={dateKey} style={{ width: `${100 / 7}%`, height: 38 }} className="p-px">
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${formatDateKeyLabel(dateKey)}${counts ? `, ${counts.total} enquir${counts.total === 1 ? "y" : "ies"}` : ""}`}
-                accessibilityState={{ selected }}
-                onPress={() => onSelectDate(dateKey)}
-                className="flex-1 rounded-lg items-center justify-center"
-                style={{
-                  backgroundColor: selected ? "#E91E63" : counts ? "#FFF0F6" : "transparent",
-                  borderWidth: isToday && !selected ? 1 : 0,
-                  borderColor: "#E91E63",
-                }}
-              >
-                <Text className={selected ? "text-white text-xs font-bold" : "text-foreground text-xs font-bold"}>{dayNumber}</Text>
-                {counts ? <Text className={selected ? "text-white text-caption" : "text-primary text-caption font-bold"} style={{ lineHeight: 12 }}>{counts.total}</Text> : null}
-              </Pressable>
-            </View>
-          );
-        })}
-      </View>
-    </View>
   );
 }
 
@@ -338,14 +236,6 @@ function DaySummaryMetric({ label, value, icon: Icon }: { label: string; value: 
       <Text className="text-foreground text-lg font-bold">{value.toLocaleString("en-IN")}</Text>
       <Text className="text-muted-foreground text-caption mt-0.5">{label}</Text>
     </View>
-  );
-}
-
-function CategoryFilter({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
-  return (
-    <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} className={selected ? "min-h-11 px-4 rounded-xl bg-primary items-center justify-center" : "min-h-11 px-4 rounded-xl bg-card border border-border items-center justify-center"}>
-      <Text className={selected ? "text-white text-xs font-semibold" : "text-foreground text-xs font-semibold"}>{label}</Text>
-    </Pressable>
   );
 }
 

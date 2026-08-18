@@ -1,20 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Text, useWindowDimensions, View } from "react-native";
-import { ChevronLeft, ChevronRight, Clapperboard } from "lucide-react-native";
+import { Text, useWindowDimensions, View } from "react-native";
+import { Clapperboard } from "lucide-react-native";
 import { DashboardWidget } from "@/components/admin/dashboard/DashboardWidget";
 import AdminChart from "@/components/admin/revenue/AdminChart";
 import { AdminClipAnalyticsService, type ClipAnalyticsResult } from "@/services/adminClipAnalytics";
+import { DateField } from "@/components/admin/crm/ui/DateField";
 
 function monthStart(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), 1);
-}
-
-function changeMonth(value: Date, amount: number) {
-  return new Date(value.getFullYear(), value.getMonth() + amount, 1);
-}
-
-function monthKey(value: Date) {
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function dateKey(value: Date) {
@@ -74,33 +67,19 @@ export function DashboardClipViewsChart() {
       loading={loading && !result}
       error={error}
       onRefresh={() => void load()}
+      allowOverflow
     >
       <View className={width < 680 ? "gap-3 mb-4" : "flex-row items-center justify-between gap-4 mb-4"}>
-        <View className="flex-row items-center gap-2">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Show previous month"
-            onPress={() => setMonth((value) => changeMonth(value, -1))}
-            className="w-12 h-12 rounded-xl border border-border bg-background items-center justify-center active:bg-muted"
-            style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}
-          >
-            <ChevronLeft size={18} className="text-foreground" />
-          </Pressable>
-          <View className="min-w-36 px-2">
-            <Text className="text-foreground text-sm font-bold text-center">{period.label}</Text>
-            <Text className="text-muted-foreground text-caption text-center mt-0.5">{period.range}</Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Show next month"
-            accessibilityState={{ disabled: monthKey(month) >= monthKey(currentMonth) }}
-            disabled={monthKey(month) >= monthKey(currentMonth)}
-            onPress={() => setMonth((value) => changeMonth(value, 1))}
-            className="w-12 h-12 rounded-xl border border-border bg-background items-center justify-center active:bg-muted disabled:opacity-30"
-            style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}
-          >
-            <ChevronRight size={18} className="text-foreground" />
-          </Pressable>
+        <View className="min-w-56">
+          <DateField
+            label="Clip views month"
+            hideLabel
+            value={dateKey(month)}
+            displayValue={period.label}
+            maximumDate={dateKey(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0))}
+            onChange={(value) => setMonth(monthStart(new Date(`${value}T00:00:00`)))}
+          />
+          <Text className="text-muted-foreground text-caption mt-1">{period.range}</Text>
         </View>
         <View className="items-end">
           <Text className="text-foreground text-xl font-bold">{(result?.summary.views ?? 0).toLocaleString("en-IN")}</Text>

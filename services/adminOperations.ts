@@ -64,6 +64,8 @@ export type AdminReview = {
   updated_at: string;
   customer_name: string;
   vendor_name: string;
+  category_id: string | null;
+  category_name: string;
 };
 
 function relationName(value: unknown, fallback: string) {
@@ -212,10 +214,12 @@ export const AdminOperationsService = {
   async reviews(): Promise<AdminReview[]> {
     const { data, error } = await supabase
       .from("reviews")
-      .select("id,vendor_key,vendor_id,profile_id,rating,title,review,status,helpful_count,is_verified_customer,created_at,updated_at,profiles!reviews_profile_id_fkey(full_name),vendors(business_name)")
+      .select("id,vendor_key,vendor_id,profile_id,rating,title,review,status,helpful_count,is_verified_customer,created_at,updated_at,profiles!reviews_profile_id_fkey(full_name),vendors(business_name,category_id,categories(name))")
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    return ((data ?? []) as Record<string, unknown>[]).map((row) => {
+      const vendor = enquiryVendor(row.vendors);
+      return ({
       id: String(row.id), vendor_key: String(row.vendor_key),
       vendor_id: row.vendor_id ? String(row.vendor_id) : null,
       profile_id: String(row.profile_id), rating: Number(row.rating),
@@ -225,8 +229,11 @@ export const AdminOperationsService = {
       is_verified_customer: Boolean(row.is_verified_customer),
       created_at: String(row.created_at), updated_at: String(row.updated_at),
       customer_name: relationFullName(row.profiles, "RoyalLagn customer"),
-      vendor_name: relationBusinessName(row.vendors, String(row.vendor_key)),
-    }));
+      vendor_name: vendor.name,
+      category_id: vendor.categoryId,
+      category_name: vendor.categoryName,
+    });
+    });
   },
 
   subscribe(table: "clips" | "vendor_enquiries" | "reviews", onChange: () => void) {

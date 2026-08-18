@@ -1,16 +1,21 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import FrontendScreen from "@/components/FrontendScreen";
+import { DEFAULT_TERMS_CONTENT, LegalDocumentsService } from "@/services/legalDocuments";
 
 export default function VendorTerms() {
+  const [content, setContent] = useState(DEFAULT_TERMS_CONTENT);
+  useEffect(() => {
+    let active = true;
+    LegalDocumentsService.loadTerms().then((document) => { if (active) setContent(document.content); }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+  const paragraphs = useMemo(() => content.split(/\n\s*\n/).map((item) => item.trim()).filter(Boolean), [content]);
   return (
     <FrontendScreen
       title="Terms & Conditions"
       subtitle="Terms for using the RoyalLagn vendor workspace"
       mode="info"
-      content={[
-        "Vendors are responsible for keeping business details, pricing, portfolio media and availability accurate and for having permission to publish uploaded content.",
-        "Customer enquiries do not create a confirmed booking. Vendors and customers should independently agree on availability, services, payment and cancellation terms.",
-      ]}
+      content={paragraphs}
     />
   );
 }

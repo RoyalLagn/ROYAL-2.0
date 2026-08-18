@@ -8,6 +8,7 @@ import {
   Clapperboard,
   CreditCard,
   FileBarChart,
+  FileText,
   HandCoins,
   FolderTree,
   MessageSquareText,
@@ -37,6 +38,8 @@ export type AdminNavigationKey =
   | "categories"
   | "locations"
   | "reports"
+  | "terms"
+  | "privacy"
   | "settings"
   | "help";
 
@@ -87,6 +90,8 @@ export const adminNavigationGroups: { label: string; items: AdminNavigationItem[
       { key: "categories", label: "Categories", route: "/AdminCategories", icon: FolderTree },
       { key: "locations", label: "Locations", route: "/AdminGeoLocations", icon: MapPinned },
       { key: "reports", label: "Reports", route: "/AdminReports", icon: FileBarChart },
+      { key: "terms", label: "Terms & Conditions", route: "/AdminTerms", icon: FileText },
+      { key: "privacy", label: "Privacy Policy", route: "/AdminPrivacy", icon: FileText },
       { key: "settings", label: "Settings", route: "/AdminSettings", icon: Settings },
       { key: "help", label: "Help & Support", route: "/AdminHelp", icon: CircleHelp },
     ],

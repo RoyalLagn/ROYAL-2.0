@@ -86,35 +86,18 @@ assert.match(layoutSource, /installAppAlert\(\)/, "The root layout must install 
 assert.match(alertBridgeSource, /Alert\.alert\s*=/, "The shared bridge must continue routing existing Alert.alert calls.");
 assert.match(dialogProviderSource, /Platform\.OS === "android" \? 48 : 44/, "Dialog actions must keep platform-appropriate touch targets.");
 
-// --- Admin workspace must require Microsoft Authenticator (aal2) -------
-const [adminAuthSource, adminMfaSource, adminMfaPolicySource, adminContextSource, adminGuardSource, adminRouteSource, adminMfaMigration] = await Promise.all([
+// --- Admin workspace uses password auth plus an active admin profile ----
+const [adminAuthSource, adminMfaSource, adminMfaPolicySource, adminMfaMigration] = await Promise.all([
   read("services/adminAuth.ts"),
   read("services/adminMfa.ts"),
   read("services/adminMfaPolicy.ts"),
-  read("context/AdminAuthContext.tsx"),
-  read("components/auth/AdminRouteGuard.tsx"),
-  read("admin/navigation.ts"),
-  read("supabase/migrations/20260815213000_require_admin_mfa.sql"),
+  read("supabase/migrations/20260818122000_disable_admin_mfa_requirement.sql"),
 ]);
-const adminMfaSetupSource = await read("app/AdminMfaSetup.tsx");
-assert.match(adminAuthSource, /data\.currentLevel !== "aal2"/, "Admin workspace identity must require an aal2 session.");
-assert.match(adminAuthSource, /ADMIN_MFA_DEV_BYPASS_ENABLED[\s\S]*return identity/, "Admin MFA bypass must be explicit and isolated from normal verification.");
-assert.match(adminMfaSource, /ADMIN_MFA_DEV_BYPASS_ENABLED[\s\S]*requirement: null/, "Admin login routing must honor the local-only MFA bypass.");
-assert.match(adminMfaPolicySource, /__DEV__[\s\S]*DEV_BYPASS_REQUESTED[\s\S]*isLoopbackWebHost\(\)/, "Admin MFA bypass must require a development build, an explicit flag, and localhost.");
-assert.match(adminAuthSource, /return verifyAdminRoleSession\(data\.session\);/, "Password login must retain its aal1 session for MFA setup or challenge.");
-assert.match(adminAuthSource, /updateAdminRecoveredPassword[\s\S]*verifyAdminRoleSession\(data\.session\)/, "Password recovery must verify the admin role without bypassing the later MFA login challenge.");
-assert.match(adminMfaSource, /challengeAndVerify\([\s\S]*factorId[\s\S]*code: normalizedCode/, "Authenticator codes must be challenged and verified through Supabase MFA.");
-assert.match(adminMfaSource, /authenticatorUri: enrollment\.data\.totp\.uri/, "MFA enrollment must expose Supabase's Authenticator URI to the QR renderer.");
-assert.match(adminMfaSetupSource, /<QRCode[\s\S]*value=\{enrollment\.authenticatorUri\}/, "MFA setup must render its QR through the installed cross-platform QR component.");
-assert.match(adminMfaSource, /if \(activeEnrollment\) return activeEnrollment/, "MFA enrollment must collapse concurrent setup requests into one operation.");
-assert.match(adminMfaSource, /isNameConflict[\s\S]*removeIncompleteTotpFactors\(\)[\s\S]*supabase\.auth\.mfa\.enroll/, "MFA enrollment must safely recover from a stale unverified-factor name conflict.");
-assert.match(adminMfaSource, /isAlreadyVerifiedConflict[\s\S]*mfa_verified_factor_exists/, "MFA enrollment must distinguish a genuinely already-verified factor from a stale name conflict.");
-assert.match(adminMfaSetupSource, /caught\.code === "mfa_required"[\s\S]*router\.replace\("\/AdminMfaVerify"\)/, "MFA setup must recover to verification when Supabase confirms a factor is already configured.");
-assert.match(adminMfaSetupSource, /latestState\.requirement === "verify"[\s\S]*router\.replace\("\/AdminMfaVerify"\)/, "MFA setup must recover to verification when a factor is already configured.");
-assert.match(adminContextSource, /error\.code === "mfa_required"[\s\S]*getAdminMfaState\(\)/, "The admin context must preserve aal1 sessions and resolve the correct MFA route.");
-assert.match(adminGuardSource, /mfaRequirement === "setup"[\s\S]*AdminMfaSetup[\s\S]*mfaRequirement === "verify"[\s\S]*AdminMfaVerify/, "Protected admin routes must redirect aal1 sessions into setup or verification.");
-assert.match(adminRouteSource, /"\/AdminMfaSetup"[\s\S]*"\/AdminMfaVerify"/, "MFA screens must remain reachable before workspace authentication completes.");
-assert.match(adminMfaMigration, /auth\.jwt\(\) ->> 'aal'[\s\S]*= 'aal2'/, "Database admin privileges must require the aal2 JWT claim.");
+assert.match(adminMfaPolicySource, /ADMIN_MFA_DEV_BYPASS_ENABLED = true/, "Admin MFA checks must remain disabled.");
+assert.match(adminAuthSource, /ADMIN_MFA_DEV_BYPASS_ENABLED[\s\S]*return identity/, "Admin authentication must return after the active role check without contacting MFA.");
+assert.match(adminMfaSource, /ADMIN_MFA_DEV_BYPASS_ENABLED[\s\S]*requirement: null/, "Admin login routing must not request MFA setup or verification.");
+assert.match(adminMfaMigration, /role::text in \('admin', 'super_admin'\)[\s\S]*and is_active/, "Database admin privileges must require an active admin profile.");
+assert.doesNotMatch(adminMfaMigration, /auth\.jwt\(\) ->> 'aal'/, "Database admin privileges must not require an MFA assurance claim.");
 
 // --- NativeWind Pressable interop must retain Home control layout -------
 // react-native-css-interop 0.2.1 consumes a function-valued Pressable style
