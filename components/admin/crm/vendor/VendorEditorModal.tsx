@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { X } from "lucide-react-native";
 import { CrmCategoryService } from "@/services/crm/categoryService";
@@ -6,6 +6,18 @@ import { CrmExecutiveService } from "@/services/crm/executiveService";
 import type { CrmVendorCategory } from "@/types/crm/category";
 import type { CrmSalesExecutive } from "@/types/crm/executive";
 import type { CrmVendorInput, CrmVendorListItem, CrmVendorPriority } from "@/types/crm/vendor";
+import { sanitizePhoneInput, validateEmail, validatePhone } from "@/utils/authValidation";
+
+const isValidUrlLike = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return true;
+  try {
+    new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 type VendorEditorModalProps = {
   visible: boolean;
@@ -20,9 +32,9 @@ type VendorEditorModalProps = {
 
 const priorities: CrmVendorPriority[] = ["low", "medium", "high"];
 
-function Field({ label, value, onChangeText, placeholder, keyboardType }: {
+function Field({ label, value, onChangeText, placeholder, keyboardType, error, maxLength, onBlur }: {
   label: string; value: string; onChangeText: (value: string) => void; placeholder?: string;
-  keyboardType?: "default" | "phone-pad" | "email-address" | "url";
+  keyboardType?: "default" | "phone-pad" | "email-address" | "url"; error?: string; maxLength?: number; onBlur?: () => void;
 }) {
   return (
     <View className="mb-3">
@@ -30,11 +42,14 @@ function Field({ label, value, onChangeText, placeholder, keyboardType }: {
       <TextInput
         value={value}
         onChangeText={onChangeText}
+        onBlur={onBlur}
         placeholder={placeholder}
         placeholderTextColor="#9CA3AF"
         keyboardType={keyboardType}
-        className="h-12 border border-border rounded-2xl px-4 text-foreground bg-background"
+        maxLength={maxLength}
+        className={`h-12 border rounded-2xl px-4 text-foreground bg-background ${error ? "border-red-500" : "border-border"}`}
       />
+      {error ? <Text accessibilityRole="alert" className="text-red-500 text-xs mt-1">{error}</Text> : null}
     </View>
   );
 }
@@ -47,6 +62,7 @@ export function VendorEditorModal({
   const [form, setForm] = useState<CrmVendorInput>({
     clusterId, categoryId: defaultCategoryId ?? "", businessName: "", priority: "medium",
   });
+  const [businessNameTouched, setBusinessNameTouched] = useState(false);
 
   useEffect(() => {
     if (!visible) return;
@@ -56,6 +72,7 @@ export function VendorEditorModal({
 
   useEffect(() => {
     if (!visible) return;
+    setBusinessNameTouched(false);
     if (vendor) {
       setForm({
         clusterId: vendor.cluster_id, categoryId: vendor.category_id,
@@ -74,6 +91,22 @@ export function VendorEditorModal({
 
   const set = <K extends keyof CrmVendorInput>(key: K, value: CrmVendorInput[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
+
+  // Every message here is field-specific, matching what the user types
+  // (or leaves blank) -- Business Name is the only field that's required,
+  // everything else is optional but validated for format when filled in.
+  const errors = useMemo(() => {
+    const next: Partial<Record<keyof CrmVendorInput, string>> = {};
+    if (!form.businessName.trim()) next.businessName = "Business name is required.";
+    if (form.phone?.trim() && !validatePhone(form.phone)) next.phone = "Enter a valid 10-digit mobile number.";
+    if (form.alternatePhone?.trim() && !validatePhone(form.alternatePhone)) next.alternatePhone = "Enter a valid 10-digit mobile number.";
+    if (form.whatsapp?.trim() && !validatePhone(form.whatsapp)) next.whatsapp = "Enter a valid 10-digit mobile number.";
+    if (form.email?.trim() && !validateEmail(form.email)) next.email = "Enter a valid email address.";
+    if (form.website?.trim() && !isValidUrlLike(form.website)) next.website = "Enter a valid website URL.";
+    if (form.googleMapsUrl?.trim() && !isValidUrlLike(form.googleMapsUrl)) next.googleMapsUrl = "Enter a valid Google Maps URL.";
+    return next;
+  }, [form]);
+  const hasErrors = Object.keys(errors).length > 0;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -102,15 +135,15 @@ export function VendorEditorModal({
               </View>
             </ScrollView>
 
-            <Field label="Business Name *" value={form.businessName} onChangeText={(value) => set("businessName", value)} placeholder="e.g. Royal Wedding Hall" />
+            <Field label="Business Name *" value={form.businessName} onChangeText={(value) => set("businessName", value)} onBlur={() => setBusinessNameTouched(true)} placeholder="e.g. Royal Wedding Hall" error={businessNameTouched ? errors.businessName : undefined} />
             <Field label="Owner Name" value={form.ownerName ?? ""} onChangeText={(value) => set("ownerName", value)} />
-            <Field label="Phone" value={form.phone ?? ""} onChangeText={(value) => set("phone", value)} keyboardType="phone-pad" />
-            <Field label="Alternate Phone" value={form.alternatePhone ?? ""} onChangeText={(value) => set("alternatePhone", value)} keyboardType="phone-pad" />
-            <Field label="WhatsApp" value={form.whatsapp ?? ""} onChangeText={(value) => set("whatsapp", value)} keyboardType="phone-pad" />
-            <Field label="Email" value={form.email ?? ""} onChangeText={(value) => set("email", value)} keyboardType="email-address" />
-            <Field label="Website" value={form.website ?? ""} onChangeText={(value) => set("website", value)} keyboardType="url" />
+            <Field label="Phone" value={form.phone ?? ""} onChangeText={(value) => set("phone", sanitizePhoneInput(value))} keyboardType="phone-pad" placeholder="10-digit mobile number" maxLength={20} error={errors.phone} />
+            <Field label="Alternate Phone" value={form.alternatePhone ?? ""} onChangeText={(value) => set("alternatePhone", sanitizePhoneInput(value))} keyboardType="phone-pad" placeholder="10-digit mobile number" maxLength={20} error={errors.alternatePhone} />
+            <Field label="WhatsApp" value={form.whatsapp ?? ""} onChangeText={(value) => set("whatsapp", sanitizePhoneInput(value))} keyboardType="phone-pad" placeholder="10-digit mobile number" maxLength={20} error={errors.whatsapp} />
+            <Field label="Email" value={form.email ?? ""} onChangeText={(value) => set("email", value)} keyboardType="email-address" placeholder="business@example.com" error={errors.email} />
+            <Field label="Website" value={form.website ?? ""} onChangeText={(value) => set("website", value)} keyboardType="url" placeholder="https://example.com" error={errors.website} />
             <Field label="Instagram" value={form.instagram ?? ""} onChangeText={(value) => set("instagram", value)} />
-            <Field label="Google Maps URL" value={form.googleMapsUrl ?? ""} onChangeText={(value) => set("googleMapsUrl", value)} keyboardType="url" />
+            <Field label="Google Maps URL" value={form.googleMapsUrl ?? ""} onChangeText={(value) => set("googleMapsUrl", value)} keyboardType="url" placeholder="https://maps.google.com/…" error={errors.googleMapsUrl} />
             <Field label="Area" value={form.area ?? ""} onChangeText={(value) => set("area", value)} placeholder="Locality within the cluster" />
             <Field label="Lead Source" value={form.leadSource ?? ""} onChangeText={(value) => set("leadSource", value)} placeholder="e.g. Referral, Cold visit" />
             <Field label="Visited Date" value={form.visitedDate ?? ""} onChangeText={(value) => set("visitedDate", value)} placeholder="YYYY-MM-DD" />
@@ -155,10 +188,10 @@ export function VendorEditorModal({
             ) : null}
 
             <Pressable
-              disabled={saving || !form.businessName.trim() || !form.categoryId}
+              disabled={saving || !form.businessName.trim() || !form.categoryId || hasErrors}
               onPress={() => void onSave(form)}
               className="h-12 rounded-2xl bg-primary items-center justify-center mb-2"
-              style={{ opacity: saving || !form.businessName.trim() || !form.categoryId ? 0.6 : 1 }}
+              style={{ opacity: saving || !form.businessName.trim() || !form.categoryId || hasErrors ? 0.6 : 1 }}
             >
               {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text className="text-white text-sm font-bold">{vendor ? "Save Changes" : "Add Vendor"}</Text>}
             </Pressable>

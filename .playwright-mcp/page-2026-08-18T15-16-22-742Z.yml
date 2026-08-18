@@ -1,0 +1,121 @@
+- generic [ref=f8e8]:
+  - generic [ref=f8e17]:
+    - generic "RoyalLagn Wedding Planner" [ref=f8e20]:
+      - img "RoyalLagn Wedding Planner" [ref=f8e22]
+    - generic [ref=f8e24]:
+      - generic [ref=f8e25]:
+        - generic [ref=f8e26]: Overview
+        - link "Dashboard" [ref=f8e27] [cursor=pointer]
+      - generic [ref=f8e31]:
+        - generic [ref=f8e32]: Operations
+        - link "Approvals" [ref=f8e33] [cursor=pointer]
+        - link "Vendors" [ref=f8e39] [cursor=pointer]
+        - link "Users" [ref=f8e45] [cursor=pointer]
+        - link "Clips" [ref=f8e52] [cursor=pointer]
+        - link "Enquiries" [ref=f8e59] [cursor=pointer]
+        - link "Reviews" [ref=f8e63] [cursor=pointer]
+      - generic [ref=f8e67]:
+        - generic [ref=f8e68]: Revenue
+        - link "Subscriptions" [ref=f8e69] [cursor=pointer]
+        - link "Payments" [ref=f8e75] [cursor=pointer]
+        - link "Finance" [ref=f8e79] [cursor=pointer]
+      - generic [ref=f8e87]:
+        - generic [ref=f8e88]: Acquisition
+        - link "Vendor Acquisition CRM" [ref=f8e89] [cursor=pointer]
+      - generic [ref=f8e95]:
+        - generic [ref=f8e96]: Platform
+        - link "Hero Section" [ref=f8e97] [cursor=pointer]
+        - link "Push Notifications" [ref=f8e101] [cursor=pointer]
+        - link "Categories" [ref=f8e106] [cursor=pointer]
+        - link "Locations" [ref=f8e113] [cursor=pointer]
+        - link "Reports" [ref=f8e119] [cursor=pointer]
+        - link "Terms & Conditions" [ref=f8e124] [cursor=pointer]
+        - link "Privacy Policy" [ref=f8e129] [cursor=pointer]
+        - link "Settings" [ref=f8e134] [cursor=pointer]
+        - link "Help & Support" [ref=f8e139] [cursor=pointer]
+    - generic [ref=f8e144]:
+      - generic [ref=f8e145]:
+        - generic [ref=f8e146]: Admin Boss
+        - generic [ref=f8e147]: Admin
+      - switch "Dark mode" [ref=f8e148] [cursor=pointer]
+      - button "Open admin account" [ref=f8e151] [cursor=pointer]
+  - generic [ref=f8e164]:
+    - generic [ref=f8e166]:
+      - generic [ref=f8e167]:
+        - generic [ref=f8e168]: Finance
+        - generic [ref=f8e169]: Actual revenue, expenses, profitability, tax provisions and founder planning
+      - button "Refresh finance" [ref=f8e171] [cursor=pointer]
+    - generic [ref=f8e177]:
+      - generic [ref=f8e178]:
+        - button "Previous month" [ref=f8e179] [cursor=pointer]
+        - generic [ref=f8e182]:
+          - generic [ref=f8e183]: August 2026
+          - generic [ref=f8e184]: Open financial period
+      - button "Finance month, August 2026" [ref=f8e187] [cursor=pointer]:
+        - generic [ref=f8e188]: August 2026
+      - button "Next month" [ref=f8e192] [cursor=pointer]
+    - generic [ref=f8e195]:
+      - tablist [ref=f8e196]:
+        - tab "Overview" [ref=f8e197] [cursor=pointer]
+        - tab "Revenue" [ref=f8e204] [cursor=pointer]
+        - tab "Expenses" [ref=f8e208] [cursor=pointer]
+        - tab "Taxes" [ref=f8e212] [cursor=pointer]
+        - tab "Forecast" [active] [ref=f8e217] [cursor=pointer]
+        - tab "Reports" [ref=f8e221] [cursor=pointer]
+      - generic [ref=f8e265]:
+        - region [ref=f8e266]:
+          - generic [ref=f8e269]: Forecasts are planning assumptions. They never alter actual revenue, expenses, or profit reports.
+        - generic [ref=f8e270]:
+          - generic [ref=f8e272]:
+            - generic [ref=f8e273]: Scenario planning
+            - generic [ref=f8e274]: Model a future mix of free, Premium, and Elite vendors without treating it as earned revenue.
+          - generic [ref=f8e275]:
+            - generic [ref=f8e276]: Scenario name
+            - textbox "Scenario name" [ref=f8e277]:
+              - /placeholder: Growth plan A
+          - generic [ref=f8e278]:
+            - generic [ref=f8e279]:
+              - generic [ref=f8e280]: Total vendors
+              - textbox "Total vendors" [ref=f8e281]:
+                - /placeholder: e.g. 1000
+            - generic [ref=f8e282]:
+              - generic [ref=f8e283]: Free %
+              - textbox "Free %" [ref=f8e284]:
+                - /placeholder: e.g. 50
+            - generic [ref=f8e285]:
+              - generic [ref=f8e286]: Premium %
+              - textbox "Premium %" [ref=f8e287]:
+                - /placeholder: e.g. 30
+            - generic [ref=f8e288]:
+              - generic [ref=f8e289]: Elite %
+              - textbox "Elite %" [ref=f8e290]:
+                - /placeholder: e.g. 20
+          - generic [ref=f8e291]:
+            - generic [ref=f8e292]:
+              - generic [ref=f8e293]: Premium monthly price
+              - textbox "Premium monthly price" [ref=f8e294]:
+                - /placeholder: e.g. 499
+            - generic [ref=f8e295]:
+              - generic [ref=f8e296]: Elite monthly price
+              - textbox "Elite monthly price" [ref=f8e297]:
+                - /placeholder: e.g. 999
+            - generic [ref=f8e298]:
+              - generic [ref=f8e299]: Monthly fixed expenses
+              - textbox "Monthly fixed expenses" [ref=f8e300]:
+                - /placeholder: e.g. 15000
+          - generic [ref=f8e301]:
+            - generic [ref=f8e302]:
+              - generic [ref=f8e303]: Expected monthly revenue
+              - generic [ref=f8e304]: ₹0.00
+            - generic [ref=f8e305]:
+              - generic [ref=f8e306]: Expected annual revenue
+              - generic [ref=f8e307]: ₹0.00
+            - generic [ref=f8e308]:
+              - generic [ref=f8e309]: Paying vendors to break even
+              - generic [ref=f8e310]: —
+          - button "Save scenario" [ref=f8e312] [cursor=pointer]
+        - generic [ref=f8e318]:
+          - generic [ref=f8e320]:
+            - generic [ref=f8e321]: Saved scenarios
+            - generic [ref=f8e322]: Compare assumptions without mixing them into actual financial reporting.
+          - generic [ref=f8e323]: No saved scenarios yet.

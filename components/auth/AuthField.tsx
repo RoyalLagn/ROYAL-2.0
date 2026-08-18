@@ -22,6 +22,7 @@ export type AuthFieldProps = {
   editable?: boolean;
   autoFocus?: boolean;
   keyboardType?: KeyboardTypeOptions;
+  maxLength?: number;
   returnKeyType?: ReturnKeyTypeOptions;
   textContentType?: TextInputProps["textContentType"];
   autoComplete?: TextInputProps["autoComplete"];
@@ -50,6 +51,7 @@ export const AuthField = forwardRef(function AuthField(
     editable = true,
     autoFocus,
     keyboardType,
+    maxLength,
     returnKeyType = "done",
     textContentType,
     autoComplete,
@@ -94,6 +96,7 @@ export const AuthField = forwardRef(function AuthField(
           autoCapitalize={autoCapitalize}
           autoCorrect={false}
           keyboardType={keyboardType}
+          maxLength={maxLength}
           returnKeyType={returnKeyType}
           textContentType={textContentType}
           autoComplete={autoComplete}

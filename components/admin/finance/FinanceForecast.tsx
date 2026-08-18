@@ -9,7 +9,17 @@ import { FinanceButton, FinanceField, FinanceNotice, FinanceSection, formatMoney
 
 type Draft = Record<keyof Omit<FinanceScenarioInput, "id">, string> & { id?: string };
 
-const blank: Draft = { name: "", total_vendors: "1000", free_percent: "50", premium_percent: "30", elite_percent: "20", premium_price: "499", elite_price: "999", monthly_fixed_expenses: "0" };
+const blank: Draft = { name: "", total_vendors: "", free_percent: "", premium_percent: "", elite_percent: "", premium_price: "", elite_price: "", monthly_fixed_expenses: "" };
+
+const fieldPlaceholders: Record<keyof Omit<FinanceScenarioInput, "id" | "name">, string> = {
+  total_vendors: "e.g. 1000",
+  free_percent: "e.g. 50",
+  premium_percent: "e.g. 30",
+  elite_percent: "e.g. 20",
+  premium_price: "e.g. 499",
+  elite_price: "e.g. 999",
+  monthly_fixed_expenses: "e.g. 15000",
+};
 
 export function FinanceForecast({ data, onChanged }: { data: FinanceMonthData; onChanged: () => Promise<void> }) {
   const [draft, setDraft] = useState<Draft>(blank);
@@ -82,7 +92,7 @@ function ForecastTaxCard({ title, rate, amount, hint }: { title: string; rate: s
   </View>;
 }
 
-function ScenarioField({ label, field, draft, setDraft }: { label: string; field: keyof Omit<FinanceScenarioInput, "id" | "name">; draft: Draft; setDraft: React.Dispatch<React.SetStateAction<Draft>> }) { return <FinanceField label={label} value={draft[field]} onChangeText={(value) => setDraft((current) => ({ ...current, [field]: value }))} keyboardType="decimal-pad" placeholder="0" />; }
+function ScenarioField({ label, field, draft, setDraft }: { label: string; field: keyof Omit<FinanceScenarioInput, "id" | "name">; draft: Draft; setDraft: React.Dispatch<React.SetStateAction<Draft>> }) { return <FinanceField label={label} value={draft[field]} onChangeText={(value) => setDraft((current) => ({ ...current, [field]: value }))} keyboardType="decimal-pad" placeholder={fieldPlaceholders[field]} />; }
 function Result({ label, value }: { label: string; value: string }) { return <View style={styles.result}><Text style={styles.resultLabel}>{label}</Text><Text adjustsFontSizeToFit numberOfLines={1} style={styles.resultValue}>{value}</Text></View>; }
 function calculate(draft: Draft) {
   const total = Number(draft.total_vendors), free = Number(draft.free_percent), premium = Number(draft.premium_percent), elite = Number(draft.elite_percent), premiumPrice = Number(draft.premium_price), elitePrice = Number(draft.elite_price), expenses = Number(draft.monthly_fixed_expenses);

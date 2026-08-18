@@ -1,0 +1,82 @@
+- generic [ref=f3e8]:
+  - generic [ref=f3e17]:
+    - generic "RoyalLagn Wedding Planner" [ref=f3e20]:
+      - img "RoyalLagn Wedding Planner" [ref=f3e22]
+    - generic [ref=f3e24]:
+      - generic [ref=f3e25]:
+        - generic [ref=f3e26]: Overview
+        - link "Dashboard" [ref=f3e27] [cursor=pointer]
+      - generic [ref=f3e31]:
+        - generic [ref=f3e32]: Operations
+        - link "Approvals" [ref=f3e33] [cursor=pointer]
+        - link "Vendors" [ref=f3e39] [cursor=pointer]
+        - link "Users" [ref=f3e45] [cursor=pointer]
+        - link "Clips" [ref=f3e52] [cursor=pointer]
+        - link "Enquiries" [ref=f3e59] [cursor=pointer]
+        - link "Reviews" [ref=f3e63] [cursor=pointer]
+      - generic [ref=f3e67]:
+        - generic [ref=f3e68]: Revenue
+        - link "Subscriptions" [ref=f3e69] [cursor=pointer]
+        - link "Payments" [ref=f3e75] [cursor=pointer]
+        - link "Finance" [ref=f3e79] [cursor=pointer]
+      - generic [ref=f3e87]:
+        - generic [ref=f3e88]: Acquisition
+        - link "Vendor Acquisition CRM" [ref=f3e89] [cursor=pointer]
+      - generic [ref=f3e95]:
+        - generic [ref=f3e96]: Platform
+        - link "Hero Section" [ref=f3e97] [cursor=pointer]
+        - link "Push Notifications" [ref=f3e101] [cursor=pointer]
+        - link "Categories" [ref=f3e106] [cursor=pointer]
+        - link "Locations" [ref=f3e113] [cursor=pointer]
+        - link "Reports" [ref=f3e119] [cursor=pointer]
+        - link "Terms & Conditions" [ref=f3e124] [cursor=pointer]
+        - link "Privacy Policy" [ref=f3e129] [cursor=pointer]
+        - link "Settings" [ref=f3e134] [cursor=pointer]
+        - link "Help & Support" [ref=f3e139] [cursor=pointer]
+    - generic [ref=f3e144]:
+      - generic [ref=f3e145]:
+        - generic [ref=f3e146]: Admin Boss
+        - generic [ref=f3e147]: Admin
+      - switch "Dark mode" [ref=f3e148] [cursor=pointer]
+      - button "Open admin account" [ref=f3e151] [cursor=pointer]
+  - generic [ref=f3e164]:
+    - generic [ref=f3e166]:
+      - generic [ref=f3e167]:
+        - generic [ref=f3e168]: Finance
+        - generic [ref=f3e169]: Actual revenue, expenses, profitability, tax provisions and founder planning
+      - button "Refresh finance" [ref=f3e171] [cursor=pointer]
+    - generic [ref=f3e177]:
+      - generic [ref=f3e178]:
+        - button "Previous month" [ref=f3e179] [cursor=pointer]
+        - generic [ref=f3e182]:
+          - generic [ref=f3e183]: August 2026
+          - generic [ref=f3e184]: Open financial period
+      - button "Finance month, August 2026" [ref=f3e187] [cursor=pointer]:
+        - generic [ref=f3e188]: August 2026
+      - button "Next month" [ref=f3e192] [cursor=pointer]
+    - generic [ref=f3e195]:
+      - tablist [ref=f3e196]:
+        - tab "Revenue" [ref=f3e197] [cursor=pointer]
+        - tab "Expenses" [ref=f3e201] [cursor=pointer]
+        - tab "Taxes" [ref=f3e205] [cursor=pointer]
+        - tab "Forecast" [ref=f3e210] [cursor=pointer]
+        - tab "Reports" [ref=f3e214] [cursor=pointer]
+      - generic [ref=f3e410]:
+        - generic [ref=f3e411]:
+          - generic [ref=f3e412]:
+            - generic [ref=f3e413]: Expense ledger
+            - generic [ref=f3e414]: Actual operating expenses grouped by the category selected when recorded.
+          - button "Add expense" [active] [ref=f3e415] [cursor=pointer]
+        - generic [ref=f3e517]:
+          - generic [ref=f3e518]:
+            - generic [ref=f3e519]: "01"
+            - generic [ref=f3e520]: Aug
+          - generic [ref=f3e521]:
+            - generic [ref=f3e522]:
+              - generic [ref=f3e523]: TEST ENTRY - safe to delete
+              - generic [ref=f3e524]: manual
+            - generic [ref=f3e525]: Miscellaneous
+          - generic [ref=f3e526]: ₹1.00
+          - generic [ref=f3e528]:
+            - button "Edit expense" [ref=f3e529] [cursor=pointer]
+            - button "Delete expense" [ref=f3e533] [cursor=pointer]

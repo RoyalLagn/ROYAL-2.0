@@ -13,7 +13,7 @@ import {
   resolveVendorDestination,
   sendVendorSignupOtp,
 } from "@/services/vendorAuth";
-import { validateEmail, validateFullName, validatePhone } from "@/utils/authValidation";
+import { sanitizePhoneInput, validateEmail, validateFullName, validatePhone } from "@/utils/authValidation";
 import { getVendorRegistrationEnabled } from "@/services/vendorRegistration";
 
 export default function VendorAuthScreen() {
@@ -151,9 +151,10 @@ export default function VendorAuthScreen() {
           required
           icon={Phone}
           value={phone}
-          onChangeText={(value) => { setPhone(value.replace(/\D/g, "")); setError(""); }}
+          onChangeText={(value) => { setPhone(sanitizePhoneInput(value)); setError(""); }}
           placeholder="10-digit mobile number"
           keyboardType="phone-pad"
+          maxLength={20}
           textContentType="telephoneNumber"
           autoComplete="tel"
           returnKeyType="next"

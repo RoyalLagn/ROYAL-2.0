@@ -1,0 +1,182 @@
+- generic [ref=f3e1]:
+  - generic [ref=f3e8]:
+    - generic [ref=f3e17]:
+      - generic "RoyalLagn Wedding Planner" [ref=f3e20]:
+        - img "RoyalLagn Wedding Planner" [ref=f3e22]
+      - generic [ref=f3e24]:
+        - generic [ref=f3e25]:
+          - generic [ref=f3e26]: Overview
+          - link "Dashboard" [ref=f3e27] [cursor=pointer]
+        - generic [ref=f3e31]:
+          - generic [ref=f3e32]: Operations
+          - link "Approvals" [ref=f3e33] [cursor=pointer]
+          - link "Vendors" [ref=f3e39] [cursor=pointer]
+          - link "Users" [ref=f3e45] [cursor=pointer]
+          - link "Clips" [ref=f3e52] [cursor=pointer]
+          - link "Enquiries" [ref=f3e59] [cursor=pointer]
+          - link "Reviews" [ref=f3e63] [cursor=pointer]
+        - generic [ref=f3e67]:
+          - generic [ref=f3e68]: Revenue
+          - link "Subscriptions" [ref=f3e69] [cursor=pointer]
+          - link "Payments" [ref=f3e75] [cursor=pointer]
+          - link "Finance" [ref=f3e79] [cursor=pointer]
+        - generic [ref=f3e87]:
+          - generic [ref=f3e88]: Acquisition
+          - link "Vendor Acquisition CRM" [ref=f3e89] [cursor=pointer]
+        - generic [ref=f3e95]:
+          - generic [ref=f3e96]: Platform
+          - link "Hero Section" [ref=f3e97] [cursor=pointer]
+          - link "Push Notifications" [ref=f3e101] [cursor=pointer]
+          - link "Categories" [ref=f3e106] [cursor=pointer]
+          - link "Locations" [ref=f3e113] [cursor=pointer]
+          - link "Reports" [ref=f3e119] [cursor=pointer]
+          - link "Terms & Conditions" [ref=f3e124] [cursor=pointer]
+          - link "Privacy Policy" [ref=f3e129] [cursor=pointer]
+          - link "Settings" [ref=f3e134] [cursor=pointer]
+          - link "Help & Support" [ref=f3e139] [cursor=pointer]
+      - generic [ref=f3e144]:
+        - generic [ref=f3e145]:
+          - generic [ref=f3e146]: Admin Boss
+          - generic [ref=f3e147]: Admin
+        - switch "Dark mode" [ref=f3e148] [cursor=pointer]
+        - button "Open admin account" [ref=f3e151] [cursor=pointer]
+    - generic [ref=f3e164]:
+      - generic [ref=f3e166]:
+        - generic [ref=f3e167]:
+          - generic [ref=f3e168]: Finance
+          - generic [ref=f3e169]: Actual revenue, expenses, profitability, tax provisions and founder planning
+        - button "Refresh finance" [ref=f3e171] [cursor=pointer]
+      - generic [ref=f3e177]:
+        - generic [ref=f3e178]:
+          - button "Previous month" [ref=f3e179] [cursor=pointer]
+          - generic [ref=f3e182]:
+            - generic [ref=f3e183]: August 2026
+            - generic [ref=f3e184]: Open financial period
+        - button "Finance month, August 2026" [ref=f3e187] [cursor=pointer]:
+          - generic [ref=f3e188]: August 2026
+        - button "Next month" [ref=f3e192] [cursor=pointer]
+      - generic [ref=f3e195]:
+        - tablist [ref=f3e196]:
+          - tab "Revenue" [ref=f3e197] [cursor=pointer]
+          - tab "Expenses" [ref=f3e201] [cursor=pointer]
+          - tab "Taxes" [ref=f3e205] [cursor=pointer]
+          - tab "Forecast" [ref=f3e210] [cursor=pointer]
+          - tab "Reports" [ref=f3e214] [cursor=pointer]
+        - generic [ref=f3e537]:
+          - generic [ref=f3e538]:
+            - generic [ref=f3e539]:
+              - generic [ref=f3e540]: Last synced
+              - generic [ref=f3e541]: 18 Aug 2026, 11:12 pm
+            - button "Sync now" [ref=f3e542] [cursor=pointer]
+          - generic [ref=f3e549]:
+            - generic [ref=f3e550]:
+              - generic [ref=f3e551]: Gross Revenue
+              - generic [ref=f3e556]: ₹1.00
+              - generic [ref=f3e557]: Sum of recorded revenue transactions, refunds negative
+            - generic [ref=f3e558]:
+              - generic [ref=f3e559]: Estimated Tax Provision
+              - generic [ref=f3e565]: ₹0.00
+              - generic [ref=f3e566]: Planning estimate, not confirmed tax payable
+            - generic [ref=f3e567]:
+              - generic [ref=f3e568]: Payment Gateway Fees
+              - generic [ref=f3e573]: Unavailable
+              - generic [ref=f3e574]: Real fee not captured for any transaction yet
+            - generic [ref=f3e575]:
+              - generic [ref=f3e576]: Net Revenue
+              - generic [ref=f3e582]: ₹1.00
+              - generic [ref=f3e583]: Gross Revenue − Gateway Fees
+          - generic [ref=f3e584]:
+            - generic [ref=f3e585]:
+              - generic [ref=f3e586]: Total Expenses
+              - generic [ref=f3e591]: ₹1.00
+              - generic [ref=f3e592]: 1 expense records
+            - generic [ref=f3e593]:
+              - generic [ref=f3e594]: Net Profit
+              - generic [ref=f3e600]: ₹0.00
+              - generic [ref=f3e601]: Net Revenue − Expenses − Estimated Tax
+            - generic [ref=f3e602]:
+              - generic [ref=f3e603]: Profit Margin
+              - generic [ref=f3e610]: 0.0%
+              - generic [ref=f3e611]: Net Profit ÷ Net Revenue
+          - generic [ref=f3e612]:
+            - generic [ref=f3e614]:
+              - generic [ref=f3e615]: Revenue trend
+              - generic [ref=f3e616]: Daily revenue for short periods, monthly totals for longer ones — computed server-side from the recorded ledger.
+            - generic [ref=f3e617]:
+              - radio "Today" [ref=f3e618] [cursor=pointer]
+              - radio "Last 7 Days" [ref=f3e620] [cursor=pointer]
+              - radio "This Month" [ref=f3e622] [cursor=pointer]
+              - radio "Last Month" [ref=f3e624] [cursor=pointer]
+              - radio "This Year" [ref=f3e626] [cursor=pointer]
+              - radio "Custom" [ref=f3e628] [cursor=pointer]
+          - generic [ref=f3e632]:
+            - generic [ref=f3e634]:
+              - generic [ref=f3e636]:
+                - generic [ref=f3e637]: Revenue by source
+                - generic [ref=f3e638]: Recorded revenue grouped by the category it was recorded under — RoyalLagn's actual revenue categories, not invented ones.
+              - generic [ref=f3e640]:
+                - generic [ref=f3e641]:
+                  - generic [ref=f3e642]: Other Revenue
+                  - generic [ref=f3e643]: 1 transaction
+                - generic [ref=f3e646]: ₹1.00
+            - generic [ref=f3e648]:
+              - generic [ref=f3e650]:
+                - generic [ref=f3e651]: Tax summary
+                - generic [ref=f3e652]: The same finance_tax_records entries shown on the Taxes tab, grouped by type. The platform-wide tax total (above) is the Estimated Tax Provision figure — these rows are a per-category breakdown, not a second total.
+              - generic [ref=f3e653]:
+                - generic [ref=f3e654]: No tax records for this period
+                - generic [ref=f3e655]: Record GST or income tax entries from the Taxes tab to see them here.
+          - generic [ref=f3e656]:
+            - generic [ref=f3e658]:
+              - generic [ref=f3e659]: Cloudinary cost control
+              - generic [ref=f3e660]: Manually recorded usage and invoice totals for Clips media infrastructure.
+            - generic [ref=f3e661]:
+              - generic [ref=f3e662]: No Cloudinary usage recorded
+              - generic [ref=f3e663]: Add this month’s usage and actual cost from the Cloudinary dashboard or invoice.
+          - generic [ref=f3e664]:
+            - generic [ref=f3e665]:
+              - generic [ref=f3e666]:
+                - generic [ref=f3e667]: Revenue ledger
+                - generic [ref=f3e668]: Verified subscription receipts and manually recorded revenue, with search, filtering, sorting, and pagination.
+              - button "Add revenue" [ref=f3e669] [cursor=pointer]
+            - textbox "Search revenue ledger" [ref=f3e677]:
+              - /placeholder: Search customer, reference, or type…
+            - generic [ref=f3e678]:
+              - radio "All types" [ref=f3e679] [cursor=pointer]
+              - radio "Add-on Revenue" [ref=f3e681] [cursor=pointer]
+              - radio "Other Revenue" [ref=f3e683] [cursor=pointer]
+              - radio "Subscription Revenue" [ref=f3e685] [cursor=pointer]
+            - generic [ref=f3e687]:
+              - radio "All" [ref=f3e688] [cursor=pointer]
+              - radio "Verified" [ref=f3e690] [cursor=pointer]
+              - radio "Manual" [ref=f3e692] [cursor=pointer]
+              - radio "Void" [ref=f3e694] [cursor=pointer]
+            - generic [ref=f3e696]:
+              - button "Date" [ref=f3e697] [cursor=pointer]
+              - button "Amount" [ref=f3e702] [cursor=pointer]
+              - generic [ref=f3e704]: 1 record
+            - generic [ref=f3e706]:
+              - generic [ref=f3e707]:
+                - generic [ref=f3e708]: "01"
+                - generic [ref=f3e709]: Aug
+              - generic [ref=f3e710]:
+                - generic [ref=f3e711]:
+                  - generic [ref=f3e712]: TEST ENTRY - safe to delete
+                  - generic [ref=f3e713]: Manual
+                - generic [ref=f3e714]: Other Revenue
+                - generic [ref=f3e715]: "Tax: ₹0.00 · Fee: ₹0.00 · Net: ₹1.00"
+              - generic [ref=f3e716]: ₹1.00
+              - generic [ref=f3e718]:
+                - button "Edit revenue record" [ref=f3e719] [cursor=pointer]
+                - button "Delete revenue record" [ref=f3e723] [cursor=pointer]
+  - dialog [ref=f3e728]:
+    - generic [ref=f3e730]:
+      - button "Dismiss dialog" [active] [ref=f3e731] [cursor=pointer]
+      - alert [ref=f3e732]:
+        - generic [ref=f3e733]:
+          - generic [ref=f3e737]: Delete revenue record?
+          - button "Close dialog" [ref=f3e739] [cursor=pointer]
+        - generic [ref=f3e743]: This removes the manual ledger record. Verified payment records cannot be deleted here.
+        - generic [ref=f3e746]:
+          - button "Cancel" [ref=f3e747] [cursor=pointer]
+          - button "Delete" [ref=f3e749] [cursor=pointer]

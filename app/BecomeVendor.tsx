@@ -14,6 +14,7 @@ import {
   type UploadedBusinessDocument,
 } from "@/services/cloudinary";
 import { useCategories } from "@/context/CategoryContext";
+import { sanitizePhoneInput } from "@/utils/authValidation";
 import {
   VendorServiceLocationEditor,
   type VendorLocationValue,
@@ -68,16 +69,19 @@ const emptyForm: FormState = {
   facebook: "", website: "", logoUrl: "", coverImageUrl: "",
 };
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const phonePattern = /^[+]?[0-9\s-]{7,15}$/;
+const phonePattern = /^\d{10}$/;
 
 function Field({
   label, value, onChangeText, required, multiline, keyboardType = "default",
   autoCapitalize = "sentences",
+  placeholder,
+  maxLength,
 }: {
   label: string; value: string; onChangeText: (value: string) => void;
   required?: boolean; multiline?: boolean;
   keyboardType?: "default" | "email-address" | "phone-pad" | "number-pad" | "url";
   autoCapitalize?: "none" | "sentences" | "words";
+  placeholder?: string; maxLength?: number;
 }) {
   return (
     <View className="mb-4">
@@ -87,13 +91,14 @@ function Field({
       <TextInput
         value={value}
         onChangeText={onChangeText}
-        placeholder={`Enter ${label.toLowerCase()}`}
+        placeholder={placeholder ?? `Enter ${label.toLowerCase()}`}
         placeholderTextColor="#8A8589"
         className={`border border-border bg-background text-foreground rounded-2xl px-4 ${multiline ? "min-h-[112px] py-4" : "h-14"}`}
         multiline={multiline}
         textAlignVertical={multiline ? "top" : "center"}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
+        maxLength={maxLength}
       />
     </View>
   );
@@ -383,7 +388,7 @@ export default function BecomeVendor() {
           <Field label="Business Name" required value={form.businessName} onChangeText={(v) => update("businessName", v)} />
           <Field label="Owner Name" required value={form.ownerName} onChangeText={(v) => update("ownerName", v)} />
           <Field label="Email" required value={form.email} onChangeText={(v) => update("email", v)} keyboardType="email-address" autoCapitalize="none" />
-          <Field label="Mobile Number" required value={form.mobile} onChangeText={(v) => update("mobile", v)} keyboardType="phone-pad" />
+          <Field label="Mobile Number" required value={form.mobile} onChangeText={(v) => update("mobile", sanitizePhoneInput(v))} placeholder="10-digit mobile number" keyboardType="phone-pad" maxLength={20} />
           <Text className="text-foreground text-sm font-semibold mb-2">Business Category <Text className="text-primary">*</Text></Text>
           <TouchableOpacity
             accessibilityRole="button"

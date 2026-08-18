@@ -1,0 +1,172 @@
+- generic [ref=f1e1]:
+  - generic [ref=f1e60]:
+    - generic [ref=f1e62]:
+      - link "RoyalLagn home" [ref=f1e63] [cursor=pointer]:
+        - generic "RoyalLagn Wedding Planner" [ref=f1e65]:
+          - img "RoyalLagn Wedding Planner" [ref=f1e67]
+      - generic [ref=f1e68]:
+        - link "Home" [ref=f1e69] [cursor=pointer]
+        - link "Near Me" [ref=f1e72] [cursor=pointer]
+        - link "Categories" [ref=f1e74] [cursor=pointer]
+        - link "Clips" [ref=f1e76] [cursor=pointer]
+        - link "Favorites" [ref=f1e78] [cursor=pointer]
+      - generic [ref=f1e82]:
+        - button "Notifications" [ref=f1e83] [cursor=pointer]
+        - link "Open enquiries" [ref=f1e87] [cursor=pointer]
+        - button "Share RoyalLagn" [ref=f1e90] [cursor=pointer]
+        - link "Profile for Doremon" [ref=f1e97] [cursor=pointer]:
+          - generic [ref=f1e101]: Doremon
+        - switch "Dark mode" [ref=f1e102] [cursor=pointer]
+    - generic [ref=f1e111]:
+      - generic [ref=f1e112]:
+        - generic [ref=f1e113]:
+          - generic [ref=f1e117]: Good Evening, Doremon 👋
+          - generic [ref=f1e118]: Find your perfect wedding team
+          - generic [ref=f1e119]: Explore handpicked wedding professionals to make your big day unforgettable.
+          - generic [ref=f1e120]:
+            - textbox "Search vendors, categories and services" [ref=f1e126]:
+              - /placeholder: Search vendors, categories...
+            - button "Open filters" [ref=f1e127] [cursor=pointer]
+        - generic [ref=f1e130]:
+          - generic [ref=f1e132]:
+            - generic [ref=f1e134]:
+              - generic "Jewellery & Accessories hero slide" [ref=f1e136]:
+                - img "Jewellery & Accessories hero slide" [ref=f1e138]
+              - 'button "Find ANGHTHI: browse Jewellery & Accessories" [ref=f1e140] [cursor=pointer]':
+                - generic [ref=f1e141]: Find ANGHTHI
+            - generic [ref=f1e145]:
+              - generic "Mehndi Artists hero slide" [ref=f1e147]:
+                - img "Mehndi Artists hero slide" [ref=f1e149]
+              - 'button "Find Mehndi Artists: browse Mehndi Artists" [ref=f1e151] [cursor=pointer]':
+                - generic [ref=f1e152]: Find Mehndi Artists
+            - generic [ref=f1e156]:
+              - generic "Jewellery & Accessories hero slide" [ref=f1e158]:
+                - img "Jewellery & Accessories hero slide" [ref=f1e160]
+              - 'button "Find ANGHTHI: browse Jewellery & Accessories" [ref=f1e162] [cursor=pointer]':
+                - generic [ref=f1e163]: Find ANGHTHI
+          - button "Previous hero slide" [ref=f1e166] [cursor=pointer]
+          - button "Next hero slide" [ref=f1e169] [cursor=pointer]
+          - generic "Hero slide 1 of 2":
+            - button "Show hero slide 1" [ref=f1e172] [cursor=pointer]
+            - button "Show hero slide 2" [ref=f1e174] [cursor=pointer]
+      - generic [ref=f1e176]:
+        - generic [ref=f1e177]:
+          - generic [ref=f1e178]:
+            - generic [ref=f1e179]: Top Categories
+            - generic [ref=f1e181]: Everything you need for the celebration
+          - button "View All Top Categories" [ref=f1e182] [cursor=pointer]:
+            - generic [ref=f1e183]: View All
+        - generic [ref=f1e186]:
+          - button "Browse Venues" [ref=f1e187] [cursor=pointer]:
+            - generic [ref=f1e188]:
+              - generic "Venues category" [ref=f1e191]:
+                - img "Venues category" [ref=f1e193]
+              - generic [ref=f1e194]: Venues
+          - button "Browse Caterers" [ref=f1e195] [cursor=pointer]:
+            - generic [ref=f1e196]:
+              - generic "Caterers category" [ref=f1e199]:
+                - img "Caterers category" [ref=f1e201]
+              - generic [ref=f1e202]: Caterers
+          - button "Browse Photographers" [ref=f1e203] [cursor=pointer]:
+            - generic [ref=f1e204]:
+              - generic "Photographers category" [ref=f1e207]:
+                - img "Photographers category" [ref=f1e209]
+              - generic [ref=f1e210]: Photographers
+          - button "Browse Decorators" [ref=f1e211] [cursor=pointer]:
+            - generic [ref=f1e212]:
+              - generic "Decorators category" [ref=f1e215]:
+                - img "Decorators category" [ref=f1e217]
+              - generic [ref=f1e218]: Decorators
+          - button "Browse Makeup Artists" [ref=f1e219] [cursor=pointer]:
+            - generic [ref=f1e220]:
+              - generic "Makeup Artists category" [ref=f1e223]:
+                - img "Makeup Artists category" [ref=f1e225]
+              - generic [ref=f1e226]: Makeup Artists
+          - button "Browse Mehndi Artists" [ref=f1e227] [cursor=pointer]:
+            - generic [ref=f1e228]:
+              - generic "Mehndi Artists category" [ref=f1e231]:
+                - img "Mehndi Artists category" [ref=f1e233]
+              - generic [ref=f1e234]: Mehndi Artists
+          - button "Browse DJs" [ref=f1e235] [cursor=pointer]:
+            - generic [ref=f1e236]:
+              - generic "DJs category" [ref=f1e239]:
+                - img "DJs category" [ref=f1e241]
+              - generic [ref=f1e242]: DJs
+          - button "Browse Bridal Wear" [ref=f1e243] [cursor=pointer]:
+            - generic [ref=f1e244]:
+              - generic "Bridal Wear category" [ref=f1e247]:
+                - img "Bridal Wear category" [ref=f1e249]
+              - generic [ref=f1e250]: Bridal Wear
+          - button "Browse Groom Wear" [ref=f1e251] [cursor=pointer]:
+            - generic [ref=f1e252]:
+              - generic "Groom Wear category" [ref=f1e255]:
+                - img "Groom Wear category" [ref=f1e257]
+              - generic [ref=f1e258]: Groom Wear
+          - button "Browse Jewellery & Accessories" [ref=f1e259] [cursor=pointer]:
+            - generic [ref=f1e260]:
+              - generic "Jewellery & Accessories category" [ref=f1e263]:
+                - img "Jewellery & Accessories category" [ref=f1e265]
+              - generic [ref=f1e266]: Jewellery & Accessories
+        - button "Show more categories" [ref=f1e267] [cursor=pointer]:
+          - generic [ref=f1e273]: More Categories
+      - generic [ref=f1e274]:
+        - generic [ref=f1e276]:
+          - generic [ref=f1e277]: Trending Searches
+          - generic [ref=f1e279]: Popular ways to start your search
+        - generic [ref=f1e281]:
+          - button "Search for Wedding Photographers" [ref=f1e282] [cursor=pointer]:
+            - generic [ref=f1e286]: Wedding Photographers
+          - button "Search for Mandap Decorators" [ref=f1e287] [cursor=pointer]:
+            - generic [ref=f1e291]: Mandap Decorators
+          - button "Search for Destination Wedding" [ref=f1e292] [cursor=pointer]:
+            - generic [ref=f1e296]: Destination Wedding
+          - button "Search for Bridal Makeup" [ref=f1e297] [cursor=pointer]:
+            - generic [ref=f1e301]: Bridal Makeup
+      - generic [ref=f1e302]:
+        - generic [ref=f1e303]:
+          - generic [ref=f1e304]:
+            - generic [ref=f1e305]: Near Me
+            - generic [ref=f1e307]: Nearby and premium vendors first
+          - button "View All Near Me" [ref=f1e308] [cursor=pointer]:
+            - generic [ref=f1e309]: View All
+        - generic [ref=f1e314]:
+          - button "Open ww" [ref=f1e315] [cursor=pointer]:
+            - generic [ref=f1e319]:
+              - generic [ref=f1e320]: "0"
+              - generic [ref=f1e324]: Verified
+            - generic [ref=f1e329]:
+              - generic [ref=f1e331]:
+                - generic [ref=f1e332]: ww
+                - generic [ref=f1e333]: Groom Wear
+              - generic [ref=f1e334]:
+                - generic [ref=f1e335]: Pune, Maharashtra
+                - generic [ref=f1e340]: Contact for price onwards
+          - button "Add ww to favorites" [ref=f1e341] [cursor=pointer]
+      - generic [ref=f1e345]:
+        - generic [ref=f1e346]:
+          - generic [ref=f1e347]:
+            - generic [ref=f1e348]:
+              - generic [ref=f1e349]: Top Rated Vendors
+              - generic [ref=f1e350]: Highest Rated
+            - generic [ref=f1e354]: Browse vendors ordered by customer ratings
+          - button "View All Top Rated Vendors" [ref=f1e355] [cursor=pointer]:
+            - generic [ref=f1e356]: View All
+        - generic [ref=f1e361]:
+          - button "Open ww" [ref=f1e362] [cursor=pointer]:
+            - generic [ref=f1e366]:
+              - generic [ref=f1e367]: "0"
+              - generic [ref=f1e371]: Verified
+            - generic [ref=f1e376]:
+              - generic [ref=f1e378]:
+                - generic [ref=f1e379]: ww
+                - generic [ref=f1e380]: Groom Wear
+              - generic [ref=f1e381]:
+                - generic [ref=f1e382]: Pune, Maharashtra
+                - generic [ref=f1e387]: Contact for price onwards
+          - button "Add ww to favorites" [ref=f1e388] [cursor=pointer]
+      - generic [ref=f1e396]:
+        - generic [ref=f1e397]: List Your Business
+        - generic [ref=f1e398]: Join thousands of vendors growing with us
+        - generic [ref=f1e399] [cursor=pointer]: Register Now
+  - dialog [ref=f1e404]:
+    - progressbar "Loading RoyalLagn" [ref=f1e406]

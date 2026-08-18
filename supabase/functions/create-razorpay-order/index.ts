@@ -6,6 +6,7 @@ import {
   serviceClient,
   userClient,
 } from "../_shared/subscriptions.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -13,6 +14,11 @@ Deno.serve(async (request) => {
   try {
     const authorization = request.headers.get("Authorization") ?? "";
     const { vendor } = await requireOwnedVendor(userClient(authorization));
+    // Generous ceiling -- a real checkout retries at most a handful of
+    // times; this only stops scripted order-creation spam.
+    if (!(await checkRateLimit(serviceClient(), `create-razorpay-order:${vendor.id}`, 10, 600))) {
+      return json({ error: "Too many payment attempts. Please wait a few minutes and try again." }, 429);
+    }
     const body = await request.json();
     const planId = String(body.planId ?? "");
     const billingOptionId = body.billingOptionId ? String(body.billingOptionId) : null;

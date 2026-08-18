@@ -12,11 +12,13 @@ export const normalizePhone = (value: string) => {
   return hasInternationalPrefix ? `+${digits}` : digits;
 };
 
-export const validatePhone = (value: string) => {
-  const normalized = normalizePhone(value);
-  const digits = normalized.replace(/\D/g, "");
-  return /^\+?\d+$/.test(normalized) && digits.length >= 7 && digits.length <= 15;
-};
+/** Strips every non-digit character and caps the result at 10 digits — use
+ * this in a phone field's onChangeText so letters/symbols/extra digits are
+ * blocked as the user types, not just flagged after the fact. */
+export const sanitizePhoneInput = (value: string) => value.replace(/\D/g, "").slice(0, 10);
+
+/** India-only mobile numbers: exactly 10 digits, no country code. */
+export const validatePhone = (value: string) => /^\d{10}$/.test(value.replace(/\D/g, ""));
 
 export const normalizeOptionalUrl = (value: string) => {
   const trimmed = value.trim();

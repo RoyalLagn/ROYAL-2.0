@@ -12,6 +12,7 @@ import { CrmWorkspaceService } from "@/services/crm/workspaceService";
 import { buildWorkspaceUrl, copyWorkspaceLink, shareWorkspaceLink } from "@/services/crm/workspaceShare";
 import { defaultWorkspacePermissions, type CrmFieldWorkspace, type CrmWorkspacePermissions } from "@/types/crm/workspace";
 import type { CrmCampaign } from "@/types/crm/campaign";
+import { sanitizePhoneInput, validatePhone } from "@/utils/authValidation";
 
 const expiryPresets = [
   { label: "24 Hours", hours: 24 },
@@ -30,9 +31,9 @@ const advancedPermissions: { key: keyof CrmWorkspacePermissions; label: string }
   { key: "other_clusters", label: "Other Clusters" },
 ];
 
-function Field({ label, value, onChangeText, placeholder, keyboardType }: {
+function Field({ label, value, onChangeText, placeholder, keyboardType, maxLength }: {
   label: string; value: string; onChangeText: (value: string) => void; placeholder?: string;
-  keyboardType?: "default" | "phone-pad";
+  keyboardType?: "default" | "phone-pad"; maxLength?: number;
 }) {
   return (
     <View className="mb-3">
@@ -43,6 +44,7 @@ function Field({ label, value, onChangeText, placeholder, keyboardType }: {
         placeholder={placeholder}
         placeholderTextColor="#9CA3AF"
         keyboardType={keyboardType}
+        maxLength={maxLength}
         className="h-12 border border-border rounded-2xl px-4 text-foreground bg-background"
       />
     </View>
@@ -72,6 +74,7 @@ export default function AdminCrmCreateWorkspace() {
   const generate = async () => {
     if (!clusterId) { setError("Missing cluster."); return; }
     if (!name.trim() || !employeeName.trim()) { setError("Enter a workspace name and employee name."); return; }
+    if (employeePhone.trim() && !validatePhone(employeePhone)) { setError("Enter a valid 10-digit employee phone number."); return; }
     const expiresAt = customExpiry.trim()
       ? new Date(customExpiry.trim()).toISOString()
       : new Date(Date.now() + expiryHours * 3_600_000).toISOString();
@@ -184,7 +187,7 @@ export default function AdminCrmCreateWorkspace() {
                 <CRMCard className="p-4">
                   <Field label="Workspace Name *" value={name} onChangeText={setName} placeholder="e.g. Talegaon Drive — Aug" />
                   <Field label="Employee Name *" value={employeeName} onChangeText={setEmployeeName} placeholder="e.g. Rahul Sharma" />
-                  <Field label="Employee Phone" value={employeePhone} onChangeText={setEmployeePhone} placeholder="+91 XXXXX XXXXX" keyboardType="phone-pad" />
+                  <Field label="Employee Phone" value={employeePhone} onChangeText={(value) => setEmployeePhone(sanitizePhoneInput(value))} placeholder="10-digit mobile number" keyboardType="phone-pad" maxLength={20} />
 
                   {campaigns.length ? (
                     <>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Save } from "lucide-react-native";
 import { adminPalette } from "@/theme";
 import { typeStyles } from "@/constants/typography";
@@ -7,8 +7,6 @@ import {
   AdminFinanceService,
   computePartnershipTax,
   financialYearLabel,
-  financialYearOptions,
-  financialYearStartFor,
 } from "@/services/adminFinanceService";
 import type { FinanceYearTaxData } from "@/types/adminFinance";
 import { FinanceButton, FinanceField, FinanceNotice, FinanceSection, formatMoney } from "./FinanceUI";
@@ -20,9 +18,7 @@ import { FinanceButton, FinanceField, FinanceNotice, FinanceSection, formatMoney
  * no monthly tax calculation and no per-partner split here — see the module
  * comment on computePartnershipTax for the full formula.
  */
-export function FinanceTaxProvision() {
-  const yearOptions = useMemo(() => financialYearOptions(), []);
-  const [financialYearStart, setFinancialYearStart] = useState(() => financialYearStartFor(new Date()));
+export function FinanceTaxProvision({ financialYearStart }: { financialYearStart: string }) {
   const [data, setData] = useState<FinanceYearTaxData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +47,13 @@ export function FinanceTaxProvision() {
     }
   }, [financialYearStart]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    setData(null);
+    void load();
+  }, [load]);
+  // Keep the annual provision current when a verified payment, recorded
+  // expense, or tax adjustment changes in another admin session.
+  useEffect(() => AdminFinanceService.subscribe(() => void load()), [load]);
 
   const accountingProfit = data ? data.annualRevenue - data.annualExpenses : 0;
   const parsedAdjustment = Number(adjustmentInput);
@@ -92,26 +94,21 @@ export function FinanceTaxProvision() {
 
   return <View style={styles.stack}>
     <View style={styles.header}>
-      <View style={styles.flex}><Text style={styles.title}>Tax provision</Text><Text style={styles.subtitle}>Estimated partnership-firm income tax for the selected financial year.</Text></View>
-      <View accessibilityRole="radiogroup" style={styles.yearChips}>
-        {yearOptions.map((year) => <Pressable key={year} accessibilityRole="radio" accessibilityState={{ checked: financialYearStart === year }} onPress={() => setFinancialYearStart(year)} style={({ pressed }) => [styles.yearChip, financialYearStart === year && styles.yearChipSelected, pressed && styles.pressed]}>
-          <Text style={[styles.yearChipText, financialYearStart === year && styles.yearChipTextSelected]}>FY {financialYearLabel(year)}</Text>
-        </Pressable>)}
-      </View>
+      <View style={styles.flex}><Text style={styles.title}>Tax provision</Text><Text style={styles.subtitle}>A plain-English estimate of what the firm may owe in income tax for the year — automatically updated from your recorded revenue and expenses.</Text></View>
     </View>
 
     {error ? <FinanceNotice tone="error">{error}</FinanceNotice> : null}
 
     {loading && !data ? <Text style={styles.loadingText}>Loading financial year totals…</Text> : data ? <>
-      <FinanceSection title="Financial summary" description="Annual Revenue and Annual Business Expenses come automatically from recorded Finance transactions for this financial year.">
+      <FinanceSection title="Financial summary" description="Revenue and expenses are pulled in automatically from what's already recorded for this financial year — nothing to enter here.">
         <View style={styles.summaryGrid}>
-          <SummaryLine label="Annual revenue" value={data.annualRevenue} />
-          <SummaryLine label="Annual expenses" value={data.annualExpenses} />
-          <SummaryLine label="Accounting profit" value={accountingProfit} strong />
+          <SummaryLine label="Money received" value={data.annualRevenue} />
+          <SummaryLine label="Money spent" value={data.annualExpenses} />
+          <SummaryLine label="Profit before tax" value={accountingProfit} strong />
         </View>
         <View style={styles.adjustmentRow}>
-          <FinanceField label="Tax adjustment" value={adjustmentInput} onChangeText={setAdjustmentInput} keyboardType="numbers-and-punctuation" placeholder="0" />
-          <FinanceField label="Adjustment notes (optional)" value={adjustmentNotes} onChangeText={setAdjustmentNotes} placeholder="Basis supplied by CA, e.g. disallowed expenses" />
+          <FinanceField label="Tax adjustment (optional)" value={adjustmentInput} onChangeText={setAdjustmentInput} keyboardType="numbers-and-punctuation" placeholder="0" />
+          <FinanceField label="Why this adjustment? (optional)" value={adjustmentNotes} onChangeText={setAdjustmentNotes} placeholder="e.g. your CA disallowed some expenses" />
         </View>
         {adjustmentMessage ? <FinanceNotice tone={adjustmentMessage.tone}>{adjustmentMessage.text}</FinanceNotice> : null}
         <FinanceButton label={savingAdjustment ? "Saving…" : "Save tax adjustment"} icon={Save} onPress={() => void saveAdjustment()} disabled={savingAdjustment} />
@@ -119,9 +116,9 @@ export function FinanceTaxProvision() {
       </FinanceSection>
 
       <View style={styles.cards}>
-        <TaxCard title="Income tax" rate="30%" amount={tax.incomeTax} />
-        <TaxCard title="Surcharge" rate={tax.surchargeRate > 0 ? "12%" : "0%"} amount={tax.surcharge} hint={tax.surchargeRate === 0 ? "Applicable above ₹1 crore taxable income" : tax.marginalRelief > 0 ? `Marginal relief applied: ${formatMoney(tax.marginalRelief)}` : undefined} />
-        <TaxCard title="Cess" rate="4%" amount={tax.cess} />
+        <TaxCard title="Income tax" rate="30%" amount={tax.incomeTax} hint="Flat rate for a partnership firm" />
+        <TaxCard title="Surcharge" rate={tax.surchargeRate > 0 ? "12%" : "0%"} amount={tax.surcharge} hint={tax.surchargeRate === 0 ? "Only applies once taxable income passes ₹1 crore" : tax.marginalRelief > 0 ? `Extra charge on high income. Marginal relief applied: ${formatMoney(tax.marginalRelief)}` : "Extra charge on high income"} />
+        <TaxCard title="Cess" rate="4%" amount={tax.cess} hint="Health and education cess on tax + surcharge" />
       </View>
 
       <View style={styles.summaryCard}>
@@ -136,7 +133,7 @@ export function FinanceTaxProvision() {
         <View style={styles.finalLine}><Text style={styles.finalLineLabel}>Profit after tax</Text><Text style={[styles.finalLineValue, { color: tax.estimatedProfitAfterTax >= 0 ? adminPalette.success : adminPalette.error }]}>{formatMoney(tax.estimatedProfitAfterTax)}</Text></View>
       </View>
 
-      <FinanceNotice tone="warning">This is an estimated tax provision for planning only, not a filed return. Confirm applicable rates, surcharge, and marginal relief for FY {financialYearLabel(financialYearStart)} with your CA before relying on this figure.</FinanceNotice>
+      <FinanceNotice tone="warning">This is an estimate for planning purposes only — it isn't a filed tax return. Please confirm the exact rates, surcharge, and any relief for FY {financialYearLabel(financialYearStart)} with your CA before relying on this number.</FinanceNotice>
     </> : null}
   </View>;
 }
@@ -168,12 +165,6 @@ const styles = StyleSheet.create({
   header: { gap: 12 },
   title: { ...typeStyles.sectionTitle, color: adminPalette.text },
   subtitle: { ...typeStyles.metadata, color: adminPalette.textSecondary, marginTop: 4, maxWidth: 640 },
-  yearChips: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
-  yearChip: { minHeight: 44, borderRadius: 12, backgroundColor: adminPalette.surfaceSubtle, paddingHorizontal: 13, alignItems: "center", justifyContent: "center" },
-  yearChipSelected: { backgroundColor: adminPalette.brand },
-  yearChipText: { ...typeStyles.caption, color: adminPalette.textSecondary },
-  yearChipTextSelected: { color: "#FFF" },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   loadingText: { ...typeStyles.metadata, color: adminPalette.textSecondary, paddingVertical: 24, textAlign: "center" },
   summaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 14 },
   summaryItem: { minWidth: 160, gap: 3 },

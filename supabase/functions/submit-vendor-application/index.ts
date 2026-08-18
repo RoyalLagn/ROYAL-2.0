@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -36,6 +37,16 @@ Deno.serve(async (request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
+
+    // Unauthenticated endpoint (anyone can apply) -- keyed by the applicant's
+    // own email so a real applicant is never blocked, only scripted spam
+    // submissions under one address.
+    if (!(await checkRateLimit(service, `submit-vendor-application:${required.email}`, 5, 3600))) {
+      return Response.json(
+        { error: "Too many applications submitted with this email. Please wait a while and try again." },
+        { status: 429, headers: cors },
+      );
+    }
 
     const { data: registrationSetting, error: registrationSettingError } = await service
       .from("application_settings")

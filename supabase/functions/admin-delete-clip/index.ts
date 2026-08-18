@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { deleteClipCloudinaryAssets } from "../_shared/cloudinaryMedia.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 // Mirrors the auth-validation pattern already used by send-admin-push and
 // admin-logout-all-devices (this project keeps each admin Edge Function
@@ -141,6 +142,13 @@ Deno.serve(async (request) => {
     const claims = decodeJwtPayload(token);
     if (claims?.aal !== "aal2") {
       return json({ error: "Multi-factor verification required before deleting a clip.", stage: "auth" }, 403);
+    }
+
+    // Generous ceiling -- moderation happens in occasional bursts, not
+    // continuously; this only stops a leaked/compromised admin token from
+    // being used to mass-delete clips.
+    if (!(await checkRateLimit(service, `admin-delete-clip:${userId}`, 30, 600))) {
+      return json({ error: "Too many deletions in a short time. Please wait a few minutes and try again.", stage: "rate_limit" }, 429);
     }
 
     const body = await request.json();

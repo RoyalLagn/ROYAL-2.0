@@ -11,6 +11,7 @@ import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer
 import { AdminOperationsService, type AdminClip } from "@/services/adminOperations";
 import { getPublicClipsEnabled, setPublicClipsEnabled } from "@/services/publicClipsAvailability";
 import { useCategories } from "@/context/CategoryContext";
+import { HierarchySelect } from "@/components/admin/locations/HierarchySelect";
 
 const PAGE_SIZE = 12;
 const UNCATEGORIZED = "__uncategorized__";
@@ -86,6 +87,11 @@ export default function AdminClips() {
   }, [notDeleted, query, categoryId]);
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const visible = filtered.slice((Math.min(page, pages) - 1) * PAGE_SIZE, Math.min(page, pages) * PAGE_SIZE);
+  const categoryOptions = useMemo(() => [
+    { id: "all", name: "All Categories" },
+    ...categories.map((category) => ({ id: category.id, name: category.name })),
+    { id: UNCATEGORIZED, name: "Uncategorized" },
+  ], [categories]);
 
   const openDelete = (clip: AdminClip) => { setDeleteTarget(clip); setReason(""); setDeleteError(null); };
   const closeDelete = () => { if (deleting) return; setDeleteTarget(null); setReason(""); setDeleteError(null); };
@@ -132,12 +138,15 @@ export default function AdminClips() {
         <ClipAnalyticsSection />
         <View className="mb-4"><Text className="text-foreground text-xl font-bold">All Clips</Text><Text className="text-muted-foreground text-sm mt-1">Filter by category, search, and permanently remove incorrect clips.</Text></View>
         <View className="bg-card border border-border rounded-2xl px-4 h-12 flex-row items-center"><Search size={18} className="text-muted-foreground" /><TextInput value={query} onChangeText={(value) => { setQuery(value); setPage(1); }} placeholder="Search clip, vendor or category" placeholderTextColor="#8A8589" className="flex-1 h-12 ml-3 text-foreground" /></View>
-        <Text className="text-foreground text-xs font-semibold mt-4 mb-2">Category</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 12 }}>
-          <Pressable onPress={() => { setCategoryId("all"); setPage(1); }} className={categoryId === "all" ? "px-4 py-2 rounded-xl bg-primary" : "px-4 py-2 rounded-xl bg-card border border-border"}><Text className={categoryId === "all" ? "text-white text-xs font-semibold" : "text-foreground text-xs font-semibold"}>All Categories</Text></Pressable>
-          {categories.map((category) => <Pressable key={category.id} onPress={() => { setCategoryId(category.id); setPage(1); }} className={categoryId === category.id ? "px-4 py-2 rounded-xl bg-primary" : "px-4 py-2 rounded-xl bg-card border border-border"}><Text className={categoryId === category.id ? "text-white text-xs font-semibold" : "text-foreground text-xs font-semibold"}>{category.name}</Text></Pressable>)}
-          <Pressable onPress={() => { setCategoryId(UNCATEGORIZED); setPage(1); }} className={categoryId === UNCATEGORIZED ? "px-4 py-2 rounded-xl bg-primary" : "px-4 py-2 rounded-xl bg-card border border-border"}><Text className={categoryId === UNCATEGORIZED ? "text-white text-xs font-semibold" : "text-foreground text-xs font-semibold"}>Uncategorized</Text></Pressable>
-        </ScrollView>
+        <View className="mt-4 mb-3">
+          <HierarchySelect
+            label="Category"
+            value={categoryOptions.find((option) => option.id === categoryId)?.name}
+            options={categoryOptions}
+            selectedId={categoryId}
+            onSelect={(id) => { setCategoryId(id); setPage(1); }}
+          />
+        </View>
         <Text className="text-muted-foreground text-xs mb-3">{filtered.length} record{filtered.length === 1 ? "" : "s"}</Text>
         {loading ? <AdminLoadingState label="Loading clips…" /> : error ? <AdminErrorState message={error} onRetry={() => void load()} /> : !visible.length ? <AdminEmptyState title="No clips found" message="Try another search or category filter." /> : <View className="gap-3">{visible.map((clip) => <ClipCard key={clip.id} clip={clip} onDelete={() => openDelete(clip)} />)}</View>}
         {!loading && !error && filtered.length > PAGE_SIZE ? <PaginationBar page={Math.min(page, pages)} pages={pages} onPage={setPage} /> : null}

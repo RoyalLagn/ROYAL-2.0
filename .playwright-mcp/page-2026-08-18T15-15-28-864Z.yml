@@ -1,0 +1,151 @@
+- generic [ref=f7e8]:
+  - generic [ref=f7e17]:
+    - generic "RoyalLagn Wedding Planner" [ref=f7e20]:
+      - img "RoyalLagn Wedding Planner" [ref=f7e22]
+    - generic [ref=f7e24]:
+      - generic [ref=f7e25]:
+        - generic [ref=f7e26]: Overview
+        - link "Dashboard" [ref=f7e27] [cursor=pointer]
+      - generic [ref=f7e31]:
+        - generic [ref=f7e32]: Operations
+        - link "Approvals" [ref=f7e33] [cursor=pointer]
+        - link "Vendors" [ref=f7e39] [cursor=pointer]
+        - link "Users" [ref=f7e45] [cursor=pointer]
+        - link "Clips" [ref=f7e52] [cursor=pointer]
+        - link "Enquiries" [ref=f7e59] [cursor=pointer]
+        - link "Reviews" [ref=f7e63] [cursor=pointer]
+      - generic [ref=f7e67]:
+        - generic [ref=f7e68]: Revenue
+        - link "Subscriptions" [ref=f7e69] [cursor=pointer]
+        - link "Payments" [ref=f7e75] [cursor=pointer]
+        - link "Finance" [ref=f7e79] [cursor=pointer]
+      - generic [ref=f7e87]:
+        - generic [ref=f7e88]: Acquisition
+        - link "Vendor Acquisition CRM" [ref=f7e89] [cursor=pointer]
+      - generic [ref=f7e95]:
+        - generic [ref=f7e96]: Platform
+        - link "Hero Section" [ref=f7e97] [cursor=pointer]
+        - link "Push Notifications" [ref=f7e101] [cursor=pointer]
+        - link "Categories" [ref=f7e106] [cursor=pointer]
+        - link "Locations" [ref=f7e113] [cursor=pointer]
+        - link "Reports" [ref=f7e119] [cursor=pointer]
+        - link "Terms & Conditions" [ref=f7e124] [cursor=pointer]
+        - link "Privacy Policy" [ref=f7e129] [cursor=pointer]
+        - link "Settings" [ref=f7e134] [cursor=pointer]
+        - link "Help & Support" [ref=f7e139] [cursor=pointer]
+    - generic [ref=f7e144]:
+      - generic [ref=f7e145]:
+        - generic [ref=f7e146]: Admin Boss
+        - generic [ref=f7e147]: Admin
+      - switch "Dark mode" [ref=f7e148] [cursor=pointer]
+      - button "Open admin account" [ref=f7e151] [cursor=pointer]
+  - generic [ref=f7e162]:
+    - generic [ref=f7e164]:
+      - generic [ref=f7e165]:
+        - generic [ref=f7e166]: Subscriptions
+        - generic [ref=f7e167]: Configure plans, subscriber access and offers
+      - button "Refresh subscriptions" [ref=f7e169] [cursor=pointer]
+    - generic [ref=f7e176]:
+      - tab "Plans" [ref=f7e177] [cursor=pointer]
+      - tab "Subscribers" [ref=f7e179] [cursor=pointer]
+      - tab "Offers" [ref=f7e181] [cursor=pointer]
+    - generic [ref=f7e183]:
+      - generic [ref=f7e184]:
+        - generic [ref=f7e191]: "1"
+        - generic [ref=f7e192]: All vendors
+      - generic [ref=f7e193]:
+        - generic [ref=f7e197]: "1"
+        - generic [ref=f7e198]: Active
+      - generic [ref=f7e199]:
+        - generic [ref=f7e205]: "0"
+        - generic [ref=f7e206]: Trial / launch
+      - generic [ref=f7e207]:
+        - generic [ref=f7e212]: ₹0
+        - generic [ref=f7e213]: Verified revenue
+    - generic [ref=f7e214]:
+      - generic [ref=f7e215]:
+        - generic [ref=f7e216]: Plans
+        - generic [ref=f7e217]: Set availability here. Open details only when you need to change the plan.
+      - button "Add subscription plan" [active] [ref=f7e218] [cursor=pointer]:
+        - generic [ref=f7e220]: Add plan
+    - generic [ref=f7e221]:
+      - generic [ref=f7e222]:
+        - generic [ref=f7e224]:
+          - generic [ref=f7e225]: Free · Free forever
+          - generic [ref=f7e226]: Basic RoyalLagn vendor tools at no cost, for as long as you like.
+        - generic [ref=f7e227]:
+          - generic [ref=f7e228]:
+            - generic [ref=f7e229]: Availability
+            - generic [ref=f7e230]: Visible and available to purchase
+          - radiogroup [ref=f7e231]:
+            - radio "Active Free" [ref=f7e232] [cursor=pointer]:
+              - generic [ref=f7e233]: Active
+            - radio "Coming soon Free" [disabled]:
+              - generic [ref=f7e234]: Coming soon
+            - radio "Inactive Free" [disabled]:
+              - generic [ref=f7e235]: Inactive
+        - generic [ref=f7e236]:
+          - generic [ref=f7e237]: ₹0 / month
+          - generic [ref=f7e238]: 2 clips · 10 photos
+        - generic [ref=f7e239]:
+          - button "Details" [ref=f7e240] [cursor=pointer]
+          - button "Pricing" [ref=f7e244] [cursor=pointer]
+          - button "Limits" [ref=f7e250] [cursor=pointer]
+          - button "Delete Free" [ref=f7e255] [cursor=pointer]:
+            - generic [ref=f7e259]: Delete Plan
+      - generic [ref=f7e260]:
+        - generic [ref=f7e261]:
+          - generic "Premium membership badge" [ref=f7e262]:
+            - img "Premium membership badge" [ref=f7e264]
+          - generic [ref=f7e265]:
+            - generic [ref=f7e266]: Premium
+            - generic [ref=f7e267]: More Clips and gallery room for growing vendors.
+        - generic [ref=f7e268]:
+          - generic [ref=f7e269]:
+            - generic [ref=f7e270]: Availability
+            - generic [ref=f7e271]: Hidden from the public plan list
+          - radiogroup [ref=f7e272]:
+            - radio "Active Premium" [ref=f7e273] [cursor=pointer]:
+              - generic [ref=f7e274]: Active
+            - radio "Coming soon Premium" [ref=f7e275] [cursor=pointer]:
+              - generic [ref=f7e276]: Coming soon
+            - radio "Inactive Premium" [ref=f7e277] [cursor=pointer]:
+              - generic [ref=f7e278]: Inactive
+        - generic [ref=f7e279]:
+          - generic [ref=f7e280]: ₹499 / month
+          - generic [ref=f7e281]: ₹5,389.20 / year
+          - generic [ref=f7e282]: 15 clips · 30 photos
+        - generic [ref=f7e283]:
+          - button "Details" [ref=f7e284] [cursor=pointer]
+          - button "Pricing" [ref=f7e288] [cursor=pointer]
+          - button "Limits" [ref=f7e294] [cursor=pointer]
+          - button "Delete Premium" [ref=f7e299] [cursor=pointer]:
+            - generic [ref=f7e303]: Delete Plan
+      - generic [ref=f7e304]:
+        - generic [ref=f7e305]:
+          - generic "Elite membership badge" [ref=f7e306]:
+            - img "Elite membership badge" [ref=f7e308]
+          - generic [ref=f7e309]:
+            - generic [ref=f7e310]: Elite
+            - generic [ref=f7e311]: Maximum Clips, gallery room, featured placement and priority support.
+        - generic [ref=f7e312]:
+          - generic [ref=f7e313]:
+            - generic [ref=f7e314]: Availability
+            - generic [ref=f7e315]: Visible with purchasing disabled
+          - radiogroup [ref=f7e316]:
+            - radio "Active Elite" [ref=f7e317] [cursor=pointer]:
+              - generic [ref=f7e318]: Active
+            - radio "Coming soon Elite" [ref=f7e319] [cursor=pointer]:
+              - generic [ref=f7e320]: Coming soon
+            - radio "Inactive Elite" [ref=f7e321] [cursor=pointer]:
+              - generic [ref=f7e322]: Inactive
+        - generic [ref=f7e323]:
+          - generic [ref=f7e324]: ₹999 / month
+          - generic [ref=f7e325]: ₹10,789.20 / year
+          - generic [ref=f7e326]: 30 clips · 60 photos
+        - generic [ref=f7e327]:
+          - button "Details" [ref=f7e328] [cursor=pointer]
+          - button "Pricing" [ref=f7e332] [cursor=pointer]
+          - button "Limits" [ref=f7e338] [cursor=pointer]
+          - button "Delete Elite" [ref=f7e343] [cursor=pointer]:
+            - generic [ref=f7e347]: Delete Plan

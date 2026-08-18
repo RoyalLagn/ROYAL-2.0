@@ -1,0 +1,59 @@
+- generic [ref=f7e8]:
+  - generic [ref=f7e17]:
+    - generic "RoyalLagn Wedding Planner" [ref=f7e20]:
+      - img "RoyalLagn Wedding Planner" [ref=f7e22]
+    - generic [ref=f7e24]:
+      - generic [ref=f7e25]:
+        - generic [ref=f7e26]: Overview
+        - link "Dashboard" [ref=f7e27] [cursor=pointer]
+      - generic [ref=f7e31]:
+        - generic [ref=f7e32]: Operations
+        - link "Approvals" [ref=f7e33] [cursor=pointer]
+        - link "Vendors" [ref=f7e39] [cursor=pointer]
+        - link "Users" [ref=f7e45] [cursor=pointer]
+        - link "Clips" [ref=f7e52] [cursor=pointer]
+        - link "Enquiries" [ref=f7e59] [cursor=pointer]
+        - link "Reviews" [ref=f7e63] [cursor=pointer]
+      - generic [ref=f7e67]:
+        - generic [ref=f7e68]: Revenue
+        - link "Subscriptions" [ref=f7e69] [cursor=pointer]
+        - link "Payments" [ref=f7e75] [cursor=pointer]
+        - link "Finance" [ref=f7e79] [cursor=pointer]
+      - generic [ref=f7e87]:
+        - generic [ref=f7e88]: Acquisition
+        - link "Vendor Acquisition CRM" [ref=f7e89] [cursor=pointer]
+      - generic [ref=f7e95]:
+        - generic [ref=f7e96]: Platform
+        - link "Hero Section" [ref=f7e97] [cursor=pointer]
+        - link "Push Notifications" [ref=f7e101] [cursor=pointer]
+        - link "Categories" [ref=f7e106] [cursor=pointer]
+        - link "Locations" [ref=f7e113] [cursor=pointer]
+        - link "Reports" [ref=f7e119] [cursor=pointer]
+        - link "Terms & Conditions" [ref=f7e124] [cursor=pointer]
+        - link "Privacy Policy" [ref=f7e129] [cursor=pointer]
+        - link "Settings" [ref=f7e134] [cursor=pointer]
+        - link "Help & Support" [ref=f7e139] [cursor=pointer]
+    - generic [ref=f7e144]:
+      - generic [ref=f7e145]:
+        - generic [ref=f7e146]: Admin Boss
+        - generic [ref=f7e147]: Admin
+      - switch "Dark mode" [ref=f7e148] [cursor=pointer]
+      - button "Open admin account" [ref=f7e151] [cursor=pointer]
+  - generic [ref=f7e162]:
+    - generic [ref=f7e164]:
+      - generic [ref=f7e165]:
+        - generic [ref=f7e166]: Subscriptions
+        - generic [ref=f7e167]: Configure plans, subscriber access and offers
+      - button "Refresh subscriptions" [ref=f7e169] [cursor=pointer]
+    - generic [ref=f7e176]:
+      - tab "Plans" [ref=f7e177] [cursor=pointer]
+      - tab "Subscribers" [ref=f7e179] [cursor=pointer]
+      - tab "Offers" [active] [ref=f7e181] [cursor=pointer]
+    - generic [ref=f7e429]:
+      - generic [ref=f7e430]:
+        - generic [ref=f7e431]: Promotional offers
+        - generic [ref=f7e432]: Time-limited discounts for Monthly, Yearly, or both
+      - generic [ref=f7e433] [cursor=pointer]: Offer
+    - generic [ref=f7e436]:
+      - generic [ref=f7e437]: No offers
+      - generic [ref=f7e438]: Create an offer when a discount campaign is required.

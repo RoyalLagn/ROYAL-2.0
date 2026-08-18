@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 // Mirrors the auth-validation pattern already used in
 // supabase/functions/send-admin-push/index.ts (this project keeps each admin
@@ -131,6 +132,13 @@ Deno.serve(async (request) => {
     if (claims?.aal !== "aal2") {
       console.error("[admin-logout-all-devices] aal2 required", { userId, aal: claims?.aal ?? "unknown" });
       return json({ error: "Multi-factor verification required before revoking sessions." }, 403);
+    }
+
+    // Generous ceiling -- this is rarely called; it only stops repeated
+    // hammering of a real GoTrue-side global sign-out call.
+    if (!(await checkRateLimit(service, `admin-logout-all-devices:${userId}`, 5, 600))) {
+      console.error("[admin-logout-all-devices] rate limited", { userId });
+      return json({ error: "Too many attempts. Please wait a few minutes and try again." }, 429);
     }
 
     // The actual server-side revocation: scope "global" invalidates every

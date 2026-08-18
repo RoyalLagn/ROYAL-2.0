@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { adminPalette } from "@/theme";
 import { typeStyles } from "@/constants/typography";
-import { AdminFinanceService, financialYearLabel, financialYearOptions, financialYearStartFor } from "@/services/adminFinanceService";
+import { AdminFinanceService } from "@/services/adminFinanceService";
 import type { MonthlyTaxEstimateRow } from "@/types/adminFinance";
 import { FinanceNotice, formatMoney } from "./FinanceUI";
 
@@ -12,9 +12,7 @@ import { FinanceNotice, formatMoney } from "./FinanceUI";
  * ₹1 crore threshold is annual, not monthly) and its total is never labeled
  * as final tax payable. See computeMonthlyTaxEstimate in adminFinanceService.
  */
-export function FinanceMonthlyTaxEstimate() {
-  const yearOptions = useMemo(() => financialYearOptions(), []);
-  const [financialYearStart, setFinancialYearStart] = useState(() => financialYearStartFor(new Date()));
+export function FinanceMonthlyTaxEstimate({ financialYearStart }: { financialYearStart: string }) {
   const [rows, setRows] = useState<MonthlyTaxEstimateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +30,11 @@ export function FinanceMonthlyTaxEstimate() {
     }
   }, [financialYearStart]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    setRows([]);
+    setSelectedMonth(null);
+    void load();
+  }, [load]);
   useEffect(() => AdminFinanceService.subscribe(() => void load()), [load]);
 
   const ytd = useMemo(() => rows.reduce((sum, row) => ({
@@ -46,32 +48,28 @@ export function FinanceMonthlyTaxEstimate() {
 
   return <View style={styles.stack}>
     <View style={styles.header}>
-      <View style={styles.flex}><Text style={styles.title}>Monthly tax estimate</Text><Text style={styles.subtitle}>Estimated monthly tax provision from recorded Finance profit — for management visibility, not the final tax liability.</Text></View>
-      <View accessibilityRole="radiogroup" style={styles.yearChips}>
-        {yearOptions.map((year) => <Pressable key={year} accessibilityRole="radio" accessibilityState={{ checked: financialYearStart === year }} onPress={() => { setFinancialYearStart(year); setSelectedMonth(null); }} style={({ pressed }) => [styles.yearChip, financialYearStart === year && styles.yearChipSelected, pressed && styles.pressed]}>
-          <Text style={[styles.yearChipText, financialYearStart === year && styles.yearChipTextSelected]}>FY {financialYearLabel(year)}</Text>
-        </Pressable>)}
-      </View>
+      <View style={styles.flex}><Text style={styles.title}>Monthly tax estimate</Text><Text style={styles.subtitle}>A month-by-month view of how much tax the firm is setting aside, based on recorded profit. This is for tracking only — the official yearly figure lives in Yearly Tax.</Text></View>
     </View>
 
     {error ? <FinanceNotice tone="error">{error}</FinanceNotice> : null}
 
     {loading && !rows.length ? <Text style={styles.loadingText}>Loading monthly totals…</Text> : <>
       <View style={styles.ytdGrid}>
-        <YtdTile label="YTD revenue" value={ytd.revenue} />
-        <YtdTile label="YTD expenses" value={ytd.expenses} />
-        <YtdTile label="YTD profit" value={ytd.profit} strong />
-        <YtdTile label="YTD estimated tax" value={ytd.estimatedTax} strong tone="warning" />
+        <YtdTile label="Received so far this year" value={ytd.revenue} />
+        <YtdTile label="Spent so far this year" value={ytd.expenses} />
+        <YtdTile label="Profit so far this year" value={ytd.profit} strong />
+        <YtdTile label="Tax set aside so far" value={ytd.estimatedTax} strong tone="warning" />
       </View>
 
+      <Text style={styles.tableHint}>Tap a month below to see its full breakdown.</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.table}>
           <View style={styles.tableHeaderRow}>
             <Text style={[styles.headerCell, styles.monthCell]}>Month</Text>
-            <Text style={[styles.headerCell, styles.amountCell]}>Revenue</Text>
-            <Text style={[styles.headerCell, styles.amountCell]}>Expenses</Text>
+            <Text style={[styles.headerCell, styles.amountCell]}>Received</Text>
+            <Text style={[styles.headerCell, styles.amountCell]}>Spent</Text>
             <Text style={[styles.headerCell, styles.amountCell]}>Profit</Text>
-            <Text style={[styles.headerCell, styles.amountCell]}>Estimated tax</Text>
+            <Text style={[styles.headerCell, styles.amountCell]}>Est. tax</Text>
           </View>
           {rows.map((row, index) => <Pressable key={row.monthStart} accessibilityRole="button" accessibilityState={{ selected: selectedMonth === row.monthStart }} onPress={() => setSelectedMonth(selectedMonth === row.monthStart ? null : row.monthStart)} style={({ pressed }) => [styles.tableRow, index > 0 && styles.rowBorder, selectedMonth === row.monthStart && styles.tableRowSelected, pressed && styles.pressed]}>
             <Text style={[styles.cell, styles.monthCell]}>{monthOnly(row.monthLabel)}</Text>
@@ -83,20 +81,20 @@ export function FinanceMonthlyTaxEstimate() {
         </View>
       </ScrollView>
 
-      <View style={styles.fullYearRow}><Text style={styles.fullYearLabel}>Full-year monthly estimate</Text><Text style={styles.fullYearValue}>{formatMoney(ytd.estimatedTax)}</Text></View>
-      <Text style={styles.fullYearHint}>Sum of the 12 monthly estimates above — a provisioning total, not the final annual tax. It can legitimately differ from the Yearly Tax section&apos;s Total Tax Payable (for example when annual surcharge applies).</Text>
+      <View style={styles.fullYearRow}><Text style={styles.fullYearLabel}>Total if you add up all 12 months</Text><Text style={styles.fullYearValue}>{formatMoney(ytd.estimatedTax)}</Text></View>
+      <Text style={styles.fullYearHint}>This is just the 12 monthly estimates added together — a rough running total, not your final tax bill. The Yearly Tax section may show a slightly different number (for example, once annual surcharge kicks in).</Text>
 
       {selectedRow ? <View style={styles.detailCard}>
-        <Text style={styles.detailTitle}>Selected month: {selectedRow.monthLabel}</Text>
-        <DetailLine label="Revenue" value={selectedRow.revenue} />
-        <DetailLine label="Expenses" value={selectedRow.expenses} />
+        <Text style={styles.detailTitle}>{selectedRow.monthLabel} breakdown</Text>
+        <DetailLine label="Received" value={selectedRow.revenue} />
+        <DetailLine label="Spent" value={selectedRow.expenses} />
         <DetailLine label="Profit" value={selectedRow.profit} strong />
-        <DetailLine label="Estimated income tax" value={selectedRow.incomeTax} />
-        <DetailLine label="Estimated cess" value={selectedRow.cess} />
-        <DetailLine label="Monthly tax estimate" value={selectedRow.estimatedTax} strong />
+        <DetailLine label="Income tax (estimated)" value={selectedRow.incomeTax} />
+        <DetailLine label="Cess (estimated)" value={selectedRow.cess} />
+        <DetailLine label="Tax set aside this month" value={selectedRow.estimatedTax} strong />
       </View> : null}
 
-      <FinanceNotice tone="warning">Monthly Tax Estimate is for management/provisioning purposes only. Final partnership-firm tax is calculated annually in the Yearly Tax section.</FinanceNotice>
+      <FinanceNotice tone="warning">This month-by-month view is for tracking only. Your official, final tax number is calculated once a year in the Yearly Tax section.</FinanceNotice>
     </>}
   </View>;
 }
@@ -129,11 +127,6 @@ const styles = StyleSheet.create({
   header: { gap: 12 },
   title: { ...typeStyles.sectionTitle, color: adminPalette.text },
   subtitle: { ...typeStyles.metadata, color: adminPalette.textSecondary, marginTop: 4, maxWidth: 640 },
-  yearChips: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
-  yearChip: { minHeight: 44, borderRadius: 12, backgroundColor: adminPalette.surfaceSubtle, paddingHorizontal: 13, alignItems: "center", justifyContent: "center" },
-  yearChipSelected: { backgroundColor: adminPalette.brand },
-  yearChipText: { ...typeStyles.caption, color: adminPalette.textSecondary },
-  yearChipTextSelected: { color: "#FFF" },
   pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   loadingText: { ...typeStyles.metadata, color: adminPalette.textSecondary, paddingVertical: 24, textAlign: "center" },
   ytdGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
@@ -141,6 +134,7 @@ const styles = StyleSheet.create({
   ytdLabel: { ...typeStyles.label, color: adminPalette.textSecondary },
   ytdValue: { ...typeStyles.cardTitle, color: adminPalette.text, fontVariant: ["tabular-nums"] },
   ytdValueStrong: { fontFamily: typeStyles.metric.fontFamily, fontSize: typeStyles.cardTitle.fontSize },
+  tableHint: { ...typeStyles.caption, color: adminPalette.textMuted },
   table: { minWidth: 560, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 14, overflow: "hidden" },
   tableHeaderRow: { flexDirection: "row", backgroundColor: adminPalette.surfaceSubtle, paddingVertical: 10, paddingHorizontal: 4 },
   headerCell: { ...typeStyles.caption, color: adminPalette.textSecondary, textTransform: "uppercase", letterSpacing: 0.5 },

@@ -1,0 +1,48 @@
+- generic [ref=f6e1]:
+  - generic [ref=f6e63]:
+    - generic [ref=f6e66]:
+      - generic [ref=f6e67]:
+        - generic [ref=f6e68]: Admin Dashboard
+        - generic [ref=f6e69]: Welcome back, Admin Boss
+      - generic "Refresh dashboard" [ref=f6e72] [cursor=pointer]
+    - generic [ref=f6e78]:
+      - generic [ref=f6e81]:
+        - generic [ref=f6e88]:
+          - generic [ref=f6e89]: Platform Overview
+          - generic [ref=f6e90]: Live platform workload · Updated 20:44
+        - button "Refresh Platform Overview" [ref=f6e91] [cursor=pointer]
+      - generic [ref=f6e106]:
+        - generic [ref=f6e110]:
+          - generic [ref=f6e115]:
+            - generic [ref=f6e116]: Pending Tasks
+            - generic [ref=f6e117]: Current administrator workload
+          - button "Refresh Pending Tasks" [ref=f6e118] [cursor=pointer]
+        - generic [ref=f6e136]:
+          - generic [ref=f6e143]:
+            - generic [ref=f6e144]: Monthly Clip Views
+            - generic [ref=f6e145]: Daily view movement for the selected month
+          - button "Refresh Monthly Clip Views" [ref=f6e146] [cursor=pointer]
+      - generic [ref=f6e162]:
+        - generic [ref=f6e163]:
+          - generic [ref=f6e168]:
+            - generic [ref=f6e169]: Equity Split & Revenue
+            - generic [ref=f6e170]: Verified subscription income and ownership distribution
+          - button "Refresh Equity Split & Revenue" [ref=f6e171] [cursor=pointer]
+        - generic [ref=f6e177]:
+          - generic [ref=f6e178]:
+            - generic [ref=f6e180]:
+              - generic [ref=f6e181] [cursor=pointer]: Month
+              - generic [ref=f6e183] [cursor=pointer]: Year
+              - generic [ref=f6e185] [cursor=pointer]: Month range
+              - generic [ref=f6e187] [cursor=pointer]: Date range
+            - generic [ref=f6e189]:
+              - generic [ref=f6e191]:
+                - generic [ref=f6e192]: Month
+                - button "Month, August 2026" [ref=f6e193] [cursor=pointer]:
+                  - generic [ref=f6e194]: August 2026
+              - generic "Refresh revenue" [ref=f6e198] [cursor=pointer]
+          - generic [ref=f6e204]:
+            - progressbar [ref=f6e205]
+            - generic [ref=f6e210]: Loading revenue records…
+  - dialog [ref=f6e212]:
+    - progressbar "Loading RoyalLagn" [ref=f6e214]

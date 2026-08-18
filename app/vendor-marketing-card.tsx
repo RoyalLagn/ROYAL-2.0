@@ -27,7 +27,7 @@ import { typeScale, typeLeading } from "@/constants/typography";
 import Pressable from "@/components/InteropSafePressable";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_PATTERN = /^[0-9]{10,15}$/;
+const PHONE_PATTERN = /^[0-9]{10}$/;
 
 function categoryNameOf(vendor: any): string {
   const relation = vendor?.categories;

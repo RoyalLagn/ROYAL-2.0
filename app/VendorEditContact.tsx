@@ -9,6 +9,7 @@ import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import { sanitizePhoneInput, validatePhone } from "@/utils/authValidation";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -58,6 +59,10 @@ export default function VendorEditContact() {
     if (!trimmedPhone && !trimmedEmail) {
       setSaveError("Add at least one way for customers to reach you.");
       return Alert.alert("Contact method required", "Add a phone number or an email so customers can reach your business.");
+    }
+    if (trimmedPhone && !validatePhone(trimmedPhone)) {
+      setSaveError("Enter a valid 10-digit mobile number.");
+      return Alert.alert("Invalid phone number", "Enter a valid 10-digit mobile number.");
     }
     if (trimmedEmail && !EMAIL_PATTERN.test(trimmedEmail)) {
       setSaveError("Enter a valid email address.");
@@ -109,7 +114,7 @@ export default function VendorEditContact() {
             <SectionTitle icon={Mail} title="Customer contact" detail="Add at least one reliable way for customers to reach your business." colors={colors} />
             <View style={kitStyles.grid}>
               <View style={{ width: "48.8%" }}>
-                <Field label="Contact phone / WhatsApp" value={contactPhone} onChangeText={(value) => { clearFeedback(); setContactPhone(value); }} placeholder="+91 98765 43210" colors={colors} keyboardType="phone-pad" />
+                <Field label="Contact phone / WhatsApp" value={contactPhone} onChangeText={(value) => { clearFeedback(); setContactPhone(sanitizePhoneInput(value)); }} placeholder="10-digit mobile number" colors={colors} keyboardType="phone-pad" maxLength={20} />
               </View>
               <View style={{ width: "48.8%" }}>
                 <Field label="Contact email" value={contactEmail} onChangeText={(value) => { clearFeedback(); setContactEmail(value); }} placeholder="hello@business.com" colors={colors} keyboardType="email-address" autoCapitalize="none" />

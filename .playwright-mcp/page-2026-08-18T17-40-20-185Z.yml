@@ -1,0 +1,252 @@
+- generic [ref=f1e8]:
+  - generic [ref=f1e53]:
+    - generic "RoyalLagn Wedding Planner" [ref=f1e56]:
+      - img "RoyalLagn Wedding Planner" [ref=f1e58]
+    - generic [ref=f1e60]:
+      - generic [ref=f1e61]:
+        - generic [ref=f1e62]: Overview
+        - link "Dashboard" [ref=f1e63] [cursor=pointer]
+      - generic [ref=f1e67]:
+        - generic [ref=f1e68]: Operations
+        - link "Approvals" [ref=f1e69] [cursor=pointer]
+        - link "Vendors" [ref=f1e75] [cursor=pointer]
+        - link "Users" [ref=f1e81] [cursor=pointer]
+        - link "Clips" [ref=f1e88] [cursor=pointer]
+        - link "Enquiries" [ref=f1e95] [cursor=pointer]
+        - link "Reviews" [ref=f1e99] [cursor=pointer]
+      - generic [ref=f1e103]:
+        - generic [ref=f1e104]: Revenue
+        - link "Subscriptions" [ref=f1e105] [cursor=pointer]
+        - link "Payments" [ref=f1e111] [cursor=pointer]
+        - link "Finance" [ref=f1e115] [cursor=pointer]
+      - generic [ref=f1e123]:
+        - generic [ref=f1e124]: Acquisition
+        - link "Vendor Acquisition CRM" [ref=f1e125] [cursor=pointer]
+      - generic [ref=f1e131]:
+        - generic [ref=f1e132]: Platform
+        - link "Hero Section" [ref=f1e133] [cursor=pointer]
+        - link "Push Notifications" [ref=f1e137] [cursor=pointer]
+        - link "Categories" [ref=f1e142] [cursor=pointer]
+        - link "Locations" [ref=f1e149] [cursor=pointer]
+        - link "Reports" [ref=f1e155] [cursor=pointer]
+        - link "Terms & Conditions" [ref=f1e160] [cursor=pointer]
+        - link "Privacy Policy" [ref=f1e165] [cursor=pointer]
+        - link "Settings" [ref=f1e170] [cursor=pointer]
+        - link "Help & Support" [ref=f1e175] [cursor=pointer]
+    - generic [ref=f1e180]:
+      - generic [ref=f1e181]:
+        - generic [ref=f1e182]: Admin Boss
+        - generic [ref=f1e183]: Admin
+      - switch "Dark mode" [ref=f1e184] [cursor=pointer]
+      - button "Open admin account" [ref=f1e187] [cursor=pointer]
+  - generic [ref=f1e201]:
+    - generic [ref=f1e204]:
+      - generic [ref=f1e205]:
+        - generic [ref=f1e206]: Admin Dashboard
+        - generic [ref=f1e207]: Welcome back, Admin Boss
+      - generic [ref=f1e209]:
+        - generic [ref=f1e210]: 2 system warnings
+        - generic "Refresh dashboard" [ref=f1e214] [cursor=pointer]
+    - generic [ref=f1e220]:
+      - generic [ref=f1e222]:
+        - generic [ref=f1e223]:
+          - generic [ref=f1e230]:
+            - generic [ref=f1e231]: Platform Overview
+            - generic [ref=f1e232]: Live platform workload · Updated 23:10
+          - button "Refresh Platform Overview" [ref=f1e233] [cursor=pointer]
+        - generic [ref=f1e240]:
+          - 'button "Public users: 1" [ref=f1e242] [cursor=pointer]':
+            - generic [ref=f1e250]:
+              - generic [ref=f1e251]: Public users
+              - generic [ref=f1e252]: "1"
+              - generic [ref=f1e253]: 0 joined today
+          - 'button "Vendors: 1" [ref=f1e255] [cursor=pointer]':
+            - generic [ref=f1e262]:
+              - generic [ref=f1e263]: Vendors
+              - generic [ref=f1e264]: "1"
+              - generic [ref=f1e265]: 0 joined today
+          - 'button "Categories: 15" [ref=f1e267] [cursor=pointer]':
+            - generic [ref=f1e272]:
+              - generic [ref=f1e273]: Categories
+              - generic [ref=f1e274]: "15"
+              - generic [ref=f1e275]: Total categories
+          - 'button "Reviews: 0" [ref=f1e277] [cursor=pointer]':
+            - generic [ref=f1e282]:
+              - generic [ref=f1e283]: Reviews
+              - generic [ref=f1e284]: "0"
+              - generic [ref=f1e285]: 0 added today
+          - 'button "Average rating: 0.00" [ref=f1e287] [cursor=pointer]':
+            - generic [ref=f1e292]:
+              - generic [ref=f1e293]: Average rating
+              - generic [ref=f1e294]: "0.00"
+              - generic [ref=f1e295]: Across all reviews
+          - 'button "Pending review: 0" [ref=f1e297] [cursor=pointer]':
+            - generic [ref=f1e303]:
+              - generic [ref=f1e304]: Pending review
+              - generic [ref=f1e305]: "0"
+              - generic [ref=f1e306]: Awaiting a decision
+          - 'button "Approved today: 0" [ref=f1e308] [cursor=pointer]':
+            - generic [ref=f1e314]:
+              - generic [ref=f1e315]: Approved today
+              - generic [ref=f1e316]: "0"
+              - generic [ref=f1e317]: Vendor applications
+          - 'button "Rejected today: 0" [ref=f1e319] [cursor=pointer]':
+            - generic [ref=f1e326]:
+              - generic [ref=f1e327]: Rejected today
+              - generic [ref=f1e328]: "0"
+              - generic [ref=f1e329]: Vendor applications
+          - 'button "New users: 0" [ref=f1e331] [cursor=pointer]':
+            - generic [ref=f1e337]:
+              - generic [ref=f1e338]: New users
+              - generic [ref=f1e339]: "0"
+              - generic [ref=f1e340]: Registered today
+          - 'button "New vendors: 0" [ref=f1e342] [cursor=pointer]':
+            - generic [ref=f1e349]:
+              - generic [ref=f1e350]: New vendors
+              - generic [ref=f1e351]: "0"
+              - generic [ref=f1e352]: Registered today
+      - generic [ref=f1e353]:
+        - generic [ref=f1e356]:
+          - generic [ref=f1e357]:
+            - generic [ref=f1e362]:
+              - generic [ref=f1e363]: Pending Tasks
+              - generic [ref=f1e364]: Current administrator workload
+            - button "Refresh Pending Tasks" [ref=f1e365] [cursor=pointer]
+          - generic [ref=f1e372]:
+            - generic [ref=f1e373]:
+              - generic [ref=f1e374]:
+                - generic [ref=f1e375]: Pending Vendor Applications
+                - generic [ref=f1e376]: High
+              - generic [ref=f1e378]: "0"
+              - button "Open Pending Vendor Applications" [ref=f1e379] [cursor=pointer]:
+                - generic [ref=f1e380]: Open
+            - generic [ref=f1e383]:
+              - generic [ref=f1e384]:
+                - generic [ref=f1e385]: Rejected Vendors Awaiting Resubmission
+                - generic [ref=f1e386]: Medium
+              - generic [ref=f1e388]: "0"
+              - button "Open Rejected Vendors Awaiting Resubmission" [ref=f1e389] [cursor=pointer]:
+                - generic [ref=f1e390]: Open
+            - generic [ref=f1e393]:
+              - generic [ref=f1e394]:
+                - generic [ref=f1e395]: Incomplete Vendor Profiles
+                - generic [ref=f1e396]: Medium
+              - generic [ref=f1e398]: "1"
+              - button "Open Incomplete Vendor Profiles" [ref=f1e399] [cursor=pointer]:
+                - generic [ref=f1e400]: Open
+            - generic [ref=f1e403]:
+              - generic [ref=f1e404]:
+                - generic [ref=f1e405]: Expired Subscriptions
+                - generic [ref=f1e406]: Medium
+              - generic [ref=f1e408]: "0"
+              - button "Open Expired Subscriptions" [ref=f1e409] [cursor=pointer]:
+                - generic [ref=f1e410]: Open
+            - generic [ref=f1e413]:
+              - generic [ref=f1e414]:
+                - generic [ref=f1e415]: System Warnings
+                - generic [ref=f1e416]: High
+              - generic [ref=f1e418]: "2"
+              - button "Open System Warnings" [ref=f1e419] [cursor=pointer]:
+                - generic [ref=f1e420]: Open
+        - generic [ref=f1e425]:
+          - generic [ref=f1e426]:
+            - generic [ref=f1e433]:
+              - generic [ref=f1e434]: Monthly Clip Views
+              - generic [ref=f1e435]: Daily view movement for the selected month
+            - button "Refresh Monthly Clip Views" [ref=f1e436] [cursor=pointer]
+          - generic [ref=f1e443]:
+            - generic [ref=f1e444]:
+              - button "Clip views month, August 2026" [ref=f1e446] [cursor=pointer]:
+                - generic [ref=f1e447]: August 2026
+              - generic [ref=f1e451]: 1 Aug – 31 Aug 2026
+            - generic [ref=f1e452]:
+              - generic [ref=f1e453]: "6"
+              - generic [ref=f1e454]: total views
+      - generic [ref=f1e459]:
+        - generic [ref=f1e460]:
+          - generic [ref=f1e465]:
+            - generic [ref=f1e466]: Equity Split & Revenue
+            - generic [ref=f1e467]: Verified subscription income and ownership distribution
+          - button "Refresh Equity Split & Revenue" [ref=f1e468] [cursor=pointer]
+        - generic [ref=f1e474]:
+          - generic [ref=f1e475]:
+            - generic [ref=f1e477]:
+              - generic [ref=f1e478] [cursor=pointer]: Month
+              - generic [ref=f1e480] [cursor=pointer]: Year
+              - generic [ref=f1e482] [cursor=pointer]: Month range
+              - generic [ref=f1e484] [cursor=pointer]: Date range
+            - generic [ref=f1e486]:
+              - generic [ref=f1e488]:
+                - generic [ref=f1e489]: Month
+                - button "Month, August 2026" [ref=f1e490] [cursor=pointer]:
+                  - generic [ref=f1e491]: August 2026
+              - generic "Refresh revenue" [ref=f1e495] [cursor=pointer]
+          - generic [ref=f1e501]:
+            - generic [ref=f1e502]:
+              - generic [ref=f1e503]: Verified revenue
+              - generic [ref=f1e504]: ₹0.00
+            - generic [ref=f1e505]:
+              - generic [ref=f1e506]: Verified payments
+              - generic [ref=f1e507]: "0"
+            - generic [ref=f1e508]:
+              - generic [ref=f1e509]: New subscriptions
+              - generic [ref=f1e510]: "1"
+          - generic [ref=f1e511]:
+            - generic [ref=f1e512]: Equity split
+            - generic [ref=f1e513]: Only an exact 100% split can be saved or distributed
+          - generic [ref=f1e514]:
+            - generic [ref=f1e515]:
+              - generic [ref=f1e516]: Name
+              - generic [ref=f1e517]: Equity percentage
+            - generic [ref=f1e519]:
+              - textbox "Member name" [ref=f1e520]
+              - generic [ref=f1e521]:
+                - textbox "0" [ref=f1e522]
+                - generic [ref=f1e523]: "%"
+              - generic "Remove member" [ref=f1e524] [cursor=pointer]
+          - generic [ref=f1e528]:
+            - generic [ref=f1e529] [cursor=pointer]: Add member
+            - generic [ref=f1e532]: Total 0.00% · 100.00% remaining
+            - generic: Saved
+          - generic [ref=f1e537]:
+            - generic [ref=f1e538]: Income distribution
+            - generic [ref=f1e539]: Calculated from August 2026
+          - generic [ref=f1e540]:
+            - generic [ref=f1e541]:
+              - generic [ref=f1e542]: Name
+              - generic [ref=f1e543]: Equity
+              - generic [ref=f1e544]: Calculated income
+            - generic [ref=f1e545]:
+              - generic [ref=f1e546]: Unnamed
+              - generic [ref=f1e547]: 0.00%
+              - generic [ref=f1e548]: —
+          - generic [ref=f1e549]:
+            - generic [ref=f1e550]:
+              - generic [ref=f1e551]: Revenue overview
+              - generic [ref=f1e552]: August 2026
+            - generic [ref=f1e555]:
+              - generic [ref=f1e556]: New subscription trend
+              - generic [ref=f1e557]: 1 created in selected period
+          - generic [ref=f1e560]:
+            - generic [ref=f1e561]: Revenue comparison
+            - generic [ref=f1e562]: Compare any two calendar months
+          - generic [ref=f1e563]:
+            - generic [ref=f1e565]:
+              - generic [ref=f1e566]: Month A
+              - button "Month A, August 2026" [ref=f1e567] [cursor=pointer]:
+                - generic [ref=f1e568]: August 2026
+            - generic [ref=f1e573]:
+              - generic [ref=f1e574]: Month B
+              - button "Month B, July 2026" [ref=f1e575] [cursor=pointer]:
+                - generic [ref=f1e576]: July 2026
+          - generic [ref=f1e580]:
+            - generic [ref=f1e581]: August 2026 vs July 2026
+            - generic [ref=f1e582]: Verified subscription revenue
+          - generic [ref=f1e585]:
+            - generic [ref=f1e586]: Excel report download
+            - generic [ref=f1e587]: Includes revenue, equity, distribution, payments and new subscriptions
+          - generic [ref=f1e588]:
+            - generic [ref=f1e593]:
+              - generic [ref=f1e594]: August 2026
+              - generic [ref=f1e595]: 0 payments · 1 new subscriptions · ₹0.00
+            - button "Download Excel" [ref=f1e596] [cursor=pointer]

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Calculator, ChevronLeft, ChevronRight, Download, Landmark, LayoutDashboard, ReceiptText, RefreshCw, Scale, ShieldCheck } from "lucide-react-native";
+import { Calculator, ChevronLeft, ChevronRight, Download, Landmark, ReceiptText, RefreshCw, ShieldCheck } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
@@ -11,10 +11,8 @@ import type { FinanceMonthData, FinanceTab } from "@/types/adminFinance";
 import { adminLightTheme, adminPalette } from "@/theme";
 import { typeStyles } from "@/constants/typography";
 import { FinanceButton, FinanceLoading, FinanceNotice, FinanceSection } from "@/components/admin/finance/FinanceUI";
-import { FinanceOverview } from "@/components/admin/finance/FinanceOverview";
 import { FinanceRevenueDashboard } from "@/components/admin/finance/FinanceRevenueDashboard";
 import { FinanceTransactions } from "@/components/admin/finance/FinanceTransactions";
-import { FinanceBudgets } from "@/components/admin/finance/FinanceBudgets";
 import { FinanceTaxes } from "@/components/admin/finance/FinanceStatements";
 import { FinanceForecast } from "@/components/admin/finance/FinanceForecast";
 import { FinanceReports } from "@/components/admin/finance/FinanceReports";
@@ -30,11 +28,9 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 */
 
 const tabs: { key: FinanceTab; label: string; icon: React.ElementType }[] = [
-  { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "revenue", label: "Revenue", icon: Landmark },
   { key: "expenses", label: "Expenses", icon: ReceiptText },
   { key: "taxes", label: "Taxes", icon: ShieldCheck },
-  { key: "budgets", label: "Budgets", icon: Scale },
   { key: "forecast", label: "Forecast", icon: Calculator },
   { key: "reports", label: "Reports", icon: Download },
 ];
@@ -44,7 +40,7 @@ export default function AdminFinance() {
   const { width } = useWindowDimensions();
   const desktop = width >= 980;
   const phone = width < 600;
-  const [tab, setTab] = useState<FinanceTab>("overview");
+  const [tab, setTab] = useState<FinanceTab>("revenue");
   const [month, setMonth] = useState(currentMonth());
   const [data, setData] = useState<FinanceMonthData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,12 +63,12 @@ export default function AdminFinance() {
   const periodLabel = useMemo(() => new Date(`${month}T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" }), [month]);
   const moveMonth = (offset: number) => { const next = new Date(`${month}T00:00:00Z`); next.setUTCMonth(next.getUTCMonth() + offset); const value = next.toISOString().slice(0, 7); setMonth(`${value}-01`); };
   const chooseFinanceDate = (value: string) => { setMonth(`${value.slice(0, 7)}-01`); setError(null); };
-  const content = data ? tab === "overview" ? <FinanceOverview data={data} /> : tab === "revenue" ? <FinanceRevenueDashboard data={data} onChanged={load} lastSyncedAt={lastSyncedAt} syncing={refreshing} onSync={() => void load(true)} /> : tab === "expenses" ? <FinanceTransactions data={data} direction="expense" onChanged={load} /> : tab === "budgets" ? <FinanceBudgets key={`budgets-${data.monthStart}-${data.budget?.id ?? "none"}`} data={data} onChanged={load} /> : tab === "taxes" ? <FinanceTaxes /> : tab === "forecast" ? <FinanceForecast data={data} onChanged={load} /> : <FinanceReports data={data} onChanged={load} /> : error && !loading ? <FinanceSection title="Finance setup pending" description="This workspace is not connected to its finance records yet."><Text style={styles.setupText}>Refresh after the finance database setup is completed. If this message remains, contact your platform administrator before recording financial activity elsewhere.</Text><View style={styles.setupActions}><FinanceButton label="Try again" onPress={() => void load(true)} /><FinanceButton label="Open Help & Support" variant="secondary" onPress={() => router.push("/AdminHelp")} /></View></FinanceSection> : null;
+  const content = data ? tab === "revenue" ? <FinanceRevenueDashboard data={data} onChanged={load} lastSyncedAt={lastSyncedAt} syncing={refreshing} onSync={() => void load(true)} /> : tab === "expenses" ? <FinanceTransactions data={data} direction="expense" onChanged={load} /> : tab === "taxes" ? <FinanceTaxes /> : tab === "forecast" ? <FinanceForecast data={data} onChanged={load} /> : <FinanceReports data={data} onChanged={load} /> : error && !loading ? <FinanceSection title="Finance setup pending" description="This workspace is not connected to its finance records yet."><Text style={styles.setupText}>Refresh after the finance database setup is completed. If this message remains, contact your platform administrator before recording financial activity elsewhere.</Text><View style={styles.setupActions}><FinanceButton label="Try again" onPress={() => void load(true)} /><FinanceButton label="Open Help & Support" variant="secondary" onPress={() => router.push("/AdminHelp")} /></View></FinanceSection> : null;
 
   return <SafeAreaView style={[styles.page, adminLightTheme]} edges={["top", "left", "right"]}>
     <ScrollView showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={adminPalette.brand} />} contentContainerStyle={styles.scroll}>
       <ResponsiveContainer style={styles.container}>
-        <AdminPageHeader title="Finance" subtitle="Actual revenue, expenses, budgets, profitability, tax provisions and founder planning" action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh finance" accessibilityState={{ busy: refreshing }} onPress={() => void load(true)} style={({ pressed }) => [styles.refresh, pressed && styles.pressed]}><RefreshCw size={19} color={adminPalette.brand} /></Pressable>} />
+        <AdminPageHeader title="Finance" subtitle="Actual revenue, expenses, profitability, tax provisions and founder planning" action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh finance" accessibilityState={{ busy: refreshing }} onPress={() => void load(true)} style={({ pressed }) => [styles.refresh, pressed && styles.pressed]}><RefreshCw size={19} color={adminPalette.brand} /></Pressable>} />
         <View style={[styles.periodBar, phone && styles.periodBarPhone, { zIndex: 20 }]}>
           <View style={styles.periodNavigation}>
             <Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => moveMonth(-1)} style={({ pressed }) => [styles.monthButton, pressed && styles.pressed]}><ChevronLeft size={19} color={adminPalette.text} /></Pressable>

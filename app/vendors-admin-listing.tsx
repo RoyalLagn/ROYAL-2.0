@@ -33,6 +33,7 @@ import {
   getVendorRegistrationEnabled,
   setVendorRegistrationEnabled,
 } from "@/services/vendorRegistration";
+import { HierarchySelect } from "@/components/admin/locations/HierarchySelect";
 
 const sorts: { value: VendorSort; label: string }[] = [
   { value: "newest", label: "Newest" },
@@ -414,10 +415,12 @@ function FilterModal({ visible, onClose, onApply, categories, filters, city, sta
   const [verification, setVerification] = useState(filters.verification);
   const [plan, setPlan] = useState(filters.plan);
   const [sort, setSort] = useState<VendorSort>(filters.sort);
+  const categoryOptions = React.useMemo(() => [{ id: "all", name: "All categories" }, ...categories.map((category) => ({ id: category.id, name: category.name }))], [categories]);
+  const selectedCategoryName = categoryOptions.find((category) => category.id === (categoryId ?? "all"))?.name;
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View className="flex-1 bg-black/60 justify-end"><View className="bg-card rounded-t-3xl p-5 max-h-[88%]"><View className="flex-row justify-between items-center mb-4"><Text className="text-foreground text-xl font-bold">Filters & Sorting</Text><Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={onClose}><X size={21} className="text-foreground" /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>
     <Label text="Verification" /><ChoiceRow items={["all", "verified", "unverified"]} value={verification} onChange={setVerification} />
     <Label text="Plan" /><ChoiceRow items={["all", "premium", "free"]} value={plan} onChange={setPlan} />
-    <Label text="Category" /><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}><Choice value={categoryId === null} label="All" onPress={() => setCategoryId(null)} />{categories.map((category: any) => <Choice key={category.id} value={categoryId === category.id} label={category.name} onPress={() => setCategoryId(category.id)} />)}</ScrollView>
+    <View className="mt-4"><HierarchySelect label="Category" value={selectedCategoryName} options={categoryOptions} selectedId={categoryId ?? "all"} onSelect={(id) => setCategoryId(id === "all" ? null : id)} /></View>
     <Label text="City" /><TextInput className="h-12 bg-background border border-border rounded-xl px-4 text-foreground" value={city} onChangeText={setCity} placeholder="Any city" placeholderTextColor="#8A8589" />
     <Label text="State" /><TextInput className="h-12 bg-background border border-border rounded-xl px-4 text-foreground" value={state} onChangeText={setState} placeholder="Any state" placeholderTextColor="#8A8589" />
     <Label text="Sort" /><ChoiceRow items={sorts.map((item) => item.value)} labels={Object.fromEntries(sorts.map((item) => [item.value, item.label]))} value={sort} onChange={setSort} />

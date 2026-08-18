@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -209,6 +210,13 @@ Deno.serve(async (request) => {
         email: profile.email,
       });
       return json({ error: message }, 403);
+    }
+
+    // Generous ceiling -- a real admin sends a handful of campaigns per
+    // session; this only stops a leaked/compromised admin token from being
+    // used to blast pushes.
+    if (!(await checkRateLimit(service, `send-admin-push:${userId}`, 20, 300))) {
+      return json({ error: "Too many notifications sent. Please wait a few minutes and try again." }, 429);
     }
 
     const body = (await request.json()) as RequestBody;

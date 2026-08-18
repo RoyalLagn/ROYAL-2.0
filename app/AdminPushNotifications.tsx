@@ -13,7 +13,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Bell,
   Check,
-  ChevronDown,
   Send,
   X,
 } from "lucide-react-native";
@@ -23,6 +22,7 @@ import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/component
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { AdminPushNotificationService } from "@/services/adminPushNotifications";
 import { CategoryService, type CategoryRecord } from "@/services/CategoryService";
+import { HierarchySelect } from "@/components/admin/locations/HierarchySelect";
 import type { AdminVendorRecord } from "@/types/adminVendors";
 import type { PushAudience, PushCampaign } from "@/types/pushNotifications";
 import { typeScale } from "@/constants/typography";
@@ -107,7 +107,6 @@ export default function AdminPushNotifications() {
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [vendorQuery, setVendorQuery] = useState("");
   const [vendorResults, setVendorResults] = useState<AdminVendorRecord[]>([]);
   const [vendorSearching, setVendorSearching] = useState(false);
@@ -201,7 +200,6 @@ export default function AdminPushNotifications() {
     setVendorQuery("");
     setVendorResults([]);
     setVendorError(null);
-    setCategoryPickerOpen(false);
   };
 
   const validate = () => {
@@ -305,7 +303,6 @@ export default function AdminPushNotifications() {
                         setVendorQuery("");
                         setVendorResults([]);
                         setVendorError(null);
-                        setCategoryPickerOpen(false);
                       }
                     }}
                     className="min-h-12 px-3 rounded-2xl border flex-row items-center"
@@ -331,80 +328,22 @@ export default function AdminPushNotifications() {
 
             {draft.audience === "vendor" ? (
               <View className="mb-4">
-                <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
-                  Vendor Category
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Select vendor category"
-                  onPress={() => setCategoryPickerOpen((open) => !open)}
-                  className="min-h-12 px-4 rounded-2xl border border-border bg-background flex-row items-center mb-3"
-                >
-                  <Text
-                    className={
-                      draft.vendorCategoryName
-                        ? "flex-1 text-foreground text-sm font-semibold"
-                        : "flex-1 text-muted-foreground text-sm"
-                    }
-                  >
-                    {draft.vendorCategoryName || "All categories"}
-                  </Text>
-                  <ChevronDown size={16} className="text-muted-foreground" />
-                </Pressable>
-
-                {categoryPickerOpen ? (
-                  <View className="mb-3 border border-border rounded-2xl overflow-hidden bg-background max-h-56">
-                    {categoriesLoading ? (
-                      <View className="py-6 items-center">
-                        <ActivityIndicator color={PINK} />
-                        <Text className="text-muted-foreground text-xs mt-2">Loading categories…</Text>
-                      </View>
-                    ) : categoriesError ? (
-                      <View className="p-3">
-                        <AdminErrorState
-                          message={categoriesError}
-                          onRetry={() => void load(true)}
-                        />
-                      </View>
-                    ) : !categories.length ? (
-                      <View className="p-3">
-                        <AdminEmptyState
-                          title="No categories"
-                          message="Vendor categories could not be loaded from Supabase."
-                        />
-                      </View>
-                    ) : (
-                      <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
-                        <Pressable
-                          onPress={() => selectVendorCategory(null)}
-                          className="min-h-11 px-3 rounded-xl flex-row items-center"
-                          style={{
-                            backgroundColor: !draft.vendorCategoryId ? "#FFF0F6" : "transparent",
-                          }}
-                        >
-                          <Text className="text-foreground text-sm flex-1">All categories</Text>
-                          {!draft.vendorCategoryId ? <Check size={14} color={PINK} /> : null}
-                        </Pressable>
-                        {categories.map((category) => {
-                          const selected = draft.vendorCategoryId === category.id;
-                          return (
-                            <Pressable
-                              key={category.id}
-                              onPress={() => selectVendorCategory(category)}
-                              className="min-h-11 px-3 rounded-xl flex-row items-center"
-                              style={{ backgroundColor: selected ? "#FFF0F6" : "transparent" }}
-                            >
-                              <Text className="text-foreground text-sm flex-1" numberOfLines={1}>
-                                {category.name}
-                              </Text>
-                              {selected ? <Check size={14} color={PINK} /> : null}
-                            </Pressable>
-                          );
-                        })}
-                      </ScrollView>
-                    )}
-                  </View>
-                ) : null}
+                <View className="mb-3">
+                  {categoriesError ? (
+                    <AdminErrorState message={categoriesError} onRetry={() => void load(true)} />
+                  ) : !categoriesLoading && !categories.length ? (
+                    <AdminEmptyState title="No categories" message="Vendor categories could not be loaded from Supabase." />
+                  ) : (
+                    <HierarchySelect
+                      label="Vendor Category"
+                      value={draft.vendorCategoryName || "All categories"}
+                      options={[{ id: "all", name: "All categories" }, ...categories.map((category) => ({ id: category.id, name: category.name }))]}
+                      selectedId={draft.vendorCategoryId || "all"}
+                      loading={categoriesLoading}
+                      onSelect={(id) => selectVendorCategory(id === "all" ? null : categories.find((category) => category.id === id) ?? null)}
+                    />
+                  )}
+                </View>
 
                 <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest mb-2">
                   Find vendor

@@ -61,7 +61,7 @@ export function FinanceRevenueDashboard({ data, onChanged, lastSyncedAt, syncing
 
     <View style={styles.kpiGrid}>
       <FinanceMetric label="Gross Revenue" value={formatMoney(summary.grossRevenue)} hint="Sum of recorded revenue transactions, refunds negative" icon={Landmark} />
-      <FinanceMetric label="Estimated Tax Provision" value={formatMoney(summary.estimatedTax)} hint={'Same figure shown as "Estimated tax provision" on Overview'} icon={ShieldCheck} />
+      <FinanceMetric label="Estimated Tax Provision" value={formatMoney(summary.estimatedTax)} hint="Planning estimate, not confirmed tax payable" icon={ShieldCheck} />
       <FinanceMetric label="Payment Gateway Fees" value={gatewayFeeValue} hint={gatewayFeeHint} icon={CreditCard} tone={summary.gatewayFeeCoverage.capturedCount === 0 ? "neutral" : undefined} />
       <FinanceMetric label="Net Revenue" value={formatMoney(summary.netRevenue)} hint="Gross Revenue − Gateway Fees" icon={Wallet} />
     </View>
@@ -86,7 +86,7 @@ export function FinanceRevenueDashboard({ data, onChanged, lastSyncedAt, syncing
         </FinanceSection>
       </View>
       <View style={styles.column}>
-        <FinanceSection title="Tax summary" description="The same finance_tax_records entries shown on the Taxes tab, grouped by type. The platform-wide tax total (above, and on Overview) is the Estimated Tax Provision figure — these rows are a per-category breakdown, not a second total.">
+        <FinanceSection title="Tax summary" description="The same finance_tax_records entries shown on the Taxes tab, grouped by type. The platform-wide tax total (above) is the Estimated Tax Provision figure — these rows are a per-category breakdown, not a second total.">
           {!taxByType.length ? <FinanceEmpty title="No tax records for this period" message="Record GST or income tax entries from the Taxes tab to see them here." /> : <View style={styles.taxGrid}>
             {taxByType.map((row, index) => <TaxLine key={row.type} label={taxLabels[row.type]} value={row.amount} hint={`${row.recordCount} record${row.recordCount === 1 ? "" : "s"}`} first={index === 0} />)}
           </View>}
@@ -94,7 +94,37 @@ export function FinanceRevenueDashboard({ data, onChanged, lastSyncedAt, syncing
       </View>
     </View>
 
+    <CloudinaryCostControl usage={data.cloudinaryUsage} />
+
     <RevenueLedger data={data} rows={revenueRows} closed={closed} onChanged={onChanged} />
+  </View>;
+}
+
+// Moved here from the removed Overview tab -- this stayed the only place in
+// the UI that shows Clips media infrastructure cost, so it comes along
+// rather than disappearing when Overview did.
+function CloudinaryCostControl({ usage }: { usage: FinanceMonthData["cloudinaryUsage"] }) {
+  return <FinanceSection title="Cloudinary cost control" description="Manually recorded usage and invoice totals for Clips media infrastructure.">
+    {!usage ? <FinanceEmpty title="No Cloudinary usage recorded" message="Add this month’s usage and actual cost from the Cloudinary dashboard or invoice." /> : <>
+      <View style={styles.usageGrid}>
+        <CloudinaryUsageBar label="Storage" value={usage.storage_percent} />
+        <CloudinaryUsageBar label="Bandwidth" value={usage.bandwidth_percent} />
+        <CloudinaryUsageBar label="Transformations" value={usage.transformations_percent} />
+      </View>
+      <View style={styles.costRow}>
+        <View><Text style={styles.costLabel}>Estimated cost</Text><Text style={styles.costValue}>{formatMoney(usage.estimated_cost)}</Text></View>
+        <View style={styles.costRight}><Text style={styles.costLabel}>Actual cost</Text><Text style={styles.costValue}>{formatMoney(usage.actual_cost)}</Text></View>
+      </View>
+    </>}
+  </FinanceSection>;
+}
+
+function CloudinaryUsageBar({ label, value }: { label: string; value: number | null }) {
+  const safe = Math.min(100, Math.max(0, value ?? 0));
+  const tone = safe >= 80 ? adminPalette.warning : adminPalette.brand;
+  return <View style={styles.usageItem}>
+    <View style={styles.usageTop}><Text style={styles.sourceTitle}>{label}</Text><Text style={[styles.usageValue, { color: tone }]}>{value == null ? "—" : `${safe.toFixed(0)}%`}</Text></View>
+    <View style={styles.usageTrack}><View style={[styles.usageFill, { width: `${safe}%`, backgroundColor: tone }]} /></View>
   </View>;
 }
 
@@ -315,4 +345,6 @@ const styles = StyleSheet.create({
   pagination: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 14, paddingTop: 4 }, pageLabel: { ...typeStyles.caption, color: adminPalette.textSecondary },
   backdrop: { flex: 1, backgroundColor: "rgba(15,18,25,.42)", justifyContent: "center", padding: 14 }, modal: { width: "100%", maxWidth: 720, maxHeight: "92%", alignSelf: "center", backgroundColor: adminPalette.surface, borderRadius: 20, overflow: "hidden" }, modalHeader: { minHeight: 76, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: adminPalette.border, paddingHorizontal: 18, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 12 }, modalTitle: { ...typeStyles.sectionTitle, color: adminPalette.text }, modalHint: { ...typeStyles.caption, color: adminPalette.textSecondary, marginTop: 2 }, close: { width: 48, height: 48, borderRadius: 12, backgroundColor: adminPalette.surfaceSubtle, alignItems: "center", justifyContent: "center" }, form: { padding: 18, gap: 14 }, label: { ...typeStyles.label, color: adminPalette.textSecondary, marginBottom: 6 },
   toggle: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12 }, toggleTitle: { ...typeStyles.label, color: adminPalette.text }, toggleHint: { ...typeStyles.caption, color: adminPalette.textSecondary, marginTop: 2 },
+  usageGrid: { gap: 14 }, usageItem: { gap: 7 }, usageTop: { flexDirection: "row", justifyContent: "space-between" }, usageValue: { ...typeStyles.label }, usageTrack: { height: 7, backgroundColor: adminPalette.surfaceSubtle, borderRadius: 999, overflow: "hidden" }, usageFill: { height: "100%", borderRadius: 999 },
+  costRow: { flexDirection: "row", justifyContent: "space-between", borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: adminPalette.border, paddingTop: 14, marginTop: 14 }, costRight: { alignItems: "flex-end" }, costLabel: { ...typeStyles.label, color: adminPalette.textSecondary }, costValue: { ...typeStyles.cardTitle, color: adminPalette.text, marginTop: 3 },
 });

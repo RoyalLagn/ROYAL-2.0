@@ -1,0 +1,168 @@
+- generic [ref=e36]:
+  - generic [ref=e38]:
+    - link "RoyalLagn home" [ref=e39] [cursor=pointer]:
+      - generic "RoyalLagn Wedding Planner" [ref=e41]:
+        - img "RoyalLagn Wedding Planner" [ref=e43]
+    - generic [ref=e44]:
+      - link "Home" [ref=e45] [cursor=pointer]
+      - link "Near Me" [ref=e48] [cursor=pointer]
+      - link "Categories" [ref=e50] [cursor=pointer]
+      - link "Clips" [ref=e52] [cursor=pointer]
+      - link "Favorites" [ref=e54] [cursor=pointer]
+    - generic [ref=e58]:
+      - button "Notifications" [ref=e59] [cursor=pointer]
+      - link "Open enquiries" [ref=e63] [cursor=pointer]
+      - button "Share RoyalLagn" [ref=e66] [cursor=pointer]
+      - link "Profile" [ref=e73] [cursor=pointer]
+      - switch "Dark mode" [ref=e77] [cursor=pointer]
+  - generic [ref=e86]:
+    - generic [ref=e87]:
+      - generic [ref=e88]:
+        - generic [ref=e92]: Good Evening, there 👋
+        - generic [ref=e93]: Find your perfect wedding team
+        - generic [ref=e94]: Explore handpicked wedding professionals to make your big day unforgettable.
+        - generic [ref=e95]:
+          - textbox "Search vendors, categories and services" [ref=e101]:
+            - /placeholder: Search vendors, categories...
+          - button "Open filters" [ref=e102] [cursor=pointer]
+      - generic [ref=e105]:
+        - generic [ref=e107]:
+          - generic [ref=e109]:
+            - generic "Jewellery & Accessories hero slide" [ref=e111]:
+              - img "Jewellery & Accessories hero slide" [ref=e113]
+            - 'button "Find ANGHTHI: browse Jewellery & Accessories" [ref=e115] [cursor=pointer]':
+              - generic [ref=e116]: Find ANGHTHI
+          - generic [ref=e120]:
+            - generic "Mehndi Artists hero slide" [ref=e122]:
+              - img "Mehndi Artists hero slide" [ref=e124]
+            - 'button "Find Mehndi Artists: browse Mehndi Artists" [ref=e126] [cursor=pointer]':
+              - generic [ref=e127]: Find Mehndi Artists
+          - generic [ref=e131]:
+            - generic "Jewellery & Accessories hero slide" [ref=e133]:
+              - img "Jewellery & Accessories hero slide" [ref=e135]
+            - 'button "Find ANGHTHI: browse Jewellery & Accessories" [ref=e137] [cursor=pointer]':
+              - generic [ref=e138]: Find ANGHTHI
+        - button "Previous hero slide" [ref=e141] [cursor=pointer]
+        - button "Next hero slide" [ref=e144] [cursor=pointer]
+        - generic "Hero slide 1 of 2":
+          - button "Show hero slide 1" [ref=e147] [cursor=pointer]
+          - button "Show hero slide 2" [ref=e149] [cursor=pointer]
+    - generic [ref=e151]:
+      - generic [ref=e152]:
+        - generic [ref=e153]:
+          - generic [ref=e154]: Top Categories
+          - generic [ref=e156]: Everything you need for the celebration
+        - button "View All Top Categories" [ref=e157] [cursor=pointer]:
+          - generic [ref=e158]: View All
+      - generic [ref=e161]:
+        - button "Browse Venues" [ref=e162] [cursor=pointer]:
+          - generic [ref=e163]:
+            - generic "Venues category" [ref=e166]:
+              - img "Venues category" [ref=e168]
+            - generic [ref=e169]: Venues
+        - button "Browse Caterers" [ref=e170] [cursor=pointer]:
+          - generic [ref=e171]:
+            - generic "Caterers category" [ref=e174]:
+              - img "Caterers category" [ref=e176]
+            - generic [ref=e177]: Caterers
+        - button "Browse Photographers" [ref=e178] [cursor=pointer]:
+          - generic [ref=e179]:
+            - generic "Photographers category" [ref=e182]:
+              - img "Photographers category" [ref=e184]
+            - generic [ref=e185]: Photographers
+        - button "Browse Decorators" [ref=e186] [cursor=pointer]:
+          - generic [ref=e187]:
+            - generic "Decorators category" [ref=e190]:
+              - img "Decorators category" [ref=e192]
+            - generic [ref=e193]: Decorators
+        - button "Browse Makeup Artists" [ref=e194] [cursor=pointer]:
+          - generic [ref=e195]:
+            - generic "Makeup Artists category" [ref=e198]:
+              - img "Makeup Artists category" [ref=e200]
+            - generic [ref=e201]: Makeup Artists
+        - button "Browse Mehndi Artists" [ref=e202] [cursor=pointer]:
+          - generic [ref=e203]:
+            - generic "Mehndi Artists category" [ref=e206]:
+              - img "Mehndi Artists category" [ref=e208]
+            - generic [ref=e209]: Mehndi Artists
+        - button "Browse DJs" [ref=e210] [cursor=pointer]:
+          - generic [ref=e211]:
+            - generic "DJs category" [ref=e214]:
+              - img "DJs category" [ref=e216]
+            - generic [ref=e217]: DJs
+        - button "Browse Bridal Wear" [ref=e218] [cursor=pointer]:
+          - generic [ref=e219]:
+            - generic "Bridal Wear category" [ref=e222]:
+              - img "Bridal Wear category" [ref=e224]
+            - generic [ref=e225]: Bridal Wear
+        - button "Browse Groom Wear" [ref=e226] [cursor=pointer]:
+          - generic [ref=e227]:
+            - generic "Groom Wear category" [ref=e230]:
+              - img "Groom Wear category" [ref=e232]
+            - generic [ref=e233]: Groom Wear
+        - button "Browse Jewellery & Accessories" [ref=e234] [cursor=pointer]:
+          - generic [ref=e235]:
+            - generic "Jewellery & Accessories category" [ref=e238]:
+              - img "Jewellery & Accessories category" [ref=e240]
+            - generic [ref=e241]: Jewellery & Accessories
+      - button "Show more categories" [ref=e242] [cursor=pointer]:
+        - generic [ref=e248]: More Categories
+    - generic [ref=e249]:
+      - generic [ref=e251]:
+        - generic [ref=e252]: Trending Searches
+        - generic [ref=e254]: Popular ways to start your search
+      - generic [ref=e256]:
+        - button "Search for Wedding Photographers" [ref=e257] [cursor=pointer]:
+          - generic [ref=e261]: Wedding Photographers
+        - button "Search for Mandap Decorators" [ref=e262] [cursor=pointer]:
+          - generic [ref=e266]: Mandap Decorators
+        - button "Search for Destination Wedding" [ref=e267] [cursor=pointer]:
+          - generic [ref=e271]: Destination Wedding
+        - button "Search for Bridal Makeup" [ref=e272] [cursor=pointer]:
+          - generic [ref=e276]: Bridal Makeup
+    - generic [ref=e277]:
+      - generic [ref=e278]:
+        - generic [ref=e279]:
+          - generic [ref=e280]: Near Me
+          - generic [ref=e282]: Nearby first for Pune, Maharashtra
+        - button "View All Near Me" [ref=e283] [cursor=pointer]:
+          - generic [ref=e284]: View All
+      - generic [ref=e289]:
+        - button "Open ww" [ref=e290] [cursor=pointer]:
+          - generic [ref=e294]:
+            - generic [ref=e295]: "0"
+            - generic [ref=e299]: Verified
+          - generic [ref=e304]:
+            - generic [ref=e306]:
+              - generic [ref=e307]: ww
+              - generic [ref=e308]: Groom Wear
+            - generic [ref=e309]:
+              - generic [ref=e310]: Pune, Maharashtra
+              - generic [ref=e315]: Contact for price onwards
+        - button "Add ww to favorites" [ref=e316] [cursor=pointer]
+    - generic [ref=e320]:
+      - generic [ref=e321]:
+        - generic [ref=e322]:
+          - generic [ref=e323]:
+            - generic [ref=e324]: Top Rated Vendors
+            - generic [ref=e325]: Highest Rated
+          - generic [ref=e329]: Browse vendors ordered by customer ratings
+        - button "View All Top Rated Vendors" [ref=e330] [cursor=pointer]:
+          - generic [ref=e331]: View All
+      - generic [ref=e336]:
+        - button "Open ww" [ref=e337] [cursor=pointer]:
+          - generic [ref=e341]:
+            - generic [ref=e342]: "0"
+            - generic [ref=e346]: Verified
+          - generic [ref=e351]:
+            - generic [ref=e353]:
+              - generic [ref=e354]: ww
+              - generic [ref=e355]: Groom Wear
+            - generic [ref=e356]:
+              - generic [ref=e357]: Pune, Maharashtra
+              - generic [ref=e362]: Contact for price onwards
+        - button "Add ww to favorites" [ref=e363] [cursor=pointer]
+    - generic [ref=e371]:
+      - generic [ref=e372]: List Your Business
+      - generic [ref=e373]: Join thousands of vendors growing with us
+      - generic [ref=e374] [cursor=pointer]: Register Now

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { X } from "lucide-react-native";
 import { CrmCategoryService } from "@/services/crm/categoryService";
 import type { CrmVendorCategory } from "@/types/crm/category";
 import type { CrmWorkspaceVendorInput } from "@/types/crm/workspace";
 import type { CrmVendorPriority } from "@/types/crm/vendor";
+import { sanitizePhoneInput, validatePhone } from "@/utils/authValidation";
 
 type WorkspaceVendorEditorProps = {
   visible: boolean;
@@ -18,9 +19,9 @@ type WorkspaceVendorEditorProps = {
 
 const priorities: CrmVendorPriority[] = ["low", "medium", "high"];
 
-function Field({ label, value, onChangeText, placeholder, keyboardType }: {
+function Field({ label, value, onChangeText, placeholder, keyboardType, error, maxLength }: {
   label: string; value: string; onChangeText: (value: string) => void; placeholder?: string;
-  keyboardType?: "default" | "phone-pad" | "email-address" | "url";
+  keyboardType?: "default" | "phone-pad" | "email-address" | "url"; error?: string; maxLength?: number;
 }) {
   return (
     <View className="mb-3">
@@ -31,8 +32,10 @@ function Field({ label, value, onChangeText, placeholder, keyboardType }: {
         placeholder={placeholder}
         placeholderTextColor="#9CA3AF"
         keyboardType={keyboardType}
-        className="h-12 border border-border rounded-2xl px-4 text-foreground bg-background"
+        maxLength={maxLength}
+        className={`h-12 border rounded-2xl px-4 text-foreground bg-background ${error ? "border-red-500" : "border-border"}`}
       />
+      {error ? <Text accessibilityRole="alert" className="text-red-500 text-xs mt-1">{error}</Text> : null}
     </View>
   );
 }
@@ -53,6 +56,14 @@ export function WorkspaceVendorEditor({ visible, initial, isEdit, saving, error,
 
   const set = <K extends keyof CrmWorkspaceVendorInput>(key: K, value: CrmWorkspaceVendorInput[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
+
+  const errors = useMemo(() => {
+    const next: { phone?: string; whatsapp?: string } = {};
+    if (form.phone?.trim() && !validatePhone(form.phone)) next.phone = "Enter a valid 10-digit mobile number.";
+    if (form.whatsapp?.trim() && !validatePhone(form.whatsapp)) next.whatsapp = "Enter a valid 10-digit mobile number.";
+    return next;
+  }, [form.phone, form.whatsapp]);
+  const hasErrors = Object.keys(errors).length > 0;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -84,8 +95,8 @@ export function WorkspaceVendorEditor({ visible, initial, isEdit, saving, error,
 
             <Field label="Business Name *" value={form.businessName} onChangeText={(value) => set("businessName", value)} placeholder="e.g. Royal Wedding Hall" />
             <Field label="Owner Name" value={form.ownerName ?? ""} onChangeText={(value) => set("ownerName", value)} />
-            <Field label="Phone" value={form.phone ?? ""} onChangeText={(value) => set("phone", value)} keyboardType="phone-pad" />
-            <Field label="WhatsApp" value={form.whatsapp ?? ""} onChangeText={(value) => set("whatsapp", value)} keyboardType="phone-pad" />
+            <Field label="Phone" value={form.phone ?? ""} onChangeText={(value) => set("phone", sanitizePhoneInput(value))} keyboardType="phone-pad" placeholder="10-digit mobile number" maxLength={20} error={errors.phone} />
+            <Field label="WhatsApp" value={form.whatsapp ?? ""} onChangeText={(value) => set("whatsapp", sanitizePhoneInput(value))} keyboardType="phone-pad" placeholder="10-digit mobile number" maxLength={20} error={errors.whatsapp} />
             <Field label="Area" value={form.area ?? ""} onChangeText={(value) => set("area", value)} placeholder="Locality within the cluster" />
             <Field label="Notes" value={form.notes ?? ""} onChangeText={(value) => set("notes", value)} placeholder="Quick summary" />
 
@@ -103,10 +114,10 @@ export function WorkspaceVendorEditor({ visible, initial, isEdit, saving, error,
             </View>
 
             <Pressable
-              disabled={saving || !form.businessName.trim() || !form.categoryId}
+              disabled={saving || !form.businessName.trim() || !form.categoryId || hasErrors}
               onPress={() => void onSave(form)}
               className="h-12 rounded-2xl bg-primary items-center justify-center mb-2"
-              style={{ opacity: saving || !form.businessName.trim() || !form.categoryId ? 0.6 : 1 }}
+              style={{ opacity: saving || !form.businessName.trim() || !form.categoryId || hasErrors ? 0.6 : 1 }}
             >
               {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text className="text-white text-sm font-bold">{isEdit ? "Save Changes" : "Add Vendor"}</Text>}
             </Pressable>

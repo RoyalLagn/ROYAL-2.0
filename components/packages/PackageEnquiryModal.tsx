@@ -7,6 +7,7 @@ import { EnquiryService } from "@/services/enquiries";
 import { typeScale } from "@/constants/typography";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 import { brandPalette } from "@/constants/brandPalette";
+import { sanitizePhoneInput, validatePhone } from "@/utils/authValidation";
 
 const PINK = brandPalette.light.primary;
 
@@ -37,6 +38,7 @@ export default function PackageEnquiryModal({ visible, vendorId, vendorName, ite
       onSignInRequired();
       return;
     }
+    if (phone && !validatePhone(phone)) return Alert.alert("Check phone number", "Enter a valid 10-digit mobile number.");
     if (eventDate && !isValidDate(eventDate)) return Alert.alert("Check event date", "Enter a real date using YYYY-MM-DD.");
     if (message.trim().length < 10) return Alert.alert("Add a message", "Tell the vendor a little about your event.");
     if (sending) return;
@@ -68,7 +70,7 @@ export default function PackageEnquiryModal({ visible, vendorId, vendorName, ite
   >
       <View style={styles.header}><View style={styles.icon}><Send size={20} color={PINK} /></View><View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>Enquire about package</Text><Text style={[styles.subtitle, { color: colors.muted }]}>{item?.title}</Text></View><Pressable onPress={onClose} accessibilityLabel="Close enquiry" style={[styles.close, { backgroundColor: colors.background }]}><X size={20} color={colors.text} /></Pressable></View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
-        <Field label="Phone" value={phone} onChangeText={setPhone} placeholder="Your contact number" colors={colors} keyboardType="phone-pad" />
+        <Field label="Phone" value={phone} onChangeText={(value: string) => setPhone(sanitizePhoneInput(value))} placeholder="10-digit mobile number" colors={colors} keyboardType="phone-pad" maxLength={20} />
         <View style={styles.two}><Field label="Event date" value={eventDate} onChangeText={setEventDate} placeholder="YYYY-MM-DD" colors={colors} icon={<CalendarDays size={15} color={PINK} />} /><Field label="Event type" value={eventType} onChangeText={setEventType} placeholder="Wedding, reception…" colors={colors} /></View>
         <Field label="Message" value={message} onChangeText={setMessage} placeholder="Tell the vendor what you need" colors={colors} multiline />
       </ScrollView>

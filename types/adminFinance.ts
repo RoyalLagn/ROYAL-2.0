@@ -1,5 +1,5 @@
 export type FinanceDirection = "revenue" | "expense";
-export type FinanceTab = "overview" | "revenue" | "expenses" | "budgets" | "taxes" | "forecast" | "reports";
+export type FinanceTab = "revenue" | "expenses" | "taxes" | "forecast" | "reports";
 
 export type FinanceCategory = {
   id: string;

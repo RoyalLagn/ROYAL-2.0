@@ -18,6 +18,7 @@ import {
 } from "@/services/publicAuth";
 import { loginMobileUser } from "@/services/authNavigation";
 import {
+  sanitizePhoneInput,
   validateEmail,
   validateFullName,
   validatePhone,
@@ -211,9 +212,10 @@ export default function LoginScreen() {
               required
               icon={Phone}
               value={phone}
-              onChangeText={(value) => { setPhone(value.replace(/\D/g, "")); setError(""); }}
+              onChangeText={(value) => { setPhone(sanitizePhoneInput(value)); setError(""); }}
               placeholder="10-digit mobile number"
               keyboardType="phone-pad"
+              maxLength={20}
               textContentType="telephoneNumber"
               autoComplete="tel"
               returnKeyType="next"

@@ -1,0 +1,16 @@
+- generic [ref=f12e13]:
+  - button "Go back" [ref=f12e15] [cursor=pointer]
+  - generic [ref=f12e21]:
+    - generic [ref=f12e22]:
+      - generic "RoyalLagn Wedding Planner" [ref=f12e24]:
+        - img "RoyalLagn Wedding Planner" [ref=f12e26]
+      - generic [ref=f12e27]: Create your account
+    - generic [ref=f12e29]:
+      - tab "Login" [ref=f12e30] [cursor=pointer]
+      - tab "Sign Up" [active] [ref=f12e32] [cursor=pointer]
+    - generic [ref=f12e34]:
+      - generic [ref=f12e57]: Choose account type
+      - button "Continue as a customer" [ref=f12e58] [cursor=pointer]:
+        - generic [ref=f12e63]: Public / Customer
+      - button "Continue as a vendor" [ref=f12e67] [cursor=pointer]:
+        - generic [ref=f12e73]: Vendor

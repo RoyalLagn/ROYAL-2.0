@@ -60,7 +60,7 @@ export function financialYearBounds(financialYearStart: string) {
 
 export function financialYearLabel(financialYearStart: string) {
   const startYear = Number(financialYearStart.slice(0, 4));
-  return `${startYear}–${String((startYear + 1) % 100).padStart(2, "0")}`;
+  return `${startYear}-${String((startYear + 1) % 100).padStart(2, "0")}`;
 }
 
 /** Selectable financial years for the Tax Provision dashboard: a few completed years through one year ahead for planning. */
@@ -636,7 +636,7 @@ export const AdminFinanceService = {
       if (refreshTimer) clearTimeout(refreshTimer);
       refreshTimer = setTimeout(onChange, 100);
     };
-    ["finance_transactions", "finance_budgets", "finance_budget_items", "finance_tax_records", "finance_cloudinary_usage", "finance_scenarios", "finance_monthly_closures"].forEach((table) => {
+    ["finance_transactions", "finance_budgets", "finance_budget_items", "finance_tax_records", "finance_cloudinary_usage", "finance_scenarios", "finance_monthly_closures", "finance_annual_tax_adjustments"].forEach((table) => {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, scheduleRefresh);
     });
     channel.subscribe();

@@ -8,12 +8,18 @@ import {
   serviceClient,
   userClient,
 } from "../_shared/subscriptions.ts";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
   try {
     const { vendor } = await requireOwnedVendor(userClient(request.headers.get("Authorization") ?? ""));
+    // Generous ceiling -- legitimate verification can retry a few times on
+    // a flaky connection; this only stops scripted verification spam.
+    if (!(await checkRateLimit(serviceClient(), `verify-razorpay-payment:${vendor.id}`, 20, 600))) {
+      return json({ error: "Too many verification attempts. Please wait a few minutes and try again." }, 429);
+    }
     const body = await request.json();
     const orderId = String(body.razorpayOrderId ?? "");
     const providerPaymentId = String(body.razorpayPaymentId ?? "");

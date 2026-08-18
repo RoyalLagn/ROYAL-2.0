@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { Field, kitStyles } from "@/components/vendor/VendorProfileFormKit";
 import { typeScale } from "@/constants/typography";
+import { sanitizePhoneInput } from "@/utils/authValidation";
 
 export type MarketingCardFormValues = {
   mobileNumber: string;
@@ -39,9 +40,10 @@ export default function MarketingCardForm({
         label="Mobile Number"
         required
         value={values.mobileNumber}
-        onChangeText={(value) => onChange("mobileNumber", value)}
-        placeholder="e.g. 9876543210"
+        onChangeText={(value) => onChange("mobileNumber", sanitizePhoneInput(value))}
+        placeholder="10-digit mobile number"
         keyboardType="phone-pad"
+        maxLength={20}
         colors={colors}
         error={errors.mobileNumber}
       />
@@ -49,9 +51,10 @@ export default function MarketingCardForm({
         label="WhatsApp Number"
         required
         value={values.whatsappNumber}
-        onChangeText={(value) => onChange("whatsappNumber", value)}
-        placeholder="e.g. 9876543210"
+        onChangeText={(value) => onChange("whatsappNumber", sanitizePhoneInput(value))}
+        placeholder="10-digit mobile number"
         keyboardType="phone-pad"
+        maxLength={20}
         colors={colors}
         error={errors.whatsappNumber}
       />

@@ -8,6 +8,7 @@ import { usePublicAuth } from "@/context/PublicAuthContext";
 import {
   CloudinaryError, deleteManagedProfileImage, pickProfileImage, uploadProfileImage, type ProfileImageAsset, } from "@/services/cloudinary";
 import { getPublicAuthError, updatePublicProfile } from "@/services/publicAuth";
+import { sanitizePhoneInput, validatePhone } from "@/utils/authValidation";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import SquareImageEditor from "@/components/vendor/SquareImageEditor";
 import PageLoader from "@/components/loading/PageLoader";
@@ -104,6 +105,7 @@ export default function EditProfile() {
 
   const save = async () => {
     if (!session?.user.id) return Alert.alert("Session expired", "Sign in again to update your profile.");
+    if (phone && !validatePhone(phone)) return Alert.alert("Invalid phone number", "Enter a valid 10-digit mobile number.");
     setSaving(true);
     setSaved(false);
     try {
@@ -189,7 +191,7 @@ export default function EditProfile() {
 
           <View style={[styles.divider, { backgroundColor: border }]} />
           <Field icon={UserRound} label="Full name" value={fullName} onChangeText={(value) => { setFullName(value); setSaved(false); }} placeholder="Your full name" colors={{ text, muted, pink, soft, border }} />
-          <Field icon={Phone} label="Phone number" value={phone} onChangeText={(value) => { setPhone(value); setSaved(false); }} placeholder="+91 98765 43210" keyboardType="phone-pad" colors={{ text, muted, pink, soft, border }} />
+          <Field icon={Phone} label="Phone number" value={phone} onChangeText={(value) => { setPhone(sanitizePhoneInput(value)); setSaved(false); }} placeholder="10-digit mobile number" keyboardType="phone-pad" maxLength={20} colors={{ text, muted, pink, soft, border }} />
 
           <View style={styles.field}>
             <Text style={[styles.label, { color: text }]}>Email address</Text>
@@ -238,16 +240,17 @@ type FieldProps = {
   onChangeText: (value: string) => void;
   placeholder?: string;
   keyboardType?: TextInputProps["keyboardType"];
+  maxLength?: number;
   colors: FieldColors;
 };
 
-function Field({ icon: Icon, label, value, onChangeText, placeholder, keyboardType = "default", colors }: FieldProps) {
+function Field({ icon: Icon, label, value, onChangeText, placeholder, keyboardType = "default", maxLength, colors }: FieldProps) {
   return (
     <View style={styles.field}>
       <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
       <View style={[styles.inputWrap, { backgroundColor: colors.soft, borderColor: colors.border }]}>
         <Icon size={18} color={colors.pink} />
-        <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={colors.muted} keyboardType={keyboardType} style={[styles.input, { color: colors.text }]} />
+        <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={colors.muted} keyboardType={keyboardType} maxLength={maxLength} style={[styles.input, { color: colors.text }]} />
       </View>
     </View>
   );
