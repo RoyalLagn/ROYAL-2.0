@@ -1,5 +1,5 @@
 export type FinanceDirection = "revenue" | "expense";
-export type FinanceTab = "overview" | "revenue" | "expenses" | "budgets" | "profit-loss" | "taxes" | "forecast" | "reports";
+export type FinanceTab = "overview" | "revenue" | "expenses" | "budgets" | "taxes" | "forecast" | "reports";
 
 export type FinanceCategory = {
   id: string;
@@ -125,7 +125,7 @@ export type FinanceSummary = {
  * A plain sum of finance_tax_records within ONE existing tax_type — never a
  * cross-type combination or invented formula. The app's one and only
  * aggregate "total tax" figure remains FinanceSummary.estimatedTax (the same
- * "Estimated tax provision" already shown on Overview and Profit & Loss);
+ * "Estimated tax provision" already shown on Overview);
  * this type is for the per-category informational breakdown only.
  */
 export type FinanceTaxTypeTotal = {
@@ -147,6 +147,90 @@ export type FinanceRevenueTrendPoint = {
   gatewayFee: number;
   net: number;
   transactionCount: number;
+};
+
+/**
+ * Output of the single partnership-firm yearly tax calculation
+ * (computePartnershipTax in adminFinanceService). Every screen that shows a
+ * partnership tax figure must consume this shape rather than recomputing
+ * income tax / surcharge / cess itself.
+ */
+export type PartnershipTaxResult = {
+  taxableIncome: number;
+  incomeTaxRate: number;
+  incomeTax: number;
+  surchargeRate: number;
+  surcharge: number;
+  /** Amount by which surcharge was reduced to keep tax+surcharge within the marginal-relief cap. 0 when not applicable. */
+  marginalRelief: number;
+  cessRate: number;
+  cess: number;
+  estimatedTotalTax: number;
+  estimatedProfitAfterTax: number;
+};
+
+/**
+ * Forecast's tax estimate — a display/prediction-only figure derived from
+ * scenario assumptions, computed by the SAME engine as Yearly Tax
+ * (computePartnershipTax). Never persisted, never written to any actual
+ * Finance table; recomputed live from a scenario's saved assumptions.
+ */
+export type ForecastTaxEstimate = {
+  annualRevenue: number;
+  annualExpenses: number;
+  profitBeforeTax: number;
+  incomeTaxRate: number;
+  incomeTax: number;
+  surchargeRate: number;
+  surcharge: number;
+  marginalRelief: number;
+  cessRate: number;
+  cess: number;
+  totalEstimatedTax: number;
+  profitAfterTax: number;
+  /** Total Estimated Tax / Profit Before Tax * 100. Null when Profit Before Tax <= 0 (not meaningful). */
+  effectiveTaxRate: number | null;
+};
+
+/** finance_annual_tax_adjustments — one row per financial year (Apr 1 start). */
+export type FinanceAnnualTaxAdjustment = {
+  financialYearStart: string;
+  adjustment: number;
+  notes: string | null;
+};
+
+/**
+ * Everything the yearly Tax Provision dashboard needs for one financial
+ * year: Finance-sourced totals (from admin_finance_year_summary), the
+ * optional CA adjustment, and the tax already paid (reused from existing
+ * finance_tax_records income_tax_paid rows for the same period).
+ */
+export type FinanceYearTaxData = {
+  financialYearStart: string;
+  financialYearEnd: string;
+  annualRevenue: number;
+  annualExpenses: number;
+  taxAdjustment: number;
+  taxAdjustmentNotes: string | null;
+  taxPaid: number;
+};
+
+/**
+ * One row of the Monthly Tax Estimate management view — a per-month
+ * provisioning estimate (30% + 4% cess on that month's Finance profit,
+ * never a surcharge). This is NOT part of PartnershipTaxResult and never
+ * feeds into it; the Yearly Tax model remains the sole authoritative annual
+ * calculation. See computeMonthlyTaxEstimate in adminFinanceService.
+ */
+export type MonthlyTaxEstimateRow = {
+  monthStart: string;
+  monthLabel: string;
+  revenue: number;
+  expenses: number;
+  profit: number;
+  incomeTax: number;
+  cess: number;
+  estimatedTax: number;
 };
 
 export type FinanceTransactionInput = {

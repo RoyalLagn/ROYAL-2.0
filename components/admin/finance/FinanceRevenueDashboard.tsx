@@ -61,7 +61,7 @@ export function FinanceRevenueDashboard({ data, onChanged, lastSyncedAt, syncing
 
     <View style={styles.kpiGrid}>
       <FinanceMetric label="Gross Revenue" value={formatMoney(summary.grossRevenue)} hint="Sum of recorded revenue transactions, refunds negative" icon={Landmark} />
-      <FinanceMetric label="Estimated Tax Provision" value={formatMoney(summary.estimatedTax)} hint={'Same figure shown as "Estimated tax provision" on Overview and Profit & Loss'} icon={ShieldCheck} />
+      <FinanceMetric label="Estimated Tax Provision" value={formatMoney(summary.estimatedTax)} hint={'Same figure shown as "Estimated tax provision" on Overview'} icon={ShieldCheck} />
       <FinanceMetric label="Payment Gateway Fees" value={gatewayFeeValue} hint={gatewayFeeHint} icon={CreditCard} tone={summary.gatewayFeeCoverage.capturedCount === 0 ? "neutral" : undefined} />
       <FinanceMetric label="Net Revenue" value={formatMoney(summary.netRevenue)} hint="Gross Revenue − Gateway Fees" icon={Wallet} />
     </View>
@@ -86,7 +86,7 @@ export function FinanceRevenueDashboard({ data, onChanged, lastSyncedAt, syncing
         </FinanceSection>
       </View>
       <View style={styles.column}>
-        <FinanceSection title="Tax summary" description="The same finance_tax_records entries shown on the Taxes tab, grouped by type. The platform-wide tax total (above, and on Overview / Profit & Loss) is the Estimated Tax Provision figure — these rows are a per-category breakdown, not a second total.">
+        <FinanceSection title="Tax summary" description="The same finance_tax_records entries shown on the Taxes tab, grouped by type. The platform-wide tax total (above, and on Overview) is the Estimated Tax Provision figure — these rows are a per-category breakdown, not a second total.">
           {!taxByType.length ? <FinanceEmpty title="No tax records for this period" message="Record GST or income tax entries from the Taxes tab to see them here." /> : <View style={styles.taxGrid}>
             {taxByType.map((row, index) => <TaxLine key={row.type} label={taxLabels[row.type]} value={row.amount} hint={`${row.recordCount} record${row.recordCount === 1 ? "" : "s"}`} first={index === 0} />)}
           </View>}

@@ -59,25 +59,35 @@ export function useMarketingWorkspaceDetail(workspaceId: string | null) {
     }
   }, [workspaceId]);
 
+  // Both return a success boolean (rather than throwing) so the page can show
+  // a distinct success confirmation. Neither ever updates `workspace` — and
+  // therefore never flips the visible status/token — until the backend call
+  // has actually succeeded; on failure only `error` changes, so the UI never
+  // optimistically shows a paused/resumed/revoked/regenerated state that the
+  // database doesn't actually have.
   const setStatus = useCallback(async (status: MarketingWorkspaceStatus) => {
-    if (!workspaceId) return;
+    if (!workspaceId) return false;
     setSaving(true);
     try {
       setWorkspace(await CrmMarketingWorkspaceService.setStatus(workspaceId, status));
+      return true;
     } catch (reason) {
       setError(errorMessage(reason));
+      return false;
     } finally {
       setSaving(false);
     }
   }, [workspaceId]);
 
   const regenerateToken = useCallback(async () => {
-    if (!workspaceId) return;
+    if (!workspaceId) return false;
     setSaving(true);
     try {
       setWorkspace(await CrmMarketingWorkspaceService.regenerateToken(workspaceId));
+      return true;
     } catch (reason) {
       setError(errorMessage(reason));
+      return false;
     } finally {
       setSaving(false);
     }

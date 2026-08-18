@@ -16,6 +16,10 @@ import type {
   FinanceTaxTypeTotal,
   FinanceTransaction,
   FinanceTransactionInput,
+  FinanceYearTaxData,
+  ForecastTaxEstimate,
+  MonthlyTaxEstimateRow,
+  PartnershipTaxResult,
 } from "@/types/adminFinance";
 
 const PAGE_SIZE = 1000;
@@ -27,6 +31,190 @@ function monthBounds(monthStart: string) {
   const end = new Date(start);
   end.setUTCMonth(end.getUTCMonth() + 1);
   return { start: monthStart, end: end.toISOString().slice(0, 10) };
+}
+
+/** Rounds to whole paise (2 decimals) to keep repeated percentage math from drifting on floating point. */
+function roundMoney(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * Indian financial year (April 1 - March 31) helpers. RoyalLagn's tax
+ * provision is computed per financial year, never per calendar month — see
+ * computePartnershipTax below.
+ */
+export function financialYearStartFor(date: Date | string) {
+  const value = typeof date === "string" ? new Date(`${date}T00:00:00.000Z`) : date;
+  const year = value.getUTCFullYear();
+  const isBeforeApril = value.getUTCMonth() < 3; // 0-indexed: Jan=0 .. Mar=2
+  const startYear = isBeforeApril ? year - 1 : year;
+  return `${startYear}-04-01`;
+}
+
+export function financialYearBounds(financialYearStart: string) {
+  if (!/^\d{4}-04-01$/.test(financialYearStart)) throw new Error("Choose a valid financial year.");
+  const startYear = Number(financialYearStart.slice(0, 4));
+  return { start: financialYearStart, end: `${startYear + 1}-04-01`, endInclusive: `${startYear + 1}-03-31` };
+}
+
+export function financialYearLabel(financialYearStart: string) {
+  const startYear = Number(financialYearStart.slice(0, 4));
+  return `${startYear}–${String((startYear + 1) % 100).padStart(2, "0")}`;
+}
+
+/** Selectable financial years for the Tax Provision dashboard: a few completed years through one year ahead for planning. */
+export function financialYearOptions(referenceDate: Date = new Date()) {
+  const current = Number(financialYearStartFor(referenceDate).slice(0, 4));
+  return Array.from({ length: 6 }, (_, index) => `${current + 1 - (5 - index)}-04-01`);
+}
+
+const PARTNERSHIP_INCOME_TAX_RATE = 0.3;
+const PARTNERSHIP_SURCHARGE_THRESHOLD = 10_000_000; // ₹1 crore
+const PARTNERSHIP_SURCHARGE_RATE = 0.12;
+const PARTNERSHIP_CESS_RATE = 0.04;
+
+/**
+ * Single source of truth for the partnership-firm yearly tax provision.
+ * Every screen showing this figure (currently only the Taxes tab's Tax
+ * Provision dashboard) must call this function rather than recomputing it.
+ *
+ * This is an ESTIMATED TAX PROVISION for planning only, not a filing
+ * calculation — rates below reflect the long-standing partnership-firm
+ * rules (flat 30% income tax; 12% surcharge above ₹1 crore taxable income,
+ * capped by marginal relief; 4% Health & Education Cess on tax + surcharge)
+ * and must be reconfirmed against the official rules for the selected
+ * financial year by the firm's CA before being relied on.
+ *
+ * Marginal relief: above ₹1 crore, the increase in (income tax + surcharge)
+ * over the flat tax on exactly ₹1 crore cannot exceed the amount of income
+ * that exceeds ₹1 crore. When the normal 12% surcharge would breach that
+ * cap, surcharge is reduced by the excess (never below ₹0) so total
+ * tax + surcharge lands exactly on the cap.
+ */
+export function computePartnershipTax(taxableIncome: number): PartnershipTaxResult {
+  const income = Number.isFinite(taxableIncome) ? Math.max(taxableIncome, 0) : 0;
+  const incomeTax = roundMoney(income * PARTNERSHIP_INCOME_TAX_RATE);
+
+  let surchargeRate = 0;
+  let surcharge = 0;
+  let marginalRelief = 0;
+  if (income > PARTNERSHIP_SURCHARGE_THRESHOLD) {
+    surchargeRate = PARTNERSHIP_SURCHARGE_RATE;
+    const normalSurcharge = roundMoney(incomeTax * surchargeRate);
+    const taxAtThreshold = roundMoney(PARTNERSHIP_SURCHARGE_THRESHOLD * PARTNERSHIP_INCOME_TAX_RATE);
+    const excessOverThreshold = income - PARTNERSHIP_SURCHARGE_THRESHOLD;
+    const marginalReliefCap = taxAtThreshold + excessOverThreshold;
+    const normalTotal = incomeTax + normalSurcharge;
+    if (normalTotal > marginalReliefCap) {
+      marginalRelief = roundMoney(normalTotal - marginalReliefCap);
+      surcharge = Math.max(roundMoney(normalSurcharge - marginalRelief), 0);
+    } else {
+      surcharge = normalSurcharge;
+    }
+  }
+
+  const cess = roundMoney((incomeTax + surcharge) * PARTNERSHIP_CESS_RATE);
+  const estimatedTotalTax = roundMoney(incomeTax + surcharge + cess);
+  const estimatedProfitAfterTax = roundMoney(income - estimatedTotalTax);
+
+  return {
+    taxableIncome: income,
+    incomeTaxRate: PARTNERSHIP_INCOME_TAX_RATE,
+    incomeTax,
+    surchargeRate,
+    surcharge,
+    marginalRelief,
+    cessRate: PARTNERSHIP_CESS_RATE,
+    cess,
+    estimatedTotalTax,
+    estimatedProfitAfterTax,
+  };
+}
+
+/**
+ * Forecast's tax estimate — display/prediction only, NEVER persisted and
+ * NEVER written to any actual Finance table. Reuses computePartnershipTax
+ * (the exact same engine Yearly Tax uses — same 30% income tax, same 12%
+ * surcharge above ₹1 crore with marginal relief, same 4% cess) so Forecast
+ * can never drift into a second, conflicting tax formula. The only
+ * difference from Yearly Tax is the input: scenario assumptions
+ * (Expected Annual Revenue − Estimated Annual Expenses) instead of actual
+ * Finance data, and no Tax Adjustment concept (Forecast has none).
+ *
+ * Tax is never calculated on a loss: when profitBeforeTax <= 0, every tax
+ * figure is ₹0 and profitAfterTax is simply the loss/zero profit itself —
+ * NOT computePartnershipTax's own zero-clamped result, which would hide a
+ * real projected loss behind a ₹0 "profit after tax".
+ */
+export function computeForecastTaxEstimate(annualRevenue: number, annualExpenses: number): ForecastTaxEstimate {
+  const revenue = Number.isFinite(annualRevenue) ? annualRevenue : 0;
+  const expenses = Number.isFinite(annualExpenses) ? annualExpenses : 0;
+  const profitBeforeTax = roundMoney(revenue - expenses);
+
+  if (profitBeforeTax <= 0) {
+    return {
+      annualRevenue: revenue,
+      annualExpenses: expenses,
+      profitBeforeTax,
+      incomeTaxRate: PARTNERSHIP_INCOME_TAX_RATE,
+      incomeTax: 0,
+      surchargeRate: 0,
+      surcharge: 0,
+      marginalRelief: 0,
+      cessRate: PARTNERSHIP_CESS_RATE,
+      cess: 0,
+      totalEstimatedTax: 0,
+      profitAfterTax: profitBeforeTax,
+      effectiveTaxRate: null,
+    };
+  }
+
+  const tax = computePartnershipTax(profitBeforeTax);
+  const profitAfterTax = roundMoney(profitBeforeTax - tax.estimatedTotalTax);
+  return {
+    annualRevenue: revenue,
+    annualExpenses: expenses,
+    profitBeforeTax,
+    incomeTaxRate: tax.incomeTaxRate,
+    incomeTax: tax.incomeTax,
+    surchargeRate: tax.surchargeRate,
+    surcharge: tax.surcharge,
+    marginalRelief: tax.marginalRelief,
+    cessRate: tax.cessRate,
+    cess: tax.cess,
+    totalEstimatedTax: tax.estimatedTotalTax,
+    profitAfterTax,
+    effectiveTaxRate: (tax.estimatedTotalTax / profitBeforeTax) * 100,
+  };
+}
+
+/** The 12 month-start dates (April - March) of a financial year, in order. */
+export function financialYearMonths(financialYearStart: string) {
+  const startYear = Number(financialYearStart.slice(0, 4));
+  return Array.from({ length: 12 }, (_, index) => {
+    const monthIndex = 3 + index; // April = month index 3 (0-based)
+    const year = startYear + Math.floor(monthIndex / 12);
+    const month = (monthIndex % 12) + 1;
+    return `${year}-${String(month).padStart(2, "0")}-01`;
+  });
+}
+
+/**
+ * Monthly Tax Estimate — a management/provisioning estimate only, kept
+ * deliberately separate from computePartnershipTax. It reuses the same
+ * income-tax and cess RATES (30% / 4%) for consistency, but never applies a
+ * surcharge: the ₹1 crore surcharge threshold is an annual concept and must
+ * not be allocated to, or triggered by, a single month's profit. The Yearly
+ * Tax model (computePartnershipTax) remains the sole authoritative annual
+ * calculation; this function's output must never be summed and presented as
+ * a final tax figure.
+ */
+export function computeMonthlyTaxEstimate(profit: number) {
+  const monthlyProfit = Number.isFinite(profit) ? Math.max(profit, 0) : 0;
+  const incomeTax = roundMoney(monthlyProfit * PARTNERSHIP_INCOME_TAX_RATE);
+  const cess = roundMoney(incomeTax * PARTNERSHIP_CESS_RATE);
+  const estimatedTax = roundMoney(incomeTax + cess);
+  return { incomeTax, cess, estimatedTax };
 }
 
 async function allRows<T>(query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>) {
@@ -52,8 +240,8 @@ function isMissingRpc(error: unknown, functionName: string) {
 }
 
 /**
- * The single source of truth for Revenue, Overview, Profit & Loss, and
- * Reports. Every screen that shows a financial total must derive it from
+ * The single source of truth for Revenue, Overview, and Reports. Every
+ * screen that shows a financial total must derive it from
  * this function (or from taxTotalsByType/revenueBySource below, which never
  * compute a competing "total tax" figure) rather than recomputing its own
  * numbers.
@@ -277,6 +465,77 @@ export const AdminFinanceService = {
       const { error: deleteError } = await supabase.from("finance_budget_items").delete().in("id", obsoleteIds);
       if (deleteError) throw deleteError;
     }
+  },
+
+  /**
+   * Loads everything the yearly Tax Provision dashboard needs for one
+   * financial year: Annual Revenue / Annual Business Expenses from the
+   * admin_finance_year_summary RPC (same formulas as the monthly summary,
+   * never re-typed by hand), the optional CA Tax Adjustment, and Tax Paid
+   * (reused from existing income_tax_paid finance_tax_records rows).
+   */
+  async loadYearTaxProvision(financialYearStart: string): Promise<FinanceYearTaxData> {
+    const [summaryResult, adjustmentResult] = await Promise.all([
+      supabase.rpc("admin_finance_year_summary", { target_year_start: financialYearStart }),
+      supabase.from("finance_annual_tax_adjustments").select("financial_year_start,adjustment,tax_paid,notes").eq("financial_year_start", financialYearStart).maybeSingle(),
+    ]);
+    if (summaryResult.error) throw summaryResult.error;
+    if (adjustmentResult.error) throw adjustmentResult.error;
+    const summary = (summaryResult.data ?? {}) as Record<string, unknown>;
+    return {
+      financialYearStart: String(summary.financial_year_start ?? financialYearStart),
+      financialYearEnd: String(summary.financial_year_end ?? ""),
+      annualRevenue: Number(summary.revenue ?? 0),
+      annualExpenses: Number(summary.expenses ?? 0),
+      taxAdjustment: Number(adjustmentResult.data?.adjustment ?? 0),
+      taxAdjustmentNotes: (adjustmentResult.data?.notes as string | null) ?? null,
+      taxPaid: Number(adjustmentResult.data?.tax_paid ?? 0),
+    };
+  },
+
+  async saveTaxAdjustment(financialYearStart: string, adjustment: number, notes?: string) {
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+    const { error } = await supabase.from("finance_annual_tax_adjustments").upsert(
+      { financial_year_start: financialYearStart, adjustment, notes: notes?.trim() || null, updated_by: userId, created_by: userId },
+      { onConflict: "financial_year_start" },
+    );
+    if (error) throw error;
+  },
+
+  /**
+   * Monthly Tax Estimate rows for the 12 months of a financial year
+   * (April - March). Sources Revenue/Expenses from admin_finance_month_summary
+   * — the exact same RPC and formulas already used for monthly Finance
+   * closing — so this view can never drift from what the monthly Finance
+   * screens already show. No monthly tax record is read or written; the
+   * estimate is computed purely client-side from Revenue/Expenses via
+   * computeMonthlyTaxEstimate.
+   */
+  async loadMonthlyTaxEstimates(financialYearStart: string): Promise<MonthlyTaxEstimateRow[]> {
+    const months = financialYearMonths(financialYearStart);
+    const results = await Promise.all(months.map((monthStart) => supabase.rpc("admin_finance_month_summary", { target_month: monthStart })));
+    return results.map((result, index) => {
+      if (result.error) throw result.error;
+      const summary = (result.data ?? {}) as Record<string, unknown>;
+      const monthStart = months[index];
+      const revenue = Number(summary.revenue ?? 0);
+      const expenses = Number(summary.expenses ?? 0);
+      const profit = revenue - expenses;
+      const { incomeTax, cess, estimatedTax } = computeMonthlyTaxEstimate(profit);
+      const monthLabel = new Date(`${monthStart}T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+      return { monthStart, monthLabel, revenue, expenses, profit, incomeTax, cess, estimatedTax };
+    });
+  },
+
+  /** Persists the actual tax paid for a financial year, kept separate from the computed Total Tax Payable — never overwrites the estimate. */
+  async saveTaxPaid(financialYearStart: string, taxPaid: number) {
+    if (!Number.isFinite(taxPaid) || taxPaid < 0) throw new Error("Enter a tax paid amount of zero or greater.");
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+    const { error } = await supabase.from("finance_annual_tax_adjustments").upsert(
+      { financial_year_start: financialYearStart, tax_paid: taxPaid, updated_by: userId, created_by: userId },
+      { onConflict: "financial_year_start", ignoreDuplicates: false },
+    );
+    if (error) throw error;
   },
 
   async saveTaxRecord(input: Omit<FinanceTaxRecord, "id"> & { id?: string }) {
