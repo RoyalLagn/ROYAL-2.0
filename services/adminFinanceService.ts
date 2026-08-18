@@ -5,6 +5,7 @@ import type {
   FinanceBudgetItem,
   FinanceCategory,
   FinanceCloudinaryUsage,
+  FinanceDirection,
   FinanceClosure,
   FinanceMonthData,
   FinanceRevenueSourceRow,
@@ -393,6 +394,55 @@ export const AdminFinanceService = {
       net: Number(row.net ?? 0),
       transactionCount: Number(row.transaction_count ?? 0),
     }));
+  },
+
+  /**
+   * Resolves a custom "Other / Custom" expense/revenue category typed by the
+   * admin to a real finance_categories.id — reusing the existing category
+   * table exactly as designed (its `name` column is free text; only
+   * `finance_categories_name_valid` bounds it to 2-80 trimmed characters,
+   * and `finance_categories_direction_name_idx` already enforces one row
+   * per direction+name). No new table or migration. Categories created this
+   * way get `is_system: false`, which is how the UI later recognizes a
+   * transaction's category as "custom" (to reopen it as Other / Custom
+   * instead of listing it as a fixed chip) versus one of the original
+   * seeded categories (`is_system: true`).
+   *
+   * Case-insensitive find-or-create: typing the same name twice (e.g.
+   * "Travel" on two different expenses) reuses one category row, so it
+   * naturally groups/reports as a single category everywhere the app
+   * already groups by category_id/name — no reporting changes needed.
+   */
+  async getOrCreateCategory(direction: FinanceDirection, name: string): Promise<string> {
+    const trimmed = name.trim();
+    if (!trimmed) throw new Error("Enter a category name.");
+    const { data: existing, error: lookupError } = await supabase
+      .from("finance_categories")
+      .select("id")
+      .eq("direction", direction)
+      .ilike("name", trimmed)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (existing) return existing.id;
+
+    // finance_categories has no created_by/updated_by columns (unlike most
+    // other finance_* tables) — nothing to attribute here.
+    const { data: created, error: insertError } = await supabase
+      .from("finance_categories")
+      .insert({ name: trimmed, group_name: "Custom", direction, is_system: false, is_active: true })
+      .select("id")
+      .single();
+    if (insertError) {
+      // Race: another save created the same category between our lookup and insert — reuse it instead of failing.
+      if ((insertError as { code?: string }).code === "23505") {
+        const { data: retry, error: retryError } = await supabase
+          .from("finance_categories").select("id").eq("direction", direction).ilike("name", trimmed).maybeSingle();
+        if (retryError) throw retryError;
+        if (retry) return retry.id;
+      }
+      throw insertError;
+    }
+    return created.id;
   },
 
   async saveTransaction(input: FinanceTransactionInput) {

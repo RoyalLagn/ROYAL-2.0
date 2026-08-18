@@ -16,6 +16,9 @@ export type AdminVendorSubscriptionRow = {
   days_remaining: number | null;
   last_payment_status: string | null;
   last_payment_amount: number | null;
+  /** Vendor's marketplace category (public.categories, same table Vendors/Enquiries already use) — null for a vendor with no category assigned. */
+  category_id: string | null;
+  category_name: string | null;
   total_count: number;
   clip_total: number;
   clip_active: number;
@@ -23,6 +26,13 @@ export type AdminVendorSubscriptionRow = {
   photo_total: number;
   photo_active: number;
   photo_locked: number;
+};
+
+/** One row per marketplace category (plus a synthetic "Uncategorized" row when applicable), counting every vendor the Subscribers list also counts as a "subscriber" — same source of truth as admin_list_vendor_subscriptions. */
+export type AdminSubscriberCategoryCount = {
+  category_id: string | null;
+  category_name: string;
+  subscriber_count: number;
 };
 
 export type AdminPlanStatus = "active" | "coming_soon" | "hidden" | "archived";
@@ -128,6 +138,40 @@ export class SubscriptionAdminService {
     if (error) throw error;
   }
 
+  /** Number of vendor_subscriptions rows currently 'active' on this plan — used to block deletion with a specific, useful count before even attempting it. */
+  static async activePlanSubscriberCount(planId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from("vendor_subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("plan_id", planId)
+      .eq("status", "active");
+    if (error) throw error;
+    return count ?? 0;
+  }
+
+  /**
+   * Permanently deletes a subscription plan. Deliberately a hard DELETE, not
+   * another status flag — Delete is a separate, permanent action from the
+   * existing Active/Coming soon/Inactive availability states and from
+   * archivePlan() above (soft, reversible).
+   *
+   * Safety is enforced by the existing schema, not invented here:
+   *   - vendor_subscriptions.plan_id and subscription_payments.plan_id are
+   *     both `references subscription_plans(id) on delete restrict` — the
+   *     database itself refuses this delete if ANY subscription or payment
+   *     (active or historical) still references the plan, so historical
+   *     financial/subscription data can never be cascade-deleted by this
+   *     call. subscription_plan_features/billing_options cascade (existing,
+   *     intentional — they're plan configuration, not history).
+   *   - private.enforce_free_subscription_plan_invariant (an existing
+   *     trigger) unconditionally rejects deleting the 'free' plan.
+   * Both surface as a normal thrown PostgrestError for the caller to show.
+   */
+  static async deletePlan(id: string) {
+    const { error } = await supabase.from("subscription_plans").delete().eq("id", id);
+    if (error) throw error;
+  }
+
   static async listBillingOptions(planId: string) {
     const { data, error } = await supabase
       .from("subscription_plan_billing_options")
@@ -202,9 +246,9 @@ export class SubscriptionAdminService {
     if (error) throw error;
   }
 
-  static async listVendors(search = "", status = "all") {
+  static async listVendors(search = "", status = "all", categoryId: string | null = null) {
     const [{ data, error }, { data: usage, error: usageError }] = await Promise.all([
-      supabase.rpc("admin_list_vendor_subscriptions", { search_text: search || null, status_filter: status, page_size: 100, page_offset: 0 }),
+      supabase.rpc("admin_list_vendor_subscriptions", { search_text: search || null, status_filter: status, page_size: 100, page_offset: 0, category_filter: categoryId || null }),
       supabase.rpc("admin_subscription_media_usage"),
     ]);
     if (error) throw error;
@@ -219,6 +263,17 @@ export class SubscriptionAdminService {
       photo_active: Number(usageByVendor.get(row.vendor_id)?.photo_active ?? 0),
       photo_locked: Number(usageByVendor.get(row.vendor_id)?.photo_locked ?? 0),
     })) as AdminVendorSubscriptionRow[];
+  }
+
+  /** One aggregate query — never one query per category — powering the category filter chips' counts. Same vendor/category source of truth as listVendors above. */
+  static async listSubscriberCategoryCounts(): Promise<AdminSubscriberCategoryCount[]> {
+    const { data, error } = await supabase.rpc("admin_subscriber_category_counts");
+    if (error) throw error;
+    return (data ?? []).map((row: any) => ({
+      category_id: row.category_id ?? null,
+      category_name: row.category_name,
+      subscriber_count: Number(row.subscriber_count ?? 0),
+    }));
   }
 
   static async manageVendor(vendorId: string, action: string, payload: Record<string, unknown> = {}) {

@@ -5,7 +5,7 @@ import { useFocusEffect } from "expo-router";
 import { CalendarClock, CircleDollarSign, Crown, Edit3, Gift, Plus, RefreshCw, Search, Settings2, Trash2, Users, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { SubscriptionAdminService, type AdminBillingOptionInput, type AdminPlanInput, type AdminPlanStatus, type AdminVendorSubscriptionRow } from "@/subscriptions/services/SubscriptionAdminService";
+import { SubscriptionAdminService, type AdminBillingOptionInput, type AdminPlanInput, type AdminPlanStatus, type AdminSubscriberCategoryCount, type AdminVendorSubscriptionRow } from "@/subscriptions/services/SubscriptionAdminService";
 import { formatSubscriptionPrice, subscriptionStatusLabel } from "@/subscriptions/utils";
 import { isSubscriptionSchemaMissing, subscriptionErrorMessage } from "@/subscriptions/error";
 import { typeScale, typeLeading } from "@/constants/typography";
@@ -46,6 +46,22 @@ function describeAdminError(caught: unknown, fallback: string) {
     }
   }
   return fallback;
+}
+
+/**
+ * Plan deletion has two DB-enforced rejections beyond the generic RLS case
+ * describeAdminError already handles: the 'free' plan trigger (already a
+ * clear, human message — passed through as-is) and the ON DELETE RESTRICT
+ * foreign keys from vendor_subscriptions/subscription_payments, which
+ * Postgres reports as a raw constraint-violation (23503) that isn't useful
+ * shown verbatim to an admin.
+ */
+function describePlanDeleteError(caught: unknown) {
+  const record = caught && typeof caught === "object" ? (caught as { code?: unknown; message?: unknown }) : null;
+  if (record?.code === "23503") {
+    return "This plan cannot be deleted because vendor subscriptions or payment records still reference it — including historical ones. Historical financial and subscription data is preserved and is never removed by deleting a plan.";
+  }
+  return describeAdminError(caught, "Unable to delete this plan. Check your connection and try again.");
 }
 
 type PlanEditorExtras = {
@@ -97,6 +113,7 @@ export default function SubscriptionsAdmin() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [changingPlanId, setChangingPlanId] = useState<string | null>(null);
+  const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<Record<string, number>>({});
   const [plans, setPlans] = useState<any[]>([]);
@@ -104,6 +121,8 @@ export default function SubscriptionsAdmin() {
   const [vendors, setVendors] = useState<AdminVendorSubscriptionRow[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [categoryCounts, setCategoryCounts] = useState<AdminSubscriberCategoryCount[]>([]);
   const [planEditor, setPlanEditor] = useState<AdminPlanInput | null>(null);
   const [planEditorExtras, setPlanEditorExtras] = useState<PlanEditorExtras | null>(null);
   const [featureIdByKey, setFeatureIdByKey] = useState<Record<string, string>>({});
@@ -125,18 +144,20 @@ export default function SubscriptionsAdmin() {
     setLoading(true); setError(null);
     try {
       const nextPlans = await SubscriptionAdminService.listPlans();
-      const [nextMetrics, nextOffers, nextVendors, nextFeatures] = await Promise.all([
-        SubscriptionAdminService.metrics(), SubscriptionAdminService.listOffers(), SubscriptionAdminService.listVendors(search, statusFilter), SubscriptionAdminService.listFeatures(),
+      const [nextMetrics, nextOffers, nextVendors, nextFeatures, nextCategoryCounts] = await Promise.all([
+        SubscriptionAdminService.metrics(), SubscriptionAdminService.listOffers(), SubscriptionAdminService.listVendors(search, statusFilter, categoryFilter), SubscriptionAdminService.listFeatures(),
+        SubscriptionAdminService.listSubscriberCategoryCounts(),
       ]);
       setMetrics(nextMetrics ?? {}); setPlans(nextPlans); setOffers(nextOffers); setVendors(nextVendors);
       setFeatureIdByKey(Object.fromEntries((nextFeatures ?? []).map((feature: any) => [feature.feature_key, feature.id])));
+      setCategoryCounts(nextCategoryCounts);
     } catch (caught) {
       setError(isSubscriptionSchemaMissing(caught)
         ? "Subscription database setup is required. Apply the pending Supabase migrations, then retry."
         : subscriptionErrorMessage(caught, "Unable to load subscription management."));
     }
     finally { setLoading(false); }
-  }, [search, statusFilter]);
+  }, [search, statusFilter, categoryFilter]);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const closePlanEditor = () => { setPlanEditor(null); setPlanEditorExtras(null); };
@@ -268,6 +289,41 @@ export default function SubscriptionsAdmin() {
     );
     return option ? formatSubscriptionPrice(Number(option.discounted_price ?? option.price), option.currency) : null;
   };
+  const deletePlan = async (plan: any) => {
+    setDeletingPlanId(plan.id);
+    try {
+      const activeCount = await SubscriptionAdminService.activePlanSubscriberCount(plan.id);
+      if (activeCount > 0) {
+        Alert.alert(
+          "Cannot delete this plan",
+          `This plan currently has ${activeCount} active subscriber${activeCount === 1 ? "" : "s"}. Please move or cancel ${activeCount === 1 ? "that subscription" : "those subscriptions"} before deleting the plan.`,
+        );
+        return;
+      }
+      // Not optimistic: the plan only leaves `plans` after deletePlan()
+      // resolves without throwing, i.e. after the database has actually
+      // deleted it (or the existing ON DELETE RESTRICT / Free-plan trigger
+      // has actually rejected it).
+      await SubscriptionAdminService.deletePlan(plan.id);
+      setPlans((current) => current.filter((item) => item.id !== plan.id));
+      Alert.alert("Plan deleted", "Subscription plan deleted successfully.");
+    } catch (caught) {
+      Alert.alert("Plan not deleted", describePlanDeleteError(caught));
+    } finally {
+      setDeletingPlanId(null);
+    }
+  };
+  const confirmDeletePlan = (plan: any) => {
+    if (plan.slug?.trim().toLowerCase() === "free") {
+      Alert.alert("This plan can't be deleted", "This plan cannot be deleted because it is the default/free plan used by the system.");
+      return;
+    }
+    Alert.alert(
+      "Delete subscription plan?",
+      `Are you sure you want to delete "${plan.name}"?\n\nDeleting this plan will remove it from the available subscription plans. This action cannot be undone.`,
+      [{ text: "Cancel", style: "cancel" }, { text: "Delete Plan", style: "destructive", onPress: () => void deletePlan(plan) }],
+    );
+  };
   const changePlanAvailability = (plan: any, nextStatus: AdminPlanStatus) => {
     if (plan.status === nextStatus || changingPlanId) return;
     if (plan.slug?.trim().toLowerCase() === "free" && nextStatus !== "active") {
@@ -301,14 +357,23 @@ export default function SubscriptionsAdmin() {
     {!loading && tab === "plans" ? <><View style={styles.stats}>{filteredStats.map(({ label, value, icon: Icon, tint }) => <View key={label} style={styles.stat}><View style={[styles.statIcon, { backgroundColor: `${tint}16` }]}><Icon size={20} color={tint} /></View><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>)}</View><View style={styles.sectionRow}><View style={styles.flex}><Text style={styles.sectionTitle}>Plans</Text><Text style={styles.sectionHint}>Set availability here. Open details only when you need to change the plan.</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Add subscription plan" onPress={openNewPlan} style={({ pressed }) => [styles.add, pressed && styles.pressed]}><Plus size={17} color="#FFF" /><Text style={styles.addText}>Add plan</Text></Pressable></View><View style={styles.list}>{plans.map((plan) => <View key={plan.id} style={styles.card}><View style={styles.cardTop}><MembershipBadge planName={plan.name} size={58} /><View style={styles.flex}><Text style={styles.cardTitle}>{plan.name}{plan.is_permanent ? " · Free forever" : ""}</Text><Text style={styles.cardSub}>{plan.description}</Text></View>{plan.status === "archived" ? <Text style={styles.statusBadge}>Archived</Text> : null}</View>
       {plan.status !== "archived" ? <PlanAvailability plan={plan} busy={changingPlanId === plan.id} onChange={(status) => changePlanAvailability(plan, status)} /> : <Text style={styles.availabilityHelp}>{availabilityHelp.archived}</Text>}
       <View style={styles.planFacts}><Text style={styles.planFact}>{billingPrice(plan, "month") ?? "No monthly price"}<Text style={styles.period}> / month</Text></Text>{billingPrice(plan, "year") ? <Text style={styles.planFact}>{billingPrice(plan, "year")}<Text style={styles.period}> / year</Text></Text> : null}<Text style={styles.planFact}>{planQuota(plan, "upload_clips")} clips · {planQuota(plan, "upload_gallery")} photos</Text></View>
-      <View style={styles.cardActions}><Pressable accessibilityRole="button" onPress={() => { setPlanEditor({ ...plan }); setPlanEditorExtras(planExtrasFrom(plan)); }} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><Edit3 size={15} color={pink} /><Text style={styles.secondaryText}>Details</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void openBilling(plan)} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><CalendarClock size={15} color={pink} /><Text style={styles.secondaryText}>Pricing</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void openFeatures(plan)} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><Settings2 size={15} color={pink} /><Text style={styles.secondaryText}>Limits</Text></Pressable></View></View>)}</View></> : null}
+      <View style={styles.cardActions}><Pressable accessibilityRole="button" onPress={() => { setPlanEditor({ ...plan }); setPlanEditorExtras(planExtrasFrom(plan)); }} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><Edit3 size={15} color={pink} /><Text style={styles.secondaryText}>Details</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void openBilling(plan)} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><CalendarClock size={15} color={pink} /><Text style={styles.secondaryText}>Pricing</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void openFeatures(plan)} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><Settings2 size={15} color={pink} /><Text style={styles.secondaryText}>Limits</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Delete ${plan.name}`} disabled={deletingPlanId === plan.id} onPress={() => confirmDeletePlan(plan)} style={({ pressed }) => [styles.dangerSecondary, pressed && styles.pressed]}>{deletingPlanId === plan.id ? <ActivityIndicator size="small" color={adminPalette.error} /> : <><Trash2 size={15} color={adminPalette.error} /><Text style={styles.dangerSecondaryText}>Delete Plan</Text></>}</Pressable></View></View>)}</View></> : null}
 
     {!loading && tab === "vendors" ? <>
       <View style={styles.searchBox}><Search size={17} color="#8D8188" /><TextInput value={search} onChangeText={setSearch} onSubmitEditing={load} placeholder="Search Vendor, owner, email or ID" style={styles.searchInput} /><Pressable onPress={load}><Text style={styles.retry}>Search</Text></Pressable></View>
+      <Text style={styles.filterGroupLabel}>Category</Text>
+      <View style={styles.categoryFilterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryFilterRow}>
+          <CategoryPill label="All Categories" count={metrics.total_vendors ?? 0} selected={categoryFilter === null} primary onPress={() => setCategoryFilter(null)} />
+          {categoryCounts.map((item) => <CategoryPill key={item.category_id ?? "uncategorized"} label={item.category_name} count={item.subscriber_count} selected={categoryFilter === item.category_id} onPress={() => setCategoryFilter(item.category_id)} />)}
+        </ScrollView>
+      </View>
+      <Text style={styles.filterGroupLabel}>Status</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{["all","active","trial","launch_offer","grace_period","expired","suspended"].map((item) => <Pressable key={item} onPress={() => setStatusFilter(item)} style={[styles.filter, statusFilter === item && styles.filterActive]}><Text style={[styles.filterText, statusFilter === item && styles.filterTextActive]}>{subscriptionStatusLabel(item as any)}</Text></Pressable>)}</ScrollView>
+      <Text style={styles.resultCount}>Showing {vendors.length} subscriber{vendors.length === 1 ? "" : "s"}</Text>
       <View style={styles.list}>{vendors.map((vendor) => <Pressable key={vendor.vendor_id} onPress={() => { setVendorEditor(vendor); setVendorPlanId(vendor.plan_id || plans[0]?.id || ""); setVendorNotes(""); }} style={styles.vendorCard}>
         <View style={[styles.avatar, { backgroundColor: vendor.status === "active" ? "#E9F8F1" : "#FFF0F5" }]}><Text style={{ color: vendor.status === "active" ? adminPalette.success : pink, fontWeight: "700" }}>{vendor.business_name?.charAt(0)}</Text></View>
-        <View style={styles.flex}><Text style={styles.cardTitle}>{vendor.business_name}</Text><Text style={styles.cardSub}>{vendor.plan_name || "No plan"} · {subscriptionStatusLabel(vendor.status as any)}</Text><Text style={styles.vendorMeta}>{vendor.expiry_date ? `Expires ${new Date(vendor.expiry_date).toLocaleDateString("en-IN")}` : "No expiry date"}</Text><Text style={styles.vendorMeta}>Clips {vendor.clip_active}/{vendor.clip_total} active · {vendor.clip_locked} locked  ·  Photos {vendor.photo_active}/{vendor.photo_total} active · {vendor.photo_locked} locked</Text></View>
+        <View style={styles.flex}><Text style={styles.cardTitle}>{vendor.business_name}</Text><Text style={styles.cardSub}>{vendor.plan_name || "No plan"} · {subscriptionStatusLabel(vendor.status as any)} · {vendor.category_name ?? "Uncategorized"}</Text><Text style={styles.vendorMeta}>{vendor.expiry_date ? `Expires ${new Date(vendor.expiry_date).toLocaleDateString("en-IN")}` : "No expiry date"}</Text><Text style={styles.vendorMeta}>Clips {vendor.clip_active}/{vendor.clip_total} active · {vendor.clip_locked} locked  ·  Photos {vendor.photo_active}/{vendor.photo_total} active · {vendor.photo_locked} locked</Text></View>
         <Text style={styles.manage}>Manage</Text>
       </Pressable>)}</View>
     </> : null}
@@ -355,6 +420,24 @@ export default function SubscriptionsAdmin() {
 }
 
 function EmptySection({ title, text }: { title: string; text: string }) { return <View style={styles.panel}><Text style={styles.panelTitle}>{title}</Text><Text style={styles.panelText}>{text}</Text></View>; }
+/**
+ * Presentation-only pill for the Category filter bar: category name and its
+ * subscriber count as a visually separated badge (never a "—" placeholder —
+ * `count` is always a real number here, including 0). `primary` gives the
+ * "All Categories" pill a slightly bolder, pink-tinted baseline so it reads
+ * as the default option even before it's selected.
+ */
+function CategoryPill({ label, count, selected, primary, onPress }: { label: string; count: number; selected: boolean; primary?: boolean; onPress: () => void }) {
+  return <Pressable
+    accessibilityRole="button"
+    accessibilityState={{ selected }}
+    onPress={onPress}
+    style={({ pressed, hovered }: any) => [styles.categoryPill, primary && !selected && styles.categoryPillPrimary, selected && styles.categoryPillSelected, (hovered || pressed) && !selected && styles.categoryPillHover]}
+  >
+    <Text numberOfLines={1} style={[styles.categoryPillText, primary && !selected && styles.categoryPillTextPrimary, selected && styles.categoryPillTextSelected]}>{label}</Text>
+    <View style={[styles.categoryCountBadge, selected && styles.categoryCountBadgeSelected]}><Text style={[styles.categoryCountText, selected && styles.categoryCountTextSelected]}>{count}</Text></View>
+  </Pressable>;
+}
 function PlanAvailability({ plan, busy, onChange }: { plan: any; busy: boolean; onChange: (status: AdminPlanStatus) => void }) {
   const current = (plan.status ?? "active") as AdminPlanStatus;
   const free = plan.slug?.trim().toLowerCase() === "free";
@@ -385,9 +468,25 @@ const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: adminPalette.canvas }, header: { height: 62, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, backgroundColor: "rgba(255,255,255,.96)", borderBottomWidth: 1, borderBottomColor: adminPalette.border }, headerButton: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center" }, logo: { position: "absolute", left: "50%", width: 155, height: 42, marginLeft: -77.5 }, content: { width: "100%", maxWidth: 1600, alignSelf: "center", padding: 18, paddingBottom: 110 }, flex: { flex: 1, minWidth: 0 },
   tabs: { gap: 7, paddingVertical: 16 }, tab: { minHeight: 40, paddingHorizontal: 15, borderRadius: 12, backgroundColor: adminPalette.surfaceSubtle, alignItems: "center", justifyContent: "center" }, tabActive: { backgroundColor: pink }, tabText: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "700" }, tabTextActive: { color: "#FFF" },
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 10 }, stat: { flexGrow: 1, minWidth: 145, backgroundColor: adminPalette.surfaceSubtle, borderRadius: 12, padding: 14 }, statIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" }, statValue: { color: adminPalette.text, fontSize: typeScale.metric, fontWeight: "700", marginTop: 9 }, statLabel: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: 2 }, panel: { backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 18, marginTop: 12 }, panelTitle: { color: adminPalette.text, fontSize: typeScale.body, fontWeight: "700" }, panelText: { color: adminPalette.textSecondary, fontSize: typeScale.caption, lineHeight: typeLeading.metadata, marginTop: 5 }, primary: { minHeight: 46, borderRadius: 14, backgroundColor: pink, paddingHorizontal: 18, alignItems: "center", justifyContent: "center", marginTop: 15 }, primaryText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
-  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 18, marginBottom: 12 }, sectionTitle: { color: adminPalette.text, fontSize: typeScale.cardTitle, fontWeight: "700" }, sectionHint: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: 3 }, add: { height: 42, borderRadius: 12, paddingHorizontal: 14, backgroundColor: pink, flexDirection: "row", alignItems: "center", gap: 5 }, addText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" }, list: { gap: 10 }, card: { backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 16, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }, cardTop: { width: "100%", flexDirection: "row", alignItems: "flex-start", gap: 10 }, cardTitle: { color: adminPalette.text, fontSize: typeScale.body, fontWeight: "700", textTransform: "capitalize" }, cardSub: { color: adminPalette.textSecondary, fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3 }, price: { width: "100%", color: adminPalette.text, fontSize: typeScale.metric, fontWeight: "700", marginTop: 5 }, period: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "600" }, cardActions: { width: "100%", flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 5 }, secondary: { minHeight: 38, borderRadius: 12, paddingHorizontal: 12, backgroundColor: adminPalette.surfaceSubtle, flexDirection: "row", alignItems: "center", gap: 5 }, secondaryText: { color: pink, fontSize: typeScale.caption, fontWeight: "700" }, iconDanger: { width: 40, height: 38, borderRadius: 12, backgroundColor: adminPalette.errorSubtle, alignItems: "center", justifyContent: "center" },
+  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 18, marginBottom: 12 }, sectionTitle: { color: adminPalette.text, fontSize: typeScale.cardTitle, fontWeight: "700" }, sectionHint: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: 3 }, add: { height: 42, borderRadius: 12, paddingHorizontal: 14, backgroundColor: pink, flexDirection: "row", alignItems: "center", gap: 5 }, addText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" }, list: { gap: 10 }, card: { backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 16, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 10 }, cardTop: { width: "100%", flexDirection: "row", alignItems: "flex-start", gap: 10 }, cardTitle: { color: adminPalette.text, fontSize: typeScale.body, fontWeight: "700", textTransform: "capitalize" }, cardSub: { color: adminPalette.textSecondary, fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3 }, price: { width: "100%", color: adminPalette.text, fontSize: typeScale.metric, fontWeight: "700", marginTop: 5 }, period: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "600" }, cardActions: { width: "100%", flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 5 }, secondary: { minHeight: 38, borderRadius: 12, paddingHorizontal: 12, backgroundColor: adminPalette.surfaceSubtle, flexDirection: "row", alignItems: "center", gap: 5 }, secondaryText: { color: pink, fontSize: typeScale.caption, fontWeight: "700" }, iconDanger: { width: 40, height: 38, borderRadius: 12, backgroundColor: adminPalette.errorSubtle, alignItems: "center", justifyContent: "center" }, dangerSecondary: { minHeight: 38, borderRadius: 12, paddingHorizontal: 12, backgroundColor: adminPalette.errorSubtle, borderWidth: 1, borderColor: "#F5B5BD", flexDirection: "row", alignItems: "center", gap: 5 }, dangerSecondaryText: { color: adminPalette.error, fontSize: typeScale.caption, fontWeight: "700" },
   planFacts: { width: "100%", flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 2 }, planFact: { color: adminPalette.text, backgroundColor: adminPalette.surfaceSubtle, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7, fontSize: typeScale.caption, fontWeight: "700" }, statusBadge: { color: adminPalette.textSecondary, backgroundColor: adminPalette.surfaceSubtle, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 6, fontSize: typeScale.caption, fontWeight: "700", textTransform: "capitalize" },
   availabilityBlock: { width: "100%", marginTop: 4, marginBottom: 4 }, availabilityHeading: { flexDirection: "row", flexWrap: "wrap", alignItems: "baseline", justifyContent: "space-between", gap: 6, marginBottom: 7 }, availabilityLabel: { color: adminPalette.text, fontSize: typeScale.caption, fontWeight: "700" }, availabilityHelp: { color: adminPalette.textSecondary, fontSize: typeScale.caption }, availabilityControl: { width: "100%", flexDirection: "row", backgroundColor: adminPalette.surfaceSubtle, borderRadius: 12, padding: 3, gap: 3 }, availabilityOption: { flex: 1, minHeight: 44, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 }, availabilityOptionSelected: { backgroundColor: pink }, availabilityOptionText: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "700", textAlign: "center" }, availabilityOptionTextSelected: { color: "#FFF" }, pressed: { transform: [{ scale: 0.97 }], opacity: 0.88 },
-  searchBox: { minHeight: 48, borderRadius: 16, backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 8 }, searchInput: { flex: 1, color: adminPalette.text, fontSize: typeScale.metadata, outlineStyle: "none" } as any, retry: { color: pink, fontSize: typeScale.caption, fontWeight: "700" }, filters: { flexDirection: "row", gap: 7, paddingVertical: 11 }, filter: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: adminPalette.surfaceSubtle }, filterActive: { backgroundColor: pink }, filterText: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "700", textTransform: "capitalize" }, filterTextActive: { color: "#FFF" }, controlDisabled: { opacity: 0.55 }, vendorCard: { backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 19, padding: 13, flexDirection: "row", alignItems: "center", gap: 10 }, avatar: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, vendorMeta: { color: adminPalette.textMuted, fontSize: typeScale.caption, marginTop: 3 }, manage: { color: pink, fontSize: typeScale.caption, fontWeight: "700" },
+  searchBox: { minHeight: 48, borderRadius: 16, backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 8 }, searchInput: { flex: 1, color: adminPalette.text, fontSize: typeScale.metadata, outlineStyle: "none" } as any, retry: { color: pink, fontSize: typeScale.caption, fontWeight: "700" }, filters: { flexDirection: "row", gap: 7, paddingVertical: 11 }, filter: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: adminPalette.surfaceSubtle }, filterActive: { backgroundColor: pink }, filterText: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "700", textTransform: "capitalize" }, filterTextActive: { color: "#FFF" }, filterGroupLabel: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4, marginTop: 4 }, resultCount: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginBottom: 4 }, controlDisabled: { opacity: 0.55 },
+  // Category filter bar — a bordered container (matches searchBox's card
+  // treatment) holding a single horizontally-scrolling row of pills, so
+  // overflow is contained here and the page itself never scrolls sideways.
+  categoryFilterContainer: { backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 8, maxWidth: "100%" },
+  categoryFilterRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  categoryPill: { flexDirection: "row", alignItems: "center", minHeight: 40, maxWidth: 220, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: adminPalette.surfaceSubtle, borderWidth: 1, borderColor: "transparent", gap: 8, transitionProperty: "background-color, border-color", transitionDuration: "150ms" } as any,
+  categoryPillPrimary: { borderColor: "#F7C9DA" },
+  categoryPillHover: { backgroundColor: adminPalette.brandSubtle },
+  categoryPillSelected: { backgroundColor: pink, borderColor: pink },
+  categoryPillText: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "600", flexShrink: 1 },
+  categoryPillTextPrimary: { fontWeight: "800", color: adminPalette.text },
+  categoryPillTextSelected: { color: "#FFF" },
+  categoryCountBadge: { minWidth: 21, height: 21, paddingHorizontal: 5, borderRadius: 999, backgroundColor: "#E4DCDF", alignItems: "center", justifyContent: "center" },
+  categoryCountBadgeSelected: { backgroundColor: "rgba(255,255,255,0.28)" },
+  categoryCountText: { color: adminPalette.textSecondary, fontSize: 11, fontWeight: "700" },
+  categoryCountTextSelected: { color: "#FFF" }, vendorCard: { backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 19, padding: 13, flexDirection: "row", alignItems: "center", gap: 10 }, avatar: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, vendorMeta: { color: adminPalette.textMuted, fontSize: typeScale.caption, marginTop: 3 }, manage: { color: pink, fontSize: typeScale.caption, fontWeight: "700" },
   error: { borderRadius: 16, padding: 14, backgroundColor: adminPalette.errorSubtle, flexDirection: "row", justifyContent: "space-between" }, errorText: { color: adminPalette.error, fontSize: typeScale.caption }, modalBackdrop: { flex: 1, backgroundColor: "rgba(25,15,21,.45)", justifyContent: "flex-end", padding: 10 }, modal: { width: "100%", maxWidth: 620, maxHeight: "90%", alignSelf: "center", backgroundColor: "#FFF", borderRadius: 27, padding: 18 }, modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }, modalTitle: { color: adminPalette.text, fontSize: typeScale.sectionTitle, fontWeight: "700" }, modalHint: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginBottom: 12 }, field: { flex: 1, minWidth: 130, marginTop: 10 }, fieldLabel: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "700", marginBottom: 6, marginTop: 8, textTransform: "capitalize" }, input: { minHeight: 45, borderRadius: 14, backgroundColor: adminPalette.surface, paddingHorizontal: 12, color: adminPalette.text, fontSize: typeScale.metadata, borderWidth: 1, borderColor: adminPalette.border, outlineStyle: "none" } as any, inputDisabled: { opacity: 0.7 }, multiline: { height: 78, textAlignVertical: "top", paddingTop: 11 }, twoCols: { flexDirection: "row", gap: 9 }, toggle: { minHeight: 57, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1, borderBottomColor: adminPalette.border }, toggleLabel: { color: adminPalette.text, fontSize: typeScale.metadata, fontWeight: "700" }, toggleHint: { color: adminPalette.textSecondary, fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3 }, limitInput: { width: 58, minHeight: 36, borderRadius: 11, backgroundColor: adminPalette.surface, paddingHorizontal: 8, fontSize: typeScale.caption, outlineStyle: "none" } as any, settingEdit: { width: "100%", flexDirection: "row", alignItems: "center", gap: 8 }, settingInput: { flex: 1, minHeight: 40, borderRadius: 12, backgroundColor: adminPalette.surface, paddingHorizontal: 10, fontSize: typeScale.caption, outlineStyle: "none" } as any,
 });
