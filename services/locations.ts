@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/services/supabase";
 import type {
   LocationPreference,
@@ -378,6 +379,27 @@ export async function lookupIndianPincode(pincode: string): Promise<PincodeLooku
     body: { pincode },
   });
   if (error) {
+    // The Edge Function deliberately returns HTTP 404 -- not a routing
+    // failure -- with a full, well-formed body when no postal provider has
+    // ANY record for this PIN (genuinely unmapped, not "temporarily down").
+    // supabase-js's Functions client still treats every non-2xx response as
+    // an error (response.ok is false) and would otherwise discard that
+    // body, showing a misleading "temporarily unavailable" message for a
+    // PIN that was actually looked up successfully and simply has no
+    // match. Read the real body back out for that one case instead of
+    // throwing; every other status still means the lookup genuinely
+    // failed.
+    if (error instanceof FunctionsHttpError && error.context?.status === 404) {
+      try {
+        const body = await error.context.json();
+        if (body && typeof body === "object" && "geo" in body) {
+          return body as PincodeLookupResult;
+        }
+      } catch {
+        // Body wasn't the shape we expected -- fall through to the
+        // generic unavailable error below.
+      }
+    }
     throw new PincodeLookupUnavailableError();
   }
   return data as PincodeLookupResult;

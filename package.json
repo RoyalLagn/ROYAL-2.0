@@ -24,6 +24,8 @@
     "test:location-discovery": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-location-discovery-domain.mjs",
     "locations:import-india-post": "node --env-file=.env scripts/import-india-post-pincodes.mjs",
     "test:regression-guards": "node scripts/test-regression-guards.mjs",
+    "test:geo-pincode-mapping": "node scripts/test-geo-pincode-taluka-mapping.mjs",
+    "test:e2e:pincode-mapping": "playwright test tests/e2e/pincode-taluka-mapping.spec.ts",
     "test:auth-validation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-auth-validation.mjs",
     "test:marketing-card-pdf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-marketing-card-pdf.mjs",
     "test:smoke": "node scripts/run-smoke-tests.mjs",
@@ -93,6 +95,7 @@
   },
   "devDependencies": {
     "@expo/ngrok": "^4.1.3",
+    "@playwright/test": "^1.62.1",
     "@types/qrcode": "^1.5.6",
     "@types/react": "19.1.17",
     "babel-plugin-module-resolver": "^5.0.2",

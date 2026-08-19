@@ -4,6 +4,7 @@ import { Href, useRouter } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
 import type { DashboardHealth, DashboardStatistics } from "@/types/adminDashboard";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
+import { typeStyles } from "@/constants/typography";
 
 export function PendingTasks({ statistics, health }: { statistics: DashboardStatistics; health: DashboardHealth }) {
   const router = useRouter();
@@ -29,7 +30,7 @@ export function PendingTasks({ statistics, health }: { statistics: DashboardStat
                 <Text className={`text-caption font-inter-semibold ${badgeText}`}>{priority}</Text>
               </View>
             </View>
-            <Text className={`text-foreground font-inter-bold ${isPhone ? "mx-1" : "mr-2"}`} style={{ fontSize: 20, lineHeight: 26 }}>{count}</Text>
+            <Text className={`text-foreground ${isPhone ? "mx-1" : "mr-2"}`} style={typeStyles.metric}>{count}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel={`Open ${task}`} className="min-w-11 min-h-11 px-2 rounded-xl flex-row items-center justify-center active:bg-primary/10" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => router.push(route as Href)}>
               <Text className="text-primary text-button font-inter-bold mr-1">Open</Text><ChevronRight size={15} className="text-primary" />
             </Pressable>

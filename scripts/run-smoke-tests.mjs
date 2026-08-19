@@ -12,6 +12,7 @@ const CHECKS = [
   { name: "safe-navigation", script: "scripts/test-safe-navigation.mjs", strip: true },
   { name: "locations", script: "scripts/test-location-domain.mjs", strip: true },
   { name: "location-discovery", script: "scripts/test-location-discovery-domain.mjs", strip: true },
+  { name: "geo-pincode-taluka-mapping", script: "scripts/test-geo-pincode-taluka-mapping.mjs", strip: false },
   { name: "auth-validation", script: "scripts/test-auth-validation.mjs", strip: true },
   { name: "marketing-card-pdf", script: "scripts/test-marketing-card-pdf.mjs", strip: true },
   { name: "regression-guards", script: "scripts/test-regression-guards.mjs", strip: false },

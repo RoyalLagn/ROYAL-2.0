@@ -56,6 +56,13 @@ export function VendorServiceLocationEditor({
   // block (not just an informational verification note) and is never
   // silently overwritten by an unrelated locality-selection message.
   const [applicationBlockedMessage, setApplicationBlockedMessage] = useState("");
+  // Tracks the last PIN a lookup was actually started for (set the instant
+  // lookup() begins, not when it finishes) -- lets the auto-lookup effect
+  // below and the pre-filled-value hydration effect share one "don't
+  // trigger twice for the same PIN" guard without needing to coordinate
+  // with each other directly.
+  const [pinTaluka, setPinTaluka] = useState<PincodeLocality["taluka"]>(null);
+  const lastTriggeredPincodeRef = useRef<string | null>(null);
   const selectedLocality = localityOptions.find((item) => item.id === value.geoLocalityId) ?? null;
   const selectedLocalityBelongsToPin = Boolean(selectedLocality);
   const valid = /^[1-9][0-9]{5}$/.test(value.pincode)
@@ -73,6 +80,7 @@ export function VendorServiceLocationEditor({
     setLookupCompleted(!requireLookup);
     setLookupMessage("");
     setApplicationBlockedMessage("");
+    setPinTaluka(null);
     setLocalityOptions([]);
     onChange({
       ...value,
@@ -84,11 +92,47 @@ export function VendorServiceLocationEditor({
     });
   };
 
+  // Mirrors the exact authorization gate submit-vendor-application enforces
+  // server-side (see the Edge Function's "Canonical Taluka authorization
+  // gate" comment): once a locality is on screen, its Taluka (including a
+  // unique PIN-level Taluka inherited onto village B.O.s) is authoritative.
+  // Source trust never blocks. The only hard blocks are a Taluka that is
+  // toggled OFF, or a true blank PIN with zero Taluka matches anywhere.
+  const blockedMessageFor = (
+    locality: PincodeLocality | null,
+    appStatus: string | null,
+    appMessage?: string | null,
+    pinTaluka?: PincodeLocality["taluka"],
+  ): string => {
+    const taluka = locality?.taluka ?? pinTaluka ?? null;
+    if (locality) {
+      return taluka?.acceptingApplications === false
+        ? `RoyalLagn is not currently accepting new vendor applications from ${taluka.name}.`
+        : "";
+    }
+    return appStatus === "resolved_disabled" || appStatus === "unresolved"
+      ? (appMessage ?? "This location is not currently available for new vendor applications.")
+      : "";
+  };
+
+  /** Vendor-facing description of a selected locality. Deliberately
+   * identical regardless of whether the match came from an official or
+   * unofficial source -- that distinction is internal data-source
+   * plumbing, not something a vendor needs to see or weigh. If a locality
+   * is shown here at all, blockedMessageFor already decided its Taluka is
+   * known and accepting, so there is nothing left to distinguish: every
+   * selectable locality is presented, and colored, exactly the same way. */
+  const describeSelectedLocality = (locality: PincodeLocality, inheritedTaluka: PincodeLocality["taluka"] = pinTaluka): string => {
+    const hierarchy = [locality.taluka?.name ?? inheritedTaluka?.name, locality.district?.name, locality.state?.name].filter(Boolean).join(", ");
+    return hierarchy ? `${locality.name}, ${hierarchy} selected` : `${locality.name} selected`;
+  };
+
   const lookup = useCallback(async () => {
     if (!/^[1-9][0-9]{5}$/.test(value.pincode) || lookingUp) {
       setLookupMessage("Enter a valid six-digit Indian PIN code.");
       return;
     }
+    lastTriggeredPincodeRef.current = value.pincode;
     setLookingUp(true);
     setLookupMessage("");
     setApplicationBlockedMessage("");
@@ -97,30 +141,30 @@ export function VendorServiceLocationEditor({
     try {
       const result = await lookupIndianPincode(value.pincode);
       const localities = result.geo?.localities ?? [];
+      const resolvedPinTaluka = result.geo?.ambiguous ? null : (result.geo?.taluka ?? null);
+      setPinTaluka(resolvedPinTaluka);
       setLocalityOptions(localities);
       setLookupCompleted(true);
-      // Surface "can a new vendor apply from here" the moment the PIN
-      // resolves -- before locality selection, before the rest of the form.
-      // This is the SAME applicationStatus the deployed
-      // submit-vendor-application Edge Function independently re-checks at
-      // submit time; showing it here is a head start, not a substitute.
-      if (enforceApplicationAvailability) {
-        const appStatus = result.geo?.applicationStatus ?? null;
-        // A multi-locality PIN has no single Taluka availability until the
-        // vendor chooses a locality. Do not preserve its initial ambiguity
-        // as a permanent blocking state after that choice is made.
-        setApplicationBlockedMessage(
-          appStatus && appStatus !== "resolved_enabled" && appStatus !== "ambiguous"
-            ? (result.geo?.applicationMessage ?? "This location is not currently available for new vendor applications.")
-            : "",
-        );
-      }
+      const appStatus = result.geo?.applicationStatus ?? null;
       if (!localities.length) {
         onChange({
           ...value,
           primaryCityId: result.city?.id ?? "",
           geoLocalityId: null,
         });
+        if (enforceApplicationAvailability) {
+          // A genuine postal miss is not an Admin-review case. Neither the
+          // government directory nor the India Post fallback knows this PIN,
+          // so asking an applicant to wait for a review is misleading. Keep
+          // the form safely blocked, but tell them how to recover: check the
+          // six digits and try again.
+          const noPostalMatch = result.geo?.sourceTrust === "none"
+            && !result.geo?.state
+            && !result.geo?.district;
+          setApplicationBlockedMessage(noPostalMatch
+            ? "We couldn’t find this PIN code. Check the six digits and try again."
+            : blockedMessageFor(null, appStatus, result.geo?.applicationMessage, resolvedPinTaluka));
+        }
         setLookupMessage(result.message ?? "No locations found for this PIN.");
         return;
       }
@@ -132,16 +176,18 @@ export function VendorServiceLocationEditor({
         primaryCityId: result.city?.id ?? "",
         geoLocalityId: selectedLocality?.id ?? null,
       });
+      if (enforceApplicationAvailability) {
+        setApplicationBlockedMessage(blockedMessageFor(selectedLocality, appStatus, result.geo?.applicationMessage, resolvedPinTaluka));
+      }
       if (localities.length > 1 && !selectedLocality) {
         setLookupMessage("Multiple localities match this PIN code. Select your area / village below to enable Submit Application.");
       } else if (selectedLocality) {
-        const trusted = Boolean(selectedLocality.trusted && selectedLocality.taluka && selectedLocality.district && selectedLocality.state);
-        setLookupVerified(trusted);
-        setLookupMessage(trusted
-          ? `${selectedLocality.name}, ${selectedLocality.taluka!.name}, ${selectedLocality.district!.name}, ${selectedLocality.state!.name} - verified`
-          : `${selectedLocality.name} selected - canonical hierarchy pending review`);
+        // Colored/marked the same way regardless of official vs unofficial
+        // source -- see describeSelectedLocality above.
+        setLookupVerified(true);
+        setLookupMessage(describeSelectedLocality(selectedLocality, resolvedPinTaluka));
       } else {
-        setLookupMessage(result.message ?? "This PIN requires location review.");
+        setLookupMessage(result.message ?? "Select your area / village below.");
       }
     } catch (caught) {
       if (caught instanceof PincodeLookupUnavailableError) {
@@ -162,20 +208,34 @@ export function VendorServiceLocationEditor({
     }
   }, [lookup, value.geoLocalityId, value.pincode]);
 
+  // Auto-verify once a full 6-digit PIN is typed -- the Verify button stays
+  // as a manual retry, but nobody should have to press it for the normal
+  // case. Debounced so it fires once typing pauses, not on every keystroke;
+  // `lookupRef` holds the latest `lookup` closure so this effect's own
+  // dependency is just the PIN string itself -- otherwise `lookup`'s
+  // identity changing on every unrelated field update (city/area/etc, all
+  // set via the same onChange) would re-arm the debounce timer for no
+  // reason. `lastTriggeredPincodeRef` (set inside lookup() itself) stops
+  // this from firing a redundant second lookup right after the
+  // pre-filled-value hydration effect above already started one.
+  const lookupRef = useRef(lookup);
+  lookupRef.current = lookup;
+  useEffect(() => {
+    if (!/^[1-9][0-9]{5}$/.test(value.pincode)) return;
+    if (lastTriggeredPincodeRef.current === value.pincode) return;
+    const timer = setTimeout(() => void lookupRef.current(), 600);
+    return () => clearTimeout(timer);
+  }, [value.pincode]);
+
   const selectLocality = (locality: PincodeLocality) => {
     onChange({ ...value, geoLocalityId: locality.id });
     if (enforceApplicationAvailability) {
-      setApplicationBlockedMessage(
-        locality.taluka?.acceptingApplications === false
-          ? `RoyalLagn is not currently accepting new vendor applications from ${locality.taluka.name}.`
-          : "",
-      );
+      setApplicationBlockedMessage(blockedMessageFor(locality, null, null, pinTaluka));
     }
-    const canonicallyTrusted = Boolean(locality.trusted && locality.taluka && locality.district && locality.state);
-    setLookupVerified(canonicallyTrusted);
-    setLookupMessage(canonicallyTrusted
-      ? `${locality.name}, ${locality.taluka!.name}, ${locality.district!.name}, ${locality.state!.name} - verified`
-      : `${locality.name} selected - canonical hierarchy pending review`);
+    // Colored/marked the same way regardless of official vs unofficial
+    // source -- see describeSelectedLocality above.
+    setLookupVerified(true);
+    setLookupMessage(describeSelectedLocality(locality));
   };
 
   return (
@@ -203,7 +263,17 @@ export function VendorServiceLocationEditor({
           <CircleAlert size={15} color="#B42318" />
           <Text style={styles.messageText}>{applicationBlockedMessage}</Text>
         </View>
-      ) : lookupMessage ? <View style={[styles.message, lookupVerified && styles.verifiedMessage]}>{lookupVerified ? <ShieldCheck size={15} color="#16845B" /> : null}<Text style={[styles.messageText, lookupVerified && styles.verifiedText]}>{lookupMessage}</Text></View> : null}
+      ) : lookupMessage ? (
+        // Verified (green) and blocked (red, handled above) are the only
+        // two states that need an alert color -- "selected, unofficial
+        // source, but the Taluka is known and accepting" is neither: it's
+        // informational, not a problem, so it gets a neutral amber note
+        // instead of red text that reads as an error.
+        <View style={[styles.message, lookupVerified ? styles.verifiedMessage : styles.pendingMessage]}>
+          {lookupVerified ? <ShieldCheck size={15} color="#16845B" /> : null}
+          <Text style={[styles.messageText, lookupVerified ? styles.verifiedText : styles.pendingText]}>{lookupMessage}</Text>
+        </View>
+      ) : null}
       {localityOptions.length > 1 ? (
         <View style={styles.localitySection}>
           <Text style={styles.label}>Your area / village <Text style={styles.required}>*</Text></Text>
@@ -211,9 +281,9 @@ export function VendorServiceLocationEditor({
           <ScrollView style={styles.localityList} nestedScrollEnabled keyboardShouldPersistTaps="handled" accessibilityRole="radiogroup">
             {localityOptions.map((locality) => {
               const selected = locality.id === value.geoLocalityId;
-              const hierarchy = [locality.taluka?.name, locality.district?.name, locality.state?.name].filter(Boolean).join(", ");
+              const hierarchy = [locality.taluka?.name ?? pinTaluka?.name, locality.district?.name, locality.state?.name].filter(Boolean).join(", ");
               return <Pressable key={locality.id} accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={() => selectLocality(locality)} style={[styles.localityOption, selected && styles.localityOptionSelected]}>
-                <View style={styles.localityText}><Text style={[styles.localityName, selected && styles.areaTextSelected]}>{locality.name}</Text><Text style={styles.localityMeta}>{hierarchy || "Hierarchy pending review"}{locality.trusted ? "" : " · Unofficial candidate"}</Text></View>
+                <View style={styles.localityText}><Text style={[styles.localityName, selected && styles.areaTextSelected]}>{locality.name}</Text><Text style={styles.localityMeta}>{hierarchy || "Hierarchy pending review"}</Text></View>
                 {selected ? <Check size={17} color="#E91E63" /> : null}
               </Pressable>;
             })}
@@ -236,6 +306,11 @@ const styles = StyleSheet.create({
   messageText: { flex: 1, color: "#B42318", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   verifiedMessage: { backgroundColor: "#ECFDF5" },
   verifiedText: { color: "#16845B" },
+  // A selected locality that's simply from an unofficial source (but whose
+  // Taluka IS known and accepting applications) is not an error -- red text
+  // here reads as "something's wrong" when nothing is blocking submission.
+  pendingMessage: { backgroundColor: "#FFF8E8" },
+  pendingText: { color: "#8A6100" },
   localitySection: { marginBottom: 16 },
   localityList: { maxHeight: 330, marginTop: 9 },
   localityOption: { minHeight: 54, borderWidth: 1, borderColor: "#E7E1E4", borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10, marginBottom: 8, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF" },

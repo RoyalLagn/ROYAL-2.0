@@ -59,7 +59,7 @@ function MetricTile({ definition, statistics }: { definition: MetricDefinition; 
   return (
     <Pressable
       className="min-h-11 rounded-xl border border-border bg-card active:bg-muted/60"
-      style={({ pressed }) => [{ minHeight: responsive.isPhone ? 124 : 140, padding: responsive.isPhone ? 12 : 14 }, pressed ? { transform: [{ scale: 0.97 }] } : null]}
+      style={({ pressed }) => [{ minHeight: responsive.isPhone ? 124 : 140, padding: responsive.isPhone ? 12 : 16 }, pressed ? { transform: [{ scale: 0.97 }] } : null]}
       onPress={() => router.push(definition.route)}
       accessibilityRole="button"
       accessibilityLabel={`${definition.label}: ${formattedValue}`}

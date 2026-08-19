@@ -11,7 +11,10 @@ export function DashboardHeader({ refreshing, onRefresh, health }: { refreshing:
   const { identity } = useAdminAuth();
   const unavailable = health ? Object.entries(health).filter(([key, value]) => key !== "lastCheckedAt" && value === "unavailable").length : null;
   const healthy = unavailable === 0;
-  return <ResponsiveContainer>
+  return <ResponsiveContainer
+    className="border-b border-border"
+    style={{ maxWidth: 1600, alignSelf: "center", width: "100%" }}
+  >
     <AdminPageHeader
       title="Admin Dashboard"
       subtitle={`Welcome back, ${identity?.profile.full_name || "Administrator"}`}

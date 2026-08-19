@@ -35,6 +35,12 @@ dist/
 .expo-web.stdout.log
 .expo-web.stderr.log
 
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # Impeccable local session state
 .impeccable/hook.cache.json
 .impeccable/config.local.json

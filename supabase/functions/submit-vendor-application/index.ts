@@ -184,9 +184,10 @@ Deno.serve(async (request) => {
     //
     // Every other outcome blocks the application before any row is written:
     //   - ambiguous without a selected locality -> caller must choose one
-    //   - needs_review/unresolved (or no geo at all despite a real lookup)
-    //                            -> location isn't verified yet; Admin review
-    //   - resolved but disabled  -> Taluka-specific "not accepting" message
+    //   - no Taluka at all (true blank)          -> cannot apply
+    //   - resolved but disabled                  -> Taluka-specific "not accepting" message
+    // An unofficial (needs_review) source is enough once a Taluka is known
+    // and accepting -- the Admin toggle is the only vendor-facing gate.
     // Once a locality is selected for an ambiguous PIN, its Taluka is the
     // authoritative one. The final database lookup below still decides
     // whether that Taluka accepts new applications.
@@ -202,7 +203,7 @@ Deno.serve(async (request) => {
       }
       if (!resolvedTalukaId || (!selectedGeoLocality && (geoStatus === "needs_review" || geoStatus === "unresolved" || !geoStatus))) {
         return Response.json(
-          { error: lookup.geo?.applicationMessage || "This location needs to be verified by RoyalLagn before an application can be accepted from here." },
+          { error: lookup.geo?.applicationMessage || "This PIN is not mapped to a Taluka yet, so a new application cannot be accepted from here." },
           { status: 403, headers: cors },
         );
       }
@@ -222,7 +223,7 @@ Deno.serve(async (request) => {
           {
             error: talukaRow
               ? `RoyalLagn is not currently accepting new vendor applications from ${talukaRow.name}. Existing vendors in this area remain unaffected.`
-              : "This location could not be verified. It has been sent for Admin review.",
+              : "This location could not be mapped to a Taluka that is accepting applications.",
           },
           { status: 403, headers: cors },
         );

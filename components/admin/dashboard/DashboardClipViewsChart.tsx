@@ -5,6 +5,7 @@ import { DashboardWidget } from "@/components/admin/dashboard/DashboardWidget";
 import AdminChart from "@/components/admin/revenue/AdminChart";
 import { AdminClipAnalyticsService, type ClipAnalyticsResult } from "@/services/adminClipAnalytics";
 import { DateField } from "@/components/admin/crm/ui/DateField";
+import { typeStyles } from "@/constants/typography";
 
 function monthStart(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), 1);
@@ -82,12 +83,12 @@ export function DashboardClipViewsChart() {
           <Text className="text-muted-foreground text-caption mt-1">{period.range}</Text>
         </View>
         <View className="items-end">
-          <Text className="text-foreground text-xl font-bold">{(result?.summary.views ?? 0).toLocaleString("en-IN")}</Text>
+          <Text className="text-foreground" style={typeStyles.metric}>{(result?.summary.views ?? 0).toLocaleString("en-IN")}</Text>
           <Text className="text-muted-foreground text-caption">total views</Text>
         </View>
       </View>
 
-      <View className="bg-background border border-border rounded-xl px-3 pt-4 pb-2 min-h-[290px] justify-center">
+      <View className="bg-background border border-border rounded-xl px-4 pt-4 pb-3 min-h-[290px] justify-center">
         {noViews ? (
           <View className="min-h-[250px] items-center justify-center px-4">
             <Text className="text-foreground text-sm font-bold text-center">No clip views recorded for {period.label}.</Text>

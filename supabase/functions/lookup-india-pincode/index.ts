@@ -49,27 +49,154 @@ const normalize = (value: unknown) => String(value ?? "")
   .replace(/[^a-z0-9]+/g, " ")
   .replace(/\s+/g, " ");
 
+// A post office's own name often IS its Taluka's name -- e.g. "Indapur
+// S.O." / "Indapur Bazar S.O." is the Taluka headquarters office for
+// Indapur -- but the provider's separate Taluka/Block field is frequently
+// blank for exactly these rows (common for Sub/Branch/Head Post Offices).
+// Stripping the standard Indian postal designator suffix before matching
+// against known Taluka names/aliases recovers that match instead of
+// leaving the whole PIN "unresolved" for want of an explicit Block field.
+// Mirrors private.strip_post_office_suffix() in
+// 20260819110000_taluka_match_from_office_name_fallback.sql -- keep both in
+// sync if this pattern changes.
+const stripPostOfficeSuffix = (value: string) => value
+  .replace(
+    /\s*[([]?\b(S\.?\s*O\.?|B\.?\s*O\.?|H\.?\s*O\.?|G\.?\s*P\.?\s*O\.?|Sub\s+Post\s+Office|Branch\s+Post\s+Office|Head\s+Post\s+Office|Sub\s+Office|Branch\s+Office|Head\s+Office)\b[)\]]?\s*$/gi,
+    "",
+  )
+  .trim();
+
+// data.gov.in resource API responses describe their own schema in a `field`
+// array (e.g. [{ id: "officename", name: "Office Name", type: "keyword" }, ...]).
+// Field ids vary between pincode-directory resources (e.g. "taluk" vs
+// "taluka" vs "block", "statename" vs "state"), so this reads that metadata
+// live instead of assuming one fixed set of field ids -- the safe way to
+// avoid silently mismatching a resource whose exact schema wasn't inspected
+// ahead of time. Falls back to the previous best-guess id list when the API
+// doesn't return `field` metadata at all (some resources omit it).
+type DataGovField = { id?: unknown; name?: unknown };
+
+function buildDataGovFieldIndex(fields: DataGovField[]): Record<string, string | null> {
+  const byId = new Map(
+    fields
+      .map((field) => String(field?.id ?? "").trim())
+      .filter(Boolean)
+      .map((id) => [id.toLowerCase(), id] as const),
+  );
+  const pick = (...candidates: string[]) => {
+    for (const candidate of candidates) {
+      const hit = byId.get(candidate.toLowerCase());
+      if (hit) return hit;
+    }
+    return null;
+  };
+  return {
+    pincode: pick("pincode", "pin_code", "pin"),
+    officename: pick("officename", "office_name", "office"),
+    taluk: pick("taluk", "taluka", "block", "subdistrict", "sub_district", "mandal"),
+    district: pick("district", "districtname", "district_name"),
+    state: pick("statename", "state_name", "state"),
+    officetype: pick("officetype", "office_type"),
+    delivery: pick("deliverystatus", "delivery_status", "delivery"),
+  };
+}
+
+/** Best-guess fallback field ids, used only when the API response carries no
+ * `field` metadata to build a real index from. */
+const DATA_GOV_FALLBACK_FIELD_IDS = {
+  pincode: "pincode",
+  officename: "officename",
+  taluk: "taluk",
+  district: "district",
+  state: "statename",
+  officetype: "officetype",
+  delivery: "deliverystatus",
+};
+
+const readField = (record: any, fieldId: string | null, ...legacyFallbacks: string[]) => {
+  if (fieldId && record?.[fieldId] !== undefined && record?.[fieldId] !== null) {
+    return String(record[fieldId]).trim();
+  }
+  for (const legacy of legacyFallbacks) {
+    if (record?.[legacy] !== undefined && record?.[legacy] !== null) return String(record[legacy]).trim();
+  }
+  return "";
+};
+
+/** Server-log-only diagnostics (Supabase function logs), never returned to
+ * the client and never containing the API key or resource id's secret
+ * value -- just enough to tell, from the logs, *why* a lookup fell back to
+ * the unofficial provider. */
+function logDataGovDiagnostic(reason: string, extra?: Record<string, unknown>) {
+  console.warn(`[lookup-india-pincode] data.gov.in: ${reason}`, extra ?? {});
+}
+
 async function lookupWithDataGov(pincode: string): Promise<PostalRecord[]> {
   const apiKey = Deno.env.get("DATA_GOV_IN_API_KEY");
   const resourceId = Deno.env.get("DATA_GOV_IN_PINCODE_RESOURCE_ID");
-  if (!apiKey || !resourceId) return [];
+  if (!apiKey || !resourceId) {
+    logDataGovDiagnostic("not configured (missing API key or resource id) -- using fallback provider");
+    return [];
+  }
   const url = new URL(`https://api.data.gov.in/resource/${resourceId}`);
   url.searchParams.set("api-key", apiKey);
   url.searchParams.set("format", "json");
   url.searchParams.set("limit", "50");
   url.searchParams.set("filters[pincode]", pincode);
   const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-  if (!response.ok) throw new Error("The configured PIN-code provider is unavailable");
-  const body = await response.json();
-  return (Array.isArray(body?.records) ? body.records : []).map((record: any) => ({
-    pincode,
-    officeName: String(record.officename ?? record.office_name ?? "").trim(),
-    area: String(record.taluk ?? record.block ?? record.officename ?? "").trim(),
-    city: String(record.city ?? record.taluk ?? record.district ?? "").trim(),
-    district: String(record.district ?? record.districtname ?? "").trim(),
-    state: String(record.statename ?? record.state ?? "").trim(),
-    raw: record,
-  }));
+  if (!response.ok) {
+    logDataGovDiagnostic("provider HTTP error", { status: response.status });
+    throw new Error("The configured PIN-code provider is unavailable");
+  }
+  const body = await response.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    logDataGovDiagnostic("provider returned a non-JSON/empty body");
+    return [];
+  }
+  // The API returns HTTP 200 even for an invalid api-key or unknown
+  // resource id -- it signals the real problem via `status`/`message`
+  // instead, so an "ok" HTTP response is never enough on its own to trust
+  // the payload.
+  if (body.status && String(body.status).toLowerCase() !== "ok") {
+    logDataGovDiagnostic("provider reported a non-ok status", { status: body.status, message: body.message });
+    return [];
+  }
+  const declaredFields: DataGovField[] = Array.isArray(body.field) ? body.field : [];
+  const index = declaredFields.length ? buildDataGovFieldIndex(declaredFields) : null;
+  if (!index) {
+    logDataGovDiagnostic("no field metadata in response -- using best-guess field ids");
+  }
+  const fieldIds = index ?? DATA_GOV_FALLBACK_FIELD_IDS;
+
+  const rawRecords = Array.isArray(body.records) ? body.records : [];
+  if (!rawRecords.length) {
+    logDataGovDiagnostic("provider returned zero records for this PIN code", { pincode });
+    return [];
+  }
+
+  const rows = rawRecords
+    .map((record: any): PostalRecord => ({
+      pincode,
+      officeName: readField(record, fieldIds.officename, "officename", "office_name"),
+      area: readField(record, fieldIds.taluk, "taluk", "block")
+        || readField(record, fieldIds.officename, "officename"),
+      city: readField(record, fieldIds.district, "district", "districtname")
+        || readField(record, fieldIds.taluk, "taluk"),
+      district: readField(record, fieldIds.district, "district", "districtname"),
+      state: readField(record, fieldIds.state, "statename", "state"),
+      raw: record,
+    }))
+    // A record missing both a name and a district is malformed for our
+    // purposes -- never trusted as a real match (P: "a successful HTTP
+    // response with malformed/empty records is not a trusted match").
+    .filter((row) => row.officeName || row.district);
+
+  if (!rows.length) {
+    logDataGovDiagnostic("provider records had no usable officename/district field -- field mapping likely stale", {
+      sampleKeys: Object.keys(rawRecords[0] ?? {}),
+    });
+  }
+  return rows;
 }
 
 async function lookupWithPostalPincode(pincode: string): Promise<PostalRecord[]> {
@@ -117,19 +244,20 @@ async function providerLookup(pincode: string) {
 // early client-side warning and the server-side enforcement can never drift
 // apart into two different opinions about the same PIN.
 //
-//   resolved_enabled  -- an officially/admin-trusted Taluka match exists and
-//                         accept_vendor_applications = true. Apply freely.
-//   resolved_disabled -- same trusted match, but the Admin has paused new
+//   resolved_enabled  -- a Taluka match exists (official or unofficial) and
+//                         accept_vendor_applications = true. The Admin
+//                         toggle is the only vendor-facing gate -- source
+//                         trust never blocks an application.
+//   resolved_disabled -- same match, but the Admin has paused new
 //                         applications from this Taluka specifically.
 //   ambiguous         -- more than one candidate Taluka under this PIN;
-//                         the caller must choose a locality (or an Admin
-//                         must correct the mapping) before any decision can
-//                         be made.
-//   needs_review      -- a Taluka candidate exists but only from an
-//                         unofficial/unconfirmed source -- never silently
-//                         trusted. Blocked and queued for Admin review.
-//   unresolved        -- no Taluka candidate at all. Blocked and queued for
-//                         Admin review.
+//                         the caller must choose a locality before any
+//                         decision can be made.
+//   needs_review      -- kept for PIN-cache provenance only; vendor apply
+//                         does not use this as a hard block once a Taluka
+//                         is known and accepting.
+//   unresolved        -- no Taluka candidate at all (a true blank). The
+//                         only case with nothing to toggle ON.
 // ============================================================================
 type ApplicationStatus = "resolved_enabled" | "resolved_disabled" | "ambiguous" | "needs_review" | "unresolved";
 
@@ -149,13 +277,7 @@ function computeApplicationOutcome(input: {
   if (!input.talukaId || input.resolutionStatus === "unresolved") {
     return {
       applicationStatus: "unresolved",
-      applicationMessage: "This PIN code isn't yet mapped to a location RoyalLagn recognizes. It's been sent for Admin review -- the location must be verified before an application can be accepted from here.",
-    };
-  }
-  if (input.resolutionStatus !== "resolved") {
-    return {
-      applicationStatus: "needs_review",
-      applicationMessage: `This location (near ${input.talukaName}) needs to be verified by RoyalLagn before you can apply here. It's been sent for Admin review.`,
+      applicationMessage: "This PIN code isn't yet mapped to a Taluka RoyalLagn recognizes. Try another PIN, or pick a locality if one is listed.",
     };
   }
   if (input.acceptingApplications === false) {
@@ -223,6 +345,69 @@ const localityFromRow = (row: any): GeoLocality => ({
   longitude: row.longitude === null || row.longitude === undefined ? null : Number(row.longitude),
 });
 
+/**
+ * Different providers describe the SAME real post office differently -- an
+ * official India Post import row named "Bhigwan S.O." (trusted, but its
+ * Block/Taluka field was blank) and a postalpincode.in row named plain
+ * "Bhigwan" (untrusted, but it DOES carry a Taluka) both land in
+ * geo_pincode_localities as separate rows, because their normalized_name
+ * differs. Left as-is, a vendor sees "Bhigwan" and "Bhigwan S.O." as two
+ * different villages to choose from -- picking the one that happens to have
+ * no Taluka attached dead-ends them with "needs to be verified", even
+ * though the identical real place, listed right next to it, already works.
+ * This merges any such pair (matched by suffix-stripped normalized name)
+ * into one option: whichever row actually carries a Taluka wins (since
+ * that's what lets a vendor apply at all), borrowing office-type/delivery
+ * metadata and the more descriptive name from its sibling when useful.
+ */
+function pinTalukaFromRow(taluka: any): GeoLocality["taluka"] {
+  if (!taluka) return null;
+  return {
+    id: String(taluka.id),
+    name: String(taluka.name),
+    acceptingApplications: Boolean(taluka.accept_vendor_applications),
+  };
+}
+
+/** Village B.O./S.O. rows often have a blank Block field even when the PIN
+ * as a whole uniquely resolves to one Taluka (the headquarters office, or
+ * the supplementary provider's Block). Attaching that unique PIN Taluka to
+ * every still-unmapped locality under the same PIN is what lets a vendor
+ * pick "Asani B.O." and apply when Jaoli/Jawali is already toggled ON,
+ * instead of dead-ending on a false "needs to be verified" block. Never
+ * applied when the PIN is ambiguous -- each locality keeps its own Taluka. */
+function inheritUniquePinTaluka(
+  localities: GeoLocality[],
+  pinTaluka: GeoLocality["taluka"],
+  ambiguous: boolean,
+): GeoLocality[] {
+  if (ambiguous || !pinTaluka) return localities;
+  return localities.map((item) => item.taluka ? item : { ...item, taluka: pinTaluka });
+}
+
+function dedupeLocalitiesBySamePlace(localities: GeoLocality[]): GeoLocality[] {
+  const groups = new Map<string, GeoLocality[]>();
+  for (const locality of localities) {
+    const key = normalize(stripPostOfficeSuffix(locality.name)) || normalize(locality.name);
+    const group = groups.get(key);
+    if (group) group.push(locality); else groups.set(key, [locality]);
+  }
+  return [...groups.values()].map((group) => {
+    if (group.length === 1) return group[0];
+    const withTaluka = group.filter((item) => item.taluka);
+    const winner = withTaluka.find((item) => item.trusted) ?? withTaluka[0]
+      ?? group.find((item) => item.trusted) ?? group[0];
+    const metadataSource = group.find((item) => item.officeType) ?? winner;
+    const mostDescriptiveName = group.reduce((a, b) => (b.name.length > a.name.length ? b : a));
+    return {
+      ...winner,
+      name: mostDescriptiveName.name,
+      officeType: winner.officeType ?? metadataSource.officeType,
+      deliveryStatus: winner.deliveryStatus ?? metadataSource.deliveryStatus,
+    };
+  });
+}
+
 async function listCachedLocalities(service: ReturnType<typeof createClient>, pincode: string) {
   const { data, error } = await service
     .from("geo_pincode_localities")
@@ -235,7 +420,7 @@ async function listCachedLocalities(service: ReturnType<typeof createClient>, pi
   // still return the PIN result before the locality migration is applied.
   if (error && /geo_pincode_localities|schema cache|PGRST205|42P01/i.test(`${error.code ?? ""} ${error.message ?? ""}`)) return [];
   if (error) throw error;
-  return (data ?? []).map(localityFromRow);
+  return dedupeLocalitiesBySamePlace((data ?? []).map(localityFromRow));
 }
 
 type ExistingCacheRow = {
@@ -264,6 +449,14 @@ async function upsertGeoPincodeWithPrecedence(
     ambiguous: boolean;
     raw_response: unknown;
   },
+  /** Overrides which trust level decides "resolved" vs "needs_review",
+   * without changing the `source` column value (still `provider`). Used
+   * when the Taluka match itself came from a supplementary fallback
+   * provider (e.g. postalpincode.in) even though State/District came from
+   * a higher-trust one -- the field values are still the best available,
+   * but the overall resolution must stay conservative about a Taluka that
+   * wasn't actually confirmed by the trusted source. */
+  talukaTrustProvider: string = provider,
 ): Promise<{ resolution_status: GeoResolution["status"]; skippedAsLowerTrust: boolean }> {
   const { data: existing, error: existingError } = await service
     .from("geo_pincodes")
@@ -272,7 +465,7 @@ async function upsertGeoPincodeWithPrecedence(
     .maybeSingle<ExistingCacheRow>();
   if (existingError) throw existingError;
 
-  const newTrust = trustOf(provider);
+  const newTrust = trustOf(talukaTrustProvider);
   const existingTrust = existing ? trustOf(existing.source) : -1;
   const existingIsResolved = existing?.resolution_status === "resolved";
 
@@ -373,7 +566,7 @@ async function resolveGeoHierarchy(
       supported: false, status: "unresolved", state: null, district: null, taluka: null,
       ambiguous: false, sourceTrust: "none", localities: [], localitySelectionRequired: false,
       applicationStatus: "unresolved",
-      applicationMessage: "This PIN code isn't yet mapped to a location RoyalLagn recognizes. It's been sent for Admin review -- the location must be verified before an application can be accepted from here.",
+      applicationMessage: "This PIN code isn't yet mapped to a Taluka RoyalLagn recognizes.",
     };
   }
 
@@ -400,7 +593,7 @@ async function resolveGeoHierarchy(
       supported: false, status: "unresolved", state: stateRow, district: null, taluka: null,
       ambiguous: false, sourceTrust: "none", localities: [], localitySelectionRequired: false,
       applicationStatus: "unresolved",
-      applicationMessage: "This PIN code isn't yet mapped to a location RoyalLagn recognizes. It's been sent for Admin review -- the location must be verified before an application can be accepted from here.",
+      applicationMessage: "This PIN code isn't yet mapped to a Taluka RoyalLagn recognizes.",
     };
   }
 
@@ -412,18 +605,56 @@ async function resolveGeoHierarchy(
   const talukaNameMatches = (taluka: any, candidate: string) =>
     normalize(taluka.name) === normalize(candidate)
     || (Array.isArray(taluka.aliases) && taluka.aliases.some((alias: string) => normalize(alias) === normalize(candidate)));
-  // Every post office row under this PIN that resolves to a Taluka.
-  const talukaCandidates = new Set(
-    rows
-      .flatMap((row) => [row.area, row.officeName])
+  // Every post office row under this PIN that resolves to a Taluka. Tries
+  // the explicit area/Block field first, then falls back to the office's
+  // own name with its postal-designator suffix stripped (see
+  // stripPostOfficeSuffix above) -- covers a Taluka headquarters office
+  // whose Block field the provider left blank.
+  const findTalukaCandidateIds = (fromRows: PostalRecord[]) => new Set(
+    fromRows
+      .flatMap((row) => [row.area, row.officeName, stripPostOfficeSuffix(row.officeName)])
       .map((candidate) => (talukas ?? []).find((item: any) => talukaNameMatches(item, candidate)))
       .filter(Boolean)
       .map((item: any) => item.id),
   );
+
+  // The official provider (data.gov.in) frequently has no Taluka/Block
+  // field at all for a cluster of offices whose own names don't happen to
+  // match their Taluka's name either -- e.g. "Medha S.O." is the real
+  // headquarters office of Jaoli Taluka, but the office is named after the
+  // town, not the Taluka, so neither the Block field nor the office-name
+  // fallback above can find it. When the primary provider's own rows yield
+  // zero Taluka matches, also try postalpincode.in's Block field as a
+  // supplementary signal -- its locality rows are still recorded (and stay
+  // untrusted, exactly like any other unofficial-source locality, never
+  // silently promoted) rather than the whole PIN staying unresolved
+  // forever for want of a field the official source simply doesn't carry.
+  // Never used when the primary provider already found a match, and never
+  // applied when the primary provider already IS postalpincode.in (nothing
+  // left to fall back to).
+  let supplementaryRows: PostalRecord[] = [];
+  if (provider !== "postalpincode.in" && findTalukaCandidateIds(rows).size === 0) {
+    try {
+      supplementaryRows = await lookupWithPostalPincode(pincode);
+    } catch {
+      // Best-effort only -- proceed with just the primary rows.
+    }
+  }
+
+  const talukaCandidates = findTalukaCandidateIds([...rows, ...supplementaryRows]);
   const ambiguous = talukaCandidates.size > 1;
   const talukaRow = talukaCandidates.size === 1
     ? (talukas ?? []).find((item: any) => item.id === [...talukaCandidates][0])
     : null;
+  // A Taluka found ONLY via the supplementary fallback is unofficial
+  // evidence even though State/District came from the official provider --
+  // the overall resolution must stay conservative ("needs_review"), the
+  // same way a lone postalpincode.in match always has: a real, selectable
+  // candidate, but never auto-promoted to "resolved" without Admin
+  // confirmation or independent corroboration.
+  const talukaTrustProvider = supplementaryRows.length > 0 && talukaCandidates.size > 0
+    ? "postalpincode.in"
+    : provider;
 
   const { resolution_status } = await upsertGeoPincodeWithPrecedence(service, pincode, provider, {
     state_id: stateRow.id,
@@ -433,10 +664,8 @@ async function resolveGeoHierarchy(
     office_name: rows.length === 1 ? rows[0]?.officeName || null : null,
     ambiguous,
     raw_response,
-  });
+  }, talukaTrustProvider);
 
-  const providerTrust = trustOf(provider);
-  const trustedProvider = providerTrust >= OFFICIAL_TRUST_THRESHOLD;
   const { data: existingLocalityRows, error: existingLocalityError } = await service
     .from("geo_pincode_localities")
     .select("normalized_name,source_trust,admin_confirmed")
@@ -445,34 +674,52 @@ async function resolveGeoHierarchy(
     throw existingLocalityError;
   }
   const existingByName = new Map((existingLocalityRows ?? []).map((item: any) => [item.normalized_name, item]));
-  const localityPayloads = rows
-    .filter((row) => row.officeName.trim())
-    .map((row) => {
-      const matchedTaluka = (talukas ?? []).find((item: any) =>
-        [row.area, row.officeName].some((candidate) => talukaNameMatches(item, candidate))
-      ) ?? null;
-      const raw = row.raw as any;
-      const normalizedName = normalize(row.officeName);
-      const existing = existingByName.get(normalizedName) as any;
-      if (existing?.admin_confirmed || Number(existing?.source_trust ?? 0) > providerTrust) return null;
-      return {
-        pincode,
-        locality_name: row.officeName,
-        normalized_name: normalizedName,
-        office_type: raw?.officetype ?? raw?.officeType ?? raw?.BranchType ?? null,
-        delivery_status: raw?.deliverystatus ?? raw?.delivery ?? raw?.DeliveryStatus ?? null,
-        state_id: stateRow.id,
-        district_id: districtRow.id,
-        taluka_id: matchedTaluka?.id ?? null,
-        source: provider,
-        source_trust: providerTrust,
-        is_trusted: trustedProvider,
-        admin_confirmed: false,
-        is_active: true,
-        raw_response: raw ?? {},
-        verified_at: new Date().toISOString(),
-      };
-    }).filter(Boolean);
+  const buildLocalityPayloads = (fromRows: PostalRecord[], forProvider: string) => {
+    const forProviderTrust = trustOf(forProvider);
+    const forTrusted = forProviderTrust >= OFFICIAL_TRUST_THRESHOLD;
+    return fromRows
+      .filter((row) => row.officeName.trim())
+      .map((row) => {
+        const matchedTaluka = (talukas ?? []).find((item: any) =>
+          [row.area, row.officeName, stripPostOfficeSuffix(row.officeName)].some((candidate) => talukaNameMatches(item, candidate))
+        ) ?? null;
+        const raw = row.raw as any;
+        const normalizedName = normalize(row.officeName);
+        const existing = existingByName.get(normalizedName) as any;
+        if (existing?.admin_confirmed || Number(existing?.source_trust ?? 0) > forProviderTrust) return null;
+        return {
+          pincode,
+          locality_name: row.officeName,
+          normalized_name: normalizedName,
+          office_type: raw?.officetype ?? raw?.officeType ?? raw?.BranchType ?? null,
+          delivery_status: raw?.deliverystatus ?? raw?.delivery ?? raw?.DeliveryStatus ?? null,
+          state_id: stateRow.id,
+          district_id: districtRow.id,
+          taluka_id: matchedTaluka?.id ?? (ambiguous ? null : talukaRow?.id) ?? null,
+          source: forProvider,
+          source_trust: forProviderTrust,
+          is_trusted: forTrusted,
+          admin_confirmed: false,
+          is_active: true,
+          raw_response: raw ?? {},
+          verified_at: new Date().toISOString(),
+        };
+      }).filter(Boolean);
+  };
+  // Deduped by normalized_name (primary and supplementary rows can name the
+  // exact same office) so a single upsert call never targets the same
+  // conflict key twice -- keeps whichever copy has the higher trust.
+  const localityPayloadsByName = new Map<string, any>();
+  for (const payload of [
+    ...buildLocalityPayloads(rows, provider),
+    ...buildLocalityPayloads(supplementaryRows, "postalpincode.in"),
+  ]) {
+    const current = localityPayloadsByName.get((payload as any).normalized_name);
+    if (!current || (payload as any).source_trust > current.source_trust) {
+      localityPayloadsByName.set((payload as any).normalized_name, payload);
+    }
+  }
+  const localityPayloads = [...localityPayloadsByName.values()];
   if (localityPayloads.length) {
     const { error: localitiesError } = await service
       .from("geo_pincode_localities")
@@ -481,19 +728,20 @@ async function resolveGeoHierarchy(
       throw localitiesError;
     }
   }
-  const localities = await listCachedLocalities(service, pincode);
-  const trustedLocalities = localities.filter((item) => item.trusted);
-  const { error: countUpdateError } = await service
-    .from("geo_pincodes")
-    .update({
-      locality_count: localities.length,
-      trusted_locality_count: trustedLocalities.length,
-      locality_selection_required: trustedLocalities.length > 1,
-    })
-    .eq("pincode", pincode)
-    .neq("source", "admin_verified");
-  if (countUpdateError && !/locality_count|schema cache|PGRST204|42703/i.test(`${countUpdateError.code ?? ""} ${countUpdateError.message ?? ""}`)) {
-    throw countUpdateError;
+  // Canonical reconciliation: recomputes resolution_status/ambiguous/
+  // taluka_id/locality counts from the FULL accumulated
+  // geo_pincode_localities picture for this PIN (every provider that has
+  // ever written a row here), not just the rows this one live call
+  // happened to fetch. This is the same function Admin actions
+  // (admin_confirm_geo_pincode / admin_confirm_geo_pincode_locality) use --
+  // a single canonical source of truth so the two paths can never drift
+  // apart (see 20260819130000_geo_pincode_aggregate_full_conflict_check.sql
+  // for why that drift was a real, found bug: a PIN could show "resolved"
+  // to one Taluka while other, still-untrusted localities under the same
+  // PIN pointed at different Talukas entirely).
+  const { error: aggregateError } = await service.rpc("refresh_geo_pincode_aggregate", { target_pincode: pincode });
+  if (aggregateError && !/schema cache|PGRST202|42883/i.test(`${aggregateError.code ?? ""} ${aggregateError.message ?? ""}`)) {
+    throw aggregateError;
   }
 
   // Re-read what actually landed (precedence rules above may have kept an
@@ -505,29 +753,51 @@ async function resolveGeoHierarchy(
     .maybeSingle();
   if (finalRowError) throw finalRowError;
   if (!finalRow) throw new Error("The canonical PIN-code cache could not be read after update");
+  const finalAmbiguous = Boolean(finalRow?.ambiguous);
+  if (finalRow.taluka_id && !finalAmbiguous) {
+    const { error: inheritError } = await service
+      .from("geo_pincode_localities")
+      .update({ taluka_id: finalRow.taluka_id })
+      .eq("pincode", pincode)
+      .is("taluka_id", null)
+      .eq("admin_confirmed", false);
+    if (inheritError && !/geo_pincode_localities|schema cache|PGRST205|42P01|admin_confirmed/i.test(`${inheritError.code ?? ""} ${inheritError.message ?? ""}`)) {
+      throw inheritError;
+    }
+  }
+
+  const listedLocalities = await listCachedLocalities(service, pincode);
+  const trustedLocalities = listedLocalities.filter((item) => item.trusted);
   const finalTaluka = finalRow?.taluka_id
     ? (talukas ?? []).find((item: any) => item.id === finalRow.taluka_id) ?? null
     : null;
+  const pinTaluka = pinTalukaFromRow(finalTaluka);
+  const localities = inheritUniquePinTaluka(listedLocalities, pinTaluka, finalAmbiguous);
 
-  const finalAmbiguous = Boolean(finalRow?.ambiguous);
+  // The canonical resolution_status is whatever refresh_geo_pincode_aggregate
+  // just recomputed from the FULL locality picture above -- never the
+  // pre-aggregate `resolution_status` local (that reflected only this one
+  // live call's own provider rows, before accumulated conflicts elsewhere
+  // under the same PIN were reconciled in).
+  const finalResolutionStatus = (finalRow?.resolution_status as GeoResolution["status"] | undefined) ?? resolution_status;
   // finalTaluka can be null even when finalRow.taluka_id is set, in the rare
   // case source precedence kept an existing cache row whose Taluka isn't in
-  // this District's own candidate list -- fail closed (treat as needs_review)
+  // this District's own candidate list -- fail closed (treat as unresolved)
   // rather than guessing an accept_vendor_applications value we don't have.
   const { applicationStatus, applicationMessage } = computeApplicationOutcome({
-    talukaId: finalRow?.taluka_id ?? null,
-    talukaName: finalTaluka?.name ?? null,
-    acceptingApplications: finalTaluka ? Boolean((finalTaluka as any).accept_vendor_applications) : null,
+    talukaId: pinTaluka?.id ?? null,
+    talukaName: pinTaluka?.name ?? null,
+    acceptingApplications: pinTaluka ? Boolean(pinTaluka.acceptingApplications) : null,
     ambiguous: finalAmbiguous,
-    resolutionStatus: finalRow?.taluka_id && !finalTaluka ? "needs_review" : resolution_status,
+    resolutionStatus: finalRow?.taluka_id && !finalTaluka ? "unresolved" : finalResolutionStatus,
   });
 
   return {
-    supported: resolution_status === "resolved",
-    status: resolution_status,
+    supported: finalResolutionStatus === "resolved",
+    status: finalResolutionStatus,
     state: stateRow,
     district: districtRow,
-    taluka: finalTaluka,
+    taluka: pinTaluka,
     ambiguous: finalAmbiguous,
     sourceTrust: finalRow?.source === "admin_verified"
       ? "admin_verified"
@@ -569,8 +839,17 @@ Deno.serve(async (request) => {
       .eq("pincode", pincode)
       .maybeSingle();
     if (cachedGeoError) throw cachedGeoError;
+    // "Fresh" only ever short-circuits a live re-lookup for a PIN that was
+    // already resolved by a trusted source (official provider or Admin).
+    // A needs_review/unresolved row must always be retried live -- otherwise,
+    // the moment the official provider starts working (e.g. an API key gets
+    // configured), every PIN that was ever cached via the unofficial
+    // fallback would stay stuck showing "needs Admin review" for up to
+    // PIN_CACHE_STALE_DAYS, since nothing would ever ask the now-working
+    // official provider again.
     const geoCacheIsFresh = Boolean(
-      cachedGeoRow?.verified_at
+      cachedGeoRow?.resolution_status === "resolved"
+      && cachedGeoRow?.verified_at
       && (Date.now() - new Date(cachedGeoRow.verified_at).getTime()) < PIN_CACHE_STALE_DAYS * 86_400_000,
     );
     const cachedLocalities = cachedGeoRow ? await listCachedLocalities(service, pincode) : [];
@@ -580,26 +859,28 @@ Deno.serve(async (request) => {
       const district = Array.isArray(row.geo_districts) ? row.geo_districts[0] : row.geo_districts;
       const taluka = Array.isArray(row.geo_talukas) ? row.geo_talukas[0] : row.geo_talukas;
       const status = row.resolution_status as GeoResolution["status"];
+      const pinTaluka = pinTalukaFromRow(taluka);
+      const ambiguous = Boolean(row.ambiguous);
       const { applicationStatus, applicationMessage } = computeApplicationOutcome({
-        talukaId: row.taluka_id ?? null,
-        talukaName: taluka?.name ?? null,
-        acceptingApplications: taluka ? Boolean((taluka as any).accept_vendor_applications) : null,
-        ambiguous: Boolean(row.ambiguous),
-        resolutionStatus: row.taluka_id && !taluka ? "needs_review" : status,
+        talukaId: pinTaluka?.id ?? null,
+        talukaName: pinTaluka?.name ?? null,
+        acceptingApplications: pinTaluka ? Boolean(pinTaluka.acceptingApplications) : null,
+        ambiguous,
+        resolutionStatus: row.taluka_id && !taluka ? "unresolved" : status,
       });
       return {
         supported: status === "resolved",
         status,
         state: state ?? null,
         district: district ?? null,
-        taluka: taluka ?? null,
-        ambiguous: Boolean(row.ambiguous),
+        taluka: pinTaluka,
+        ambiguous,
         sourceTrust: row.source === "admin_verified"
           ? "admin_verified"
           : trustOf(row.source) >= OFFICIAL_TRUST_THRESHOLD
             ? "official"
             : "unofficial_pending_review",
-        localities: cachedLocalities,
+        localities: inheritUniquePinTaluka(cachedLocalities, pinTaluka, ambiguous),
         localitySelectionRequired: cachedLocalities.length > 1,
         applicationStatus,
         applicationMessage,
@@ -685,7 +966,7 @@ Deno.serve(async (request) => {
           supported: false, status: "unresolved", state: null, district: null, taluka: null,
           ambiguous: false, sourceTrust: "none", localities: [], localitySelectionRequired: false,
           applicationStatus: "unresolved",
-          applicationMessage: "This PIN code isn't yet mapped to a location RoyalLagn recognizes. It's been sent for Admin review -- the location must be verified before an application can be accepted from here.",
+          applicationMessage: "This PIN code isn't yet mapped to a Taluka RoyalLagn recognizes.",
         },
       }, { status: 404, headers: cors });
     }

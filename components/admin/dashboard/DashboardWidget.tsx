@@ -35,11 +35,22 @@ export function DashboardWidget({
   return (
     <ResponsiveCard
       className={`${allowOverflow ? "overflow-visible" : "overflow-hidden"} bg-card`}
-      style={{ padding: 0, borderRadius: 16, zIndex: allowOverflow ? 10 : undefined }}
+      style={{
+        padding: 0,
+        borderRadius: 16,
+        zIndex: allowOverflow ? 10 : undefined,
+        // DESIGN.md "Quiet Dashboard Lift": 0 8px 18px rgba(125,61,88,0.05) —
+        // the documented restrained shadow for admin cards over the workspace canvas.
+        shadowColor: "#7D3D58",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.05,
+        shadowRadius: 18,
+        elevation: 2,
+      }}
     >
       <View
         className="flex-row items-center border-b border-border"
-        style={{ paddingHorizontal: cardPadding, paddingVertical: isPhone ? 14 : 16 }}
+        style={{ paddingHorizontal: cardPadding, paddingVertical: isPhone ? 14 : 18 }}
       >
         {Icon ? <View className="w-9 h-9 rounded-xl bg-primary/10 items-center justify-center mr-3"><Icon size={Math.max(17, iconSize - 3)} className="text-primary" /></View> : null}
         <View className="flex-1">

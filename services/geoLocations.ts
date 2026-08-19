@@ -476,6 +476,52 @@ export async function adminConfirmGeoPincode(pincode: string, talukaId: string) 
   return data;
 }
 
+export type PincodeLocalityCandidate = {
+  id: string;
+  name: string;
+  talukaId: string | null;
+  talukaName: string | null;
+  trusted: boolean;
+};
+
+/** Every individual post office/locality row on record for one PIN,
+ * regardless of which Taluka (if any) each one currently resolves to.
+ * Admin-only read (RLS: geo_pincode_localities_admin_all) -- used to resolve
+ * a genuinely multi-Taluka PIN one locality at a time, after the bulk
+ * admin_confirm_geo_pincode action refuses it as conflicting. */
+export async function listPincodeLocalityCandidates(pincode: string): Promise<PincodeLocalityCandidate[]> {
+  const { data, error } = await supabase
+    .from("geo_pincode_localities")
+    .select("id,locality_name,is_trusted,is_active,geo_talukas(id,name)")
+    .eq("pincode", pincode)
+    .eq("is_active", true)
+    .order("locality_name");
+  if (error) throw error;
+  return (data ?? []).map((row: any) => {
+    const taluka = Array.isArray(row.geo_talukas) ? row.geo_talukas[0] : row.geo_talukas;
+    return {
+      id: String(row.id),
+      name: String(row.locality_name),
+      talukaId: taluka?.id ?? null,
+      talukaName: taluka?.name ?? null,
+      trusted: Boolean(row.is_trusted),
+    };
+  });
+}
+
+/** Confirms ONE specific locality (never the whole PIN) to a chosen Taluka.
+ * Used when a PIN genuinely spans multiple Talukas -- the bulk
+ * admin_confirm_geo_pincode action refuses that case outright, by design. */
+export async function adminConfirmGeoPincodeLocality(localityId: string, talukaId: string) {
+  const { data, error } = await supabase.rpc("admin_confirm_geo_pincode_locality", {
+    target_locality_id: localityId,
+    target_taluka_id: talukaId,
+  });
+  if (error) throw error;
+  invalidateGeoCache();
+  return data;
+}
+
 export type GeoAdminOverview = {
   statesTotal: number;
   statesActive: number;

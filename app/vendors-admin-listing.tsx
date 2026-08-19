@@ -35,6 +35,16 @@ import {
 } from "@/services/vendorRegistration";
 import { HierarchySelect } from "@/components/admin/locations/HierarchySelect";
 
+// DESIGN.md "Quiet Dashboard Lift": 0 8px 18px rgba(125,61,88,0.05) — the
+// documented restrained shadow for admin cards over the workspace canvas.
+const cardLiftShadow = {
+  shadowColor: "#7D3D58",
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.05,
+  shadowRadius: 18,
+  elevation: 2,
+} as const;
+
 const sorts: { value: VendorSort; label: string }[] = [
   { value: "newest", label: "Newest" },
   { value: "oldest", label: "Oldest" },
