@@ -32,7 +32,7 @@ export default function VendorClipUpload() {
   const { showSuccess, showError } = useAppFeedback();
   const { data, loading } = useVendorWorkspace();
   const { registrationCategories: categories } = useCategories();
-  const queue = useClipUploadQueue();
+  const queue = useClipUploadQueue(data.vendor?.id);
   const [sources, setSources] = useState<ClipUpload[]>([]);
   const [title, setTitle] = useState("");
   const [caption, setCaption] = useState("");
@@ -46,15 +46,18 @@ export default function VendorClipUpload() {
   const internalTitle = title.trim() || `${data.vendor?.business_name || "RoyalLagn"} wedding clip`;
 
   useEffect(() => {
-    if (!draftId) return;
+    if (!draftId || !data.vendor?.id) return;
     ClipDraftService.list().then((drafts) => {
-      const draft = drafts.find((item) => item.id === draftId);
+      // Drafts are stored on-device under a single shared key -- guard here
+      // too (defense in depth alongside useVendorClipOverview's own filter)
+      // so a draftId can never resolve to a different vendor's draft.
+      const draft = drafts.find((item) => item.id === draftId && item.vendorId === data.vendor.id);
       if (!draft) return;
       setTitle(draft.title); setCaption(draft.caption); setCategoryId(draft.categoryId);
       setThumbnailUri(draft.customThumbnailUri);
       setSources(draft.source ? [draft.source] : []);
     });
-  }, [draftId]);
+  }, [draftId, data.vendor?.id]);
 
   useEffect(() => {
     if (!data.vendor?.id || (!sources.length && !title.trim() && !caption.trim())) return;

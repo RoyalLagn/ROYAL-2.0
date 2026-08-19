@@ -15,6 +15,7 @@ import {
   type VendorResolution,
 } from "@/services/vendorAuth";
 import { isRecoverySessionActive } from "@/services/authRecoverySession";
+import { ClipQueueService } from "@/clips/services/ClipQueueService";
 
 type VendorAuthContextValue = {
   resolution: VendorResolution | null;
@@ -86,6 +87,11 @@ export function VendorAuthProvider({ children }: { children: React.ReactNode }) 
       if (event === "SIGNED_OUT" || !session) {
         setResolution(null);
         setLoading(false);
+        // Covers sign-outs this context didn't initiate itself (session
+        // expiry, another tab signing out, OtpVerification's local
+        // sign-out) so the Upload Queue is cleared no matter how the
+        // session ended, not only through this context's own signOut().
+        void ClipQueueService.setActiveVendor(null);
         return;
       }
       // Deferred like AdminAuthContext: avoids re-entrant Supabase client
@@ -105,6 +111,12 @@ export function VendorAuthProvider({ children }: { children: React.ReactNode }) 
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setResolution(null);
+    // Belt-and-braces alongside useClipUploadQueue's own vendor-id effect:
+    // clears the in-memory Upload Queue immediately even if a Clip upload
+    // screen happens to stay mounted across the logout (e.g. a background
+    // tab), so the next vendor to sign in on this device can never see it
+    // flash before their own queue is hydrated.
+    await ClipQueueService.setActiveVendor(null);
   }, []);
 
   const value = useMemo<VendorAuthContextValue>(() => ({

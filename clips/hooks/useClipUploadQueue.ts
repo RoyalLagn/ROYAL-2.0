@@ -4,7 +4,14 @@ import { asClipError } from "../utils/errors";
 import { ClipLogger } from "../utils/logger";
 import { ClipQueueService, ClipUploadOrchestrator } from "../services";
 
-export function useClipUploadQueue() {
+/**
+ * @param vendorId The currently authenticated vendor's id (or null/undefined
+ * while signed out / still resolving). The Upload Queue is scoped to this
+ * id (see ClipQueueService.setActiveVendor) so that logging out and back in
+ * as a different vendor -- on the same device -- can never surface the
+ * previous vendor's queued/in-progress uploads.
+ */
+export function useClipUploadQueue(vendorId?: string | null) {
   const [items, setItems] = useState<ClipQueueItem[]>([]);
   const processing = useRef(false);
 
@@ -85,7 +92,11 @@ export function useClipUploadQueue() {
 
   useEffect(() => {
     const unsubscribe = ClipQueueService.subscribe(setItems);
-    void ClipQueueService.hydrate().then(process);
+    // Re-scopes the queue every time the authenticated vendor id changes --
+    // including to null on logout -- so a previous vendor's items are
+    // cleared immediately rather than lingering until something else
+    // happens to re-render this screen.
+    void ClipQueueService.setActiveVendor(vendorId ?? null).then(process);
     const network = ClipQueueService.onReconnect(() => {
       void (async () => {
         const offlineFailures = ClipQueueService.getItems().filter(
@@ -100,7 +111,7 @@ export function useClipUploadQueue() {
       })();
     });
     return () => { unsubscribe(); network(); };
-  }, [process]);
+  }, [process, vendorId]);
 
   const enqueue = useCallback(async (drafts: ClipUploadDraft[]) => {
     await ClipQueueService.enqueue(drafts);

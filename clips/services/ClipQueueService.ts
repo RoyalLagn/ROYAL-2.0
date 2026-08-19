@@ -13,19 +13,57 @@ type Listener = (items: ClipQueueItem[]) => void;
 class Queue {
   private items: ClipQueueItem[] = [];
   private listeners = new Set<Listener>();
-  private hydrated = false;
+  // The queue is persisted per-vendor (see storageKey()) so it is scoped by
+  // whichever vendor is currently authenticated. `activeVendorId` is the
+  // vendor the in-memory `items` currently belong to; `hydratedVendorId`
+  // tracks which vendor's persisted rows have actually been loaded into
+  // `items`, so a hydrate() started for a vendor who has since logged out
+  // (fast logout/login) is detected and discarded rather than silently
+  // repopulating the queue with a stale vendor's data.
+  private activeVendorId: string | null = null;
+  private hydratedVendorId: string | null = null;
   private writeChain: Promise<void> = Promise.resolve();
 
-  async hydrate() {
-    if (this.hydrated) return this.items;
-    const raw = await AsyncStorage.getItem(KEY);
-    try { this.items = raw ? JSON.parse(raw) : []; } catch { this.items = []; }
-    this.items = this.items.map((item) =>
+  private storageKey(vendorId: string) {
+    return `${KEY}:${vendorId}`;
+  }
+
+  /**
+   * Scopes the queue to one authenticated vendor. Must be called (with the
+   * current vendor id, or null when signed out) before the Upload Queue is
+   * read/rendered -- on initial mount, and again whenever the authenticated
+   * vendor id changes (logout, or a different vendor logging in on the same
+   * device). Switching vendors clears `items` synchronously so a previous
+   * vendor's clips can never flash on screen while the new vendor's rows
+   * are being read from storage, then hydrates the new vendor's own
+   * persisted queue (empty for a vendor who has never queued an upload).
+   */
+  async setActiveVendor(vendorId: string | null) {
+    if (vendorId === this.activeVendorId && vendorId === this.hydratedVendorId) {
+      return this.items;
+    }
+    this.activeVendorId = vendorId;
+    this.items = [];
+    this.hydratedVendorId = null;
+    this.emit();
+    if (!vendorId) return this.items;
+    return this.hydrateForVendor(vendorId);
+  }
+
+  private async hydrateForVendor(vendorId: string) {
+    const raw = await AsyncStorage.getItem(this.storageKey(vendorId));
+    // The active vendor changed again while this read was in flight (a fast
+    // logout/login) -- discard this now-stale result instead of applying a
+    // previous vendor's rows on top of whatever setActiveVendor already did.
+    if (this.activeVendorId !== vendorId) return this.items;
+    let parsed: ClipQueueItem[] = [];
+    try { parsed = raw ? JSON.parse(raw) : []; } catch { parsed = []; }
+    this.items = parsed.map((item) =>
       ["uploading", "compressing", "thumbnail", "saving"].includes(item.status)
         ? { ...item, status: "waiting", error: null }
         : item,
     );
-    this.hydrated = true;
+    this.hydratedVendorId = vendorId;
     this.emit();
     return this.items;
   }
@@ -37,13 +75,18 @@ class Queue {
   }
 
   private async persist() {
+    // No authenticated vendor to scope this write to -- nothing to persist.
+    // (Every mutating method below requires an active vendor before calling
+    // persist(), so this is a defensive no-op, not the common path.)
+    if (!this.activeVendorId) return;
+    const storageKey = this.storageKey(this.activeVendorId);
     const snapshot = JSON.stringify(this.items);
     const startedAt = Date.now();
     this.writeChain = this.writeChain.catch(() => undefined).then(async () => {
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         await Promise.race([
-          AsyncStorage.setItem(KEY, snapshot),
+          AsyncStorage.setItem(storageKey, snapshot),
           new Promise<never>((_, reject) => {
             timer = setTimeout(() => reject(new ClipModuleError(
               "UPLOAD_ERROR",
@@ -67,6 +110,17 @@ class Queue {
   }
 
   async enqueue(drafts: ClipUploadDraft[]) {
+    // Defense in depth: the queue must already be scoped to the vendor
+    // doing the uploading (via setActiveVendor), and every draft must
+    // belong to that exact vendor -- never trust the caller alone to have
+    // gotten the vendor id right.
+    const mismatched = drafts.find((draft) => draft.vendorId !== this.activeVendorId);
+    if (!this.activeVendorId || mismatched) {
+      throw new ClipModuleError(
+        "VALIDATION_ERROR",
+        "Upload queue is not scoped to the signed-in vendor. Please try again.",
+      );
+    }
     const now = new Date().toISOString();
     this.items.push(...drafts.map((draft) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -132,10 +186,15 @@ class Queue {
 
   getItems() { return [...this.items]; }
 
+  /** Clears the CURRENT vendor's persisted queue only -- never touches
+   * another vendor's storage key. */
   async clear() {
+    const vendorId = this.activeVendorId;
     this.items = [];
-    this.hydrated = true;
-    await AsyncStorage.removeItem(KEY);
+    if (vendorId) {
+      this.hydratedVendorId = vendorId;
+      await AsyncStorage.removeItem(this.storageKey(vendorId));
+    }
     this.emit();
   }
 
