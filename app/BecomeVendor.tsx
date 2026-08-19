@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator, Alert, BackHandler, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text,
-  TextInput, TouchableOpacity, View,
+  TextInput, TouchableOpacity, useWindowDimensions, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  ArrowLeft, Check, ChevronDown, FileText, ImagePlus, Trash2, X,
+  ArrowLeft, Check, ChevronDown, CircleAlert, FileText, ImagePlus, Trash2, X,
 } from "lucide-react-native";
 import {
   CloudinaryError, pickAndUploadBusinessDocument, pickAndUploadImage,
@@ -84,8 +84,8 @@ function Field({
   placeholder?: string; maxLength?: number;
 }) {
   return (
-    <View className="mb-4">
-      <Text className="text-foreground text-sm font-semibold mb-2">
+    <View className="mb-5">
+      <Text className="text-foreground text-sm font-semibold mb-2.5">
         {label}{required ? <Text className="text-primary"> *</Text> : null}
       </Text>
       <TextInput
@@ -93,7 +93,7 @@ function Field({
         onChangeText={onChangeText}
         placeholder={placeholder ?? `Enter ${label.toLowerCase()}`}
         placeholderTextColor="#8A8589"
-        className={`border border-border bg-background text-foreground rounded-2xl px-4 ${multiline ? "min-h-[112px] py-4" : "h-14"}`}
+        className={`border border-border bg-background text-foreground rounded-xl px-4 ${multiline ? "min-h-[124px] py-4" : "h-14"}`}
         multiline={multiline}
         textAlignVertical={multiline ? "top" : "center"}
         keyboardType={keyboardType}
@@ -104,8 +104,47 @@ function Field({
   );
 }
 
+function FormSection({
+  title,
+  description,
+  optional = false,
+  children,
+}: {
+  title: string;
+  description: string;
+  optional?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <View className="bg-card border border-border rounded-[20px] p-5 mb-5">
+      <View className="mb-6">
+        <View className="flex-row items-center justify-between mb-1.5">
+          <Text className="text-foreground text-lg font-bold">{title}</Text>
+          {optional ? <Text className="text-primary text-xs font-semibold">Optional</Text> : null}
+        </View>
+        <Text className="text-muted-foreground text-sm leading-5">{description}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function FormGrid({ wide, children }: { wide: boolean; children: React.ReactNode }) {
+  return (
+    <View style={wide ? { flexDirection: "row", flexWrap: "wrap", marginHorizontal: -8 } : undefined}>
+      {React.Children.map(children, (child, index) => (
+        <View key={index} style={wide ? { width: "50%", paddingHorizontal: 8 } : undefined}>
+          {child}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export default function BecomeVendor() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isWideLayout = width >= 760;
   const params = useLocalSearchParams<{ source?: string }>();
   const source = Array.isArray(params.source) ? params.source[0] : params.source;
   const { registrationCategories: categories } = useCategories();
@@ -235,10 +274,24 @@ export default function BecomeVendor() {
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
   const selectedCategory = categories.find((item) => item.id === form.categoryId);
+  const completedRequiredFields = useMemo(() => [
+    form.businessName, form.ownerName, form.email, form.mobile, form.categoryId,
+    form.experience, form.description,
+  ].filter((value) => value.trim()).length + (locationValid ? 1 : 0), [form, locationValid]);
   const requiredComplete = useMemo(() => [
     form.businessName, form.ownerName, form.email, form.mobile, form.categoryId,
     form.experience, form.description,
   ].every((value) => value.trim()) && locationValid, [form, locationValid]);
+  const canSubmit = requiredComplete && termsAccepted && !submitting && !uploading;
+  const submitBlocker = useMemo(() => {
+    if (!locationValid) return "Verify your PIN code and choose your area / village from the matching locations to enable submission.";
+    if (!form.businessName.trim() || !form.ownerName.trim() || !form.email.trim() || !form.mobile.trim() || !form.categoryId || !form.experience.trim() || !form.description.trim()) {
+      return "Complete all required business details to enable submission.";
+    }
+    if (!termsAccepted) return "Accept the Terms & Conditions to enable submission.";
+    if (uploading) return "Finish the current upload before submitting.";
+    return null;
+  }, [form, locationValid, termsAccepted, uploading]);
 
   const uploadImage = async (kind: "logo" | "cover") => {
     if (uploading) return;
@@ -378,70 +431,92 @@ export default function BecomeVendor() {
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
       >
-        <View className="bg-primary/10 border border-primary/20 rounded-3xl p-5 mb-5">
-          <Text className="text-foreground font-bold text-lg">Vendor Application</Text>
-          <Text className="text-muted-foreground text-sm leading-5 mt-1">Tell us about your business. Fields marked * are required.</Text>
-        </View>
+        <View className="w-full max-w-4xl self-center">
+          <View className="bg-primary/10 border border-primary/20 rounded-[20px] p-5 mb-5">
+            <View className="flex-row items-start justify-between gap-4">
+              <View className="flex-1">
+                <Text className="text-foreground text-xl font-bold">Your vendor application</Text>
+                <Text className="text-muted-foreground text-sm leading-5 mt-1.5">Share the essentials, verify your business location, then send your application for review.</Text>
+              </View>
+              <View className="bg-background rounded-full px-3 py-2 border border-primary/15">
+                <Text className="text-primary text-xs font-bold">{completedRequiredFields}/8</Text>
+              </View>
+            </View>
+            <View className="h-1.5 bg-primary/15 rounded-full mt-5 overflow-hidden">
+              <View className="h-full bg-primary rounded-full" style={{ width: `${(completedRequiredFields / 8) * 100}%` }} />
+            </View>
+            <Text className="text-muted-foreground text-xs mt-2">Required details completed</Text>
+          </View>
 
-        <View className="bg-card border border-border rounded-3xl p-5 mb-5">
-          <Text className="text-primary text-xs font-bold uppercase tracking-wider mb-5">Business details</Text>
-          <Field label="Business Name" required value={form.businessName} onChangeText={(v) => update("businessName", v)} />
-          <Field label="Owner Name" required value={form.ownerName} onChangeText={(v) => update("ownerName", v)} />
-          <Field label="Email" required value={form.email} onChangeText={(v) => update("email", v)} keyboardType="email-address" autoCapitalize="none" />
-          <Field label="Mobile Number" required value={form.mobile} onChangeText={(v) => update("mobile", sanitizePhoneInput(v))} placeholder="10-digit mobile number" keyboardType="phone-pad" maxLength={20} />
-          <Text className="text-foreground text-sm font-semibold mb-2">Business Category <Text className="text-primary">*</Text></Text>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={selectedCategory ? `Business category, ${selectedCategory.name}` : "Select business category"}
-            accessibilityState={{ expanded: categoryOpen }}
-            className="border border-border bg-background rounded-2xl px-4 h-14 mb-4 flex-row items-center justify-between"
-            onPress={() => setCategoryOpen(true)}
-          >
-            <Text className={selectedCategory ? "text-foreground" : "text-muted-foreground"}>{selectedCategory?.name ?? "Select business category"}</Text>
-            <ChevronDown size={18} className="text-muted-foreground" />
-          </TouchableOpacity>
-          <VendorServiceLocationEditor
-            value={vendorLocation}
-            onChange={setVendorLocation}
-            requireLookup={!isResubmission}
-            onValidationChange={(valid, source) => { setLocationValid(valid); setLocationSource(source); }}
-            enforceApplicationAvailability
-          />
-          <Field label="Years of Experience" required value={form.experience} onChangeText={(v) => update("experience", v)} keyboardType="number-pad" />
-          <Field label="Business Description" required multiline value={form.description} onChangeText={(v) => update("description", v)} />
-        </View>
+          <FormSection title="Business details" description="These details are shown to our review team. Fields marked * are required.">
+            <FormGrid wide={isWideLayout}>
+              <Field label="Business Name" required value={form.businessName} onChangeText={(v) => update("businessName", v)} />
+              <Field label="Owner Name" required value={form.ownerName} onChangeText={(v) => update("ownerName", v)} />
+              <Field label="Email" required value={form.email} onChangeText={(v) => update("email", v)} keyboardType="email-address" autoCapitalize="none" />
+              <Field label="Mobile Number" required value={form.mobile} onChangeText={(v) => update("mobile", sanitizePhoneInput(v))} placeholder="10-digit mobile number" keyboardType="phone-pad" maxLength={20} />
+              <View>
+                <Text className="text-foreground text-sm font-semibold mb-2.5">Business Category <Text className="text-primary">*</Text></Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={selectedCategory ? `Business category, ${selectedCategory.name}` : "Select business category"}
+                  accessibilityState={{ expanded: categoryOpen }}
+                  className="border border-border bg-background rounded-xl px-4 h-14 mb-5 flex-row items-center justify-between"
+                  onPress={() => setCategoryOpen(true)}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] })}
+                >
+                  <Text className={selectedCategory ? "text-foreground font-medium" : "text-muted-foreground"}>{selectedCategory?.name ?? "Select business category"}</Text>
+                  <ChevronDown size={18} className="text-muted-foreground" />
+                </Pressable>
+              </View>
+              <Field label="Years of Experience" required value={form.experience} onChangeText={(v) => update("experience", v)} keyboardType="number-pad" />
+            </FormGrid>
+            <VendorServiceLocationEditor
+              value={vendorLocation}
+              onChange={setVendorLocation}
+              requireLookup={!isResubmission}
+              onValidationChange={(valid, source) => { setLocationValid(valid); setLocationSource(source); }}
+              enforceApplicationAvailability
+            />
+            <Field label="Business Description" required multiline value={form.description} onChangeText={(v) => update("description", v)} placeholder="Describe your services, style, and what makes your business special" />
+          </FormSection>
 
-        <View className="bg-card border border-border rounded-3xl p-5 mb-5">
-          <Text className="text-primary text-xs font-bold uppercase tracking-wider mb-5">Online presence (optional)</Text>
-          <Field label="Instagram" value={form.instagram} onChangeText={(v) => update("instagram", v)} autoCapitalize="none" />
-          <Field label="Facebook" value={form.facebook} onChangeText={(v) => update("facebook", v)} autoCapitalize="none" />
-          <Field label="Website" value={form.website} onChangeText={(v) => update("website", v)} keyboardType="url" autoCapitalize="none" />
-        </View>
+          <FormSection title="Online presence" description="Add any social links or website you would like us to review." optional>
+            <FormGrid wide={isWideLayout}>
+              <Field label="Instagram" value={form.instagram} onChangeText={(v) => update("instagram", v)} autoCapitalize="none" placeholder="instagram.com/yourbusiness" />
+              <Field label="Facebook" value={form.facebook} onChangeText={(v) => update("facebook", v)} autoCapitalize="none" placeholder="facebook.com/yourbusiness" />
+            </FormGrid>
+            <Field label="Website" value={form.website} onChangeText={(v) => update("website", v)} keyboardType="url" autoCapitalize="none" placeholder="yourbusiness.com" />
+          </FormSection>
 
-        <View className="bg-card border border-border rounded-3xl p-5 mb-5">
-          <Text className="text-primary text-xs font-bold uppercase tracking-wider mb-5">Business media (optional)</Text>
-          {(["logo", "cover"] as const).map((kind) => {
+          <FormSection title="Business media" description="A logo, cover image, or supporting documents can help your application stand out." optional>
+          <FormGrid wide={isWideLayout}>{(["logo", "cover"] as const).map((kind) => {
             const url = kind === "logo" ? form.logoUrl : form.coverImageUrl;
             return (
-              <View key={kind} className="mb-4">
-                <Text className="text-foreground text-sm font-semibold mb-2">{kind === "logo" ? "Logo" : "Cover Image"}</Text>
-                {kind === "logo" ? <Text className="text-muted-foreground text-xs mb-2">Square logo · automatically optimized for upload</Text> : null}
-                <TouchableOpacity
+              <View key={kind} className="mb-5">
+                <View className="flex-row items-center justify-between mb-2.5">
+                  <View>
+                    <Text className="text-foreground text-sm font-semibold">{kind === "logo" ? "Logo" : "Cover image"}</Text>
+                    <Text className="text-muted-foreground text-xs mt-0.5">{kind === "logo" ? "Square image · optimized for upload" : "A landscape image works best"}</Text>
+                  </View>
+                  {url ? <View className="bg-primary/10 px-2.5 py-1 rounded-full"><Text className="text-primary text-xs font-semibold">Added</Text></View> : null}
+                </View>
+                <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={url ? `Change ${kind === "logo" ? "logo" : "cover image"}` : `Upload ${kind === "logo" ? "logo" : "cover image"}`}
                   accessibilityState={{ disabled: !!uploading, busy: uploading === kind }}
-                  className={`rounded-2xl border border-dashed border-primary/50 items-center justify-center overflow-hidden ${kind === "logo" ? "w-36 h-36 self-center bg-white" : "h-44 bg-primary/5"}`}
+                  className={`rounded-xl border border-dashed border-primary/50 items-center justify-center overflow-hidden ${kind === "logo" ? "w-36 h-36 self-center bg-background" : "h-40 bg-primary/5"}`}
                   onPress={() => uploadImage(kind)}
                   disabled={!!uploading}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] })}
                 >
                   {url ? <Image source={{ uri: url }} className="w-full h-full" resizeMode={kind === "logo" ? "contain" : "cover"} /> :
                     uploading === kind ? <ActivityIndicator color="#EC4899" /> :
                     <><ImagePlus size={27} className="text-primary mb-2" /><Text className="text-foreground font-medium">Upload {kind === "logo" ? "Logo" : "Cover Image"}</Text></>}
-                </TouchableOpacity>
+                </Pressable>
               </View>
             );
-          })}
-          <Text className="text-foreground text-sm font-semibold mb-2">Business Documents</Text>
+          })}</FormGrid>
+          <Text className="text-foreground text-sm font-semibold mb-2.5">Business documents</Text>
           {documents.map((document, index) => (
             <View key={`${document.url}-${index}`} className="flex-row items-center bg-background border border-border rounded-2xl p-3 mb-2">
               <FileText size={20} className="text-primary" />
@@ -454,24 +529,26 @@ export default function BecomeVendor() {
               ><Trash2 size={18} className="text-destructive" /></TouchableOpacity>
             </View>
           ))}
-          <TouchableOpacity
+          <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Add PDF or image document, ${documents.length} of 5 used`}
             accessibilityState={{ disabled: !!uploading || documents.length >= 5, busy: uploading === "document" }}
-            className="h-14 rounded-2xl border border-dashed border-primary/50 items-center justify-center flex-row"
+            className="h-14 rounded-xl border border-dashed border-primary/50 items-center justify-center flex-row"
             onPress={uploadDocument}
             disabled={!!uploading || documents.length >= 5}
+            style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] })}
           >
             {uploading === "document" ? <ActivityIndicator color="#EC4899" /> : <><FileText size={19} className="text-primary mr-2" /><Text className="text-primary font-semibold">Add PDF or Image ({documents.length}/5)</Text></>}
-          </TouchableOpacity>
-        </View>
+          </Pressable>
+          </FormSection>
 
         <Pressable
           accessibilityRole="checkbox"
           accessibilityState={{ checked: termsAccepted }}
           accessibilityLabel="I agree to the Terms & Conditions and confirm that the information provided is accurate."
-          className="flex-row items-start mb-6"
+          className="bg-card border border-border rounded-[20px] p-4 flex-row items-start mb-5"
           onPress={() => setTermsAccepted((value) => !value)}
+          style={({ pressed }) => ({ opacity: pressed ? 0.88 : 1 })}
         >
           <View className={`w-6 h-6 rounded-md border items-center justify-center mr-3 mt-0.5 ${termsAccepted ? "bg-primary border-primary" : "border-border bg-card"}`}>
             {termsAccepted ? <Check size={16} color="#FFF" /> : null}
@@ -479,16 +556,20 @@ export default function BecomeVendor() {
           <Text className="text-foreground flex-1 leading-5">I agree to the Terms & Conditions and confirm that the information provided is accurate.</Text>
         </Pressable>
 
-        <TouchableOpacity
+        {submitBlocker ? <View accessibilityRole="alert" className="flex-row items-start gap-2 mb-4 px-1"><CircleAlert size={17} color="#B42318" /><Text className="flex-1 text-sm leading-5 text-destructive">{submitBlocker}</Text></View> : null}
+
+        <Pressable
           accessibilityRole="button"
           accessibilityLabel="Submit application"
-          accessibilityState={{ disabled: !requiredComplete || !termsAccepted || submitting || !!uploading, busy: submitting }}
-          className={`rounded-2xl py-4 items-center ${requiredComplete && termsAccepted ? "bg-primary" : "bg-muted"}`}
-          disabled={!requiredComplete || !termsAccepted || submitting || !!uploading}
+          accessibilityState={{ disabled: !canSubmit, busy: submitting }}
+          className={`rounded-xl h-14 items-center justify-center ${canSubmit ? "bg-primary" : "bg-muted"}`}
+          disabled={!canSubmit}
           onPress={submit}
+          style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] })}
         >
-          {submitting ? <ActivityIndicator color="#FFF" /> : <Text className={requiredComplete && termsAccepted ? "text-white font-bold" : "text-muted-foreground font-bold"}>Submit Application</Text>}
-        </TouchableOpacity>
+          {submitting ? <ActivityIndicator color="#FFF" /> : <Text className={canSubmit ? "text-white font-bold" : "text-muted-foreground font-bold"}>Submit Application</Text>}
+        </Pressable>
+        </View>
       </ScrollView>
       </KeyboardAvoidingView>
 

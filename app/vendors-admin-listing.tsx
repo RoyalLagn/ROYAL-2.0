@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  Archive, BadgeCheck, BadgeX, Download, Eye, PauseCircle, PlayCircle,
+  Archive, BadgeCheck, BadgeX, Clock3, Download, Eye, PauseCircle, PlayCircle,
   RotateCcw, Trash2, UserCheck, UserX, X,
   type LucideIcon,
 } from "lucide-react-native";
@@ -241,8 +241,43 @@ export default function VendorsAdminListing() {
           </ResponsiveSection>
         </ResponsiveContainer>
 
+        {vendors.statistics && vendors.statistics.pending > 0 && vendors.filters.status !== "pending" ? (
+          <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
+            <ResponsiveSection>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Review ${vendors.statistics.pending} pending vendor application${vendors.statistics.pending === 1 ? "" : "s"}`}
+                className="bg-amber-500/10 border border-amber-500/30 rounded-2xl px-5 py-4 flex-row items-center gap-4"
+                style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+                onPress={() => vendors.updateFilters({ status: "pending", page: 1 })}
+              >
+                <View className="w-11 h-11 rounded-2xl bg-amber-500/15 items-center justify-center">
+                  <Clock3 size={20} color="#B45309" />
+                </View>
+                <View className="flex-1 min-w-0">
+                  <Text className="text-foreground text-base font-bold">
+                    {vendors.statistics.pending} vendor{vendors.statistics.pending === 1 ? "" : "s"} waiting for review
+                  </Text>
+                  <Text className="text-muted-foreground text-sm mt-0.5">
+                    Tap to jump to pending applications and approve or reject them.
+                  </Text>
+                </View>
+                <Text className="text-amber-700 font-bold text-sm">Review now</Text>
+              </Pressable>
+            </ResponsiveSection>
+          </ResponsiveContainer>
+        ) : null}
+
         <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
-          {vendors.statistics ? <ResponsiveSection><VendorStatisticsGrid data={vendors.statistics} /></ResponsiveSection> : null}
+          {vendors.statistics ? (
+            <ResponsiveSection>
+              <VendorStatisticsGrid
+                data={vendors.statistics}
+                activeStatus={vendors.filters.status}
+                onSelectStatus={(status) => vendors.updateFilters({ status, page: 1 })}
+              />
+            </ResponsiveSection>
+          ) : null}
         </ResponsiveContainer>
         <ResponsiveContainer className="bg-background pt-1" style={{ maxWidth: 1600, alignSelf: "center" }}>
           <ResponsiveSection>
@@ -286,6 +321,8 @@ export default function VendorsAdminListing() {
                       item={item}
                       onView={() => router.push({ pathname: "/AdminVendorDetails", params: { id: item.record_id } })}
                       onActions={() => { setActionRecord(item); setActionMenuOpen(true); }}
+                      onApprove={() => beginAction("approve", item)}
+                      onReject={() => beginAction("reject", item)}
                       health={item.vendor_id ? vendors.health[item.vendor_id] : undefined}
                     />
                   ))}</View>
@@ -340,7 +377,7 @@ function ActionMenu({ visible, record, onClose, onView, onAction }: { visible: b
             </Pressable>
           </View>
 
-          <Pressable className="min-h-12 mt-5 rounded-2xl bg-primary flex-row items-center justify-center gap-2" onPress={onView}>
+          <Pressable className="min-h-12 mt-5 rounded-2xl bg-primary flex-row items-center justify-center gap-2" style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.97 : 1 }] })} onPress={onView}>
             <Eye size={18} color="#FFFFFF" />
             <Text className="text-white font-bold">View vendor profile</Text>
           </Pressable>
@@ -388,6 +425,7 @@ function ActionButton({ action, destructive = false, onPress }: { action: Manage
     <Pressable
       accessibilityLabel={`${label} vendor`}
       className={`min-h-12 min-w-[47%] flex-1 px-3 rounded-2xl border flex-row items-center justify-center gap-2 ${destructive ? "border-red-200 bg-red-50" : "border-border bg-background"}`}
+      style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.97 : 1 }] })}
       onPress={onPress}
     >
       <ActionIcon action={action} size={18} color={color} />

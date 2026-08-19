@@ -172,7 +172,7 @@ type GeoResolution = {
   status: "resolved" | "needs_review" | "unresolved";
   state: { id: string; name: string } | null;
   district: { id: string; name: string } | null;
-  taluka: { id: string; name: string } | null;
+  taluka: { id: string; name: string; acceptingApplications?: boolean } | null;
   ambiguous: boolean;
   sourceTrust: "official" | "unofficial_pending_review" | "admin_verified" | "none";
   localities: GeoLocality[];
@@ -211,7 +211,14 @@ const localityFromRow = (row: any): GeoLocality => ({
   source: String(row.source ?? ""),
   state: firstRelation(row.geo_states),
   district: firstRelation(row.geo_districts),
-  taluka: firstRelation(row.geo_talukas),
+  taluka: (() => {
+    const taluka = firstRelation(row.geo_talukas);
+    return taluka ? {
+      id: String(taluka.id),
+      name: String(taluka.name),
+      acceptingApplications: Boolean(taluka.accept_vendor_applications),
+    } : null;
+  })(),
   latitude: row.latitude === null || row.latitude === undefined ? null : Number(row.latitude),
   longitude: row.longitude === null || row.longitude === undefined ? null : Number(row.longitude),
 });
@@ -219,7 +226,7 @@ const localityFromRow = (row: any): GeoLocality => ({
 async function listCachedLocalities(service: ReturnType<typeof createClient>, pincode: string) {
   const { data, error } = await service
     .from("geo_pincode_localities")
-    .select("id,locality_name,office_type,delivery_status,is_trusted,source,latitude,longitude,geo_states(id,name),geo_districts(id,name),geo_talukas(id,name)")
+    .select("id,locality_name,office_type,delivery_status,is_trusted,source,latitude,longitude,geo_states(id,name),geo_districts(id,name),geo_talukas(id,name,accept_vendor_applications)")
     .eq("pincode", pincode)
     .eq("is_active", true)
     .order("is_trusted", { ascending: false })

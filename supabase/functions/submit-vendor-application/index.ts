@@ -183,10 +183,13 @@ Deno.serve(async (request) => {
     // there is no PIN-derived geo object to gate on at all.
     //
     // Every other outcome blocks the application before any row is written:
-    //   - ambiguous              -> caller must choose a matching locality
+    //   - ambiguous without a selected locality -> caller must choose one
     //   - needs_review/unresolved (or no geo at all despite a real lookup)
     //                            -> location isn't verified yet; Admin review
     //   - resolved but disabled  -> Taluka-specific "not accepting" message
+    // Once a locality is selected for an ambiguous PIN, its Taluka is the
+    // authoritative one. The final database lookup below still decides
+    // whether that Taluka accepts new applications.
     // Existing approved vendors are never touched by any of this -- it only
     // ever runs before a NEW application row is inserted.
     // ------------------------------------------------------------------------
@@ -194,10 +197,10 @@ Deno.serve(async (request) => {
       const geoStatus = lookup.geo?.applicationStatus as string | undefined;
       const resolvedTalukaId = selectedGeoLocality?.taluka?.id ?? lookup.geo?.taluka?.id ?? null;
 
-      if (geoStatus === "ambiguous") {
+      if (geoStatus === "ambiguous" && !selectedGeoLocality) {
         throw new Error(lookup.geo?.applicationMessage || "Choose the post office or locality that matches the business address.");
       }
-      if (!resolvedTalukaId || geoStatus === "needs_review" || geoStatus === "unresolved" || !geoStatus) {
+      if (!resolvedTalukaId || (!selectedGeoLocality && (geoStatus === "needs_review" || geoStatus === "unresolved" || !geoStatus))) {
         return Response.json(
           { error: lookup.geo?.applicationMessage || "This location needs to be verified by RoyalLagn before an application can be accepted from here." },
           { status: 403, headers: cors },

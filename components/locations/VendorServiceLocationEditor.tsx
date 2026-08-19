@@ -56,7 +56,8 @@ export function VendorServiceLocationEditor({
   // block (not just an informational verification note) and is never
   // silently overwritten by an unrelated locality-selection message.
   const [applicationBlockedMessage, setApplicationBlockedMessage] = useState("");
-  const selectedLocalityBelongsToPin = localityOptions.some((item) => item.id === value.geoLocalityId);
+  const selectedLocality = localityOptions.find((item) => item.id === value.geoLocalityId) ?? null;
+  const selectedLocalityBelongsToPin = Boolean(selectedLocality);
   const valid = /^[1-9][0-9]{5}$/.test(value.pincode)
     && lookupCompleted
     && localityOptions.length > 0
@@ -105,8 +106,11 @@ export function VendorServiceLocationEditor({
       // submit time; showing it here is a head start, not a substitute.
       if (enforceApplicationAvailability) {
         const appStatus = result.geo?.applicationStatus ?? null;
+        // A multi-locality PIN has no single Taluka availability until the
+        // vendor chooses a locality. Do not preserve its initial ambiguity
+        // as a permanent blocking state after that choice is made.
         setApplicationBlockedMessage(
-          appStatus && appStatus !== "resolved_enabled"
+          appStatus && appStatus !== "resolved_enabled" && appStatus !== "ambiguous"
             ? (result.geo?.applicationMessage ?? "This location is not currently available for new vendor applications.")
             : "",
         );
@@ -129,7 +133,7 @@ export function VendorServiceLocationEditor({
         geoLocalityId: selectedLocality?.id ?? null,
       });
       if (localities.length > 1 && !selectedLocality) {
-        setLookupMessage("Select your area / village to continue.");
+        setLookupMessage("Multiple localities match this PIN code. Select your area / village below to enable Submit Application.");
       } else if (selectedLocality) {
         const trusted = Boolean(selectedLocality.trusted && selectedLocality.taluka && selectedLocality.district && selectedLocality.state);
         setLookupVerified(trusted);
@@ -160,6 +164,13 @@ export function VendorServiceLocationEditor({
 
   const selectLocality = (locality: PincodeLocality) => {
     onChange({ ...value, geoLocalityId: locality.id });
+    if (enforceApplicationAvailability) {
+      setApplicationBlockedMessage(
+        locality.taluka?.acceptingApplications === false
+          ? `RoyalLagn is not currently accepting new vendor applications from ${locality.taluka.name}.`
+          : "",
+      );
+    }
     const canonicallyTrusted = Boolean(locality.trusted && locality.taluka && locality.district && locality.state);
     setLookupVerified(canonicallyTrusted);
     setLookupMessage(canonicallyTrusted

@@ -113,7 +113,7 @@ export type PincodeGeoResolution = {
   status: "resolved" | "needs_review" | "unresolved";
   state: { id: string; name: string } | null;
   district: { id: string; name: string } | null;
-  taluka: { id: string; name: string } | null;
+  taluka: { id: string; name: string; acceptingApplications?: boolean } | null;
   ambiguous: boolean;
   /** "official" (data.gov.in / India Post, or Admin-corroborated),
    * "admin_verified" (an Admin manually confirmed the match), or
@@ -141,7 +141,7 @@ export type PincodeLocality = {
   source: string;
   state: { id: string; name: string } | null;
   district: { id: string; name: string } | null;
-  taluka: { id: string; name: string } | null;
+  taluka: { id: string; name: string; acceptingApplications?: boolean } | null;
   /** Present when the locality row itself carries a resolved lat/lng (used
    * as the origin point for GPS-based nearby search when a customer falls
    * back to PIN-code entry instead of granting device location). */
