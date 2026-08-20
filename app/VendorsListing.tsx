@@ -566,6 +566,7 @@ export default function VendorsListingScreen() {
         renderItem={renderRow}
         extraData={favorites}
         showsVerticalScrollIndicator={false}
+        decelerationRate="fast"
         keyboardShouldPersistTaps="handled"
         style={styles.scroll}
         contentContainerStyle={[styles.list, { width: contentWidth, paddingBottom: desktop ? 44 : 112 }]}
@@ -593,7 +594,7 @@ export default function VendorsListingScreen() {
                 if (locationActive && locationError) fetchLocationPage(true);
                 else void loadVendors();
               }}
-              style={({ pressed }) => [styles.emptyAction, pressed && styles.emptyActionPressed]}
+              style={({ pressed, hovered, focused }) => [styles.emptyAction, (hovered || focused) && styles.emptyActionHover, pressed && styles.emptyActionPressed]}
             >
               <Text style={styles.emptyActionText}>Try again</Text>
             </Pressable>
@@ -610,7 +611,7 @@ export default function VendorsListingScreen() {
                 : "Try another keyword, adjust the price or rating filters, or choose another Taluka."}
             </Text>
             {(query || activeFilterCount > 0) ? (
-              <Pressable accessibilityRole="button" onPress={clearSearchAndFilters} style={({ pressed }) => [styles.emptyAction, pressed && styles.emptyActionPressed]}>
+              <Pressable accessibilityRole="button" onPress={clearSearchAndFilters} style={({ pressed, hovered, focused }) => [styles.emptyAction, (hovered || focused) && styles.emptyActionHover, pressed && styles.emptyActionPressed]}>
                 <Text style={styles.emptyActionText}>Clear search and filters</Text>
               </Pressable>
             ) : null}
@@ -649,6 +650,7 @@ const styles = StyleSheet.create({
   emptyTitle: { marginTop: 15, fontFamily: fonts.serif.bold, fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, textAlign: "center" },
   emptyText: { maxWidth: 380, marginTop: 7, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata, lineHeight: typeLeading.tab, textAlign: "center" },
   emptyAction: { minHeight: 44, marginTop: 16, paddingHorizontal: 18, borderRadius: 14, backgroundColor: "#E91E63", alignItems: "center", justifyContent: "center" },
+  emptyActionHover: { transform: [{ translateY: -1 }] },
   emptyActionPressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
   emptyActionText: { color: "#FFFFFF", fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   separator: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },

@@ -56,27 +56,46 @@ function MetricTile({ definition, statistics }: { definition: MetricDefinition; 
   const value = statistics[definition.key];
   const formattedValue = definition.key === "averageRating" ? Number(value).toFixed(2) : Number(value).toLocaleString();
 
+  // The 2-column phone grid gives each tile far less width than the tablet/
+  // desktop grid, so the fixed-size icon and single-line supporting text
+  // that work at those widths were clipping phrases like "Across all
+  // reviews" or "Registered today" mid-word. A smaller icon reclaims a
+  // little width, and letting that one line wrap to 2 shows the same text
+  // in full instead of truncating it.
+  const compactIcon = responsive.isPhone;
+
   return (
     <Pressable
-      className="min-h-11 rounded-xl border border-border bg-card active:bg-muted/60"
-      style={({ pressed }) => [{ minHeight: responsive.isPhone ? 124 : 140, padding: responsive.isPhone ? 12 : 16 }, pressed ? { transform: [{ scale: 0.97 }] } : null]}
+      className="min-h-11 rounded-xl border border-border bg-background active:bg-muted/60"
+      style={({ pressed }) => [{
+        minHeight: responsive.isPhone ? 122 : 132,
+        padding: responsive.isPhone ? 13 : 17,
+        shadowColor: "#1B1720",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.025,
+        shadowRadius: 8,
+        elevation: 1,
+        transitionProperty: "transform, background-color",
+        transitionDuration: "160ms",
+        transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
+      } as any, pressed ? { transform: [{ scale: 0.975 }] } : null]}
       onPress={() => router.push(definition.route)}
       accessibilityRole="button"
       accessibilityLabel={`${definition.label}: ${formattedValue}`}
     >
       <View className="flex-row items-center gap-3 flex-1">
-        <View className={`w-12 h-12 rounded-xl items-center justify-center ${tone.icon}`}>
-          <Icon size={23} className={tone.iconText} />
+        <View className={`${compactIcon ? "w-10 h-10" : "w-12 h-12"} rounded-xl items-center justify-center ${tone.icon}`}>
+          <Icon size={compactIcon ? 19 : 23} className={tone.iconText} />
         </View>
         <View className="flex-1 min-w-0">
           <Text className="text-muted-foreground" style={typeStyles.label} numberOfLines={1}>
             {responsive.isPhone && definition.compactLabel ? definition.compactLabel : definition.label}
           </Text>
-          <Text className="text-foreground mt-1.5" style={typeStyles.metric} numberOfLines={1} adjustsFontSizeToFit>
+          <Text className="text-foreground mt-2" style={typeStyles.metric} numberOfLines={1} adjustsFontSizeToFit>
             {formattedValue}
           </Text>
           {definition.supportingText ? (
-            <Text className="text-muted-foreground mt-1.5" style={typeStyles.metadata} numberOfLines={1}>
+            <Text className="text-muted-foreground mt-2" style={typeStyles.metadata} numberOfLines={responsive.isPhone ? 2 : 1}>
               {definition.supportingText(statistics)}
             </Text>
           ) : null}
@@ -88,11 +107,14 @@ function MetricTile({ definition, statistics }: { definition: MetricDefinition; 
 
 export function StatisticsGrid({ statistics }: { statistics: DashboardStatistics; updatedAt?: number }) {
   const responsive = useResponsiveLayout();
-  const columns = responsive.isPhone ? 2 : responsive.isTablet ? 3 : 5;
+  // 10 metrics only divide evenly into 2 or 5 columns — 3 leaves a lone
+  // orphan tile on its own row, so tablet matches phone's 2-column grid
+  // instead of introducing an unbalanced row.
+  const columns = responsive.isPhone || responsive.isTablet ? 2 : 5;
   const metrics = [...platformMetrics, ...workflowMetrics, ...growthMetrics];
 
   return (
-    <ResponsiveGrid columns={columns} gap={responsive.isPhone ? 10 : 16}>
+    <ResponsiveGrid columns={columns} gap={responsive.isPhone ? 12 : 18}>
       {metrics.map((definition) => <MetricTile key={definition.key} definition={definition} statistics={statistics} />)}
     </ResponsiveGrid>
   );

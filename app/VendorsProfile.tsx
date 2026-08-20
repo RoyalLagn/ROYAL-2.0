@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 // See VendorCalendar.tsx / AppDialogProvider.tsx / VendorProfileTabs.tsx:
 // NativeWind's native Pressable interop drops function `style={(state) =>
@@ -32,6 +32,7 @@ import { StandaloneMobileTabBar, useMobileTabBarHeight } from "@/components/Mobi
 import PublicWebNavbar from "@/components/PublicWebNavbar";
 import ConnectedVendorReviews from "@/components/reviews/ConnectedVendorReviews";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
+import { usePublicAuth } from "@/context/PublicAuthContext";
 import {
   getApprovedPublicVendorById, recordPublicVendorProfileView, subscribeToPublicVendorChanges, type PublicVendorListing, } from "@/services/publicVendorListings";
 import { portfolioMediaUrl } from "@/services/vendorPortfolio";
@@ -107,6 +108,7 @@ export default function VendorsProfile() {
   const category = vendor?.category ?? paramCategory ?? "Photographers";
   const { isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
+  const { isPublicAuthenticated, loading: authLoading } = usePublicAuth();
   const [expanded, setExpanded] = useState(false);
   const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
@@ -118,6 +120,8 @@ export default function VendorsProfile() {
   const [clipsError, setClipsError] = useState("");
   const [clipsReloadKey, setClipsReloadKey] = useState(0);
   const [reelViewerIndex, setReelViewerIndex] = useState<number | null>(null);
+  const contactPromptVisible = useRef(false);
+  const contactOpening = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -304,6 +308,8 @@ export default function VendorsProfile() {
     image: vendor.image,
   }, source);
   const contactVendor = async (channel: Extract<EnquiryChannel, "call" | "whatsapp">, item?: VendorPackage) => {
+    if (contactOpening.current) return;
+    contactOpening.current = true;
     try {
       await EnquiryService.trackContactAndOpen({
         vendorId: vendor.id,
@@ -321,7 +327,32 @@ export default function VendorsProfile() {
       } else {
         Alert.alert("Contact unavailable", cause instanceof Error ? cause.message : "Please try again.");
       }
+    } finally {
+      contactOpening.current = false;
     }
+  };
+  const requestVendorContact = (channel: Extract<EnquiryChannel, "call" | "whatsapp">, item?: VendorPackage) => {
+    if (contactPromptVisible.current || contactOpening.current) return;
+    if (authLoading) {
+      Alert.alert("Checking sign-in", "Please wait a moment and try again.");
+      return;
+    }
+    if (!isPublicAuthenticated) {
+      Alert.alert("Login required", "Please log in before contacting this vendor.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Log in", onPress: () => router.push("/Login") },
+      ]);
+      return;
+    }
+    contactPromptVisible.current = true;
+    const label = channel === "call" ? "Call vendor?" : "Open WhatsApp?";
+    const message = channel === "call"
+      ? `RoyalLagn will open your phone app to contact ${vendor.name}.`
+      : `RoyalLagn will open WhatsApp to contact ${vendor.name}.`;
+    Alert.alert(label, message, [
+      { text: "Cancel", style: "cancel", onPress: () => { contactPromptVisible.current = false; } },
+      { text: channel === "call" ? "Call" : "Continue", onPress: () => { contactPromptVisible.current = false; void contactVendor(channel, item); } },
+    ], { cancelable: true, onDismiss: () => { contactPromptVisible.current = false; } });
   };
   const shareProfile = async () => {
     try {
@@ -373,8 +404,8 @@ export default function VendorsProfile() {
           >
             <VendorQuickActions
               dark={dark}
-              onCall={() => void contactVendor("call")}
-              onWhatsApp={() => void contactVendor("whatsapp")}
+              onCall={() => requestVendorContact("call")}
+              onWhatsApp={() => requestVendorContact("whatsapp")}
               onEnquire={() => router.push("/enquiry")}
               onCalendar={() => setCalendarVisible(true)}
             />
@@ -483,8 +514,8 @@ export default function VendorsProfile() {
         contactPhone={vendor.contactPhone}
         dark={dark}
         onClose={() => setPackagesVisible(false)}
-        onCall={(item) => void contactVendor("call", item)}
-        onWhatsApp={(item) => void contactVendor("whatsapp", item)}
+        onCall={(item) => requestVendorContact("call", item)}
+        onWhatsApp={(item) => requestVendorContact("whatsapp", item)}
         onEnquire={(item) => {
           setPackagesVisible(false);
           setEnquiryPackage(item);
@@ -528,13 +559,13 @@ const styles = StyleSheet.create({
     marginTop: 14,
     padding: 16,
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: 16,
     shadowColor: "#6F3048",
     shadowOpacity: 0,
     elevation: 0,
   },
   portfolioSection: { marginTop: 2 },
-  portfolioEmpty: { minHeight: 210, marginTop: 14, borderWidth: 1, borderRadius: 20, alignItems: "center", justifyContent: "center", padding: 24 },
+  portfolioEmpty: { minHeight: 210, marginTop: 14, borderWidth: 1, borderRadius: 16, alignItems: "center", justifyContent: "center", padding: 24 },
   portfolioEmptyIcon: { width: 52, height: 52, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   portfolioEmptyTitle: { marginTop: 13, fontFamily: fonts.serif.bold, fontSize: typeScale.editorialCardTitle, lineHeight: typeLeading.sectionTitle, textAlign: "center" },
   portfolioEmptyText: { maxWidth: 430, marginTop: 6, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata, lineHeight: typeLeading.tab, textAlign: "center" },
@@ -564,7 +595,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   loadingWrap: { flex: 1, width: "100%", maxWidth: 1120, alignSelf: "center" },
   loadingContent: { width: "100%", maxWidth: 980, alignSelf: "center", gap: 14, padding: 20 },
-  notFound: { width: "90%", maxWidth: 520, minHeight: 300, alignSelf: "center", marginVertical: "auto", borderWidth: 1, borderRadius: 24, alignItems: "center", justifyContent: "center", padding: 28 },
+  notFound: { width: "90%", maxWidth: 520, minHeight: 300, alignSelf: "center", marginVertical: "auto", borderWidth: 1, borderRadius: 16, alignItems: "center", justifyContent: "center", padding: 28 },
   notFoundIcon: { width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 16 },
   notFoundTitle: { fontFamily: fonts.serif.bold, fontSize: typeScale.metric, lineHeight: typeLeading.metric, textAlign: "center" },
   loadError: { maxWidth: 420, marginTop: 8, textAlign: "center", fontFamily: fonts.sans.regular, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact },

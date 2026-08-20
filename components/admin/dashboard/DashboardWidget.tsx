@@ -32,27 +32,26 @@ export function DashboardWidget({
   children,
 }: Props) {
   const { cardPadding, iconSize, isPhone } = useResponsiveLayout();
+  const horizontalPadding = isPhone ? Math.max(16, cardPadding) : Math.max(22, cardPadding);
   return (
     <ResponsiveCard
       className={`${allowOverflow ? "overflow-visible" : "overflow-hidden"} bg-card`}
       style={{
         padding: 0,
-        borderRadius: 16,
+        borderRadius: 20,
         zIndex: allowOverflow ? 10 : undefined,
-        // DESIGN.md "Quiet Dashboard Lift": 0 8px 18px rgba(125,61,88,0.05) —
-        // the documented restrained shadow for admin cards over the workspace canvas.
         shadowColor: "#7D3D58",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.05,
-        shadowRadius: 18,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.045,
+        shadowRadius: 22,
+        elevation: 1,
       }}
     >
       <View
         className="flex-row items-center border-b border-border"
-        style={{ paddingHorizontal: cardPadding, paddingVertical: isPhone ? 14 : 18 }}
+        style={{ paddingHorizontal: horizontalPadding, paddingVertical: isPhone ? 15 : 19 }}
       >
-        {Icon ? <View className="w-9 h-9 rounded-xl bg-primary/10 items-center justify-center mr-3"><Icon size={Math.max(17, iconSize - 3)} className="text-primary" /></View> : null}
+        {Icon ? <View className="w-10 h-10 rounded-xl bg-primary/10 items-center justify-center mr-3.5"><Icon size={Math.max(17, iconSize - 2)} className="text-primary" /></View> : null}
         <View className="flex-1">
           <Text className="text-foreground font-bold" style={typeStyles.cardTitle} numberOfLines={2}>{title}</Text>
           {subtitle ? <Text className="text-muted-foreground mt-0.5" style={typeStyles.bodyCompact} numberOfLines={2}>{subtitle}</Text> : null}
@@ -62,14 +61,14 @@ export function DashboardWidget({
             accessibilityRole="button"
             accessibilityLabel={`Refresh ${title}`}
             className="min-w-11 min-h-11 rounded-xl border border-border bg-background items-center justify-center active:bg-muted"
-            style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}
+            style={({ pressed }) => ({ transitionProperty: "transform, opacity", transitionDuration: "160ms", transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)", ...(pressed ? { transform: [{ scale: 0.97 }], opacity: 0.82 } : {}) } as any)}
             onPress={onRefresh}
           >
             <RefreshCw size={17} className="text-muted-foreground" />
           </Pressable>
         ) : null}
       </View>
-      <View style={{ padding: cardPadding }}>
+      <View style={{ paddingHorizontal: horizontalPadding, paddingVertical: isPhone ? 16 : 20 }}>
         {loading ? <DashboardSkeleton />
           : error ? <DashboardError message={error} />
             : empty ? <DashboardEmpty message={emptyMessage} />

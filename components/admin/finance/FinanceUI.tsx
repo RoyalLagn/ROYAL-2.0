@@ -57,13 +57,13 @@ export function FinanceEmpty({ title, message }: { title: string; message: strin
 
 const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
-  metric: { flex: 1, minWidth: 180, minHeight: 132, backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 16, justifyContent: "space-between" },
+  metric: { flex: 1, minWidth: 180, minHeight: 126, backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 16, justifyContent: "space-between" },
   metricTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   metricIcon: { width: 34, height: 34, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   metricLabel: { ...typeStyles.label, color: adminPalette.textSecondary },
-  metricValue: { ...typeStyles.metric, marginTop: 10, letterSpacing: -0.3 },
+  metricValue: { ...typeStyles.metric, marginTop: 8, letterSpacing: -0.3, fontVariant: ["tabular-nums"] },
   metricHint: { ...typeStyles.caption, color: adminPalette.textMuted, marginTop: 4 },
-  section: { backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 18, gap: 14 },
+  section: { backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 18, gap: 16 },
   sectionHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 14 },
   sectionTitle: { ...typeStyles.cardTitle, color: adminPalette.text },
   sectionDescription: { ...typeStyles.metadata, color: adminPalette.textSecondary, marginTop: 4, maxWidth: 680 },
@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
   fieldError: { ...typeStyles.caption, color: adminPalette.error, marginTop: 5 },
   notice: { minHeight: 48, borderRadius: 13, paddingHorizontal: 13, paddingVertical: 11, flexDirection: "row", alignItems: "center", gap: 9 },
   noticeText: { ...typeStyles.label, flex: 1 },
-  state: { minHeight: 180, alignItems: "center", justifyContent: "center", padding: 24 },
+  state: { minHeight: 112, alignItems: "center", justifyContent: "center", paddingHorizontal: 24, paddingVertical: 18 },
   stateText: { ...typeStyles.metadata, color: adminPalette.textSecondary, textAlign: "center", marginTop: 9, maxWidth: 420 },
   emptyTitle: { ...typeStyles.cardTitle, color: adminPalette.text },
 });

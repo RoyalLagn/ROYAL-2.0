@@ -152,11 +152,33 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
       </View>
 
       <View style={styles.footerRow}>
-        <Pressable onPress={() => router.push("/vendor-marketing-card")} style={({ pressed }) => [styles.footerButton, styles.footerButtonWide, { backgroundColor: colors.pink }, pressed && styles.pressed]}>
+        <Pressable
+          onPress={() => router.push("/vendor-marketing-card")}
+          accessibilityRole="button"
+          accessibilityLabel="Open Marketing Card"
+          style={({ pressed, hovered, focused }) => [
+            styles.footerButton,
+            styles.footerButtonWide,
+            { backgroundColor: colors.pink },
+            (hovered || focused) && styles.hoverLift,
+            pressed && styles.pressed,
+          ]}
+        >
           <Sparkles size={14} color="#FFF" />
           <Text style={[styles.footerButtonText, { color: "#FFF" }]}>Marketing Card</Text>
         </Pressable>
-        <Pressable onPress={() => showComingSoon("Profile settings")} style={({ pressed }) => [styles.footerButton, styles.footerButtonWide, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressed]}>
+        <Pressable
+          onPress={() => showComingSoon("Profile settings")}
+          accessibilityRole="button"
+          accessibilityLabel="Profile settings"
+          style={({ pressed, hovered, focused }) => [
+            styles.footerButton,
+            styles.footerButtonWide,
+            { backgroundColor: colors.surfaceSoft },
+            (hovered || focused) && styles.hoverLift,
+            pressed && styles.pressed,
+          ]}
+        >
           <Text style={[styles.footerButtonText, { color: colors.text }]}>Profile Settings</Text>
         </Pressable>
       </View>
@@ -169,7 +191,14 @@ function ActionButton({ label, icon, colors, onPress }: { label: string; icon: R
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.actionButton, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressed]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed, hovered, focused }) => [
+        styles.actionButton,
+        { backgroundColor: colors.surfaceSoft },
+        (hovered || focused) && styles.hoverLift,
+        pressed && styles.pressed,
+      ]}
     >
       {icon}
       <Text style={[styles.actionLabel, { color: colors.text }]}>{label}</Text>
@@ -214,5 +243,6 @@ const styles = StyleSheet.create({
   footerButtonWide: { flex: 1 },
   footerButtonText: { fontSize: typeScale.metadata, fontWeight: "700" },
   analyticsNote: { fontSize: typeScale.caption, marginTop: 8 },
+  hoverLift: { transform: [{ translateY: -1 }] },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
 });

@@ -57,17 +57,17 @@ export function FinanceRevenueDashboard({ data, onChanged, lastSyncedAt, syncing
       <FinanceButton label={syncing ? "Syncing…" : "Sync now"} icon={RefreshCw} variant="secondary" onPress={onSync} disabled={syncing} accessibilityHint="Reloads revenue, expense, and tax records from the database" />
     </View>
 
-    {!hasAnyRevenue ? <FinanceEmpty title="No verified revenue recorded for this period." message="Verified subscription payments and manually recorded revenue for this month will appear here." /> : null}
+    {!hasAnyRevenue ? <FinanceNotice tone="info">No verified revenue is recorded for this period yet. Verified subscription payments and manually recorded revenue will appear here.</FinanceNotice> : null}
 
     <View style={styles.kpiGrid}>
       <FinanceMetric label="Gross Revenue" value={formatMoney(summary.grossRevenue)} hint="Sum of recorded revenue transactions, refunds negative" icon={Landmark} />
-      <FinanceMetric label="Estimated Tax Provision" value={formatMoney(summary.estimatedTax)} hint="Planning estimate, not confirmed tax payable" icon={ShieldCheck} />
-      <FinanceMetric label="Payment Gateway Fees" value={gatewayFeeValue} hint={gatewayFeeHint} icon={CreditCard} tone={summary.gatewayFeeCoverage.capturedCount === 0 ? "neutral" : undefined} />
       <FinanceMetric label="Net Revenue" value={formatMoney(summary.netRevenue)} hint="Gross Revenue − Gateway Fees" icon={Wallet} />
-    </View>
-    <View style={styles.kpiGrid}>
       <FinanceMetric label="Total Expenses" value={formatMoney(summary.expenses)} hint={`${data.transactions.filter((item) => item.direction === "expense" && item.status === "recorded").length} expense records`} icon={ReceiptText} />
       <FinanceMetric label="Net Profit" value={formatMoney(summary.netProfit)} hint="Net Revenue − Expenses − Estimated Tax" tone={summary.netProfit >= 0 ? "positive" : "negative"} icon={TrendingUp} />
+    </View>
+    <View style={styles.kpiGrid}>
+      <FinanceMetric label="Estimated Tax Provision" value={formatMoney(summary.estimatedTax)} hint="Planning estimate, not confirmed tax payable" icon={ShieldCheck} />
+      <FinanceMetric label="Payment Gateway Fees" value={gatewayFeeValue} hint={gatewayFeeHint} icon={CreditCard} tone={summary.gatewayFeeCoverage.capturedCount === 0 ? "neutral" : undefined} />
       <FinanceMetric label="Profit Margin" value={summary.profitMargin == null ? "—" : `${summary.profitMargin.toFixed(1)}%`} hint={summary.profitMargin == null ? "Net revenue is zero or negative" : "Net Profit ÷ Net Revenue"} tone={summary.profitMargin == null ? "neutral" : summary.profitMargin >= 0 ? "positive" : "negative"} icon={Percent} />
     </View>
 
@@ -326,7 +326,7 @@ function formatBucketLabel(bucketStart: string, bucket: "day" | "month") {
 
 const styles = StyleSheet.create({
   stack: { gap: 14 }, flex: { flex: 1, minWidth: 0 }, columns: { flexDirection: "row", alignItems: "flex-start", gap: 14 }, column: { flex: 1, minWidth: 0 },
-  syncBar: { minHeight: 64, backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
+  syncBar: { minHeight: 68, backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 12 },
   syncLabel: { ...typeStyles.label, color: adminPalette.textSecondary }, syncValue: { ...typeStyles.bodyCompact, color: adminPalette.text, marginTop: 2 },
   kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 7 }, chip: { minHeight: 44, borderRadius: 12, backgroundColor: adminPalette.surfaceSubtle, paddingHorizontal: 13, alignItems: "center", justifyContent: "center" }, chipSelected: { backgroundColor: adminPalette.brand }, chipText: { ...typeStyles.caption, color: adminPalette.textSecondary }, chipTextSelected: { color: "#FFF" }, pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },

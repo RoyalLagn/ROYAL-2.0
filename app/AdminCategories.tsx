@@ -6,6 +6,7 @@ import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminLoadingState } from "@/components/admin/ui/AdminState";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
+import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import { useCategories } from "@/context/CategoryContext";
 import { CategoryService, slugify, type CategoryRecord, type CategoryUsage } from "@/services/CategoryService";
 import { CloudinaryError, pickAndUploadImage } from "@/services/cloudinary";
@@ -31,6 +32,7 @@ function describeCategoryError(caught: unknown, fallback: string) {
 
 export default function AdminCategories() {
   const { categories, loading, refresh } = useCategories();
+  const { width } = useResponsiveLayout();
   const [query, setQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
@@ -45,6 +47,7 @@ export default function AdminCategories() {
   const [usageError, setUsageError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [gridWidth, setGridWidth] = useState(0);
 
   const filtered = useMemo(() => { const needle = query.trim().toLowerCase(); return categories.filter((category) => !needle || [category.name, category.slug, category.description].some((value) => value.toLowerCase().includes(needle))).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)); }, [categories, query]);
   const reload = async () => { setRefreshing(true); await refresh(); setRefreshing(false); };
@@ -148,50 +151,66 @@ export default function AdminCategories() {
     deleteUsage.clips ? `${deleteUsage.clips} clip${deleteUsage.clips === 1 ? "" : "s"}` : null,
     deleteUsage.heroSlides ? `${deleteUsage.heroSlides} hero slide${deleteUsage.heroSlides === 1 ? "" : "s"}` : null,
   ].filter(Boolean) as string[] : [];
+  const availableWidth = gridWidth || width;
+  const categoryColumns = availableWidth >= 1040 ? 3 : availableWidth >= 580 ? 2 : 1;
+  const categoryCardWidth = categoryColumns === 1 ? "100%" : (availableWidth - (categoryColumns - 1) * 14) / categoryColumns;
 
   return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}><ScrollView contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload()} tintColor="#E91E63" />}>
     <ResponsiveContainer><AdminPageHeader title="Categories" subtitle="Live marketplace category directory" action={<View className="flex-row items-center gap-2">
-      <Pressable accessibilityRole="button" accessibilityLabel="Add New Category" onPress={openAdd} className="h-11 rounded-2xl bg-primary flex-row items-center px-4 gap-2"><Plus size={17} color="#FFFFFF" /><Text className="text-white text-sm font-bold">Add New Category</Text></Pressable>
-      <Pressable accessibilityLabel="Refresh categories" onPress={() => void reload()} className="min-w-11 min-h-11 items-center justify-center"><RefreshCw size={19} className="text-primary" /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Add New Category" onPress={openAdd} className="h-11 rounded-xl bg-primary flex-row items-center px-4 gap-2 shadow-sm hover:bg-[#D81B60] hover:-translate-y-px active:opacity-85 transition-all duration-200 ease-out"><Plus size={17} color="#FFFFFF" /><Text className="text-white text-sm font-bold">Add New Category</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Refresh categories" onPress={() => void reload()} className="w-11 h-11 rounded-xl border border-border bg-card items-center justify-center hover:bg-muted active:opacity-75 transition-colors duration-200"><RefreshCw size={19} className="text-primary" /></Pressable>
     </View>} />
-      <View className="flex-row gap-3 mb-4"><Metric icon={FolderTree} value={categories.length} label="Categories" /><Metric icon={Store} value={categories.reduce((sum, item) => sum + item.vendorCount, 0)} label="Listed vendors" /></View>
-      <View className="bg-card border border-border rounded-2xl px-4 h-12 flex-row items-center mb-4"><Search size={18} className="text-muted-foreground" /><TextInput value={query} onChangeText={setQuery} placeholder="Search categories" placeholderTextColor="#8A8589" className="flex-1 h-12 ml-3 text-foreground" /></View>
-      {loading ? <AdminLoadingState label="Loading categories…" /> : !filtered.length ? <AdminEmptyState title="No categories found" message="Try another search." /> : <View className="gap-3">{filtered.map((category) => { const Icon = category.icon; return <View key={category.id} className="bg-card border border-border rounded-2xl p-4 flex-row items-center"><View className="w-11 h-11 rounded-xl items-center justify-center" style={{ backgroundColor: category.iconBg }}><Icon size={20} color={category.iconColor} /></View><View className="flex-1 min-w-0 ml-3"><Text className="text-foreground font-bold">{category.name}</Text><Text numberOfLines={1} className="text-muted-foreground text-xs mt-1">{category.description || category.slug}</Text></View><View className="items-end mr-1"><Text className="text-foreground font-bold">{category.vendorCount}</Text><Text className="text-muted-foreground text-caption">vendors</Text><Text className={category.isActive ? "text-emerald-600 text-caption mt-1" : "text-muted-foreground text-caption mt-1"}>{category.isActive ? "Active" : "Inactive"}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={`Delete ${category.name}`} onPress={() => void openDelete(category)} className="w-11 h-11 rounded-xl items-center justify-center bg-red-500/10"><Trash2 size={16} color="#DC3545" /></Pressable></View>; })}</View>}
+      <View className="flex-row gap-3 mb-6"><Metric icon={FolderTree} value={categories.length} label="Categories" /><Metric icon={Store} value={categories.reduce((sum, item) => sum + item.vendorCount, 0)} label="Listed vendors" /></View>
+      <View className="bg-card border border-border rounded-2xl px-4 h-12 flex-row items-center mb-5 shadow-sm"><Search size={18} className="text-muted-foreground" /><TextInput value={query} onChangeText={setQuery} placeholder="Search categories" placeholderTextColor="#8A8589" className="flex-1 h-12 ml-3 text-foreground text-sm" /></View>
+      {loading ? <AdminLoadingState label="Loading categories…" /> : !filtered.length ? <AdminEmptyState title="No categories found" message="Try another search." /> : <View onLayout={(event) => { const nextWidth = Math.round(event.nativeEvent.layout.width); if (nextWidth !== gridWidth) setGridWidth(nextWidth); }} className="flex-row flex-wrap gap-3">{filtered.map((category) => { const Icon = category.icon; return <View key={category.id} style={{ width: categoryCardWidth }} className="min-h-[150px] bg-card border border-border rounded-2xl p-4 shadow-sm hover:border-primary/35 hover:-translate-y-px hover:shadow-md transition-all duration-200 ease-out">
+        <View className="flex-row items-start justify-between">
+          <View className="w-11 h-11 rounded-xl items-center justify-center" style={{ backgroundColor: category.iconBg }}><Icon size={20} color={category.iconColor} /></View>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${category.name}`} onPress={() => void openDelete(category)} hitSlop={6} className="w-10 h-10 rounded-xl items-center justify-center bg-red-500/10 hover:bg-red-500/15 active:opacity-70 transition-colors duration-200"><Trash2 size={16} color="#DC3545" /></Pressable>
+        </View>
+        <View className="mt-4">
+          <Text numberOfLines={1} className="text-foreground text-card-title font-bold">{category.name}</Text>
+          <Text numberOfLines={2} className="text-muted-foreground text-xs mt-1 min-h-[34px]">{category.description || category.slug}</Text>
+        </View>
+        <View className="mt-auto pt-4 flex-row items-end justify-between border-t border-border/70">
+          <View><Text className="text-foreground text-xl font-bold">{category.vendorCount}</Text><Text className="text-muted-foreground text-caption mt-0.5">vendors</Text></View>
+          <View className={category.isActive ? "px-2.5 py-1 rounded-full bg-emerald-500/10" : "px-2.5 py-1 rounded-full bg-muted"}><Text className={category.isActive ? "text-emerald-700 text-caption font-bold" : "text-muted-foreground text-caption font-bold"}>{category.isActive ? "Active" : "Inactive"}</Text></View>
+        </View>
+      </View>; })}</View>}
     </ResponsiveContainer>
   </ScrollView><AdminFooter activeTab="profile" />
 
   <Modal visible={showAdd} transparent animationType="fade" onRequestClose={closeAdd}>
     <Pressable className="flex-1 p-5 items-center justify-center bg-black/50" onPress={closeAdd}>
-      <Pressable className="w-full max-w-md rounded-3xl p-5 bg-card" onPress={(event) => event.stopPropagation()}>
+      <Pressable className="w-full max-w-md rounded-3xl border border-border p-5 bg-card shadow-lg" onPress={(event) => event.stopPropagation()}>
         <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View className="flex-row items-start justify-between mb-4">
             <Text className="text-foreground text-lg font-bold">Add New Category</Text>
-            <Pressable accessibilityLabel="Close" onPress={closeAdd}><X size={18} className="text-foreground" /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={closeAdd} className="w-10 h-10 -mr-2 -mt-2 rounded-xl items-center justify-center hover:bg-muted active:opacity-70"><X size={18} className="text-foreground" /></Pressable>
           </View>
 
           {formError ? <View className="rounded-2xl px-4 py-3 mb-4 bg-red-500/10"><Text className="text-red-600 text-xs">{formError}</Text></View> : null}
 
           <Text className="text-foreground text-xs font-semibold mb-2">Category Name</Text>
-          <TextInput value={draft.name} onChangeText={setName} placeholder="e.g. Wedding Cars" placeholderTextColor="#9CA3AF" className="h-12 border border-border rounded-2xl px-4 text-foreground bg-background mb-4" />
+          <TextInput value={draft.name} onChangeText={setName} placeholder="e.g. Wedding Cars" placeholderTextColor="#9CA3AF" className="h-12 border border-border rounded-xl px-4 text-foreground bg-background mb-4 focus:border-primary" />
 
           <Text className="text-foreground text-xs font-semibold mb-2">Description</Text>
-          <TextInput value={draft.description} onChangeText={(description) => setDraft((current) => ({ ...current, description }))} placeholder="Optional short description" placeholderTextColor="#9CA3AF" multiline className="min-h-20 border border-border rounded-2xl px-4 py-3 text-foreground bg-background mb-4" style={{ textAlignVertical: "top" }} />
+          <TextInput value={draft.description} onChangeText={(description) => setDraft((current) => ({ ...current, description }))} placeholder="Optional short description" placeholderTextColor="#9CA3AF" multiline className="min-h-20 border border-border rounded-xl px-4 py-3 text-foreground bg-background mb-4 focus:border-primary" style={{ textAlignVertical: "top" }} />
 
           <Text className="text-foreground text-xs font-semibold mb-2">Category Icon</Text>
-          <Pressable disabled={uploadingIcon} onPress={() => void chooseIcon()} className="min-h-12 border border-border rounded-2xl px-4 flex-row items-center gap-3 mb-1 bg-background">
+          <Pressable accessibilityRole="button" disabled={uploadingIcon} onPress={() => void chooseIcon()} className="min-h-12 border border-dashed border-primary/35 rounded-xl px-4 flex-row items-center gap-3 mb-1 bg-background hover:bg-primary/5 active:opacity-75 transition-colors duration-200">
             {draft.iconUrl ? <Image source={{ uri: draft.iconUrl }} className="w-8 h-8 rounded-lg" /> : <ImagePlus size={18} className="text-muted-foreground" />}
             {uploadingIcon ? <ActivityIndicator color="#E91E63" /> : <Text className="text-foreground text-sm font-semibold">{draft.iconUrl ? "Change icon image" : "Choose icon image"}</Text>}
           </Pressable>
           <Text className="text-muted-foreground text-caption mb-4">Optional. This project does not have an admin-configurable icon set — the compact icon badge shown in lists is assigned in code, so a new category shows a default icon there regardless of this image.</Text>
 
           <Text className="text-foreground text-xs font-semibold mb-2">Category Image / Logo</Text>
-          <Pressable disabled={uploadingImage} onPress={() => void chooseImage()} className="min-h-12 border border-border rounded-2xl px-4 flex-row items-center gap-3 mb-4 bg-background">
+          <Pressable accessibilityRole="button" disabled={uploadingImage} onPress={() => void chooseImage()} className="min-h-12 border border-dashed border-primary/35 rounded-xl px-4 flex-row items-center gap-3 mb-4 bg-background hover:bg-primary/5 active:opacity-75 transition-colors duration-200">
             {draft.fallbackImageUrl ? <Image source={{ uri: draft.fallbackImageUrl }} className="w-8 h-8 rounded-lg" /> : <ImagePlus size={18} className="text-muted-foreground" />}
             {uploadingImage ? <ActivityIndicator color="#E91E63" /> : <Text className="text-foreground text-sm font-semibold">{draft.fallbackImageUrl ? "Change category image" : "Upload image"}</Text>}
           </Pressable>
 
           <Text className="text-foreground text-xs font-semibold mb-2">Slug</Text>
-          <TextInput value={draft.slug} onChangeText={setSlug} placeholder="wedding-cars" autoCapitalize="none" placeholderTextColor="#9CA3AF" className="h-12 border border-border rounded-2xl px-4 text-foreground bg-background mb-1" />
+          <TextInput value={draft.slug} onChangeText={setSlug} placeholder="wedding-cars" autoCapitalize="none" placeholderTextColor="#9CA3AF" className="h-12 border border-border rounded-xl px-4 text-foreground bg-background mb-1 focus:border-primary" />
           <Text className="text-muted-foreground text-caption mb-4">Auto-generated from the name. Edit if needed — lowercase letters, numbers and hyphens only.</Text>
 
           <View className="flex-row items-center justify-between border-t border-border pt-4">
@@ -200,10 +219,10 @@ export default function AdminCategories() {
           </View>
 
           <View className="flex-row gap-3 mt-5">
-            <Pressable disabled={saving} onPress={closeAdd} className="flex-1 h-12 rounded-2xl border border-border items-center justify-center">
+            <Pressable accessibilityRole="button" disabled={saving} onPress={closeAdd} className="flex-1 h-12 rounded-xl border border-border items-center justify-center hover:bg-muted active:opacity-75 transition-colors duration-200">
               <Text className="text-foreground text-sm font-bold">Cancel</Text>
             </Pressable>
-            <Pressable disabled={saving} onPress={() => void save()} className="flex-1 h-12 rounded-2xl bg-primary items-center justify-center">
+            <Pressable accessibilityRole="button" disabled={saving} onPress={() => void save()} className="flex-1 h-12 rounded-xl bg-primary items-center justify-center hover:bg-[#D81B60] active:opacity-85 transition-colors duration-200">
               {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text className="text-white text-sm font-bold">Add Category</Text>}
             </Pressable>
           </View>

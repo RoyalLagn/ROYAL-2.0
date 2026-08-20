@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInp
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyhole, Save } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
+import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
 import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
 // The Tentative/Blocked controls use a function `style={(state) => [...]}`
 // prop (to react to `pressed`). NativeWind's native Pressable interop does
@@ -228,12 +229,41 @@ export default function VendorCalendar() {
   };
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-    <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 24 + Math.max(insets.bottom, 8) + VENDOR_TAB_BASE_HEIGHT + 16 }]}>
+    <ScrollView
+      contentContainerStyle={[styles.content, { paddingBottom: 24 + Math.max(insets.bottom, 8) + VENDOR_TAB_BASE_HEIGHT + 16 }]}
+      showsVerticalScrollIndicator={false}
+      decelerationRate="fast"
+    >
+      <VendorDashboardReveal>
       <Text style={[styles.eyebrow, { color: colors.pink }]}>PLAN WITH CLARITY</Text>
       <Text style={[styles.title, { color: colors.text }]}>Availability</Text>
       <Text style={[styles.subtitle, { color: colors.muted }]}>Keep customer expectations accurate with an up-to-date working calendar.</Text>
-      <View style={[styles.calendar, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
-        <View style={styles.monthRow}><Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} style={styles.arrow}><ChevronLeft size={20} color={colors.text} /></Pressable><Text style={[styles.month, { color: colors.text }]}>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</Text><Pressable accessibilityRole="button" accessibilityLabel="Next month" onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} style={styles.arrow}><ChevronRight size={20} color={colors.text} /></Pressable></View>
+      <View style={[styles.calendar, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+        <View style={styles.monthRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Previous month"
+            onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+            style={({ pressed, hovered, focused }) => [
+              styles.arrow,
+              { backgroundColor: colors.surfaceSoft },
+              (hovered || focused) && styles.hoverLift,
+              pressed && styles.pressed,
+            ]}
+          ><ChevronLeft size={20} color={colors.text} /></Pressable>
+          <Text style={[styles.month, { color: colors.text }]}>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Next month"
+            onPress={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+            style={({ pressed, hovered, focused }) => [
+              styles.arrow,
+              { backgroundColor: colors.surfaceSoft },
+              (hovered || focused) && styles.hoverLift,
+              pressed && styles.pressed,
+            ]}
+          ><ChevronRight size={20} color={colors.text} /></Pressable>
+        </View>
         <View onLayout={(event) => setCalendarGridWidth(event.nativeEvent.layout.width)} style={styles.grid}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <Text key={`${day}${index}`} style={[styles.weekday, cellSize ? { width: cellSize } : null, { color: colors.muted }]}>{day}</Text>)}
           {days.map((date, index) => {
             if (!date) return <View key={`blank${index}`} style={[styles.day, cellSize ? { width: cellSize, height: cellSize } : null]} />;
@@ -254,7 +284,7 @@ export default function VendorCalendar() {
               accessibilityLabel={`${date.toLocaleDateString()}${past ? ", past date, locked" : status ? `, ${status}` : ""}`}
               accessibilityState={{ disabled: past, selected: active }}
               onPress={() => setSelected(value)}
-              style={[
+              style={({ pressed, hovered, focused }) => [
                 styles.day,
                 cellSize ? { width: cellSize, height: cellSize } : null,
                 { backgroundColor },
@@ -263,6 +293,8 @@ export default function VendorCalendar() {
                   borderWidth: 2,
                   borderColor: status === "tentative" ? "#6F5100" : "#FFFFFF",
                 },
+                !past && (hovered || focused) && styles.dayHover,
+                !past && pressed && styles.dayPressed,
               ]}
             >
               <Text style={[styles.dayText, { color: dateColor }]}>{date.getDate()}</Text>
@@ -276,13 +308,13 @@ export default function VendorCalendar() {
           <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: colorScheme === "dark" ? "#292C33" : "#E8E8EC" }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Past · locked</Text></View>
         </View>
       </View>
-      <View style={[styles.editor, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+      <View style={[styles.editor, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
         <Text style={[styles.editorTitle, { color: colors.text }]}>{new Date(`${selected}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>Future dates are available automatically. Add an exception only when needed.</Text>
         <View onLayout={(event) => setStatusRowWidth(event.nativeEvent.layout.width)} style={styles.statusGrid}>{statuses.map(({ id, label, icon: Icon }) => {
           const active = dateStatus(selected) === id;
           const palette = statusColors[id];
-          return <Pressable key={id} accessibilityRole="radio" accessibilityLabel={`Set availability to ${label}`} accessibilityState={{ checked: active, disabled: savingStatus !== null || selected < today, busy: savingStatus === id }} disabled={savingStatus !== null || selected < today} onPress={() => update(id)} style={({ pressed }) => [styles.status, statusButtonWidth ? { width: statusButtonWidth } : null, { backgroundColor: active ? palette.background : colors.background }, selected < today && styles.statusDisabled, pressed && styles.pressed]}>
+          return <Pressable key={id} accessibilityRole="radio" accessibilityLabel={`Set availability to ${label}`} accessibilityState={{ checked: active, disabled: savingStatus !== null || selected < today, busy: savingStatus === id }} disabled={savingStatus !== null || selected < today} onPress={() => update(id)} style={({ pressed, hovered, focused }) => [styles.status, statusButtonWidth ? { width: statusButtonWidth } : null, { backgroundColor: active ? palette.background : colors.background, borderColor: active ? palette.background : colors.border }, (hovered || focused) && styles.hoverLift, selected < today && styles.statusDisabled, pressed && styles.pressed]}>
             {savingStatus === id
               ? <ActivityIndicator size="small" color={active ? palette.text : colors.pink} />
               : <Icon size={19} color={active ? palette.text : colors.muted} />}
@@ -310,7 +342,7 @@ export default function VendorCalendar() {
         </View> : null}
       </View>
 
-      <View style={[styles.editor, { backgroundColor: colors.surface, shadowColor: colors.shadow }]}>
+      <View style={[styles.editor, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
         <Text style={[styles.editorTitle, { color: colors.text }]}>Weekly working hours</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>All days are available by default. Turn off only the days your business is regularly closed.</Text>
         <View style={styles.hoursList}>
@@ -363,11 +395,12 @@ export default function VendorCalendar() {
           {hoursError ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.hoursError, { color: colors.destructive }]}>{hoursError}</Text>
             : hoursSaved ? <Text accessibilityLiveRegion="polite" style={[styles.hoursSaved, { color: colors.success }]}>Working hours updated</Text>
             : <Text style={[styles.hoursHint, { color: colors.muted }]}>Available days appear on your public profile.</Text>}
-          <Pressable disabled={hoursSaving} accessibilityRole="button" accessibilityState={{ disabled: hoursSaving }} onPress={() => void saveHours()} style={({ pressed }) => [styles.hoursSave, { backgroundColor: colors.pink }, hoursSaving && styles.disabled, pressed && styles.pressed]}>
+          <Pressable disabled={hoursSaving} accessibilityRole="button" accessibilityState={{ disabled: hoursSaving }} onPress={() => void saveHours()} style={({ pressed, hovered, focused }) => [styles.hoursSave, { backgroundColor: colors.pink }, (hovered || focused) && styles.hoverLift, hoursSaving && styles.disabled, pressed && styles.pressed]}>
             {hoursSaving ? <ActivityIndicator color="#FFF" size="small" /> : <><Save size={14} color="#FFF" /><Text style={styles.hoursSaveText}>Save hours</Text></>}
           </Pressable>
         </View>
       </View>
+      </VendorDashboardReveal>
     </ScrollView>
   </View>;
 }
@@ -395,15 +428,15 @@ function AvailabilityToggle({ entry, colors, onChange }: {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 }, content: { padding: 16, paddingTop: 22, paddingBottom: 24, width: "100%", maxWidth: 780, alignSelf: "center" },
+  page: { flex: 1 }, content: { padding: 16, paddingTop: 20, paddingBottom: 24, width: "100%", maxWidth: 780, alignSelf: "center" },
   eyebrow: { ...typeStyles.caption, letterSpacing: 1.1, marginBottom: 5 }, title: { ...typeStyles.pageTitle },
-  subtitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 4 }, calendar: { borderRadius: 24, padding: 15, marginTop: 20, shadowOffset: { width: 0, height: 9 }, shadowOpacity: .08, shadowRadius: 22, elevation: 3 },
-  monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }, month: { fontSize: typeScale.cardTitle, fontWeight: "700" }, arrow: { width: interactionTokens.minimumTouchTarget, height: interactionTokens.minimumTouchTarget, alignItems: "center", justifyContent: "center" },
+  subtitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 4 }, calendar: { borderWidth: 1, borderRadius: 16, padding: 15, marginTop: 20, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .05, shadowRadius: 18, elevation: 2 },
+  monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }, month: { fontSize: typeScale.cardTitle, fontWeight: "700" }, arrow: { width: interactionTokens.minimumTouchTarget, height: interactionTokens.minimumTouchTarget, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap" }, weekday: { width: "14.285%", textAlign: "center", fontSize: typeScale.caption, fontWeight: "700", paddingVertical: 8 },
-  day: { width: "14.285%", borderRadius: 12, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] }, dayText: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" }, pastDay: { opacity: .6 },
+  day: { width: "14.285%", borderRadius: 12, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] }, dayText: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" }, pastDay: { opacity: .6 }, dayHover: { transform: [{ scale: .95 }] }, dayPressed: { transform: [{ scale: .89 }], opacity: .9 },
   legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13, paddingTop: 16 }, legendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, legendSwatch: { width: 10, height: 10, borderRadius: 3 }, legendText: { fontSize: typeScale.caption, fontWeight: "700" },
-  editor: { borderRadius: 22, padding: 16, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .07, shadowRadius: 18, elevation: 2 }, editorTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
-  statusGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 }, status: { flex: 1, minWidth: 120, minHeight: 68, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 7 }, statusDisabled: { opacity: .45 }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
+  editor: { borderWidth: 1, borderRadius: 16, padding: 16, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .045, shadowRadius: 16, elevation: 1 }, editorTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
+  statusGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 }, status: { flex: 1, minWidth: 120, minHeight: 68, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center", gap: 7 }, statusDisabled: { opacity: .45 }, hoverLift: { transform: [{ translateY: -1 }] }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
   markAvailable: { minHeight: 48, borderWidth: 1, borderRadius: 14, marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   markAvailableText: { fontSize: typeScale.metadata, fontWeight: "700" },
   hoursList: { marginTop: 14, gap: 4 },

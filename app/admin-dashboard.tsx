@@ -27,19 +27,22 @@ function DashboardContent() {
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 110 }}
+        // Native momentum keeps the admin workspace feeling deliberate on
+        // touch devices while the content remains a normal, accessible scroll.
+        decelerationRate="normal"
+        contentContainerStyle={{ paddingBottom: 118 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}
       >
         <DashboardHeader refreshing={refreshing} onRefresh={() => void refresh()} health={health} />
 
-        <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
+        <ResponsiveContainer style={{ maxWidth: 1440, alignSelf: "center" }}>
           <ResponsiveSection>
             <DashboardWidget title="Platform Overview" subtitle={`Live platform workload · Updated ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`} icon={LayoutGrid} loading={loading && !snapshot} error={snapshot?.statistics.error} onRefresh={() => void refresh()}>
               {statistics ? <StatisticsGrid statistics={statistics} /> : <DashboardEmpty message="Statistics are currently unavailable." />}
             </DashboardWidget>
           </ResponsiveSection>
 
-          <View className={desktop ? "flex-row gap-5 items-start" : "gap-0"} style={{ zIndex: 20 }}>
+          <View className={desktop ? "flex-row gap-6 items-start" : "gap-0"} style={{ zIndex: 20 }}>
             <View style={desktop ? { flex: 1, minWidth: 0 } : undefined}>
               <ResponsiveSection>
                 <DashboardWidget title="Pending Tasks" subtitle="Current administrator workload" icon={ListTodo} loading={loading && !snapshot} error={snapshot?.statistics.error || snapshot?.health.error} onRefresh={() => void refresh()}>

@@ -35,6 +35,7 @@ function CategoryPageHeader({ dark, onBack, entrance, reducedMotion = false }: C
         onPress={onBack}
         style={({ pressed, hovered }) => [
           styles.action,
+          { borderColor: dark ? "#3D3036" : "#F0E1E7" },
           hovered && Platform.OS === "web" && { backgroundColor: hover },
           pressed && styles.pressed,
         ]}
@@ -51,7 +52,7 @@ function CategoryPageHeader({ dark, onBack, entrance, reducedMotion = false }: C
         </Animated.View>
       </View>
 
-      <View style={styles.action} />
+      <View style={styles.actionSpacer} />
     </View>
   );
 }
@@ -60,7 +61,8 @@ export default React.memo(CategoryPageHeader);
 
 const styles = StyleSheet.create({
   header: { minHeight: 86, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  action: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  action: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  actionSpacer: { width: 44, height: 44 },
   pressed: { opacity: 0.74, transform: [{ scale: 0.97 }] },
   titleBlock: { flex: 1, minWidth: 0, alignItems: "center", paddingHorizontal: 12 },
   title: {

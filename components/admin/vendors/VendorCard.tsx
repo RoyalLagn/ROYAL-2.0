@@ -38,20 +38,20 @@ export const VendorCard = React.memo(function VendorCard({
     void Linking.openURL(`https://wa.me/${normalizeWhatsAppPhone(item.phone)}`);
   };
   return (
-    <ResponsiveCard className={awaitingReview ? "bg-amber-500/5" : "bg-card"} style={{ borderRadius: 16 }}>
+    <ResponsiveCard className={`${awaitingReview ? "bg-amber-500/5" : "bg-card"} hover:border-primary/35 hover:bg-primary/5 transition-colors duration-200`} style={{ borderRadius: 16 }}>
       <View className="flex-row items-start">
         {item.logo_url
           ? <Image source={{ uri: item.logo_url }} className="w-16 h-16 rounded-xl bg-white border border-border" resizeMode="contain" />
           : <View className="w-16 h-16 rounded-xl bg-primary/10 items-center justify-center"><Text className="text-primary font-bold">{item.business_name.slice(0, 2).toUpperCase()}</Text></View>}
-        <Pressable className="flex-1 min-w-0 ml-3" onPress={onView}>
-          <Text className="text-foreground text-base font-bold" numberOfLines={1}>{item.business_name}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={`View ${item.business_name}`} className="flex-1 min-w-0 ml-3 rounded-lg active:opacity-75" onPress={onView}>
+          <Text className="text-foreground text-card-title font-bold" numberOfLines={1}>{item.business_name}</Text>
           <Text className="text-muted-foreground text-xs mt-0.5" numberOfLines={1}>{item.owner_name}</Text>
           <Text className="text-muted-foreground text-xs mt-1" numberOfLines={1}>{item.email || "No email"} · {item.phone || "No phone"}</Text>
         </Pressable>
         <Pressable
           accessibilityLabel="Call vendor"
           accessibilityState={{ disabled: !hasPhone }}
-          className="min-w-11 min-h-11 rounded-xl border border-border bg-background items-center justify-center"
+          className="min-w-11 min-h-11 rounded-xl border border-border bg-background items-center justify-center hover:bg-emerald-500/5 active:opacity-80 transition-colors duration-200"
           style={({ pressed }) => ({ opacity: hasPhone ? 1 : 0.4, transform: [{ scale: pressed ? 0.97 : 1 }] })}
           onPress={callVendor}
         >
@@ -60,14 +60,14 @@ export const VendorCard = React.memo(function VendorCard({
         <Pressable
           accessibilityLabel="Message vendor on WhatsApp"
           accessibilityState={{ disabled: !hasPhone }}
-          className="min-w-11 min-h-11 rounded-xl border border-border bg-background items-center justify-center ml-2"
+          className="min-w-11 min-h-11 rounded-xl border border-border bg-background items-center justify-center ml-2 hover:bg-emerald-500/5 active:opacity-80 transition-colors duration-200"
           style={({ pressed }) => ({ opacity: hasPhone ? 1 : 0.4, transform: [{ scale: pressed ? 0.97 : 1 }] })}
           onPress={whatsAppVendor}
         >
           <MessageCircle size={18} color="#25D366" />
         </Pressable>
         {awaitingReview ? null : (
-          <Pressable accessibilityRole="button" accessibilityLabel={`Open actions for ${item.business_name}`} className="min-w-11 min-h-11 rounded-xl border border-border bg-background items-center justify-center ml-2 active:bg-muted" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={onActions}>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Open actions for ${item.business_name}`} className="min-w-11 min-h-11 rounded-xl border border-border bg-background items-center justify-center ml-2 hover:bg-muted active:bg-muted transition-colors duration-200" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={onActions}>
             <MoreVertical size={20} className="text-muted-foreground" />
           </Pressable>
         )}

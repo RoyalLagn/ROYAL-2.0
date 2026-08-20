@@ -5,6 +5,7 @@ import { Eye, Heart, RefreshCw, Search, Trash2, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
+import { AdminReveal } from "@/components/admin/ui/AdminReveal";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import ClipAnalyticsSection from "@/components/admin/clips/ClipAnalyticsSection";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
@@ -120,9 +121,9 @@ export default function AdminClips() {
   };
 
   return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}>
+    <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}>
       <ResponsiveContainer>
-        <AdminPageHeader title="Clips" subtitle="Review vendor content and remove clips that do not belong" action={<Pressable accessibilityLabel="Refresh clips" onPress={() => void load(true)} className="min-w-11 min-h-11 items-center justify-center"><RefreshCw size={19} className="text-primary" /></Pressable>} />
+        <AdminPageHeader title="Clips" subtitle="Review vendor content and remove clips that do not belong" action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh clips" onPress={() => void load(true)} className="w-11 h-11 rounded-xl border border-border bg-card items-center justify-center hover:bg-muted active:bg-muted transition-colors duration-200"><RefreshCw size={19} className="text-primary" /></Pressable>} />
         <View className="bg-card border border-border rounded-2xl px-4 py-4 mb-5 flex-row items-center gap-4">
           <View className="flex-1 min-w-0">
             <View className="flex-row items-center gap-2">
@@ -137,7 +138,7 @@ export default function AdminClips() {
         </View>
         <ClipAnalyticsSection />
         <View className="mb-4"><Text className="text-foreground text-xl font-bold">All Clips</Text><Text className="text-muted-foreground text-sm mt-1">Filter by category, search, and permanently remove incorrect clips.</Text></View>
-        <View className="bg-card border border-border rounded-2xl px-4 h-12 flex-row items-center"><Search size={18} className="text-muted-foreground" /><TextInput value={query} onChangeText={(value) => { setQuery(value); setPage(1); }} placeholder="Search clip, vendor or category" placeholderTextColor="#8A8589" className="flex-1 h-12 ml-3 text-foreground" /></View>
+        <View className="bg-card border border-border rounded-2xl px-4 h-12 flex-row items-center shadow-sm"><Search size={18} className="text-muted-foreground" /><TextInput value={query} onChangeText={(value) => { setQuery(value); setPage(1); }} placeholder="Search clip, vendor or category" placeholderTextColor="#8A8589" className="flex-1 h-12 ml-3 text-foreground" /></View>
         <View className="mt-4 mb-3">
           <HierarchySelect
             label="Category"
@@ -148,7 +149,7 @@ export default function AdminClips() {
           />
         </View>
         <Text className="text-muted-foreground text-xs mb-3">{filtered.length} record{filtered.length === 1 ? "" : "s"}</Text>
-        {loading ? <AdminLoadingState label="Loading clips…" /> : error ? <AdminErrorState message={error} onRetry={() => void load()} /> : !visible.length ? <AdminEmptyState title="No clips found" message="Try another search or category filter." /> : <View className="gap-3">{visible.map((clip) => <ClipCard key={clip.id} clip={clip} onDelete={() => openDelete(clip)} />)}</View>}
+        {loading ? <AdminLoadingState label="Loading clips…" /> : error ? <AdminErrorState message={error} onRetry={() => void load()} /> : !visible.length ? <AdminEmptyState title="No clips found" message="Try another search or category filter." /> : <View className="gap-3">{visible.map((clip, index) => <AdminReveal key={clip.id} index={index}><ClipCard clip={clip} onDelete={() => openDelete(clip)} /></AdminReveal>)}</View>}
         {!loading && !error && filtered.length > PAGE_SIZE ? <PaginationBar page={Math.min(page, pages)} pages={pages} onPage={setPage} /> : null}
       </ResponsiveContainer>
     </ScrollView>
@@ -186,7 +187,7 @@ export default function AdminClips() {
 }
 
 function ClipCard({ clip, onDelete }: { clip: AdminClip; onDelete: () => void }) {
-  return <View className="bg-card border border-border rounded-2xl p-3 flex-row gap-3">
+  return <View className="bg-card border border-border rounded-2xl p-3 flex-row gap-3 hover:border-primary/35 hover:bg-primary/5 transition-colors duration-200">
     <Image source={{ uri: clip.thumbnail_url }} className="w-24 h-32 rounded-xl bg-muted" resizeMode="cover" />
     <View className="flex-1 min-w-0">
       <View className="flex-row items-start gap-2">
@@ -196,7 +197,7 @@ function ClipCard({ clip, onDelete }: { clip: AdminClip; onDelete: () => void })
       <Text numberOfLines={1} className="text-muted-foreground text-xs mt-1">{clip.vendor_name} · {clip.category_name}</Text>
       <View className="flex-row gap-4 mt-3"><View className="flex-row items-center"><Eye size={13} className="text-muted-foreground" /><Text className="text-muted-foreground text-metadata ml-1">{clip.views_count}</Text></View><View className="flex-row items-center"><Heart size={13} className="text-muted-foreground" /><Text className="text-muted-foreground text-metadata ml-1">{clip.likes_count}</Text></View></View>
       <View className="flex-row mt-auto pt-3">
-        <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${clip.title}`} onPress={onDelete} className="min-h-11 px-3 rounded-xl border border-red-400 flex-row items-center justify-center gap-1.5">
+        <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${clip.title}`} onPress={onDelete} className="min-h-11 px-3 rounded-xl border border-red-400 flex-row items-center justify-center gap-1.5 hover:bg-red-500/10 active:opacity-75 transition-colors duration-200">
           <Trash2 size={14} color="#DC3545" /><Text className="text-red-500 text-xs font-semibold">Delete</Text>
         </Pressable>
       </View>

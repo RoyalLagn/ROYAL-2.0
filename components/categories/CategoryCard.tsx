@@ -1,5 +1,5 @@
-import React from "react";
-import { type ImageURISource, StyleSheet, Text, View, } from "react-native";
+import React, { useState } from "react";
+import { Platform, type ImageURISource, StyleSheet, Text, View, } from "react-native";
 import SafeImage from "@/components/SafeImage";
 import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
@@ -24,6 +24,7 @@ type CategoryCardProps = {
 };
 
 function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
+  const [hovered, setHovered] = useState(false);
   const Icon = category.icon;
   const text = dark ? "#F8F2F5" : "#17111D";
   const muted = dark ? "#B5A9AF" : "#776A79";
@@ -38,10 +39,13 @@ function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
       accessibilityRole="button"
       accessibilityLabel={`Browse ${category.name}`}
       onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       style={[
         styles.card,
         compact ? styles.cardCompact : styles.cardWide,
         { backgroundColor: surface, borderColor: border },
+        Platform.OS === "web" && hovered && styles.cardHovered,
       ]}
     >
       <View style={[styles.details, compact && styles.detailsCompact]}>
@@ -93,6 +97,13 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
     elevation: 2,
+  },
+  cardHovered: {
+    borderColor: "#E91E63",
+    shadowOpacity: 0.11,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 11 },
+    elevation: 4,
   },
   cardCompact: { height: 120, borderRadius: 16 },
   cardWide: { height: 154, borderRadius: 16 },

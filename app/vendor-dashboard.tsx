@@ -151,6 +151,7 @@ export default function VendorDashboard() {
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
+        decelerationRate="fast"
         contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll]}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.pink} />}
       >
@@ -187,7 +188,18 @@ export default function VendorDashboard() {
                 <Text style={[styles.noticeTitle, { color: colors.text }]}>Workspace unavailable</Text>
                 <Text style={[styles.noticeText, { color: colors.muted }]}>{error}</Text>
               </View>
-              <Pressable onPress={refresh}><Text style={{ color: colors.pink, fontWeight: "700" }}>Retry</Text></Pressable>
+              <Pressable
+                onPress={refresh}
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading vendor workspace"
+                style={({ pressed, hovered, focused }) => [
+                  styles.retryButton,
+                  (hovered || focused) && styles.interactiveLift,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={{ color: colors.pink, fontWeight: "700" }}>Retry</Text>
+              </Pressable>
             </View>
           ) : null}
           {!loading && !data.vendor && !error ? (
@@ -205,10 +217,13 @@ export default function VendorDashboard() {
           {data.vendor ? (
             <Pressable
               onPress={() => router.push("/vendor-marketing-center")}
-              style={({ pressed }) => [
+              accessibilityRole="button"
+              accessibilityLabel="Open Marketing Center"
+              style={({ pressed, hovered, focused }) => [
                 styles.marketingCenterButton,
                 desktop && styles.marketingCenterButtonDesktop,
                 { backgroundColor: colors.background, borderColor: colors.border },
+                (hovered || focused) && styles.interactiveLift,
                 pressed && styles.pressed,
               ]}
             >
@@ -234,8 +249,8 @@ export default function VendorDashboard() {
                 ]}
               >
                 <View style={styles.statTop}>
-                  <View style={[styles.statIcon, { backgroundColor: colors.surfaceSoft }]}>
-                    <Icon size={18} color={colors.pink} />
+                  <View style={[styles.statIcon, { backgroundColor: colors.surfaceSoft, borderColor: `${colors.pink}14` }]}>
+                    <Icon size={19} color={colors.pink} />
                   </View>
                 </View>
                 <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
@@ -280,9 +295,12 @@ export default function VendorDashboard() {
             {nextItem ? (
               <Pressable
                 onPress={() => router.push(nextItem.route as any)}
-                style={({ pressed }) => [
+                accessibilityRole="button"
+                accessibilityLabel={`Complete ${nextItem.label}`}
+                style={({ pressed, hovered, focused }) => [
                   styles.nextStep,
                   { backgroundColor: colors.surfaceSoft, borderColor: `${colors.pink}28` },
+                  (hovered || focused) && styles.interactiveLift,
                   pressed && styles.pressed,
                 ]}
               >
@@ -335,7 +353,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28, width: "100%", alignSelf: "center" },
   desktopScroll: { maxWidth: 1180, paddingHorizontal: 28, paddingTop: 28, paddingBottom: 52 },
   flex: { flex: 1, minWidth: 0 },
-  heroCard: { position: "relative", overflow: "hidden", borderWidth: 1, borderRadius: 18, padding: 20, marginBottom: 16, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.045, shadowRadius: 18, elevation: 1 },
+  heroCard: { position: "relative", overflow: "hidden", borderWidth: 1, borderRadius: 16, padding: 20, marginBottom: 16, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.045, shadowRadius: 18, elevation: 1 },
   heroCardDesktop: { paddingHorizontal: 26, paddingVertical: 24 },
   heroGlow: { position: "absolute", width: 180, height: 180, borderRadius: 90, right: -62, top: -92 },
   heroContent: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
@@ -348,6 +366,7 @@ const styles = StyleSheet.create({
   notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   noticeTitle: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 2 },
   noticeText: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
+  retryButton: { minHeight: 36, justifyContent: "center", paddingHorizontal: 8, borderRadius: 10 },
   marketingCenterButton: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 16 },
   marketingCenterButtonDesktop: { paddingHorizontal: 18, paddingVertical: 15 },
   marketingCenterIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
@@ -355,14 +374,14 @@ const styles = StyleSheet.create({
   marketingCenterHint: { fontSize: typeScale.caption, marginTop: 2 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 1, marginBottom: 16, borderWidth: 1, borderRadius: 16, overflow: "hidden" },
   statsDesktop: { flexWrap: "nowrap" },
-  statCard: { width: "49.8%", minHeight: 128, paddingHorizontal: 16, paddingVertical: 17 },
+  statCard: { width: "49.8%", minHeight: 132, paddingHorizontal: 16, paddingVertical: 17 },
   statDesktop: { flex: 1, width: "auto" },
   statTop: { flexDirection: "row", alignItems: "center", marginBottom: 11 },
-  statIcon: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  statValue: { fontSize: typeScale.pageTitle, lineHeight: typeLeading.pageTitle, fontWeight: "700", letterSpacing: -0.6 },
+  statIcon: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  statValue: { fontSize: typeScale.pageTitle, lineHeight: typeLeading.pageTitle, fontWeight: "700", letterSpacing: -0.6, fontVariant: ["tabular-nums"] },
   statLabel: { fontSize: typeScale.metadata, fontWeight: "700", marginTop: 2 },
   statDetail: { fontSize: typeScale.caption, marginTop: 4 },
-  profileCard: { borderWidth: 1, borderRadius: 18, padding: 18 },
+  profileCard: { borderWidth: 1, borderRadius: 16, padding: 18 },
   profileCardDesktop: { padding: 22 },
   profileHeader: { flexDirection: "row", alignItems: "center", gap: 11 },
   profileIcon: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
@@ -386,5 +405,6 @@ const styles = StyleSheet.create({
   checklistHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 21, marginBottom: 10 },
   checklistTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
   checklistHint: { fontSize: typeScale.caption },
+  interactiveLift: { transform: [{ translateY: -1 }] },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
 });

@@ -21,6 +21,30 @@ const items = [
 // can jump straight to that filtered view.
 const filterableKeys = new Set(["approved", "pending", "rejected", "suspended"]);
 
+const iconTones: Record<(typeof items)[number][0], string> = {
+  total: "bg-primary/10",
+  approved: "bg-emerald-500/10",
+  pending: "bg-amber-500/10",
+  rejected: "bg-red-500/10",
+  suspended: "bg-red-500/10",
+  verified: "bg-emerald-500/10",
+  premium: "bg-primary/10",
+  free: "bg-muted",
+  activeToday: "bg-emerald-500/10",
+};
+
+const iconColors: Record<(typeof items)[number][0], string> = {
+  total: "#E91E63",
+  approved: "#059669",
+  pending: "#B45309",
+  rejected: "#DC2626",
+  suspended: "#DC2626",
+  verified: "#059669",
+  premium: "#E91E63",
+  free: "#6B7280",
+  activeToday: "#059669",
+};
+
 export function VendorStatisticsGrid({
   data,
   activeStatus,
@@ -38,12 +62,12 @@ export function VendorStatisticsGrid({
         const isActive = isFilterable && activeStatus === key;
         const content = (
           <View
-            className={`rounded-xl border ${isActive ? "bg-primary/10 border-primary" : "bg-card border-border"}`}
+            className={`rounded-xl border ${isActive ? "bg-primary/10 border-primary" : "bg-card border-border hover:border-primary/35 hover:bg-primary/5"} transition-colors duration-200`}
             style={{ minHeight: responsive.isPhone ? 86 : 96, padding: responsive.isPhone ? 12 : 14 }}
           >
             <View className="flex-row items-center gap-3 flex-1">
-              <View className={`w-10 h-10 rounded-xl items-center justify-center ${isActive ? "bg-primary/20" : "bg-primary/10"}`}>
-                <Icon size={responsive.iconSize - 2} className="text-primary" />
+              <View className={`w-10 h-10 rounded-xl items-center justify-center ${isActive ? "bg-primary/20" : iconTones[key]}`}>
+                <Icon size={responsive.iconSize - 2} color={isActive ? "#E91E63" : iconColors[key]} />
               </View>
               <View className="flex-1 min-w-0">
                 <Text className="text-muted-foreground font-inter-medium text-body-compact" numberOfLines={1}>{label}</Text>
@@ -59,7 +83,7 @@ export function VendorStatisticsGrid({
             accessibilityRole="button"
             accessibilityLabel={`Filter vendors by ${label}`}
             accessibilityState={{ selected: isActive }}
-            style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.97 : 1 }] })}
+            style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}
             onPress={() => onSelectStatus(key as "approved" | "pending" | "rejected" | "suspended")}
           >
             {content}

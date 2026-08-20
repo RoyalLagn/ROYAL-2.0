@@ -3,9 +3,9 @@ import {
   ActivityIndicator,
   Image,
   Modal,
-  Pressable,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Switch,
   Text,
   TextInput,
@@ -16,9 +16,11 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  CircleCheck,
   Edit3,
   Eye,
   ImagePlus,
+  PanelsTopLeft,
   Plus,
   Trash2,
   X,
@@ -33,6 +35,8 @@ import { HeroSlideService } from "@/services/heroSlides";
 import { HERO_IMAGE_ASPECT, HERO_SLIDES_MAX, type HeroSlide } from "@/types/hero";
 import { typeScale } from "@/constants/typography";
 import { adminPalette } from "@/theme";
+import Pressable from "@/components/InteropSafePressable";
+import { AdminReveal } from "@/components/admin/ui/AdminReveal";
 
 const PINK = adminPalette.brand;
 
@@ -111,6 +115,41 @@ function SlidePreviewCard({
       </View>
     </View>
   );
+}
+
+function HeroActionButton({
+  accessibilityLabel,
+  disabled,
+  onPress,
+  tone = "neutral",
+  children,
+}: React.PropsWithChildren<{
+  accessibilityLabel: string;
+  disabled?: boolean;
+  onPress: () => void;
+  tone?: "neutral" | "danger";
+}>) {
+  return <Pressable
+    accessibilityRole="button"
+    accessibilityLabel={accessibilityLabel}
+    disabled={disabled}
+    onPress={onPress}
+    style={({ pressed, hovered, focused }) => [
+      styles.actionButton,
+      tone === "danger" && styles.actionButtonDanger,
+      (hovered || focused) && !disabled && styles.actionButtonHover,
+      pressed && !disabled && styles.actionButtonPressed,
+      disabled && styles.actionButtonDisabled,
+    ]}
+  >{children}</Pressable>;
+}
+
+function HeroMetric({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: React.ReactNode }) {
+  return <View style={styles.metricCard}>
+    <View style={styles.metricIcon}><Icon size={18} color={PINK} strokeWidth={2} /></View>
+    <Text style={styles.metricLabel}>{label}</Text>
+    <Text style={styles.metricValue}>{value}</Text>
+  </View>;
 }
 
 export default function AdminHero() {
@@ -327,6 +366,7 @@ export default function AdminHero() {
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        decelerationRate="fast"
         contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={
           <RefreshControl
@@ -354,15 +394,9 @@ export default function AdminHero() {
             }
           />
 
-          <View className="flex-row gap-3 mb-5">
-            <View className="flex-1 bg-card border border-border rounded-2xl p-4">
-              <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest">Slides</Text>
-              <Text className="text-foreground text-xl font-bold mt-1">{slides.length}/{HERO_SLIDES_MAX}</Text>
-            </View>
-            <View className="flex-1 bg-card border border-border rounded-2xl p-4">
-              <Text className="text-muted-foreground text-metadata font-bold uppercase tracking-widest">Active</Text>
-              <Text className="text-foreground text-xl font-bold mt-1">{activeCount}</Text>
-            </View>
+          <View style={styles.metricsRow}>
+            <AdminReveal index={0} style={styles.metricReveal}><HeroMetric icon={PanelsTopLeft} label="Slides" value={`${slides.length}/${HERO_SLIDES_MAX}`} /></AdminReveal>
+            <AdminReveal index={1} style={styles.metricReveal}><HeroMetric icon={CircleCheck} label="Active" value={activeCount} /></AdminReveal>
           </View>
 
           {error && !editing ? (
@@ -379,13 +413,14 @@ export default function AdminHero() {
               message="Add up to 8 slides with a background image, category destination, and button text."
             />
           ) : (
-            <View className="gap-3">
+            <View style={styles.slideList}>
               {slides.map((slide, index) => (
-                <View key={slide.id} className="bg-card border border-border rounded-2xl p-4">
+                <AdminReveal key={slide.id} index={index + 2}>
+                <View style={styles.slideCard}>
                   <View className="flex-row gap-3">
                     <Image
                       source={{ uri: slide.image_url }}
-                      style={{ width: 88, height: 64, borderRadius: 12, backgroundColor: "#F3E5EA" }}
+                      style={styles.slideImage}
                       resizeMode="cover"
                     />
                     <View className="flex-1 min-w-0">
@@ -408,7 +443,7 @@ export default function AdminHero() {
                     </View>
                   </View>
 
-                  <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-border">
+                  <View style={styles.slideFooter}>
                     <View className="flex-row items-center gap-2">
                       <Text className="text-muted-foreground text-xs font-semibold">Active</Text>
                       <Switch
@@ -420,48 +455,43 @@ export default function AdminHero() {
                       />
                     </View>
                     <View className="flex-row items-center gap-1">
-                      <Pressable
-                        accessibilityLabel="Move up"
+                      <HeroActionButton
+                        accessibilityLabel={`Move ${slide.category_name} up`}
                         disabled={!index || saving}
                         onPress={() => void move(index, -1)}
-                        className="w-11 h-11 rounded-xl items-center justify-center"
-                        style={{ opacity: !index || saving ? 0.3 : 1 }}
                       >
-                        <ChevronUp size={16} className="text-muted-foreground" />
-                      </Pressable>
-                      <Pressable
-                        accessibilityLabel="Move down"
+                        <ChevronUp size={17} color={adminPalette.textSecondary} />
+                      </HeroActionButton>
+                      <HeroActionButton
+                        accessibilityLabel={`Move ${slide.category_name} down`}
                         disabled={index === slides.length - 1 || saving}
                         onPress={() => void move(index, 1)}
-                        className="w-11 h-11 rounded-xl items-center justify-center"
-                        style={{ opacity: index === slides.length - 1 || saving ? 0.3 : 1 }}
                       >
-                        <ChevronDown size={16} className="text-muted-foreground" />
-                      </Pressable>
-                      <Pressable
+                        <ChevronDown size={17} color={adminPalette.textSecondary} />
+                      </HeroActionButton>
+                      <HeroActionButton
                         accessibilityLabel={`Preview ${slide.category_name}`}
                         onPress={() => setPreview(slide)}
-                        className="w-11 h-11 rounded-xl items-center justify-center"
                       >
-                        <Eye size={16} className="text-muted-foreground" />
-                      </Pressable>
-                      <Pressable
+                        <Eye size={17} color={adminPalette.textSecondary} />
+                      </HeroActionButton>
+                      <HeroActionButton
                         accessibilityLabel={`Edit ${slide.category_name}`}
                         onPress={() => openEditor(slide)}
-                        className="w-11 h-11 rounded-xl items-center justify-center"
                       >
-                        <Edit3 size={16} className="text-muted-foreground" />
-                      </Pressable>
-                      <Pressable
+                        <Edit3 size={17} color={adminPalette.textSecondary} />
+                      </HeroActionButton>
+                      <HeroActionButton
                         accessibilityLabel={`Delete ${slide.category_name}`}
                         onPress={() => setConfirmDelete(slide)}
-                        className="w-11 h-11 rounded-xl items-center justify-center"
+                        tone="danger"
                       >
-                        <Trash2 size={16} color="#DC2626" />
-                      </Pressable>
+                        <Trash2 size={17} color={adminPalette.error} />
+                      </HeroActionButton>
                     </View>
                   </View>
                 </View>
+                </AdminReveal>
               ))}
             </View>
           )}
@@ -742,3 +772,21 @@ export default function AdminHero() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  metricsRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
+  metricReveal: { flex: 1, minWidth: 0 },
+  metricCard: { minHeight: 108, backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 15, justifyContent: "space-between" },
+  metricIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: adminPalette.brandSubtle, alignItems: "center", justifyContent: "center" },
+  metricLabel: { color: adminPalette.textSecondary, fontSize: typeScale.metadata, fontWeight: "700", marginTop: 8 },
+  metricValue: { color: adminPalette.text, fontSize: typeScale.sectionTitle, lineHeight: typeScale.sectionTitle + 5, fontWeight: "800", fontVariant: ["tabular-nums"] },
+  slideList: { gap: 12 },
+  slideCard: { backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 15 },
+  slideImage: { width: 104, height: 70, borderRadius: 12, backgroundColor: "#F3E5EA" },
+  slideFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 14, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: adminPalette.border },
+  actionButton: { width: 44, height: 44, borderRadius: 12, backgroundColor: adminPalette.surfaceSubtle, alignItems: "center", justifyContent: "center" },
+  actionButtonDanger: { backgroundColor: adminPalette.errorSubtle },
+  actionButtonHover: { backgroundColor: adminPalette.brandSubtle, transform: [{ translateY: -1 }] },
+  actionButtonPressed: { transform: [{ scale: 0.97 }], opacity: 0.86 },
+  actionButtonDisabled: { opacity: 0.36 },
+});

@@ -661,4 +661,55 @@ export const AdminFinanceService = {
     }
     await Share.share({ title: fileName, message: csv });
   },
+
+  async exportExcel(data: FinanceMonthData) {
+    const summary = summarizeFinance(data);
+    const recorded = data.transactions.filter((item) => item.status === "recorded");
+    const subscriptionRows = recorded.filter((item) => item.direction === "revenue" && item.source === "subscription_payment");
+    const revenueRows = recorded.filter((item) => item.direction === "revenue");
+    const expenseRows = recorded.filter((item) => item.direction === "expense");
+    const transactionSheet = (rows: FinanceTransaction[]) => [
+      ["Date", "Category", "Counterparty", "Amount", "Tax", "Gateway fee", "Payment method", "Source", "Reference", "Notes"],
+      ...rows.map((item) => [item.occurred_on, item.finance_categories?.name ?? "", item.counterparty ?? "", item.amount, item.tax_amount, item.gateway_fee, item.payment_method ?? "", item.source, item.reference_number ?? "", item.notes ?? ""]),
+    ];
+    const sheets = [
+      excelSheet("Summary", [
+        ["RoyalLagn Finance Report"], ["Period", data.monthStart.slice(0, 7)], [],
+        ["Gross revenue", summary.grossRevenue], ["Gateway fees", summary.gatewayFees], ["Net revenue", summary.netRevenue],
+        ["Recorded expenses", summary.expenses], ["Profit before tax", summary.profitBeforeTax], ["Estimated tax provision", summary.estimatedTax], ["Net profit", summary.netProfit],
+        [], ["Verified subscription payments", subscriptionRows.length], ["Subscription revenue", subscriptionRows.reduce((sum, item) => sum + item.amount, 0)],
+      ]),
+      excelSheet("Subscription Revenue", transactionSheet(subscriptionRows)),
+      excelSheet("All Revenue", transactionSheet(revenueRows)),
+      excelSheet("Expenses", transactionSheet(expenseRows)),
+      excelSheet("Tax Records", [["Type", "Period start", "Period end", "Amount", "Estimated", "Notes"], ...data.taxes.map((item) => [item.tax_type, item.period_start, item.period_end, item.amount, item.is_estimate ? "Yes" : "No", item.notes ?? ""])]),
+    ];
+    const workbook = `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">${sheets.join("")}</Workbook>`;
+    const fileName = `royallagn-finance-report-${data.monthStart.slice(0, 7)}.xls`;
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      const url = URL.createObjectURL(new Blob([workbook], { type: "application/vnd.ms-excel;charset=utf-8" }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = fileName;
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      return;
+    }
+    throw new Error("Excel report download is available in the web Admin Panel.");
+  },
 };
+
+function escapeExcelXml(value: unknown) {
+  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
+function excelSheet(name: string, rows: unknown[][]) {
+  const content = rows.map((row) => `<Row>${row.map((value) => {
+    const numericValue = typeof value === "number" && Number.isFinite(value);
+    return `<Cell><Data ss:Type="${numericValue ? "Number" : "String"}">${escapeExcelXml(value)}</Data></Cell>`;
+  }).join("")}</Row>`).join("");
+  return `<Worksheet ss:Name="${escapeExcelXml(name)}"><Table>${content}</Table></Worksheet>`;
+}

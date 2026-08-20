@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Platform, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
 // NativeWind's native Pressable interop doesn't resolve a function
 // `style={(state) => [...]}` prop on Android (whole style silently drops).
@@ -40,6 +40,7 @@ import FaqSection from "@/components/vendor-profile/FaqSection";
 import GetDirectionsButton from "@/components/vendor-profile/GetDirectionsButton";
 import DownloadAppPopup from "@/components/vendor-profile/DownloadAppPopup";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
+import { usePublicAuth } from "@/context/PublicAuthContext";
 import { recordPublicVendorProfileView } from "@/services/publicVendorListings";
 import { portfolioMediaUrl } from "@/services/vendorPortfolio";
 import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
@@ -95,6 +96,7 @@ export default function VendorPublicProfileScreen() {
   const category = vendor?.category ?? "";
   const { isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
+  const { isPublicAuthenticated, loading: authLoading } = usePublicAuth();
   const [expanded, setExpanded] = useState(false);
   const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
@@ -110,6 +112,8 @@ export default function VendorPublicProfileScreen() {
   const [enquiryMessage, setEnquiryMessage] = useState("");
   const [enquiryStatus, setEnquiryStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [enquiryError, setEnquiryError] = useState("");
+  const contactPromptVisible = useRef(false);
+  const contactOpening = useRef(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -318,6 +322,8 @@ export default function VendorPublicProfileScreen() {
   }, source);
 
   const contactVendor = async (channel: Extract<EnquiryChannel, "call" | "whatsapp">, item?: VendorPackage) => {
+    if (contactOpening.current) return;
+    contactOpening.current = true;
     void recordVendorProfileEvent(vendor.id, channel === "call" ? "call_click" : "whatsapp_click").catch(() => {});
     try {
       await EnquiryService.trackContactAndOpen({
@@ -336,7 +342,33 @@ export default function VendorPublicProfileScreen() {
       } else {
         Alert.alert("Contact unavailable", cause instanceof Error ? cause.message : "Please try again.");
       }
+    } finally {
+      contactOpening.current = false;
     }
+  };
+
+  const requestVendorContact = (channel: Extract<EnquiryChannel, "call" | "whatsapp">, item?: VendorPackage) => {
+    if (contactPromptVisible.current || contactOpening.current) return;
+    if (authLoading) {
+      Alert.alert("Checking sign-in", "Please wait a moment and try again.");
+      return;
+    }
+    if (!isPublicAuthenticated) {
+      Alert.alert("Login required", "Please log in before contacting this vendor.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Log in", onPress: () => router.push("/Login") },
+      ]);
+      return;
+    }
+    contactPromptVisible.current = true;
+    const label = channel === "call" ? "Call vendor?" : "Open WhatsApp?";
+    const message = channel === "call"
+      ? `RoyalLagn will open your phone app to contact ${vendor.name}.`
+      : `RoyalLagn will open WhatsApp to contact ${vendor.name}.`;
+    Alert.alert(label, message, [
+      { text: "Cancel", style: "cancel", onPress: () => { contactPromptVisible.current = false; } },
+      { text: channel === "call" ? "Call" : "Continue", onPress: () => { contactPromptVisible.current = false; void contactVendor(channel, item); } },
+    ], { cancelable: true, onDismiss: () => { contactPromptVisible.current = false; } });
   };
 
   const shareProfile = async () => {
@@ -423,8 +455,8 @@ export default function VendorPublicProfileScreen() {
         >
           <VendorQuickActions
             dark={dark}
-            onCall={() => void contactVendor("call")}
-            onWhatsApp={() => void contactVendor("whatsapp")}
+            onCall={() => requestVendorContact("call")}
+            onWhatsApp={() => requestVendorContact("whatsapp")}
             onEnquire={() => setEnquiryOpen((open) => !open)}
             onCalendar={() => setCalendarVisible(true)}
           />
@@ -612,8 +644,8 @@ export default function VendorPublicProfileScreen() {
         contactPhone={vendor.contactPhone}
         dark={dark}
         onClose={() => setPackagesVisible(false)}
-        onCall={(item) => void contactVendor("call", item)}
-        onWhatsApp={(item) => void contactVendor("whatsapp", item)}
+        onCall={(item) => requestVendorContact("call", item)}
+        onWhatsApp={(item) => requestVendorContact("whatsapp", item)}
         onEnquire={(item) => {
           setPackagesVisible(false);
           setEnquiryPackage(item);

@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
+import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
@@ -91,9 +92,24 @@ export default function VendorProfile() {
   };
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      decelerationRate="fast"
+    >
+      <VendorDashboardReveal>
       <View style={styles.hero}>
-        <Pressable accessibilityLabel="Open profile photo options" onPress={() => setPhotoOpen(true)} style={[styles.photoRing, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open profile photo options"
+          onPress={() => setPhotoOpen(true)}
+          style={({ pressed, hovered, focused }) => [
+            styles.photoRing,
+            { borderColor: colors.border, backgroundColor: colors.surface },
+            (hovered || focused) && styles.hoverLift,
+            pressed && styles.pressed,
+          ]}
+        >
           {vendor?.logo_url ? <Image source={{ uri: vendor.logo_url }} resizeMode="contain" style={styles.photo} /> : <Text style={[styles.initial, { color: colors.pink }]}>{vendor?.business_name?.[0]?.toUpperCase() || "R"}</Text>}
           <View style={[styles.editBadge, { backgroundColor: colors.pink, borderColor: colors.background }]}><Pencil size={13} color="#FFF" /></View>
         </Pressable>
@@ -107,7 +123,14 @@ export default function VendorProfile() {
       </View>
       {groups.map((group, groupIndex) => <View key={groupIndex} style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         {group.map(({ label, detail, icon: Icon, route }, index) => <Pressable key={label} onPress={() => router.push(route as any)}
-          style={({ pressed }) => [styles.row, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }, pressed && { backgroundColor: colors.surfaceSoft }]}>
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          style={({ pressed, hovered, focused }) => [
+            styles.row,
+            index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+            (hovered || focused) && { backgroundColor: colors.surfaceSoft },
+            pressed && styles.pressed,
+          ]}>
           <View style={[styles.rowIcon, { backgroundColor: colors.surfaceSoft }]}><Icon size={19} color={colors.pink} /></View>
           <View style={styles.flex}><Text style={[styles.rowLabel, { color: colors.text }]}>{label}</Text><Text style={[styles.rowDetail, { color: colors.muted }]}>{detail}</Text></View>
           <ChevronRight size={18} color={colors.muted} />
@@ -128,10 +151,11 @@ export default function VendorProfile() {
       <Pressable
         accessibilityRole="button"
         onPress={logout}
-        style={({ pressed }) => [
+        style={({ pressed, hovered, focused }) => [
           styles.logout,
           Platform.OS === "web" && { backgroundColor: colors.surface, borderColor: colors.border },
-          pressed && { backgroundColor: colors.surfaceSoft },
+          (hovered || focused) && { backgroundColor: colors.surfaceSoft },
+          pressed && styles.pressed,
         ]}
       >
         <View style={[styles.logoutSurface, Platform.OS !== "web" && { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -145,6 +169,7 @@ export default function VendorProfile() {
           <ChevronRight size={18} color={colors.muted} />
         </View>
       </Pressable>
+      </VendorDashboardReveal>
     </ScrollView>
     <Modal visible={photoOpen} transparent animationType="fade" onRequestClose={() => setPhotoOpen(false)}>
       <Pressable style={styles.overlay} onPress={() => setPhotoOpen(false)}>
@@ -164,17 +189,18 @@ export default function VendorProfile() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 }, content: { padding: 16, paddingTop: 24, paddingBottom: 24, width: "100%", maxWidth: 760, alignSelf: "center" },
-  hero: { alignItems: "center", paddingBottom: 23 }, photoRing: { width: 116, height: 116, borderRadius: 58, borderWidth: 4, alignItems: "center", justifyContent: "center", marginBottom: 15 },
+  page: { flex: 1 }, content: { padding: 16, paddingTop: 20, paddingBottom: 28, width: "100%", maxWidth: 760, alignSelf: "center" },
+  hero: { alignItems: "center", paddingBottom: 22 }, photoRing: { width: 112, height: 112, borderRadius: 56, borderWidth: 3, alignItems: "center", justifyContent: "center", marginBottom: 15 },
   photo: { width: 104, height: 104, borderRadius: 52 }, initial: { fontFamily: fonts.sans.bold, fontSize: decorativeType.avatarInitial }, editBadge: { position: "absolute", right: 0, bottom: 4, width: 32, height: 32, borderRadius: 16, borderWidth: 3, alignItems: "center", justifyContent: "center" },
   name: { fontSize: typeScale.metric, lineHeight: typeLeading.metric, fontWeight: "700", textAlign: "center", letterSpacing: -0.45 }, category: { fontSize: typeScale.bodyCompact, marginTop: 4 }, location: { flexDirection: "row", gap: 4, alignItems: "center", marginTop: 8 }, locationText: { fontSize: typeScale.metadata },
   completion: { borderRadius: 15, width: "100%", maxWidth: 420, padding: 12, marginTop: 16 }, completionText: { fontSize: typeScale.metadata, fontWeight: "700", textAlign: "center" }, track: { height: 5, borderRadius: 4, marginTop: 8, overflow: "hidden" }, fill: { height: "100%", borderRadius: 4 },
-  group: { borderRadius: 22, borderWidth: 1, overflow: "hidden", marginBottom: 13 }, row: { minHeight: 75, flexDirection: "row", alignItems: "center", padding: 13, gap: 11 },
-  logout: { minHeight: 75, borderRadius: 22, borderWidth: Platform.OS === "web" ? 1 : 0, overflow: "hidden" },
-  logoutSurface: { minHeight: 73, width: "100%", borderRadius: 22, borderWidth: Platform.OS === "web" ? 0 : 1, flexDirection: "row", alignItems: "center", padding: 13, gap: 11 },
-  rowIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, rowLabel: { fontSize: typeScale.body, fontWeight: "700" }, rowDetail: { fontSize: typeScale.caption, marginTop: 4 },
+  group: { borderRadius: 16, borderWidth: 1, overflow: "hidden", marginBottom: 14 }, row: { minHeight: 76, flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
+  logout: { minHeight: 76, borderRadius: 16, borderWidth: Platform.OS === "web" ? 1 : 0, overflow: "hidden" },
+  logoutSurface: { minHeight: 74, width: "100%", borderRadius: 16, borderWidth: Platform.OS === "web" ? 0 : 1, flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
+  rowIcon: { width: 44, height: 44, borderRadius: 13, alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 }, rowLabel: { fontSize: typeScale.body, fontWeight: "700" }, rowDetail: { fontSize: typeScale.caption, marginTop: 4 },
   overlay: { flex: 1, backgroundColor: "rgba(20,10,15,.48)", justifyContent: "flex-end" }, photoSheet: { borderWidth: 1, borderRadius: 28, padding: 20, paddingBottom: 34, width: "100%", maxWidth: 520, alignSelf: "center" },
   sheetTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, sheetTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
   largePhoto: { width: 190, height: 190, borderRadius: 95, overflow: "hidden", alignSelf: "center", marginVertical: 24, alignItems: "center", justifyContent: "center" }, largeInitial: { fontFamily: fonts.sans.bold, fontSize: decorativeType.avatarInitialLarge },
   photoActions: { flexDirection: "row", gap: 10 }, photoAction: { flex: 1, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center", gap: 4 }, photoActionText: { fontSize: typeScale.caption, fontWeight: "700" },
+  hoverLift: { transform: [{ translateY: -1 }] }, pressed: { transform: [{ scale: .985 }], opacity: .9 },
 });

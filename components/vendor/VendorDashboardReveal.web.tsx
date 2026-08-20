@@ -35,12 +35,12 @@ export default function VendorDashboardReveal({ children, delay = 0, style }: Pr
         }
         animation = gsap.fromTo(
           element,
-          { opacity: 0, y: 10 },
+          { opacity: 0, y: 8 },
           {
             opacity: 1,
             y: 0,
             delay: delay / 1000,
-            duration: 0.28,
+            duration: 0.22,
             ease: "power2.out",
             scrollTrigger: {
               trigger: element,

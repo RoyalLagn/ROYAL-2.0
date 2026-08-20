@@ -3,7 +3,7 @@ import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, Styl
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  Bell, LocateFixed, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, } from "lucide-react-native";
+  Bell, LocateFixed, MapPin, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useFavorites } from "@/context/FavoritesContext";
@@ -249,6 +249,26 @@ export default function HomeScreen() {
     return ratedVendors;
   }, [liveVendors, getRating]);
 
+  const inlineSearchSuggestions = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    if (query.length < 2) return { categories: [], vendors: [] };
+    const tokens = query.split(/\s+/).filter(Boolean);
+    const matches = (value: string) => tokens.every((token) => value.toLowerCase().includes(token));
+    return {
+      categories: categories.filter((category) => matches(`${category.name} ${category.description}`)).slice(0, 2),
+      vendors: nearbyVendors.filter((vendor) => matches([
+        vendor.name,
+        vendor.category,
+        vendor.location,
+        vendor.tags.join(" "),
+        vendor.services.join(" "),
+        vendor.description,
+      ].join(" "))).slice(0, 3),
+    };
+  }, [categories, nearbyVendors, searchText]);
+  const hasInlineSearchSuggestions = inlineSearchSuggestions.categories.length > 0 || inlineSearchSuggestions.vendors.length > 0;
+  const searchQueryActive = searchText.trim().length >= 2;
+
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top", "left", "right"]}>
       {vendorsLoading || (categoriesLoading && !categories.length) ? <PageLoader /> : null}
@@ -329,7 +349,7 @@ export default function HomeScreen() {
           </HomeReveal>
         ) : null}
 
-        {isHeroSplit ? (
+        {!searchQueryActive ? (isHeroSplit ? (
           /* ── Tablet/desktop: text left, 16:9 image right ── */
           <HomeReveal
             delay={25}
@@ -456,7 +476,108 @@ export default function HomeScreen() {
               />
             </View>
           </HomeReveal>
-        )}
+        )) : null}
+
+        {searchQueryActive ? (
+          <HomeReveal
+            style={[
+              s.searchHero,
+              {
+                width: featureWidth,
+                marginTop: isDesktop ? 28 : 6,
+                backgroundColor: card,
+                borderColor: heroBorder,
+              },
+            ]}
+          >
+            <View style={[s.searchHeroToolbar, { borderBottomColor: border }]}>
+              <CompactSearchBar
+                accessibilityLabel="Search vendors, categories and services"
+                value={searchText}
+                onChangeText={setSearchText}
+                onSubmit={submitSearch}
+                placeholder="Search vendors, categories..."
+                dark={isDark}
+                style={s.searchBar}
+              />
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Open filters"
+                style={[s.filterBtn, screenWidth < 380 && s.filterBtnNarrow, { backgroundColor: isDark ? "#0E141F" : "#FFFFFF" }]}
+                onPress={() => setFiltersVisible(true)}
+                activeOpacity={0.76}
+              >
+                <SlidersHorizontal size={16} color={PINK} />
+                {activeFilterCount ? <View style={s.filterCount}><Text style={s.filterCountText}>{activeFilterCount}</Text></View> : null}
+              </TouchableOpacity>
+            </View>
+            <View style={s.searchSuggestions}>
+            {hasInlineSearchSuggestions ? (
+              <>
+                {inlineSearchSuggestions.categories.map((category) => (
+                  <TouchableOpacity
+                    key={`search-category-${category.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Browse ${category.name}`}
+                    style={[s.searchSuggestionRow, { borderBottomColor: border }]}
+                    activeOpacity={0.72}
+                    onPress={() => openCategory(category.name)}
+                  >
+                    <View style={[s.searchSuggestionIcon, { backgroundColor: isDark ? "#33222B" : "#FFF0F5" }]}>
+                      <LayoutGrid size={17} color={PINK} />
+                    </View>
+                    <View style={s.searchSuggestionCopy}>
+                      <Text style={[s.searchSuggestionTitle, { color: text }]} numberOfLines={1}>{category.name}</Text>
+                      <Text style={[s.searchSuggestionDetail, { color: muted }]} numberOfLines={1}>Browse wedding services</Text>
+                    </View>
+                    <ChevronRight size={17} color={muted} />
+                  </TouchableOpacity>
+                ))}
+                {inlineSearchSuggestions.vendors.map((vendor) => (
+                  <TouchableOpacity
+                    key={`search-vendor-${vendor.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${vendor.name}`}
+                    style={[s.searchSuggestionRow, { borderBottomColor: border }]}
+                    activeOpacity={0.72}
+                    onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category } })}
+                  >
+                    <View style={[s.searchSuggestionIcon, { backgroundColor: isDark ? "#33222B" : "#FFF0F5" }]}>
+                      <Search size={17} color={PINK} />
+                    </View>
+                    <View style={s.searchSuggestionCopy}>
+                      <Text style={[s.searchSuggestionTitle, { color: text }]} numberOfLines={1}>{vendor.name}</Text>
+                      <View style={s.searchSuggestionMeta}>
+                        <Text style={[s.searchSuggestionDetail, { color: muted }]} numberOfLines={1}>{vendor.category}</Text>
+                        <MapPin size={12} color={muted} />
+                        <Text style={[s.searchSuggestionDetail, { color: muted }]} numberOfLines={1}>{vendor.location}</Text>
+                      </View>
+                    </View>
+                    <ChevronRight size={17} color={muted} />
+                  </TouchableOpacity>
+                ))}
+              </>
+            ) : (
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={`Search RoyalLagn for ${searchText.trim()}`}
+                style={s.searchSuggestionRow}
+                activeOpacity={0.72}
+                onPress={submitSearch}
+              >
+                <View style={[s.searchSuggestionIcon, { backgroundColor: isDark ? "#33222B" : "#FFF0F5" }]}>
+                  <Search size={17} color={PINK} />
+                </View>
+                <View style={s.searchSuggestionCopy}>
+                  <Text style={[s.searchSuggestionTitle, { color: text }]} numberOfLines={1}>Search all vendors</Text>
+                  <Text style={[s.searchSuggestionDetail, { color: muted }]} numberOfLines={1}>See every result for “{searchText.trim()}”</Text>
+                </View>
+                <ChevronRight size={17} color={muted} />
+              </TouchableOpacity>
+            )}
+            </View>
+          </HomeReveal>
+        ) : null}
 
         {/* ── Top Categories ── */}
         <HomeSectionReveal
@@ -802,6 +923,17 @@ const s = StyleSheet.create<Record<string, any>>({
   heroSplitRight:    { flexShrink: 0, overflow: "hidden", aspectRatio: HERO_IMAGE_ASPECT },
   heroSplitDescription:{ fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, marginTop: 8, maxWidth: 320 },
   heroSplitSearchRow:{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 20 },
+
+  /* Inline search results keep discovery on Home while the full search remains available. */
+  searchHero: { alignSelf: "center", marginBottom: 26, borderWidth: 1, borderRadius: 18, overflow: "hidden" },
+  searchHeroToolbar: { padding: 12, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: StyleSheet.hairlineWidth },
+  searchSuggestions: { overflow: "hidden" },
+  searchSuggestionRow: { minHeight: 58, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 11, borderBottomWidth: StyleSheet.hairlineWidth },
+  searchSuggestionIcon: { width: 36, height: 36, flexShrink: 0, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  searchSuggestionCopy: { flex: 1, minWidth: 0 },
+  searchSuggestionTitle: { fontFamily: fonts.sans.semibold, fontSize: typeScale.bodyCompact },
+  searchSuggestionDetail: { flexShrink: 1, fontFamily: fonts.sans.regular, fontSize: typeScale.caption },
+  searchSuggestionMeta: { minWidth: 0, marginTop: 2, flexDirection: "row", alignItems: "center", gap: 4 },
 
   /* Categories */
   section:         { alignSelf: "center" },

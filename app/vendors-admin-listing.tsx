@@ -35,16 +35,6 @@ import {
 } from "@/services/vendorRegistration";
 import { HierarchySelect } from "@/components/admin/locations/HierarchySelect";
 
-// DESIGN.md "Quiet Dashboard Lift": 0 8px 18px rgba(125,61,88,0.05) — the
-// documented restrained shadow for admin cards over the workspace canvas.
-const cardLiftShadow = {
-  shadowColor: "#7D3D58",
-  shadowOffset: { width: 0, height: 8 },
-  shadowOpacity: 0.05,
-  shadowRadius: 18,
-  elevation: 2,
-} as const;
-
 const sorts: { value: VendorSort; label: string }[] = [
   { value: "newest", label: "Newest" },
   { value: "oldest", label: "Oldest" },
@@ -200,7 +190,7 @@ export default function VendorsAdminListing() {
                 accessibilityRole="button"
                 accessibilityLabel="Export filtered vendors"
                 accessibilityState={{ disabled: exporting, busy: exporting }}
-                className="min-w-11 min-h-11 rounded-xl border border-border bg-card items-center justify-center active:bg-muted"
+                className="min-w-11 min-h-11 rounded-xl border border-border bg-card items-center justify-center hover:bg-muted active:bg-muted transition-colors duration-200"
                 style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}
                 disabled={exporting}
                 onPress={() => void exportFilteredVendors()}
@@ -304,13 +294,13 @@ export default function VendorsAdminListing() {
         </ResponsiveContainer>
 
         <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
-          <View className="flex-row justify-between items-center mb-3">
-            <Text className="text-foreground font-bold">{vendors.total.toLocaleString()} vendors</Text>
+          <View className="flex-row justify-between items-center mb-4 px-1">
+            <Text className="text-foreground text-base font-bold">{vendors.total.toLocaleString()} vendors</Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Export filtered vendors"
               accessibilityState={{ disabled: exporting, busy: exporting }}
-              className="min-h-11 px-3 rounded-xl items-center justify-center active:bg-primary/5"
+              className="min-h-11 px-3 rounded-xl items-center justify-center hover:bg-primary/5 active:bg-primary/10 transition-colors duration-200"
               disabled={exporting}
               onPress={() => void exportFilteredVendors()}
             >

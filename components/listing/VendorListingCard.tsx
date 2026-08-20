@@ -53,6 +53,9 @@ function VendorListingCard({
           borderColor: interactive ? colors.primary : border,
           shadowColor: dark ? "#000000" : "#63374A",
           shadowOpacity: interactive ? 0.14 : 0.08,
+          shadowRadius: interactive ? 19 : 10,
+          shadowOffset: { width: 0, height: interactive ? 9 : 4 },
+          elevation: interactive ? 4 : 2,
         },
       ]}
     >
@@ -170,10 +173,10 @@ export default React.memo(VendorListingCard);
 
 const styles = StyleSheet.create({
   card: { width: "100%", borderWidth: 1, overflow: "hidden", position: "relative", shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  cardCompact: { height: 164, borderRadius: 18 },
-  cardWide: { height: 200, borderRadius: 18 },
+  cardCompact: { height: 164, borderRadius: 16 },
+  cardWide: { height: 200, borderRadius: 16 },
   main: { flex: 1, flexDirection: "row", padding: 8, gap: 14 },
-  imageWrap: { position: "relative", flexShrink: 0, borderRadius: 14, overflow: "hidden", backgroundColor: "#F8E9EE" },
+  imageWrap: { position: "relative", flexShrink: 0, borderRadius: 13, overflow: "hidden", backgroundColor: "#F8E9EE" },
   imageCompact: { width: 138, height: 146 },
   imageWide: { width: 184, height: 184 },
   // react-native-web falls back to a local image asset's own intrinsic

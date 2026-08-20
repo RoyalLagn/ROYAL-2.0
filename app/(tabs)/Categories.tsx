@@ -220,6 +220,7 @@ export default function CategoriesScreen() {
         columnWrapperStyle={twoColumns ? s.column : undefined}
         ItemSeparatorComponent={() => <View style={s.separator} />}
         showsVerticalScrollIndicator={false}
+        decelerationRate="fast"
         keyboardShouldPersistTaps="handled"
         initialNumToRender={INITIAL_ANIMATED_CARDS}
         maxToRenderPerBatch={8}

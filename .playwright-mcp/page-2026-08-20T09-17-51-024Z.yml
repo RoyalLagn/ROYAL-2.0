@@ -1,0 +1,132 @@
+- generic [ref=e1]:
+  - generic [ref=e13]:
+    - generic [ref=e15]:
+      - link "RoyalLagn home" [ref=e16] [cursor=pointer]:
+        - generic "RoyalLagn Wedding Planner" [ref=e18]:
+          - img "RoyalLagn Wedding Planner" [ref=e20]
+      - generic [ref=e21]:
+        - link "Home" [ref=e22] [cursor=pointer]
+        - link "Near Me" [ref=e24] [cursor=pointer]
+        - link "Categories" [ref=e26] [cursor=pointer]
+        - link "Clips" [ref=e29] [cursor=pointer]
+        - link "Favorites" [ref=e31] [cursor=pointer]
+      - textbox "Search vendors, categories and services" [ref=e40]:
+        - /placeholder: Search vendors, categories, services...
+      - generic [ref=e41]:
+        - button "Notifications" [ref=e42] [cursor=pointer]
+        - link "Open enquiries" [ref=e46] [cursor=pointer]
+        - button "Share RoyalLagn" [ref=e49] [cursor=pointer]
+        - link "Profile" [ref=e56] [cursor=pointer]
+        - switch "Dark mode" [ref=e60] [cursor=pointer]
+    - generic [ref=e66]:
+      - generic [ref=e68]:
+        - generic "Catering Services gallery image 1" [ref=e73] [cursor=pointer]:
+          - img "Catering Services gallery image 1" [ref=e75]
+        - button "Go back from Catering Services" [ref=e76] [cursor=pointer]
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - generic [ref=e83]: Catering Services
+              - generic "Verified vendor" [ref=e84]: Verified
+            - generic [ref=e89]:
+              - button "Add vendor to favorites" [ref=e90] [cursor=pointer]
+              - button "Share vendor profile" [ref=e94] [cursor=pointer]
+          - generic [ref=e101]:
+            - generic [ref=e104]: "0"
+            - generic [ref=e105]: (0 Reviews)
+            - generic [ref=e106]: •
+            - generic [ref=e110]: Ambethan, Khed, Pune, Maharashtra
+          - generic [ref=e111]: Caterers
+          - generic [ref=e114]:
+            - button "Call vendor" [ref=e115] [cursor=pointer]:
+              - generic [ref=e119]: Call
+            - button "Contact vendor on WhatsApp" [ref=e120] [cursor=pointer]:
+              - generic [ref=e124]: WhatsApp
+            - button "Send vendor enquiry" [ref=e125] [cursor=pointer]:
+              - generic [ref=e129]: Enquire
+            - button "View vendor calendar" [ref=e130] [cursor=pointer]:
+              - generic [ref=e134]: Calendar
+        - generic [ref=e135]:
+          - generic [ref=e136]:
+            - generic [ref=e142]:
+              - generic [ref=e143]: Packages Start From
+              - generic [ref=e144]: Contact for price
+              - generic [ref=e145]: Compare available pricing or request a custom package
+            - button "View vendor packages" [ref=e146] [cursor=pointer]:
+              - generic [ref=e147]: View Packages
+          - tablist [ref=e148]:
+            - tab "Portfolio tab" [ref=e149] [cursor=pointer]:
+              - generic [ref=e150]: Portfolio
+            - tab "Clips tab" [ref=e151] [cursor=pointer]:
+              - generic [ref=e152]: Clips
+          - generic [ref=e154]:
+            - generic [ref=e161]: Portfolio coming soon
+            - generic [ref=e162]: This vendor has not published any portfolio albums yet. Explore their services or contact them for recent work.
+          - generic [ref=e163]:
+            - generic [ref=e164]: About
+            - generic [ref=e170]: Catering Services is a verified caterers professional serving Ambethan, Khed, Pune, Maharashtra. Explore their services, portfolio and customer reviews to find the right fit for…
+            - button "Read more about vendor" [ref=e171] [cursor=pointer]:
+              - generic [ref=e172]: Read More
+          - generic [ref=e176]:
+            - generic [ref=e177]:
+              - generic [ref=e178]: Reviews & Ratings
+              - button "Write a Review" [ref=e184] [cursor=pointer]
+            - generic [ref=e186]:
+              - generic [ref=e187]:
+                - generic [ref=e188]: "0.0"
+                - generic "0.0 out of 5 stars" [ref=e189]: ★★★★★
+                - generic [ref=e190]: 0 reviews
+              - generic "Rating distribution" [ref=e191]:
+                - generic [ref=e192]:
+                  - generic [ref=e193]: 5 ★
+                  - generic [ref=e195]: 0%
+                - generic [ref=e196]:
+                  - generic [ref=e197]: 4 ★
+                  - generic [ref=e199]: 0%
+                - generic [ref=e200]:
+                  - generic [ref=e201]: 3 ★
+                  - generic [ref=e203]: 0%
+                - generic [ref=e204]:
+                  - generic [ref=e205]: 2 ★
+                  - generic [ref=e207]: 0%
+                - generic [ref=e208]:
+                  - generic [ref=e209]: 1 ★
+                  - generic [ref=e211]: 0%
+            - generic [ref=e212]:
+              - generic [ref=e214]:
+                - radio "Sort reviews by Most Recent" [ref=e215] [cursor=pointer]:
+                  - generic [ref=e216]: Most Recent
+                - radio "Sort reviews by Highest Rated" [ref=e217] [cursor=pointer]:
+                  - generic [ref=e218]: Highest Rated
+                - radio "Sort reviews by Lowest Rated" [ref=e219] [cursor=pointer]:
+                  - generic [ref=e220]: Lowest Rated
+                - radio "Sort reviews by Most Helpful" [ref=e221] [cursor=pointer]:
+                  - generic [ref=e222]: Most Helpful
+              - generic [ref=e224]:
+                - radio "Show all star ratings" [ref=e225] [cursor=pointer]:
+                  - generic [ref=e226]: All stars
+                - radio "Show 5-star reviews" [ref=e227] [cursor=pointer]:
+                  - generic [ref=e228]: 5 ★
+                - radio "Show 4-star reviews" [ref=e229] [cursor=pointer]:
+                  - generic [ref=e230]: 4 ★
+                - radio "Show 3-star reviews" [ref=e231] [cursor=pointer]:
+                  - generic [ref=e232]: 3 ★
+                - radio "Show 2-star reviews" [ref=e233] [cursor=pointer]:
+                  - generic [ref=e234]: 2 ★
+                - radio "Show 1-star reviews" [ref=e235] [cursor=pointer]:
+                  - generic [ref=e236]: 1 ★
+            - generic [ref=e237]:
+              - generic [ref=e238]: No reviews yet
+              - generic [ref=e239]: Be the first customer to share an experience with this vendor.
+  - dialog [ref=e241]:
+    - generic [ref=e243]:
+      - button "Dismiss dialog" [active] [ref=e244] [cursor=pointer]
+      - alert [ref=e245]:
+        - generic [ref=e246]:
+          - generic [ref=e250]: Login required
+          - button "Close dialog" [ref=e252] [cursor=pointer]
+        - generic [ref=e256]: Please log in before contacting this vendor.
+        - generic [ref=e259]:
+          - button "Cancel" [ref=e260] [cursor=pointer]
+          - button "Log in" [ref=e262] [cursor=pointer]

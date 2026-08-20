@@ -110,6 +110,7 @@ function PinnedHeroProfileLayout({
         style={styles.scroll}
         contentContainerStyle={contentContainerStyle}
         showsVerticalScrollIndicator={false}
+        decelerationRate="fast"
         scrollEventThrottle={16}
         directionalLockEnabled
         nestedScrollEnabled

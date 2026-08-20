@@ -27,6 +27,7 @@ import { typeScale, typeLeading } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { MotionDistance, MotionStagger, MotionTiming } from "@/utils/motion";
 import { brandPalette } from "@/constants/brandPalette";
+import Pressable from "@/components/InteropSafePressable";
 
 const PINK = brandPalette.light.primary;
 
@@ -36,7 +37,8 @@ export default function FavoritesScreen() {
   const router = useRouter();
   const { favorites, loading, markFavoritesViewed, removeFavorite } = useFavorites();
   const { width: W } = useWindowDimensions();
-  const CARD_W = (W - 48) / 2;
+  const contentWidth = Math.min(W - 32, 960);
+  const CARD_W = (contentWidth - 14) / 2;
 
   const [selectedCat, setSelectedCat] = useState("All");
   const [gridView, setGridView] = useState(true);
@@ -134,10 +136,11 @@ export default function FavoritesScreen() {
         ) : gridView ? (
           <ScrollView
             showsVerticalScrollIndicator={false}
+            decelerationRate="fast"
             style={{ flex: 1 }}
             contentContainerStyle={[s.gridList, { paddingBottom: 24 }]}
           >
-            <View style={s.grid}>
+            <View style={[s.grid, { width: contentWidth }]}>
               {displayed.map((vendor) => (
                 <GridCard
                   key={vendor.id}
@@ -145,6 +148,7 @@ export default function FavoritesScreen() {
                   isDark={isDark}
                   text={text}
                   muted={muted}
+                  border={border}
                   cardWidth={CARD_W}
                   onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category } })}
                   onRemove={() => setConfirmId(vendor.id)}
@@ -155,6 +159,7 @@ export default function FavoritesScreen() {
         ) : (
           <ScrollView
             showsVerticalScrollIndicator={false}
+            decelerationRate="fast"
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingBottom: 24 }}
           >
@@ -167,6 +172,7 @@ export default function FavoritesScreen() {
                 muted={muted}
                 border={border}
                 isDark={isDark}
+                width={contentWidth}
                 onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category } })}
                 onRemove={() => setConfirmId(vendor.id)}
               />
@@ -206,12 +212,21 @@ export default function FavoritesScreen() {
 }
 
 /* ── Grid Card ── */
-function GridCard({ vendor, isDark, text, muted, cardWidth, onPress, onRemove }: {
+function GridCard({ vendor, isDark, text, muted, border, cardWidth, onPress, onRemove }: {
   vendor: FavoriteVendor; isDark: boolean; text: string; muted: string; cardWidth: number;
+  border: string;
   onPress: () => void; onRemove: () => void;
 }) {
   return (
-    <TouchableOpacity style={[s.gridCard, { width: cardWidth }]} onPress={onPress} activeOpacity={0.9}>
+    <Pressable
+      style={({ hovered, focused, pressed }) => [
+        s.gridCard,
+        { width: cardWidth, borderColor: border },
+        (hovered || focused) && s.cardHover,
+        pressed && s.cardPressed,
+      ]}
+      onPress={onPress}
+    >
       <View style={s.gridImgWrap}>
         <Image source={{ uri: vendor.image }} style={s.gridImg} resizeMode="contain" />
         {/* Gradient overlay */}
@@ -238,20 +253,25 @@ function GridCard({ vendor, isDark, text, muted, cardWidth, onPress, onRemove }:
         </View>
         <Text style={[s.gridPrice, { color: isDark ? "#F5A0C0" : "#BE185D" }]}>{vendor.startingPrice}</Text>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
 /* ── List Card ── */
-function ListCard({ vendor, card, text, muted, border, isDark, onPress, onRemove }: {
+function ListCard({ vendor, card, text, muted, border, isDark, width, onPress, onRemove }: {
   vendor: FavoriteVendor; card: string; text: string; muted: string; border: string; isDark: boolean;
+  width: number;
   onPress: () => void; onRemove: () => void;
 }) {
   return (
-    <TouchableOpacity
-      style={[s.listCard, { backgroundColor: card }]}
+    <Pressable
+      style={({ hovered, focused, pressed }) => [
+        s.listCard,
+        { width, backgroundColor: card, borderColor: border },
+        (hovered || focused) && s.cardHover,
+        pressed && s.cardPressed,
+      ]}
       onPress={onPress}
-      activeOpacity={0.88}
     >
       {/* Image */}
       <View style={s.listImgWrap}>
@@ -285,7 +305,7 @@ function ListCard({ vendor, card, text, muted, border, isDark, onPress, onRemove
           <Text style={s.listPriceTxt}>from {vendor.startingPrice}</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -385,9 +405,9 @@ const s = StyleSheet.create({
   chipCountTxt:   { fontSize: typeScale.caption, fontWeight: "700" },
 
   /* Grid */
-  gridList:       { paddingHorizontal: 16 },
+  gridList:       { paddingHorizontal: 16, alignItems: "center" },
   grid:           { flexDirection: "row", flexWrap: "wrap", gap: 14 },
-  gridCard:       { borderRadius: 16, overflow: "hidden", elevation: 3, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  gridCard:       { borderWidth: 1, borderRadius: 16, overflow: "hidden", elevation: 2, shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
   gridImgWrap:    { aspectRatio: 1, position: "relative", backgroundColor: "#FFFFFF" },
   gridImg:        { width: "100%", height: "100%" },
   gridOverlay:    { position: "absolute", bottom: 0, left: 0, right: 0, height: 80, backgroundColor: "rgba(0,0,0,0.35)" },
@@ -403,7 +423,9 @@ const s = StyleSheet.create({
   gridPrice:      { fontSize: typeScale.bodyCompact, fontWeight: "700" },
 
   /* List */
-  listCard:       { flexDirection: "row", marginHorizontal: 16, marginBottom: 12, borderRadius: 16, overflow: "hidden", elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 1 } },
+  listCard:       { alignSelf: "center", flexDirection: "row", marginBottom: 12, borderWidth: 1, borderRadius: 16, overflow: "hidden", elevation: 2, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  cardHover:      { transform: [{ translateY: -1 }], elevation: 4, shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 9 } },
+  cardPressed:    { transform: [{ scale: 0.985 }], opacity: 0.9 },
   listImgWrap:    { width: 110, height: 110, position: "relative", backgroundColor: "#FFFFFF" },
   listImg:        { width: "100%", height: "100%" },
   listCatBadge:   { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.55)", paddingVertical: 4, alignItems: "center" },

@@ -1,53 +1,81 @@
-import React, { useState } from "react";
-import { Alert, StyleSheet, Switch, Text, View } from "react-native";
-import { Download, LockKeyhole, RotateCcw } from "lucide-react-native";
+import React, { useMemo, useState } from "react";
+import { Text, View } from "react-native";
+import { Download, Landmark, ReceiptText, WalletCards } from "lucide-react-native";
 import { adminPalette } from "@/theme";
 import { typeStyles } from "@/constants/typography";
 import { AdminFinanceService, summarizeFinance } from "@/services/adminFinanceService";
-import { useAdminAuth } from "@/context/AdminAuthContext";
 import type { FinanceMonthData } from "@/types/adminFinance";
-import { FinanceButton, FinanceField, FinanceNotice, FinanceSection, formatMoney } from "./FinanceUI";
+import { FinanceButton, FinanceMetric, FinanceNotice, FinanceSection, formatMoney } from "./FinanceUI";
 
-const checks = [
-  ["revenue_recorded", "All revenue recorded"], ["expenses_recorded", "All expenses recorded"], ["fees_recorded", "Payment gateway fees recorded"], ["cloudinary_recorded", "Cloudinary cost reviewed"], ["marketing_recorded", "Marketing expenses recorded"], ["refunds_recorded", "Refunds and adjustments reviewed"], ["tax_reviewed", "Estimated tax provision reviewed"],
-] as const;
-
-export function FinanceReports({ data, onChanged }: { data: FinanceMonthData; onChanged: () => Promise<void> }) {
-  const { identity } = useAdminAuth();
-  const canReopen = identity?.profile.role === "super_admin";
-  const [checklist, setChecklist] = useState<Record<string, boolean>>(data.closure?.checklist ?? {});
-  const [reason, setReason] = useState("");
-  const [working, setWorking] = useState(false);
-  const [message, setMessage] = useState<{ text: string; tone: "success" | "error" } | null>(null);
+/**
+ * Reports use the month selected in Finance's calendar. The figures are based
+ * on recorded ledger rows, and subscription payments remain traceable through
+ * their immutable source field.
+ */
+export function FinanceReports({ data }: { data: FinanceMonthData }) {
+  const [message, setMessage] = useState<string | null>(null);
   const summary = summarizeFinance(data);
-  const closed = data.closure?.status === "closed";
-  const allChecked = checks.every(([key]) => checklist[key]);
-  const close = () => Alert.alert("Close this finance month?", "Closing protects its ledger from accidental changes. Verify the report before continuing.", [{ text: "Cancel", style: "cancel" }, { text: "Close month", onPress: () => void run(async () => { await AdminFinanceService.closeMonth(data.monthStart, checklist); setMessage({ text: "Finance month closed and protected.", tone: "success" }); }) }]);
-  const reopen = () => {
-    if (reason.trim().length < 8) return setMessage({ text: "Enter a correction reason of at least 8 characters.", tone: "error" });
-    Alert.alert("Reopen this month?", "Only use this for an authorized correction. The reason will remain in the monthly record.", [{ text: "Cancel", style: "cancel" }, { text: "Reopen", style: "destructive", onPress: () => void run(async () => { await AdminFinanceService.reopenMonth(data.monthStart, reason); setReason(""); setMessage({ text: "Finance month reopened for correction.", tone: "success" }); }) }]);
+  const subscription = useMemo(() => {
+    const rows = data.transactions.filter((item) => item.status === "recorded" && item.direction === "revenue" && item.source === "subscription_payment");
+    const gross = rows.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    const fees = rows.reduce((sum, item) => sum + Number(item.gateway_fee || 0), 0);
+    return { rows, gross, fees };
+  }, [data.transactions]);
+
+  const exportReport = async () => {
+    setMessage(null);
+    try {
+      await AdminFinanceService.exportExcel(data);
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : "Unable to export the finance report.");
+    }
   };
-  const run = async (operation: () => Promise<void>) => { setWorking(true); setMessage(null); try { await operation(); await onChanged(); } catch (cause) { setMessage({ text: cause instanceof Error ? cause.message : "The finance action could not be completed.", tone: "error" }); } finally { setWorking(false); } };
 
   return <View style={styles.stack}>
-    {message ? <FinanceNotice tone={message.tone}>{message.text}</FinanceNotice> : null}
-    <FinanceSection title="Monthly financial report" description="A portable summary based on the selected month’s actual ledger and saved provisions." action={<FinanceButton label="Export CSV" icon={Download} variant="secondary" onPress={() => void AdminFinanceService.exportCsv(data).catch((cause) => setMessage({ text: cause instanceof Error ? cause.message : "Unable to export the report.", tone: "error" }))} />}>
-      <View style={styles.report}><ReportLine label="Net revenue" value={summary.netRevenue} /><ReportLine label="Expenses" value={summary.expenses} /><ReportLine label="Profit before tax" value={summary.profitBeforeTax} strong /><ReportLine label="Estimated tax provision" value={summary.estimatedTax} /><ReportLine label="Net profit" value={summary.netProfit} strong /></View>
-      <Text style={styles.reportMeta}>{data.transactions.length} ledger records · {data.taxes.length} tax records · {data.budgetItems.length} budget categories</Text>
+    {message ? <FinanceNotice tone="error">{message}</FinanceNotice> : null}
+    <FinanceSection
+      title="Finance report"
+      description="The calendar above chooses this report period. Download the selected month with its summary and source records."
+      action={<FinanceButton label="Download Excel" icon={Download} variant="secondary" onPress={() => void exportReport()} accessibilityHint="Downloads the selected finance report as an Excel workbook" />}
+    >
+      <View style={styles.metrics}>
+        <FinanceMetric label="Subscription revenue" value={formatMoney(subscription.gross, true)} hint={`${subscription.rows.length} verified payment${subscription.rows.length === 1 ? "" : "s"}`} icon={WalletCards} />
+        <FinanceMetric label="Gateway fees" value={formatMoney(subscription.fees, true)} hint="Captured on subscription payments" tone="warning" />
+        <FinanceMetric label="Net revenue" value={formatMoney(summary.netRevenue, true)} hint="All recorded revenue after fees" tone="positive" icon={Landmark} />
+        <FinanceMetric label="Recorded expenses" value={formatMoney(summary.expenses, true)} hint="Selected month expenses" icon={ReceiptText} />
+      </View>
     </FinanceSection>
 
-    <FinanceSection title="Monthly closing" description="Complete the operating checks, review the report, and then lock the month against accidental changes.">
-      {closed ? <>
-        <FinanceNotice tone="success">Closed {data.closure?.closed_at ? new Date(data.closure.closed_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "successfully"}. The saved snapshot remains available for audit.</FinanceNotice>
-        {canReopen ? <><FinanceField label="Authorized correction reason" value={reason} onChangeText={setReason} multiline placeholder="Explain why this closed month must be corrected" /><FinanceButton label={working ? "Reopening…" : "Reopen for correction"} icon={RotateCcw} variant="danger" onPress={reopen} disabled={working} /></> : <FinanceNotice tone="info">Only a super administrator can reopen a closed finance month. Contact one with the correction reason.</FinanceNotice>}
-      </> : <>
-        <View>{checks.map(([key, label], index) => <View key={key} style={[styles.check, index > 0 && styles.rowBorder]}><View style={styles.flex}><Text style={styles.checkTitle}>{label}</Text><Text style={styles.checkHint}>Confirm this against the ledger and source records.</Text></View><Switch accessibilityLabel={label} value={!!checklist[key]} onValueChange={(value) => setChecklist((current) => ({ ...current, [key]: value }))} trackColor={{ false: adminPalette.border, true: "#86EFAC" }} thumbColor={checklist[key] ? adminPalette.success : "#FFF"} /></View>)}</View>
-        <FinanceButton label={working ? "Closing month…" : "Close finance month"} icon={LockKeyhole} onPress={close} disabled={!allChecked || working} accessibilityHint={allChecked ? "Locks this month against changes" : "Complete all checks first"} />
-      </>}
+    <FinanceSection title="Profit summary" description="Actual ledger amounts with the selected month’s estimated tax provision.">
+      <View style={styles.statement}>
+        <ReportLine label="Gross revenue" value={summary.grossRevenue} />
+        <ReportLine label="Gateway fees" value={summary.gatewayFees} />
+        <ReportLine label="Net revenue" value={summary.netRevenue} strong />
+        <ReportLine label="Recorded expenses" value={summary.expenses} />
+        <ReportLine label="Profit before tax" value={summary.profitBeforeTax} strong />
+        <ReportLine label="Estimated tax provision" value={summary.estimatedTax} />
+        <ReportLine label="Net profit" value={summary.netProfit} strong />
+      </View>
+      <Text style={styles.meta}>{data.transactions.filter((item) => item.status === "recorded").length} recorded ledger entries · {data.taxes.length} tax records · {data.budgetItems.length} budget categories</Text>
     </FinanceSection>
   </View>;
 }
 
-function ReportLine({ label, value, strong }: { label: string; value: number; strong?: boolean }) { return <View style={[styles.line, strong && styles.strongLine]}><Text style={[styles.lineLabel, strong && styles.strongText]}>{label}</Text><Text style={[styles.lineValue, strong && styles.strongText, value < 0 && { color: adminPalette.error }]}>{formatMoney(value)}</Text></View>; }
+function ReportLine({ label, value, strong }: { label: string; value: number; strong?: boolean }) {
+  return <View style={[styles.line, strong && styles.strongLine]}>
+    <Text style={[styles.lineLabel, strong && styles.strongText]}>{label}</Text>
+    <Text style={[styles.lineValue, strong && styles.strongText, value < 0 && { color: adminPalette.error }]}>{formatMoney(value)}</Text>
+  </View>;
+}
 
-const styles = StyleSheet.create({ stack: { gap: 14 }, report: { backgroundColor: adminPalette.surfaceSubtle, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8 }, line: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }, strongLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: adminPalette.border }, lineLabel: { ...typeStyles.bodyCompact, color: adminPalette.textSecondary }, lineValue: { ...typeStyles.bodyCompact, color: adminPalette.text, fontVariant: ["tabular-nums"] }, strongText: { fontFamily: typeStyles.cardTitle.fontFamily, color: adminPalette.text }, reportMeta: { ...typeStyles.caption, color: adminPalette.textSecondary, textAlign: "right" }, check: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 12 }, rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: adminPalette.border }, flex: { flex: 1, minWidth: 0 }, checkTitle: { ...typeStyles.label, color: adminPalette.text }, checkHint: { ...typeStyles.caption, color: adminPalette.textSecondary, marginTop: 2 } });
+const styles = {
+  stack: { gap: 14 },
+  metrics: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: 12 },
+  statement: { backgroundColor: adminPalette.surfaceSubtle, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 8 },
+  line: { minHeight: 42, flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "space-between" as const, gap: 12 },
+  strongLine: { borderTopWidth: 1, borderTopColor: adminPalette.border },
+  lineLabel: { ...typeStyles.bodyCompact, color: adminPalette.textSecondary },
+  lineValue: { ...typeStyles.bodyCompact, color: adminPalette.text },
+  strongText: { fontFamily: typeStyles.cardTitle.fontFamily, color: adminPalette.text },
+  meta: { ...typeStyles.caption, color: adminPalette.textSecondary, textAlign: "right" as const },
+};

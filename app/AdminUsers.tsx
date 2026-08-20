@@ -16,6 +16,7 @@ import { CalendarDays, Clock3, Mail, MoreVertical, Phone, RefreshCw, Search, Tra
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
+import { AdminReveal } from "@/components/admin/ui/AdminReveal";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { AdminUserService, type AdminPublicUser } from "@/services/adminUsers";
@@ -113,6 +114,7 @@ export default function AdminUsers() {
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        decelerationRate="fast"
         contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}
       >
@@ -120,27 +122,27 @@ export default function AdminUsers() {
           <AdminPageHeader
             title="Public User Management"
             subtitle="Live customer profiles from Supabase"
-            action={<Pressable accessibilityLabel="Refresh users" className="min-w-11 min-h-11 rounded-xl border border-border bg-card items-center justify-center active:bg-muted" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => void load(true)}><RefreshCw size={19} className="text-primary" /></Pressable>}
+            action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh users" className="min-w-11 min-h-11 rounded-xl border border-border bg-card items-center justify-center hover:bg-muted active:bg-muted transition-colors duration-200" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={() => void load(true)}><RefreshCw size={19} className="text-primary" /></Pressable>}
           />
         </ResponsiveContainer>
 
         <ResponsiveContainer>
           <View className="flex-row gap-3 mb-4">
-            <View className="flex-1 min-h-24 bg-card border border-border rounded-2xl p-4 flex-row items-center gap-3">
+            <View className="flex-1 min-h-24 bg-card border border-border rounded-2xl p-4 flex-row items-center gap-3 shadow-sm">
               <View className="w-11 h-11 rounded-xl bg-primary/10 items-center justify-center"><Users size={20} className="text-primary" /></View>
               <View className="flex-1 min-w-0"><Text className="text-muted-foreground text-xs font-semibold">Registered customers</Text><Text className="text-foreground text-2xl font-bold mt-1">{users.length}</Text></View>
             </View>
-            <View className="flex-1 min-h-24 bg-card border border-border rounded-2xl p-4 flex-row items-center gap-3">
+            <View className="flex-1 min-h-24 bg-card border border-border rounded-2xl p-4 flex-row items-center gap-3 shadow-sm">
               <View className="w-11 h-11 rounded-xl bg-emerald-500/10 items-center justify-center"><UserRound size={20} color="#168A5B" /></View>
               <View className="flex-1 min-w-0"><Text className="text-muted-foreground text-xs font-semibold">Active accounts</Text><Text className="text-foreground text-2xl font-bold mt-1">{users.filter((user) => user.is_active).length}</Text></View>
             </View>
           </View>
 
           <View className="bg-card border border-border rounded-2xl p-4 mb-4 gap-3">
-            <View className="h-12 px-3 rounded-xl bg-background border border-border flex-row items-center gap-2">
+            <View className="h-12 px-3 rounded-xl bg-background border border-border flex-row items-center gap-2 focus-within:border-primary/50 transition-colors duration-200">
               <Search size={18} className="text-muted-foreground" />
               <TextInput accessibilityLabel="Search users" value={searchInput} onChangeText={setSearchInput} placeholder="Search by name, email, phone or user ID" placeholderTextColor="#7A8190" className="flex-1 min-w-0 text-foreground text-body" />
-              {searchInput ? <Pressable accessibilityLabel="Clear search" className="w-11 h-11 rounded-xl items-center justify-center active:bg-muted" onPress={() => setSearchInput("")}><X size={15} className="text-muted-foreground" /></Pressable> : null}
+              {searchInput ? <Pressable accessibilityRole="button" accessibilityLabel="Clear search" className="w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:bg-muted transition-colors duration-200" onPress={() => setSearchInput("")}><X size={15} className="text-muted-foreground" /></Pressable> : null}
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {(["all", "active", "inactive"] as const).map((value) => <Pressable key={value} onPress={() => { setStatus(value); setPage(1); }} className={status === value ? "min-h-11 px-4 rounded-xl bg-primary border border-primary items-center justify-center" : "min-h-11 px-4 rounded-xl bg-background border border-border items-center justify-center"} style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}><Text className={status === value ? "text-white text-xs font-semibold capitalize" : "text-foreground text-xs font-semibold capitalize"}>{value}</Text></Pressable>)}
@@ -152,7 +154,7 @@ export default function AdminUsers() {
           {loading ? <AdminLoadingState label="Loading live customer profiles…" />
             : error ? <AdminErrorState message={error} onRetry={() => void load()} />
               : !visible.length ? <AdminEmptyState title="No users found" message={query || status !== "all" ? "Try another search or status filter." : "Customer accounts will appear here after registration."} />
-                : <View className={isPhone ? "gap-3" : "flex-row flex-wrap gap-3"}>{visible.map((user) => <UserCard key={user.id} user={user} compact={isPhone} onActions={() => setActionUser(user)} />)}</View>}
+                : <View className={isPhone ? "gap-3" : "flex-row flex-wrap gap-3"}>{visible.map((user, index) => <AdminReveal key={user.id} index={index} style={isPhone ? undefined : { flexBasis: "48%", flexGrow: 1, minWidth: 320 }}><UserCard user={user} compact={isPhone} onActions={() => setActionUser(user)} /></AdminReveal>)}</View>}
           {!loading && !error && filtered.length > 15 ? <PaginationBar page={currentPage} pages={pages} onPage={setPage} /> : null}
         </ResponsiveContainer>
       </ScrollView>
@@ -180,7 +182,7 @@ function UserCard({ user, compact, onActions }: { user: AdminPublicUser; compact
     <View
       accessible
       accessibilityLabel={`${user.full_name}, ${user.is_active ? "active" : "inactive"} account`}
-      className="bg-card border border-border rounded-2xl p-4"
+      className="bg-card border border-border rounded-2xl p-4 hover:border-primary/35 hover:bg-primary/5 transition-colors duration-200"
       style={compact ? undefined : { flexBasis: "48%", flexGrow: 1, minWidth: 320 }}
     >
       <View className="flex-row items-start">
@@ -200,7 +202,7 @@ function UserCard({ user, compact, onActions }: { user: AdminPublicUser; compact
                 {user.is_active ? "Active" : "Inactive"}
               </Text>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel={`Open actions for ${user.full_name}`} className="min-w-11 min-h-11 -mr-2 -mt-2 rounded-xl border border-border bg-background items-center justify-center active:bg-muted" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={onActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Open actions for ${user.full_name}`} className="min-w-11 min-h-11 -mr-2 -mt-2 rounded-xl border border-border bg-background items-center justify-center hover:bg-muted active:bg-muted transition-colors duration-200" style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined} onPress={onActions}>
               <MoreVertical size={19} className="text-muted-foreground" />
             </Pressable>
           </View>

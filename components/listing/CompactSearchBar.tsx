@@ -33,6 +33,7 @@ export default function CompactSearchBar({
   const gradient = dark
     ? [colors.card, "#121A28"] as const
     : [colors.card, colors.background] as const;
+  const canSubmit = typeof onSubmit === "function";
 
   return (
     <View style={[styles.shell, { backgroundColor: colors.card, borderColor: border }, style]}>
@@ -42,7 +43,24 @@ export default function CompactSearchBar({
         end={{ x: 1, y: 1 }}
         style={[styles.inner, { borderColor: dark ? "rgba(255,255,255,.04)" : "rgba(255,255,255,.98)" }]}
       >
-        <Search size={18} color={icon} strokeWidth={1.7} />
+        {canSubmit ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={value.trim() ? "Submit search" : "Browse all vendors"}
+            hitSlop={4}
+            onPress={onSubmit}
+            style={({ pressed, hovered, focused }) => [
+              styles.searchAction,
+              hovered && Platform.OS === "web" && { backgroundColor: dark ? "#3A3035" : colors.muted },
+              focused && { backgroundColor: dark ? "#3A3035" : colors.muted },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Search size={18} color={icon} strokeWidth={1.7} />
+          </Pressable>
+        ) : (
+          <Search size={18} color={icon} strokeWidth={1.7} />
+        )}
         <TextInput
           accessibilityLabel={accessibilityLabel}
           value={value}
@@ -104,6 +122,7 @@ const styles = StyleSheet.create({
     fontSize: typeScale.body,
     outlineStyle: "none",
   } as never,
+  searchAction: { width: 40, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", marginLeft: -10 },
   clear: { width: 30, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   pressed: { opacity: 0.72, transform: [{ scale: 0.96 }] },
 });

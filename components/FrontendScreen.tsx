@@ -92,6 +92,7 @@ export default function FrontendScreen({
   const isDark = colorScheme === "dark";
   const isDesktop = width >= 900;
   const isTablet = width >= 700;
+  const isLegalDocument = mode === "info" && (title === "Privacy Policy" || title === "Terms & Conditions");
   const pagePadding = width >= 768 ? 32 : 20;
   const contentMaxWidth = mode === "list" || mode === "reports" ? 1120 : 920;
   const [values, setValues] = useState<Record<string, string>>(
@@ -215,39 +216,48 @@ export default function FrontendScreen({
         ]}
       >
         <View style={[styles.content, { maxWidth: contentMaxWidth }]}>
-          <LinearGradient
-            colors={isDark
-              ? ["#2A2025", "#231C20", "#1E1E1E"]
-              : ["#FFF8FB", "#FDE7F1", "#FFFDFE"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.banner, surfaceShadow]}
-          >
-            <View style={styles.bannerAccent} />
-            <View
-              style={[
-                styles.bannerOrb,
-                { backgroundColor: isDark ? "rgba(236,72,153,0.09)" : "rgba(233,30,99,0.07)" },
-              ]}
-            />
-            <View className={isTablet ? "flex-row items-center" : "items-start"}>
-              <View className="w-12 h-12 rounded-2xl bg-primary items-center justify-center mr-4 mb-3">
-                <BannerIcon size={22} color="#FFFFFF" strokeWidth={1.9} />
-              </View>
-              <View className="flex-1 min-w-0">
-                <Text className="text-primary text-2xs font-bold uppercase tracking-[1.5px] mb-1.5">
-                  {modeLabels[mode]}
-                </Text>
-                <Text className={isDesktop
-                  ? "text-foreground font-inter-bold text-page-title mb-1"
-                  : "text-foreground font-inter-bold text-page-title mb-1"}
-                >
-                  {title}
-                </Text>
-                <Text className="text-muted-foreground text-sm leading-5">{subtitle}</Text>
+          {isLegalDocument ? (
+            <View className="bg-card border border-border rounded-2xl px-5 py-5 md:px-7 md:py-6" style={surfaceShadow}>
+              <View className="flex-row items-center">
+                <View className="w-11 h-11 rounded-xl bg-primary/10 items-center justify-center mr-3.5">
+                  <BannerIcon size={21} className="text-primary" strokeWidth={1.9} />
+                </View>
+                <View className="flex-1 min-w-0">
+                  <Text className="text-foreground font-inter-bold text-page-title mb-1">{title}</Text>
+                  <Text className="text-muted-foreground text-sm leading-5">{subtitle}</Text>
+                </View>
               </View>
             </View>
-          </LinearGradient>
+          ) : (
+            <LinearGradient
+              colors={isDark
+                ? ["#2A2025", "#231C20", "#1E1E1E"]
+                : ["#FFF8FB", "#FDE7F1", "#FFFDFE"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.banner, surfaceShadow]}
+            >
+              <View style={styles.bannerAccent} />
+              <View
+                style={[
+                  styles.bannerOrb,
+                  { backgroundColor: isDark ? "rgba(236,72,153,0.09)" : "rgba(233,30,99,0.07)" },
+                ]}
+              />
+              <View className={isTablet ? "flex-row items-center" : "items-start"}>
+                <View className="w-12 h-12 rounded-2xl bg-primary items-center justify-center mr-4 mb-3">
+                  <BannerIcon size={22} color="#FFFFFF" strokeWidth={1.9} />
+                </View>
+                <View className="flex-1 min-w-0">
+                  <Text className="text-primary text-2xs font-bold uppercase tracking-[1.5px] mb-1.5">
+                    {modeLabels[mode]}
+                  </Text>
+                  <Text className="text-foreground font-inter-bold text-page-title mb-1">{title}</Text>
+                  <Text className="text-muted-foreground text-sm leading-5">{subtitle}</Text>
+                </View>
+              </View>
+            </LinearGradient>
+          )}
 
           {mode === "form" && (
             <View
@@ -504,7 +514,21 @@ export default function FrontendScreen({
             </View>
           )}
 
-          {mode === "info" && (
+          {isLegalDocument ? (
+            <View className="bg-card border border-border rounded-2xl overflow-hidden" style={surfaceShadow}>
+              {content.map((paragraph, index) => (
+                <View
+                  key={index}
+                  className={`flex-row items-start px-5 py-5 md:px-7 md:py-6 ${index > 0 ? "border-t border-border" : ""}`}
+                >
+                  <View className="w-8 h-8 rounded-lg bg-primary/10 items-center justify-center mr-4 mt-0.5">
+                    <Text className="text-primary text-sm font-bold">{index + 1}</Text>
+                  </View>
+                  <Text className="text-foreground text-sm leading-6 flex-1">{paragraph}</Text>
+                </View>
+              ))}
+            </View>
+          ) : mode === "info" && (
             <View className={isDesktop ? "flex-row gap-6 items-start" : "gap-5"}>
               <View className={isDesktop ? "w-[30%]" : "w-full"}>
                 <View className="w-10 h-0.5 bg-primary rounded-full mb-4" />
@@ -523,7 +547,7 @@ export default function FrontendScreen({
                     className={`p-5 flex-row items-start ${index > 0 ? "border-t border-border/70" : ""}`}
                   >
                     <View className="min-w-14 h-7 px-2 rounded-full bg-primary/10 items-center justify-center mr-3 mt-0.5">
-                      <Text className="text-primary text-xs font-bold">Sr. {index + 1}</Text>
+                      <Text className="text-primary text-xs font-bold">{index + 1}</Text>
                     </View>
                     <Text className="text-foreground text-sm leading-6 flex-1">{paragraph}</Text>
                   </View>

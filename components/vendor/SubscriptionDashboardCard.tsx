@@ -51,14 +51,28 @@ export default function SubscriptionDashboardCard() {
         <View style={[styles.actions, desktop && styles.actionsDesktop]}>
           <Pressable
             onPress={() => router.push("/VendorSubscription")}
-            style={({ pressed }) => [styles.primary, { backgroundColor: colors.pink }, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={state.actionLabel}
+            style={({ pressed, hovered, focused }) => [
+              styles.primary,
+              { backgroundColor: colors.pink },
+              (hovered || focused) && styles.hoverLift,
+              pressed && styles.pressed,
+            ]}
           >
             <Text style={styles.primaryText}>{state.actionLabel}</Text>
             <ChevronRight size={15} color="#FFF" />
           </Pressable>
           <Pressable
             onPress={() => router.push("/VendorPaymentHistory")}
-            style={({ pressed }) => [styles.history, { backgroundColor: colors.surface }, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Open payment history"
+            style={({ pressed, hovered, focused }) => [
+              styles.history,
+              { backgroundColor: colors.surface },
+              (hovered || focused) && styles.hoverLift,
+              pressed && styles.pressed,
+            ]}
           >
             <ReceiptText size={16} color={colors.pink} />
           </Pressable>
@@ -81,5 +95,6 @@ const styles = StyleSheet.create({
   primary: { flex: 1, minHeight: 40, borderRadius: 14, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
   primaryText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" }, history: { width: 42, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   actionsDesktop: { width: 300, marginTop: 0 },
+  hoverLift: { transform: [{ translateY: -1 }] },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
 });

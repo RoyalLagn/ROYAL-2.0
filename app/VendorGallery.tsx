@@ -69,6 +69,7 @@ export default function VendorGallery() {
   // column per row instead of two.
   const [galleryWidth, setGalleryWidth] = useState(0);
   const [previewGridWidth, setPreviewGridWidth] = useState(0);
+  const [albumGridWidth, setAlbumGridWidth] = useState(0);
   const columnsForWidth = (w: number) => (w >= 900 ? 4 : w >= 600 ? 3 : 2);
   const tileWidthForContainer = (containerWidth: number) => {
     const measured = containerWidth || contentWidth;
@@ -77,6 +78,11 @@ export default function VendorGallery() {
   };
   const tileWidth = tileWidthForContainer(galleryWidth);
   const previewTileWidth = tileWidthForContainer(previewGridWidth);
+  const albumColumns = width >= 900 ? 3 : 2;
+  const albumGridAvailableWidth = albumGridWidth || contentWidth;
+  const albumWidth = (albumGridAvailableWidth - gap * (albumColumns - 1)) / albumColumns;
+  const albumHeight = Math.round(albumWidth * (width >= 900 ? 1.06 : 1.13));
+  const albumCoverHeight = Math.round(albumWidth * 0.58);
   const activeAlbum = data.albums.find((album) => album.id === selectedAlbumId) ?? data.albums[0];
   const media = useMemo(() => data.media.filter((item) => item.album_id === activeAlbum?.id), [data.media, activeAlbum?.id]);
   const lockedPhotoCount = useMemo(() => data.media.filter((item) => item.resource_type === "image" && item.subscription_locked).length, [data.media]);
@@ -504,6 +510,7 @@ export default function VendorGallery() {
     <ScrollView
       contentContainerStyle={[styles.content, width >= 900 && styles.desktop]}
       showsVerticalScrollIndicator={false}
+      decelerationRate="fast"
       bounces={false}
       overScrollMode="never"
     >
@@ -530,13 +537,7 @@ export default function VendorGallery() {
           <Text style={styles.primaryText}>Create album</Text>
         </Pressable>
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        decelerationRate="fast"
-        snapToInterval={168}
-        contentContainerStyle={[styles.summaryGrid, width >= 900 && styles.summaryGridDesktop]}
-      >
+      <View style={[styles.summaryGrid, width >= 900 && styles.summaryGridDesktop]}>
         {[
           {
             key: "albums",
@@ -565,7 +566,8 @@ export default function VendorGallery() {
         ].map((stat) => <View key={stat.key} style={[
           styles.summaryCard,
           width >= 900 && styles.summaryCardDesktop,
-          width >= 900 && { width: (contentWidth - 20) / 3 },
+          width < 520 && styles.summaryCardCompact,
+          { width: width >= 900 ? (contentWidth - 20) / 3 : "31%" },
           { backgroundColor: colors.background, borderColor: colors.border },
         ]}>
           <View style={[styles.summaryIcon, { backgroundColor: colors.surfaceSoft }]}>{stat.icon}</View>
@@ -576,7 +578,7 @@ export default function VendorGallery() {
           </View>
           <Text style={[styles.summaryDetail, { color: stat.key === "albums" ? colors.muted : colors.pink }]}>{stat.detail}</Text>
         </View>)}
-      </ScrollView>
+      </View>
       {error && <Text style={[styles.error, { color: colors.warning }]}>We couldn’t load your portfolio. Please refresh and try again.</Text>}
       {portfolioError && <View style={[styles.setupNotice, { backgroundColor: colors.surfaceSoft, borderColor: colors.warning }]}>
         <Text style={[styles.setupTitle, { color: colors.text }]}>Backend setup required</Text>
@@ -642,7 +644,7 @@ export default function VendorGallery() {
             </View> : null}
           </View>
         </View> : null}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.heroPicker}>
+        <View style={styles.heroPicker}>
           {readyHeroImages.map((item) => {
             const selectedIndex = heroDraft.indexOf(item.id);
             const selected = selectedIndex >= 0;
@@ -656,10 +658,11 @@ export default function VendorGallery() {
                 setHeroPreviewId(item.id);
                 toggleHeroImage(item.id);
               }}
-              style={({ pressed }) => [
+              style={({ pressed, hovered, focused }) => [
                 styles.heroThumb,
                 { backgroundColor: colors.surfaceSoft },
                 previewing && { borderColor: colors.pink },
+                (hovered || focused) && styles.hoverLift,
                 pressed && styles.pressScale,
               ]}
             >
@@ -670,7 +673,7 @@ export default function VendorGallery() {
               </View> : <View style={styles.heroUnselectedDot} />}
             </Pressable>;
           })}
-        </ScrollView>
+        </View>
         {heroPreviewOrder >= 0 ? <View style={[styles.heroReorder, { backgroundColor: colors.surfaceSoft }]}>
           <Text style={[styles.heroReorderLabel, { color: colors.muted }]}>Position {heroPreviewOrder + 1} of {heroDraft.length}</Text>
           <Pressable
@@ -708,28 +711,25 @@ export default function VendorGallery() {
           <Text style={[styles.sectionTitle, styles.albumSectionTitle, { color: colors.text }]}>Your Albums</Text>
           <Text style={[styles.sectionCaption, { color: colors.muted }]}>{data.albums.length} curated collection{data.albums.length === 1 ? "" : "s"}</Text>
         </View>
-        <Text style={[styles.sectionLink, { color: colors.pink }]}>Swipe to browse</Text>
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        decelerationRate="fast"
-        snapToInterval={274}
-        contentContainerStyle={styles.albumStrip}
-      >
+      <View onLayout={(event) => setAlbumGridWidth(event.nativeEvent.layout.width)} style={styles.albumStrip}>
         {data.albums.map((album) => {
           const albumMedia = data.media.filter((item) => item.album_id === album.id);
           const cover = albumMedia.find((item) => item.is_cover) ?? albumMedia[0];
           const active = activeAlbum?.id === album.id;
-          return <View key={album.id} style={[styles.album, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          return <View key={album.id} style={[styles.album, { width: albumWidth, height: albumHeight, backgroundColor: colors.background, borderColor: colors.border }]}>
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               accessibilityLabel={`Open ${album.title} album`}
               onPress={() => setSelectedAlbumId(album.id)}
-              style={({ pressed }) => [styles.albumSelectArea, pressed && styles.albumPressed]}
+              style={({ pressed, hovered, focused }) => [
+                styles.albumSelectArea,
+                (hovered || focused) && styles.hoverLift,
+                pressed && styles.albumPressed,
+              ]}
             >
-              <View style={[styles.albumCover, { backgroundColor: colors.surfaceSoft }]}>
+              <View style={[styles.albumCover, { height: albumCoverHeight, backgroundColor: colors.surfaceSoft }]}>
                 {cover ? <ImageFadeIn source={{ uri: portfolioMediaUrl(cover, "card") }} resizeMode="cover" style={StyleSheet.absoluteFillObject} /> : <Images size={31} color={colors.muted} />}
                 <LinearGradient colors={["transparent", "rgba(20,8,14,.62)"]} locations={[.48, 1]} style={StyleSheet.absoluteFillObject} />
                 <View style={styles.albumMediaBadge}><Images size={13} color="#FFF" /><Text style={styles.albumMediaBadgeText}>{albumMedia.length}</Text></View>
@@ -756,7 +756,7 @@ export default function VendorGallery() {
             {active ? <View pointerEvents="none" style={[styles.albumActiveRing, { borderColor: colors.pink }]} /> : null}
           </View>;
         })}
-      </ScrollView>
+      </View>
 
       {!data.albums.length && !loading ? <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={[styles.emptyIcon, { backgroundColor: colors.surfaceSoft }]}><Images size={30} color={colors.pink} /></View>

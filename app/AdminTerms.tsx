@@ -77,7 +77,7 @@ export default function AdminTerms({ documentType = "terms" }: AdminLegalDocumen
                   <View className="flex-row items-start justify-between gap-3 mb-4">
                     <View className="flex-1 min-w-0">
                       <Text className="text-foreground font-bold">Document editor</Text>
-                      <Text className="text-muted-foreground text-xs mt-1">Separate sections with a blank line. Sr. numbers are added automatically.</Text>
+                      <Text className="text-muted-foreground text-xs mt-1">Separate sections with a blank line. Sections are numbered automatically.</Text>
                     </View>
                     <View className={dirty ? "px-2.5 py-1 rounded-full bg-amber-500/10" : "px-2.5 py-1 rounded-full bg-emerald-500/10"}>
                       <Text className={dirty ? "text-amber-700 text-caption font-bold" : "text-emerald-700 text-caption font-bold"}>{dirty ? "Unsaved" : "Saved"}</Text>
@@ -115,8 +115,8 @@ export default function AdminTerms({ documentType = "terms" }: AdminLegalDocumen
                   <Text className="text-muted-foreground text-xs mt-1 mb-5">Shown on customer and vendor pages</Text>
                   {paragraphs.length ? paragraphs.map((paragraph, index) => (
                     <View key={`${index}-${paragraph.slice(0, 24)}`} className="flex-row items-start mb-4">
-                      <View className="min-w-14 h-7 px-2 rounded-full bg-primary/10 items-center justify-center mr-3 mt-0.5">
-                        <Text className="text-primary text-xs font-bold">Sr. {index + 1}</Text>
+                      <View className="w-8 h-8 rounded-lg bg-primary/10 items-center justify-center mr-3 mt-0.5">
+                        <Text className="text-primary text-sm font-bold">{index + 1}</Text>
                       </View>
                       <Text className="text-foreground text-sm leading-6 flex-1">{paragraph}</Text>
                     </View>
