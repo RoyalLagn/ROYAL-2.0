@@ -15,7 +15,8 @@ export default function TabsLayout() {
 
     return (
         <Tabs
-            backBehavior="history"
+            backBehavior="firstRoute"
+            initialRouteName="index"
             tabBar={(props) => <MobileTabBar {...props} />}
             screenOptions={{
                 headerShown: false,

@@ -181,8 +181,7 @@ export default function CategoriesScreen() {
   }), [reducedMotion]);
 
   const goBack = useCallback(() => {
-    if (router.canGoBack()) router.back();
-    else router.replace("/(tabs)");
+    router.replace("/(tabs)");
   }, [router]);
   useFocusEffect(useCallback(() => {
     if (Platform.OS !== "android") return undefined;

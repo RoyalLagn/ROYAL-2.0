@@ -471,7 +471,7 @@ export function StandaloneMobileTabBar({
                   void openAuthenticationGateway();
                   return;
                 }
-                router.push(tab.href);
+                router.replace(tab.href);
               }}
               onLongPress={() => undefined}
               accessibilityLabel={tab.label}
