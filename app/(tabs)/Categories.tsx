@@ -1,8 +1,8 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Image, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
+import { BackHandler, FlatList, Image, Platform, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import Animated, {
   Easing, Extrapolation, interpolate, type SharedValue, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, } from "react-native-reanimated";
 import CategoryCard, { type CategoryCardItem } from "@/components/categories/CategoryCard";
@@ -184,6 +184,18 @@ export default function CategoriesScreen() {
     if (router.canGoBack()) router.back();
     else router.replace("/(tabs)");
   }, [router]);
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS !== "android") return undefined;
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (filtersVisible) {
+        setFiltersVisible(false);
+      } else {
+        goBack();
+      }
+      return true;
+    });
+    return () => subscription.remove();
+  }, [filtersVisible, goBack]));
   const openCategory = useCallback((name: string) => {
     router.push({ pathname: "/VendorsListing", params: { category: name } });
   }, [router]);
