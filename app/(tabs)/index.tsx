@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import {
   Bell, LocateFixed, MapPin, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { useColorScheme } from "nativewind";
+import { useAppTheme } from "@/components/ThemeProvider";
 import { useFavorites } from "@/context/FavoritesContext";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import HeroCarousel from "@/components/home/HeroCarousel";
@@ -53,7 +53,7 @@ const LIST_BUSINESS_BG = require("../../assets/images/optimized/list-business-bg
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { colorScheme } = useColorScheme();
+  const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
   const [searchText, setSearchText] = useState("");
   const [filtersVisible, setFiltersVisible] = useState(false);
