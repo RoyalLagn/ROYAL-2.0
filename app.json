@@ -14,9 +14,9 @@
       "buildNumber": "1"
     },
     "android": {
-      "versionCode": 3,
+      "versionCode": 4,
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": true,
+      "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "blockedPermissions": [
         "android.permission.CAMERA",
