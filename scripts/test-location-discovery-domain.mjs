@@ -77,7 +77,7 @@ assert.match(vendorLocationEditor, /localities\.length === 1[\s\S]*\? localities
 assert.match(vendorLocationEditor, /localities\.find\(\(item\) => item\.id === value\.geoLocalityId\) \?\? null/);
 assert.match(vendorLocationEditor, /selectedLocalityBelongsToPin/);
 assert.match(vendorLocationEditor, /localityOptions\.length > 0[\s\S]*selectedLocalityBelongsToPin/);
-assert.match(vendorLocationEditor, /Select your area \/ village to continue/);
+assert.match(vendorLocationEditor, /Select your area \/ village below to enable Submit Application/);
 assert.match(vendorLocationEditor, /No locations found for this PIN/);
 assert.match(vendorLocationEditor, /<ScrollView[\s\S]*accessibilityRole="radiogroup"/);
 assert.match(

@@ -29,9 +29,9 @@ assert.equal(validateFullName(""), false, "an empty name must be rejected");
 assert.equal(normalizePhone("98765 43210"), "9876543210", "spaces must be stripped from a local number");
 assert.equal(normalizePhone("+91 98765 43210"), "+919876543210", "a leading + must be preserved and internal spaces stripped");
 assert.equal(validatePhone("9876543210"), true, "a 10-digit local number must be accepted");
-assert.equal(validatePhone("+919876543210"), true, "an internationally-prefixed number must be accepted");
-assert.equal(validatePhone("12345"), false, "a number shorter than 7 digits must be rejected");
-assert.equal(validatePhone("1".repeat(16)), false, "a number longer than 15 digits must be rejected");
+assert.equal(validatePhone("+919876543210"), false, "an internationally-prefixed number must be rejected by the India-only field");
+assert.equal(validatePhone("12345"), false, "a number shorter than 10 digits must be rejected");
+assert.equal(validatePhone("1".repeat(11)), false, "a number longer than 10 digits must be rejected");
 assert.equal(validatePhone("abc-def-ghij"), false, "a number with no digits must be rejected");
 
 // --- Password requirements / error recovery on weak input --------------

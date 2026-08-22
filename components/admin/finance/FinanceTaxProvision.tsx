@@ -133,7 +133,7 @@ export function FinanceTaxProvision({ financialYearStart }: { financialYearStart
         <View style={styles.finalLine}><Text style={styles.finalLineLabel}>Profit after tax</Text><Text style={[styles.finalLineValue, { color: tax.estimatedProfitAfterTax >= 0 ? adminPalette.success : adminPalette.error }]}>{formatMoney(tax.estimatedProfitAfterTax)}</Text></View>
       </View>
 
-      <FinanceNotice tone="warning">This is an estimate for planning purposes only — it isn't a filed tax return. Please confirm the exact rates, surcharge, and any relief for FY {financialYearLabel(financialYearStart)} with your CA before relying on this number.</FinanceNotice>
+      <FinanceNotice tone="warning">This is an estimate for planning purposes only — it is not a filed tax return. Please confirm the exact rates, surcharge, and any relief for FY {financialYearLabel(financialYearStart)} with your CA before relying on this number.</FinanceNotice>
     </> : null}
   </View>;
 }

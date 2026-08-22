@@ -8,6 +8,7 @@ import {
   HERO_IMAGE_ASPECT, heroSlideDestination, heroSlideImageUrl, } from "@/types/hero";
 import { brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale } from "@/constants/typography";
+import { useAppTheme } from "@/components/ThemeProvider";
 
 /** Darker brand pink for small CTA text (WCAG AA on white text). */
 const PINK = brandPalette.light.primaryStrong;
@@ -34,6 +35,7 @@ type HeroCarouselProps = {
  */
 export default function HeroCarousel({ width, desktop, radius: radiusOverride }: HeroCarouselProps) {
   const router = useRouter();
+  const { colorScheme } = useAppTheme();
   const scrollRef = useRef<ScrollView>(null);
   const interactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loopResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -190,6 +192,7 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
       maxWidth: width,
       borderRadius: radius,
       aspectRatio: HERO_IMAGE_ASPECT,
+      backgroundColor: colorScheme === "dark" ? "#141014" : brandPalette.light.card,
     },
   ];
 
@@ -313,7 +316,6 @@ const styles = StyleSheet.create({
   shell: {
     overflow: "hidden",
     position: "relative",
-    backgroundColor: "#141014",
     margin: 0,
     padding: 0,
     borderWidth: 0,

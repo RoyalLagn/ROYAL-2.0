@@ -81,7 +81,9 @@ const styles = StyleSheet.create({
     width: "100%",
     aspectRatio: HERO_IMAGE_ASPECT,
     overflow: "hidden",
-    backgroundColor: "#141014",
+    // The carousel shell owns the theme-aware fallback. Keeping this layer
+    // transparent prevents a dark seam from leaking around contained media.
+    backgroundColor: "transparent",
     margin: 0,
     padding: 0,
     borderWidth: 0,

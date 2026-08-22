@@ -39,6 +39,20 @@ type Props = {
   enforceApplicationAvailability?: boolean;
 };
 
+/** Vendor-facing description of a selected locality. Source trust is internal
+ * plumbing, so every selectable locality is presented in the same way. */
+const describeSelectedLocality = (
+  locality: PincodeLocality,
+  inheritedTaluka: PincodeLocality["taluka"] = null,
+): string => {
+  const hierarchy = [
+    locality.taluka?.name ?? inheritedTaluka?.name,
+    locality.district?.name,
+    locality.state?.name,
+  ].filter(Boolean).join(", ");
+  return hierarchy ? `${locality.name}, ${hierarchy} selected` : `${locality.name} selected`;
+};
+
 export function VendorServiceLocationEditor({
   value,
   onChange,
@@ -113,18 +127,6 @@ export function VendorServiceLocationEditor({
     return appStatus === "resolved_disabled" || appStatus === "unresolved"
       ? (appMessage ?? "This location is not currently available for new vendor applications.")
       : "";
-  };
-
-  /** Vendor-facing description of a selected locality. Deliberately
-   * identical regardless of whether the match came from an official or
-   * unofficial source -- that distinction is internal data-source
-   * plumbing, not something a vendor needs to see or weigh. If a locality
-   * is shown here at all, blockedMessageFor already decided its Taluka is
-   * known and accepting, so there is nothing left to distinguish: every
-   * selectable locality is presented, and colored, exactly the same way. */
-  const describeSelectedLocality = (locality: PincodeLocality, inheritedTaluka: PincodeLocality["taluka"] = pinTaluka): string => {
-    const hierarchy = [locality.taluka?.name ?? inheritedTaluka?.name, locality.district?.name, locality.state?.name].filter(Boolean).join(", ");
-    return hierarchy ? `${locality.name}, ${hierarchy} selected` : `${locality.name} selected`;
   };
 
   const lookup = useCallback(async () => {
@@ -235,7 +237,7 @@ export function VendorServiceLocationEditor({
     // Colored/marked the same way regardless of official vs unofficial
     // source -- see describeSelectedLocality above.
     setLookupVerified(true);
-    setLookupMessage(describeSelectedLocality(locality));
+    setLookupMessage(describeSelectedLocality(locality, pinTaluka));
   };
 
   return (

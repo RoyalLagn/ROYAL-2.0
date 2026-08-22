@@ -468,7 +468,12 @@ export default function HomeScreen() {
             </View>
 
             {/* Full-bleed 16:9 hero: spans to the section's left/right border edges */}
-            <View style={s.heroMobileImageWrap}>
+            <View
+              style={[
+                s.heroMobileImageWrap,
+                { backgroundColor: isDark ? "#141014" : card },
+              ]}
+            >
               <HeroCarousel
                 width={Math.max(featureWidth - 2, 0)}
                 desktop={false}
@@ -914,7 +919,6 @@ const s = StyleSheet.create<Record<string, any>>({
     overflow: "hidden",
     // Reserve 16:9 even while HeroCarousel loads (prevents CLS into categories).
     aspectRatio: 16 / 9,
-    backgroundColor: "#141014",
   },
 
   /* Hero split (tablet/desktop): left text stretches to image height; image owns 16:9 */
