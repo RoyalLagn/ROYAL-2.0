@@ -98,6 +98,9 @@ export type CrmVendorFilters = {
   categoryId: string | null;
   clusterId: string | null;
   executiveId: string | null;
+  location: string;
+  createdFrom: string;
+  createdTo: string;
   page: number;
   pageSize: number;
 };

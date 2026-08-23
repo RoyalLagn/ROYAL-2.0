@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react-native";
@@ -22,6 +22,7 @@ const statusColor: Record<string, string> = {
 // Only a workspace that has run its course can be permanently removed —
 // active/paused workspaces still have a live team using the link.
 const deletableStatuses = new Set(["completed", "revoked"]);
+const CARDS_PER_PAGE = 30;
 
 function WorkspaceRow({ workspace, completion, assigned, deleting, onPress, onDelete }: {
   workspace: CrmMarketingWorkspace; completion: number; assigned: number; deleting: boolean;
@@ -29,7 +30,7 @@ function WorkspaceRow({ workspace, completion, assigned, deleting, onPress, onDe
 }) {
   const [background, foreground] = (statusColor[workspace.status] ?? statusColor.active).split(" ");
   return (
-    <CRMCard onPress={onPress} className="p-4">
+    <CRMCard onPress={onPress} className="p-4 min-h-[188px]">
       <View className="flex-row items-start justify-between">
         <View className="flex-1 min-w-0 pr-2">
           <Text className="text-foreground text-base font-bold" numberOfLines={1}>{workspace.name}</Text>
@@ -67,9 +68,16 @@ function WorkspaceRow({ workspace, completion, assigned, deleting, onPress, onDe
 
 export default function AdminCrmMarketingWorkspaces() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const columns = width >= 1024 ? 3 : width >= 680 ? 2 : 1;
+  const cardWidth = `${(100 / columns).toFixed(4)}%` as `${number}%`;
   const { rows, stats, loading, refreshing, error, refresh, remove } = useMarketingWorkspaces();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const toastRef = useRef<SuccessToastHandle>(null);
+  const pageCount = Math.max(1, Math.ceil(rows.length / CARDS_PER_PAGE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleRows = rows.slice((currentPage - 1) * CARDS_PER_PAGE, currentPage * CARDS_PER_PAGE);
 
   const confirmDelete = (workspace: CrmMarketingWorkspace) => {
     Alert.alert(
@@ -105,8 +113,8 @@ export default function AdminCrmMarketingWorkspaces() {
           <ArrowLeft size={21} className="text-foreground" />
         </Pressable>
         <View className="flex-1 px-2 min-w-0">
-          <Text className="text-foreground text-xl font-bold" numberOfLines={1}>Marketing Workspaces</Text>
-          <Text className="text-muted-foreground text-xs" numberOfLines={1}>{rows.length} workspaces</Text>
+          <Text className="text-foreground text-xl font-bold" numberOfLines={1}>Workspaces</Text>
+          <Text className="text-muted-foreground text-xs" numberOfLines={1}>{rows.length} marketing workspaces</Text>
         </View>
         <Pressable
           accessibilityLabel="Create marketing workspace"
@@ -134,19 +142,36 @@ export default function AdminCrmMarketingWorkspaces() {
                 message="Create one to assign vendor categories and vendors to a marketing team."
               />
             ) : (
-              <View className="gap-3">
-                {rows.map((workspace) => (
-                  <WorkspaceRow
-                    key={workspace.id}
-                    workspace={workspace}
-                    completion={stats[workspace.id]?.weighted_completion ?? 0}
-                    assigned={stats[workspace.id]?.assigned ?? 0}
-                    deleting={deletingId === workspace.id}
-                    onPress={() => router.push({ pathname: "/AdminCrmMarketingWorkspaceDetail", params: { workspaceId: workspace.id } })}
-                    onDelete={() => confirmDelete(workspace)}
-                  />
-                ))}
-              </View>
+              <>
+                <View className="flex-row flex-wrap -m-1.5">
+                  {visibleRows.map((workspace) => (
+                    <View key={workspace.id} className="p-1.5" style={{ width: cardWidth }}>
+                      <WorkspaceRow
+                        workspace={workspace}
+                        completion={stats[workspace.id]?.weighted_completion ?? 0}
+                        assigned={stats[workspace.id]?.assigned ?? 0}
+                        deleting={deletingId === workspace.id}
+                        onPress={() => router.push({ pathname: "/AdminCrmMarketingWorkspaceDetail", params: { workspaceId: workspace.id } })}
+                        onDelete={() => confirmDelete(workspace)}
+                      />
+                    </View>
+                  ))}
+                </View>
+                {rows.length > CARDS_PER_PAGE ? (
+                  <View className="flex-row items-center justify-between mt-5">
+                    <Text className="text-muted-foreground text-xs">Showing {(currentPage - 1) * CARDS_PER_PAGE + 1}–{Math.min(currentPage * CARDS_PER_PAGE, rows.length)} of {rows.length}</Text>
+                    <View className="flex-row items-center gap-2">
+                      <Pressable accessibilityRole="button" disabled={currentPage === 1} onPress={() => setPage((value) => value - 1)} className="min-h-11 px-3 rounded-xl border border-border justify-center" style={{ opacity: currentPage === 1 ? 0.45 : 1 }}>
+                        <Text className="text-foreground text-metadata font-bold">Previous</Text>
+                      </Pressable>
+                      <Text className="text-muted-foreground text-metadata">Page {currentPage} / {pageCount}</Text>
+                      <Pressable accessibilityRole="button" disabled={currentPage >= pageCount} onPress={() => setPage((value) => value + 1)} className="min-h-11 px-3 rounded-xl bg-primary justify-center" style={{ opacity: currentPage >= pageCount ? 0.45 : 1 }}>
+                        <Text className="text-white text-metadata font-bold">Next</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : null}
+              </>
             )}
           </ResponsiveSection>
         </ResponsiveContainer>

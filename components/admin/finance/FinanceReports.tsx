@@ -41,20 +41,19 @@ export function FinanceReports({ data }: { data: FinanceMonthData }) {
       <View style={styles.metrics}>
         <FinanceMetric label="Subscription revenue" value={formatMoney(subscription.gross, true)} hint={`${subscription.rows.length} verified payment${subscription.rows.length === 1 ? "" : "s"}`} icon={WalletCards} />
         <FinanceMetric label="Gateway fees" value={formatMoney(subscription.fees, true)} hint="Captured on subscription payments" tone="warning" />
-        <FinanceMetric label="Net revenue" value={formatMoney(summary.netRevenue, true)} hint="All recorded revenue after fees" tone="positive" icon={Landmark} />
+        <FinanceMetric label="Net revenue" value={formatMoney(summary.netRevenue, true)} hint="Revenue after refunds and adjustments" tone="positive" icon={Landmark} />
         <FinanceMetric label="Recorded expenses" value={formatMoney(summary.expenses, true)} hint="Selected month expenses" icon={ReceiptText} />
       </View>
     </FinanceSection>
 
-    <FinanceSection title="Profit summary" description="Actual ledger amounts with the selected month’s estimated tax provision.">
+    <FinanceSection title="Operating profit summary" description="Actual recorded ledger amounts for the selected month, before annual income tax.">
       <View style={styles.statement}>
         <ReportLine label="Gross revenue" value={summary.grossRevenue} />
-        <ReportLine label="Gateway fees" value={summary.gatewayFees} />
+        <ReportLine label="Refunds" value={summary.refunds} />
+        <ReportLine label="Discounts / adjustments" value={summary.discounts} />
         <ReportLine label="Net revenue" value={summary.netRevenue} strong />
         <ReportLine label="Recorded expenses" value={summary.expenses} />
-        <ReportLine label="Profit before tax" value={summary.profitBeforeTax} strong />
-        <ReportLine label="Estimated tax provision" value={summary.estimatedTax} />
-        <ReportLine label="Net profit" value={summary.netProfit} strong />
+        <ReportLine label="Operating profit before annual income tax" value={summary.profitBeforeTax} strong />
       </View>
       <Text style={styles.meta}>{data.transactions.filter((item) => item.status === "recorded").length} recorded ledger entries · {data.taxes.length} tax records · {data.budgetItems.length} budget categories</Text>
     </FinanceSection>

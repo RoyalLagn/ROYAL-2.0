@@ -3,6 +3,7 @@ import type { CrmVendorStatus } from "@/types/crm/vendor";
 export type MarketingWorkspaceStatus = "active" | "paused" | "completed" | "revoked";
 export type MarketingWorkspacePriority = "low" | "medium" | "high";
 export type MarketingInterestStatus = "pending" | "interested" | "not_interested";
+export type MarketingWorkspaceVendorFilter = "assigned" | "contacted" | "meeting_done" | "interested" | "not_interested" | "registered" | "pending";
 
 // Admin-facing row shape (matches crm_marketing_workspaces).
 export type CrmMarketingWorkspace = {
@@ -68,6 +69,27 @@ export type CrmAssignableVendor = {
   status: CrmVendorStatus;
   is_assigned: boolean;
 };
+
+// Admin-facing assignment row. This is deliberately separate from the vendor
+// picker row: it only includes vendors that are already part of a workspace.
+export type CrmMarketingWorkspaceAssignedVendor = {
+  id: string;
+  business_name: string;
+  owner_name: string | null;
+  phone: string | null;
+  area: string | null;
+  category_name: string | null;
+  cluster_name: string | null;
+  status: CrmVendorStatus;
+  assigned_at: string;
+};
+
+export type CrmMarketingRegisteredVendor = CrmMarketingWorkspaceAssignedVendor & {
+  workspace_names: string[];
+};
+
+export type CrmMarketingDashboardMetric = "interested" | "calls_today" | "meetings_today" | "followups_pending";
+export type CrmMarketingDashboardVendor = CrmMarketingWorkspaceAssignedVendor & { workspace_name: string };
 
 // Team-facing "My Vendors" list row.
 export type CrmMarketingWorkspaceVendorListItem = {

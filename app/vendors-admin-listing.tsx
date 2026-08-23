@@ -22,7 +22,7 @@ import {
   type ManagementOperation,
 } from "@/components/admin/vendors/VendorActionDialog";
 import { AdminVendorService } from "@/services/adminVendorService";
-import type { AdminVendorRecord, VendorAction, VendorFilters, VendorSort } from "@/types/adminVendors";
+import type { AdminVendorLocationFacet, AdminVendorRecord, VendorAction, VendorFilters, VendorSort } from "@/types/adminVendors";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { AdminEmptyState, AdminErrorState, AdminRefreshIndicator, AdminTableSkeleton } from "@/components/admin/ui/AdminState";
@@ -52,8 +52,6 @@ export default function VendorsAdminListing() {
   const [actionRecord, setActionRecord] = useState<AdminVendorRecord | null>(null);
   const [operation, setOperation] = useState<ManagementOperation | null>(null);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
   const [progress, setProgress] = useState<{ completed: number; total: number; label: string } | null>(null);
   const [undo, setUndo] = useState<{ records: AdminVendorRecord[]; action: VendorAction; message: string } | null>(null);
   const [savedFilters, setSavedFilters] = useState<SavedVendorFilter[]>([]);
@@ -66,6 +64,21 @@ export default function VendorsAdminListing() {
   const [registrationError, setRegistrationError] = useState("");
   const exportCancelled = useRef(false);
   const pageCount = Math.max(1, Math.ceil(vendors.total / vendors.filters.pageSize));
+  const activeStatistic = vendors.filters.updatedToday ? "activeToday"
+    : vendors.filters.plan === "premium" ? "premium"
+      : vendors.filters.plan === "free" ? "free"
+        : vendors.filters.verification === "verified" ? "verified"
+          : ["approved", "pending", "rejected", "suspended"].includes(vendors.filters.status) ? vendors.filters.status as "approved" | "pending" | "rejected" | "suspended"
+            : "total";
+  const selectStatistic = (key: "total" | "approved" | "pending" | "rejected" | "suspended" | "verified" | "premium" | "free" | "activeToday") => {
+    const base = { query: "", status: "all" as const, verification: "all" as const, plan: "all" as const, categoryId: null, stateId: null, districtId: null, talukaId: null, updatedToday: false, page: 1 };
+    if (key === "approved" || key === "pending" || key === "rejected" || key === "suspended") vendors.updateFilters({ ...base, status: key });
+    else if (key === "verified") vendors.updateFilters({ ...base, verification: "verified" });
+    else if (key === "premium") vendors.updateFilters({ ...base, plan: "premium" });
+    else if (key === "free") vendors.updateFilters({ ...base, plan: "free" });
+    else if (key === "activeToday") vendors.updateFilters({ ...base, updatedToday: true });
+    else vendors.updateFilters(base);
+  };
   useEffect(() => { void AdminPreferences.listVendorFilters().then(setSavedFilters); }, []);
   useEffect(() => {
     let active = true;
@@ -273,8 +286,8 @@ export default function VendorsAdminListing() {
             <ResponsiveSection>
               <VendorStatisticsGrid
                 data={vendors.statistics}
-                activeStatus={vendors.filters.status}
-                onSelectStatus={(status) => vendors.updateFilters({ status, page: 1 })}
+                activeKey={activeStatistic}
+                onSelect={selectStatistic}
               />
             </ResponsiveSection>
           ) : null}
@@ -334,10 +347,6 @@ export default function VendorsAdminListing() {
 
       <FilterModal
         visible={filtersOpen}
-        city={city}
-        state={state}
-        setCity={setCity}
-        setState={setState}
         onClose={() => setFiltersOpen(false)}
         onApply={(values) => { vendors.updateFilters(values); setFiltersOpen(false); }}
         categories={vendors.categories}
@@ -442,27 +451,59 @@ type FilterModalProps = {
   onApply: (values: Partial<VendorFilters>) => void;
   categories: FilterModalCategory[];
   filters: VendorFilters;
-  city: string;
-  state: string;
-  setCity: (value: string) => void;
-  setState: (value: string) => void;
 };
 
-function FilterModal({ visible, onClose, onApply, categories, filters, city, state, setCity, setState }: FilterModalProps) {
+function FilterModal({ visible, onClose, onApply, categories, filters }: FilterModalProps) {
   const [categoryId, setCategoryId] = useState<string | null>(filters.categoryId);
   const [verification, setVerification] = useState(filters.verification);
   const [plan, setPlan] = useState(filters.plan);
   const [sort, setSort] = useState<VendorSort>(filters.sort);
+  const [stateId, setStateId] = useState<string | null>(filters.stateId);
+  const [districtId, setDistrictId] = useState<string | null>(filters.districtId);
+  const [talukaId, setTalukaId] = useState<string | null>(filters.talukaId);
+  const [locationFacets, setLocationFacets] = useState<AdminVendorLocationFacet[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(false);
+  const [locationError, setLocationError] = useState("");
+  useEffect(() => {
+    if (!visible) return;
+    setCategoryId(filters.categoryId);
+    setVerification(filters.verification);
+    setPlan(filters.plan);
+    setSort(filters.sort);
+    setStateId(filters.stateId);
+    setDistrictId(filters.districtId);
+    setTalukaId(filters.talukaId);
+  }, [filters, visible]);
+  useEffect(() => {
+    if (!visible || locationFacets.length) return;
+    setLocationsLoading(true);
+    setLocationError("");
+    void AdminVendorService.locationFacets()
+      .then(setLocationFacets)
+      .catch(() => setLocationError("Unable to load vendor locations. Try reopening the filters."))
+      .finally(() => setLocationsLoading(false));
+  }, [locationFacets.length, visible]);
   const categoryOptions = React.useMemo(() => [{ id: "all", name: "All categories" }, ...categories.map((category) => ({ id: category.id, name: category.name }))], [categories]);
   const selectedCategoryName = categoryOptions.find((category) => category.id === (categoryId ?? "all"))?.name;
+  const uniqueOptions = (rows: { id: string; name: string }[]) => Array.from(new Map(rows.map((row) => [row.id, row])).values()).sort((a, b) => a.name.localeCompare(b.name));
+  const stateOptions = [{ id: "all", name: "All states" }, ...uniqueOptions(locationFacets.map((row) => ({ id: row.state_id, name: row.state_name })))];
+  const districtOptions = [{ id: "all", name: "All districts" }, ...uniqueOptions(locationFacets.filter((row) => row.state_id === stateId && row.district_id && row.district_name).map((row) => ({ id: row.district_id!, name: row.district_name! })))];
+  const talukaOptions = [{ id: "all", name: "All talukas" }, ...uniqueOptions(locationFacets.filter((row) => row.district_id === districtId && row.taluka_id && row.taluka_name).map((row) => ({ id: row.taluka_id!, name: row.taluka_name! })))];
+  const selectedState = stateOptions.find((item) => item.id === (stateId ?? "all"))?.name;
+  const selectedDistrict = districtOptions.find((item) => item.id === (districtId ?? "all"))?.name;
+  const selectedTaluka = talukaOptions.find((item) => item.id === (talukaId ?? "all"))?.name;
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View className="flex-1 bg-black/60 justify-end"><View className="bg-card rounded-t-3xl p-5 max-h-[88%]"><View className="flex-row justify-between items-center mb-4"><Text className="text-foreground text-xl font-bold">Filters & Sorting</Text><Pressable className="min-w-11 min-h-11 items-center justify-center" onPress={onClose}><X size={21} className="text-foreground" /></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>
     <Label text="Verification" /><ChoiceRow items={["all", "verified", "unverified"]} value={verification} onChange={setVerification} />
     <Label text="Plan" /><ChoiceRow items={["all", "premium", "free"]} value={plan} onChange={setPlan} />
     <View className="mt-4"><HierarchySelect label="Category" value={selectedCategoryName} options={categoryOptions} selectedId={categoryId ?? "all"} onSelect={(id) => setCategoryId(id === "all" ? null : id)} /></View>
-    <Label text="City" /><TextInput className="h-12 bg-background border border-border rounded-xl px-4 text-foreground" value={city} onChangeText={setCity} placeholder="Any city" placeholderTextColor="#8A8589" />
-    <Label text="State" /><TextInput className="h-12 bg-background border border-border rounded-xl px-4 text-foreground" value={state} onChangeText={setState} placeholder="Any state" placeholderTextColor="#8A8589" />
+    <View className="mt-4 gap-4">
+      <HierarchySelect label="State" value={selectedState} options={stateOptions} selectedId={stateId ?? "all"} loading={locationsLoading} onSelect={(id) => { setStateId(id === "all" ? null : id); setDistrictId(null); setTalukaId(null); }} />
+      <HierarchySelect label="District" value={selectedDistrict} options={districtOptions} selectedId={districtId ?? "all"} disabled={!stateId} onSelect={(id) => { setDistrictId(id === "all" ? null : id); setTalukaId(null); }} />
+      <HierarchySelect label="Taluka" value={selectedTaluka} options={talukaOptions} selectedId={talukaId ?? "all"} disabled={!districtId} onSelect={(id) => setTalukaId(id === "all" ? null : id)} />
+      {locationError ? <Text className="text-destructive text-xs">{locationError}</Text> : null}
+    </View>
     <Label text="Sort" /><ChoiceRow items={sorts.map((item) => item.value)} labels={Object.fromEntries(sorts.map((item) => [item.value, item.label]))} value={sort} onChange={setSort} />
-    <Pressable className="bg-primary min-h-12 rounded-2xl items-center justify-center mt-6" onPress={() => onApply({ verification, plan, categoryId, city: city.trim() || null, state: state.trim() || null, sort })}><Text className="text-white font-bold">Apply Filters</Text></Pressable>
+    <Pressable className="bg-primary min-h-12 rounded-2xl items-center justify-center mt-6" onPress={() => onApply({ verification, plan, categoryId, stateId, districtId, talukaId, sort })}><Text className="text-white font-bold">Apply Filters</Text></Pressable>
   </ScrollView></View></View></Modal>;
 }
 function Label({ text }: { text: string }) { return <Text className="text-foreground font-semibold mt-4 mb-2">{text}</Text>; }

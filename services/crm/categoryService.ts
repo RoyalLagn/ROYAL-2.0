@@ -48,8 +48,10 @@ export const CrmCategoryService = {
   },
 
   async reorder(orderedIds: string[]) {
-    await Promise.all(orderedIds.map((id, index) =>
+    const results = await Promise.all(orderedIds.map((id, index) =>
       supabase.from("crm_vendor_categories").update({ display_order: index }).eq("id", id)));
+    const failed = results.find((result) => result.error);
+    if (failed?.error) throw crmError(failed.error);
     this.invalidate();
   },
 

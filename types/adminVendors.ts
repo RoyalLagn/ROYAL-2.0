@@ -34,11 +34,22 @@ export type VendorFilters = {
   verification: "all" | "verified" | "unverified";
   plan: "all" | "premium" | "free";
   categoryId: string | null;
-  city: string | null;
-  state: string | null;
+  stateId: string | null;
+  districtId: string | null;
+  talukaId: string | null;
+  updatedToday: boolean;
   sort: VendorSort;
   page: number;
   pageSize: number;
+};
+
+export type AdminVendorLocationFacet = {
+  state_id: string;
+  state_name: string;
+  district_id: string | null;
+  district_name: string | null;
+  taluka_id: string | null;
+  taluka_name: string | null;
 };
 
 export type VendorStatistics = {

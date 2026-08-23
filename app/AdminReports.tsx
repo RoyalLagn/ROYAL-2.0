@@ -8,6 +8,7 @@ import { AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminS
 import { StatisticsGrid } from "@/components/admin/dashboard/StatisticsGrid";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { AdminDashboardService } from "@/services/adminDashboardService";
+import { adminErrorMessage } from "@/services/adminErrors";
 import { SubscriptionAdminService } from "@/subscriptions/services/SubscriptionAdminService";
 import type { AdminDashboardSnapshot } from "@/types/adminDashboard";
 
@@ -17,7 +18,7 @@ export default function AdminReports() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const load = useCallback(async (refresh = false) => { if (refresh) setRefreshing(true); else setLoading(true); setError(null); try { const [next, paymentRows] = await Promise.all([AdminDashboardService.load(true), SubscriptionAdminService.listPayments()]); setSnapshot(next); setPayments(paymentRows as Record<string, unknown>[]); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load reports."); } finally { setLoading(false); setRefreshing(false); } }, []);
+  const load = useCallback(async (refresh = false) => { if (refresh) setRefreshing(true); else setLoading(true); setError(null); try { const [next, paymentRows] = await Promise.all([AdminDashboardService.load(true), SubscriptionAdminService.listPayments()]); setSnapshot(next); setPayments(paymentRows as Record<string, unknown>[]); } catch (cause) { setError(adminErrorMessage(cause, "Unable to load reports.")); } finally { setLoading(false); setRefreshing(false); } }, []);
   useEffect(() => { void load(); }, [load]);
   const paid = payments.filter((item) => ["verified"].includes(String(item.payment_status ?? "").toLowerCase()));
   const revenue = paid.reduce((sum, item) => sum + Number(item.amount ?? item.amount_paid ?? 0), 0);

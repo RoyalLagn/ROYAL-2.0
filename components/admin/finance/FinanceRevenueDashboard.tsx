@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, useWindowDimensions } from "react-native";
-import { ArrowDownUp, CirclePlus, CreditCard, Landmark, Pencil, Percent, ReceiptText, RefreshCw, Search, ShieldCheck, Trash2, TrendingUp, Wallet, X } from "lucide-react-native";
+import { ArrowDownUp, CirclePlus, CreditCard, Landmark, Pencil, Percent, ReceiptText, RefreshCw, Search, Trash2, TrendingUp, Wallet, X } from "lucide-react-native";
 import { adminPalette } from "@/theme";
 import { typeStyles } from "@/constants/typography";
-import { AdminFinanceService, revenueBySource, signedTransactionAmount, summarizeFinance, taxTotalsByType } from "@/services/adminFinanceService";
-import type { FinanceMonthData, FinanceRevenueTrendPoint, FinanceTransaction } from "@/types/adminFinance";
+import { AdminFinanceService, computePartnershipTax, financialYearStartFor, signedTransactionAmount, summarizeFinance } from "@/services/adminFinanceService";
+import type { FinanceMonthData, FinanceRevenueTrendPoint, FinanceTransaction, FinanceYearTaxData } from "@/types/adminFinance";
 import { FinanceButton, FinanceEmpty, FinanceField, FinanceMetric, FinanceNotice, FinanceSection, formatMoney } from "./FinanceUI";
-import { taxLabels } from "./FinanceStatements";
 import AdminChart from "@/components/admin/revenue/AdminChart";
 
 const PAGE_SIZE = 15;
@@ -32,78 +31,46 @@ const statusFilters: { key: StatusFilter; label: string }[] = [
   { key: "void", label: "Void" },
 ];
 
-export function FinanceRevenueDashboard({ data, onChanged, lastSyncedAt, syncing, onSync }: { data: FinanceMonthData; onChanged: () => Promise<void>; lastSyncedAt: string | null; syncing: boolean; onSync: () => void }) {
-  const { width } = useWindowDimensions();
-  const wide = width >= 1040;
+export function FinanceRevenueDashboard({ data, allMonths, lastSyncedAt, syncing, onSync, onViewTaxes }: { data: FinanceMonthData; allMonths: boolean; lastSyncedAt: string | null; syncing: boolean; onSync: () => void; onViewTaxes: () => void }) {
   const summary = useMemo(() => summarizeFinance(data), [data]);
-  const taxByType = useMemo(() => taxTotalsByType(data.taxes), [data.taxes]);
-  const sources = useMemo(() => revenueBySource(data), [data]);
-  const revenueRows = useMemo(() => data.transactions.filter((item) => item.direction === "revenue"), [data.transactions]);
-  const hasAnyRevenue = revenueRows.length > 0;
-  const closed = data.closure?.status === "closed";
-
-  const gatewayFeeHint = summary.gatewayFeeCoverage.totalCount === 0
-    ? "No revenue transactions this period"
-    : summary.gatewayFeeCoverage.capturedCount === 0
-      ? "Real fee not captured for any transaction yet"
-      : summary.gatewayFeeCoverage.capturedCount < summary.gatewayFeeCoverage.totalCount
-        ? `Captured for ${summary.gatewayFeeCoverage.capturedCount} of ${summary.gatewayFeeCoverage.totalCount} transactions`
-        : `Captured for all ${summary.gatewayFeeCoverage.totalCount} transactions`;
-  const gatewayFeeValue = summary.gatewayFeeCoverage.capturedCount === 0 ? "Unavailable" : formatMoney(summary.gatewayFees);
+  const [yearTaxData, setYearTaxData] = useState<FinanceYearTaxData | null>(null);
+  const financialYearStart = useMemo(() => financialYearStartFor(data.monthStart), [data.monthStart]);
+  useEffect(() => { let cancelled = false; AdminFinanceService.loadYearTaxProvision(financialYearStart).then((result) => { if (!cancelled) setYearTaxData(result); }).catch(() => { if (!cancelled) setYearTaxData(null); }); return () => { cancelled = true; }; }, [financialYearStart]);
+  const yearlyTax = yearTaxData ? computePartnershipTax(yearTaxData.annualRevenue - yearTaxData.annualExpenses) : null;
+  const displayedRevenue = allMonths ? yearTaxData?.annualRevenue ?? 0 : summary.grossRevenue;
+  const displayedExpenses = allMonths ? yearTaxData?.annualExpenses ?? 0 : summary.expenses;
+  const periodProfitBeforeTax = displayedRevenue - displayedExpenses;
+  const hasPeriodActivity = displayedRevenue !== 0 || displayedExpenses !== 0;
+  const displayedTax = hasPeriodActivity ? yearlyTax?.estimatedTotalTax ?? 0 : 0;
 
   return <View style={styles.stack}>
-    <View style={styles.syncBar}>
-      <View style={styles.flex}><Text style={styles.syncLabel}>Last synced</Text><Text style={styles.syncValue}>{lastSyncedAt ? new Date(lastSyncedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : "Not yet synced"}</Text></View>
-      <FinanceButton label={syncing ? "Syncing…" : "Sync now"} icon={RefreshCw} variant="secondary" onPress={onSync} disabled={syncing} accessibilityHint="Reloads revenue, expense, and tax records from the database" />
+    <View style={styles.lastSynced}><RefreshCw size={16} color={adminPalette.brand} /><Text style={styles.syncValue}>{syncing ? "Syncing…" : lastSyncedAt ? `Last synced: ${new Date(lastSyncedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}` : "Last synced: not yet available"}</Text></View>
+    <View style={styles.kpiGrid}>
+      <FinanceMetric label="Gross Revenue" value={formatMoney(displayedRevenue)} hint={allMonths ? "Full financial year revenue" : "Total successful payments"} icon={Landmark} />
+      <FinanceMetric label="Total Expenses" value={formatMoney(displayedExpenses)} hint={allMonths ? "Full financial year expenses" : "Operating expenses"} icon={CreditCard} />
+      <FinanceMetric label="Profit Before Tax" value={formatMoney(periodProfitBeforeTax)} hint="Gross Revenue − Expenses" icon={TrendingUp} />
+      <View style={styles.taxMetric}><View style={styles.taxMetricTop}><Text style={styles.taxMetricLabel}>Estimated Tax</Text><View style={styles.taxMetricIcon}><Percent size={18} color={adminPalette.brand} /></View></View><Text style={styles.taxMetricValue}>{yearTaxData ? formatMoney(displayedTax) : "—"}</Text><Text style={styles.taxMetricHint}>Yearly tax provision</Text><Pressable accessibilityRole="button" onPress={onViewTaxes} style={({ pressed }) => [styles.taxLink, pressed && styles.pressed]}><Text style={styles.taxLinkText}>View tax details →</Text></Pressable></View>
+      <FinanceMetric label="Profit After Tax" value={yearTaxData ? formatMoney(hasPeriodActivity ? periodProfitBeforeTax - displayedTax : 0) : "—"} hint="Profit available after tax" icon={TrendingUp} tone="positive" />
     </View>
 
-    {!hasAnyRevenue ? <FinanceNotice tone="info">No verified revenue is recorded for this period yet. Verified subscription payments and manually recorded revenue will appear here.</FinanceNotice> : null}
-
-    <View style={styles.kpiGrid}>
-      <FinanceMetric label="Gross Revenue" value={formatMoney(summary.grossRevenue)} hint="Sum of recorded revenue transactions, refunds negative" icon={Landmark} />
-      <FinanceMetric label="Net Revenue" value={formatMoney(summary.netRevenue)} hint="Gross Revenue − Gateway Fees" icon={Wallet} />
-      <FinanceMetric label="Total Expenses" value={formatMoney(summary.expenses)} hint={`${data.transactions.filter((item) => item.direction === "expense" && item.status === "recorded").length} expense records`} icon={ReceiptText} />
-      <FinanceMetric label="Net Profit" value={formatMoney(summary.netProfit)} hint="Net Revenue − Expenses − Estimated Tax" tone={summary.netProfit >= 0 ? "positive" : "negative"} icon={TrendingUp} />
-    </View>
-    <View style={styles.kpiGrid}>
-      <FinanceMetric label="Estimated Tax Provision" value={formatMoney(summary.estimatedTax)} hint="Planning estimate, not confirmed tax payable" icon={ShieldCheck} />
-      <FinanceMetric label="Payment Gateway Fees" value={gatewayFeeValue} hint={gatewayFeeHint} icon={CreditCard} tone={summary.gatewayFeeCoverage.capturedCount === 0 ? "neutral" : undefined} />
-      <FinanceMetric label="Profit Margin" value={summary.profitMargin == null ? "—" : `${summary.profitMargin.toFixed(1)}%`} hint={summary.profitMargin == null ? "Net revenue is zero or negative" : "Net Profit ÷ Net Revenue"} tone={summary.profitMargin == null ? "neutral" : summary.profitMargin >= 0 ? "positive" : "negative"} icon={Percent} />
-    </View>
+    <FinanceSection title="Performance summary" description="Key operating metrics for the selected financial period.">
+      <View style={styles.kpiGrid}>
+        <FinanceMetric label="Total Transactions" value={String(summary.successfulTransactionCount)} hint="Successful revenue transactions" icon={ReceiptText} />
+        <FinanceMetric label="Average Revenue" value={formatMoney(summary.successfulTransactionCount ? summary.grossRevenue / summary.successfulTransactionCount : 0)} hint="Revenue per successful transaction" icon={Wallet} />
+        <FinanceMetric label="Operating Margin" value={summary.grossRevenue > 0 ? `${((periodProfitBeforeTax / summary.grossRevenue) * 100).toFixed(1)}%` : "0%"} hint="Profit before tax ÷ gross revenue" icon={Percent} />
+      </View>
+    </FinanceSection>
 
     <RevenueTrend monthStart={data.monthStart} />
 
-    <View style={wide ? styles.columns : styles.stack}>
-      <View style={styles.column}>
-        <FinanceSection title="Revenue by source" description="Recorded revenue grouped by the category it was recorded under — RoyalLagn's actual revenue categories, not invented ones.">
-          {!sources.length ? <FinanceEmpty title="No categorized revenue" message="Revenue records will be grouped here once recorded." /> : <View style={styles.sourceList}>{sources.map((row, index) => {
-            const share = summary.grossRevenue !== 0 ? Math.min(100, Math.max(0, (row.amount / summary.grossRevenue) * 100)) : 0;
-            return <View key={row.categoryId} style={[styles.sourceRow, index > 0 && styles.rowBorder]}>
-              <View style={styles.flex}><Text style={styles.sourceTitle}>{row.name}</Text><Text style={styles.sourceMeta}>{row.transactionCount} transaction{row.transactionCount === 1 ? "" : "s"}</Text><View style={styles.sourceTrack}><View style={[styles.sourceFill, { width: `${share}%` }]} /></View></View>
-              <Text style={styles.sourceAmount}>{formatMoney(row.amount)}</Text>
-            </View>;
-          })}</View>}
-        </FinanceSection>
-      </View>
-      <View style={styles.column}>
-        <FinanceSection title="Tax summary" description="The same finance_tax_records entries shown on the Taxes tab, grouped by type. The platform-wide tax total (above) is the Estimated Tax Provision figure — these rows are a per-category breakdown, not a second total.">
-          {!taxByType.length ? <FinanceEmpty title="No tax records for this period" message="Record GST or income tax entries from the Taxes tab to see them here." /> : <View style={styles.taxGrid}>
-            {taxByType.map((row, index) => <TaxLine key={row.type} label={taxLabels[row.type]} value={row.amount} hint={`${row.recordCount} record${row.recordCount === 1 ? "" : "s"}`} first={index === 0} />)}
-          </View>}
-        </FinanceSection>
-      </View>
-    </View>
-
-    <CloudinaryCostControl usage={data.cloudinaryUsage} />
-
-    <RevenueLedger data={data} rows={revenueRows} closed={closed} onChanged={onChanged} />
   </View>;
 }
+
 
 // Moved here from the removed Overview tab -- this stayed the only place in
 // the UI that shows Clips media infrastructure cost, so it comes along
 // rather than disappearing when Overview did.
-function CloudinaryCostControl({ usage }: { usage: FinanceMonthData["cloudinaryUsage"] }) {
+export function CloudinaryCostControl({ usage }: { usage: FinanceMonthData["cloudinaryUsage"] }) {
   return <FinanceSection title="Cloudinary cost control" description="Manually recorded usage and invoice totals for Clips media infrastructure.">
     {!usage ? <FinanceEmpty title="No Cloudinary usage recorded" message="Add this month’s usage and actual cost from the Cloudinary dashboard or invoice." /> : <>
       <View style={styles.usageGrid}>
@@ -125,13 +92,6 @@ function CloudinaryUsageBar({ label, value }: { label: string; value: number | n
   return <View style={styles.usageItem}>
     <View style={styles.usageTop}><Text style={styles.sourceTitle}>{label}</Text><Text style={[styles.usageValue, { color: tone }]}>{value == null ? "—" : `${safe.toFixed(0)}%`}</Text></View>
     <View style={styles.usageTrack}><View style={[styles.usageFill, { width: `${safe}%`, backgroundColor: tone }]} /></View>
-  </View>;
-}
-
-function TaxLine({ label, value, hint, first }: { label: string; value: number; hint?: string; first?: boolean }) {
-  return <View style={[styles.taxRow, !first && styles.taxRowBorder]}>
-    <View style={styles.flex}><Text style={styles.taxLabel}>{label}</Text>{hint ? <Text style={styles.taxHint}>{hint}</Text> : null}</View>
-    <Text style={styles.taxValue}>{formatMoney(value)}</Text>
   </View>;
 }
 
@@ -172,7 +132,7 @@ function RevenueTrend({ monthStart }: { monthStart: string }) {
   </FinanceSection>;
 }
 
-function RevenueLedger({ data, rows, closed, onChanged }: { data: FinanceMonthData; rows: FinanceTransaction[]; closed: boolean; onChanged: () => Promise<void> }) {
+export function RevenueLedger({ data, rows, closed, onChanged }: { data: FinanceMonthData; rows: FinanceTransaction[]; closed: boolean; onChanged: () => Promise<void> }) {
   const phone = useWindowDimensions().width < 700;
   const categories = data.categories.filter((item) => item.direction === "revenue");
   const [search, setSearch] = useState("");
@@ -329,11 +289,18 @@ const styles = StyleSheet.create({
   syncBar: { minHeight: 68, backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 12 },
   syncLabel: { ...typeStyles.label, color: adminPalette.textSecondary }, syncValue: { ...typeStyles.bodyCompact, color: adminPalette.text, marginTop: 2 },
   kpiGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  lastSynced: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: adminPalette.border, backgroundColor: adminPalette.surface, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", gap: 10 },
+  taxMetric: { flex: 1, minWidth: 190, minHeight: 126, backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 16 },
+  taxMetricTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, taxMetricLabel: { ...typeStyles.label, color: adminPalette.text }, taxMetricIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: adminPalette.brandSubtle, alignItems: "center", justifyContent: "center" }, taxMetricValue: { ...typeStyles.metric, color: adminPalette.text, marginTop: 8, fontVariant: ["tabular-nums"] }, taxMetricHint: { ...typeStyles.caption, color: adminPalette.textSecondary, marginTop: 4 },
+  taxLink: { alignSelf: "flex-start", minHeight: 44, paddingHorizontal: 12, justifyContent: "center", borderRadius: 12, backgroundColor: adminPalette.brandSubtle },
+  viewAllLink: { minHeight: 40, justifyContent: "center", paddingHorizontal: 8 },
+  taxLinkText: { ...typeStyles.button, color: adminPalette.brand },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 7 }, chip: { minHeight: 44, borderRadius: 12, backgroundColor: adminPalette.surfaceSubtle, paddingHorizontal: 13, alignItems: "center", justifyContent: "center" }, chipSelected: { backgroundColor: adminPalette.brand }, chipText: { ...typeStyles.caption, color: adminPalette.textSecondary }, chipTextSelected: { color: "#FFF" }, pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   fields: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   trendLoading: { minHeight: 120, alignItems: "center", justifyContent: "center" }, trendLoadingText: { ...typeStyles.metadata, color: adminPalette.textSecondary },
   sourceList: { gap: 0 }, sourceRow: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 }, rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: adminPalette.border }, sourceTitle: { ...typeStyles.label, color: adminPalette.text }, sourceMeta: { ...typeStyles.caption, color: adminPalette.textSecondary, marginTop: 2 }, sourceTrack: { height: 5, backgroundColor: adminPalette.surfaceSubtle, borderRadius: 999, overflow: "hidden", marginTop: 6 }, sourceFill: { height: "100%", backgroundColor: adminPalette.brand, borderRadius: 999 }, sourceAmount: { ...typeStyles.cardTitle, color: adminPalette.text },
   taxGrid: { gap: 0 }, taxRow: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 }, taxRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: adminPalette.border }, taxLabel: { ...typeStyles.bodyCompact, color: adminPalette.textSecondary }, taxHint: { ...typeStyles.caption, color: adminPalette.textMuted, marginTop: 2, maxWidth: 260 }, taxValue: { ...typeStyles.bodyCompact, color: adminPalette.text, fontVariant: ["tabular-nums"] },
+  transactionTable: { minWidth: 1040, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 12, overflow: "hidden" }, transactionRow: { minHeight: 48, flexDirection: "row", alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: adminPalette.border, backgroundColor: adminPalette.surface }, transactionHeader: { backgroundColor: adminPalette.surfaceSubtle }, transactionCell: { width: 130, paddingHorizontal: 12, ...typeStyles.caption, color: adminPalette.text, fontVariant: ["tabular-nums"] }, successText: { color: adminPalette.success, fontFamily: typeStyles.button.fontFamily },
   searchRow: { minHeight: 48, borderRadius: 13, borderWidth: 1, borderColor: adminPalette.border, backgroundColor: adminPalette.surface, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 13 }, searchInput: { ...typeStyles.bodyCompact, flex: 1, color: adminPalette.text },
   sortRow: { flexDirection: "row", alignItems: "center", gap: 16 }, sortButton: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 32 }, sortText: { ...typeStyles.caption, color: adminPalette.textSecondary }, sortTextActive: { color: adminPalette.brand, fontFamily: typeStyles.button.fontFamily }, resultCount: { ...typeStyles.caption, color: adminPalette.textMuted, marginLeft: "auto" },
   list: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: adminPalette.border }, row: { minHeight: 86, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 }, rowPhone: { flexWrap: "wrap", alignItems: "flex-start" }, voidRow: { opacity: 0.55 },

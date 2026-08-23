@@ -6,12 +6,9 @@ import {
   BarChart3,
   CalendarClock,
   ChevronRight,
-  Crown,
-  FileWarning,
   FolderTree,
   MapPinned,
   Phone,
-  ShieldCheck,
   Sparkles,
   UserCheck,
   Users,
@@ -51,14 +48,12 @@ export default function AdminCrm() {
               <AdminErrorState message={error} onRetry={() => void refresh()} />
             ) : (
               <View className="flex-row flex-wrap gap-3">
-                <AnalyticsCard label="Total Vendors Tracked" value={statistics?.total ?? 0} icon={Users} tone="primary" />
-                <AnalyticsCard label="Registered on RoyalLagn" value={statistics?.registered ?? 0} icon={UserCheck} tone="success" />
-                <AnalyticsCard label="Premium Vendors" value={statistics?.premium ?? 0} icon={Crown} tone="warning" />
-                <AnalyticsCard label="Interested Leads" value={statistics?.interested ?? 0} icon={Sparkles} tone="primary" />
-                <AnalyticsCard label="Today's Calls" value={statistics?.callsPendingToday ?? 0} icon={Phone} tone="neutral" onPress={() => router.push({ pathname: "/AdminCrmTasks", params: { tab: "calls" } })} />
-                <AnalyticsCard label="Today's Meetings" value={statistics?.meetingsPendingToday ?? 0} icon={CalendarClock} tone="neutral" onPress={() => router.push({ pathname: "/AdminCrmTasks", params: { tab: "meetings" } })} />
-                <AnalyticsCard label="Pending Follow-ups" value={statistics?.followUpsPending ?? 0} icon={CalendarClock} tone="warning" onPress={() => router.push({ pathname: "/AdminCrmTasks", params: { tab: "followups" } })} />
-                <AnalyticsCard label="Documents Pending" value={statistics?.documentsPending ?? 0} icon={FileWarning} tone="warning" onPress={() => router.push({ pathname: "/AdminCrmTasks", params: { tab: "documents" } })} />
+                <AnalyticsCard label="Total Vendors Tracked" value={statistics?.total ?? 0} icon={Users} tone="primary" onPress={() => router.push("/AdminCrmVendors")} />
+                <AnalyticsCard label="Registered via Workspaces" value={statistics?.registered ?? 0} icon={UserCheck} tone="success" onPress={() => router.push("/AdminCrmRegisteredVendors")} />
+                <AnalyticsCard label="Interested Leads" value={statistics?.interested ?? 0} icon={Sparkles} tone="primary" onPress={() => router.push({ pathname: "/AdminCrmLiveActivity", params: { metric: "interested" } })} />
+                <AnalyticsCard label="Today's Calls" value={statistics?.callsPendingToday ?? 0} icon={Phone} tone="neutral" onPress={() => router.push({ pathname: "/AdminCrmLiveActivity", params: { metric: "calls_today" } })} />
+                <AnalyticsCard label="Today's Meetings" value={statistics?.meetingsPendingToday ?? 0} icon={CalendarClock} tone="neutral" onPress={() => router.push({ pathname: "/AdminCrmLiveActivity", params: { metric: "meetings_today" } })} />
+                <AnalyticsCard label="Pending Follow-ups" value={statistics?.followUpsPending ?? 0} icon={CalendarClock} tone="warning" onPress={() => router.push({ pathname: "/AdminCrmLiveActivity", params: { metric: "followups_pending" } })} />
               </View>
             )}
           </ResponsiveSection>
@@ -94,19 +89,6 @@ export default function AdminCrm() {
           </ResponsiveSection>
 
           <ResponsiveSection>
-            <CRMCard onPress={() => router.push("/AdminCrmWorkspaces")} className="p-4 flex-row items-center">
-              <View className="w-10 h-10 rounded-xl bg-primary/10 items-center justify-center">
-                <ShieldCheck size={18} className="text-primary" />
-              </View>
-              <View className="flex-1 min-w-0 ml-3">
-                <Text className="text-foreground text-sm font-bold">Workspaces</Text>
-                <Text className="text-muted-foreground text-xs mt-0.5">Manage field workspace links, expiry and permissions</Text>
-              </View>
-              <ChevronRight size={18} className="text-muted-foreground" />
-            </CRMCard>
-          </ResponsiveSection>
-
-          <ResponsiveSection>
             <CRMCard onPress={() => router.push("/AdminCrmMarketingWorkspaces")} className="p-4 flex-row items-center">
               <View className="w-10 h-10 rounded-xl bg-primary/10 items-center justify-center">
                 <Users2 size={18} className="text-primary" />
@@ -114,6 +96,19 @@ export default function AdminCrm() {
               <View className="flex-1 min-w-0 ml-3">
                 <Text className="text-foreground text-sm font-bold">Marketing Workspaces</Text>
                 <Text className="text-muted-foreground text-xs mt-0.5">Assign vendors to a team and track campaign progress</Text>
+              </View>
+              <ChevronRight size={18} className="text-muted-foreground" />
+            </CRMCard>
+          </ResponsiveSection>
+
+          <ResponsiveSection>
+            <CRMCard onPress={() => router.push("/AdminCrmRegisteredVendors")} className="p-4 flex-row items-center">
+              <View className="w-10 h-10 rounded-xl bg-emerald-500/10 items-center justify-center">
+                <UserCheck size={18} className="text-emerald-500" />
+              </View>
+              <View className="flex-1 min-w-0 ml-3">
+                <Text className="text-foreground text-sm font-bold">Registered Vendors</Text>
+                <Text className="text-muted-foreground text-xs mt-0.5">Vendors registered through marketing workspace links</Text>
               </View>
               <ChevronRight size={18} className="text-muted-foreground" />
             </CRMCard>

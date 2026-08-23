@@ -36,18 +36,6 @@ export const AdminUserService = {
     if (!data) throw new Error("User profile was not found or cannot be updated.");
   },
 
-  async deleteProfile(userId: string): Promise<void> {
-    const { data, error } = await supabase
-      .from("profiles")
-      .delete()
-      .eq("id", userId)
-      .eq("role", "public_user")
-      .select("id")
-      .maybeSingle();
-    if (error) throw error;
-    if (!data) throw new Error("User profile was not found or cannot be deleted.");
-  },
-
   subscribe(onChange: () => void) {
     const channel = supabase
       .channel(`admin-public-users-${Date.now()}`)

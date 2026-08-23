@@ -1,5 +1,6 @@
 import { Platform, Share } from "react-native";
 import { crmError } from "@/services/crm/errors";
+import { CrmMarketingWorkspaceService } from "@/services/crm/marketingWorkspaceService";
 import { supabase } from "@/services/supabase";
 import type {
   CrmVendorFilters,
@@ -16,6 +17,27 @@ async function count(table: string, apply: (query: any) => any = (query) => quer
   const result = await apply(supabase.from(table).select("id", { count: "exact", head: true }));
   if (result.error) throw crmError(result.error);
   return result.count ?? 0;
+}
+
+type CrmLiveDashboardMetrics = {
+  premium: number;
+  interested: number;
+  calls_today: number;
+  meetings_today: number;
+  followups_pending: number;
+};
+
+async function liveDashboardMetrics(): Promise<CrmLiveDashboardMetrics> {
+  const { data, error } = await supabase.rpc("admin_crm_live_dashboard_metrics");
+  if (error) throw crmError(error);
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    premium: Number(row?.premium ?? 0),
+    interested: Number(row?.interested ?? 0),
+    calls_today: Number(row?.calls_today ?? 0),
+    meetings_today: Number(row?.meetings_today ?? 0),
+    followups_pending: Number(row?.followups_pending ?? 0),
+  };
 }
 
 const LIST_SELECT = "*, crm_vendor_categories(name), crm_sales_executives(name), crm_clusters(name)";
@@ -68,6 +90,9 @@ export const CrmVendorService = {
     if (filters.categoryId) query = query.eq("category_id", filters.categoryId);
     if (filters.clusterId) query = query.eq("cluster_id", filters.clusterId);
     if (filters.executiveId) query = query.eq("assigned_executive_id", filters.executiveId);
+    if (filters.location.trim()) query = query.ilike("area", `%${filters.location.trim()}%`);
+    if (filters.createdFrom) query = query.gte("created_at", `${filters.createdFrom}T00:00:00.000Z`);
+    if (filters.createdTo) query = query.lte("created_at", `${filters.createdTo}T23:59:59.999Z`);
     const from = (filters.page - 1) * filters.pageSize;
     const { data, error, count: total } = await query
       .order("created_at", { ascending: false })
@@ -167,25 +192,23 @@ export const CrmVendorService = {
   },
 
   async statistics(): Promise<CrmVendorStatistics> {
-    const today = new Date().toISOString().slice(0, 10);
-    const [total, registered, premium, interested, followUpsPending, callsToday, meetingsToday, documentsPending] = await Promise.all([
+    const [total, marketingRegistrations, liveMetrics, documentsPending] = await Promise.all([
       count("crm_vendors"),
-      count("crm_vendors", (q) => q.eq("status", "registered_on_royallagn")),
-      count("crm_vendors", (q) => q.eq("status", "premium_customer")),
-      count("crm_vendors", (q) => q.eq("status", "interested")),
-      count("crm_followups", (q) => q.eq("status", "pending")),
-      count("crm_followups", (q) => q.eq("status", "pending").eq("type", "call").eq("scheduled_date", today)),
-      count("crm_followups", (q) => q.eq("status", "pending").eq("type", "meeting").eq("scheduled_date", today)),
+      // The CRM dashboard's registration card represents conversions made
+      // through marketing-workspace links, not a separately maintained
+      // master-vendor status. `total` is distinct by vendor in the service.
+      CrmMarketingWorkspaceService.listRegisteredVendors(null, "", 1, 1),
+      liveDashboardMetrics(),
       count("crm_vendors", (q) => q.eq("status", "documents_pending")),
     ]);
     return {
       total,
-      registered,
-      premium,
-      interested,
-      callsPendingToday: callsToday,
-      meetingsPendingToday: meetingsToday,
-      followUpsPending,
+      registered: marketingRegistrations.total,
+      premium: liveMetrics.premium,
+      interested: liveMetrics.interested,
+      callsPendingToday: liveMetrics.calls_today,
+      meetingsPendingToday: liveMetrics.meetings_today,
+      followUpsPending: liveMetrics.followups_pending,
       documentsPending,
     };
   },
@@ -193,7 +216,7 @@ export const CrmVendorService = {
   subscribe(onChange: () => void) {
     channelSequence += 1;
     const channel = supabase.channel(`admin-crm-vendors-${channelSequence}`);
-    for (const table of ["crm_vendors", "crm_followups"]) {
+    for (const table of ["crm_vendors", "crm_followups", "crm_marketing_workspace_vendors"]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, onChange);
     }
     channel.subscribe();

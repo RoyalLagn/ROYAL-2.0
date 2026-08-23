@@ -100,7 +100,10 @@ export function EquityRevenueDashboard() {
       const saved = await AdminRevenueService.saveEquity(members.map((member) => ({ id: member.id, name: member.name, equity_percentage: Number(member.percentage) })));
       setMembers(saved.map(toDraft)); setDirty(false);
       Alert.alert("Equity split saved", "Income distribution now uses this saved split.");
-    } catch (cause) { Alert.alert("Unable to save equity", cause instanceof Error ? cause.message : "Please try again."); }
+    } catch (cause) {
+      const databaseError = cause && typeof cause === "object" && "message" in cause ? String((cause as { message?: unknown }).message || "") : "";
+      Alert.alert("Unable to save equity", databaseError || (cause instanceof Error ? cause.message : "Please try again."));
+    }
     finally { setSaving(false); }
   };
   const download = () => {

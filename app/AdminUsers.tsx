@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CalendarDays, Clock3, Mail, MoreVertical, Phone, RefreshCw, Search, Trash2, UserCheck, UserRound, Users, UserX, X } from "lucide-react-native";
+import { CalendarDays, Clock3, Mail, MoreVertical, Phone, RefreshCw, Search, UserCheck, UserRound, Users, UserX, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
@@ -20,6 +20,7 @@ import { AdminReveal } from "@/components/admin/ui/AdminReveal";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { AdminUserService, type AdminPublicUser } from "@/services/adminUsers";
+import { adminErrorMessage } from "@/services/adminErrors";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 
 export default function AdminUsers() {
@@ -51,7 +52,7 @@ export default function AdminUsers() {
     try {
       setUsers(await AdminUserService.list());
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unable to load public users.");
+      setError(adminErrorMessage(reason, "Unable to load public users."));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -82,27 +83,27 @@ export default function AdminUsers() {
       await load(true);
       Alert.alert("User account", `${user.full_name} is now ${isActive ? "active" : "inactive"}.`);
     } catch (reason) {
-      Alert.alert("Action failed", reason instanceof Error ? reason.message : "Unable to update this user.");
+      Alert.alert("Action failed", adminErrorMessage(reason, "Unable to update this user."));
     }
   };
 
-  const deleteUser = (user: AdminPublicUser) => {
+  const deactivateUser = (user: AdminPublicUser) => {
     setActionUser(null);
     Alert.alert(
-      "Delete user profile?",
-      `This permanently removes ${user.full_name}'s public profile. This cannot be undone.`,
+      "Deactivate user?",
+      `${user.full_name} will no longer be able to use the marketplace. Their account history is kept safely.`,
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete profile",
+          text: "Deactivate",
           style: "destructive",
           onPress: () => void (async () => {
             try {
-              await AdminUserService.deleteProfile(user.id);
+              await AdminUserService.setActive(user.id, false);
               await load(true);
-              Alert.alert("Profile deleted", `${user.full_name}'s profile was deleted.`);
+              Alert.alert("User deactivated", `${user.full_name}'s account is now inactive.`);
             } catch (reason) {
-              Alert.alert("Delete failed", reason instanceof Error ? reason.message : "Unable to delete this profile.");
+              Alert.alert("Deactivation failed", adminErrorMessage(reason, "Unable to deactivate this user."));
             }
           })(),
         },
@@ -163,7 +164,7 @@ export default function AdminUsers() {
         visible={Boolean(actionUser)}
         onClose={() => setActionUser(null)}
         onStatus={(user, active) => void updateUserStatus(user, active)}
-        onDelete={deleteUser}
+        onDelete={deactivateUser}
       />
       <AdminFooter />
     </SafeAreaView>
@@ -285,7 +286,7 @@ function UserActionMenu({ user, visible, onClose, onStatus, onDelete }: {
 
           <View className="border-t border-border mt-5 pt-4">
             <Text className="text-red-600 text-xs font-semibold mb-2">RESTRICTED ACTION</Text>
-            <UserActionButton label="Delete profile" icon={Trash2} onPress={() => onDelete(user)} destructive fullWidth />
+            <UserActionButton label="Deactivate user" icon={UserX} onPress={() => onDelete(user)} destructive fullWidth />
           </View>
         </View>
       </View>

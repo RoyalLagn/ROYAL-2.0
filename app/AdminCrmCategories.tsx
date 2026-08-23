@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, ChevronDown, ChevronUp, Edit3, Plus, Trash2, X } from "lucide-react-native";
+import { ArrowLeft, Edit3, Plus, Trash2, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/ui/AdminState";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
@@ -14,6 +14,8 @@ import { CrmCategoryService } from "@/services/crm/categoryService";
 import { slugifyCrmName } from "@/services/crm/slug";
 import type { CrmVendorCategory } from "@/types/crm/category";
 
+const CARDS_PER_PAGE = 30;
+
 function errorMessage(reason: unknown) {
   if (reason instanceof Error) return reason.message;
   if (reason && typeof reason === "object" && "message" in reason) {
@@ -24,6 +26,9 @@ function errorMessage(reason: unknown) {
 
 export default function AdminCrmCategories() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const columns = width >= 1024 ? 3 : width >= 680 ? 2 : 1;
+  const cardWidth = `${(100 / columns).toFixed(4)}%` as `${number}%`;
   const [rows, setRows] = useState<CrmVendorCategory[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -33,6 +38,7 @@ export default function AdminCrmCategories() {
   const [editing, setEditing] = useState<CrmVendorCategory | "new" | null>(null);
   const [draftName, setDraftName] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<CrmVendorCategory | null>(null);
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async (isRefresh = false, force = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -47,7 +53,7 @@ export default function AdminCrmCategories() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(false, true); }, [load]);
   useEffect(() => CrmCategoryService.subscribe(() => void load(false, true)), [load]);
 
   const filtered = useMemo(() => {
@@ -55,6 +61,15 @@ export default function AdminCrmCategories() {
     if (!needle) return rows;
     return rows.filter((row) => row.name.toLowerCase().includes(needle));
   }, [rows, query]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / CARDS_PER_PAGE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleCategories = useMemo(
+    () => filtered.slice((currentPage - 1) * CARDS_PER_PAGE, currentPage * CARDS_PER_PAGE),
+    [currentPage, filtered],
+  );
+
+  useEffect(() => { setPage(1); }, [query]);
+  useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
 
   const openEditor = (category: CrmVendorCategory | "new") => {
     setEditing(category);
@@ -88,23 +103,6 @@ export default function AdminCrmCategories() {
     setSaving(true);
     try {
       await CrmCategoryService.rename(category.id, { isActive: !category.is_active });
-      await load(false, true);
-    } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const move = async (index: number, direction: -1 | 1) => {
-    if (query.trim()) return;
-    const otherIndex = index + direction;
-    if (!rows[otherIndex]) return;
-    const ordered = rows.map((row) => row.id);
-    [ordered[index], ordered[otherIndex]] = [ordered[otherIndex], ordered[index]];
-    setSaving(true);
-    try {
-      await CrmCategoryService.reorder(ordered);
       await load(false, true);
     } catch (reason) {
       setError(errorMessage(reason));
@@ -175,44 +173,58 @@ export default function AdminCrmCategories() {
                 message={rows.length ? "Try a different search term." : "Add categories like Venues, Photographers or Decorators."}
               />
             ) : (
-              <View className="gap-3">
-                {filtered.map((category, index) => (
-                  <CRMCard key={category.id} className="p-4">
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-1 min-w-0 pr-2">
-                        <View className="flex-row items-center flex-wrap gap-2">
-                          <Text className="text-foreground text-base font-bold" numberOfLines={1}>{category.name}</Text>
-                          {!category.is_active ? (
-                            <View className="px-2 py-0.5 rounded-full bg-muted">
-                              <Text className="text-muted-foreground text-caption font-bold">INACTIVE</Text>
+              <>
+                <View className="flex-row flex-wrap -m-1.5">
+                  {visibleCategories.map((category) => {
+                    return (
+                      <View key={category.id} className="p-1.5" style={{ width: cardWidth }}>
+                        <CRMCard className="p-4">
+                          <View className="flex-row items-center justify-between">
+                            <View className="flex-1 min-w-0 pr-2">
+                              <View className="flex-row items-center flex-wrap gap-2">
+                                <Text className="text-foreground text-base font-bold" numberOfLines={1}>{category.name}</Text>
+                                {!category.is_active ? (
+                                  <View className="px-2 py-0.5 rounded-full bg-muted">
+                                    <Text className="text-muted-foreground text-caption font-bold">INACTIVE</Text>
+                                  </View>
+                                ) : null}
+                              </View>
                             </View>
-                          ) : null}
-                        </View>
+                          </View>
+                          <View className="flex-row items-center justify-end gap-1 mt-3 pt-3 border-t border-border">
+                            <Pressable accessibilityLabel={`Rename ${category.name}`} onPress={() => openEditor(category)} className="w-11 h-11 rounded-xl items-center justify-center">
+                              <Edit3 size={15} className="text-primary" />
+                            </Pressable>
+                            <Switch
+                              value={category.is_active}
+                              onValueChange={() => void toggleActive(category)}
+                              trackColor={{ false: "#E7E1E4", true: "#F4A9C4" }}
+                              thumbColor={category.is_active ? "#E91E63" : "#FFFFFF"}
+                            />
+                            <Pressable accessibilityLabel={`Delete ${category.name}`} onPress={() => setConfirmDelete(category)} className="w-11 h-11 rounded-xl items-center justify-center">
+                              <Trash2 size={15} color="#DC3545" />
+                            </Pressable>
+                          </View>
+                        </CRMCard>
                       </View>
-                    </View>
-                    <View className="flex-row items-center justify-end gap-1 mt-3 pt-3 border-t border-border">
-                      <Pressable accessibilityLabel="Move up" disabled={!index || Boolean(query.trim())} onPress={() => void move(index, -1)} className="w-11 h-11 rounded-xl items-center justify-center" style={{ opacity: !index || query.trim() ? 0.3 : 1 }}>
-                        <ChevronUp size={16} className="text-muted-foreground" />
+                    );
+                  })}
+                </View>
+                {filtered.length > CARDS_PER_PAGE ? (
+                  <View className="flex-row items-center justify-between mt-5">
+                    <Text className="text-muted-foreground text-xs">Showing {(currentPage - 1) * CARDS_PER_PAGE + 1}–{Math.min(currentPage * CARDS_PER_PAGE, filtered.length)} of {filtered.length}</Text>
+                    <View className="flex-row items-center gap-2">
+                      <Pressable accessibilityRole="button" disabled={currentPage === 1} onPress={() => setPage((value) => value - 1)} className="min-h-11 px-3 rounded-xl border border-border justify-center" style={{ opacity: currentPage === 1 ? 0.45 : 1 }}>
+                        <Text className="text-foreground text-metadata font-bold">Previous</Text>
                       </Pressable>
-                      <Pressable accessibilityLabel="Move down" disabled={index === filtered.length - 1 || Boolean(query.trim())} onPress={() => void move(index, 1)} className="w-11 h-11 rounded-xl items-center justify-center" style={{ opacity: index === filtered.length - 1 || query.trim() ? 0.3 : 1 }}>
-                        <ChevronDown size={16} className="text-muted-foreground" />
-                      </Pressable>
-                      <Pressable accessibilityLabel={`Rename ${category.name}`} onPress={() => openEditor(category)} className="w-11 h-11 rounded-xl items-center justify-center">
-                        <Edit3 size={15} className="text-primary" />
-                      </Pressable>
-                      <Switch
-                        value={category.is_active}
-                        onValueChange={() => void toggleActive(category)}
-                        trackColor={{ false: "#E7E1E4", true: "#F4A9C4" }}
-                        thumbColor={category.is_active ? "#E91E63" : "#FFFFFF"}
-                      />
-                      <Pressable accessibilityLabel={`Delete ${category.name}`} onPress={() => setConfirmDelete(category)} className="w-11 h-11 rounded-xl items-center justify-center">
-                        <Trash2 size={15} color="#DC3545" />
+                      <Text className="text-muted-foreground text-metadata">Page {currentPage} / {pageCount}</Text>
+                      <Pressable accessibilityRole="button" disabled={currentPage >= pageCount} onPress={() => setPage((value) => value + 1)} className="min-h-11 px-3 rounded-xl bg-primary justify-center" style={{ opacity: currentPage >= pageCount ? 0.45 : 1 }}>
+                        <Text className="text-white text-metadata font-bold">Next</Text>
                       </Pressable>
                     </View>
-                  </CRMCard>
-                ))}
-              </View>
+                  </View>
+                ) : null}
+              </>
             )}
           </ResponsiveSection>
         </ResponsiveContainer>

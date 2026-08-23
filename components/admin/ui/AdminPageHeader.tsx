@@ -7,7 +7,7 @@ export function AdminPageHeader({ title, subtitle, action }: { title: string; su
   const router = useRouter();
   const { width } = useWindowDimensions();
   const desktop = width >= 768;
-  return <View className={desktop ? "pt-6 pb-4" : "py-3"}>
+  return <View className={`mt-4 mb-6 rounded-2xl bg-primary/5 border border-primary/10 px-5 ${desktop ? "py-5" : "py-3"}`}>
     <View className="flex-row items-center">
       {!desktop ? <Pressable accessibilityLabel="Open Admin menu" className="min-w-11 min-h-11 mr-2 items-center justify-center" onPress={() => router.push("/AdminProfile")}><Menu size={22} className="text-foreground" /></Pressable> : null}
       <View className="flex-1 min-w-0">

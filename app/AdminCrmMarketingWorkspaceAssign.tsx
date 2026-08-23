@@ -46,6 +46,33 @@ export default function AdminCrmMarketingWorkspaceAssign() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Load every assignment once, separately from the category/cluster picker.
+  // Without this, an already assigned vendor could disappear from the editor
+  // merely because its category is currently unchecked or filtered out.
+  useEffect(() => {
+    if (!workspaceId) return;
+    let cancelled = false;
+    const loadAllAssigned = async () => {
+      try {
+        const assignedIds = new Set<string>();
+        let page = 1;
+        for (;;) {
+          const result = await CrmMarketingWorkspaceService.listAssignedVendors(workspaceId, "", page, 50);
+          result.rows.forEach((vendor) => assignedIds.add(vendor.id));
+          if (assignedIds.size >= result.total || result.rows.length === 0) break;
+          page += 1;
+        }
+        if (cancelled) return;
+        knownAssignedIdsRef.current = assignedIds;
+        setSelectedVendorIds((current) => new Set([...current, ...assignedIds]));
+      } catch (reason) {
+        if (!cancelled) setError(errorMessage(reason));
+      }
+    };
+    void loadAllAssigned();
+    return () => { cancelled = true; };
+  }, [workspaceId]);
+
   useEffect(() => {
     if (!workspaceId) return;
     void Promise.all([
@@ -230,13 +257,23 @@ export default function AdminCrmMarketingWorkspaceAssign() {
         </Pressable>
         <View className="flex-1 px-2 min-w-0">
           <Text className="text-foreground text-xl font-bold" numberOfLines={1}>Assign Categories &amp; Vendors</Text>
-          <Text className="text-muted-foreground text-xs" numberOfLines={1}>{selectedVendorIds.size} of {total} selected</Text>
+          <Text className="text-muted-foreground text-xs" numberOfLines={1}>{selectedVendorIds.size} assigned · {total} matching the current filters</Text>
         </View>
       </ResponsiveContainer>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <ResponsiveContainer>
           {error ? <ResponsiveSection><AdminErrorState message={error} onRetry={() => void loadVendors()} /></ResponsiveSection> : null}
+
+          <ResponsiveSection>
+            <CRMCard className="p-3 flex-row items-center">
+              <View className="w-9 h-9 rounded-xl bg-primary/10 items-center justify-center mr-3"><Check size={16} className="text-primary" /></View>
+              <View className="flex-1">
+                <Text className="text-foreground text-sm font-bold">{selectedVendorIds.size} vendor{selectedVendorIds.size === 1 ? "" : "s"} currently assigned</Text>
+                <Text className="text-muted-foreground text-xs mt-0.5">Assigned vendors stay selected even when they are outside the filters below.</Text>
+              </View>
+            </CRMCard>
+          </ResponsiveSection>
 
           <ResponsiveSection>
             <Text className="text-foreground text-sm font-bold mb-2">Categories</Text>

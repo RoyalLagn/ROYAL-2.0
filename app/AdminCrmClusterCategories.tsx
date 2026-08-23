@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Users } from "lucide-react-native";
+import { ArrowLeft } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/ui/AdminState";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
@@ -20,6 +20,9 @@ function errorMessage(reason: unknown) {
 
 export default function AdminCrmClusterCategories() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const columns = width >= 1024 ? 3 : width >= 680 ? 2 : 1;
+  const cardWidth = `${(100 / columns).toFixed(4)}%` as `${number}%`;
   const { clusterId, clusterName } = useLocalSearchParams<{ clusterId: string; clusterName?: string }>();
   const [categories, setCategories] = useState<CrmVendorCategory[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -69,14 +72,6 @@ export default function AdminCrmClusterCategories() {
           <Text className="text-foreground text-xl font-bold" numberOfLines={1}>{clusterName || "Categories"}</Text>
           <Text className="text-muted-foreground text-xs" numberOfLines={1}>{totalVendors} vendors across categories</Text>
         </View>
-        <Pressable
-          accessibilityLabel="Create field workspace"
-          className="min-h-11 px-3 rounded-full bg-primary items-center justify-center flex-row"
-          onPress={() => router.push({ pathname: "/AdminCrmCreateWorkspace", params: { clusterId: clusterId ?? "", clusterName: clusterName ?? "" } })}
-        >
-          <Users size={16} color="#FFFFFF" />
-          <Text className="text-white text-xs font-bold ml-1.5">Create Workspace</Text>
-        </Pressable>
       </ResponsiveContainer>
 
       <ScrollView
@@ -94,17 +89,18 @@ export default function AdminCrmClusterCategories() {
             ) : !categories.length ? (
               <AdminEmptyState title="No vendor categories yet" message="Add categories from the CRM dashboard before browsing vendors here." />
             ) : (
-              <View className="gap-3">
+              <View className="flex-row flex-wrap -m-1.5">
                 {categories.map((category) => (
-                  <CategoryTile
-                    key={category.id}
-                    name={category.name}
-                    vendorCount={counts[category.id] ?? 0}
-                    onPress={() => router.push({
-                      pathname: "/AdminCrmVendors",
-                      params: { clusterId: clusterId ?? "", clusterName: clusterName ?? "", categoryId: category.id, categoryName: category.name },
-                    })}
-                  />
+                  <View key={category.id} className="p-1.5" style={{ width: cardWidth }}>
+                    <CategoryTile
+                      name={category.name}
+                      vendorCount={counts[category.id] ?? 0}
+                      onPress={() => router.push({
+                        pathname: "/AdminCrmVendors",
+                        params: { clusterId: clusterId ?? "", clusterName: clusterName ?? "", categoryId: category.id, categoryName: category.name },
+                      })}
+                    />
+                  </View>
                 ))}
               </View>
             )}

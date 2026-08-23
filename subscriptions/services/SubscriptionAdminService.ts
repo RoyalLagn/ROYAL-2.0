@@ -99,23 +99,26 @@ export class SubscriptionAdminService {
   static async savePlan(input: AdminPlanInput) {
     const slug = input.slug.trim().toLowerCase();
     const isFreePlan = slug === "free";
-    const payload = {
+    const sharedPayload = {
       name: input.name.trim(), slug, description: input.description?.trim() || null,
       price: input.price, discounted_price: input.discounted_price ?? null, currency: input.currency || "INR",
-      billing_interval: input.billing_interval, billing_interval_count: input.billing_interval_count,
-      duration_days: input.billing_interval === "custom" ? input.duration_days : null,
-      trial_enabled: Boolean(input.trial_enabled), trial_days: input.trial_days ?? 0,
       grace_period_days: input.grace_period_days ?? 0,
-      is_featured: input.is_featured ?? false,
       status: isFreePlan ? "active" as const : input.status ?? (input.is_active === false ? "hidden" : "active"),
-      is_permanent: isFreePlan || Boolean(input.is_permanent),
-      ...(input.display_order != null ? { display_order: input.display_order } : {}),
     };
     if (input.id) {
-      const { data, error } = await supabase.from("subscription_plans").update(payload).eq("id", input.id).select().single();
+      const { data, error } = await supabase.from("subscription_plans").update(sharedPayload).eq("id", input.id).select().single();
       if (error) throw error; return data;
     }
-    const { data, error } = await supabase.from("subscription_plans").insert(payload).select().single();
+    const { data, error } = await supabase.from("subscription_plans").insert({
+      ...sharedPayload,
+      billing_interval: input.billing_interval,
+      billing_interval_count: 1,
+      duration_days: input.billing_interval === "custom" ? input.duration_days : null,
+      trial_enabled: false,
+      trial_days: 0,
+      is_featured: false,
+      is_permanent: isFreePlan,
+    }).select().single();
     if (error) throw error; return data;
   }
 
@@ -246,9 +249,9 @@ export class SubscriptionAdminService {
     if (error) throw error;
   }
 
-  static async listVendors(search = "", status = "all", categoryId: string | null = null) {
+  static async listVendors(search = "", status = "all", categoryId: string | null = null, planId: string | null = null) {
     const [{ data, error }, { data: usage, error: usageError }] = await Promise.all([
-      supabase.rpc("admin_list_vendor_subscriptions", { search_text: search || null, status_filter: status, page_size: 100, page_offset: 0, category_filter: categoryId || null }),
+      supabase.rpc("admin_list_vendor_subscriptions", { search_text: search || null, status_filter: status, plan_filter: planId || null, page_size: 100, page_offset: 0, category_filter: categoryId || null }),
       supabase.rpc("admin_subscription_media_usage"),
     ]);
     if (error) throw error;
@@ -292,7 +295,7 @@ export class SubscriptionAdminService {
   }
 
   static async listPayments() {
-    const { data, error } = await supabase.from("subscription_payments").select("*,vendors(business_name,owner_name),subscription_plans(name)").order("created_at", { ascending: false }).limit(500);
+    const { data, error } = await supabase.from("subscription_payments").select("*,vendors(business_name,owner_name,category_id,categories(name)),subscription_plans(name)").order("created_at", { ascending: false }).limit(500);
     if (error) throw error; return data ?? [];
   }
 
@@ -301,5 +304,14 @@ export class SubscriptionAdminService {
     if (vendorId) query = query.eq("vendor_id", vendorId);
     const { data, error } = await query;
     if (error) throw error; return data ?? [];
+  }
+
+  static subscribe(onChange: () => void) {
+    const channel = supabase.channel(`subscription-admin-${Date.now()}`);
+    for (const table of ["vendor_subscriptions", "subscription_plans", "vendors"]) {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, onChange);
+    }
+    channel.subscribe();
+    return () => { void channel.unsubscribe(); void supabase.removeChannel(channel); };
   }
 }

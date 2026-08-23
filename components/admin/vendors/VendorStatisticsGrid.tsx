@@ -17,10 +17,6 @@ const items = [
   ["activeToday", "Active Today", UserCheck],
 ] as const;
 
-// Statistic keys that also exist as a vendor status filter, so their tile
-// can jump straight to that filtered view.
-const filterableKeys = new Set(["approved", "pending", "rejected", "suspended"]);
-
 const iconTones: Record<(typeof items)[number][0], string> = {
   total: "bg-primary/10",
   approved: "bg-emerald-500/10",
@@ -47,19 +43,18 @@ const iconColors: Record<(typeof items)[number][0], string> = {
 
 export function VendorStatisticsGrid({
   data,
-  activeStatus,
-  onSelectStatus,
+  activeKey,
+  onSelect,
 }: {
   data: VendorStatistics;
-  activeStatus?: string;
-  onSelectStatus?: (status: "approved" | "pending" | "rejected" | "suspended") => void;
+  activeKey?: (typeof items)[number][0] | null;
+  onSelect?: (key: (typeof items)[number][0]) => void;
 }) {
   const responsive = useResponsiveLayout();
   return (
     <ResponsiveGrid columns={responsive.breakpoint === "xs" ? 1 : responsive.isPhone ? 2 : 3} gap={responsive.isPhone ? 8 : 12}>
       {items.map(([key, label, Icon]) => {
-        const isFilterable = onSelectStatus && filterableKeys.has(key);
-        const isActive = isFilterable && activeStatus === key;
+        const isActive = activeKey === key;
         const content = (
           <View
             className={`rounded-xl border ${isActive ? "bg-primary/10 border-primary" : "bg-card border-border hover:border-primary/35 hover:bg-primary/5"} transition-colors duration-200`}
@@ -76,7 +71,6 @@ export function VendorStatisticsGrid({
             </View>
           </View>
         );
-        if (!isFilterable) return <View key={key}>{content}</View>;
         return (
           <Pressable
             key={key}
@@ -84,7 +78,7 @@ export function VendorStatisticsGrid({
             accessibilityLabel={`Filter vendors by ${label}`}
             accessibilityState={{ selected: isActive }}
             style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}
-            onPress={() => onSelectStatus(key as "approved" | "pending" | "rejected" | "suspended")}
+            onPress={() => onSelect?.(key)}
           >
             {content}
           </Pressable>

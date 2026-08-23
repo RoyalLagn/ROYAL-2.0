@@ -67,10 +67,11 @@ export const AdminRevenueService = {
 
   async saveEquity(members: EquityMember[]): Promise<EquityMember[]> {
     const payload = members.map((member) => ({
+      id: member.id ?? null,
       name: member.name.trim(),
       equity_percentage: Number(member.equity_percentage),
     }));
-    const { data, error } = await supabase.rpc("admin_save_equity_split", { members: payload });
+    const { data, error } = await supabase.rpc("admin_save_equity_split_v2", { p_members: payload });
     if (error) throw error;
     return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
       id: String(row.id),

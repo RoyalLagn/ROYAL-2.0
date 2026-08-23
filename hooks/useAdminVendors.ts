@@ -5,7 +5,8 @@ import { useCategories } from "@/context/CategoryContext";
 
 const defaults: VendorFilters = {
   query: "", status: "all", verification: "all", plan: "all",
-  categoryId: null, city: null, state: null,
+  categoryId: null, stateId: null, districtId: null, talukaId: null,
+  updatedToday: false,
   sort: "newest", page: 1, pageSize: 20,
 };
 

@@ -3,6 +3,7 @@ import { supabase } from "@/services/supabase";
 import { CategoryService } from "@/services/CategoryService";
 import type {
   AdminVendorRecord,
+  AdminVendorLocationFacet,
   VendorAction,
   VendorDetails,
   VendorFilters,
@@ -18,17 +19,6 @@ let channelSequence = 0;
 let exportInFlight: Promise<void> | null = null;
 
 const cacheKey = (filters: VendorFilters) => JSON.stringify(filters);
-const today = () => {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date.toISOString();
-};
-
-async function count(table: string, apply: (query: any) => any = (query) => query) {
-  const result = await apply(supabase.from(table).select("id", { count: "exact", head: true }));
-  if (result.error) throw result.error;
-  return result.count ?? 0;
-}
 
 export const AdminVendorService = {
   invalidate() {
@@ -44,14 +34,16 @@ export const AdminVendorService = {
     }
     const existing = inFlight.get(key);
     if (existing) return existing;
-    const request = Promise.resolve(supabase.rpc("admin_list_vendor_records", {
+    const request = Promise.resolve(supabase.rpc("admin_list_vendor_records_v2", {
       search_text: filters.query.trim() || null,
       status_filter: filters.status,
       verification_filter: filters.verification,
       plan_filter: filters.plan,
       category_filter: filters.categoryId,
-      city_filter: filters.city,
-      state_filter: filters.state,
+      state_filter: filters.stateId,
+      district_filter: filters.districtId,
+      taluka_filter: filters.talukaId,
+      updated_today_filter: filters.updatedToday,
       sort_by: filters.sort,
       page_size: filters.pageSize,
       page_offset: (filters.page - 1) * filters.pageSize,
@@ -67,19 +59,14 @@ export const AdminVendorService = {
   },
 
   async statistics(): Promise<VendorStatistics> {
-    const [total, approved, pending, rejected, suspended, verified, premium, free, activeToday] =
-      await Promise.all([
-        count("vendors"),
-        count("vendor_applications", (q) => q.eq("status", "approved")),
-        count("vendor_applications", (q) => q.eq("status", "pending")),
-        count("vendor_applications", (q) => q.eq("status", "rejected")),
-        count("vendors", (q) => q.eq("management_status", "suspended")),
-        count("vendors", (q) => q.eq("is_verified", true)),
-        count("subscriptions", (q) => q.neq("plan_name", "Free").eq("status", "active")),
-        count("vendors", (q) => q.eq("subscription_status", "pending")),
-        count("vendors", (q) => q.gte("updated_at", today()).eq("management_status", "active")),
-      ]);
-    return { total, approved, pending, rejected, suspended, verified, premium, free, activeToday };
+    const { data, error } = await supabase.rpc("admin_vendor_dashboard_statistics");
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    return {
+      total: Number(row?.total ?? 0), approved: Number(row?.approved ?? 0), pending: Number(row?.pending ?? 0),
+      rejected: Number(row?.rejected ?? 0), suspended: Number(row?.suspended ?? 0), verified: Number(row?.verified ?? 0),
+      premium: Number(row?.premium ?? 0), free: Number(row?.free ?? 0), activeToday: Number(row?.active_today ?? 0),
+    };
   },
 
   async getRecord(recordId: string) {
@@ -89,8 +76,10 @@ export const AdminVendorService = {
       verification: "all",
       plan: "all",
       categoryId: null,
-      city: null,
-      state: null,
+      stateId: null,
+      districtId: null,
+      talukaId: null,
+      updatedToday: false,
       sort: "newest",
       page: 1,
       pageSize: 20,
@@ -103,6 +92,12 @@ export const AdminVendorService = {
 
   async categories() {
     return (await CategoryService.list()).map(({ id, name }) => ({ id, name }));
+  },
+
+  async locationFacets(): Promise<AdminVendorLocationFacet[]> {
+    const { data, error } = await supabase.rpc("admin_vendor_location_facets");
+    if (error) throw error;
+    return (data ?? []) as AdminVendorLocationFacet[];
   },
 
   async healthMetrics(rows: AdminVendorRecord[]) {
@@ -254,7 +249,7 @@ export const AdminVendorService = {
     for (const table of [
       "vendors", "vendor_applications", "vendor_services",
       "vendor_portfolio_media", "vendor_availability",
-      "subscriptions", "reviews", "admin_vendor_activity",
+      "subscriptions", "vendor_subscriptions", "reviews", "admin_vendor_activity",
     ]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, onChange);
     }

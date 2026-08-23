@@ -227,7 +227,7 @@ export default function TabsWebLayout() {
               />
               <NavItem
                 label="Near Me"
-                active={false}
+                active={pathname.toLowerCase() === "/nearbyvendors"}
                 onPress={() => router.push("/NearbyVendors")}
               />
               <NavItem

@@ -4,6 +4,7 @@ import { CirclePlus, Pencil, Trash2, X } from "lucide-react-native";
 import { adminPalette } from "@/theme";
 import { typeStyles } from "@/constants/typography";
 import { AdminFinanceService, signedTransactionAmount } from "@/services/adminFinanceService";
+import { adminErrorMessage } from "@/services/adminErrors";
 import type { FinanceCategory, FinanceDirection, FinanceMonthData, FinanceTransaction } from "@/types/adminFinance";
 import { FinanceButton, FinanceEmpty, FinanceField, FinanceNotice, FinanceSection, formatMoney } from "./FinanceUI";
 
@@ -64,12 +65,12 @@ export function FinanceTransactions({ data, direction, onChanged }: { data: Fina
         : editor.category_id;
       await AdminFinanceService.saveTransaction({ ...editor, category_id: categoryId, direction, amount, tax_amount: tax, gateway_fee: fee });
       setEditor(null); await onChanged();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : `Unable to save ${noun}.`); }
+    } catch (cause) { setError(adminErrorMessage(cause, `Unable to save ${noun}.`)); }
     finally { setSaving(false); }
   };
   const remove = (item: FinanceTransaction) => Alert.alert(`Delete ${noun}?`, "This removes the manual ledger record. Verified payment records cannot be deleted here.", [
     { text: "Cancel", style: "cancel" },
-    { text: "Delete", style: "destructive", onPress: () => void AdminFinanceService.deleteTransaction(item.id).then(onChanged).catch((cause) => Alert.alert("Unable to delete record", cause instanceof Error ? cause.message : "Please try again.")) },
+    { text: "Delete", style: "destructive", onPress: () => void AdminFinanceService.deleteTransaction(item.id).then(onChanged).catch((cause) => Alert.alert("Unable to delete record", adminErrorMessage(cause, "Please try again."))) },
   ]);
 
   return <FinanceSection title={direction === "revenue" ? "Revenue ledger" : "Expense ledger"} description={direction === "revenue" ? "Verified subscription receipts and manually recorded revenue. Gateway fees are shown separately." : "Actual operating expenses grouped by the category selected when recorded."} action={<FinanceButton label={`Add ${noun}`} icon={CirclePlus} onPress={openNew} disabled={closed} />}>

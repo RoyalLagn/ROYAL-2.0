@@ -59,8 +59,10 @@ export const CrmTerritoryService = {
 
   async reorder(level: TerritoryLevel, orderedIds: string[]) {
     const table = territoryTable[level];
-    await Promise.all(orderedIds.map((id, index) =>
+    const results = await Promise.all(orderedIds.map((id, index) =>
       supabase.from(table).update({ display_order: index }).eq("id", id)));
+    const failed = results.find((result) => result.error);
+    if (failed?.error) throw crmError(failed.error);
     this.invalidate();
   },
 

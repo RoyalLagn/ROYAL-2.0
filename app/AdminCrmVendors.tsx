@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Modal, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, CheckSquare, Download, Edit3, Phone, Plus, RefreshCcw, Square, Trash2, UserCog, X } from "lucide-react-native";
+import { ArrowLeft, CheckSquare, ChevronDown, Download, Edit3, Phone, Plus, RefreshCcw, Square, Trash2, UserCog, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminEmptyState, AdminErrorState } from "@/components/admin/ui/AdminState";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
 import { CrmSearchBar } from "@/components/admin/crm/ui/SearchBar";
+import { DateField } from "@/components/admin/crm/ui/DateField";
 import { CrmSkeletonGrid } from "@/components/admin/crm/ui/SkeletonLoader";
 import { VendorCard } from "@/components/admin/crm/vendor/VendorCard";
 import { StatusBottomSheet } from "@/components/admin/crm/vendor/StatusBottomSheet";
@@ -15,14 +16,20 @@ import { VendorEditorModal } from "@/components/admin/crm/vendor/VendorEditorMod
 import { useCrmVendors } from "@/hooks/crm/useCrmVendors";
 import { CrmVendorService } from "@/services/crm/vendorService";
 import { CrmExecutiveService } from "@/services/crm/executiveService";
+import { CrmCategoryService } from "@/services/crm/categoryService";
+import type { CrmVendorCategory } from "@/types/crm/category";
 import type { CrmSalesExecutive } from "@/types/crm/executive";
 import type { CrmVendorInput, CrmVendorListItem, CrmVendorStatus } from "@/types/crm/vendor";
 
 export default function AdminCrmVendors() {
   const router = useRouter();
-  const { clusterId, clusterName, categoryId, categoryName } = useLocalSearchParams<{
-    clusterId: string; clusterName?: string; categoryId: string; categoryName?: string;
+  const { width } = useWindowDimensions();
+  const columns = width >= 1080 ? 3 : width >= 680 ? 2 : 1;
+  const cardWidth = `${(100 / columns).toFixed(4)}%` as `${number}%`;
+  const { clusterId, clusterName, categoryId, categoryName, status: statusParam } = useLocalSearchParams<{
+    clusterId?: string; clusterName?: string; categoryId?: string; categoryName?: string; status?: CrmVendorStatus;
   }>();
+  const isCategoryScoped = Boolean(categoryId);
   const { filters, updateFilters, rows, total, loading, refreshing, error, setError, changeStatus, refresh } =
     useCrmVendors(clusterId ?? null, categoryId ?? null);
 
@@ -41,9 +48,14 @@ export default function AdminCrmVendors() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
   const [executives, setExecutives] = useState<CrmSalesExecutive[]>([]);
+  const [categories, setCategories] = useState<CrmVendorCategory[]>([]);
+  const [categoryOpen, setCategoryOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const pageCount = Math.max(1, Math.ceil(total / filters.pageSize));
 
   useEffect(() => { void CrmExecutiveService.list().then(setExecutives).catch(() => setExecutives([])); }, []);
+  useEffect(() => { void CrmCategoryService.list().then(setCategories).catch(() => setCategories([])); }, []);
+  useEffect(() => { if (statusParam) updateFilters({ status: statusParam }); }, [statusParam, updateFilters]);
 
   const toggleSelectionMode = () => {
     setSelectionMode((current) => !current);
@@ -162,8 +174,8 @@ export default function AdminCrmVendors() {
           <ArrowLeft size={21} className="text-foreground" />
         </Pressable>
         <View className="flex-1 px-2 min-w-0">
-          <Text className="text-foreground text-xl font-bold" numberOfLines={1}>{categoryName || "Vendors"}</Text>
-          <Text className="text-muted-foreground text-xs" numberOfLines={1}>{clusterName} · {total} vendors</Text>
+          <Text className="text-foreground text-xl font-bold" numberOfLines={1}>{categoryName || "All vendors"}</Text>
+          <Text className="text-muted-foreground text-xs" numberOfLines={1}>{clusterName ? `${clusterName} · ` : ""}{total} vendors</Text>
         </View>
         <Pressable
           accessibilityLabel={selectionMode ? "Exit selection" : "Select vendors"}
@@ -197,6 +209,29 @@ export default function AdminCrmVendors() {
         <ResponsiveContainer>
           <ResponsiveSection>
             <CrmSearchBar value={filters.query} placeholder="Search business, owner, phone, area" onChangeText={(query) => updateFilters({ query })} />
+            <View className="flex-row flex-wrap gap-2 mt-3">
+              <View className="flex-1 min-w-[150px]"><DateField label="Added from" value={filters.createdFrom} onChange={(createdFrom) => updateFilters({ createdFrom })} placeholder="Added from" /></View>
+              <View className="flex-1 min-w-[150px]"><DateField label="Added to" value={filters.createdTo} onChange={(createdTo) => updateFilters({ createdTo })} placeholder="Added to" /></View>
+            </View>
+            {isCategoryScoped ? (
+              <View className="mt-3">
+                <Text className="text-muted-foreground text-metadata font-semibold mb-1.5">Category</Text>
+                <View className="min-h-12 px-4 rounded-2xl border border-primary/20 bg-primary/10 flex-row items-center">
+                  <Text className="text-primary text-sm font-bold flex-1">{categoryName || categories.find((category) => category.id === categoryId)?.name || "Selected category"}</Text>
+                  <Text className="text-primary/75 text-xs font-medium">Current page</Text>
+                </View>
+              </View>
+            ) : <>
+              <Text className="text-muted-foreground text-metadata font-semibold mt-1 mb-1.5">Category</Text>
+              <Pressable accessibilityRole="button" accessibilityState={{ expanded: categoryOpen }} onPress={() => setCategoryOpen((current) => !current)} className="min-h-12 px-4 rounded-2xl border border-border bg-card flex-row items-center">
+                <Text className="text-foreground text-sm flex-1">{categories.find((category) => category.id === filters.categoryId)?.name ?? "All categories"}</Text><ChevronDown size={17} className="text-muted-foreground" style={{ transform: [{ rotate: categoryOpen ? "180deg" : "0deg" }] }} />
+              </Pressable>
+              {categoryOpen ? <View className="mt-2 rounded-2xl border border-border bg-card overflow-hidden">
+                <Pressable onPress={() => { updateFilters({ categoryId: null }); setCategoryOpen(false); }} className="min-h-11 px-4 justify-center"><Text className="text-foreground text-sm">All categories</Text></Pressable>
+                {categories.map((category) => <Pressable key={category.id} onPress={() => { updateFilters({ categoryId: category.id }); setCategoryOpen(false); }} className="min-h-11 px-4 justify-center border-t border-border"><Text className="text-foreground text-sm">{category.name}</Text></Pressable>)}
+              </View> : null}
+            </>}
+            <View className="mt-3"><Text className="text-muted-foreground text-metadata font-semibold mb-1.5">Location</Text><TextInput value={filters.location} onChangeText={(location) => updateFilters({ location })} placeholder="Filter by area or locality" placeholderTextColor="#9CA3AF" className="h-12 px-4 rounded-2xl border border-border bg-card text-foreground text-sm" /></View>
           </ResponsiveSection>
 
           {error ? (
@@ -212,21 +247,30 @@ export default function AdminCrmVendors() {
                 message={total ? "Try a different search term." : "Tap + to add the first vendor in this cluster and category."}
               />
             ) : (
-              <View className="gap-3">
+              <View className="flex-row flex-wrap -m-1.5">
                 {rows.map((vendor) => (
-                  <VendorCard
-                    key={vendor.id}
-                    vendor={vendor}
-                    selectionMode={selectionMode}
-                    selected={selected.has(vendor.id)}
-                    onToggleSelect={() => toggleSelect(vendor.id)}
-                    onPress={() => router.push({ pathname: "/AdminCrmVendorProfile", params: { vendorId: vendor.id } })}
-                    onLongPress={() => openEditor(vendor)}
-                    onMenu={() => setMenuVendor(vendor)}
-                  />
+                  <View key={vendor.id} className="p-1.5" style={{ width: cardWidth }}>
+                    <VendorCard
+                      vendor={vendor}
+                      selectionMode={selectionMode}
+                      selected={selected.has(vendor.id)}
+                      onToggleSelect={() => toggleSelect(vendor.id)}
+                      onPress={() => router.push({ pathname: "/AdminCrmVendorProfile", params: { vendorId: vendor.id } })}
+                      onLongPress={() => openEditor(vendor)}
+                      onMenu={() => setMenuVendor(vendor)}
+                    />
+                  </View>
                 ))}
               </View>
             )}
+            {!loading && total > filters.pageSize ? <View className="flex-row items-center justify-between mt-4">
+              <Text className="text-muted-foreground text-xs">Showing {(filters.page - 1) * filters.pageSize + 1}–{Math.min(filters.page * filters.pageSize, total)} of {total} vendors</Text>
+              <View className="flex-row items-center gap-2">
+                <Pressable accessibilityRole="button" disabled={filters.page === 1} onPress={() => updateFilters({ page: filters.page - 1 })} className="min-h-11 px-3 rounded-xl border border-border justify-center" style={{ opacity: filters.page === 1 ? 0.45 : 1 }}><Text className="text-foreground text-metadata font-bold">Previous</Text></Pressable>
+                <Text className="text-muted-foreground text-metadata">Page {filters.page} / {pageCount}</Text>
+                <Pressable accessibilityRole="button" disabled={filters.page >= pageCount} onPress={() => updateFilters({ page: filters.page + 1 })} className="min-h-11 px-3 rounded-xl bg-primary justify-center" style={{ opacity: filters.page >= pageCount ? 0.45 : 1 }}><Text className="text-white text-metadata font-bold">Next</Text></Pressable>
+              </View>
+            </View> : null}
           </ResponsiveSection>
         </ResponsiveContainer>
       </ScrollView>
@@ -351,6 +395,7 @@ export default function AdminCrmVendors() {
         visible={editorOpen}
         clusterId={clusterId ?? ""}
         defaultCategoryId={categoryId ?? null}
+        defaultCategoryName={categoryName ?? null}
         vendor={editingVendor}
         saving={saving}
         error={formError}

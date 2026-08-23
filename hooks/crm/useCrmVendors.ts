@@ -13,6 +13,7 @@ function errorMessage(reason: unknown) {
 const baseFilters = (clusterId: string | null, categoryId: string | null): CrmVendorFilters => ({
   query: "", status: "all", priority: "all",
   categoryId, clusterId, executiveId: null,
+  location: "", createdFrom: "", createdTo: "",
   page: 1, pageSize: 20,
 });
 

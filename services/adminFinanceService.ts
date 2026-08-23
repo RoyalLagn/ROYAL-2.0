@@ -19,11 +19,12 @@ import type {
   FinanceTransactionInput,
   FinanceYearTaxData,
   ForecastTaxEstimate,
-  MonthlyTaxEstimateRow,
+  MonthlyTaxBreakdownRow,
   PartnershipTaxResult,
 } from "@/types/adminFinance";
 
 const PAGE_SIZE = 1000;
+let financeRealtimeChannelSequence = 0;
 
 function monthBounds(monthStart: string) {
   if (!/^\d{4}-\d{2}-01$/.test(monthStart)) throw new Error("Choose a valid finance month.");
@@ -133,6 +134,29 @@ export function computePartnershipTax(taxableIncome: number): PartnershipTaxResu
 }
 
 /**
+ * Read-only monthly reporting estimate. It deliberately reuses the same
+ * partnership income-tax and cess constants as the annual calculation, while
+ * leaving annual surcharge and marginal-relief logic exclusively in
+ * computePartnershipTax(). A month with no positive taxable profit is zero.
+ */
+export function computeMonthlyTaxEstimate(taxableProfit: number) {
+  const profit = Number.isFinite(taxableProfit) ? Math.max(taxableProfit, 0) : 0;
+  const incomeTax = roundMoney(profit * PARTNERSHIP_INCOME_TAX_RATE);
+  const cess = roundMoney(incomeTax * PARTNERSHIP_CESS_RATE);
+  return { incomeTax, cess, estimatedTax: roundMoney(incomeTax + cess) };
+}
+
+/** The twelve month starts (April to March) contained in a financial year. */
+export function financialYearMonths(financialYearStart: string) {
+  if (!/^\d{4}-04-01$/.test(financialYearStart)) throw new Error("Choose a valid financial year.");
+  const startYear = Number(financialYearStart.slice(0, 4));
+  return Array.from({ length: 12 }, (_, index) => {
+    const monthIndex = index + 3;
+    return `${startYear + Math.floor(monthIndex / 12)}-${String((monthIndex % 12) + 1).padStart(2, "0")}-01`;
+  });
+}
+
+/**
  * Forecast's tax estimate — display/prediction only, NEVER persisted and
  * NEVER written to any actual Finance table. Reuses computePartnershipTax
  * (the exact same engine Yearly Tax uses — same 30% income tax, same 12%
@@ -189,35 +213,6 @@ export function computeForecastTaxEstimate(annualRevenue: number, annualExpenses
   };
 }
 
-/** The 12 month-start dates (April - March) of a financial year, in order. */
-export function financialYearMonths(financialYearStart: string) {
-  const startYear = Number(financialYearStart.slice(0, 4));
-  return Array.from({ length: 12 }, (_, index) => {
-    const monthIndex = 3 + index; // April = month index 3 (0-based)
-    const year = startYear + Math.floor(monthIndex / 12);
-    const month = (monthIndex % 12) + 1;
-    return `${year}-${String(month).padStart(2, "0")}-01`;
-  });
-}
-
-/**
- * Monthly Tax Estimate — a management/provisioning estimate only, kept
- * deliberately separate from computePartnershipTax. It reuses the same
- * income-tax and cess RATES (30% / 4%) for consistency, but never applies a
- * surcharge: the ₹1 crore surcharge threshold is an annual concept and must
- * not be allocated to, or triggered by, a single month's profit. The Yearly
- * Tax model (computePartnershipTax) remains the sole authoritative annual
- * calculation; this function's output must never be summed and presented as
- * a final tax figure.
- */
-export function computeMonthlyTaxEstimate(profit: number) {
-  const monthlyProfit = Number.isFinite(profit) ? Math.max(profit, 0) : 0;
-  const incomeTax = roundMoney(monthlyProfit * PARTNERSHIP_INCOME_TAX_RATE);
-  const cess = roundMoney(incomeTax * PARTNERSHIP_CESS_RATE);
-  const estimatedTax = roundMoney(incomeTax + cess);
-  return { incomeTax, cess, estimatedTax };
-}
-
 async function allRows<T>(query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>) {
   const rows: T[] = [];
   for (let from = 0; ; from += PAGE_SIZE) {
@@ -248,28 +243,13 @@ function isMissingRpc(error: unknown, functionName: string) {
  * numbers.
  *
  * Formulas (documented per finance requirements — see also FinanceSummary):
- *   Gross Revenue  = sum of recorded revenue transactions, refunds negative
- *                    (signedTransactionAmount). This is the gross amount
- *                    actually charged/received; it is NOT tax-adjusted
- *                    because RoyalLagn's payment records do not decompose a
- *                    tax component out of a transaction's amount.
- *   Gateway Fees   = sum of gateway_fee across non-refund revenue rows,
- *                    using whatever is stored (0 for historical rows where
- *                    the real fee was never captured — see
- *                    gatewayFeeCoverage to know how many rows that affects).
- *   Net Revenue    = Gross Revenue − Gateway Fees. This does NOT subtract
- *                    estimatedTax: the only aggregate tax figure this app
- *                    computes (below) is not decomposed from Gross Revenue,
- *                    so netting it here would double-count or misstate the
- *                    result.
+ *   Gross Revenue  = successful recorded revenue before refunds/adjustments.
+ *   Net Revenue    = Gross Revenue − Refunds − Discounts / Adjustments.
  *   Total Expenses = sum of recorded expense transactions.
- *   Net Profit     = (Net Revenue − Total Expenses) − Estimated Tax
- *                    Provision, where the tax provision comes from
- *                    finance_tax_records rows marked is_estimate. This
- *                    matches the existing Overview/P&L "net profit after
- *                    estimated tax" definition already used elsewhere in
- *                    this feature.
- *   Profit Margin  = (Net Profit / Net Revenue) * 100, or null when Net
+ *   Operating Profit = Net Revenue − Total Expenses. Income tax belongs to
+ *                    the full financial-year tax model and is never applied
+ *                    to a selected month.
+ *   Profit Margin  = (Operating Profit / Net Revenue) * 100, or null when Net
  *                    Revenue <= 0 (division-by-zero guard; a margin is not
  *                    meaningful against zero or negative revenue).
  */
@@ -277,27 +257,24 @@ export function summarizeFinance(data: Pick<FinanceMonthData, "transactions" | "
   const recorded = data.transactions.filter((item) => item.status === "recorded");
   const revenue = recorded.filter((item) => item.direction === "revenue");
   const expenses = recorded.filter((item) => item.direction === "expense");
-  const grossRevenue = revenue.reduce((sum, item) => sum + signedTransactionAmount(item), 0);
-  const feeEligible = revenue.filter((item) => item.source !== "refund");
-  const gatewayFees = feeEligible.reduce((sum, item) => sum + item.gateway_fee, 0);
-  const gatewayFeeCoverage = { capturedCount: feeEligible.filter((item) => item.gateway_fee_captured).length, totalCount: feeEligible.length };
-  const netRevenue = grossRevenue - gatewayFees;
+  const successful = revenue.filter((item) => item.source !== "refund" && item.source !== "adjustment");
+  const grossRevenue = successful.reduce((sum, item) => sum + item.amount, 0);
+  const refunds = revenue.filter((item) => item.source === "refund").reduce((sum, item) => sum + item.amount, 0);
+  const discounts = revenue.filter((item) => item.source === "adjustment").reduce((sum, item) => sum + item.amount, 0);
+  const netRevenue = grossRevenue - refunds - discounts;
   const expenseTotal = expenses.reduce((sum, item) => sum + item.amount, 0);
-  const estimatedTax = data.taxes.filter((item) => item.is_estimate).reduce((sum, item) => sum + item.amount, 0);
   const profitBeforeTax = netRevenue - expenseTotal;
-  const netProfit = profitBeforeTax - estimatedTax;
   const budget = data.budgetItems.reduce((sum, item) => sum + item.amount, 0);
   const revenueTarget = data.budget?.revenue_target ?? 0;
   return {
     grossRevenue,
-    gatewayFees,
-    gatewayFeeCoverage,
+    refunds,
+    discounts,
     netRevenue,
     expenses: expenseTotal,
+    successfulTransactionCount: successful.length,
     profitBeforeTax,
-    estimatedTax,
-    netProfit,
-    profitMargin: netRevenue > 0 ? (netProfit / netRevenue) * 100 : null,
+    profitMargin: netRevenue > 0 ? (profitBeforeTax / netRevenue) * 100 : null,
     budget,
     budgetRemaining: budget - expenseTotal,
     revenueTarget,
@@ -312,9 +289,7 @@ export function signedTransactionAmount(item: Pick<FinanceTransaction, "amount" 
 /**
  * Per-tax_type totals for the Revenue dashboard's informational breakdown —
  * a plain sum within each already-existing tax_type, never a cross-type
- * combination. This is NOT the app's "total tax" figure (that remains
- * summarizeFinance().estimatedTax, reused as-is by Revenue/Overview/P&L);
- * it only mirrors, per category, what the Taxes tab already lists.
+ * combination. It only mirrors, per category, what is recorded in the ledger.
  */
 export function taxTotalsByType(taxes: FinanceTaxRecord[]): FinanceTaxTypeTotal[] {
   const totals = new Map<FinanceTaxRecord["tax_type"], { amount: number; count: number }>();
@@ -461,73 +436,42 @@ export const AdminFinanceService = {
       notes: input.notes?.trim() || null,
       updated_by: (await supabase.auth.getUser()).data.user?.id ?? null,
     };
-    const request = input.id
-      ? supabase.from("finance_transactions").update(payload).eq("id", input.id).eq("source", "manual")
-      : supabase.from("finance_transactions").insert({ ...payload, created_by: payload.updated_by });
-    const { error } = await request;
+    if (input.id) {
+      const { data, error } = await supabase.from("finance_transactions").update(payload).eq("id", input.id).eq("source", "manual").select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("This manual record was not found or can no longer be edited.");
+      return;
+    }
+    const { data, error } = await supabase.from("finance_transactions").insert({ ...payload, created_by: payload.updated_by }).select("id").single();
     if (error) throw error;
+    if (!data) throw new Error("The finance record was not created. Please try again.");
   },
 
   async deleteTransaction(id: string) {
-    const { error } = await supabase.from("finance_transactions").delete().eq("id", id).eq("source", "manual");
+    const { data, error } = await supabase.from("finance_transactions").delete().eq("id", id).eq("source", "manual").select("id").maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error("This manual record was not found or can no longer be deleted.");
   },
 
   async saveBudget(monthStart: string, revenueTarget: number, items: { category_id: string; amount: number }[]) {
     const { error } = await supabase.rpc("admin_save_finance_budget", { target_month: monthStart, target_revenue: revenueTarget, budget_items: items });
     if (!error) return;
-    if (!isMissingRpc(error, "admin_save_finance_budget")) throw error;
-
-    // Compatibility path for databases that have the Finance tables but have
-    // not received the atomic budget RPC migration yet.
-    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
-    const { data: existingBudget, error: lookupError } = await supabase
-      .from("finance_budgets")
-      .select("id")
-      .eq("month_start", monthStart)
-      .maybeSingle();
-    if (lookupError) throw lookupError;
-    const budgetRequest = existingBudget
-      ? supabase.from("finance_budgets").update({ revenue_target: revenueTarget, updated_by: userId }).eq("id", existingBudget.id)
-      : supabase.from("finance_budgets").insert({ month_start: monthStart, name: `${monthStart.slice(0, 7)} operating budget`, revenue_target: revenueTarget, status: "open", updated_by: userId, created_by: userId });
-    const { data: budget, error: budgetError } = await budgetRequest
-      .select("id")
-      .single();
-    if (budgetError) throw budgetError;
-
-    const { data: existing, error: existingError } = await supabase
-      .from("finance_budget_items")
-      .select("id,category_id")
-      .eq("budget_id", budget.id);
-    if (existingError) throw existingError;
-
-    if (items.length) {
-      const { error: itemsError } = await supabase.from("finance_budget_items").upsert(
-        items.map((item) => ({ budget_id: budget.id, category_id: item.category_id, amount: item.amount })),
-        { onConflict: "budget_id,category_id" },
-      );
-      if (itemsError) throw itemsError;
+    if (isMissingRpc(error, "admin_save_finance_budget")) {
+      throw new Error("Finance budget storage is not available yet. Apply the finance database migration before saving.");
     }
-
-    const retainedCategoryIds = new Set(items.map((item) => item.category_id));
-    const obsoleteIds = (existing ?? []).filter((item) => !retainedCategoryIds.has(item.category_id)).map((item) => item.id);
-    if (obsoleteIds.length) {
-      const { error: deleteError } = await supabase.from("finance_budget_items").delete().in("id", obsoleteIds);
-      if (deleteError) throw deleteError;
-    }
+    throw error;
   },
 
   /**
    * Loads everything the yearly Tax Provision dashboard needs for one
    * financial year: Annual Revenue / Annual Business Expenses from the
-   * admin_finance_year_summary RPC (same formulas as the monthly summary,
-   * never re-typed by hand), the optional CA Tax Adjustment, and Tax Paid
-   * (reused from existing income_tax_paid finance_tax_records rows).
+   * admin_finance_year_summary RPC and Tax Paid. No local adjustment is
+   * applied, so the visible tax result is always based on recorded totals.
    */
   async loadYearTaxProvision(financialYearStart: string): Promise<FinanceYearTaxData> {
     const [summaryResult, adjustmentResult] = await Promise.all([
       supabase.rpc("admin_finance_year_summary", { target_year_start: financialYearStart }),
-      supabase.from("finance_annual_tax_adjustments").select("financial_year_start,adjustment,tax_paid,notes").eq("financial_year_start", financialYearStart).maybeSingle(),
+      supabase.from("finance_annual_tax_adjustments").select("financial_year_start,tax_paid").eq("financial_year_start", financialYearStart).maybeSingle(),
     ]);
     if (summaryResult.error) throw summaryResult.error;
     if (adjustmentResult.error) throw adjustmentResult.error;
@@ -537,43 +481,26 @@ export const AdminFinanceService = {
       financialYearEnd: String(summary.financial_year_end ?? ""),
       annualRevenue: Number(summary.revenue ?? 0),
       annualExpenses: Number(summary.expenses ?? 0),
-      taxAdjustment: Number(adjustmentResult.data?.adjustment ?? 0),
-      taxAdjustmentNotes: (adjustmentResult.data?.notes as string | null) ?? null,
       taxPaid: Number(adjustmentResult.data?.tax_paid ?? 0),
     };
   },
 
-  async saveTaxAdjustment(financialYearStart: string, adjustment: number, notes?: string) {
-    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
-    const { error } = await supabase.from("finance_annual_tax_adjustments").upsert(
-      { financial_year_start: financialYearStart, adjustment, notes: notes?.trim() || null, updated_by: userId, created_by: userId },
-      { onConflict: "financial_year_start" },
-    );
-    if (error) throw error;
-  },
-
-  /**
-   * Monthly Tax Estimate rows for the 12 months of a financial year
-   * (April - March). Sources Revenue/Expenses from admin_finance_month_summary
-   * — the exact same RPC and formulas already used for monthly Finance
-   * closing — so this view can never drift from what the monthly Finance
-   * screens already show. No monthly tax record is read or written; the
-   * estimate is computed purely client-side from Revenue/Expenses via
-   * computeMonthlyTaxEstimate.
-   */
-  async loadMonthlyTaxEstimates(financialYearStart: string): Promise<MonthlyTaxEstimateRow[]> {
+  /** Read-only monthly table built from the same net-revenue-minus-expenses source as the annual summary. */
+  async loadMonthlyTaxBreakdown(financialYearStart: string): Promise<MonthlyTaxBreakdownRow[]> {
     const months = financialYearMonths(financialYearStart);
     const results = await Promise.all(months.map((monthStart) => supabase.rpc("admin_finance_month_summary", { target_month: monthStart })));
     return results.map((result, index) => {
       if (result.error) throw result.error;
       const summary = (result.data ?? {}) as Record<string, unknown>;
+      const taxableProfit = Math.max(Number(summary.revenue ?? 0) - Number(summary.expenses ?? 0), 0);
+      const estimate = computeMonthlyTaxEstimate(taxableProfit);
       const monthStart = months[index];
-      const revenue = Number(summary.revenue ?? 0);
-      const expenses = Number(summary.expenses ?? 0);
-      const profit = revenue - expenses;
-      const { incomeTax, cess, estimatedTax } = computeMonthlyTaxEstimate(profit);
-      const monthLabel = new Date(`${monthStart}T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
-      return { monthStart, monthLabel, revenue, expenses, profit, incomeTax, cess, estimatedTax };
+      return {
+        monthStart,
+        monthLabel: new Date(`${monthStart}T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" }),
+        taxableProfit,
+        ...estimate,
+      };
     });
   },
 
@@ -630,7 +557,8 @@ export const AdminFinanceService = {
   },
 
   subscribe(onChange: () => void) {
-    const channel = supabase.channel(`admin-finance-${Date.now()}`);
+    financeRealtimeChannelSequence += 1;
+    const channel = supabase.channel(`admin-finance-${Date.now()}-${financeRealtimeChannelSequence}`);
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
     const scheduleRefresh = () => {
       if (refreshTimer) clearTimeout(refreshTimer);
@@ -647,7 +575,7 @@ export const AdminFinanceService = {
     const summary = summarizeFinance(data);
     const rows: (string | number)[][] = [
       ["RoyalLagn Finance Report", data.monthStart],
-      ["Net revenue", summary.netRevenue], ["Expenses", summary.expenses], ["Profit before tax", summary.profitBeforeTax], ["Estimated tax provision", summary.estimatedTax], ["Net profit", summary.netProfit],
+      ["Net revenue", summary.netRevenue], ["Expenses", summary.expenses], ["Operating profit before annual income tax", summary.profitBeforeTax],
       [], ["Date", "Type", "Category", "Counterparty", "Amount", "Tax", "Gateway fee", "Source", "Reference", "Status"],
       ...data.transactions.map((item) => [item.occurred_on, item.direction, item.finance_categories?.name ?? "", item.counterparty ?? "", signedTransactionAmount(item), item.tax_amount, item.gateway_fee, item.source, item.reference_number ?? "", item.status]),
     ];
@@ -675,8 +603,8 @@ export const AdminFinanceService = {
     const sheets = [
       excelSheet("Summary", [
         ["RoyalLagn Finance Report"], ["Period", data.monthStart.slice(0, 7)], [],
-        ["Gross revenue", summary.grossRevenue], ["Gateway fees", summary.gatewayFees], ["Net revenue", summary.netRevenue],
-        ["Recorded expenses", summary.expenses], ["Profit before tax", summary.profitBeforeTax], ["Estimated tax provision", summary.estimatedTax], ["Net profit", summary.netProfit],
+        ["Gross revenue", summary.grossRevenue], ["Refunds", summary.refunds], ["Discounts / adjustments", summary.discounts], ["Net revenue", summary.netRevenue],
+        ["Recorded expenses", summary.expenses], ["Operating profit before annual income tax", summary.profitBeforeTax],
         [], ["Verified subscription payments", subscriptionRows.length], ["Subscription revenue", subscriptionRows.reduce((sum, item) => sum + item.amount, 0)],
       ]),
       excelSheet("Subscription Revenue", transactionSheet(subscriptionRows)),

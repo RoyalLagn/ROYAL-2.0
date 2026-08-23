@@ -248,7 +248,7 @@ export default function NearbyVendorsScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "left", "right"]}>
       {showLoadingSkeleton ? <PageLoader /> : null}
-      <PublicWebNavbar activeRoute="Home" />
+      <PublicWebNavbar activeRoute="NearMe" />
       <FlatList
         data={stage === "ready" ? cards : []}
         keyExtractor={(item) => item.vendor.id}

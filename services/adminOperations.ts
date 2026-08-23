@@ -45,8 +45,14 @@ export type AdminEnquiry = {
   created_at: string;
   updated_at: string;
   vendor_name: string;
+  vendor_logo: string | null;
+  vendor_phone: string | null;
   category_id: string | null;
   category_name: string;
+  customer_profile_image: string | null;
+  total_count: number;
+  call_count: number;
+  whatsapp_count: number;
 };
 
 export type AdminReview = {
@@ -172,15 +178,17 @@ export const AdminOperationsService = {
     }
   },
 
-  async enquiries(): Promise<AdminEnquiry[]> {
-    const { data, error } = await supabase
-      .from("vendor_enquiries")
-      .select("id,vendor_id,customer_id,customer_name,customer_email,customer_phone,event_date,event_type,package_id,package_name,message,status,reference_code,enquiry_channel,source_type,customer_confirmation,vendor_notes,follow_up_date,created_at,updated_at,vendors(business_name,category_id,categories(name))")
-      .order("created_at", { ascending: false });
+  async enquiries({ page, pageSize, query, categoryId, date, period }: { page: number; pageSize: number; query: string; categoryId: string | null; date: string | null; period: "all" | "day" | "month" | "year" }): Promise<{ rows: AdminEnquiry[]; total: number; calls: number; whatsapp: number }> {
+    const { data, error } = await supabase.rpc("admin_list_contact_enquiries_v4", {
+      search_text: query.trim() || null,
+      category_filter: categoryId,
+      date_filter: date,
+      period_filter: period,
+      page_size: pageSize,
+      page_offset: (page - 1) * pageSize,
+    });
     if (error) throw error;
-    return ((data ?? []) as Record<string, unknown>[]).map((row) => {
-      const vendor = enquiryVendor(row.vendors);
-      return {
+    const rows = ((data ?? []) as Record<string, unknown>[]).map((row) => ({
       id: String(row.id), vendor_id: String(row.vendor_id),
       customer_id: row.customer_id ? String(row.customer_id) : null,
       customer_name: String(row.customer_name),
@@ -198,10 +206,22 @@ export const AdminOperationsService = {
       follow_up_date: row.follow_up_date ? String(row.follow_up_date) : null,
       message: String(row.message), status: String(row.status) as AdminEnquiryStatus,
       created_at: String(row.created_at), updated_at: String(row.updated_at),
-      vendor_name: vendor.name,
-      category_id: vendor.categoryId,
-      category_name: vendor.categoryName,
-    }; });
+      vendor_name: String(row.vendor_name || "Unknown vendor"),
+      vendor_logo: row.vendor_logo ? String(row.vendor_logo) : null,
+      vendor_phone: row.vendor_phone ? String(row.vendor_phone) : null,
+      category_id: row.category_id ? String(row.category_id) : null,
+      category_name: String(row.category_name || "Uncategorized"),
+      customer_profile_image: row.customer_profile_image ? String(row.customer_profile_image) : null,
+      total_count: Number(row.total_count ?? 0),
+      call_count: Number(row.call_count ?? 0),
+      whatsapp_count: Number(row.whatsapp_count ?? 0),
+    }));
+    return {
+      rows,
+      total: rows[0]?.total_count ?? 0,
+      calls: rows[0]?.call_count ?? 0,
+      whatsapp: rows[0]?.whatsapp_count ?? 0,
+    };
   },
 
   async updateEnquiryStatus(id: string, status: AdminEnquiryStatus) {

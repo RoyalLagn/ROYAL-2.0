@@ -105,15 +105,14 @@ export type FinanceMonthData = {
 
 export type FinanceSummary = {
   grossRevenue: number;
-  gatewayFees: number;
-  /** How many revenue transactions actually have a captured Razorpay fee vs. how many are counted (source != refund). */
-  gatewayFeeCoverage: { capturedCount: number; totalCount: number };
+  refunds: number;
+  discounts: number;
   netRevenue: number;
   expenses: number;
+  successfulTransactionCount: number;
+  /** Current-period operating result before the annual income-tax calculation. */
   profitBeforeTax: number;
-  estimatedTax: number;
-  netProfit: number;
-  /** (netProfit / netRevenue) * 100. Null when netRevenue <= 0 (division guard; margin is not meaningful). */
+  /** (profitBeforeTax / netRevenue) * 100. Null when netRevenue <= 0 (division guard). */
   profitMargin: number | null;
   budget: number;
   budgetRemaining: number;
@@ -123,10 +122,8 @@ export type FinanceSummary = {
 
 /**
  * A plain sum of finance_tax_records within ONE existing tax_type — never a
- * cross-type combination or invented formula. The app's one and only
- * aggregate "total tax" figure remains FinanceSummary.estimatedTax (the same
- * "Estimated tax provision" already shown on Overview);
- * this type is for the per-category informational breakdown only.
+ * cross-type combination or invented formula. It is informational only and
+ * never becomes a monthly income-tax total.
  */
 export type FinanceTaxTypeTotal = {
   type: FinanceTaxRecord["tax_type"];
@@ -210,24 +207,14 @@ export type FinanceYearTaxData = {
   financialYearEnd: string;
   annualRevenue: number;
   annualExpenses: number;
-  taxAdjustment: number;
-  taxAdjustmentNotes: string | null;
   taxPaid: number;
 };
 
-/**
- * One row of the Monthly Tax Estimate management view — a per-month
- * provisioning estimate (30% + 4% cess on that month's Finance profit,
- * never a surcharge). This is NOT part of PartnershipTaxResult and never
- * feeds into it; the Yearly Tax model remains the sole authoritative annual
- * calculation. See computeMonthlyTaxEstimate in adminFinanceService.
- */
-export type MonthlyTaxEstimateRow = {
+/** Read-only month-by-month estimate for the selected financial year. */
+export type MonthlyTaxBreakdownRow = {
   monthStart: string;
   monthLabel: string;
-  revenue: number;
-  expenses: number;
-  profit: number;
+  taxableProfit: number;
   incomeTax: number;
   cess: number;
   estimatedTax: number;

@@ -2,9 +2,14 @@ import { supabase } from "@/services/supabase";
 import { crmError } from "@/services/crm/errors";
 import type {
   CrmAssignableVendor,
+  CrmMarketingWorkspaceAssignedVendor,
+  CrmMarketingRegisteredVendor,
+  CrmMarketingDashboardMetric,
+  CrmMarketingDashboardVendor,
   CrmMarketingWorkspace,
   CrmMarketingWorkspaceCreateInput,
   CrmMarketingWorkspaceStats,
+  MarketingWorkspaceVendorFilter,
   MarketingWorkspaceStatus,
 } from "@/types/crm/marketingWorkspace";
 
@@ -116,6 +121,51 @@ export const CrmMarketingWorkspaceService = {
     });
     if (error) throw crmError(error);
     const rows = (data ?? []) as (CrmAssignableVendor & { total_count: number })[];
+    return { rows, total: Number(rows[0]?.total_count ?? 0) };
+  },
+
+  async listAssignedVendors(
+    workspaceId: string,
+    query = "",
+    page = 1,
+    pageSize = 8,
+    filter: MarketingWorkspaceVendorFilter = "assigned",
+  ): Promise<{ rows: CrmMarketingWorkspaceAssignedVendor[]; total: number }> {
+    const { data, error } = await supabase.rpc("admin_crm_list_marketing_workspace_vendors", {
+      target_workspace_id: workspaceId,
+      search_text: query.trim() || null,
+      page_size: pageSize,
+      page_offset: (page - 1) * pageSize,
+      target_filter: filter,
+    });
+    if (error) throw crmError(error);
+    const rows = (data ?? []) as (CrmMarketingWorkspaceAssignedVendor & { total_count: number })[];
+    return { rows, total: Number(rows[0]?.total_count ?? 0) };
+  },
+
+  async listRegisteredVendors(
+    categoryId: string | null,
+    query = "",
+    page = 1,
+    pageSize = 30,
+  ): Promise<{ rows: CrmMarketingRegisteredVendor[]; total: number }> {
+    const { data, error } = await supabase.rpc("admin_crm_list_marketing_registered_vendors", {
+      target_category_id: categoryId,
+      search_text: query.trim() || null,
+      page_size: pageSize,
+      page_offset: (page - 1) * pageSize,
+    });
+    if (error) throw crmError(error);
+    const rows = (data ?? []) as (CrmMarketingRegisteredVendor & { total_count: number })[];
+    return { rows, total: Number(rows[0]?.total_count ?? 0) };
+  },
+
+  async listDashboardActivity(metric: CrmMarketingDashboardMetric, query = "", page = 1, pageSize = 30): Promise<{ rows: CrmMarketingDashboardVendor[]; total: number }> {
+    const { data, error } = await supabase.rpc("admin_crm_list_live_dashboard_vendors", {
+      target_metric: metric, search_text: query.trim() || null, page_size: pageSize, page_offset: (page - 1) * pageSize,
+    });
+    if (error) throw crmError(error);
+    const rows = (data ?? []) as (CrmMarketingDashboardVendor & { total_count: number })[];
     return { rows, total: Number(rows[0]?.total_count ?? 0) };
   },
 
