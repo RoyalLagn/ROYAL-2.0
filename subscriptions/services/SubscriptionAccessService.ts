@@ -198,6 +198,22 @@ export class SubscriptionAccessService {
     }));
   }
 
+  static subscribeToPayments(vendorId: string, onChange: () => void) {
+    const channel = supabase
+      .channel(`vendor-payments-${vendorId}-${Date.now()}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "subscription_payments",
+        filter: `vendor_id=eq.${vendorId}`,
+      }, onChange)
+      .subscribe();
+    return () => {
+      void channel.unsubscribe();
+      void supabase.removeChannel(channel);
+    };
+  }
+
   static hasFeature(access: SubscriptionAccess | null, plans: SubscriptionPlan[], feature: SubscriptionFeatureKey) {
     if (!access?.has_access || !access.plan_id) return false;
     if (access.features?.[feature]) return access.features[feature]?.enabled === true;

@@ -46,10 +46,12 @@ export default function VendorSubscription() {
       setLatestPayment(null);
       return () => { cancelled = true; };
     }
-    void SubscriptionAccessService.listPayments(vendor.id).then((payments) => {
+    const loadPayments = () => void SubscriptionAccessService.listPayments(vendor.id).then((payments) => {
       if (!cancelled) setLatestPayment(payments.find((payment) => payment.payment_status === "verified") ?? null);
     }).catch(() => { if (!cancelled) setLatestPayment(null); });
-    return () => { cancelled = true; };
+    loadPayments();
+    const unsubscribe = SubscriptionAccessService.subscribeToPayments(vendor.id, loadPayments);
+    return () => { cancelled = true; unsubscribe(); };
   }, [vendor?.id, access?.subscription_id]);
   const intervalOffers = useMemo(() => offers.filter((offer) =>
     (!offer.applicable_billing_intervals.length || offer.applicable_billing_intervals.includes(selectedInterval))

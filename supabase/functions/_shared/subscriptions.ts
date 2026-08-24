@@ -47,10 +47,10 @@ export async function requireOwnedVendor(client: SupabaseClient) {
 }
 
 export function razorpayAuthorization() {
-  const keyId = requireEnv("RAZORPAY_TEST_KEY_ID");
-  const keySecret = requireEnv("RAZORPAY_TEST_KEY_SECRET");
-  if (!keyId.startsWith("rzp_test_")) {
-    throw new Error("Only Razorpay Test Mode credentials are allowed");
+  const keyId = requireEnv("RAZORPAY_KEY_ID");
+  const keySecret = requireEnv("RAZORPAY_KEY_SECRET");
+  if (!/^rzp_(?:live|test)_[A-Za-z0-9]+$/.test(keyId)) {
+    throw new Error("RAZORPAY_KEY_ID is not a valid Razorpay key ID");
   }
   return { keyId, keySecret, header: `Basic ${btoa(`${keyId}:${keySecret}`)}` };
 }
@@ -79,6 +79,7 @@ export function constantTimeEqual(left: string, right: string) {
 export function safeProviderPayload(payload: any) {
   const payment = payload?.payload?.payment?.entity;
   const order = payload?.payload?.order?.entity;
+  const refund = payload?.payload?.refund?.entity;
   return {
     event: payload?.event ?? null,
     payment: payment ? {
@@ -94,5 +95,13 @@ export function safeProviderPayload(payload: any) {
       error_description: payment.error_description,
     } : null,
     order: order ? { id: order.id, amount: order.amount, currency: order.currency, status: order.status } : null,
+    refund: refund ? {
+      id: refund.id,
+      payment_id: refund.payment_id,
+      amount: refund.amount,
+      currency: refund.currency,
+      status: refund.status,
+      created_at: refund.created_at,
+    } : null,
   };
 }

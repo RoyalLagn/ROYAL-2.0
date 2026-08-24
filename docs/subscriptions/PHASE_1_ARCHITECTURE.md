@@ -19,7 +19,7 @@ The implementation adds a parallel, normalized subscription domain without delet
 1. `subscription_plans`, `subscription_feature_definitions`, and `subscription_plan_features` define database-driven products and access.
 2. `subscription_offers` defines global and vendor-specific promotions.
 3. `vendor_subscriptions` stores the vendor's current/historical access periods.
-4. `subscription_payments` stores server-calculated Razorpay Test Mode transactions.
+4. `subscription_payments` stores server-calculated Razorpay transactions.
 5. `subscription_events` is the immutable audit trail.
 6. `application_settings` stores launch, trial, grace, reminder, and payment configuration.
 7. `subscription_notification_log` prevents duplicate reminders.
@@ -34,7 +34,7 @@ The implementation adds a parallel, normalized subscription domain without delet
 - Existing authentication, approval, vendor workspace, Cloudinary assets, and navigation routes are preserved.
 - Legacy `subscriptions` rows are imported once as historical/admin-granted access when the new schema is deployed.
 - Razorpay secrets and the Supabase service-role key exist only in Edge Function secrets.
-- Razorpay mode defaults to `test` in database/server configuration; the client receives only the public checkout key returned by the order function.
+- Razorpay credentials select the provider environment; the client receives only the public checkout key returned by the order function.
 
 ## Premium enforcement points
 
@@ -51,8 +51,7 @@ Public reads are intentionally excluded from these checks.
 
 1. Deploy migrations and seed data.
 2. Configure Edge Function secrets in Test Mode.
-3. Deploy subscription/payment Edge Functions and updated upload authorization functions.
+3. Configure Razorpay Edge Function secrets and deploy subscription/payment Edge Functions and updated upload authorization functions.
 4. Deploy client services/providers and admin/vendor UI.
 5. Enable launch offer or trials from Admin Subscription Management.
 6. Schedule lifecycle/reminder functions.
-

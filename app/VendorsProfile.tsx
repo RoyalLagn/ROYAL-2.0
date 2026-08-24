@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
+import { Alert, Platform, StyleSheet, Text, useWindowDimensions, View, type StyleProp, type ViewStyle, } from "react-native";
 // See VendorCalendar.tsx / AppDialogProvider.tsx / VendorProfileTabs.tsx:
 // NativeWind's native Pressable interop drops function `style={(state) =>
 // [...]}` props on Android; InteropSafePressable resolves it first.
@@ -49,6 +49,7 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withDelay,
   withTiming,
 } from "react-native-reanimated";
 import { MotionDistance, MotionTiming } from "@/utils/motion";
@@ -90,6 +91,70 @@ function ProfileTabPanel({ children }: React.PropsWithChildren) {
   return <Animated.View style={animatedStyle}>{children}</Animated.View>;
 }
 
+function DesktopProfileReveal({
+  children,
+  style,
+}: React.PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
+  const reducedMotion = useReducedMotion();
+  const progress = useSharedValue(reducedMotion ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = reducedMotion
+      ? 1
+      : withDelay(40, withTiming(1, MotionTiming.base));
+  }, [progress, reducedMotion]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{
+      translateY: reducedMotion ? 0 : (1 - progress.value) * MotionDistance.screenEnter,
+    }],
+  }));
+
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
+}
+
+/** A once-only, viewport-aware reveal for the profile's editorial chapters.
+ * It keeps every section rendered and interactive while waiting to enter. */
+function ProfileSectionReveal({
+  children,
+  scrollOffset,
+  viewportHeight,
+  delay = 0,
+  style,
+}: React.PropsWithChildren<{
+  scrollOffset: number;
+  viewportHeight: number;
+  delay?: number;
+  style?: StyleProp<ViewStyle>;
+}>) {
+  const reducedMotion = useReducedMotion();
+  const [sectionTop, setSectionTop] = useState<number | null>(null);
+  const revealed = useRef(reducedMotion);
+  const progress = useSharedValue(reducedMotion ? 1 : 0);
+
+  useEffect(() => {
+    if (revealed.current || sectionTop === null) return;
+    if (scrollOffset + viewportHeight * 0.9 < sectionTop) return;
+    revealed.current = true;
+    progress.value = withDelay(delay, withTiming(1, MotionTiming.base));
+  }, [delay, progress, scrollOffset, sectionTop, viewportHeight]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: reducedMotion ? 0 : (1 - progress.value) * MotionDistance.screenEnter }],
+  }));
+
+  return (
+    <Animated.View
+      onLayout={(event) => setSectionTop(event.nativeEvent.layout.y)}
+      style={[style, animatedStyle]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
 export default function VendorsProfile() {
   const { colorScheme } = useColorScheme();
   const insets = useSafeAreaInsets();
@@ -98,6 +163,8 @@ export default function VendorsProfile() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const desktop = width >= 1100;
+  const wideProfile = width >= 768;
+  const splitDesktopContent = width >= 980;
   const params = useLocalSearchParams<{ vendorId?: string; category?: string }>();
   const vendorId = Array.isArray(params.vendorId) ? params.vendorId[0] : params.vendorId;
   const paramCategory = Array.isArray(params.category) ? params.category[0] : params.category;
@@ -120,6 +187,7 @@ export default function VendorsProfile() {
   const [clipsError, setClipsError] = useState("");
   const [clipsReloadKey, setClipsReloadKey] = useState(0);
   const [reelViewerIndex, setReelViewerIndex] = useState<number | null>(null);
+  const [profileScrollOffset, setProfileScrollOffset] = useState(0);
   const contactPromptVisible = useRef(false);
   const contactOpening = useRef(false);
 
@@ -363,6 +431,241 @@ export default function VendorsProfile() {
     }
   };
 
+  if (wideProfile) {
+    const widePageWidth = Math.min(width - (desktop ? 64 : 40), 1280);
+    const wideHeroHeight = desktop
+      ? Math.max(460, Math.min(540, height - 220))
+      : Math.max(380, Math.min(460, height * 0.48));
+
+    return (
+      <View style={[styles.root, { backgroundColor: background }]}>
+        <PublicWebNavbar activeRoute="Categories" />
+        <Animated.ScrollView
+          style={styles.wideScroll}
+          contentContainerStyle={[styles.wideScrollContent, { paddingBottom: desktop ? 48 : mobileTabBarHeight + 28 }]}
+          showsVerticalScrollIndicator={false}
+          onScroll={(event) => {
+            const offset = event.nativeEvent.contentOffset.y;
+            setProfileScrollOffset((current) => Math.abs(current - offset) >= 96 ? offset : current);
+          }}
+          scrollEventThrottle={32}
+        >
+          <View style={[styles.widePage, { width: widePageWidth }]}>
+            <DesktopProfileReveal style={[styles.wideStage, !desktop && styles.wideStageTablet]}>
+              <View
+                style={[
+                  styles.wideHeroShell,
+                  !desktop && styles.wideHeroShellTablet,
+                  {
+                    height: wideHeroHeight,
+                    backgroundColor: dark ? "#05070C" : "#F8EEF2",
+                    shadowColor: dark ? "#000000" : "#7B304B",
+                  },
+                ]}
+              >
+                <VendorHeroCarousel
+                  images={heroImages}
+                  fallbackImage={fallbackImage}
+                  vendorName={vendor.name}
+                  containMedia={!vendor.heroMedia.length}
+                  height={wideHeroHeight}
+                  onBack={goBack}
+                  focalPoints={heroFocalPoints}
+                  paused={heroViewerIndex !== null || calendarVisible || packagesVisible || Boolean(enquiryPackage)}
+                  onOpen={vendor.heroMedia.length ? setHeroViewerIndex : undefined}
+                />
+              </View>
+
+              <View style={[styles.wideDetailsRail, !desktop && styles.wideDetailsRailTablet]}>
+                <View
+                  style={[
+                    styles.wideIdentityCard,
+                    {
+                      backgroundColor: surface,
+                      borderColor: sectionDivider,
+                      shadowColor: dark ? "#000000" : "#7B304B",
+                    },
+                  ]}
+                >
+                  <VendorInfoPanel
+                    name={vendor.name}
+                    rating={displayedRating.rating}
+                    reviewCount={displayedRating.reviews}
+                    location={vendor.location}
+                    specialties={[category, ...vendor.tags]}
+                    verified
+                    topRated={Boolean(vendor.isTopRated)}
+                    dark={dark}
+                    favorite={favorite}
+                    onToggleFavorite={toggleVendorFavorite}
+                    onShare={() => void shareProfile()}
+                    membershipPlan={vendor.membershipPlan}
+                    overlap={false}
+                  >
+                    <VendorQuickActions
+                      dark={dark}
+                      onCall={() => requestVendorContact("call")}
+                      onWhatsApp={() => requestVendorContact("whatsapp")}
+                      onEnquire={() => router.push("/enquiry")}
+                      onCalendar={() => setCalendarVisible(true)}
+                    />
+                  </VendorInfoPanel>
+                </View>
+
+                <PackagesCard
+                  price={vendor.startingPrice}
+                  dark={dark}
+                  subtitle="Compare available pricing or request a custom package"
+                  onPress={() => setPackagesVisible(true)}
+                />
+              </View>
+            </DesktopProfileReveal>
+
+            <View style={[styles.wideContentGrid, !splitDesktopContent && styles.wideContentGridTablet]}>
+              <View style={styles.widePrimaryColumn}>
+                <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height}>
+                  <VendorProfileTabs
+                    selected={selectedTab}
+                    dark={dark}
+                    onChange={selectProfileTab}
+                  />
+                </ProfileSectionReveal>
+
+                <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height} delay={40}>
+                <ProfileTabPanel key={selectedTab}>
+                  {selectedTab === "portfolio" ? (
+                    vendor.portfolioAlbums.length ? (
+                      <View style={styles.widePortfolioSection}>
+                        <SectionErrorBoundary label="Portfolio" key={`portfolio-${vendor.id}`}>
+                          <PortfolioAlbums
+                            albums={vendor.portfolioAlbums}
+                            dark={dark}
+                            onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id } })}
+                            onOpenAlbum={(album) => router.push({
+                              pathname: "/VendorAlbum",
+                              params: { vendorId: vendor.id, albumId: album.id },
+                            })}
+                          />
+                        </SectionErrorBoundary>
+                      </View>
+                    ) : (
+                      <View style={[styles.portfolioEmpty, styles.widePortfolioEmpty, sectionCardStyle]}>
+                        <View style={[styles.portfolioEmptyIcon, { backgroundColor: colors.muted }]}>
+                          <Images size={23} color={colors.primaryStrong} />
+                        </View>
+                        <Text style={[styles.portfolioEmptyTitle, { color: text }]}>Portfolio coming soon</Text>
+                        <Text style={[styles.portfolioEmptyText, { color: muted }]}>This vendor has not published any portfolio albums yet. Explore their services or contact them for recent work.</Text>
+                      </View>
+                    )
+                  ) : (
+                    <SectionErrorBoundary label="Clips" key={`clips-${vendor.id}`}>
+                      <VendorClipsGrid
+                        clips={vendorClips}
+                        loading={clipsLoading}
+                        error={clipsError}
+                        dark={dark}
+                        onOpen={setReelViewerIndex}
+                        onRetry={() => setClipsReloadKey((current) => current + 1)}
+                      />
+                    </SectionErrorBoundary>
+                  )}
+                </ProfileTabPanel>
+                </ProfileSectionReveal>
+
+              </View>
+
+              <View style={[styles.wideSecondaryColumn, !splitDesktopContent && styles.wideSecondaryColumnTablet]}>
+                <View style={[styles.sectionCard, styles.wideSectionCard, !splitDesktopContent && styles.wideSectionCardTablet, sectionCardStyle]}>
+                  <SectionHeading dark={dark}>About</SectionHeading>
+                  <Text style={[styles.aboutText, { color: muted }]}>{aboutCopy}</Text>
+                  {about.length > 180 ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={expanded ? "Show less about vendor" : "Read more about vendor"}
+                      onPress={() => setExpanded((current) => !current)}
+                      style={({ pressed, hovered }) => [
+                        styles.readMore,
+                        hovered && Platform.OS === "web" && styles.readMoreHover,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text style={styles.readMoreText}>{expanded ? "Show Less" : "Read More"}</Text>
+                      <ChevronRight
+                        size={16}
+                        color={PINK}
+                        style={{ transform: [{ rotate: expanded ? "-90deg" : "0deg" }] }}
+                      />
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                {vendor.services.length ? (
+                  <View style={[styles.sectionCard, styles.wideSectionCard, !splitDesktopContent && styles.wideSectionCardTablet, sectionCardStyle]}>
+                    <SectionHeading dark={dark}>Services</SectionHeading>
+                    <ServiceChips services={vendor.services} dark={dark} />
+                  </View>
+                ) : null}
+              </View>
+            </View>
+
+            <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height} delay={80} style={[styles.sectionCard, styles.wideSectionCard, styles.wideReviewsSection, sectionCardStyle]}>
+              <ConnectedVendorReviews vendorKey={vendor.id} dark={dark} />
+            </ProfileSectionReveal>
+          </View>
+        </Animated.ScrollView>
+
+        {!desktop ? <StandaloneMobileTabBar activeRoute="Categories" /> : null}
+        <FullscreenMediaViewer
+          visible={heroViewerIndex !== null}
+          media={vendor.heroMedia}
+          initialIndex={heroViewerIndex ?? 0}
+          title={`${vendor.name} · Hero gallery`}
+          onClose={() => setHeroViewerIndex(null)}
+        />
+        <PackageDetailsModal
+          visible={packagesVisible}
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          contactPhone={vendor.contactPhone}
+          dark={dark}
+          onClose={() => setPackagesVisible(false)}
+          onCall={(item) => requestVendorContact("call", item)}
+          onWhatsApp={(item) => requestVendorContact("whatsapp", item)}
+          onEnquire={(item) => {
+            setPackagesVisible(false);
+            setEnquiryPackage(item);
+          }}
+        />
+        <PackageEnquiryModal
+          visible={Boolean(enquiryPackage)}
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          item={enquiryPackage}
+          dark={dark}
+          onClose={() => setEnquiryPackage(null)}
+          onSignInRequired={() => router.push("/DashboardCenter")}
+          onSent={() => setEnquiryPackage(null)}
+        />
+        <VendorAvailabilityModal
+          visible={calendarVisible}
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          availability={vendor.availability}
+          dark={dark}
+          onClose={() => setCalendarVisible(false)}
+        />
+        <VendorClipsReelViewer
+          visible={reelViewerIndex !== null}
+          clips={vendorClips}
+          initialIndex={reelViewerIndex ?? 0}
+          vendorName={vendor.name}
+          verified
+          onClose={() => setReelViewerIndex(null)}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: background }]}>
       <PublicWebNavbar activeRoute="Categories" />
@@ -373,6 +676,7 @@ export default function VendorsProfile() {
         backgroundColor={background}
         sheetColor={background}
         contentContainerStyle={{ paddingBottom: desktop ? 28 : mobileTabBarHeight }}
+        onScrollPosition={setProfileScrollOffset}
         hero={(
           <VendorHeroCarousel
             images={heroImages}
@@ -387,6 +691,7 @@ export default function VendorsProfile() {
           />
         )}
       >
+          <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height}>
           <VendorInfoPanel
             name={vendor.name}
             rating={displayedRating.rating}
@@ -410,21 +715,27 @@ export default function VendorsProfile() {
               onCalendar={() => setCalendarVisible(true)}
             />
           </VendorInfoPanel>
+          </ProfileSectionReveal>
 
           <View style={[styles.content, width < 600 && styles.contentCompact]}>
+            <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height}>
             <PackagesCard
               price={vendor.startingPrice}
               dark={dark}
               subtitle="Compare available pricing or request a custom package"
               onPress={() => setPackagesVisible(true)}
             />
+            </ProfileSectionReveal>
 
+            <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height} delay={30}>
             <VendorProfileTabs
               selected={selectedTab}
               dark={dark}
               onChange={selectProfileTab}
             />
+            </ProfileSectionReveal>
 
+            <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height} delay={55}>
             <ProfileTabPanel key={selectedTab}>
             {selectedTab === "portfolio" ? (
               vendor.portfolioAlbums.length ? <View style={styles.portfolioSection}>
@@ -461,8 +772,9 @@ export default function VendorsProfile() {
               </SectionErrorBoundary>
             )}
             </ProfileTabPanel>
+            </ProfileSectionReveal>
 
-            <View style={[styles.sectionCard, sectionCardStyle]}>
+            <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height} delay={70} style={[styles.sectionCard, sectionCardStyle]}>
               <SectionHeading dark={dark}>About</SectionHeading>
               <Text style={[styles.aboutText, { color: muted }]}>{aboutCopy}</Text>
               {about.length > 180 ? (
@@ -484,18 +796,18 @@ export default function VendorsProfile() {
                   />
                 </Pressable>
               ) : null}
-            </View>
+            </ProfileSectionReveal>
 
             {vendor.services.length ? (
-              <View style={[styles.sectionCard, sectionCardStyle]}>
+              <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height} delay={90} style={[styles.sectionCard, sectionCardStyle]}>
                 <SectionHeading dark={dark}>Services</SectionHeading>
                 <ServiceChips services={vendor.services} dark={dark} />
-              </View>
+              </ProfileSectionReveal>
             ) : null}
 
-            <View style={[styles.sectionCard, styles.reviewsSection, sectionCardStyle]}>
+            <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height} delay={110} style={[styles.sectionCard, styles.reviewsSection, sectionCardStyle]}>
               <ConnectedVendorReviews vendorKey={vendor.id} dark={dark} />
-            </View>
+            </ProfileSectionReveal>
           </View>
       </PinnedHeroProfileLayout>
 
@@ -553,6 +865,44 @@ export default function VendorsProfile() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  wideScroll: { flex: 1 },
+  wideScrollContent: { width: "100%", alignItems: "center" },
+  widePage: { maxWidth: "100%", alignSelf: "center", paddingTop: 24 },
+  wideStage: { width: "100%", flexDirection: "row", alignItems: "stretch", gap: 22 },
+  wideStageTablet: { flexDirection: "column", gap: 18 },
+  wideHeroShell: {
+    flex: 1.55,
+    minWidth: 0,
+    borderRadius: 24,
+    overflow: "hidden",
+    shadowOpacity: 0.1,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 4,
+  },
+  wideHeroShellTablet: { width: "100%", flexGrow: 0, flexShrink: 0, flexBasis: "auto" },
+  wideDetailsRail: { width: 392, flexShrink: 0, gap: 16 },
+  wideDetailsRailTablet: { width: "100%" },
+  wideIdentityCard: {
+    width: "100%",
+    borderWidth: 1,
+    borderRadius: 22,
+    overflow: "hidden",
+    shadowOpacity: 0.055,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+  wideContentGrid: { width: "100%", marginTop: 24, flexDirection: "row", alignItems: "flex-start", gap: 24 },
+  wideContentGridTablet: { flexDirection: "column" },
+  widePrimaryColumn: { flex: 1, minWidth: 0 },
+  wideSecondaryColumn: { width: 360, flexShrink: 0, gap: 16 },
+  wideSecondaryColumnTablet: { width: "100%", flexDirection: "row", alignItems: "flex-start" },
+  wideSectionCardTablet: { flex: 1 },
+  widePortfolioSection: { marginTop: 4 },
+  widePortfolioEmpty: { minHeight: 280, marginTop: 16 },
+  wideSectionCard: { marginTop: 0, padding: 22 },
+  wideReviewsSection: { marginTop: 22, marginBottom: 0 },
   content: { width: "100%", maxWidth: 980, alignSelf: "center", paddingHorizontal: 20, paddingTop: 18 },
   contentCompact: { paddingHorizontal: 14, paddingTop: 14 },
   sectionCard: {

@@ -23,8 +23,8 @@ async function functionErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function idempotencyKey(vendorId: string, planId: string) {
-  return `${vendorId}:${planId}:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`;
+function idempotencyKey(quoteId: string) {
+  return `subscription-checkout:${quoteId}`;
 }
 
 export class SubscriptionPaymentService {
@@ -39,6 +39,7 @@ export class SubscriptionPaymentService {
     deferActivation?: boolean;
     quoteId?: string;
   }) {
+    if (!input.quoteId) throw new Error("Pricing is not ready. Refresh the plans and try again.");
     const { data: order, error: orderError } = await supabase.functions.invoke<RazorpayOrder>("create-razorpay-order", {
       body: {
         planId: input.planId,
@@ -46,7 +47,7 @@ export class SubscriptionPaymentService {
         offerId: input.offerId ?? null,
         deferActivation: input.deferActivation ?? false,
         quoteId: input.quoteId,
-        idempotencyKey: idempotencyKey(input.vendorId, input.planId),
+        idempotencyKey: idempotencyKey(input.quoteId),
       },
     });
     if (orderError) throw new Error(await functionErrorMessage(orderError, "Unable to start payment"));
@@ -54,12 +55,26 @@ export class SubscriptionPaymentService {
     if ((order as any).error) throw new Error((order as any).error);
     if (order.freeActivation) return { success: true, freeActivation: true };
 
-    const checkout = await openRazorpayCheckout({
-      ...order,
-      vendorName: input.vendorName,
-      email: input.email,
-      phone: input.phone,
-    });
+    let checkout;
+    try {
+      checkout = await openRazorpayCheckout({
+        ...order,
+        vendorName: input.vendorName,
+        email: input.email,
+        phone: input.phone,
+      });
+    } catch (checkoutError) {
+      const message = checkoutError instanceof Error ? checkoutError.message : "Payment checkout did not complete";
+      const outcome = /cancel|dismiss|closed/i.test(message) ? "cancelled" : "failed";
+      try {
+        await supabase.functions.invoke("record-razorpay-checkout-outcome", {
+          body: { razorpayOrderId: order.orderId, outcome },
+        });
+      } catch {
+        // Razorpay webhooks remain the source of truth if this best-effort UX update cannot be recorded.
+      }
+      throw checkoutError;
+    }
     const { data: verification, error: verificationError } = await supabase.functions.invoke("verify-razorpay-payment", {
       body: {
         razorpayOrderId: checkout.razorpay_order_id,

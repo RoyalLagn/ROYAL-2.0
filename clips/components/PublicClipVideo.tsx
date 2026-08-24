@@ -109,7 +109,10 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
       setManuallyPaused(false);
       return;
     }
-    if (!manuallyPaused) player.play();
+    // Browsers reject audible playback unless this call happens inside a
+    // user gesture. Let the web-only blocked-autoplay state below show the
+    // play control; togglePlayback() performs play() from the user's tap.
+    if (!manuallyPaused && Platform.OS !== "web") player.play();
   }, [active, hasValidSource, manuallyPaused, player]);
   useEffect(() => () => {
     if (holdReleaseTimer.current) clearTimeout(holdReleaseTimer.current);

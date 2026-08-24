@@ -24,7 +24,9 @@ Deno.serve(async (request) => {
     const orderId = String(body.razorpayOrderId ?? "");
     const providerPaymentId = String(body.razorpayPaymentId ?? "");
     const signature = String(body.razorpaySignature ?? "").toLowerCase();
-    if (!orderId || !providerPaymentId || !signature) return json({ error: "Incomplete payment verification data" }, 400);
+    if (!orderId || !providerPaymentId || !/^[a-f0-9]{64}$/.test(signature)) {
+      return json({ error: "Incomplete or invalid payment verification data" }, 400);
+    }
 
     const admin = serviceClient();
     const { data: payment, error: paymentError } = await admin
@@ -34,8 +36,11 @@ Deno.serve(async (request) => {
       .eq("vendor_id", vendor.id)
       .maybeSingle();
     if (paymentError || !payment) throw paymentError ?? new Error("Payment record not found");
-    if (payment.payment_status === "verified" && payment.razorpay_payment_id === providerPaymentId) {
-      return json({ success: true, subscriptionActive: true, idempotent: true });
+    if (payment.payment_status === "verified") {
+      if (payment.razorpay_payment_id === providerPaymentId) {
+        return json({ success: true, subscriptionActive: true, idempotent: true });
+      }
+      return json({ error: "Payment was already verified with a different transaction" }, 409);
     }
 
     const razorpay = razorpayAuthorization();
@@ -67,14 +72,33 @@ Deno.serve(async (request) => {
     // only store what Razorpay's own payment record actually reports.
     const gatewayFeeMinor = typeof providerPayment.fee === "number" ? providerPayment.fee : null;
     const gatewayTaxMinor = typeof providerPayment.tax === "number" ? providerPayment.tax : null;
-    await admin.from("subscription_payments").update({
+    const paidAt = providerPayment.created_at
+      ? new Date(Number(providerPayment.created_at) * 1000).toISOString()
+      : new Date().toISOString();
+    const { data: capturedPayment, error: captureUpdateError } = await admin.from("subscription_payments").update({
       payment_status: "captured",
       razorpay_payment_id: providerPaymentId,
       payment_method: providerPayment.method ?? null,
-      paid_at: new Date().toISOString(),
+      paid_at: paidAt,
+      failure_code: null,
+      failure_reason: null,
       ...(gatewayFeeMinor !== null ? { gateway_fee_minor: gatewayFeeMinor } : {}),
       ...(gatewayTaxMinor !== null ? { gateway_tax_minor: gatewayTaxMinor } : {}),
-    }).eq("id", payment.id);
+    }).eq("id", payment.id)
+      .in("payment_status", ["created", "pending", "authorized", "captured", "failed"])
+      .select("id")
+      .maybeSingle();
+    if (captureUpdateError) throw captureUpdateError;
+    if (!capturedPayment) {
+      const { data: current } = await admin.from("subscription_payments")
+        .select("payment_status,razorpay_payment_id")
+        .eq("id", payment.id)
+        .single();
+      if (current?.payment_status === "verified" && current.razorpay_payment_id === providerPaymentId) {
+        return json({ success: true, subscriptionActive: true, idempotent: true });
+      }
+      throw new Error("Payment state changed before verification completed");
+    }
     const { data: subscriptionId, error: activationError } = await admin.rpc("activate_verified_subscription_payment", {
       target_payment_id: payment.id,
       verified_payment_id: providerPaymentId,
@@ -91,7 +115,9 @@ Deno.serve(async (request) => {
     }
     return json({ success: true, subscriptionActive: true, subscriptionId });
   } catch (error) {
-    console.error("[verify-razorpay-payment]", error);
+    console.error("[verify-razorpay-payment]", {
+      message: error instanceof Error ? error.message : "Unable to verify payment",
+    });
     return json({ error: error instanceof Error ? error.message : "Unable to verify payment" }, 400);
   }
 });

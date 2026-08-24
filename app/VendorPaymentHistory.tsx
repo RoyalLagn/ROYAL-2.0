@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { ChevronLeft, CreditCard, ReceiptText } from "lucide-react-native";
@@ -27,6 +27,11 @@ export default function VendorPaymentHistory() {
     finally { setLoading(false); }
   }, [workspace.data.vendor?.id]);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useEffect(() => {
+    const vendorId = workspace.data.vendor?.id;
+    if (!vendorId) return;
+    return SubscriptionAccessService.subscribeToPayments(vendorId, () => void load());
+  }, [load, workspace.data.vendor?.id]);
   return <View style={[styles.page, { backgroundColor: colors.background }]}><VendorHeader unread={workspace.data.notifications.filter((item) => !item.is_read).length} /><ScrollView contentContainerStyle={styles.content}>
     <Pressable onPress={() => router.back()} style={styles.back}><ChevronLeft size={18} color={colors.text} /><Text style={[styles.backText, { color: colors.text }]}>Subscription</Text></Pressable>
     <Text style={[styles.eyebrow, { color: colors.pink }]}>BILLING</Text><Text style={[styles.title, { color: colors.text }]}>Payment history</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Server-verified Razorpay transactions for your Vendor account.</Text>

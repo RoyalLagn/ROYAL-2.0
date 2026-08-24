@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
@@ -25,6 +25,7 @@ export default function PaymentsAdmin() {
   const [page, setPage] = useState(1);
   const load = useCallback(async () => { setLoading(true); setError(null); try { setPayments(await SubscriptionAdminService.listPayments()); } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to load payments."); } finally { setLoading(false); } }, []);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+  useEffect(() => SubscriptionAdminService.subscribe(() => void load()), [load]);
   const categories = useMemo(() => Array.from(new Set(payments.map((payment) => payment.vendors?.categories?.name).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [payments]);
   const filtered = useMemo(() => payments.filter((payment) => {
     const matchesStatus = filter === "all" || payment.payment_status === filter;

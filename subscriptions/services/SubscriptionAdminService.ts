@@ -117,7 +117,7 @@ export class SubscriptionAdminService {
       trial_enabled: false,
       trial_days: 0,
       is_featured: false,
-      is_permanent: isFreePlan,
+      is_permanent: isFreePlan || Boolean(input.is_permanent),
     }).select().single();
     if (error) throw error; return data;
   }
@@ -308,7 +308,7 @@ export class SubscriptionAdminService {
 
   static subscribe(onChange: () => void) {
     const channel = supabase.channel(`subscription-admin-${Date.now()}`);
-    for (const table of ["vendor_subscriptions", "subscription_plans", "vendors"]) {
+    for (const table of ["vendor_subscriptions", "subscription_plans", "subscription_payments", "vendors"]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, onChange);
     }
     channel.subscribe();

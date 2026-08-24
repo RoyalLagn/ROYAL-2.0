@@ -64,6 +64,12 @@ Deno.serve(async (request) => {
       amount_minor: Number(quote.final_payable_minor),
       currency: quote.currency,
     };
+    if (!Number.isSafeInteger(resolved.amount_minor) || resolved.amount_minor < 0) {
+      return json({ error: "The server-calculated payment amount is invalid" }, 409);
+    }
+    if (resolved.currency !== "INR") {
+      return json({ error: "Only INR subscription payments are supported" }, 409);
+    }
     const pricing = {
       originalAmount: Number(resolved.original_amount),
       intervalDiscountPercentage: Number(resolved.interval_discount_percentage),
@@ -218,7 +224,9 @@ Deno.serve(async (request) => {
       pricing,
     });
   } catch (error) {
-    console.error("[create-razorpay-order]", error);
+    console.error("[create-razorpay-order]", {
+      message: error instanceof Error ? error.message : "Unable to start payment",
+    });
     return json({ error: error instanceof Error ? error.message : "Unable to start payment" }, 400);
   }
 });

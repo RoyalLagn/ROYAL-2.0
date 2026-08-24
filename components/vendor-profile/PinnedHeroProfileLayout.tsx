@@ -3,6 +3,7 @@ import { Platform, StyleSheet, View, type LayoutChangeEvent, type StyleProp, typ
 import Animated, {
   Extrapolation,
   interpolate,
+  runOnJS,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useReducedMotion,
@@ -23,6 +24,9 @@ type Props = {
   backgroundColor: string;
   sheetColor: string;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  /** Reports coarse scroll progress so the profile can reveal its editorial
+   * sections without making the scrolling path JS-bound. */
+  onScrollPosition?: (offset: number) => void;
 };
 
 const DESKTOP_MAX_WIDTH = 1120;
@@ -55,12 +59,14 @@ function PinnedHeroProfileLayout({
   backgroundColor,
   sheetColor,
   contentContainerStyle,
+  onScrollPosition,
 }: Props) {
   const scrollY = useSharedValue(0);
   const reducedMotion = useReducedMotion();
   const sheetOffset = Math.max(0, heroHeight - overlap);
   const coverDistance = Math.max(1, Math.min(heroHeight, motionDistance));
   const [measuredWidth, setMeasuredWidth] = useState(0);
+  const lastReportedOffset = useSharedValue(-160);
   // Web is the visual reference and already receives the correct viewport
   // width from its caller. Only native needs the measured-root fallback for
   // Expo Go runtimes whose window dimensions can briefly be stale.
@@ -75,6 +81,10 @@ function PinnedHeroProfileLayout({
   const onScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
+      if (onScrollPosition && Math.abs(event.contentOffset.y - lastReportedOffset.value) >= 96) {
+        lastReportedOffset.value = event.contentOffset.y;
+        runOnJS(onScrollPosition)(event.contentOffset.y);
+      }
     },
   });
 

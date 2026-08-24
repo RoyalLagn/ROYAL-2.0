@@ -93,7 +93,11 @@ const [adminAuthSource, adminMfaSource, adminMfaPolicySource, adminMfaMigration]
   read("services/adminMfaPolicy.ts"),
   read("supabase/migrations/20260818122000_disable_admin_mfa_requirement.sql"),
 ]);
-assert.match(adminMfaPolicySource, /ADMIN_MFA_DEV_BYPASS_ENABLED = true/, "Admin MFA checks must remain disabled.");
+assert.match(
+  adminMfaPolicySource,
+  /__DEV__\s*&&\s*process\.env\.EXPO_PUBLIC_ADMIN_MFA_DEV_BYPASS === ["']true["']/,
+  "Admin MFA bypass must be explicitly enabled and restricted to development builds.",
+);
 assert.match(adminAuthSource, /ADMIN_MFA_DEV_BYPASS_ENABLED[\s\S]*return identity/, "Admin authentication must return after the active role check without contacting MFA.");
 assert.match(adminMfaSource, /ADMIN_MFA_DEV_BYPASS_ENABLED[\s\S]*requirement: null/, "Admin login routing must not request MFA setup or verification.");
 assert.match(adminMfaMigration, /role::text in \('admin', 'super_admin'\)[\s\S]*and is_active/, "Database admin privileges must require an active admin profile.");
