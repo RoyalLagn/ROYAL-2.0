@@ -56,7 +56,7 @@ export default function VendorInfoPanel({
     badge: dark ? "#35262C" : "#FFF5F7",
     badgeBorder: dark ? "#553642" : "#F4D8E1",
     actionSurface: dark ? "#202632" : "#FFFFFF",
-    actionBorder: dark ? "#303846" : "#ECE7EA",
+    actionBorder: dark ? "#303846" : "#F2DDE5",
     specialtySurface: dark ? "#25202A" : "#FFF2F6",
     specialtyBorder: "transparent",
   };
@@ -223,21 +223,16 @@ const styles = StyleSheet.create({
   actionButton: {
     width: 40,
     height: 40,
-    borderRadius: 13,
+    borderRadius: 9,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#7C4056",
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
   },
   actionButtonPressed: {
     opacity: 0.78,
     transform: [{ scale: 0.97 }],
   },
-  actionButtonHovered: { transform: [{ translateY: -1 }], borderColor: "#E91E63" },
+  actionButtonHovered: { backgroundColor: "#FFF5F8", borderColor: "#E91E63" },
   metaRow: {
     marginTop: 7,
     minHeight: 25,

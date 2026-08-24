@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, PixelRatio, Platform, StyleSheet, Text, View, } from "react-native";
+import { Animated, Easing, PixelRatio, Platform, StyleSheet, Text, View, } from "react-native";
 import { ArrowUpRight, Images, Play } from "lucide-react-native";
 import {
   portfolioMediaUrl, type PublicPortfolioAlbum, type VendorPortfolioMedia, } from "@/services/vendorPortfolio";
@@ -53,17 +53,18 @@ function InteractiveTile({
   const lift = useRef(new Animated.Value(0)).current;
   const hovered = useRef(false);
 
-  const animate = (nextScale: number, nextLift: number, duration = 150) => {
+  const animate = (nextScale: number, nextLift: number, duration = 180) => {
     Animated.parallel([
-      Animated.spring(scale, {
+      Animated.timing(scale, {
         toValue: nextScale,
-        speed: 28,
-        bounciness: 5,
+        duration,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: USE_NATIVE_DRIVER,
       }),
       Animated.timing(lift, {
         toValue: nextLift,
         duration,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: USE_NATIVE_DRIVER,
       }),
     ]).start();
@@ -85,11 +86,11 @@ function InteractiveTile({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         onPress={onPress}
-        onPressIn={() => animate(0.972, 1, 90)}
-        onPressOut={() => animate(hovered.current ? 1.015 : 1, hovered.current ? -3 : 0)}
+        onPressIn={() => animate(0.98, 0, 90)}
+        onPressOut={() => animate(hovered.current ? 1.01 : 1, hovered.current ? -2 : 0)}
         onHoverIn={() => {
           hovered.current = true;
-          animate(1.015, -3);
+          animate(1.01, -2);
         }}
         onHoverOut={() => {
           hovered.current = false;

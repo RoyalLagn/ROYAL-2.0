@@ -447,7 +447,6 @@ export async function getApprovedPublicVendorBySlug(
     .from("vendors")
     .select(PUBLIC_VENDOR_DETAIL_SELECT)
     .eq("slug", slug)
-    .eq("is_verified", true)
     .maybeSingle();
   let data: any = primaryResult.data;
   let error: any = primaryResult.error;
@@ -456,7 +455,6 @@ export async function getApprovedPublicVendorBySlug(
       .from("vendors")
       .select(PUBLIC_VENDOR_DETAIL_SELECT.replace(PUBLIC_VENDOR_LOCATION_SELECT, PUBLIC_VENDOR_LIST_SELECT))
       .eq("slug", slug)
-      .eq("is_verified", true)
       .maybeSingle();
     data = legacy.data;
     error = legacy.error;

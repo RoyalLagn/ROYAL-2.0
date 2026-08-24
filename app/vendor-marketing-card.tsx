@@ -73,7 +73,7 @@ export default function VendorMarketingCard() {
 
   const vendor = data.vendor;
   const slug: string | undefined = vendor?.slug;
-  const approved = vendor?.management_status === "active" && vendor?.public_profile_enabled !== false && Boolean(slug);
+  const available = vendor?.public_profile_enabled !== false && Boolean(slug);
 
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
@@ -104,13 +104,13 @@ export default function VendorMarketingCard() {
   }, [vendor, hydrated]);
 
   useEffect(() => {
-    if (!vendor?.id || !approved) return;
+    if (!vendor?.id || !available) return;
     let active = true;
     getReviewSummary(vendor.id)
       .then((summary) => { if (active) setRating({ average: summary.average_rating, count: summary.review_count }); })
       .catch(() => {});
     return () => { active = false; };
-  }, [vendor?.id, approved]);
+  }, [vendor?.id, available]);
 
   const setField = useCallback(<K extends keyof MarketingCardFormValues>(key: K, value: MarketingCardFormValues[K]) => {
     setDownloaded(false);
@@ -223,19 +223,19 @@ export default function VendorMarketingCard() {
             </View>
           ) : null}
 
-          {!loading && !approved ? (
+          {!loading && !available ? (
             <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
               <View style={[styles.emptyIcon, { backgroundColor: colors.pink }]}>
                 <Sparkles size={24} color="#FFF" />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.text }]}>Marketing Card</Text>
               <Text style={[styles.emptyText, { color: colors.muted }]}>
-                Your Marketing Card will become available after admin approval.
+                Your Marketing Card is being prepared. Refresh in a moment.
               </Text>
             </View>
           ) : null}
 
-          {approved ? (
+          {available ? (
             <>
               <View style={styles.previewWrap}>
                 <MarketingCardPreview data={cardData} width={previewWidth} />

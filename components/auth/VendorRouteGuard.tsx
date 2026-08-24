@@ -7,8 +7,8 @@ import PageLoader from "@/components/loading/PageLoader";
 /**
  * Guards every authenticated Vendor workspace route (see
  * vendor/navigation.ts) behind one authoritative check: a valid session,
- * a "vendor" role from the profiles table, an existing application,
- * approved status, and a verified vendor record -- all already computed by
+ * a "vendor" role from the profiles table, an existing application, and a
+ * linked workspace -- all already computed by
  * resolveVendorDestination() inside VendorAuthContext. This is the only
  * place that redirects an invalid Vendor visit to a workspace route; screens
  * underneath it never need their own access checks.

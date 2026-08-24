@@ -21,6 +21,7 @@ type ActionItemProps = {
   label: string;
   accessibilityLabel: string;
   backgroundColor: string;
+  activeBackgroundColor: string;
   disabled?: boolean;
   onPress: () => void;
   icon: React.ReactNode;
@@ -32,6 +33,7 @@ function ActionItem({
   label,
   accessibilityLabel,
   backgroundColor,
+  activeBackgroundColor,
   disabled,
   onPress,
   icon,
@@ -39,6 +41,9 @@ function ActionItem({
   borderColor,
 }: ActionItemProps) {
   const [focused, setFocused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const active = !disabled && (focused || hovered || pressed);
   return (
     <Pressable
       accessibilityRole="button"
@@ -46,17 +51,29 @@ function ActionItem({
       accessibilityState={{ disabled: Boolean(disabled) }}
       disabled={disabled}
       onPress={onPress}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
-      style={({ pressed, hovered }) => [
+      style={({ pressed: isPressed, hovered: isHovered }) => [
         styles.action,
-        (hovered || focused) && Platform.OS === "web" && !disabled && styles.actionHovered,
-        pressed && !disabled && styles.actionPressed,
+        (isHovered || focused) && Platform.OS === "web" && !disabled && styles.actionHovered,
+        isPressed && !disabled && styles.actionPressed,
         disabled && styles.disabled,
       ]}
     >
-      <View style={[styles.circle, { backgroundColor, borderColor }]}>{icon}</View>
-      <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
+      <View
+        style={[
+          styles.circle,
+          { backgroundColor: active ? activeBackgroundColor : backgroundColor, borderColor: active ? "#E91E63" : borderColor },
+          pressed && styles.circlePressed,
+        ]}
+      >
+        {icon}
+      </View>
+      <Text style={[styles.label, { color: active ? "#D93D70" : labelColor }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -78,8 +95,9 @@ function VendorQuickActions({
       <ActionItem
         label="Call"
         accessibilityLabel="Call vendor"
-        backgroundColor={dark ? "#38252C" : "#FFF1F5"}
-        borderColor={dark ? "#5B3442" : "#F4CCD9"}
+        backgroundColor={dark ? "#38252C" : "#FFF5F8"}
+        activeBackgroundColor={dark ? "#4A2935" : "#FCE7EE"}
+        borderColor={dark ? "#5B3442" : "#F2DDE5"}
         disabled={callDisabled}
         onPress={onCall}
         labelColor={labelColor}
@@ -88,31 +106,34 @@ function VendorQuickActions({
       <ActionItem
         label="WhatsApp"
         accessibilityLabel="Contact vendor on WhatsApp"
-        backgroundColor={dark ? "#213329" : "#F0FAF1"}
-        borderColor={dark ? "#31523D" : "#CFE8D3"}
+        backgroundColor={dark ? "#38252C" : "#FFF5F8"}
+        activeBackgroundColor={dark ? "#4A2935" : "#FCE7EE"}
+        borderColor={dark ? "#5B3442" : "#F2DDE5"}
         disabled={whatsAppDisabled}
         onPress={onWhatsApp}
         labelColor={labelColor}
-        icon={<MessageCircle size={22} color="#25A84A" strokeWidth={1.9} />}
+        icon={<MessageCircle size={21} color="#D93D70" strokeWidth={1.9} />}
       />
       <ActionItem
         label="Enquire"
         accessibilityLabel="Send vendor enquiry"
-        backgroundColor={dark ? "#2C2738" : "#F7F3FF"}
-        borderColor={dark ? "#463A62" : "#E2D8F6"}
+        backgroundColor={dark ? "#38252C" : "#FFF5F8"}
+        activeBackgroundColor={dark ? "#4A2935" : "#FCE7EE"}
+        borderColor={dark ? "#5B3442" : "#F2DDE5"}
         disabled={enquireDisabled}
         onPress={onEnquire}
         labelColor={labelColor}
-        icon={<MessageSquareText size={21} color="#815AD9" strokeWidth={1.9} />}
+        icon={<MessageSquareText size={21} color="#D93D70" strokeWidth={1.9} />}
       />
       <ActionItem
         label="Calendar"
         accessibilityLabel="View vendor calendar"
-        backgroundColor={dark ? "#382F20" : "#FFF8E8"}
-        borderColor={dark ? "#665331" : "#F0D8A4"}
+        backgroundColor={dark ? "#38252C" : "#FFF5F8"}
+        activeBackgroundColor={dark ? "#4A2935" : "#FCE7EE"}
+        borderColor={dark ? "#5B3442" : "#F2DDE5"}
         onPress={onCalendar}
         labelColor={labelColor}
-        icon={<CalendarDays size={21} color="#B7791F" strokeWidth={1.9} />}
+        icon={<CalendarDays size={21} color="#D93D70" strokeWidth={1.9} />}
       />
     </View>
   );
@@ -125,13 +146,13 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 680,
     alignSelf: "center",
-    marginTop: 12,
+    marginTop: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingTop: 14,
-    paddingBottom: 14,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   action: {
     width: "24%",
@@ -141,20 +162,16 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   circle: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
+    width: 44,
+    height: 44,
+    borderRadius: 9,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#87455D",
-    shadowOpacity: 0.035,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
   },
   label: { fontFamily: fonts.sans.semibold, fontSize: typeScale.metadata, lineHeight: typeLeading.caption, textAlign: "center" },
-  actionHovered: { transform: [{ translateY: -2 }] },
-  actionPressed: { transform: [{ scale: 0.94 }], opacity: 0.88 },
+  actionHovered: { opacity: 0.9 },
+  actionPressed: { transform: [{ scale: 0.97 }], opacity: 0.82 },
+  circlePressed: { transform: [{ scale: 0.96 }] },
   disabled: { opacity: 0.45 },
 });

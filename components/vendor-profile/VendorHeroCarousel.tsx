@@ -175,7 +175,12 @@ function VendorHeroCarousel({
               }}
               accessibilityRole={onOpen ? "button" : undefined}
               accessibilityLabel={onOpen ? `Open ${vendorName} gallery image ${sourceIndex + 1}` : undefined}
-              style={{ width: carouselWidth, height: heroHeight }}
+              style={({ pressed, hovered }) => [
+                styles.heroSlide,
+                { width: carouselWidth, height: heroHeight },
+                hovered && Platform.OS === "web" && Boolean(onOpen) && !reducedMotion && styles.heroSlideHovered,
+                pressed && Boolean(onOpen) && (reducedMotion ? styles.heroSlidePressedReduced : styles.heroSlidePressed),
+              ]}
             >
               {shownSource ? (
                 <Image
@@ -247,6 +252,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#050505",
   },
   galleryTarget: StyleSheet.absoluteFillObject,
+  heroSlide: { overflow: "hidden" },
+  heroSlideHovered: { opacity: 0.97, transform: [{ scale: 1.006 }] },
+  heroSlidePressed: { opacity: 0.91, transform: [{ scale: 0.992 }] },
+  heroSlidePressedReduced: { opacity: 0.91 },
   image: { width: "100%", height: "100%" },
   mediaShade: { ...StyleSheet.absoluteFillObject, backgroundColor: brandPalette.light.overlayInk, opacity: 0.12 },
   topControls: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 18 },
@@ -258,7 +267,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  backHovered: { backgroundColor: "rgba(28,20,23,.74)", transform: [{ translateY: -1 }] },
+  backHovered: { backgroundColor: "rgba(28,20,23,.74)", transform: [{ translateX: -2 }] },
   pressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
   counter: {
     position: "absolute",

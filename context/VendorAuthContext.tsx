@@ -20,8 +20,8 @@ import { ClipQueueService } from "@/clips/services/ClipQueueService";
 type VendorAuthContextValue = {
   resolution: VendorResolution | null;
   loading: boolean;
-  /** True only once the workspace is linked and verified -- the one state
-   * that should ever see /vendor-dashboard. */
+  /** True once the vendor workspace is linked -- the one state that should
+   * see /vendor-dashboard. */
   isVendorAuthenticated: boolean;
   refresh: () => Promise<VendorResolution | null>;
   signOut: () => Promise<void>;

@@ -64,11 +64,7 @@ function SectionHeading({ children, dark }: { children: React.ReactNode; dark: b
   return (
     <View style={styles.sectionHeadingWrap}>
       <Text style={[styles.sectionHeading, { color: dark ? "#F8F1F4" : "#261A20" }]}>{children}</Text>
-      <View style={styles.ornament}>
-        <View style={styles.ornamentLine} />
-        <View style={styles.ornamentDot} />
-        <View style={styles.ornamentLine} />
-      </View>
+      <View style={[styles.sectionHeadingRule, { backgroundColor: dark ? "#4E3640" : "#F2DDE5" }]} />
     </View>
   );
 }
@@ -130,6 +126,7 @@ function ProfileSectionReveal({
 }>) {
   const reducedMotion = useReducedMotion();
   const [sectionTop, setSectionTop] = useState<number | null>(null);
+  const sectionRef = useRef<any>(null);
   const revealed = useRef(reducedMotion);
   const progress = useSharedValue(reducedMotion ? 1 : 0);
 
@@ -147,7 +144,14 @@ function ProfileSectionReveal({
 
   return (
     <Animated.View
-      onLayout={(event) => setSectionTop(event.nativeEvent.layout.y)}
+      ref={sectionRef}
+      onLayout={() => {
+        requestAnimationFrame(() => {
+          sectionRef.current?.measureInWindow?.((_x: number, y: number) => {
+            setSectionTop((current) => current ?? scrollOffset + y);
+          });
+        });
+      }}
       style={[style, animatedStyle]}
     >
       {children}
@@ -188,6 +192,7 @@ export default function VendorsProfile() {
   const [clipsReloadKey, setClipsReloadKey] = useState(0);
   const [reelViewerIndex, setReelViewerIndex] = useState<number | null>(null);
   const [profileScrollOffset, setProfileScrollOffset] = useState(0);
+  const [desktopDetailScrollOffset, setDesktopDetailScrollOffset] = useState(0);
   const contactPromptVisible = useRef(false);
   const contactOpening = useRef(false);
 
@@ -430,6 +435,225 @@ export default function VendorsProfile() {
       Alert.alert("Unable to share", cause instanceof Error ? cause.message : "Please try again.");
     }
   };
+
+  if (desktop) {
+    const splitHeroHeight = Math.max(500, Math.min(640, height - 170));
+
+    return (
+      <View style={[styles.root, { backgroundColor: background }]}>
+        <PublicWebNavbar activeRoute="Categories" />
+        <View style={[styles.desktopSplit, { borderColor: sectionDivider }]}>
+          <Animated.ScrollView
+            style={[styles.desktopPane, styles.desktopMediaPane]}
+            contentContainerStyle={styles.desktopMediaContent}
+            showsVerticalScrollIndicator={false}
+            onScroll={(event) => {
+              const offset = event.nativeEvent.contentOffset.y;
+              setProfileScrollOffset((current) => Math.abs(current - offset) >= 64 ? offset : current);
+            }}
+            scrollEventThrottle={32}
+          >
+            <DesktopProfileReveal>
+              <View
+                style={[
+                  styles.desktopHeroShell,
+                  {
+                    height: splitHeroHeight,
+                    backgroundColor: dark ? "#05070C" : "#F8EEF2",
+                    shadowColor: dark ? "#000000" : "#7B304B",
+                  },
+                ]}
+              >
+                <VendorHeroCarousel
+                  images={heroImages}
+                  fallbackImage={fallbackImage}
+                  vendorName={vendor.name}
+                  containMedia={!vendor.heroMedia.length}
+                  height={splitHeroHeight}
+                  onBack={goBack}
+                  focalPoints={heroFocalPoints}
+                  paused={heroViewerIndex !== null || calendarVisible || packagesVisible || Boolean(enquiryPackage)}
+                  onOpen={vendor.heroMedia.length ? setHeroViewerIndex : undefined}
+                />
+              </View>
+            </DesktopProfileReveal>
+
+            <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height} style={styles.desktopTabsWrap}>
+              <VendorProfileTabs selected={selectedTab} dark={dark} onChange={selectProfileTab} />
+            </ProfileSectionReveal>
+
+            <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height} delay={40}>
+              <ProfileTabPanel key={selectedTab}>
+                {selectedTab === "portfolio" ? (
+                  vendor.portfolioAlbums.length ? (
+                    <SectionErrorBoundary label="Portfolio" key={`portfolio-${vendor.id}`}>
+                      <PortfolioAlbums
+                        albums={vendor.portfolioAlbums}
+                        dark={dark}
+                        onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id } })}
+                        onOpenAlbum={(album) => router.push({
+                          pathname: "/VendorAlbum",
+                          params: { vendorId: vendor.id, albumId: album.id },
+                        })}
+                      />
+                    </SectionErrorBoundary>
+                  ) : (
+                    <View style={[styles.portfolioEmpty, styles.desktopPortfolioEmpty, sectionCardStyle]}>
+                      <View style={[styles.portfolioEmptyIcon, { backgroundColor: colors.muted }]}>
+                        <Images size={23} color={colors.primaryStrong} />
+                      </View>
+                      <Text style={[styles.portfolioEmptyTitle, { color: text }]}>Portfolio coming soon</Text>
+                      <Text style={[styles.portfolioEmptyText, { color: muted }]}>This vendor has not published any portfolio albums yet. Explore their services or contact them for recent work.</Text>
+                    </View>
+                  )
+                ) : (
+                  <SectionErrorBoundary label="Clips" key={`clips-${vendor.id}`}>
+                    <VendorClipsGrid
+                      clips={vendorClips}
+                      loading={clipsLoading}
+                      error={clipsError}
+                      dark={dark}
+                      onOpen={setReelViewerIndex}
+                      onRetry={() => setClipsReloadKey((current) => current + 1)}
+                    />
+                  </SectionErrorBoundary>
+                )}
+              </ProfileTabPanel>
+            </ProfileSectionReveal>
+          </Animated.ScrollView>
+
+          <Animated.ScrollView
+            style={[styles.desktopPane, styles.desktopDetailsPane, { borderColor: sectionDivider }]}
+            contentContainerStyle={styles.desktopDetailsContent}
+            showsVerticalScrollIndicator={false}
+            onScroll={(event) => {
+              const offset = event.nativeEvent.contentOffset.y;
+              setDesktopDetailScrollOffset((current) => Math.abs(current - offset) >= 64 ? offset : current);
+            }}
+            scrollEventThrottle={32}
+          >
+            <DesktopProfileReveal>
+              <View style={styles.desktopCategoryRow}>
+                <Text style={styles.desktopCategory}>{category.toUpperCase()}</Text>
+                <View style={[styles.desktopCategoryRule, { backgroundColor: sectionDivider }]} />
+              </View>
+              <VendorInfoPanel
+                name={vendor.name}
+                rating={displayedRating.rating}
+                reviewCount={displayedRating.reviews}
+                location={vendor.location}
+                specialties={vendor.tags}
+                verified
+                topRated={Boolean(vendor.isTopRated)}
+                dark={dark}
+                favorite={favorite}
+                onToggleFavorite={toggleVendorFavorite}
+                onShare={() => void shareProfile()}
+                membershipPlan={vendor.membershipPlan}
+                overlap={false}
+              >
+                <VendorQuickActions
+                  dark={dark}
+                  onCall={() => requestVendorContact("call")}
+                  onWhatsApp={() => requestVendorContact("whatsapp")}
+                  onEnquire={() => router.push("/enquiry")}
+                  onCalendar={() => setCalendarVisible(true)}
+                />
+              </VendorInfoPanel>
+            </DesktopProfileReveal>
+
+            <ProfileSectionReveal scrollOffset={desktopDetailScrollOffset} viewportHeight={height} delay={30} style={styles.desktopDetailSection}>
+              <PackagesCard
+                price={vendor.startingPrice}
+                dark={dark}
+                subtitle="Compare available pricing or request a custom package"
+                onPress={() => setPackagesVisible(true)}
+              />
+            </ProfileSectionReveal>
+
+            <ProfileSectionReveal scrollOffset={desktopDetailScrollOffset} viewportHeight={height} delay={55} style={[styles.desktopDetailSection, styles.desktopEditorialSection]}>
+              <SectionHeading dark={dark}>About</SectionHeading>
+              <Text style={[styles.aboutText, { color: muted }]}>{aboutCopy}</Text>
+              {about.length > 180 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={expanded ? "Show less about vendor" : "Read more about vendor"}
+                  onPress={() => setExpanded((current) => !current)}
+                  style={({ pressed, hovered }) => [
+                    styles.readMore,
+                    hovered && Platform.OS === "web" && styles.readMoreHover,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.readMoreText}>{expanded ? "Show Less" : "Read More"}</Text>
+                  <ChevronRight size={16} color={PINK} style={{ transform: [{ rotate: expanded ? "-90deg" : "0deg" }] }} />
+                </Pressable>
+              ) : null}
+            </ProfileSectionReveal>
+
+            {vendor.services.length ? (
+              <ProfileSectionReveal scrollOffset={desktopDetailScrollOffset} viewportHeight={height} delay={75} style={[styles.desktopDetailSection, styles.desktopEditorialSection]}>
+                <SectionHeading dark={dark}>Services</SectionHeading>
+                <ServiceChips services={vendor.services} dark={dark} />
+              </ProfileSectionReveal>
+            ) : null}
+
+            <ProfileSectionReveal scrollOffset={desktopDetailScrollOffset} viewportHeight={height} delay={95} style={[styles.desktopDetailSection, styles.desktopEditorialSection]}>
+              <ConnectedVendorReviews vendorKey={vendor.id} dark={dark} />
+            </ProfileSectionReveal>
+          </Animated.ScrollView>
+        </View>
+
+        <FullscreenMediaViewer
+          visible={heroViewerIndex !== null}
+          media={vendor.heroMedia}
+          initialIndex={heroViewerIndex ?? 0}
+          title={`${vendor.name} · Hero gallery`}
+          onClose={() => setHeroViewerIndex(null)}
+        />
+        <PackageDetailsModal
+          visible={packagesVisible}
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          contactPhone={vendor.contactPhone}
+          dark={dark}
+          onClose={() => setPackagesVisible(false)}
+          onCall={(item) => requestVendorContact("call", item)}
+          onWhatsApp={(item) => requestVendorContact("whatsapp", item)}
+          onEnquire={(item) => {
+            setPackagesVisible(false);
+            setEnquiryPackage(item);
+          }}
+        />
+        <PackageEnquiryModal
+          visible={Boolean(enquiryPackage)}
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          item={enquiryPackage}
+          dark={dark}
+          onClose={() => setEnquiryPackage(null)}
+          onSignInRequired={() => router.push("/DashboardCenter")}
+          onSent={() => setEnquiryPackage(null)}
+        />
+        <VendorAvailabilityModal
+          visible={calendarVisible}
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          availability={vendor.availability}
+          dark={dark}
+          onClose={() => setCalendarVisible(false)}
+        />
+        <VendorClipsReelViewer
+          visible={reelViewerIndex !== null}
+          clips={vendorClips}
+          initialIndex={reelViewerIndex ?? 0}
+          vendorName={vendor.name}
+          verified
+          onClose={() => setReelViewerIndex(null)}
+        />
+      </View>
+    );
+  }
 
   if (wideProfile) {
     const widePageWidth = Math.min(width - (desktop ? 64 : 40), 1280);
@@ -692,12 +916,16 @@ export default function VendorsProfile() {
         )}
       >
           <ProfileSectionReveal scrollOffset={profileScrollOffset} viewportHeight={height}>
+          <View style={[styles.mobileCategoryRow, { paddingHorizontal: width < 440 ? 18 : 20 }]}>
+            <Text style={styles.desktopCategory}>{category.toUpperCase()}</Text>
+            <View style={[styles.desktopCategoryRule, { backgroundColor: sectionDivider }]} />
+          </View>
           <VendorInfoPanel
             name={vendor.name}
             rating={displayedRating.rating}
             reviewCount={displayedRating.reviews}
             location={vendor.location}
-            specialties={[category, ...vendor.tags]}
+            specialties={vendor.tags}
             verified
             topRated={Boolean(vendor.isTopRated)}
             dark={dark}
@@ -865,6 +1093,42 @@ export default function VendorsProfile() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  desktopSplit: {
+    width: "100%",
+    maxWidth: 1480,
+    flex: 1,
+    alignSelf: "center",
+    flexDirection: "row",
+    overflow: "hidden",
+  },
+  desktopPane: { flex: 1 },
+  desktopMediaPane: { flexBasis: "58%" },
+  desktopDetailsPane: { flexBasis: "42%", borderLeftWidth: StyleSheet.hairlineWidth },
+  desktopMediaContent: { paddingHorizontal: 32, paddingTop: 32, paddingBottom: 64 },
+  desktopDetailsContent: { paddingHorizontal: 40, paddingTop: 34, paddingBottom: 64 },
+  desktopHeroShell: {
+    width: "100%",
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 3,
+  },
+  desktopTabsWrap: { marginTop: 22 },
+  desktopPortfolioEmpty: { minHeight: 280, marginTop: 18 },
+  desktopCategoryRow: { width: "100%", flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
+  desktopCategory: {
+    color: PINK,
+    fontFamily: fonts.sans.bold,
+    fontSize: typeScale.metadata,
+    lineHeight: typeLeading.metadata,
+    letterSpacing: 0.45,
+  },
+  desktopCategoryRule: { flex: 1, height: StyleSheet.hairlineWidth },
+  mobileCategoryRow: { width: "100%", flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 20, marginBottom: -2 },
+  desktopDetailSection: { marginTop: 24 },
+  desktopEditorialSection: { paddingTop: 26, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#F2DDE5" },
   wideScroll: { flex: 1 },
   wideScrollContent: { width: "100%", alignItems: "center" },
   widePage: { maxWidth: "100%", alignSelf: "center", paddingTop: 24 },
@@ -920,16 +1184,14 @@ const styles = StyleSheet.create({
   portfolioEmptyTitle: { marginTop: 13, fontFamily: fonts.serif.bold, fontSize: typeScale.editorialCardTitle, lineHeight: typeLeading.sectionTitle, textAlign: "center" },
   portfolioEmptyText: { maxWidth: 430, marginTop: 6, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata, lineHeight: typeLeading.tab, textAlign: "center" },
   reviewsSection: { marginBottom: 16 },
-  sectionHeadingWrap: { alignSelf: "flex-start", marginBottom: 10 },
+  sectionHeadingWrap: { width: "100%", flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
   sectionHeading: {
     fontFamily: fonts.serif.bold,
     fontSize: typeScale.editorialCardTitle,
     lineHeight: typeLeading.editorialCardTitle,
     letterSpacing: -0.15,
   },
-  ornament: { width: 64, height: 7, flexDirection: "row", alignItems: "center", gap: 4 },
-  ornamentLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: "#FACC15" },
-  ornamentDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#FACC15" },
+  sectionHeadingRule: { flex: 1, height: StyleSheet.hairlineWidth },
   aboutText: { maxWidth: 900, fontFamily: fonts.sans.regular, fontSize: typeScale.body, lineHeight: typeLeading.body },
   readMore: {
     minHeight: 38,

@@ -101,7 +101,7 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
         <View style={styles.content}>
           <Text style={[styles.title, { color: colors.text }]}>Public Profile</Text>
           <Text style={[styles.hint, { color: colors.muted }]}>
-            Your public profile link and QR code will appear here once your business is approved.
+            Your public profile link and QR code are being prepared. Refresh in a moment.
           </Text>
         </View>
       </View>

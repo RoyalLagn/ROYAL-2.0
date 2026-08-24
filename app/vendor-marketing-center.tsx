@@ -38,7 +38,7 @@ export default function VendorMarketingCenter() {
 
   const vendor = data.vendor;
   const slug: string | undefined = vendor?.slug;
-  const approved = vendor?.management_status === "active" && vendor?.public_profile_enabled !== false && Boolean(slug);
+  const available = vendor?.public_profile_enabled !== false && Boolean(slug);
   const url = slug ? buildVendorPublicProfileUrl(slug) : "";
   const qrUrl = slug ? buildVendorPublicProfileUrl(slug, "qr") : "";
 
@@ -47,7 +47,7 @@ export default function VendorMarketingCenter() {
   }, [refresh]));
 
   useEffect(() => {
-    if (!vendor?.id || !approved) return;
+    if (!vendor?.id || !available) return;
     let active = true;
     getVendorProfileAnalytics(vendor.id)
       .then((result) => { if (active) setAnalytics(result); })
@@ -56,7 +56,7 @@ export default function VendorMarketingCenter() {
       .then((record) => { if (active) setGeneratedAt(record?.generatedAt ?? null); })
       .catch(() => { if (active) setGeneratedAt(null); });
     return () => { active = false; };
-  }, [vendor?.id, approved]);
+  }, [vendor?.id, available]);
 
   const handleOpenWebsite = useCallback(() => {
     if (!slug) return;
@@ -105,19 +105,19 @@ export default function VendorMarketingCenter() {
             </View>
           ) : null}
 
-          {!loading && !approved ? (
+          {!loading && !available ? (
             <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
               <View style={[styles.emptyIcon, { backgroundColor: colors.pink }]}>
                 <Sparkles size={24} color="#FFF" />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.text }]}>My Business Website</Text>
               <Text style={[styles.emptyText, { color: colors.muted }]}>
-                Your Business Website will become available after admin approval.
+                Your Business Website is being prepared. Refresh in a moment.
               </Text>
             </View>
           ) : null}
 
-          {approved ? (
+          {available ? (
             <>
               <WebsiteStatusCard
                 colors={colors}

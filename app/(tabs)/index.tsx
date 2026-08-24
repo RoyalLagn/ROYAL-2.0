@@ -3,7 +3,7 @@ import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, Styl
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  Bell, LocateFixed, MapPin, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, } from "lucide-react-native";
+  Bell, LocateFixed, MapPin, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, Settings2, } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { useFavorites } from "@/context/FavoritesContext";
@@ -59,6 +59,7 @@ export default function HomeScreen() {
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [categoryTogglePressed, setCategoryTogglePressed] = useState(false);
+  const [categoryToggleHovered, setCategoryToggleHovered] = useState(false);
   const [filters, setFilters] = useState<HomeFilters>(DEFAULT_HOME_FILTERS);
   const [liveVendors, setLiveVendors] = useState<PublicVendorListing[]>([]);
   // True only until the *first* vendor fetch settles -- background
@@ -74,7 +75,11 @@ export default function HomeScreen() {
     location: customerLocation,
     loading: customerLocationLoading,
   } = useCustomerLocation();
-  const { homeCategories: categories, loading: categoriesLoading } = useCategories();
+  const {
+    categories: allCategories,
+    homeCategories,
+    loading: categoriesLoading,
+  } = useCategories();
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [homeLocation, setHomeLocation] = useState<string | null>(null);
   const [homeLocationLoading, setHomeLocationLoading] = useState(false);
@@ -84,17 +89,17 @@ export default function HomeScreen() {
     homeScrollY.value = event.contentOffset.y;
   });
   const isDesktop = screenWidth >= 1100;
+  const categories = isDesktop ? allCategories.slice(0, 15) : homeCategories;
   const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
   const featureWidth = Math.min(screenWidth - horizontalInset * 2, 1280);
   const headerSideWidth = screenWidth < BREAKPOINTS.normalPhone ? 96 : 108;
   const headerLogoWidth = Math.max(96, Math.min(176, featureWidth - headerSideWidth * 2));
-  const categoryColumns = screenWidth < 360 ? 4 : 5;
-  const categoryItemWidth = featureWidth / categoryColumns;
-  const categoryCardWidth = isDesktop
-    ? Math.min(176, categoryItemWidth - 32)
-    : screenWidth >= 600
-      ? Math.min(102, categoryItemWidth - 20)
-      : Math.min(70, Math.max(54, categoryItemWidth - 10));
+  const categoryColumns = 5;
+  const categoryGap = isDesktop ? 28 : screenWidth >= 600 ? 10 : 6;
+  const availableCategoryWidth = Math.floor((featureWidth - categoryGap * (categoryColumns - 1)) / categoryColumns);
+  const categoryItemWidth = availableCategoryWidth;
+  const categoryCardInset = isDesktop ? Math.max(20, availableCategoryWidth - 184) : screenWidth >= 600 ? 14 : 8;
+  const categoryCardWidth = Math.max(44, categoryItemWidth - categoryCardInset);
   const vendorCardGap = screenWidth >= BREAKPOINTS.smallTablet ? 14 : 12;
   const vendorCardWidth = isDesktop
     ? 360
@@ -105,6 +110,10 @@ export default function HomeScreen() {
   const listBannerHeight = Math.min(Math.round(featureWidth * (887 / 1774)), 220);
   const sectionSpacing = isDesktop ? 48 : screenWidth >= 600 ? 42 : 36;
   const compactSectionSpacing = isDesktop ? 40 : screenWidth >= 600 ? 36 : 30;
+
+  useEffect(() => {
+    setShowAllCategories(false);
+  }, [isDesktop]);
 
   // Tablet + desktop: text/search left, 16:9 image right (image column larger).
   // Image drives height via aspect-ratio — left panel stretches to match, never
@@ -166,8 +175,8 @@ export default function HomeScreen() {
   }, []);
 
   const colors = brandColors(isDark);
-  const bg = colors.background;
-  const card = colors.card;
+  const bg = isDark ? colors.background : "#FFF9FB";
+  const card = isDark ? colors.card : "#FFFFFF";
   const text = isDark ? "#F5F0F3" : colors.foreground;
   const muted = colors.mutedForeground;
   const border = colors.border;
@@ -279,7 +288,7 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
         contentContainerStyle={[
           s.scroll,
-          { paddingBottom: isDesktop ? 32 : 0, backgroundColor: bg },
+          { paddingBottom: isDesktop ? 48 : 110, backgroundColor: bg },
         ]}
       >
 
@@ -293,10 +302,10 @@ export default function HomeScreen() {
               onPress={() => router.push("/NearbyVendors")}
               activeOpacity={0.72}
             >
-              <View style={s.locationIconWrap}><LocateFixed size={15} color={PINK} /></View>
+              <View style={[s.locationIconWrap, { backgroundColor: colors.actionTint }]}><LocateFixed size={15} color={PINK} /></View>
               <View style={s.locationCopy}>
-                <Text style={s.locationEyebrow}>{homeLocation ? "Your location" : "Location"}</Text>
-                <Text style={s.nearMeHeaderText} numberOfLines={1}>
+                <Text style={[s.locationEyebrow, { color: muted }]}>{homeLocation ? "Your location" : "Location"}</Text>
+                <Text style={[s.nearMeHeaderText, { color: PINK }]} numberOfLines={1}>
                   {homeLocationLoading ? "Locating…" : homeLocation?.split(",")[0]?.trim() || "Set location"}
                 </Text>
               </View>
@@ -381,7 +390,7 @@ export default function HomeScreen() {
                 {greeting}, {firstName} 👋
               </Text>
               <Text style={[s.greetingTitle, isDesktop && s.greetingTitleDesktop, { color: text }]}>
-                Find your <Text style={s.greetingAccent}>perfect</Text>{"\n"}wedding team
+                Find your <Text style={[s.greetingAccent, { color: PINK }]}>perfect</Text>{"\n"}wedding team
               </Text>
               <Text style={[s.heroSplitDescription, { color: muted }]}>
                 Explore handpicked wedding professionals to make your big day unforgettable.
@@ -441,7 +450,7 @@ export default function HomeScreen() {
                 {greeting}, {firstName} 👋
               </Text>
               <Text style={[s.greetingTitle, { color: text }]}>
-                Find your <Text style={s.greetingAccent}>perfect</Text>{"\n"}wedding team
+                Find your <Text style={[s.greetingAccent, { color: PINK }]}>perfect</Text>{"\n"}wedding team
               </Text>
 
               <View style={s.heroMobileSearchRow}>
@@ -598,7 +607,7 @@ export default function HomeScreen() {
             onActionPress={() => router.push("/(tabs)/Categories")}
           />
 
-          <View style={s.catGrid}>
+          <View style={[s.catGrid, { columnGap: categoryGap, rowGap: isDesktop ? 34 : categoryGap }]}>
             {displayedCategories.map((cat, index) => (
               <HomeCategoryCard
                 key={cat.id}
@@ -607,6 +616,7 @@ export default function HomeScreen() {
                 itemWidth={categoryItemWidth}
                 cardWidth={categoryCardWidth}
                 dark={isDark}
+                desktop={isDesktop}
                 animateEntrance={showAllCategories && index >= PRIMARY_CATEGORY_COUNT}
                 entranceDelay={Math.min(
                   Math.max(0, index - PRIMARY_CATEGORY_COUNT) * MotionStagger.item,
@@ -623,13 +633,22 @@ export default function HomeScreen() {
             onPress={() => setShowAllCategories((current) => !current)}
             onPressIn={() => setCategoryTogglePressed(true)}
             onPressOut={() => setCategoryTogglePressed(false)}
+            onHoverIn={() => setCategoryToggleHovered(true)}
+            onHoverOut={() => setCategoryToggleHovered(false)}
+            onFocus={() => setCategoryToggleHovered(true)}
+            onBlur={() => setCategoryToggleHovered(false)}
             style={[
               s.categoryToggle,
-              { backgroundColor: isDark ? colors.card : colors.background, borderColor: colors.frameBorder },
+              {
+                backgroundColor: categoryToggleHovered ? colors.accent : colors.card,
+                borderColor: categoryToggleHovered ? `${PINK}55` : colors.border,
+                shadowColor: isDark ? "#000000" : "#7F5065",
+              },
+              categoryToggleHovered && s.categoryToggleHovered,
               categoryTogglePressed && s.categoryTogglePressed,
             ]}
           >
-            <LayoutGrid size={17} color={PINK} strokeWidth={2.2} />
+            <Settings2 size={16} color={PINK} strokeWidth={2} />
             <Text style={[s.categoryToggleText, { color: PINK }]}>
               {showAllCategories ? "Fewer Categories" : "More Categories"}
             </Text>
@@ -810,7 +829,7 @@ export default function HomeScreen() {
             style={[StyleSheet.absoluteFill, s.listOverlay]}
           >
             <View style={s.listLeft}>
-              <Text style={s.listTitle}>List Your Business</Text>
+              <Text style={[s.listTitle, { color: PINK }]}>List Your Business</Text>
               <Text style={[s.listSub, { color: colors.secondaryForeground }]}>
                 Join thousands of vendors{"\n"}growing with us
               </Text>
@@ -840,7 +859,7 @@ export default function HomeScreen() {
 
 const s = StyleSheet.create<Record<string, any>>({
   root:            { flex: 1 },
-  scroll:          {},
+  scroll:          { flexGrow: 1 },
 
   /* Header */
   header:          { minHeight: 52, alignSelf: "center", flexDirection: "row", alignItems: "center" },
@@ -941,8 +960,9 @@ const s = StyleSheet.create<Record<string, any>>({
 
   /* Categories */
   section:         { alignSelf: "center" },
-  catGrid:         { flexDirection: "row", flexWrap: "wrap" },
-  categoryToggle:  { alignSelf: "center", minHeight: 44, marginTop: 6, paddingHorizontal: 22, borderRadius: 999, borderWidth: 1.25, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
+  catGrid:         { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", marginTop: 13 },
+  categoryToggle:  { alignSelf: "center", minHeight: 46, marginTop: 24, paddingHorizontal: 24, borderRadius: 999, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
+  categoryToggleHovered: { shadowOpacity: 0.09, transform: [{ translateY: -1 }] },
   categoryTogglePressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
   categoryToggleText: { fontFamily: fonts.sans.bold, fontSize: typeScale.bodyCompact },
 

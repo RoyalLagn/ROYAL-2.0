@@ -37,7 +37,7 @@ function VendorProfileTabs({
     }).start();
   }, [progress, selected]);
 
-  const indicatorWidth = Math.max(0, (width / 2) - 32);
+  const indicatorWidth = Math.max(0, width / 2);
   const translateX = progress.interpolate({
     inputRange: [0, 1],
     outputRange: [0, width / 2],
@@ -53,7 +53,7 @@ function VendorProfileTabs({
       style={[
         styles.container,
         {
-          backgroundColor: dark ? "rgba(255,255,255,.035)" : "#FFF9FB",
+          backgroundColor: "transparent",
           borderBottomColor: dark ? "#30242B" : "#F2E4E9",
         },
       ]}
@@ -113,22 +113,16 @@ const styles = StyleSheet.create({
     height: 46,
     marginTop: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderRadius: 13,
     flexDirection: "row",
     alignItems: "center",
   },
   indicator: {
     position: "absolute",
-    left: 16,
+    left: 0,
     bottom: 0,
     height: 2,
     borderTopLeftRadius: 3,
     borderTopRightRadius: 3,
-    shadowColor: "#E91E63",
-    shadowOpacity: 0.16,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
   },
   tab: {
     flex: 1,
@@ -136,11 +130,10 @@ const styles = StyleSheet.create({
     zIndex: 1,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
   },
   tabWeb: { outlineStyle: "none" } as any,
   tabPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
-  tabHovered: { backgroundColor: "rgba(233,30,99,.035)" },
+  tabHovered: { backgroundColor: "rgba(233,30,99,.025)" },
   label: { fontFamily: fonts.sans.semibold, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.tab, letterSpacing: 0.05 },
   labelActive: { fontFamily: fonts.sans.bold },
 });

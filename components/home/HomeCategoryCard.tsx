@@ -6,7 +6,7 @@ import Animated, {
 import SafeImage from "@/components/SafeImage";
 import { brandColors } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
-import { MotionDistance, MotionTiming } from "@/utils/motion";
+import { MotionDistance, MotionPress, MotionTiming } from "@/utils/motion";
 
 type HomeCategoryCardProps = {
   name: string;
@@ -14,6 +14,7 @@ type HomeCategoryCardProps = {
   itemWidth: number;
   cardWidth: number;
   dark: boolean;
+  desktop?: boolean;
   onPress: () => void;
   animateEntrance?: boolean;
   entranceDelay?: number;
@@ -36,19 +37,22 @@ function HomeCategoryCard({
   itemWidth,
   cardWidth,
   dark,
+  desktop = false,
   onPress,
   animateEntrance = false,
   entranceDelay = 0,
 }: HomeCategoryCardProps) {
   const reducedMotion = useReducedMotion();
   const pressed = useSharedValue(1);
+  const hover = useSharedValue(0);
   const entrance = useSharedValue(animateEntrance ? 0 : 1);
   const colors = brandColors(dark);
-  // Slightly taller portrait frame than the prior 0.78 ratio.
-  const cardHeight = Math.round(cardWidth / 0.70);
+  const compact = itemWidth < 100;
+  const cardPadding = compact ? 4 : desktop ? 0 : 10;
+  const cardHeight = Math.round(cardWidth / (compact ? 0.92 : desktop ? 0.72 : 0.82));
   // Slimmer inset so the photo fills more of the frame.
   const framePadding = Math.min(5, Math.max(3.5, Math.round(cardWidth * 0.055)));
-  const outerRadius = Math.min(22, Math.max(16, Math.round(cardWidth * 0.26)));
+  const outerRadius = compact ? 14 : Math.min(20, Math.max(15, Math.round(cardWidth * 0.18)));
   const innerRadius = Math.max(12, outerRadius - framePadding);
   const sparkleSize = Math.min(11, Math.max(7, Math.round(cardWidth * 0.14)));
   const isLongSingleWord = !/\s/.test(name) && name.length > 10;
@@ -66,19 +70,27 @@ function HomeCategoryCard({
   }, [animateEntrance, entrance, entranceDelay]);
 
   const pressStyle = useAnimatedStyle<ViewStyle>(() => ({
-    opacity: pressed.value * entrance.value,
+    opacity: entrance.value,
     transform: [
-      { translateY: reducedMotion ? 0 : (1 - entrance.value) * MotionDistance.cardEnter },
+      { translateY: reducedMotion ? 0 : (1 - entrance.value) * MotionDistance.cardEnter - hover.value * 2 },
       { scale: pressed.value },
     ],
   }));
 
   const handlePressIn = () => {
-    pressed.value = reducedMotion ? 0.97 : withTiming(0.97, { duration: 90 });
+    pressed.value = reducedMotion ? MotionPress.scale : withTiming(MotionPress.scale, MotionTiming.press);
   };
 
   const handlePressOut = () => {
-    pressed.value = reducedMotion ? 1 : withTiming(1, { duration: 120 });
+    pressed.value = reducedMotion ? 1 : withTiming(1, MotionTiming.press);
+  };
+
+  const handleHoverIn = () => {
+    hover.value = reducedMotion ? 0 : withTiming(1, MotionTiming.press);
+  };
+
+  const handleHoverOut = () => {
+    hover.value = withTiming(0, MotionTiming.press);
   };
 
   const labelWebStyle = Platform.OS === "web"
@@ -92,9 +104,25 @@ function HomeCategoryCard({
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      onFocus={handleHoverIn}
+      onBlur={handleHoverOut}
       style={[styles.pressable, { width: itemWidth }]}
     >
-      <Animated.View style={[styles.animatedItem, pressStyle]}>
+      <Animated.View
+        style={[
+          styles.animatedItem,
+          compact && styles.animatedItemCompact,
+          {
+            padding: cardPadding,
+            backgroundColor: dark ? colors.card : "#FFFFFF",
+            shadowColor: dark ? "#000000" : "#8A4560",
+          },
+          desktop && styles.animatedItemDesktop,
+          pressStyle,
+        ]}
+      >
         <View
           style={[
             styles.frame,
@@ -194,6 +222,8 @@ function HomeCategoryCard({
             styles.label,
             cardWidth < 60 && styles.labelNarrow,
             isLongSingleWord && styles.singleWordLabel,
+            compact && styles.labelCompact,
+            desktop && styles.labelDesktop,
             { color: dark ? "#E5DCE1" : colors.foreground },
             labelWebStyle,
           ]}
@@ -210,12 +240,19 @@ export default React.memo(HomeCategoryCard);
 const styles = StyleSheet.create({
   pressable: {
     alignItems: "center",
-    marginBottom: 20,
   },
   animatedItem: {
     width: "100%",
     alignItems: "center",
+    padding: 10,
+    borderRadius: 16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.04,
+    elevation: 2,
   },
+  animatedItemCompact: { shadowOpacity: 0, elevation: 0 },
+  animatedItemDesktop: { backgroundColor: "transparent", shadowOpacity: 0, elevation: 0 },
   frame: {
     borderWidth: 1.25,
     alignItems: "center",
@@ -241,7 +278,7 @@ const styles = StyleSheet.create({
   label: {
     width: "100%",
     height: 30,
-    marginTop: 8,
+    marginTop: 12,
     paddingHorizontal: 1,
     fontFamily: fonts.sans.bold,
     fontSize: typeScale.caption,
@@ -250,6 +287,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     includeFontPadding: false,
   },
+  labelCompact: { height: 27, marginTop: 6, fontSize: 10, lineHeight: 12, letterSpacing: -0.22 },
+  labelDesktop: { height: 32, marginTop: 12, fontSize: 14, lineHeight: 18 },
   labelNarrow: {
     fontSize: typeScale.caption,
     lineHeight: typeLeading.caption,

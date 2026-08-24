@@ -180,15 +180,6 @@ export async function resolveVendorDestination(user: User | null): Promise<Vendo
     return { state: "no_application", destination: { pathname: "/BecomeVendor" }, application: null, vendor: null };
   }
 
-  if (application.status === "pending") {
-    return {
-      state: "pending",
-      destination: { pathname: "/VendorAuthStatus", params: { status: "pending" } },
-      application,
-      vendor: null,
-    };
-  }
-
   if (application.status === "rejected") {
     return {
       state: "rejected",
@@ -201,9 +192,11 @@ export async function resolveVendorDestination(user: User | null): Promise<Vendo
     };
   }
 
-  // application.status === "approved" from here on.
+  // A valid vendor can begin using their workspace immediately. Approval is
+  // no longer a prerequisite for their personal website, QR, or marketing
+  // card; those are self-service assets created during their first login.
   let vendor = await fetchVendorRecord(user.id);
-  const needsClaim = !vendor || vendor.profile_id !== user.id || !vendor.is_verified;
+  const needsClaim = !vendor || vendor.profile_id !== user.id;
 
   if (needsClaim) {
     const { error: claimError } = await supabase.rpc("claim_vendor_workspace");
@@ -214,14 +207,7 @@ export async function resolveVendorDestination(user: User | null): Promise<Vendo
     vendor = await fetchVendorRecord(user.id);
   }
 
-  if (!vendor?.is_verified) {
-    return {
-      state: "approved_unverified",
-      destination: { pathname: "/VendorAuthStatus", params: { status: "pending" } },
-      application,
-      vendor,
-    };
-  }
+  if (!vendor) throw new Error("Unable to create your Vendor workspace. Please try again.");
 
   return { state: "approved_verified", destination: { pathname: "/vendor-dashboard" }, application, vendor };
 }
