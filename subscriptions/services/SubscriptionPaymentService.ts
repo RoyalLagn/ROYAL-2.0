@@ -2,25 +2,38 @@ import { supabase } from "@/services/supabase";
 import { openRazorpayCheckout } from "@/subscriptions/payments/RazorpayCheckout";
 import type { RazorpayOrder } from "@/subscriptions/payments/types";
 
-async function functionErrorMessage(error: unknown, fallback: string) {
-  const context = (error as { context?: unknown } | null)?.context;
-  if (typeof Response !== "undefined" && context instanceof Response) {
-    try {
-      const payload = await context.clone().json();
-      if (payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string") {
-        return payload.error;
-      }
-    } catch {
-      try {
-        const message = await context.clone().text();
-        if (message.trim()) return message.trim();
-      } catch {
-        // Fall through to the original error message.
-      }
-    }
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+async function invokePaymentFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  if (!supabaseUrl || !supabaseAnonKey) throw new Error("Supabase payment configuration is missing");
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!session?.access_token) throw new Error("Your session expired. Sign in again and retry payment.");
+
+  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/${name}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: supabaseAnonKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const raw = await response.text();
+  let payload: unknown = null;
+  try {
+    payload = raw ? JSON.parse(raw) : null;
+  } catch {
+    if (!response.ok) throw new Error(raw.trim() || `Payment service failed (${response.status})`);
   }
-  if (error instanceof Error && error.message.trim()) return error.message;
-  return fallback;
+  if (!response.ok) {
+    const message = payload && typeof payload === "object" && "error" in payload
+      ? String(payload.error)
+      : `Payment service failed (${response.status})`;
+    throw new Error(message);
+  }
+  return payload as T;
 }
 
 function idempotencyKey(quoteId: string) {
@@ -40,17 +53,14 @@ export class SubscriptionPaymentService {
     quoteId?: string;
   }) {
     if (!input.quoteId) throw new Error("Pricing is not ready. Refresh the plans and try again.");
-    const { data: order, error: orderError } = await supabase.functions.invoke<RazorpayOrder>("create-razorpay-order", {
-      body: {
-        planId: input.planId,
-        billingOptionId: input.billingOptionId ?? null,
-        offerId: input.offerId ?? null,
-        deferActivation: input.deferActivation ?? false,
-        quoteId: input.quoteId,
-        idempotencyKey: idempotencyKey(input.quoteId),
-      },
+    const order = await invokePaymentFunction<RazorpayOrder>("create-razorpay-order", {
+      planId: input.planId,
+      billingOptionId: input.billingOptionId ?? null,
+      offerId: input.offerId ?? null,
+      deferActivation: input.deferActivation ?? false,
+      quoteId: input.quoteId,
+      idempotencyKey: idempotencyKey(input.quoteId),
     });
-    if (orderError) throw new Error(await functionErrorMessage(orderError, "Unable to start payment"));
     if (!order) throw new Error("Unable to start payment");
     if ((order as any).error) throw new Error((order as any).error);
     if (order.freeActivation) return { success: true, freeActivation: true };
@@ -75,16 +85,11 @@ export class SubscriptionPaymentService {
       }
       throw checkoutError;
     }
-    const { data: verification, error: verificationError } = await supabase.functions.invoke("verify-razorpay-payment", {
-      body: {
-        razorpayOrderId: checkout.razorpay_order_id,
-        razorpayPaymentId: checkout.razorpay_payment_id,
-        razorpaySignature: checkout.razorpay_signature,
-      },
+    const verification = await invokePaymentFunction<Record<string, unknown>>("verify-razorpay-payment", {
+      razorpayOrderId: checkout.razorpay_order_id,
+      razorpayPaymentId: checkout.razorpay_payment_id,
+      razorpaySignature: checkout.razorpay_signature,
     });
-    if (verificationError) {
-      throw new Error(await functionErrorMessage(verificationError, "Payment verification failed"));
-    }
     if (!(verification as any)?.subscriptionActive) {
       throw new Error((verification as any)?.error ?? "Payment verification did not activate the subscription");
     }

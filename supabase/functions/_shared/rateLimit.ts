@@ -36,7 +36,11 @@ export async function checkRateLimit(
 
     return true;
   } catch (error) {
-    console.error("[rateLimit] check failed, allowing request", error);
+    console.error("[rateLimit] check failed, allowing request", {
+      message: error && typeof error === "object" && "message" in error ? String(error.message) : String(error ?? ""),
+      code: error && typeof error === "object" && "code" in error ? String(error.code) : null,
+      details: error && typeof error === "object" && "details" in error ? String(error.details) : null,
+    });
     return true;
   }
 }

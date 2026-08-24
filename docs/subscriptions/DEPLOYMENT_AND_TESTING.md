@@ -4,16 +4,13 @@
 
 1. Apply migrations `20260801120000` through `20260801123000` in timestamp order.
 2. Configure Edge Function secrets with `supabase secrets set`:
-   `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`,
-   `RAZORPAY_WEBHOOK_SECRET`, `SUBSCRIPTION_CRON_SECRET`, plus the existing
+   `RAZORPAY_TEST_KEY_ID`, `RAZORPAY_TEST_KEY_SECRET`,
+   `SUBSCRIPTION_CRON_SECRET`, plus the existing
    Supabase and Cloudinary server secrets.
 3. Deploy `create-razorpay-order`, `verify-razorpay-payment`,
-   `razorpay-webhook`, `record-razorpay-checkout-outcome`, and
+   `record-razorpay-checkout-outcome`, and
    `process-subscription-lifecycle`.
-4. In the Razorpay dashboard for the same environment as the configured keys, point the webhook at
-   `/functions/v1/razorpay-webhook` and subscribe to `payment.authorized`,
-   `payment.captured`, `payment.failed`, `order.paid`, and `refund.processed`.
-5. Schedule a daily POST to `/functions/v1/process-subscription-lifecycle`
+4. Schedule a daily POST to `/functions/v1/process-subscription-lifecycle`
    with `x-cron-secret`. Running it more often is safe: lifecycle changes,
    webhook events, payments, and reminder logs are idempotent.
 
@@ -40,9 +37,8 @@ portfolio, and Clip read policies are unchanged.
 - Daily lifecycle processing queues one reminder per type/date and transitions
   trial, launch, active and grace-period access exactly once.
 
-## Production activation
+## Test activation
 
-Live payments are enabled by configuring matching live `RAZORPAY_KEY_ID` and
-`RAZORPAY_KEY_SECRET` secrets, setting a production webhook secret, deploying
-the functions, and enabling the listed events in Razorpay. No credential is
+Test payments are enabled by configuring `RAZORPAY_TEST_KEY_ID` and
+`RAZORPAY_TEST_KEY_SECRET` secrets and deploying the payment functions. No credential is
 stored in the client bundle or database.

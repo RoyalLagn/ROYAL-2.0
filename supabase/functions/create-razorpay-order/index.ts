@@ -1,5 +1,6 @@
 import {
   corsHeaders,
+  errorMessage,
   json,
   razorpayAuthorization,
   requireOwnedVendor,
@@ -115,18 +116,7 @@ Deno.serve(async (request) => {
     }
 
     const paymentId = existing?.id ?? crypto.randomUUID();
-    const { data: claimedQuote, error: claimError } = await admin
-      .from("subscription_checkout_quotes")
-      .update({ payment_id: paymentId })
-      .eq("id", quoteId)
-      .is("used_at", null)
-      .or(`payment_id.is.null,payment_id.eq.${paymentId}`)
-      .select("id")
-      .maybeSingle();
-    if (claimError) throw claimError;
-    if (!claimedQuote) {
-      return json({ error: "This pricing quote is already being used by another checkout." }, 409);
-    }
+    let insertedPayment = false;
     if (!existing) {
       const { error: insertError } = await admin.from("subscription_payments").insert({
         id: paymentId,
@@ -153,14 +143,27 @@ Deno.serve(async (request) => {
           pricing,
         },
       });
-      if (insertError) {
-        await admin.from("subscription_checkout_quotes")
-          .update({ payment_id: null })
-          .eq("id", quoteId)
-          .eq("payment_id", paymentId)
-          .is("used_at", null);
-        throw insertError;
-      }
+      if (insertError) throw insertError;
+      insertedPayment = true;
+    }
+
+    // payment_id is an immediate foreign key, so the payment row must exist
+    // before the quote can be claimed with that ID.
+    const { data: claimedQuote, error: claimError } = await admin
+      .from("subscription_checkout_quotes")
+      .update({ payment_id: paymentId })
+      .eq("id", quoteId)
+      .is("used_at", null)
+      .or(`payment_id.is.null,payment_id.eq.${paymentId}`)
+      .select("id")
+      .maybeSingle();
+    if (claimError) {
+      if (insertedPayment) await admin.from("subscription_payments").delete().eq("id", paymentId).eq("payment_status", "created");
+      throw claimError;
+    }
+    if (!claimedQuote) {
+      if (insertedPayment) await admin.from("subscription_payments").delete().eq("id", paymentId).eq("payment_status", "created");
+      return json({ error: "This pricing quote is already being used by another checkout." }, 409);
     }
 
     if (Number(resolved.amount_minor) === 0) {
@@ -224,9 +227,12 @@ Deno.serve(async (request) => {
       pricing,
     });
   } catch (error) {
+    const message = errorMessage(error, "Unable to start payment");
     console.error("[create-razorpay-order]", {
-      message: error instanceof Error ? error.message : "Unable to start payment",
+      message,
+      code: error && typeof error === "object" && "code" in error ? String(error.code) : null,
+      details: error && typeof error === "object" && "details" in error ? String(error.details) : null,
     });
-    return json({ error: error instanceof Error ? error.message : "Unable to start payment" }, 400);
+    return json({ error: message }, 400);
   }
 });

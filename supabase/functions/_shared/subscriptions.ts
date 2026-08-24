@@ -18,6 +18,19 @@ export function requireEnv(name: string) {
   return value;
 }
 
+export function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (error && typeof error === "object") {
+    const candidate = error as Record<string, unknown>;
+    for (const field of ["message", "details", "hint", "code"]) {
+      const value = candidate[field];
+      if (typeof value === "string" && value.trim()) return value;
+    }
+  }
+  if (typeof error === "string" && error.trim()) return error;
+  return fallback;
+}
+
 export function userClient(authorization: string) {
   return createClient(requireEnv("SUPABASE_URL"), requireEnv("SUPABASE_ANON_KEY"), {
     global: { headers: { Authorization: authorization } },
@@ -47,10 +60,10 @@ export async function requireOwnedVendor(client: SupabaseClient) {
 }
 
 export function razorpayAuthorization() {
-  const keyId = requireEnv("RAZORPAY_KEY_ID");
-  const keySecret = requireEnv("RAZORPAY_KEY_SECRET");
-  if (!/^rzp_(?:live|test)_[A-Za-z0-9]+$/.test(keyId)) {
-    throw new Error("RAZORPAY_KEY_ID is not a valid Razorpay key ID");
+  const keyId = requireEnv("RAZORPAY_TEST_KEY_ID");
+  const keySecret = requireEnv("RAZORPAY_TEST_KEY_SECRET");
+  if (!/^rzp_test_[A-Za-z0-9]+$/.test(keyId)) {
+    throw new Error("RAZORPAY_TEST_KEY_ID is not a valid Razorpay test key ID");
   }
   return { keyId, keySecret, header: `Basic ${btoa(`${keyId}:${keySecret}`)}` };
 }
