@@ -2,20 +2,15 @@ import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { Href, useRouter } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
-import type { DashboardHealth, DashboardStatistics } from "@/types/adminDashboard";
+import type { DashboardStatistics } from "@/types/adminDashboard";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import { typeStyles } from "@/constants/typography";
 
-export function PendingTasks({ statistics, health }: { statistics: DashboardStatistics; health: DashboardHealth }) {
+export function PendingTasks({ statistics }: { statistics: DashboardStatistics }) {
   const router = useRouter();
   const { isPhone } = useResponsiveLayout();
-  const warnings = Object.entries(health).filter(([key, value]) => key !== "lastCheckedAt" && value === "unavailable").length;
   const tasks = [
     ["Pending Vendor Applications", statistics.pendingApplications, "High", "/VendorApplications"],
-    ["Rejected Vendors Awaiting Resubmission", statistics.rejectedApplications, "Medium", "/VendorApplications"],
-    ["Incomplete Vendor Profiles", statistics.incompleteVendorProfiles, "Medium", "/vendors-admin-listing"],
-    ["Expired Subscriptions", statistics.expiredSubscriptions, "Medium", "/subscriptions-admin"],
-    ["System Warnings", warnings, warnings ? "High" : "Healthy", "/AdminReports"],
   ] as const;
   return (
     <View className="rounded-xl border border-border bg-background overflow-hidden">

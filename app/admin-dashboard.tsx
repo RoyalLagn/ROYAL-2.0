@@ -20,7 +20,6 @@ function DashboardContent() {
   const { snapshot, loading, refreshing, refresh } = useAdminDashboard();
   const { width } = useWindowDimensions();
   const statistics = snapshot?.statistics.data;
-  const health = snapshot?.health.data;
   const desktop = width >= 1120;
   const updatedAt = snapshot?.loadedAt ?? Date.now();
   return (
@@ -33,7 +32,7 @@ function DashboardContent() {
         contentContainerStyle={{ paddingBottom: 118 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}
       >
-        <DashboardHeader refreshing={refreshing} onRefresh={() => void refresh()} health={health} />
+        <DashboardHeader refreshing={refreshing} onRefresh={() => void refresh()} />
 
         <ResponsiveContainer style={{ maxWidth: 1440, alignSelf: "center" }}>
           <ResponsiveSection>
@@ -46,7 +45,7 @@ function DashboardContent() {
             <View style={desktop ? { flex: 1, minWidth: 0 } : undefined}>
               <ResponsiveSection>
                 <DashboardWidget title="Pending Tasks" subtitle="Current administrator workload" icon={ListTodo} loading={loading && !snapshot} error={snapshot?.statistics.error || snapshot?.health.error} onRefresh={() => void refresh()}>
-                  {statistics && health ? <PendingTasks statistics={statistics} health={health} /> : <DashboardEmpty message="Tasks are unavailable." />}
+                  {statistics ? <PendingTasks statistics={statistics} /> : <DashboardEmpty message="Tasks are unavailable." />}
                 </DashboardWidget>
               </ResponsiveSection>
             </View>

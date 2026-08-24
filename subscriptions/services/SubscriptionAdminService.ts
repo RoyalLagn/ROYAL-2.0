@@ -249,9 +249,9 @@ export class SubscriptionAdminService {
     if (error) throw error;
   }
 
-  static async listVendors(search = "", status = "all", categoryId: string | null = null, planId: string | null = null) {
+  static async listVendors(search = "", status = "all", categoryId: string | null = null, planId: string | null = null, page = 1, pageSize = 30) {
     const [{ data, error }, { data: usage, error: usageError }] = await Promise.all([
-      supabase.rpc("admin_list_vendor_subscriptions", { search_text: search || null, status_filter: status, plan_filter: planId || null, page_size: 100, page_offset: 0, category_filter: categoryId || null }),
+      supabase.rpc("admin_list_vendor_subscriptions", { search_text: search || null, status_filter: status, plan_filter: planId || null, page_size: pageSize, page_offset: Math.max(0, page - 1) * pageSize, category_filter: categoryId || null }),
       supabase.rpc("admin_subscription_media_usage"),
     ]);
     if (error) throw error;

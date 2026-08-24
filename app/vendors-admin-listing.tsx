@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Alert, Modal, Pressable, ScrollView, Switch,
-  Text, TextInput, View,
+  Text, TextInput, useWindowDimensions, View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -47,7 +47,9 @@ const sorts: { value: VendorSort; label: string }[] = [
 
 export default function VendorsAdminListing() {
   const router = useRouter();
+  const { width: viewportWidth } = useWindowDimensions();
   const vendors = useAdminVendors();
+  const [vendorGridWidth, setVendorGridWidth] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [actionRecord, setActionRecord] = useState<AdminVendorRecord | null>(null);
   const [operation, setOperation] = useState<ManagementOperation | null>(null);
@@ -64,6 +66,11 @@ export default function VendorsAdminListing() {
   const [registrationError, setRegistrationError] = useState("");
   const exportCancelled = useRef(false);
   const pageCount = Math.max(1, Math.ceil(vendors.total / vendors.filters.pageSize));
+  const vendorColumns = viewportWidth >= 1100 ? 3 : viewportWidth >= 700 ? 2 : 1;
+  const vendorGridGap = 12;
+  const vendorCardWidth = vendorGridWidth > 0
+    ? (vendorGridWidth - vendorGridGap * (vendorColumns - 1)) / vendorColumns
+    : undefined;
   const activeStatistic = vendors.filters.updatedToday ? "activeToday"
     : vendors.filters.plan === "premium" ? "premium"
       : vendors.filters.plan === "free" ? "free"
@@ -328,20 +335,35 @@ export default function VendorsAdminListing() {
               : !vendors.rows.length ? <AdminEmptyState title="No vendors found" message="Adjust the search or filters to find matching vendor records." />
                 : <>
                   {vendors.refreshing ? <AdminRefreshIndicator label="Updating vendor list…" /> : null}
-                  <View className="gap-3">{vendors.rows.map((item) => (
-                    <VendorCard
-                      key={item.record_id}
-                      item={item}
-                      onView={() => router.push({ pathname: "/AdminVendorDetails", params: { id: item.record_id } })}
-                      onActions={() => { setActionRecord(item); setActionMenuOpen(true); }}
-                      onApprove={() => beginAction("approve", item)}
-                      onReject={() => beginAction("reject", item)}
-                      health={item.vendor_id ? vendors.health[item.vendor_id] : undefined}
-                    />
-                  ))}</View>
+                  <View
+                    className="flex-row flex-wrap"
+                    style={{ gap: vendorGridGap }}
+                    onLayout={(event) => setVendorGridWidth(event.nativeEvent.layout.width)}
+                  >
+                    {vendors.rows.map((item) => (
+                      <View key={item.record_id} style={{ width: vendorCardWidth ?? "100%" }}>
+                        <VendorCard
+                          item={item}
+                          onView={() => router.push({ pathname: "/AdminVendorDetails", params: { id: item.record_id } })}
+                          onActions={() => { setActionRecord(item); setActionMenuOpen(true); }}
+                          onApprove={() => beginAction("approve", item)}
+                          onReject={() => beginAction("reject", item)}
+                          health={item.vendor_id ? vendors.health[item.vendor_id] : undefined}
+                        />
+                      </View>
+                    ))}
+                  </View>
                 </>}
 
-          <PaginationBar page={vendors.filters.page} pages={pageCount} onPage={(page) => vendors.updateFilters({ page })} />
+          {pageCount > 1 ? (
+            <PaginationBar
+              page={vendors.filters.page}
+              pages={pageCount}
+              total={vendors.total}
+              pageSize={vendors.filters.pageSize}
+              onPage={(page) => vendors.updateFilters({ page })}
+            />
+          ) : null}
         </ResponsiveContainer>
       </ScrollView>
 

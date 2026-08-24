@@ -23,8 +23,10 @@ import { AdminUserService, type AdminPublicUser } from "@/services/adminUsers";
 import { adminErrorMessage } from "@/services/adminErrors";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 
+const USERS_PER_PAGE = 30;
+
 export default function AdminUsers() {
-  const { isPhone } = useResponsiveLayout();
+  const { isPhone, isTablet } = useResponsiveLayout();
   const [users, setUsers] = useState<AdminPublicUser[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
@@ -72,9 +74,10 @@ export default function AdminUsers() {
         .some((value) => String(value).toLowerCase().includes(normalized))));
     return rows.sort((a, b) => sort === "name" ? a.full_name.localeCompare(b.full_name) : sort === "oldest" ? Date.parse(a.created_at) - Date.parse(b.created_at) : Date.parse(b.created_at) - Date.parse(a.created_at));
   }, [query, sort, status, users]);
-  const pages = Math.max(1, Math.ceil(filtered.length / 15));
+  const pages = Math.max(1, Math.ceil(filtered.length / USERS_PER_PAGE));
   const currentPage = Math.min(page, pages);
-  const visible = filtered.slice((currentPage - 1) * 15, currentPage * 15);
+  const visible = filtered.slice((currentPage - 1) * USERS_PER_PAGE, currentPage * USERS_PER_PAGE);
+  const userCardBasis = isPhone ? "100%" : isTablet ? "48%" : "32%";
 
   const updateUserStatus = async (user: AdminPublicUser, isActive: boolean) => {
     setActionUser(null);
@@ -155,8 +158,8 @@ export default function AdminUsers() {
           {loading ? <AdminLoadingState label="Loading live customer profiles…" />
             : error ? <AdminErrorState message={error} onRetry={() => void load()} />
               : !visible.length ? <AdminEmptyState title="No users found" message={query || status !== "all" ? "Try another search or status filter." : "Customer accounts will appear here after registration."} />
-                : <View className={isPhone ? "gap-3" : "flex-row flex-wrap gap-3"}>{visible.map((user, index) => <AdminReveal key={user.id} index={index} style={isPhone ? undefined : { flexBasis: "48%", flexGrow: 1, minWidth: 320 }}><UserCard user={user} compact={isPhone} onActions={() => setActionUser(user)} /></AdminReveal>)}</View>}
-          {!loading && !error && filtered.length > 15 ? <PaginationBar page={currentPage} pages={pages} onPage={setPage} /> : null}
+                : <View className="flex-row flex-wrap gap-3">{visible.map((user, index) => <AdminReveal key={user.id} index={index} style={{ flexBasis: userCardBasis, flexGrow: isPhone ? 0 : 1, maxWidth: userCardBasis }}><UserCard user={user} compact={isPhone} onActions={() => setActionUser(user)} /></AdminReveal>)}</View>}
+          {!loading && !error && filtered.length > USERS_PER_PAGE ? <PaginationBar page={currentPage} pages={pages} onPage={setPage} total={filtered.length} pageSize={USERS_PER_PAGE} /> : null}
         </ResponsiveContainer>
       </ScrollView>
       <UserActionMenu
@@ -184,7 +187,6 @@ function UserCard({ user, compact, onActions }: { user: AdminPublicUser; compact
       accessible
       accessibilityLabel={`${user.full_name}, ${user.is_active ? "active" : "inactive"} account`}
       className="bg-card border border-border rounded-2xl p-4 hover:border-primary/35 hover:bg-primary/5 transition-colors duration-200"
-      style={compact ? undefined : { flexBasis: "48%", flexGrow: 1, minWidth: 320 }}
     >
       <View className="flex-row items-start">
         {user.profile_image ? (

@@ -6,6 +6,7 @@ import { CalendarClock, Crown, Edit3, Gift, Plus, RefreshCw, Search, Trash2, Use
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminReveal } from "@/components/admin/ui/AdminReveal";
+import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { SubscriptionAdminService, type AdminBillingOptionInput, type AdminPlanInput, type AdminPlanStatus, type AdminSubscriberCategoryCount, type AdminVendorSubscriptionRow } from "@/subscriptions/services/SubscriptionAdminService";
 import { formatSubscriptionPrice, subscriptionStatusLabel } from "@/subscriptions/utils";
 import { isSubscriptionSchemaMissing, subscriptionErrorMessage } from "@/subscriptions/error";
@@ -13,6 +14,7 @@ import { typeScale, typeLeading } from "@/constants/typography";
 import { adminPalette } from "@/theme";
 import { MembershipBadge } from "@/components/vendor/MembershipBadge";
 import { HierarchySelect } from "@/components/admin/locations/HierarchySelect";
+import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 
 type Tab = "plans" | "vendors" | "offers";
 const pink = adminPalette.brand;
@@ -26,6 +28,7 @@ const MEDIA_FEATURE_KEYS = { clips: "upload_clips", images: "upload_gallery" } a
 // private.vendor_photo_limit both coalesce to 10 when unconfigured) — used only
 // to pre-fill a brand-new plan's content change counts, never hard-coded per plan.
 const DEFAULT_MEDIA_LIMIT = 10;
+const SUBSCRIBERS_PER_PAGE = 30;
 
 /**
  * Supabase/PostgREST errors (PostgrestError) are plain objects, not
@@ -109,6 +112,7 @@ function Field({ label, value, onChangeText, placeholder, numeric, multiline, ed
 }
 
 export default function SubscriptionsAdmin() {
+  const { isPhone, isTablet } = useResponsiveLayout();
   const [tab, setTab] = useState<Tab>("plans");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -119,6 +123,8 @@ export default function SubscriptionsAdmin() {
   const [plans, setPlans] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [vendors, setVendors] = useState<AdminVendorSubscriptionRow[]>([]);
+  const [subscriberPage, setSubscriberPage] = useState(1);
+  const [subscriberTotal, setSubscriberTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
@@ -143,10 +149,13 @@ export default function SubscriptionsAdmin() {
     try {
       const nextPlans = await SubscriptionAdminService.listPlans();
       const [nextMetrics, nextOffers, nextVendors, nextFeatures, nextCategoryCounts] = await Promise.all([
-        SubscriptionAdminService.metrics(), SubscriptionAdminService.listOffers(), SubscriptionAdminService.listVendors(search, statusFilter, categoryFilter, planFilter), SubscriptionAdminService.listFeatures(),
+        SubscriptionAdminService.metrics(), SubscriptionAdminService.listOffers(), SubscriptionAdminService.listVendors(search, statusFilter, categoryFilter, planFilter, subscriberPage, SUBSCRIBERS_PER_PAGE), SubscriptionAdminService.listFeatures(),
         SubscriptionAdminService.listSubscriberCategoryCounts(),
       ]);
       setMetrics(nextMetrics ?? {}); setPlans(nextPlans); setOffers(nextOffers); setVendors(nextVendors);
+      if (nextVendors.length) setSubscriberTotal(Number(nextVendors[0].total_count ?? 0));
+      else if (subscriberPage === 1) setSubscriberTotal(0);
+      else setSubscriberPage((current) => Math.max(1, current - 1));
       setFeatureIdByKey(Object.fromEntries((nextFeatures ?? []).map((feature: any) => [feature.feature_key, feature.id])));
       setCategoryCounts(nextCategoryCounts);
     } catch (caught) {
@@ -155,7 +164,7 @@ export default function SubscriptionsAdmin() {
         : subscriptionErrorMessage(caught, "Unable to load subscription management."));
     }
     finally { setLoading(false); }
-  }, [search, statusFilter, categoryFilter, planFilter]);
+  }, [search, statusFilter, categoryFilter, planFilter, subscriberPage]);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
   useEffect(() => SubscriptionAdminService.subscribe(() => void load()), [load]);
 
@@ -259,7 +268,7 @@ export default function SubscriptionsAdmin() {
   const openActivePlan = (slug: string) => {
     const plan = plans.find((item) => item.slug?.toLowerCase() === slug);
     if (!plan) return Alert.alert("Plan not found", `Create or activate the ${slug} plan before viewing its subscribers.`);
-    setPlanFilter(plan.id); setStatusFilter("active"); setTab("vendors");
+    setPlanFilter(plan.id); setStatusFilter("active"); setSubscriberPage(1); setTab("vendors");
   };
   const categoryDropdownOptions = [
     { id: "all", name: `All Categories (${metrics.total_vendors ?? 0})` },
@@ -343,6 +352,8 @@ export default function SubscriptionsAdmin() {
     );
   };
   const isEditingFreePlan = planEditor?.slug.trim().toLowerCase() === "free";
+  const subscriberPages = Math.max(1, Math.ceil(subscriberTotal / SUBSCRIBERS_PER_PAGE));
+  const subscriberCardBasis = isPhone ? "100%" : isTablet ? "48%" : "32%";
 
   return <SafeAreaView style={styles.page} edges={["top", "left", "right"]}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} decelerationRate="fast">
     <AdminPageHeader title="Subscriptions" subtitle="Configure plans, subscriber access and offers" action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh subscriptions" accessibilityState={{ busy: loading }} disabled={loading} onPress={() => void load()} style={styles.headerButton}><RefreshCw size={19} color={pink} /></Pressable>} />
@@ -355,25 +366,26 @@ export default function SubscriptionsAdmin() {
       <View style={styles.cardActions}><Pressable accessibilityRole="button" onPress={() => { setPlanEditor({ ...plan }); setPlanEditorExtras(planExtrasFrom(plan)); }} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><Edit3 size={15} color={pink} /><Text style={styles.secondaryText}>Details</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void openBilling(plan)} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><CalendarClock size={15} color={pink} /><Text style={styles.secondaryText}>Pricing</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Delete ${plan.name}`} disabled={deletingPlanId === plan.id} onPress={() => confirmDeletePlan(plan)} style={({ pressed }) => [styles.dangerSecondary, pressed && styles.pressed]}>{deletingPlanId === plan.id ? <ActivityIndicator size="small" color={adminPalette.error} /> : <><Trash2 size={15} color={adminPalette.error} /><Text style={styles.dangerSecondaryText}>Delete Plan</Text></>}</Pressable></View></View></AdminReveal>)}</View></> : null}
 
     {!loading && tab === "vendors" ? <>
-      <View style={styles.searchBox}><Search size={17} color="#8D8188" /><TextInput value={search} onChangeText={setSearch} onSubmitEditing={load} placeholder="Search Vendor, owner, email or ID" style={styles.searchInput} /><Pressable onPress={load}><Text style={styles.retry}>Search</Text></Pressable></View>
+      <View style={styles.searchBox}><Search size={17} color="#8D8188" /><TextInput value={search} onChangeText={(value) => { setSearch(value); setSubscriberPage(1); }} onSubmitEditing={load} placeholder="Search Vendor, owner, email or ID" style={styles.searchInput} /><Pressable onPress={load}><Text style={styles.retry}>Search</Text></Pressable></View>
       <View style={styles.categoryFilterField}>
         <HierarchySelect
           label="Category"
           value={categoryDropdownOptions.find((option) => option.id === (categoryFilter ?? "all"))?.name}
           options={categoryDropdownOptions}
           selectedId={categoryFilter ?? "all"}
-          onSelect={(id) => setCategoryFilter(id === "all" || id === "uncategorized" ? null : id)}
+          onSelect={(id) => { setCategoryFilter(id === "all" || id === "uncategorized" ? null : id); setSubscriberPage(1); }}
         />
       </View>
-      {planFilter ? <View style={styles.activePlanFilter}><Text style={styles.activePlanFilterText}>Showing active {plans.find((plan) => plan.id === planFilter)?.name ?? "selected plan"} users</Text><Pressable onPress={() => setPlanFilter(null)}><Text style={styles.retry}>Clear plan</Text></Pressable></View> : null}
+      {planFilter ? <View style={styles.activePlanFilter}><Text style={styles.activePlanFilterText}>Showing active {plans.find((plan) => plan.id === planFilter)?.name ?? "selected plan"} users</Text><Pressable onPress={() => { setPlanFilter(null); setSubscriberPage(1); }}><Text style={styles.retry}>Clear plan</Text></Pressable></View> : null}
       <Text style={styles.filterGroupLabel}>Status</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{["all","active","trial","launch_offer","grace_period","expired","suspended"].map((item) => <Pressable key={item} onPress={() => setStatusFilter(item)} style={[styles.filter, statusFilter === item && styles.filterActive]}><Text style={[styles.filterText, statusFilter === item && styles.filterTextActive]}>{subscriptionStatusLabel(item as any)}</Text></Pressable>)}</ScrollView>
-      <Text style={styles.resultCount}>Showing {vendors.length} subscriber{vendors.length === 1 ? "" : "s"}</Text>
-      <View style={styles.list}>{vendors.map((vendor) => <Pressable key={vendor.vendor_id} onPress={() => { setVendorEditor(vendor); setVendorPlanId(vendor.plan_id || plans[0]?.id || ""); setVendorNotes(""); }} style={styles.vendorCard}>
-        <View style={[styles.avatar, { backgroundColor: vendor.status === "active" ? "#E9F8F1" : "#FFF0F5" }]}><Text style={{ color: vendor.status === "active" ? adminPalette.success : pink, fontWeight: "700" }}>{vendor.business_name?.charAt(0)}</Text></View>
-        <View style={styles.flex}><Text style={styles.cardTitle}>{vendor.business_name}</Text><Text style={styles.cardSub}>{vendor.plan_name || "No plan"} · {subscriptionStatusLabel(vendor.status as any)} · {vendor.category_name ?? "Uncategorized"}</Text><Text style={styles.vendorMeta}>{vendor.expiry_date ? `Expires ${new Date(vendor.expiry_date).toLocaleDateString("en-IN")}` : "No expiry date"}</Text><Text style={styles.vendorMeta}>Clips {vendor.clip_active}/{vendor.clip_total} active · {vendor.clip_locked} locked  ·  Photos {vendor.photo_active}/{vendor.photo_total} active · {vendor.photo_locked} locked</Text></View>
-        <Text style={styles.manage}>Manage</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{["all","active","expired","suspended"].map((item) => <Pressable key={item} onPress={() => { setStatusFilter(item); setSubscriberPage(1); }} style={[styles.filter, statusFilter === item && styles.filterActive]}><Text style={[styles.filterText, statusFilter === item && styles.filterTextActive]}>{subscriptionStatusLabel(item as any)}</Text></Pressable>)}</ScrollView>
+      <Text style={styles.resultCount}>{subscriberTotal.toLocaleString("en-IN")} subscriber{subscriberTotal === 1 ? "" : "s"}</Text>
+      <View style={styles.subscriberGrid}>{vendors.map((vendor) => <Pressable key={vendor.vendor_id} onPress={() => { setVendorEditor(vendor); setVendorPlanId(vendor.plan_id || plans[0]?.id || ""); setVendorNotes(""); }} style={[styles.vendorCard, { flexBasis: subscriberCardBasis, maxWidth: subscriberCardBasis }]}>
+        <View style={styles.vendorHeader}><View style={[styles.avatar, { backgroundColor: vendor.status === "active" ? "#E9F8F1" : "#FFF0F5" }]}><Text style={{ color: vendor.status === "active" ? adminPalette.success : pink, fontWeight: "700" }}>{vendor.business_name?.charAt(0)}</Text></View>
+        <View style={styles.flex}><Text style={styles.cardTitle} numberOfLines={1}>{vendor.business_name}</Text><Text style={styles.cardSub} numberOfLines={2}>{vendor.plan_name || "No plan"} · {subscriptionStatusLabel(vendor.status as any)} · {vendor.category_name ?? "Uncategorized"}</Text></View><Text style={styles.manage}>Manage</Text></View>
+        <View style={styles.vendorDetails}><Text style={styles.vendorMeta}>{vendor.expiry_date ? `Expires ${new Date(vendor.expiry_date).toLocaleDateString("en-IN")}` : "No expiry date"}</Text><Text style={styles.vendorMeta}>Clips {vendor.clip_active}/{vendor.clip_total} active · {vendor.clip_locked} locked</Text><Text style={styles.vendorMeta}>Photos {vendor.photo_active}/{vendor.photo_total} active · {vendor.photo_locked} locked</Text></View>
       </Pressable>)}</View>
+      {subscriberTotal > SUBSCRIBERS_PER_PAGE ? <PaginationBar page={subscriberPage} pages={subscriberPages} onPage={setSubscriberPage} total={subscriberTotal} pageSize={SUBSCRIBERS_PER_PAGE} /> : null}
     </> : null}
 
     {!loading && tab === "offers" ? <><View style={styles.sectionRow}><View><Text style={styles.sectionTitle}>Promotional offers</Text><Text style={styles.sectionHint}>Time-limited discounts for Monthly, Yearly, or both</Text></View><Pressable onPress={() => setOfferEditor({ ...emptyOffer })} style={styles.add}><Plus size={17} color="#FFF" /><Text style={styles.addText}>Offer</Text></Pressable></View><View style={styles.list}>{offers.map((offer) => <View key={offer.id} style={styles.card}><View style={styles.cardTop}><View style={[styles.statIcon, { backgroundColor: adminPalette.warningSubtle }]}><Gift size={19} color={adminPalette.warning} /></View><View style={styles.flex}><Text style={styles.cardTitle}>{offer.name}</Text><Text style={styles.cardSub}>{offer.description || "No vendor message"}</Text><Text style={styles.cardSub}>{offer.discount_type === "percentage" ? `${Number(offer.discount_value)}% off` : `${offer.discount_type} discount`} · {(offer.applicable_billing_intervals || []).length ? offer.applicable_billing_intervals.map((value: string) => value === "year" ? "Yearly" : "Monthly").join(" + ") : "Monthly + Yearly"}</Text></View><Text style={{ color: offer.is_active ? adminPalette.success : "#8D8188", fontWeight: "700", fontSize: typeScale.caption }}>{offer.is_active ? "ACTIVE" : "OFF"}</Text></View><View style={styles.cardActions}><Pressable onPress={() => setOfferEditor({ ...offer })} style={styles.secondary}><Edit3 size={15} color={pink} /><Text style={styles.secondaryText}>Edit</Text></Pressable><Pressable onPress={() => Alert.alert("Remove offer?", "This offer will be archived.", [{ text: "Cancel", style: "cancel" }, { text: "Archive", style: "destructive", onPress: () => void SubscriptionAdminService.archiveOffer(offer.id).then(load) }])} style={styles.iconDanger}><Trash2 size={16} color={adminPalette.error} /></Pressable></View></View>)}</View></> : null}
@@ -457,6 +469,6 @@ const styles = StyleSheet.create({
   // overflow is contained here and the page itself never scrolls sideways.
   categoryFilterField: { marginBottom: 4 },
   activePlanFilter: { minHeight: 42, borderRadius: 12, paddingHorizontal: 12, backgroundColor: "#FFF0F5", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 6 }, activePlanFilterText: { color: adminPalette.text, fontSize: typeScale.caption, fontWeight: "700", flex: 1 },
-  vendorCard: { backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 19, padding: 13, flexDirection: "row", alignItems: "center", gap: 10 }, avatar: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, vendorMeta: { color: adminPalette.textMuted, fontSize: typeScale.caption, marginTop: 3 }, manage: { color: pink, fontSize: typeScale.caption, fontWeight: "700" },
+  subscriberGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 }, vendorCard: { backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 14, gap: 12 }, vendorHeader: { flexDirection: "row", alignItems: "center", gap: 10 }, vendorDetails: { backgroundColor: adminPalette.surfaceSubtle, borderRadius: 12, padding: 10, gap: 3 }, avatar: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" }, vendorMeta: { color: adminPalette.textMuted, fontSize: typeScale.caption }, manage: { color: pink, fontSize: typeScale.caption, fontWeight: "700" },
   error: { borderRadius: 16, padding: 14, backgroundColor: adminPalette.errorSubtle, flexDirection: "row", justifyContent: "space-between" }, errorText: { color: adminPalette.error, fontSize: typeScale.caption }, modalBackdrop: { flex: 1, backgroundColor: "rgba(25,15,21,.45)", justifyContent: "flex-end", padding: 10 }, modal: { width: "100%", maxWidth: 620, maxHeight: "90%", alignSelf: "center", backgroundColor: "#FFF", borderRadius: 27, padding: 18 }, modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }, modalTitle: { color: adminPalette.text, fontSize: typeScale.sectionTitle, fontWeight: "700" }, modalHint: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginBottom: 12 }, field: { flex: 1, minWidth: 130, marginTop: 10 }, fieldLabel: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "700", marginBottom: 6, marginTop: 8, textTransform: "capitalize" }, input: { minHeight: 45, borderRadius: 14, backgroundColor: adminPalette.surface, paddingHorizontal: 12, color: adminPalette.text, fontSize: typeScale.metadata, borderWidth: 1, borderColor: adminPalette.border, outlineStyle: "none" } as any, inputDisabled: { opacity: 0.7 }, multiline: { height: 78, textAlignVertical: "top", paddingTop: 11 }, twoCols: { flexDirection: "row", gap: 9 }, toggle: { minHeight: 57, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1, borderBottomColor: adminPalette.border }, toggleLabel: { color: adminPalette.text, fontSize: typeScale.metadata, fontWeight: "700" }, toggleHint: { color: adminPalette.textSecondary, fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3 }, settingEdit: { width: "100%", flexDirection: "row", alignItems: "center", gap: 8 }, settingInput: { flex: 1, minHeight: 40, borderRadius: 12, backgroundColor: adminPalette.surface, paddingHorizontal: 10, fontSize: typeScale.caption, outlineStyle: "none" } as any,
 });

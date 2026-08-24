@@ -3,11 +3,13 @@ import { AdminVendorService } from "@/services/adminVendorService";
 import type { AdminVendorRecord, VendorFilters, VendorHealthMetrics, VendorStatistics } from "@/types/adminVendors";
 import { useCategories } from "@/context/CategoryContext";
 
+const VENDOR_PAGE_SIZE = 30;
+
 const defaults: VendorFilters = {
   query: "", status: "all", verification: "all", plan: "all",
   categoryId: null, stateId: null, districtId: null, talukaId: null,
   updatedToday: false,
-  sort: "newest", page: 1, pageSize: 20,
+  sort: "newest", page: 1, pageSize: VENDOR_PAGE_SIZE,
 };
 
 function errorMessage(reason: unknown) {
@@ -69,7 +71,12 @@ export function useAdminVendors() {
   }), [load]);
 
   const updateFilters = useCallback((changes: Partial<VendorFilters>) => {
-    setFilters((current) => ({ ...current, ...changes, page: changes.page ?? 1 }));
+    setFilters((current) => ({
+      ...current,
+      ...changes,
+      page: changes.page ?? 1,
+      pageSize: VENDOR_PAGE_SIZE,
+    }));
   }, []);
   const optimisticPatch = useCallback((ids: string[], patch: Partial<AdminVendorRecord>) => {
     const previous = rowsRef.current.filter((row) => ids.includes(row.record_id));
