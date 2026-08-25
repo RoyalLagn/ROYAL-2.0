@@ -39,6 +39,7 @@ import VendorHeader from "@/components/vendor/VendorHeader";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import { useSupportSettings } from "@/hooks/useSupportSettings";
 import { canOpenSupportUrl, supportEmailUrl, supportPhoneUrl } from "@/services/supportSettings";
+import { LegalDocumentRenderer } from "@/components/legal/LegalDocumentRenderer";
 
 export type FrontendScreenMode =
   | "form"
@@ -57,7 +58,7 @@ type FrontendScreenProps = {
   mode: FrontendScreenMode;
   fields?: Field[];
   items?: string[];
-  content?: string[];
+  content?: string[] | string;
   onItemPress?: (item: string) => void;
 };
 
@@ -131,6 +132,8 @@ export default function FrontendScreen({
   }, [mode, settings, settingsStorageKey]);
 
   const filtered = list.filter((item) => item.toLowerCase().includes(query.toLowerCase()));
+  const contentItems = Array.isArray(content) ? content : [content];
+  const legalContent = Array.isArray(content) ? content.join("\n\n") : content;
   const save = () => Alert.alert(title, "Your changes were saved locally.");
   const sendSupportMessage = async () => {
     const body = message.trim();
@@ -515,18 +518,10 @@ export default function FrontendScreen({
           )}
 
           {isLegalDocument ? (
-            <View className="bg-card border border-border rounded-2xl overflow-hidden" style={surfaceShadow}>
-              {content.map((paragraph, index) => (
-                <View
-                  key={index}
-                  className={`flex-row items-start px-5 py-5 md:px-7 md:py-6 ${index > 0 ? "border-t border-border" : ""}`}
-                >
-                  <View className="w-8 h-8 rounded-lg bg-primary/10 items-center justify-center mr-4 mt-0.5">
-                    <Text className="text-primary text-sm font-bold">{index + 1}</Text>
-                  </View>
-                  <Text className="text-foreground text-sm leading-6 flex-1">{paragraph}</Text>
-                </View>
-              ))}
+            <View className="bg-card border border-border rounded-2xl px-5 py-6 md:px-8 md:py-8" style={surfaceShadow}>
+              <View className="w-full max-w-[760px] self-center">
+                <LegalDocumentRenderer content={legalContent} />
+              </View>
             </View>
           ) : mode === "info" && (
             <View className={isDesktop ? "flex-row gap-6 items-start" : "gap-5"}>
@@ -541,7 +536,7 @@ export default function FrontendScreen({
                 className="flex-1 bg-card border border-border/80 rounded-3xl overflow-hidden"
                 style={surfaceShadow}
               >
-                {content.map((paragraph, index) => (
+                {contentItems.map((paragraph, index) => (
                   <View
                     key={index}
                     className={`p-5 flex-row items-start ${index > 0 ? "border-t border-border/70" : ""}`}

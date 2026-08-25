@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { FileText, RefreshCw, Save } from "lucide-react-native";
+import { Bold, FileText, Heading2, List, ListOrdered, RefreshCw, Save } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
+import { LegalDocumentRenderer } from "@/components/legal/LegalDocumentRenderer";
 import { DEFAULT_PRIVACY_CONTENT, DEFAULT_TERMS_CONTENT, LegalDocumentsService } from "@/services/legalDocuments";
 
 type AdminLegalDocumentProps = { documentType?: "terms" | "privacy" };
@@ -22,8 +23,46 @@ export default function AdminTerms({ documentType = "terms" }: AdminLegalDocumen
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const editorRef = useRef<TextInput>(null);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
   const dirty = content.trim() !== savedContent.trim();
-  const paragraphs = useMemo(() => content.split(/\n\s*\n/).map((item) => item.trim()).filter(Boolean), [content]);
+
+  const replaceSelection = (replacement: string, selectedStart = replacement.length, selectedEnd = selectedStart) => {
+    const next = `${content.slice(0, selection.start)}${replacement}${content.slice(selection.end)}`;
+    const start = selection.start + selectedStart;
+    const end = selection.start + selectedEnd;
+    setContent(next);
+    setSelection({ start, end });
+    requestAnimationFrame(() => {
+      editorRef.current?.focus();
+      editorRef.current?.setNativeProps({ selection: { start, end } });
+    });
+  };
+
+  const formatLines = (kind: "heading" | "bullet" | "ordered") => {
+    const lineStart = content.lastIndexOf("\n", Math.max(0, selection.start - 1)) + 1;
+    const followingBreak = content.indexOf("\n", selection.end);
+    const lineEnd = followingBreak === -1 ? content.length : followingBreak;
+    const selected = content.slice(lineStart, lineEnd) || (kind === "heading" ? "Section heading" : "List item");
+    const lines = selected.split("\n").map((line, index) => {
+      const clean = line.replace(/^\s*(?:#{1,3}\s+|[-*+]\s+|\d+[.)]\s+)/, "");
+      if (kind === "heading") return `## ${clean}`;
+      if (kind === "ordered") return `${index + 1}. ${clean}`;
+      return `* ${clean}`;
+    });
+    const replacement = lines.join("\n");
+    const next = `${content.slice(0, lineStart)}${replacement}${content.slice(lineEnd)}`;
+    setContent(next);
+    const caret = lineStart + replacement.length;
+    setSelection({ start: caret, end: caret });
+    requestAnimationFrame(() => editorRef.current?.focus());
+  };
+
+  const boldSelection = () => {
+    const selected = content.slice(selection.start, selection.end);
+    const label = selected || "important text";
+    replaceSelection(`**${label}**`, 2, 2 + label.length);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,22 +116,44 @@ export default function AdminTerms({ documentType = "terms" }: AdminLegalDocumen
                   <View className="flex-row items-start justify-between gap-3 mb-4">
                     <View className="flex-1 min-w-0">
                       <Text className="text-foreground font-bold">Document editor</Text>
-                      <Text className="text-muted-foreground text-xs mt-1">Separate sections with a blank line. Sections are numbered automatically.</Text>
+                      <Text className="text-muted-foreground text-xs mt-1">Use the toolbar or Markdown shortcuts. The preview updates as you type.</Text>
                     </View>
                     <View className={dirty ? "px-2.5 py-1 rounded-full bg-amber-500/10" : "px-2.5 py-1 rounded-full bg-emerald-500/10"}>
                       <Text className={dirty ? "text-amber-700 text-caption font-bold" : "text-emerald-700 text-caption font-bold"}>{dirty ? "Unsaved" : "Saved"}</Text>
                     </View>
                   </View>
+                  <View accessibilityRole="toolbar" className="flex-row flex-wrap gap-2 mb-3">
+                    {[
+                      { label: "Heading", icon: Heading2, action: () => formatLines("heading") },
+                      { label: "Bullets", icon: List, action: () => formatLines("bullet") },
+                      { label: "Numbered", icon: ListOrdered, action: () => formatLines("ordered") },
+                      { label: "Bold", icon: Bold, action: boldSelection },
+                    ].map(({ label, icon: Icon, action }) => (
+                      <Pressable
+                        key={label}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Format as ${label.toLowerCase()}`}
+                        onPress={action}
+                        className="min-h-11 px-3 rounded-xl border border-border bg-background flex-row items-center justify-center gap-2 active:scale-[0.97]"
+                      >
+                        <Icon size={16} className="text-foreground" />
+                        <Text className="text-foreground text-xs font-semibold">{label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
                   <TextInput
+                    ref={editorRef}
                     accessibilityLabel={`${title} content`}
                     value={content}
                     onChangeText={setContent}
+                    onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
                     multiline
                     textAlignVertical="top"
                     placeholder={`Enter the ${title}`}
                     placeholderTextColor="#787178"
-                    className="min-h-[420px] rounded-xl bg-background border border-border px-4 py-4 text-foreground text-sm leading-6"
+                    className="min-h-[520px] rounded-xl bg-background border border-border px-4 py-4 text-foreground text-sm leading-6"
                   />
+                  <Text className="text-muted-foreground text-caption mt-2">Shortcuts: <Text className="font-bold">## heading</Text> · <Text className="font-bold">* bullet</Text> · <Text className="font-bold">1. numbered</Text> · <Text className="font-bold">**bold**</Text></Text>
                   <View className="flex-row flex-wrap items-center gap-3 mt-4">
                     <Text className="text-muted-foreground text-caption flex-1 min-w-48">{updatedAt ? `Last updated ${new Date(updatedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}` : "Not published yet"}</Text>
                     <Pressable
@@ -113,14 +174,7 @@ export default function AdminTerms({ documentType = "terms" }: AdminLegalDocumen
                   <View className="w-10 h-10 rounded-xl bg-primary/10 items-center justify-center mb-4"><FileText size={18} className="text-primary" /></View>
                   <Text className="text-foreground text-xl font-bold">{title}</Text>
                   <Text className="text-muted-foreground text-xs mt-1 mb-5">Shown on customer and vendor pages</Text>
-                  {paragraphs.length ? paragraphs.map((paragraph, index) => (
-                    <View key={`${index}-${paragraph.slice(0, 24)}`} className="flex-row items-start mb-4">
-                      <View className="w-8 h-8 rounded-lg bg-primary/10 items-center justify-center mr-3 mt-0.5">
-                        <Text className="text-primary text-sm font-bold">{index + 1}</Text>
-                      </View>
-                      <Text className="text-foreground text-sm leading-6 flex-1">{paragraph}</Text>
-                    </View>
-                  )) : <Text className="text-muted-foreground text-sm">Your preview will appear here.</Text>}
+                  <LegalDocumentRenderer content={content} compact />
                 </View>
               </View>
             </>

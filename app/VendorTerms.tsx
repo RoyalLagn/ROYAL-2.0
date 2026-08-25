@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import FrontendScreen from "@/components/FrontendScreen";
 import { DEFAULT_TERMS_CONTENT, LegalDocumentsService } from "@/services/legalDocuments";
 
@@ -9,13 +9,12 @@ export default function VendorTerms() {
     LegalDocumentsService.loadTerms().then((document) => { if (active) setContent(document.content); }).catch(() => undefined);
     return () => { active = false; };
   }, []);
-  const paragraphs = useMemo(() => content.split(/\n\s*\n/).map((item) => item.trim()).filter(Boolean), [content]);
   return (
     <FrontendScreen
       title="Terms & Conditions"
       subtitle="Terms for using the RoyalLagn vendor workspace"
       mode="info"
-      content={paragraphs}
+      content={content}
     />
   );
 }

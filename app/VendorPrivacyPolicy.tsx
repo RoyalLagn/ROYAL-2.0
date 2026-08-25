@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import FrontendScreen from "@/components/FrontendScreen";
 import { DEFAULT_PRIVACY_CONTENT, LegalDocumentsService } from "@/services/legalDocuments";
 
@@ -9,13 +9,12 @@ export default function VendorPrivacyPolicy() {
     LegalDocumentsService.loadPrivacy().then((document) => { if (active) setContent(document.content); }).catch(() => undefined);
     return () => { active = false; };
   }, []);
-  const paragraphs = useMemo(() => content.split(/\n\s*\n/).map((item) => item.trim()).filter(Boolean), [content]);
   return (
     <FrontendScreen
       title="Privacy Policy"
       subtitle="How RoyalLagn handles vendor information"
       mode="info"
-      content={paragraphs}
+      content={content}
     />
   );
 }
