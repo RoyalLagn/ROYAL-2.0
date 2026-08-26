@@ -40,6 +40,13 @@ dist/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+/.playwright-mcp/
+/*-production.png
+/*-desktop.png
+/*-mobile.png
+
+# Accidental nested checkout
+/RoyalLagn/
 
 # Impeccable local session state
 .impeccable/hook.cache.json
