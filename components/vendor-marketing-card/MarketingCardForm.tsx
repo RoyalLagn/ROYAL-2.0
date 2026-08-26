@@ -18,10 +18,8 @@ export type MarketingCardFormValues = {
 
 export type MarketingCardFormErrors = Partial<Record<keyof MarketingCardFormValues, string>>;
 
-// Everything a vendor must (or may) supply beyond what already lives on
-// their profile -- see services/marketingCardService.ts for what's reused
-// vs. newly stored. Website is the only optional field; every other field
-// gates the Download PDF button in app/vendor-marketing-card.tsx.
+// Every field is optional. Existing profile data is prefilled by the page;
+// empty values simply disappear from the shared preview/export renderer.
 export default function MarketingCardForm({
   colors,
   values,
@@ -34,11 +32,10 @@ export default function MarketingCardForm({
   onChange: <K extends keyof MarketingCardFormValues>(key: K, value: MarketingCardFormValues[K]) => void;
 }) {
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Text style={[styles.sectionLabel, { color: colors.muted }]}>Contact Information</Text>
       <Field
         label="Mobile Number"
-        required
         value={values.mobileNumber}
         onChangeText={(value) => onChange("mobileNumber", sanitizePhoneInput(value))}
         placeholder="10-digit mobile number"
@@ -49,7 +46,6 @@ export default function MarketingCardForm({
       />
       <Field
         label="WhatsApp Number"
-        required
         value={values.whatsappNumber}
         onChangeText={(value) => onChange("whatsappNumber", sanitizePhoneInput(value))}
         placeholder="10-digit mobile number"
@@ -60,7 +56,6 @@ export default function MarketingCardForm({
       />
       <Field
         label="Email Address"
-        required
         value={values.email}
         onChangeText={(value) => onChange("email", value)}
         placeholder="you@business.com"
@@ -73,7 +68,6 @@ export default function MarketingCardForm({
       <Text style={[styles.sectionLabel, { color: colors.muted, marginTop: 6 }]}>Social Media</Text>
       <Field
         label="Instagram Username"
-        required
         value={values.instagram}
         onChangeText={(value) => onChange("instagram", value.replace(/^@/, ""))}
         placeholder="yourbusiness"
@@ -85,18 +79,16 @@ export default function MarketingCardForm({
         label="Website URL"
         value={values.website}
         onChangeText={(value) => onChange("website", value)}
-        placeholder="https://yourbusiness.com (optional)"
+        placeholder="https://yourbusiness.com"
         autoCapitalize="none"
         keyboardType="url"
         colors={colors}
         error={errors.website}
-        helper={errors.website ? undefined : "Optional"}
       />
 
       <Text style={[styles.sectionLabel, { color: colors.muted, marginTop: 6 }]}>Business Information</Text>
       <Field
         label="Business Tagline"
-        required
         value={values.tagline}
         onChangeText={(value) => onChange("tagline", value)}
         placeholder="Capturing Moments, Creating Memories"
@@ -108,7 +100,6 @@ export default function MarketingCardForm({
         <View style={kitStyles.flex}>
           <Field
             label="Years of Experience"
-            required
             value={values.experienceYears}
             onChangeText={(value) => onChange("experienceYears", value.replace(/[^0-9]/g, ""))}
             placeholder="8"
@@ -120,7 +111,6 @@ export default function MarketingCardForm({
         <View style={kitStyles.flex}>
           <Field
             label="Happy Clients"
-            required
             value={values.happyClients}
             onChangeText={(value) => onChange("happyClients", value)}
             placeholder="250+"
@@ -135,7 +125,7 @@ export default function MarketingCardForm({
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
+  card: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 14 },
   sectionLabel: { fontSize: typeScale.metadata, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6, marginTop: 2 },
   twoUp: { flexDirection: "row", gap: 12 },
 });

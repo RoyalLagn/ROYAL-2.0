@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { CircleAlert, Download, Sparkles } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -40,7 +40,7 @@ function resolveCoverImageUrl(data: { heroMedia: any[]; media: any[] }): string 
   const heroRow = data.media?.find((item) => item.id === heroId);
   const fallbackRow = data.media?.find((item) => item.resource_type === "image" && item.upload_status === "completed");
   const media = (heroRow ?? fallbackRow) as VendorPortfolioMedia | undefined;
-  return media ? portfolioMediaUrl(media, "hero") : null;
+  return media ? portfolioMediaUrl(media, "fullscreen") : null;
 }
 
 const EMPTY_VALUES: MarketingCardFormValues = {
@@ -59,9 +59,9 @@ export default function VendorMarketingCard() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { data, loading, error, refresh } = useVendorWorkspace();
-  const desktop = width >= 900;
+  const desktop = width >= 1100;
   // The card is a fixed 3:2 landscape canvas; width drives the whole render.
-  const previewWidth = Math.min(desktop ? 660 : width - 32, 660);
+  const previewWidth = Math.min(desktop ? width - 520 : width - 32, 800);
 
   const [values, setValues] = useState<MarketingCardFormValues>(EMPTY_VALUES);
   const [hydrated, setHydrated] = useState(false);
@@ -120,21 +120,12 @@ export default function VendorMarketingCard() {
 
   const errors = useMemo<MarketingCardFormErrors>(() => {
     const next: MarketingCardFormErrors = {};
-    if (!values.mobileNumber.trim()) next.mobileNumber = "Mobile number is required.";
-    else if (!PHONE_PATTERN.test(values.mobileNumber.replace(/\D/g, ""))) next.mobileNumber = "Enter a valid mobile number.";
-    if (!values.whatsappNumber.trim()) next.whatsappNumber = "WhatsApp number is required.";
-    else if (!PHONE_PATTERN.test(values.whatsappNumber.replace(/\D/g, ""))) next.whatsappNumber = "Enter a valid WhatsApp number.";
-    if (!values.email.trim()) next.email = "Email address is required.";
-    else if (!EMAIL_PATTERN.test(values.email.trim())) next.email = "Enter a valid email address.";
-    if (!values.instagram.trim()) next.instagram = "Instagram username is required.";
+    if (values.mobileNumber.trim() && !PHONE_PATTERN.test(values.mobileNumber.replace(/\D/g, ""))) next.mobileNumber = "Enter a valid mobile number or leave it empty.";
+    if (values.whatsappNumber.trim() && !PHONE_PATTERN.test(values.whatsappNumber.replace(/\D/g, ""))) next.whatsappNumber = "Enter a valid WhatsApp number or leave it empty.";
+    if (values.email.trim() && !EMAIL_PATTERN.test(values.email.trim())) next.email = "Enter a valid email address or leave it empty.";
     if (values.website.trim() && !/^https?:\/\/.+\..+/i.test(values.website.trim())) next.website = "Enter a valid URL (https://...).";
-    if (!values.tagline.trim()) next.tagline = "Business tagline is required.";
-    if (!values.experienceYears.trim()) next.experienceYears = "Years of experience is required.";
-    if (!values.happyClients.trim()) next.happyClients = "Happy clients is required.";
     return next;
   }, [values]);
-
-  const isValid = Object.keys(errors).length === 0;
 
   const category = categoryNameOf(vendor);
   const highlights = useMemo(() => getMarketingHighlights(category), [category]);
@@ -147,47 +138,49 @@ export default function VendorMarketingCard() {
   // same permanent path, correct configured domain. No ?src= suffix: a
   // printed card must scan to exactly https://<domain>/vendors/<slug>.
   const profileUrl = slug ? buildVendorPublicProfileUrl(slug) : "";
+  const isValid = Boolean(profileUrl);
 
   const cardData: MarketingCardData = {
-    businessName: vendor?.business_name || "Your Business Name",
-    category: category || "Wedding Vendor",
+    businessName: vendor?.business_name || "RoyalLagn Vendor",
+    category,
     logoUrl: vendor?.logo_url ?? null,
     coverImageUrl,
     city: vendor?.city ?? "",
     state: vendor?.state ?? "",
-    profileUrl: profileUrl || "https://royallagn.com",
+    profileUrl,
     rating: rating.average,
     reviewCount: rating.count,
     isVerified: Boolean(vendor?.is_verified),
     highlights,
-    mobileNumber: values.mobileNumber,
-    whatsappNumber: values.whatsappNumber,
-    email: values.email,
+    mobileNumber: PHONE_PATTERN.test(values.mobileNumber.replace(/\D/g, "")) ? values.mobileNumber : "",
+    whatsappNumber: PHONE_PATTERN.test(values.whatsappNumber.replace(/\D/g, "")) ? values.whatsappNumber : "",
+    email: EMAIL_PATTERN.test(values.email.trim()) ? values.email : "",
     instagram: values.instagram,
-    website: values.website,
-    tagline: values.tagline || "Capturing Moments, Creating Memories",
-    experienceYears: values.experienceYears || "0",
-    happyClients: values.happyClients || "—",
+    website: /^https?:\/\/.+\..+/i.test(values.website.trim()) ? values.website : "",
+    tagline: values.tagline,
+    experienceYears: values.experienceYears,
+    happyClients: values.happyClients,
   };
 
   const handleDownload = useCallback(async () => {
     if (!vendor?.id) return;
     if (!isValid) {
-      setDownloadError("Please complete your Marketing Card information before downloading.");
+      setDownloadError("A public vendor profile is required to create the profile QR code.");
       return;
     }
     setSaving(true);
     setDownloadError("");
     setDownloaded(false);
     try {
+      const profileChanges: Parameters<typeof updateVendorPublicProfile>[0] = {
+        instagram: values.instagram.trim() || null,
+        experience: values.experienceYears.trim() ? Number(values.experienceYears) : null,
+      };
+      if (!values.mobileNumber.trim() || PHONE_PATTERN.test(values.mobileNumber.replace(/\D/g, ""))) profileChanges.contact_phone = values.mobileNumber.trim() || null;
+      if (!values.email.trim() || EMAIL_PATTERN.test(values.email.trim())) profileChanges.contact_email = values.email.trim().toLowerCase() || null;
+      if (!values.website.trim() || /^https?:\/\/.+\..+/i.test(values.website.trim())) profileChanges.website = values.website.trim() || null;
       await Promise.all([
-        updateVendorPublicProfile({
-          contact_phone: values.mobileNumber.trim(),
-          contact_email: values.email.trim().toLowerCase(),
-          instagram: values.instagram.trim(),
-          website: values.website.trim() || null,
-          experience: Number(values.experienceYears) || null,
-        }),
+        updateVendorPublicProfile(profileChanges),
         saveVendorMarketingCardExtra(vendor.id, {
           whatsappNumber: values.whatsappNumber,
           businessTagline: values.tagline,
@@ -211,10 +204,10 @@ export default function VendorMarketingCard() {
       <VendorHeader />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll]}>
         <VendorDashboardReveal>
-          <Text style={[styles.pageTitle, { color: colors.text }]}>Marketing Card</Text>
-          <Text style={[styles.pageSubtitle, { color: colors.muted }]}>
-            One premium, print-ready RoyalLagn card for your business -- generated from your live profile.
-          </Text>
+          <View style={styles.pageHeading}>
+            <Text style={[styles.pageTitle, { color: colors.text }]}>Marketing Card</Text>
+            <Text style={[styles.pageSubtitle, { color: colors.muted }]}>Create and download your print-ready RoyalLagn vendor card from your live profile.</Text>
+          </View>
 
           {error ? (
             <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -237,37 +230,31 @@ export default function VendorMarketingCard() {
 
           {available ? (
             <>
-              <View style={styles.previewWrap}>
-                <MarketingCardPreview data={cardData} width={previewWidth} />
-              </View>
               <HiddenExportCard data={cardData} hostRef={exportRef} />
-
-              <MarketingCardForm colors={colors} values={values} errors={errors} onChange={setField} />
-
-              {downloadError ? (
-                <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <CircleAlert size={18} color={colors.warning} />
-                  <Text style={[styles.noticeText, { color: colors.warning }]}>{downloadError}</Text>
+              <View style={[styles.workspace, desktop && styles.workspaceDesktop]}>
+                <View style={[styles.previewColumn, desktop && styles.previewColumnDesktop, desktop && Platform.OS === "web" ? ({ position: "sticky", top: 24 } as any) : null]}>
+                  <View style={styles.previewHeading}>
+                    <Text style={[styles.previewLabel, { color: colors.text }]}>Live preview</Text>
+                    <Text style={[styles.previewMeta, { color: colors.muted }]}>The downloaded PDF uses this exact 3:2 design.</Text>
+                  </View>
+                  <View style={styles.previewWrap}><MarketingCardPreview data={cardData} width={previewWidth} /></View>
+                  {downloadError ? <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}><CircleAlert size={18} color={colors.warning} /><Text style={[styles.noticeText, { color: colors.warning }]}>{downloadError}</Text></View> : null}
+                  {downloaded ? <Text style={[styles.downloadedText, { color: colors.success }]}>Marketing card downloaded.</Text> : null}
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={saving}
+                    onPress={handleDownload}
+                    style={({ pressed }) => [styles.downloadButton, { backgroundColor: colors.pink }, (pressed || saving) && styles.pressed]}
+                  >
+                    {saving ? <ActivityIndicator color="#FFF" /> : <Download size={18} color="#FFF" />}
+                    <Text style={styles.downloadButtonText}>{saving ? "Preparing your card…" : "Download Marketing Card (PDF)"}</Text>
+                  </Pressable>
                 </View>
-              ) : null}
-              {downloaded ? (
-                <Text style={[styles.downloadedText, { color: colors.success }]}>Marketing card downloaded.</Text>
-              ) : null}
-
-              <Pressable
-                accessibilityRole="button"
-                disabled={saving}
-                onPress={handleDownload}
-                style={({ pressed }) => [
-                  styles.downloadButton,
-                  { backgroundColor: colors.pink },
-                  (pressed || saving) && styles.pressed,
-                  !isValid && styles.downloadButtonDisabled,
-                ]}
-              >
-                {saving ? <ActivityIndicator color="#FFF" /> : <Download size={18} color="#FFF" />}
-                <Text style={styles.downloadButtonText}>{saving ? "Preparing your card…" : "Download Marketing Card (PDF)"}</Text>
-              </Pressable>
+                <View style={[styles.formColumn, desktop && styles.formColumnDesktop]}>
+                  <View style={styles.formHeading}><Text style={[styles.formTitle, { color: colors.text }]}>Card details</Text><Text style={[styles.formSubtitle, { color: colors.muted }]}>Updates appear instantly in the preview.</Text></View>
+                  <MarketingCardForm colors={colors} values={values} errors={errors} onChange={setField} />
+                </View>
+              </View>
             </>
           ) : null}
         </VendorDashboardReveal>
@@ -282,20 +269,32 @@ export default function VendorMarketingCard() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 40, width: "100%", alignSelf: "center" },
-  desktopScroll: { maxWidth: 720, paddingHorizontal: 0, paddingTop: 24, paddingBottom: 56 },
+  desktopScroll: { maxWidth: 1320, paddingHorizontal: 18, paddingTop: 26, paddingBottom: 64 },
+  pageHeading: { marginBottom: 18 },
   pageTitle: { fontSize: typeScale.metric, fontWeight: "700" },
-  pageSubtitle: { fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, marginTop: 4, marginBottom: 16 },
+  pageSubtitle: { maxWidth: 680, fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, marginTop: 4 },
   notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   noticeText: { flex: 1, fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
   emptyCard: { borderWidth: 1, borderRadius: 26, padding: 32, alignItems: "center", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.06, shadowRadius: 22, elevation: 2 },
   emptyIcon: { width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 16 },
   emptyTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700", marginBottom: 8 },
   emptyText: { fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, textAlign: "center" },
-  previewWrap: { alignItems: "center", marginBottom: 18 },
+  workspace: { width: "100%", gap: 18 },
+  workspaceDesktop: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 28 },
+  previewColumn: { width: "100%", minWidth: 0 },
+  previewColumnDesktop: { flex: 1, width: "auto", alignSelf: "flex-start" },
+  previewHeading: { marginBottom: 10 },
+  previewLabel: { fontSize: typeScale.body, lineHeight: typeLeading.body, fontWeight: "700" },
+  previewMeta: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },
+  previewWrap: { alignItems: "center", marginBottom: 14 },
+  formColumn: { width: "100%", minWidth: 0 },
+  formColumnDesktop: { width: 420, flexShrink: 0 },
+  formHeading: { marginBottom: 10 },
+  formTitle: { fontSize: typeScale.body, lineHeight: typeLeading.body, fontWeight: "700" },
+  formSubtitle: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },
   downloadedText: { fontSize: typeScale.metadata, fontWeight: "700", textAlign: "center", marginBottom: 10 },
-  downloadButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 54, borderRadius: 18, marginTop: 4 },
-  downloadButtonDisabled: { opacity: 0.55 },
+  downloadButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 52, borderRadius: 16, marginTop: 4 },
   downloadButtonText: { color: "#FFF", fontSize: typeScale.body, fontWeight: "700" },
-  pressed: { opacity: 0.88 },
+  pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   loading: { position: "absolute", top: "50%", left: 0, right: 0, alignItems: "center", pointerEvents: "none" },
 });

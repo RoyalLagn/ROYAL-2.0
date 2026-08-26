@@ -60,10 +60,10 @@ export default function VendorDashboard() {
   const desktop = width >= 900;
   const dark = colorScheme === "dark";
   const canvas = dark ? colors.background : "#FFF9FB";
-  const unread = data.notifications.filter((item) => !item.is_read).length;
-  const openEnquiries = data.enquiries.filter((item) => !["closed", "booked"].includes(item.status)).length;
-  const averageRating = data.reviews.length
-    ? (data.reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / data.reviews.length).toFixed(1)
+  const unread = data.stats.unreadNotifications;
+  const openEnquiries = data.stats.openEnquiries;
+  const averageRating = data.stats.reviewCount
+    ? data.stats.averageRating.toFixed(1)
     : "—";
   const vendorName = data.vendor?.business_name || "Your vendor business";
   const completedItems = completion.items.filter((item) => item.state === "complete").length;
@@ -139,8 +139,8 @@ export default function VendorDashboard() {
   const stats = [
     { label: "Profile views", value: String(data.vendor?.profile_views ?? 0), detail: "Customer reach", icon: Eye },
     { label: "Open enquiries", value: String(openEnquiries), detail: openEnquiries ? "Awaiting attention" : "All caught up", icon: MessageSquareText },
-    { label: "Portfolio media", value: String(data.media.length), detail: "Published work", icon: Images },
-    { label: "Average rating", value: averageRating, detail: `${data.reviews.length} ${data.reviews.length === 1 ? "review" : "reviews"}`, icon: Star },
+    { label: "Portfolio media", value: String(data.stats.portfolioMedia), detail: "Published work", icon: Images },
+    { label: "Average rating", value: averageRating, detail: `${data.stats.reviewCount} ${data.stats.reviewCount === 1 ? "review" : "reviews"}`, icon: Star },
   ];
 
   if (loading && !data.vendor) return <PageLoader />;

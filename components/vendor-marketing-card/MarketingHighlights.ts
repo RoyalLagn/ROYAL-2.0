@@ -36,16 +36,7 @@ const CATEGORY_HIGHLIGHTS: Record<string, [string, string, string, string]> = {
   travel: ["Honeymoon Packages", "Guest Travel Planning", "Group Bookings", "Custom Itineraries"],
 };
 
-// A safe, category-agnostic fallback so a vendor in an uncatalogued or
-// future category still gets four highlights instead of a blank card.
-const DEFAULT_HIGHLIGHTS: [string, string, string, string] = [
-  "Trusted by Couples",
-  "Verified Vendor",
-  "Premium Service",
-  "On-time Delivery",
-];
-
-export function getMarketingHighlights(category: string | null | undefined): [string, string, string, string] {
+export function getMarketingHighlights(category: string | null | undefined): string[] {
   const key = category?.trim().toLowerCase() ?? "";
-  return CATEGORY_HIGHLIGHTS[key] ?? DEFAULT_HIGHLIGHTS;
+  return CATEGORY_HIGHLIGHTS[key] ?? [];
 }

@@ -28,7 +28,6 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
-  Trophy,
   Users,
   Utensils,
   Video,
@@ -97,7 +96,7 @@ export type MarketingCardData = {
   rating: number;
   reviewCount: number;
   isVerified: boolean;
-  highlights: [string, string, string, string];
+  highlights: string[];
   mobileNumber: string;
   whatsappNumber: string;
   email: string;
@@ -213,6 +212,30 @@ export default function MarketingCardPreview({
   const height = width / CARD_ASPECT_RATIO;
   const location = [data.city, data.state].filter(Boolean).join(", ");
   const site = brandSite(data.profileUrl);
+  const experienceValue = Number.parseInt(data.experienceYears, 10);
+  const experienceLabel = Number.isFinite(experienceValue) && experienceValue > 0
+    ? `${experienceValue} ${experienceValue === 1 ? "Year" : "Years"}\nExperience`
+    : "";
+  const reviewLabel = data.reviewCount > 0 ? `${data.rating.toFixed(1)} Rating\n${data.reviewCount} ${data.reviewCount === 1 ? "Review" : "Reviews"}` : "";
+  const highlights = data.highlights.map((item) => item.trim()).filter(Boolean).slice(0, 4);
+  const trustItems = [
+    data.isVerified ? { icon: ShieldCheck, label: "Trusted\n& Verified" } : null,
+    data.happyClients.trim() ? { icon: Users, label: `${clip(data.happyClients, 8)}\nHappy Clients` } : null,
+    reviewLabel ? { icon: Star, label: reviewLabel } : null,
+    experienceLabel ? { icon: Clock, label: experienceLabel } : null,
+  ].filter(Boolean) as { icon: React.ComponentType<any>; label: string }[];
+  const contacts = [
+    data.mobileNumber.trim() ? { icon: Phone, value: clip(data.mobileNumber, 18) } : null,
+    data.instagram.trim() ? { icon: Instagram, value: clip(`@${data.instagram.replace(/^@/, "")}`, 20) } : null,
+    data.email.trim() ? { icon: Mail, value: clip(data.email, 24) } : null,
+    location ? { icon: MapPin, value: clip(location, 22) } : null,
+    data.website.trim() ? { icon: Globe, value: clip(data.website.replace(/^https?:\/\//i, ""), 22) } : null,
+  ].filter(Boolean).slice(0, 4) as { icon: React.ComponentType<any>; value: string }[];
+  const hasTagline = Boolean(data.tagline.trim());
+  const serviceTop = hasTagline ? 558 : 500;
+  const trustTop = highlights.length ? serviceTop + 126 : serviceTop;
+  const hasContactStrip = contacts.length > 0;
+  const footerTop = hasContactStrip ? 922 : 846;
 
   return (
     <View style={[styles.card, { width, height, borderRadius: s(30), borderWidth: s(2) }]}>
@@ -230,30 +253,28 @@ export default function MarketingCardPreview({
       <View style={[styles.bokeh, { width: s(520), height: s(520), borderRadius: s(260), top: s(120), right: s(120) }]} />
 
       {/* ---------- Cover photo, top-right, feathered into the background ---------- */}
-      <View style={{ position: "absolute", top: 0, right: 0, width: s(370), height: s(618), overflow: "hidden", borderTopRightRadius: s(30) }}>
-        {data.coverImageUrl ? (
-          <Image source={{ uri: data.coverImageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
-        ) : (
-          <LinearGradient colors={["#F7CEDE", "#EFAAC6"]} style={StyleSheet.absoluteFillObject} />
-        )}
+      {data.coverImageUrl ? (
+        <View style={{ position: "absolute", top: 0, right: 0, width: s(650), height: s(610), overflow: "hidden", borderTopRightRadius: s(30) }}>
+          <Image source={{ uri: data.coverImageUrl }} style={[StyleSheet.absoluteFillObject, { opacity: 0.14 }]} resizeMode="cover" />
         {/* Feather the left and bottom edges so the photo melts into the card */}
         <LinearGradient
-          colors={["#FDEAF2", "rgba(253,234,242,0.55)", "rgba(253,234,242,0)"]}
-          locations={[0, 0.35, 1]}
+          colors={["#FFF9FB", "rgba(253,234,242,0.68)", "rgba(253,234,242,0.06)"]}
+          locations={[0, 0.42, 1]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={StyleSheet.absoluteFillObject}
         />
         <LinearGradient
-          colors={["rgba(253,234,242,0)", "rgba(253,234,242,0.6)", "#FDEAF2"]}
-          locations={[0.55, 0.82, 1]}
+          colors={["rgba(253,234,242,0.02)", "rgba(253,234,242,0.72)", "#FFF7FA"]}
+          locations={[0.48, 0.78, 1]}
           style={StyleSheet.absoluteFillObject}
         />
-      </View>
+        </View>
+      ) : null}
 
       {/* ---------- Header: RoyalLagn lockup + brand website pill ---------- */}
       <View style={{ position: "absolute", left: s(56), top: s(52) }}>
-        <BrandLockup width={s(512)} />
+        <BrandLockup width={s(560)} />
       </View>
       <View
         style={[
@@ -266,43 +287,41 @@ export default function MarketingCardPreview({
       </View>
 
       {/* ---------- Vendor logo medallion, over the cover photo ---------- */}
-      <View
+      {data.logoUrl ? <View
         style={[
           styles.medallion,
-          { position: "absolute", left: s(820), top: s(150), width: s(348), height: s(348), borderRadius: s(174), borderWidth: s(6) },
+          { position: "absolute", left: s(980), top: s(76), width: s(430), height: s(430), borderRadius: s(215), borderWidth: s(4), padding: s(10) },
         ]}
       >
-        {data.logoUrl ? (
-          <Image source={{ uri: data.logoUrl }} style={{ width: "100%", height: "100%", borderRadius: s(168) }} resizeMode="contain" />
-        ) : (
-          <BrandEmblem size={s(336)} />
-        )}
-      </View>
+        <Image source={{ uri: data.logoUrl }} style={{ width: "100%", height: "100%", borderRadius: s(201) }} resizeMode="contain" />
+      </View> : null}
 
       {/* ---------- Vendor identity, left column ---------- */}
-      <View style={{ position: "absolute", left: s(58), top: s(252), width: s(740) }}>
+      <View style={{ position: "absolute", left: s(58), top: s(242), width: s(780) }}>
         {/* Georgia has deep descenders; this needs a looser line-height ratio
             than the rest of the card or html2canvas slices the tails off
             "g/p/y" in the exported PDF (see rule 2 at the top of this file). */}
-        <Text style={[styles.businessName, { fontSize: s(58), lineHeight: s(80) }]}>
+        <Text style={[styles.businessName, { fontSize: s(70), lineHeight: s(88) }]}>
           {clip(data.businessName, 26)}
         </Text>
 
-        <View style={[styles.rowStart, { marginTop: s(12) }]}>
+        {data.category.trim() ? <View style={[styles.rowStart, { marginTop: s(12) }]}>
           <View style={[styles.categoryPill, { paddingHorizontal: s(20), paddingVertical: s(10), borderRadius: s(12), gap: s(10) }]}>
             <Camera size={s(23)} color={ROSE} />
             <Text style={[styles.categoryText, { fontSize: s(23), lineHeight: s(31) }]}>{clip(data.category, 34)}</Text>
           </View>
-        </View>
+        </View> : null}
 
-        <View style={[styles.rowStart, { marginTop: s(16), gap: s(18) }]}>
+        {location || data.reviewCount > 0 ? <View style={[styles.rowStart, { marginTop: s(16), gap: s(18) }]}>
+          {location ? (
           <View style={[styles.rowStart, { gap: s(9) }]}>
             <MapPin size={s(23)} color={ROSE} />
             <Text style={[styles.metaText, { fontSize: s(22), lineHeight: s(30) }]}>{clip(location, 26)}</Text>
           </View>
+          ) : null}
           {data.reviewCount > 0 ? (
             <>
-              <View style={[styles.metaDivider, { height: s(28), width: s(1.5) }]} />
+              {location ? <View style={[styles.metaDivider, { height: s(28), width: s(1.5) }]} /> : null}
               <View style={[styles.rowStart, { gap: s(9) }]}>
                 <Star size={s(23)} color="#F5B301" fill="#F5B301" />
                 <Text style={[styles.ratingText, { fontSize: s(23), lineHeight: s(30) }]}>
@@ -312,10 +331,10 @@ export default function MarketingCardPreview({
               </View>
             </>
           ) : null}
-        </View>
+        </View> : null}
 
         {/* Tagline between fixed gold flourishes */}
-        <View style={[styles.rowStart, { marginTop: s(22), gap: s(16) }]}>
+        {hasTagline ? <View style={[styles.rowStart, { marginTop: s(22), gap: s(16) }]}>
           <Flourish s={s} />
           {/* Sized so a master-length tagline sits on one line, while a longer
               one may take two without reaching the service box at y=558. */}
@@ -323,35 +342,32 @@ export default function MarketingCardPreview({
             “{clip(data.tagline, 56)}”
           </Text>
           <Flourish s={s} flip />
-        </View>
+        </View> : null}
       </View>
 
       {/* ---------- Service box (category highlights, system-chosen) ---------- */}
-      <Box s={s} top={558} left={58} width={952} height={106}>
-        {data.highlights.map((label, index) => (
+      {highlights.length ? <Box s={s} top={serviceTop} left={58} width={952} height={106}>
+        {highlights.map((label, index) => (
           <Cell key={label} s={s} icon={highlightIcon(label, index)} label={label} />
         ))}
-      </Box>
+      </Box> : null}
 
       {/* ---------- Trust box ---------- */}
-      <Box s={s} top={684} left={58} width={952} height={106}>
-        <Cell s={s} icon={ShieldCheck} label={"Trusted\n& Verified"} />
-        <Cell s={s} icon={Users} label={`${clip(data.happyClients, 8)}\nHappy Clients`} />
-        <Cell s={s} icon={Trophy} label={"High Quality\nWork"} />
-        <Cell s={s} icon={Clock} label={`${clip(data.experienceYears, 4)} Years\nExperience`} />
-      </Box>
+      {trustItems.length ? <Box s={s} top={trustTop} left={58} width={952} height={106}>
+        {trustItems.map((item) => <Cell key={item.label} s={s} icon={item.icon} label={item.label} />)}
+      </Box> : null}
 
       {/* ---------- QR block, bottom-right ---------- */}
       <View
         style={[
           styles.qrCard,
-          { position: "absolute", left: s(1064), top: s(482), width: s(380), height: s(350), borderRadius: s(22), padding: s(16), borderWidth: s(2) },
+          { position: "absolute", left: s(1030), top: s(data.logoUrl ? 478 : 250), width: s(420), height: s(data.whatsappNumber ? 354 : 300), borderRadius: s(22), padding: s(16), borderWidth: s(2) },
         ]}
       >
         <Text style={[styles.qrTitle, { fontSize: s(21), lineHeight: s(28) }]}>Scan to View{"\n"}Our Profile</Text>
         <View style={[styles.rowStart, { marginTop: s(8), gap: s(10) }]}>
           <View style={[styles.qrBox, { padding: s(9), borderRadius: s(12), borderWidth: s(2.5) }]}>
-            <QRCode value={data.profileUrl} size={s(178)} backgroundColor="#FFFFFF" ecl="H" />
+            <QRCode value={data.profileUrl} size={s(188)} backgroundColor="#FFFFFF" ecl="H" />
             <View style={[styles.qrEmblem, { width: s(50), height: s(50), borderRadius: s(10), borderWidth: s(2.5) }]}>
               <BrandEmblem size={s(42)} />
             </View>
@@ -362,34 +378,33 @@ export default function MarketingCardPreview({
             <Heart size={s(22)} color={ROSE_SOFT} style={{ marginTop: s(8) }} />
           </View>
         </View>
-        <View style={[styles.whatsappButton, { marginTop: s(10), borderRadius: s(22), paddingVertical: s(10), gap: s(9) }]}>
+        {data.whatsappNumber ? <View style={[styles.whatsappButton, { marginTop: s(10), borderRadius: s(22), paddingVertical: s(10), gap: s(9) }]}>
           <MessageCircle size={s(21)} color="#FFFFFF" />
           <Text style={[styles.whatsappText, { fontSize: s(20), lineHeight: s(27) }]}>Chat on WhatsApp</Text>
-        </View>
+        </View> : null}
       </View>
 
       {/* ---------- Contact bar ---------- */}
-      <LinearGradient
-        colors={["#F368A0", "#EA2A80"]}
+      {hasContactStrip ? <LinearGradient
+        colors={["#FFF8FA", "#F9DCE8", "#FFF8FA"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={{ position: "absolute", left: 0, right: 0, top: s(842), height: s(80), flexDirection: "row", alignItems: "center", paddingHorizontal: s(40) }}
+        style={{ position: "absolute", left: s(24), right: s(24), top: s(846), height: s(68), borderRadius: s(34), borderWidth: s(1.5), borderColor: GOLD_SOFT, flexDirection: "row", alignItems: "center", paddingHorizontal: s(34) }}
       >
-        <Contact s={s} icon={Phone} value={clip(data.mobileNumber, 18)} />
-        <BarDivider s={s} />
-        <Contact s={s} icon={Instagram} value={data.instagram ? clip(`@${data.instagram.replace(/^@/, "")}`, 20) : ""} />
-        <BarDivider s={s} />
-        <Contact s={s} icon={Mail} value={clip(data.email, 24)} />
-        <BarDivider s={s} />
-        <Contact s={s} icon={data.website ? Globe : MapPin} value={data.website ? clip(data.website.replace(/^https?:\/\//i, ""), 22) : clip(location, 22)} />
-      </LinearGradient>
+        {contacts.map((contact, index) => (
+          <React.Fragment key={`${contact.value}-${index}`}>
+            {index > 0 ? <BarDivider s={s} /> : null}
+            <Contact s={s} icon={contact.icon} value={contact.value} />
+          </React.Fragment>
+        ))}
+      </LinearGradient> : null}
 
       {/* ---------- Fixed RoyalLagn footer ---------- */}
       <LinearGradient
         colors={["#EC3183", "#DE1370"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={{ position: "absolute", left: 0, right: 0, top: s(922), bottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: s(16) }}
+        style={{ position: "absolute", left: 0, right: 0, top: s(footerTop), bottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: s(16) }}
       >
         <FooterOrnament s={s} />
         <Text style={[styles.footerText, { fontSize: s(22), lineHeight: s(30) }]}>Find Trusted Wedding Vendors Only on</Text>
@@ -418,9 +433,9 @@ function Flourish({ s, flip }: { s: (value: number) => number; flip?: boolean })
 function FooterOrnament({ s, flip }: { s: (value: number) => number; flip?: boolean }) {
   return (
     <View style={[styles.rowStart, { gap: s(9) }, flip && styles.flip]}>
-      <Heart size={s(15)} color="rgba(255,255,255,0.7)" fill="rgba(255,255,255,0.7)" />
+      <Heart size={s(15)} color={GOLD_SOFT} fill={GOLD_SOFT} />
       <View style={[styles.footerRule, { width: s(46), height: s(1.5) }]} />
-      <Heart size={s(19)} color="rgba(255,255,255,0.85)" fill="rgba(255,255,255,0.85)" />
+      <Heart size={s(19)} color={GOLD_SOFT} fill={GOLD_SOFT} />
     </View>
   );
 }
@@ -511,7 +526,7 @@ function BarDivider({ s }: { s: (value: number) => number }) {
 
 const styles = StyleSheet.create({
   // NOTE: no shadow*/elevation anywhere in this file -- see rule 3 at the top.
-  card: { overflow: "hidden", backgroundColor: "#FFFFFF", borderColor: "#F4D8E5" },
+  card: { overflow: "hidden", backgroundColor: "#FFFFFF", borderColor: "#DDB45A" },
   bokeh: { position: "absolute", backgroundColor: "rgba(240,140,185,0.055)" },
   rowStart: { flexDirection: "row", alignItems: "center" },
   flip: { transform: [{ scaleX: -1 }] },
@@ -519,7 +534,7 @@ const styles = StyleSheet.create({
   sitePill: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderColor: "#F7DCE8" },
   sitePillText: { color: INK, fontWeight: "700" },
 
-  medallion: { overflow: "hidden", backgroundColor: "#FFFFFF", borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
+  medallion: { overflow: "hidden", backgroundColor: "#FFFDF8", borderColor: GOLD_SOFT, alignItems: "center", justifyContent: "center" },
 
   businessName: { color: INK, fontFamily: fonts.serif.bold },
   categoryPill: { flexDirection: "row", alignItems: "center", backgroundColor: PINK_PILL },
@@ -546,10 +561,10 @@ const styles = StyleSheet.create({
 
   contactItem: { flex: 1, flexDirection: "row", alignItems: "center" },
   contactIcon: { backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
-  contactText: { color: "#FFFFFF", fontWeight: "700", flexShrink: 1 },
-  barDivider: { backgroundColor: "rgba(255,255,255,0.35)", marginHorizontal: 4 },
+  contactText: { color: INK, fontWeight: "700", flexShrink: 1 },
+  barDivider: { backgroundColor: GOLD_SOFT, marginHorizontal: 4 },
 
-  footerRule: { backgroundColor: "rgba(255,255,255,0.55)" },
+  footerRule: { backgroundColor: GOLD_SOFT },
   footerText: { color: "#FFFFFF", fontWeight: "700" },
   footerPill: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF" },
   footerPillText: { color: INK, fontWeight: "700" },
