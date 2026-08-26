@@ -1,11 +1,16 @@
 import React, { useMemo } from "react";
-import { Text, View } from "react-native";
+import { Linking, Text, View } from "react-native";
 
-type InlinePart = { kind: "text" | "strong" | "emphasis" | "code"; value: string };
+type InlinePart = {
+  kind: "text" | "strong" | "emphasis" | "code" | "link";
+  value: string;
+  href?: string;
+  emphasis?: "strong" | "emphasis" | "code";
+};
 type LegalBlock =
   | { kind: "heading"; level: number; text: string }
   | { kind: "paragraph"; text: string }
-  | { kind: "list"; ordered: boolean; items: Array<{ text: string; depth: number }> };
+  | { kind: "list"; ordered: boolean; items: { text: string; depth: number }[] };
 
 const LEGAL_SUBSECTIONS = new Set([
   "Account and authentication information",
@@ -23,13 +28,33 @@ const LEGAL_SUBSECTIONS = new Set([
   "For legal, security and corporate purposes",
 ]);
 
-function inlineParts(value: string): InlinePart[] {
+function linkedParts(value: string, emphasis?: InlinePart["emphasis"]): InlinePart[] {
+  const pattern = /(\[[^\]]+\]\((?:https?:\/\/|mailto:)[^)]+\)|https?:\/\/[^\s]+|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi;
+  const parts: InlinePart[] = [];
+  let cursor = 0;
+  for (const match of value.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (index > cursor) parts.push({ kind: emphasis ?? "text", value: value.slice(cursor, index) });
+    const token = match[0];
+    const markdown = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    const label = markdown?.[1] ?? token.replace(/[.,;:!?]+$/, "");
+    const trailing = markdown ? "" : token.slice(label.length);
+    const target = markdown?.[2] ?? (/^[^@\s]+@[^@\s]+$/.test(label) ? `mailto:${label}` : label);
+    parts.push({ kind: "link", value: label, href: target, emphasis });
+    if (trailing) parts.push({ kind: emphasis ?? "text", value: trailing });
+    cursor = index + token.length;
+  }
+  if (cursor < value.length) parts.push({ kind: emphasis ?? "text", value: value.slice(cursor) });
+  return parts;
+}
+
+export function inlineParts(value: string): InlinePart[] {
   const matches = value.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g).filter(Boolean);
-  return matches.map((part) => {
-    if (part.startsWith("**") && part.endsWith("**")) return { kind: "strong", value: part.slice(2, -2) };
-    if (part.startsWith("*") && part.endsWith("*")) return { kind: "emphasis", value: part.slice(1, -1) };
-    if (part.startsWith("`") && part.endsWith("`")) return { kind: "code", value: part.slice(1, -1) };
-    return { kind: "text", value: part };
+  return matches.flatMap((part) => {
+    if (part.startsWith("**") && part.endsWith("**")) return linkedParts(part.slice(2, -2), "strong");
+    if (part.startsWith("*") && part.endsWith("*")) return linkedParts(part.slice(1, -1), "emphasis");
+    if (part.startsWith("`") && part.endsWith("`")) return linkedParts(part.slice(1, -1), "code");
+    return linkedParts(part);
   });
 }
 
@@ -98,7 +123,11 @@ function InlineText({ children }: { children: string }) {
   return <>{inlineParts(children).map((part, index) => (
     <Text
       key={`${index}-${part.value}`}
-      className={part.kind === "strong" ? "font-bold" : part.kind === "emphasis" ? "italic" : part.kind === "code" ? "font-semibold text-primary" : undefined}
+      accessibilityRole={part.kind === "link" ? "link" : undefined}
+      onPress={part.kind === "link" && part.href ? () => { void Linking.openURL(part.href!); } : undefined}
+      className={part.kind === "link"
+        ? `text-primary underline${part.emphasis === "strong" ? " font-bold" : part.emphasis === "emphasis" ? " italic" : ""}`
+        : part.kind === "strong" ? "font-bold" : part.kind === "emphasis" ? "italic" : part.kind === "code" ? "font-semibold text-primary" : undefined}
     >
       {part.value}
     </Text>
