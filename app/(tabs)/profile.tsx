@@ -238,6 +238,12 @@ export default function ProfileScreen() {
       description: "Choose the updates you want to receive",
       onPress: () => router.push("/Settings"),
     },
+    {
+      icon: Trash2,
+      title: "Delete account",
+      description: "Request deletion of your RoyalLagn account",
+      onPress: () => router.push("/account-deletion"),
+    },
   ];
 
   const supportOptions = [

@@ -420,6 +420,9 @@ verify_jwt = false
 [functions.process-subscription-lifecycle]
 verify_jwt = false
 
+[functions.request-account-deletion]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

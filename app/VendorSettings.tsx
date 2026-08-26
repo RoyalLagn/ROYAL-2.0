@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
-import { Check, Moon, Save, Sun } from "lucide-react-native";
+import { Check, Moon, Save, Sun, Trash2 } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
@@ -15,6 +16,7 @@ const definitions = [
 ] as const;
 
 export default function VendorSettings() {
+  const router = useRouter();
   const { colorScheme, toggleColorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { data, loading, refresh } = useVendorWorkspace();
@@ -43,6 +45,13 @@ export default function VendorSettings() {
         <Pressable onPress={toggleColorScheme} style={[styles.row, { borderTopColor: colors.border }]}>
           <View style={[styles.icon, { backgroundColor: colors.surfaceSoft }]}>{colorScheme === "dark" ? <Sun size={19} color={colors.pink} /> : <Moon size={19} color={colors.pink} />}</View>
           <View style={styles.flex}><Text style={[styles.rowTitle, { color: colors.text }]}>{colorScheme === "dark" ? "Dark appearance" : "Light appearance"}</Text><Text style={[styles.detail, { color: colors.muted }]}>Tap to switch theme. Your choice is saved on this device.</Text></View>
+        </Pressable>
+      </View>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.section, { color: colors.text }]}>Account</Text>
+        <Pressable onPress={() => router.push("/account-deletion")} accessibilityRole="link" style={[styles.row, { borderTopColor: colors.border }]}>
+          <View style={[styles.icon, { backgroundColor: `${colors.warning}12` }]}><Trash2 size={19} color={colors.warning} /></View>
+          <View style={styles.flex}><Text style={[styles.rowTitle, { color: colors.warning }]}>Delete vendor profile</Text><Text style={[styles.detail, { color: colors.muted }]}>Request permanent deletion of this vendor workspace and public profile.</Text></View>
         </Pressable>
       </View>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
