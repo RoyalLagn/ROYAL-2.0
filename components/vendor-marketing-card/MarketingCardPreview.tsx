@@ -558,9 +558,9 @@ const styles = StyleSheet.create({
   whatsappButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: ROSE },
   whatsappText: { color: "#FFFFFF", fontWeight: "700" },
 
-  contactItem: { flex: 1, flexDirection: "row", alignItems: "center" },
+  contactItem: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
   contactIcon: { backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
-  contactText: { color: "#FFFFFF", fontWeight: "700", flexShrink: 1 },
+  contactText: { color: "#FFFFFF", fontWeight: "700", flexShrink: 1, textAlign: "center" },
   barDivider: { backgroundColor: "rgba(255,255,255,0.35)", marginHorizontal: 4 },
 
   footerRule: { backgroundColor: "rgba(255,255,255,0.55)" },
