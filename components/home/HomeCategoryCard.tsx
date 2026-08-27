@@ -49,7 +49,7 @@ function HomeCategoryCard({
   const colors = brandColors(dark);
   const compact = itemWidth < 100;
   const cardPadding = compact ? 4 : desktop ? 0 : 10;
-  const cardHeight = Math.round(cardWidth / (compact ? 0.92 : desktop ? 0.72 : 0.82));
+  const cardHeight = Math.round(cardWidth / (compact ? 0.72 : desktop ? 0.72 : 0.82));
   // Slimmer inset so the photo fills more of the frame.
   const framePadding = Math.min(5, Math.max(3.5, Math.round(cardWidth * 0.055)));
   const outerRadius = compact ? 14 : Math.min(20, Math.max(15, Math.round(cardWidth * 0.18)));

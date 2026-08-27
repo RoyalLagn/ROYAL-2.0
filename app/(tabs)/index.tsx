@@ -107,7 +107,7 @@ export default function HomeScreen() {
   const categoryGap = isDesktop ? 28 : screenWidth >= 600 ? 10 : 6;
   const availableCategoryWidth = Math.floor((featureWidth - categoryGap * (categoryColumns - 1)) / categoryColumns);
   const categoryItemWidth = availableCategoryWidth;
-  const categoryCardInset = isDesktop ? Math.max(20, availableCategoryWidth - 184) : screenWidth >= 600 ? 14 : 8;
+  const categoryCardInset = isDesktop ? Math.max(20, availableCategoryWidth - 184) : screenWidth >= 600 ? 14 : 3;
   const categoryCardWidth = Math.max(44, categoryItemWidth - categoryCardInset);
   const vendorCardGap = screenWidth >= BREAKPOINTS.smallTablet ? 14 : 12;
   const vendorCardWidth = isDesktop
