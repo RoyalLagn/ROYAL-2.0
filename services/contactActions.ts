@@ -27,5 +27,6 @@ export function buildVendorProfilePath(vendorId: string, category?: string | nul
 }
 
 export function buildVendorProfilePathBySlug(slug: string) {
-  return `/vendors/${encodeURIComponent(slug)}`;
+  return buildSeoVendorProfilePathBySlug(slug);
 }
+import { buildVendorProfilePathBySlug as buildSeoVendorProfilePathBySlug } from "@/services/publicSeoRoutes";

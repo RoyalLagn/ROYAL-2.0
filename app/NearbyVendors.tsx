@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { FlatList, type ListRenderItemInfo, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
-import { useRouter } from "expo-router";
+import { type Href, useRouter } from "expo-router";
+import { buildVendorListingPath } from "@/services/publicSeoRoutes";
 import { Check, ChevronDown, LocateFixed, MapPin, RefreshCw, Search, SearchX, ShieldAlert, SlidersHorizontal, X } from "lucide-react-native";
 import HomeReveal from "@/components/home/HomeReveal";
 import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
@@ -141,7 +142,7 @@ export default function NearbyVendorsScreen() {
 
   const openManualSearch = useCallback(() => {
     if (category) {
-      router.push({ pathname: "/VendorsListing", params: { category } });
+      router.push(buildVendorListingPath(category) as Href);
       return;
     }
     router.push("/(tabs)/Categories");

@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { type Href, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, ChevronRight, Search as SearchIcon } from "lucide-react-native";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import SafeImage from "@/components/SafeImage";
@@ -27,6 +27,7 @@ import { typeScale } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { useCustomerLocation } from "@/context/LocationContext";
 import { vendorNearbyLabel } from "@/services/locations";
+import { buildVendorListingPath, buildVendorProfilePathBySlug } from "@/services/publicSeoRoutes";
 import { rankVendorsByLocationAndMembership } from "@/locations/domain";
 
 const GLOBAL_PAGES = [
@@ -219,7 +220,7 @@ export default function SearchScreen() {
               </TouchableOpacity>
             ))}
             {pageResults.categoryPages.map((page) => (
-              <TouchableOpacity key={page.category} onPress={() => router.push({ pathname: "/VendorsListing", params: { category: page.category } })} className="min-h-[52px] px-2 flex-row items-center border-t border-border">
+              <TouchableOpacity key={page.category} onPress={() => router.push(buildVendorListingPath(page.category) as Href)} className="min-h-[52px] px-2 flex-row items-center border-t border-border">
                 <View className="flex-1">
                   <Text className="text-foreground text-sm font-semibold">{page.label}</Text>
                   <Text className="text-muted-foreground text-2xs mt-0.5">{page.detail}</Text>
@@ -234,7 +235,7 @@ export default function SearchScreen() {
           <TouchableOpacity
             key={`${vendor.category}-${vendor.id}`}
             className="bg-card border border-border rounded-2xl p-3 flex-row"
-            onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category } })}
+            onPress={() => router.push({ pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]", params: { slug: vendor.slug } })}
           >
             <SafeImage
               accessibilityLabel={`${vendor.name} listing`}

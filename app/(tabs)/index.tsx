@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Head } from "expo-router/head";
+import { type Href, useRouter } from "expo-router";
+import Head from "expo-router/head";
 import {
   Bell, LocateFixed, MapPin, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, Settings2, } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -42,6 +42,7 @@ import {
 } from "@/services/deviceLocation";
 import { useCustomerLocation } from "@/context/LocationContext";
 import { rankVendorsByLocationAndMembership } from "@/locations/domain";
+import { buildVendorListingPath } from "@/services/publicSeoRoutes";
 
 const PINK = brandPalette.light.primaryStrong;
 const SEO_BASE_URL = (
@@ -193,10 +194,7 @@ export default function HomeScreen() {
   const STAR = colors.rating;
 
   const catNameForNav = (name: string) => name;
-  const openCategory = (name: string) => router.push({
-    pathname: "/VendorsListing",
-    params: { category: catNameForNav(name) },
-  });
+  const openCategory = (name: string) => router.push(buildVendorListingPath(catNameForNav(name)) as Href);
   const primaryCategories = categories.slice(0, PRIMARY_CATEGORY_COUNT);
   const displayedCategories = showAllCategories ? categories : primaryCategories;
   const searchParams = (value: HomeFilters = filters, query = searchText) => ({

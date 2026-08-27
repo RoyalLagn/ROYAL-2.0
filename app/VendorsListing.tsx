@@ -39,6 +39,8 @@ import {
 import type { GeoSelection, GeoState } from "@/locations/types";
 import { getCurrentDeviceLocation, getDevicePermissionStatus, getLastDetectedLocationLabel, reverseGeocodeLabel, type DeviceCoordinates } from "@/services/deviceLocation";
 import { fetchLocationRankedVendors } from "@/services/vendorDiscovery";
+import { buildVendorListingPath, buildVendorProfilePathBySlug, displayLocationFromSlug } from "@/services/publicSeoRoutes";
+import { vendorWebBase } from "@/services/contactActions";
 
 const LOCATION_PAGE_SIZE = 20;
 
@@ -91,7 +93,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
 
 function resolveCategory(value?: string) {
   if (!value) return "Photographers";
-  const raw = value.trim();
+  const raw = value.trim().replace(/^wedding-/i, "");
   const aliased = CATEGORY_ALIASES[raw.toLowerCase()] ?? raw;
   // Accept marketplace names, DB names, and slugs (e.g. photographer / wedding-hall).
   const matched = findMarketplaceCategory(aliased);
@@ -104,12 +106,14 @@ export default function VendorsListingScreen() {
   const isDark = colorScheme === "dark";
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const params = useLocalSearchParams<{ category?: string; query?: string }>();
+  const params = useLocalSearchParams<{ category?: string; location?: string; query?: string }>();
   const { favorites, isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
 
   const categoryParam = Array.isArray(params.category) ? params.category[0] : params.category;
   const displayCategory = resolveCategory(categoryParam);
+  const locationParam = Array.isArray(params.location) ? params.location[0] : params.location;
+  const requestedLocation = displayLocationFromSlug(locationParam);
   const initialQuery = Array.isArray(params.query) ? params.query[0] : params.query ?? "";
   const [query, setQuery] = useState(initialQuery);
   const [filters, setFilters] = useState<ListingFilters>(DEFAULT_FILTERS);
@@ -120,6 +124,32 @@ export default function VendorsListingScreen() {
   const [vendorsError, setVendorsError] = useState("");
   const [currentLocationLabel, setCurrentLocationLabel] = useState("Current location");
   const [deviceOrigin, setDeviceOrigin] = useState<DeviceCoordinates | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    const canonicalUrl = `${vendorWebBase()}${buildVendorListingPath(displayCategory, requestedLocation)}`;
+    const pageTitle = requestedLocation
+      ? `Wedding ${displayCategory} in ${requestedLocation} | RoyalLagn`
+      : `Wedding ${displayCategory} | RoyalLagn`;
+    const description = requestedLocation
+      ? `Discover verified wedding ${displayCategory.toLowerCase()} in ${requestedLocation} on RoyalLagn.`
+      : `Discover verified wedding ${displayCategory.toLowerCase()} on RoyalLagn.`;
+    document.title = pageTitle;
+    let meta = document.querySelector('meta[name="description"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "description");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", description);
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute("href", canonicalUrl);
+  }, [displayCategory, requestedLocation]);
 
   // District/Taluka is the canonical marketplace discovery path. GPS and
   // direct PIN search remain separate, explicit features on their own routes.
@@ -313,7 +343,7 @@ export default function VendorsListingScreen() {
   const text = isDark ? "#F8F2F5" : colors.foreground;
   const muted = colors.mutedForeground;
   const border = colors.border;
-  const locationSubtitle = currentLocationLabel;
+  const locationSubtitle = requestedLocation || currentLocationLabel;
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -366,8 +396,9 @@ export default function VendorsListingScreen() {
 
   const vendors = useMemo(
     () => approvedVendors
-      .filter((vendor) => vendor.category.toLowerCase() === displayCategory.toLowerCase()),
-    [approvedVendors, displayCategory],
+      .filter((vendor) => vendor.category.toLowerCase() === displayCategory.toLowerCase())
+      .filter((vendor) => !requestedLocation || vendor.location.toLowerCase().includes(requestedLocation.toLowerCase())),
+    [approvedVendors, displayCategory, requestedLocation],
   );
 
   const applySearchAndSort = useCallback((source: PublicVendorListing[]) => {
@@ -509,15 +540,15 @@ export default function VendorsListingScreen() {
           fallbackImage={fallbackImage}
           onOpen={() =>
             router.push({
-              pathname: "/VendorsProfile",
-              params: { vendorId: vendor.id, category: displayCategory },
+              pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]",
+              params: { slug: vendor.slug },
             })
           }
           onToggleFavorite={(source) => toggleVendorFavorite(vendor, source)}
         />
       </HomeReveal>
     );
-  }, [isDark, compact, isFavorite, fallbackImage, router, displayCategory, toggleVendorFavorite, border, muted]);
+  }, [isDark, compact, isFavorite, fallbackImage, router, toggleVendorFavorite, border, muted]);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "left", "right"]}>

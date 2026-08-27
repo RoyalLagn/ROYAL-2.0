@@ -2,7 +2,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "
 import { BackHandler, FlatList, Image, Platform, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
-import { useFocusEffect, useRouter } from "expo-router";
+import { type Href, useFocusEffect, useRouter } from "expo-router";
 import Animated, {
   Easing, Extrapolation, interpolate, type SharedValue, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming, } from "react-native-reanimated";
 import CategoryCard, { type CategoryCardItem } from "@/components/categories/CategoryCard";
@@ -12,6 +12,7 @@ import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import { useCategories } from "@/context/CategoryContext";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
+import { buildVendorListingPath } from "@/services/publicSeoRoutes";
 
 const INITIAL_ANIMATED_CARDS = 6;
 const SKELETON_DELAY_MS = 200;
@@ -196,7 +197,7 @@ export default function CategoriesScreen() {
     return () => subscription.remove();
   }, [filtersVisible, goBack]));
   const openCategory = useCallback((name: string) => {
-    router.push({ pathname: "/VendorsListing", params: { category: name } });
+    router.push(buildVendorListingPath(name) as Href);
   }, [router]);
   const openFilters = useCallback(() => setFiltersVisible(true), []);
   const closeFilters = useCallback(() => setFiltersVisible(false), []);

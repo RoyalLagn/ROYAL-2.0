@@ -59,6 +59,7 @@ import {
   openWebsite as openWebsiteUrl,
 } from "@/services/externalLinks";
 import { brandPalette } from "@/constants/brandPalette";
+import { buildVendorProfilePathBySlug, vendorWebBase } from "@/services/contactActions";
 
 const PINK = brandPalette.light.primary;
 
@@ -190,7 +191,7 @@ export default function VendorPublicProfileScreen() {
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined" || !vendor) return;
-    const url = typeof window !== "undefined" ? window.location.href.split("?")[0] : "";
+    const url = slug ? `${vendorWebBase()}${buildVendorProfilePathBySlug(slug)}` : "";
     const description = vendor.description?.trim()
       || `${vendor.name} on RoyalLagn — ${vendor.category} in ${vendor.location}.`;
     const image = vendor.heroMedia.length ? portfolioMediaUrl(vendor.heroMedia[0], "hero") : vendor.image;
@@ -244,7 +245,7 @@ export default function VendorPublicProfileScreen() {
         ? { aggregateRating: { "@type": "AggregateRating", ratingValue: vendor.rating, reviewCount: vendor.reviews } }
         : {}),
     });
-  }, [vendor]);
+  }, [slug, vendor]);
 
   const background = dark ? "#070B14" : "#FFFFFF";
   const surface = dark ? "#0E141F" : "#FDF2F8";
