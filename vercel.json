@@ -1,7 +1,26 @@
 {
-  "buildCommand": "npx expo export -p web",
+  "buildCommand": "npm run sitemap:generate && npx expo export -p web",
   "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/vendors/:slug",
+      "destination": "/vendor/:slug",
+      "permanent": true
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/vendors",
+      "destination": "/api/legacy-vendor"
+    },
+    {
+      "source": "/VendorsProfile",
+      "destination": "/api/legacy-vendor"
+    },
+    {
+      "source": "/VendorsListing",
+      "destination": "/api/legacy-listing"
+    },
     {
       "source": "/((?!_expo/|assets/|favicon.ico).*)",
       "destination": "/index.html"

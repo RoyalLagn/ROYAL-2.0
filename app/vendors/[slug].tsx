@@ -127,7 +127,7 @@ export default function VendorPublicProfileScreen() {
           setVendor(result.vendor);
           setState("found");
         } else if (result.kind === "redirect") {
-          router.replace({ pathname: "/vendors/[slug]", params: { slug: result.slug } });
+          router.replace({ pathname: "/vendor/[slug]", params: { slug: result.slug } });
         } else {
           setState("not_found");
         }
@@ -235,12 +235,21 @@ export default function VendorPublicProfileScreen() {
     jsonLd.textContent = JSON.stringify({
       "@context": "https://schema.org",
       "@type": "LocalBusiness",
+      "@id": `${url}#business`,
       name: vendor.name,
-      image: image || undefined,
+      image: image ? [image] : undefined,
       description,
-      address: vendor.address || vendor.location || undefined,
-      telephone: vendor.contactPhone || undefined,
       url: url || undefined,
+      address: vendor.location || vendor.address ? {
+        "@type": "PostalAddress",
+        streetAddress: vendor.address || undefined,
+        addressLocality: vendor.location?.split(",")[0]?.trim() || undefined,
+        addressCountry: "IN",
+      } : undefined,
+      areaServed: vendor.location || undefined,
+      priceRange: vendor.startingPrice || undefined,
+      telephone: vendor.contactPhone || undefined,
+      sameAs: [vendor.website, vendor.instagram, vendor.facebook].filter(Boolean),
       ...(vendor.reviews
         ? { aggregateRating: { "@type": "AggregateRating", ratingValue: vendor.rating, reviewCount: vendor.reviews } }
         : {}),

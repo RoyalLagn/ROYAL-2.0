@@ -128,6 +128,7 @@ function SafeImage({
       onError={handleError}
       // @ts-expect-error — RN Web supports loading="lazy"
       loading={Platform.OS === "web" && lazy ? "lazy" : undefined}
+      alt={Platform.OS === "web" && typeof props.accessibilityLabel === "string" ? props.accessibilityLabel : undefined}
       style={[style, animatedStyle]}
     />
   );

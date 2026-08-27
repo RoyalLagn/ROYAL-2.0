@@ -1,4 +1,17 @@
 User-agent: *
 Allow: /
+Disallow: /Admin
+Disallow: /admin-
+Disallow: /Crm
+Disallow: /DashboardCenter
+Disallow: /Vendor
+Disallow: /vendor-dashboard
+Disallow: /vendors-admin-listing
+Disallow: /payments-admin
+Disallow: /subscriptions-admin
+Disallow: /Login
+Disallow: /ForgotPassword
+Disallow: /CreatePassword
+Disallow: /OtpVerification
 
 Sitemap: https://royallagn.com/sitemap.xml

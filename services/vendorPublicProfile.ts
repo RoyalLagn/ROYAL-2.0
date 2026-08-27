@@ -1,6 +1,7 @@
 import { supabase } from "@/services/supabase";
 import { EnquiryService } from "@/services/enquiries";
 import { vendorWebBase } from "@/services/contactActions";
+import { buildVendorProfilePathBySlug } from "@/services/publicSeoRoutes";
 import {
   getApprovedPublicVendorBySlug,
   type PublicVendorListing,
@@ -45,7 +46,7 @@ export async function getVendorPublicProfileBySlug(slug: string): Promise<Vendor
 }
 
 export function buildVendorPublicProfileUrl(slug: string, source?: string) {
-  const url = `${vendorWebBase()}/vendors/${slug}`;
+  const url = `${vendorWebBase()}${buildVendorProfilePathBySlug(slug)}`;
   return source ? `${url}?src=${encodeURIComponent(source)}` : url;
 }
 
