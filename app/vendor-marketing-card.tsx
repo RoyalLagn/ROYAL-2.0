@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { CircleAlert, Download, Sparkles } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -59,9 +59,9 @@ export default function VendorMarketingCard() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { data, loading, error, refresh } = useVendorWorkspace();
-  const desktop = width >= 1100;
+  const desktop = width >= 900;
   // The card is a fixed 3:2 landscape canvas; width drives the whole render.
-  const previewWidth = Math.min(desktop ? width - 520 : width - 32, 800);
+  const previewWidth = Math.min(desktop ? 660 : width - 32, 660);
 
   const [values, setValues] = useState<MarketingCardFormValues>(EMPTY_VALUES);
   const [hydrated, setHydrated] = useState(false);
@@ -204,10 +204,8 @@ export default function VendorMarketingCard() {
       <VendorHeader />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll]}>
         <VendorDashboardReveal>
-          <View style={styles.pageHeading}>
-            <Text style={[styles.pageTitle, { color: colors.text }]}>Marketing Card</Text>
-            <Text style={[styles.pageSubtitle, { color: colors.muted }]}>Create and download your print-ready RoyalLagn vendor card from your live profile.</Text>
-          </View>
+          <Text style={[styles.pageTitle, { color: colors.text }]}>Marketing Card</Text>
+          <Text style={[styles.pageSubtitle, { color: colors.muted }]}>One premium, print-ready RoyalLagn card for your business -- generated from your live profile.</Text>
 
           {error ? (
             <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -231,30 +229,24 @@ export default function VendorMarketingCard() {
           {available ? (
             <>
               <HiddenExportCard data={cardData} hostRef={exportRef} />
-              <View style={[styles.workspace, desktop && styles.workspaceDesktop]}>
-                <View style={[styles.previewColumn, desktop && styles.previewColumnDesktop, desktop && Platform.OS === "web" ? ({ position: "sticky", top: 24 } as any) : null]}>
-                  <View style={styles.previewHeading}>
-                    <Text style={[styles.previewLabel, { color: colors.text }]}>Live preview</Text>
-                    <Text style={[styles.previewMeta, { color: colors.muted }]}>The downloaded PDF uses this exact 3:2 design.</Text>
-                  </View>
-                  <View style={styles.previewWrap}><MarketingCardPreview data={cardData} width={previewWidth} /></View>
-                  {downloadError ? <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}><CircleAlert size={18} color={colors.warning} /><Text style={[styles.noticeText, { color: colors.warning }]}>{downloadError}</Text></View> : null}
-                  {downloaded ? <Text style={[styles.downloadedText, { color: colors.success }]}>Marketing card downloaded.</Text> : null}
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={saving}
-                    onPress={handleDownload}
-                    style={({ pressed }) => [styles.downloadButton, { backgroundColor: colors.pink }, (pressed || saving) && styles.pressed]}
-                  >
-                    {saving ? <ActivityIndicator color="#FFF" /> : <Download size={18} color="#FFF" />}
-                    <Text style={styles.downloadButtonText}>{saving ? "Preparing your card…" : "Download Marketing Card (PDF)"}</Text>
-                  </Pressable>
-                </View>
-                <View style={[styles.formColumn, desktop && styles.formColumnDesktop]}>
-                  <View style={styles.formHeading}><Text style={[styles.formTitle, { color: colors.text }]}>Card details</Text><Text style={[styles.formSubtitle, { color: colors.muted }]}>Updates appear instantly in the preview.</Text></View>
-                  <MarketingCardForm colors={colors} values={values} errors={errors} onChange={setField} />
-                </View>
+              <View style={styles.previewWrap}>
+                <MarketingCardPreview data={cardData} width={previewWidth} />
               </View>
+
+              <MarketingCardForm colors={colors} values={values} errors={errors} onChange={setField} />
+
+              {downloadError ? <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}><CircleAlert size={18} color={colors.warning} /><Text style={[styles.noticeText, { color: colors.warning }]}>{downloadError}</Text></View> : null}
+              {downloaded ? <Text style={[styles.downloadedText, { color: colors.success }]}>Marketing card downloaded.</Text> : null}
+
+              <Pressable
+                accessibilityRole="button"
+                disabled={saving}
+                onPress={handleDownload}
+                style={({ pressed }) => [styles.downloadButton, { backgroundColor: colors.pink }, (pressed || saving) && styles.pressed]}
+              >
+                {saving ? <ActivityIndicator color="#FFF" /> : <Download size={18} color="#FFF" />}
+                <Text style={styles.downloadButtonText}>{saving ? "Preparing your card…" : "Download Marketing Card (PDF)"}</Text>
+              </Pressable>
             </>
           ) : null}
         </VendorDashboardReveal>
@@ -269,32 +261,19 @@ export default function VendorMarketingCard() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 40, width: "100%", alignSelf: "center" },
-  desktopScroll: { maxWidth: 1320, paddingHorizontal: 18, paddingTop: 26, paddingBottom: 64 },
-  pageHeading: { marginBottom: 18 },
+  desktopScroll: { maxWidth: 720, paddingHorizontal: 0, paddingTop: 24, paddingBottom: 56 },
   pageTitle: { fontSize: typeScale.metric, fontWeight: "700" },
-  pageSubtitle: { maxWidth: 680, fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, marginTop: 4 },
+  pageSubtitle: { fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, marginTop: 4, marginBottom: 16 },
   notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   noticeText: { flex: 1, fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
   emptyCard: { borderWidth: 1, borderRadius: 26, padding: 32, alignItems: "center", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.06, shadowRadius: 22, elevation: 2 },
   emptyIcon: { width: 56, height: 56, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 16 },
   emptyTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700", marginBottom: 8 },
   emptyText: { fontSize: typeScale.body, lineHeight: typeLeading.bodyCompact, textAlign: "center" },
-  workspace: { width: "100%", gap: 18 },
-  workspaceDesktop: { flexDirection: "row-reverse", alignItems: "flex-start", gap: 28 },
-  previewColumn: { width: "100%", minWidth: 0 },
-  previewColumnDesktop: { flex: 1, width: "auto", alignSelf: "flex-start" },
-  previewHeading: { marginBottom: 10 },
-  previewLabel: { fontSize: typeScale.body, lineHeight: typeLeading.body, fontWeight: "700" },
-  previewMeta: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },
-  previewWrap: { alignItems: "center", marginBottom: 14 },
-  formColumn: { width: "100%", minWidth: 0 },
-  formColumnDesktop: { width: 420, flexShrink: 0 },
-  formHeading: { marginBottom: 10 },
-  formTitle: { fontSize: typeScale.body, lineHeight: typeLeading.body, fontWeight: "700" },
-  formSubtitle: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },
+  previewWrap: { alignItems: "center", marginBottom: 18 },
   downloadedText: { fontSize: typeScale.metadata, fontWeight: "700", textAlign: "center", marginBottom: 10 },
-  downloadButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 52, borderRadius: 16, marginTop: 4 },
+  downloadButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 54, borderRadius: 18, marginTop: 4 },
   downloadButtonText: { color: "#FFF", fontSize: typeScale.body, fontWeight: "700" },
-  pressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
+  pressed: { opacity: 0.88 },
   loading: { position: "absolute", top: "50%", left: 0, right: 0, alignItems: "center", pointerEvents: "none" },
 });

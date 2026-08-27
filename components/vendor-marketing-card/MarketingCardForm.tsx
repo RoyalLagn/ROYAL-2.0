@@ -32,7 +32,7 @@ export default function MarketingCardForm({
   onChange: <K extends keyof MarketingCardFormValues>(key: K, value: MarketingCardFormValues[K]) => void;
 }) {
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
       <Text style={[styles.sectionLabel, { color: colors.muted }]}>Contact Information</Text>
       <Field
         label="Mobile Number"
@@ -125,7 +125,7 @@ export default function MarketingCardForm({
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 14 },
+  card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
   sectionLabel: { fontSize: typeScale.metadata, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 6, marginTop: 2 },
   twoUp: { flexDirection: "row", gap: 12 },
 });

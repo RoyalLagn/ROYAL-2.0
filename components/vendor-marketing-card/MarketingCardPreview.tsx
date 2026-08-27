@@ -232,10 +232,7 @@ export default function MarketingCardPreview({
     data.website.trim() ? { icon: Globe, value: clip(data.website.replace(/^https?:\/\//i, ""), 22) } : null,
   ].filter(Boolean).slice(0, 4) as { icon: React.ComponentType<any>; value: string }[];
   const hasTagline = Boolean(data.tagline.trim());
-  const serviceTop = hasTagline ? 558 : 500;
-  const trustTop = highlights.length ? serviceTop + 126 : serviceTop;
   const hasContactStrip = contacts.length > 0;
-  const footerTop = hasContactStrip ? 922 : 846;
 
   return (
     <View style={[styles.card, { width, height, borderRadius: s(30), borderWidth: s(2) }]}>
@@ -253,28 +250,30 @@ export default function MarketingCardPreview({
       <View style={[styles.bokeh, { width: s(520), height: s(520), borderRadius: s(260), top: s(120), right: s(120) }]} />
 
       {/* ---------- Cover photo, top-right, feathered into the background ---------- */}
-      {data.coverImageUrl ? (
-        <View style={{ position: "absolute", top: 0, right: 0, width: s(650), height: s(610), overflow: "hidden", borderTopRightRadius: s(30) }}>
-          <Image source={{ uri: data.coverImageUrl }} style={[StyleSheet.absoluteFillObject, { opacity: 0.14 }]} resizeMode="cover" />
+      <View style={{ position: "absolute", top: 0, right: 0, width: s(370), height: s(618), overflow: "hidden", borderTopRightRadius: s(30) }}>
+        {data.coverImageUrl ? (
+          <Image source={{ uri: data.coverImageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+        ) : (
+          <LinearGradient colors={["#F7CEDE", "#EFAAC6"]} style={StyleSheet.absoluteFillObject} />
+        )}
         {/* Feather the left and bottom edges so the photo melts into the card */}
         <LinearGradient
-          colors={["#FFF9FB", "rgba(253,234,242,0.68)", "rgba(253,234,242,0.06)"]}
-          locations={[0, 0.42, 1]}
+          colors={["#FDEAF2", "rgba(253,234,242,0.55)", "rgba(253,234,242,0)"]}
+          locations={[0, 0.35, 1]}
           start={{ x: 0, y: 0.5 }}
           end={{ x: 1, y: 0.5 }}
           style={StyleSheet.absoluteFillObject}
         />
         <LinearGradient
-          colors={["rgba(253,234,242,0.02)", "rgba(253,234,242,0.72)", "#FFF7FA"]}
-          locations={[0.48, 0.78, 1]}
+          colors={["rgba(253,234,242,0)", "rgba(253,234,242,0.6)", "#FDEAF2"]}
+          locations={[0.55, 0.82, 1]}
           style={StyleSheet.absoluteFillObject}
         />
-        </View>
-      ) : null}
+      </View>
 
       {/* ---------- Header: RoyalLagn lockup + brand website pill ---------- */}
       <View style={{ position: "absolute", left: s(56), top: s(52) }}>
-        <BrandLockup width={s(560)} />
+        <BrandLockup width={s(512)} />
       </View>
       <View
         style={[
@@ -287,21 +286,21 @@ export default function MarketingCardPreview({
       </View>
 
       {/* ---------- Vendor logo medallion, over the cover photo ---------- */}
-      {data.logoUrl ? <View
+      <View
         style={[
           styles.medallion,
-          { position: "absolute", left: s(980), top: s(76), width: s(430), height: s(430), borderRadius: s(215), borderWidth: s(4), padding: s(10) },
+          { position: "absolute", left: s(820), top: s(150), width: s(348), height: s(348), borderRadius: s(174), borderWidth: s(6) },
         ]}
       >
-        <Image source={{ uri: data.logoUrl }} style={{ width: "100%", height: "100%", borderRadius: s(201) }} resizeMode="contain" />
-      </View> : null}
+        {data.logoUrl ? <Image source={{ uri: data.logoUrl }} style={{ width: "100%", height: "100%", borderRadius: s(168) }} resizeMode="contain" /> : <BrandEmblem size={s(336)} />}
+      </View>
 
       {/* ---------- Vendor identity, left column ---------- */}
-      <View style={{ position: "absolute", left: s(58), top: s(242), width: s(780) }}>
+      <View style={{ position: "absolute", left: s(58), top: s(252), width: s(740) }}>
         {/* Georgia has deep descenders; this needs a looser line-height ratio
             than the rest of the card or html2canvas slices the tails off
             "g/p/y" in the exported PDF (see rule 2 at the top of this file). */}
-        <Text style={[styles.businessName, { fontSize: s(70), lineHeight: s(88) }]}>
+        <Text style={[styles.businessName, { fontSize: s(58), lineHeight: s(80) }]}>
           {clip(data.businessName, 26)}
         </Text>
 
@@ -346,14 +345,14 @@ export default function MarketingCardPreview({
       </View>
 
       {/* ---------- Service box (category highlights, system-chosen) ---------- */}
-      {highlights.length ? <Box s={s} top={serviceTop} left={58} width={952} height={106}>
+      {highlights.length ? <Box s={s} top={558} left={58} width={952} height={106}>
         {highlights.map((label, index) => (
           <Cell key={label} s={s} icon={highlightIcon(label, index)} label={label} />
         ))}
       </Box> : null}
 
       {/* ---------- Trust box ---------- */}
-      {trustItems.length ? <Box s={s} top={trustTop} left={58} width={952} height={106}>
+      {trustItems.length ? <Box s={s} top={684} left={58} width={952} height={106}>
         {trustItems.map((item) => <Cell key={item.label} s={s} icon={item.icon} label={item.label} />)}
       </Box> : null}
 
@@ -361,13 +360,13 @@ export default function MarketingCardPreview({
       <View
         style={[
           styles.qrCard,
-          { position: "absolute", left: s(1030), top: s(data.logoUrl ? 478 : 250), width: s(420), height: s(data.whatsappNumber ? 354 : 300), borderRadius: s(22), padding: s(16), borderWidth: s(2) },
+          { position: "absolute", left: s(1064), top: s(482), width: s(380), height: s(350), borderRadius: s(22), padding: s(16), borderWidth: s(2) },
         ]}
       >
         <Text style={[styles.qrTitle, { fontSize: s(21), lineHeight: s(28) }]}>Scan to View{"\n"}Our Profile</Text>
         <View style={[styles.rowStart, { marginTop: s(8), gap: s(10) }]}>
           <View style={[styles.qrBox, { padding: s(9), borderRadius: s(12), borderWidth: s(2.5) }]}>
-            <QRCode value={data.profileUrl} size={s(188)} backgroundColor="#FFFFFF" ecl="H" />
+            <QRCode value={data.profileUrl} size={s(178)} backgroundColor="#FFFFFF" ecl="H" />
             <View style={[styles.qrEmblem, { width: s(50), height: s(50), borderRadius: s(10), borderWidth: s(2.5) }]}>
               <BrandEmblem size={s(42)} />
             </View>
@@ -386,10 +385,10 @@ export default function MarketingCardPreview({
 
       {/* ---------- Contact bar ---------- */}
       {hasContactStrip ? <LinearGradient
-        colors={["#FFF8FA", "#F9DCE8", "#FFF8FA"]}
+        colors={["#F368A0", "#EA2A80"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={{ position: "absolute", left: s(24), right: s(24), top: s(846), height: s(68), borderRadius: s(34), borderWidth: s(1.5), borderColor: GOLD_SOFT, flexDirection: "row", alignItems: "center", paddingHorizontal: s(34) }}
+        style={{ position: "absolute", left: 0, right: 0, top: s(842), height: s(80), flexDirection: "row", alignItems: "center", paddingHorizontal: s(40) }}
       >
         {contacts.map((contact, index) => (
           <React.Fragment key={`${contact.value}-${index}`}>
@@ -404,7 +403,7 @@ export default function MarketingCardPreview({
         colors={["#EC3183", "#DE1370"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
-        style={{ position: "absolute", left: 0, right: 0, top: s(footerTop), bottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: s(16) }}
+        style={{ position: "absolute", left: 0, right: 0, top: s(922), bottom: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: s(16) }}
       >
         <FooterOrnament s={s} />
         <Text style={[styles.footerText, { fontSize: s(22), lineHeight: s(30) }]}>Find Trusted Wedding Vendors Only on</Text>
@@ -433,9 +432,9 @@ function Flourish({ s, flip }: { s: (value: number) => number; flip?: boolean })
 function FooterOrnament({ s, flip }: { s: (value: number) => number; flip?: boolean }) {
   return (
     <View style={[styles.rowStart, { gap: s(9) }, flip && styles.flip]}>
-      <Heart size={s(15)} color={GOLD_SOFT} fill={GOLD_SOFT} />
+      <Heart size={s(15)} color="rgba(255,255,255,0.7)" fill="rgba(255,255,255,0.7)" />
       <View style={[styles.footerRule, { width: s(46), height: s(1.5) }]} />
-      <Heart size={s(19)} color={GOLD_SOFT} fill={GOLD_SOFT} />
+      <Heart size={s(19)} color="rgba(255,255,255,0.85)" fill="rgba(255,255,255,0.85)" />
     </View>
   );
 }
@@ -526,7 +525,7 @@ function BarDivider({ s }: { s: (value: number) => number }) {
 
 const styles = StyleSheet.create({
   // NOTE: no shadow*/elevation anywhere in this file -- see rule 3 at the top.
-  card: { overflow: "hidden", backgroundColor: "#FFFFFF", borderColor: "#DDB45A" },
+  card: { overflow: "hidden", backgroundColor: "#FFFFFF", borderColor: "#F4D8E5" },
   bokeh: { position: "absolute", backgroundColor: "rgba(240,140,185,0.055)" },
   rowStart: { flexDirection: "row", alignItems: "center" },
   flip: { transform: [{ scaleX: -1 }] },
@@ -534,7 +533,7 @@ const styles = StyleSheet.create({
   sitePill: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF", borderColor: "#F7DCE8" },
   sitePillText: { color: INK, fontWeight: "700" },
 
-  medallion: { overflow: "hidden", backgroundColor: "#FFFDF8", borderColor: GOLD_SOFT, alignItems: "center", justifyContent: "center" },
+  medallion: { overflow: "hidden", backgroundColor: "#FFFFFF", borderColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
 
   businessName: { color: INK, fontFamily: fonts.serif.bold },
   categoryPill: { flexDirection: "row", alignItems: "center", backgroundColor: PINK_PILL },
@@ -561,10 +560,10 @@ const styles = StyleSheet.create({
 
   contactItem: { flex: 1, flexDirection: "row", alignItems: "center" },
   contactIcon: { backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
-  contactText: { color: INK, fontWeight: "700", flexShrink: 1 },
-  barDivider: { backgroundColor: GOLD_SOFT, marginHorizontal: 4 },
+  contactText: { color: "#FFFFFF", fontWeight: "700", flexShrink: 1 },
+  barDivider: { backgroundColor: "rgba(255,255,255,0.35)", marginHorizontal: 4 },
 
-  footerRule: { backgroundColor: GOLD_SOFT },
+  footerRule: { backgroundColor: "rgba(255,255,255,0.55)" },
   footerText: { color: "#FFFFFF", fontWeight: "700" },
   footerPill: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFFFFF" },
   footerPillText: { color: INK, fontWeight: "700" },
