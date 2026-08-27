@@ -29,7 +29,7 @@
     "test:auth-validation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-auth-validation.mjs",
     "test:marketing-card-pdf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-marketing-card-pdf.mjs",
     "test:smoke": "node scripts/run-smoke-tests.mjs",
-    "sitemap:generate": "node --env-file=.env scripts/generate-sitemap.mjs"
+    "sitemap:generate": "node scripts/generate-sitemap.mjs"
   },
   "engines": {
     "node": ">=22.6.0"

@@ -1,5 +1,13 @@
 import { writeFile, mkdir } from "node:fs/promises";
+import { loadEnvFile } from "node:process";
+import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
+
+try {
+  loadEnvFile(fileURLToPath(new URL("../.env", import.meta.url)));
+} catch (error) {
+  if (error?.code !== "ENOENT") throw error;
+}
 
 const required = ["EXPO_PUBLIC_SUPABASE_URL", "EXPO_PUBLIC_SUPABASE_ANON_KEY"];
 const missing = required.filter((key) => !process.env[key]);
