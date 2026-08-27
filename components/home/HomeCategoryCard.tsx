@@ -48,7 +48,7 @@ function HomeCategoryCard({
   const entrance = useSharedValue(animateEntrance ? 0 : 1);
   const colors = brandColors(dark);
   const compact = itemWidth < 100;
-  const cardPadding = compact ? 4 : desktop ? 0 : 10;
+  const cardPadding = compact || desktop ? 0 : 10;
   const cardHeight = Math.round(cardWidth / (compact ? 0.72 : desktop ? 0.72 : 0.82));
   // Slimmer inset so the photo fills more of the frame.
   const framePadding = Math.min(5, Math.max(3.5, Math.round(cardWidth * 0.055)));
@@ -116,7 +116,7 @@ function HomeCategoryCard({
           compact && styles.animatedItemCompact,
           {
             padding: cardPadding,
-            backgroundColor: dark ? colors.card : "#FFFFFF",
+            backgroundColor: compact || desktop ? "transparent" : dark ? colors.card : "#FFFFFF",
             shadowColor: dark ? "#000000" : "#8A4560",
           },
           desktop && styles.animatedItemDesktop,
