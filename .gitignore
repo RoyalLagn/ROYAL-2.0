@@ -29,6 +29,7 @@ credentials.json
 *.aab
 *.ipa
 dist/
+dist-web/
 
 # Expo logs
 .expo-web.log

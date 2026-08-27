@@ -125,10 +125,10 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
           <QRCode value={qrUrl} size={104} backgroundColor="#FFFFFF" />
         </View>
         <View style={[styles.actionsCol, desktop && styles.actionsColDesktop]}>
-          <ActionButton label="Copy Link" icon={<Copy size={15} color={colors.pink} />} colors={colors} onPress={handleCopy} />
-          <ActionButton label="Open Profile" icon={<ExternalLink size={15} color={colors.pink} />} colors={colors} onPress={() => router.push({ pathname: "/vendors/[slug]", params: { slug } })} />
-          <ActionButton label="Share" icon={<Share2 size={15} color={colors.pink} />} colors={colors} onPress={handleShare} />
-          <ActionButton label="Download QR" icon={<QrCode size={15} color={colors.pink} />} colors={colors} onPress={handleDownload} />
+          <ActionButton desktop={desktop} label="Copy Link" icon={<Copy size={15} color={colors.pink} />} colors={colors} onPress={handleCopy} />
+          <ActionButton desktop={desktop} label="Open Profile" icon={<ExternalLink size={15} color={colors.pink} />} colors={colors} onPress={() => router.push({ pathname: "/vendors/[slug]", params: { slug } })} />
+          <ActionButton desktop={desktop} label="Share" icon={<Share2 size={15} color={colors.pink} />} colors={colors} onPress={handleShare} />
+          <ActionButton desktop={desktop} label="Download QR" icon={<QrCode size={15} color={colors.pink} />} colors={colors} onPress={handleDownload} />
         </View>
       </View>
 
@@ -187,7 +187,7 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
   );
 }
 
-function ActionButton({ label, icon, colors, onPress }: { label: string; icon: React.ReactNode; colors: typeof vendorTheme.light; onPress: () => void }) {
+function ActionButton({ desktop, label, icon, colors, onPress }: { desktop: boolean; label: string; icon: React.ReactNode; colors: typeof vendorTheme.light; onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
@@ -195,6 +195,7 @@ function ActionButton({ label, icon, colors, onPress }: { label: string; icon: R
       accessibilityLabel={label}
       style={({ pressed, hovered, focused }) => [
         styles.actionButton,
+        desktop && styles.actionButtonDesktop,
         { backgroundColor: colors.surfaceSoft },
         (hovered || focused) && styles.hoverLift,
         pressed && styles.pressed,
@@ -230,6 +231,7 @@ const styles = StyleSheet.create({
   actionsCol: { flex: 1, gap: 8 },
   actionsColDesktop: { flexDirection: "row", flexWrap: "wrap", alignContent: "flex-start" },
   actionButton: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 40, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
+  actionButtonDesktop: { width: "48.5%", minHeight: 44 },
   actionLabel: { fontSize: typeScale.metadata, fontWeight: "700" },
   copiedText: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 8 },
   settingsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, paddingTop: 14, borderTopWidth: 1 },

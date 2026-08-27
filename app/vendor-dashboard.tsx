@@ -238,13 +238,14 @@ export default function VendorDashboard() {
             </Pressable>
           ) : null}
 
-          <View style={[styles.statsGrid, desktop && styles.statsDesktop, { backgroundColor: colors.border, borderColor: colors.border }]}>
+          <View
+            style={[styles.statsGrid, { backgroundColor: colors.border, borderColor: colors.border }]}
+          >
             {stats.map(({ label, value, detail, icon: Icon }) => (
               <View
                 key={label}
                 style={[
                   styles.statCard,
-                  desktop && styles.statDesktop,
                   { backgroundColor: colors.background },
                 ]}
               >
@@ -373,9 +374,7 @@ const styles = StyleSheet.create({
   marketingCenterTitle: { fontSize: typeScale.body, fontWeight: "700" },
   marketingCenterHint: { fontSize: typeScale.caption, marginTop: 2 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 1, marginBottom: 16, borderWidth: 1, borderRadius: 16, overflow: "hidden" },
-  statsDesktop: { flexWrap: "nowrap" },
   statCard: { width: "49.8%", minHeight: 132, paddingHorizontal: 16, paddingVertical: 17 },
-  statDesktop: { flex: 1, width: "auto" },
   statTop: { flexDirection: "row", alignItems: "center", marginBottom: 11 },
   statIcon: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   statValue: { fontSize: typeScale.pageTitle, lineHeight: typeLeading.pageTitle, fontWeight: "700", letterSpacing: -0.6, fontVariant: ["tabular-nums"] },
