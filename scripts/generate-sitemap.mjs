@@ -9,6 +9,18 @@ if (missing.length) {
 }
 
 const base = (process.env.EXPO_PUBLIC_WEB_APP_URL?.trim() || process.env.EXPO_PUBLIC_APP_URL?.trim() || "https://royallagn.com").replace(/\/$/, "");
+const publicPaths = [
+  "/",
+  "/Categories",
+  "/NearbyVendors",
+  "/Search",
+  "/SearchByLocation",
+  "/VendorsListing",
+  "/BecomeVendor",
+  "/Help",
+  "/Terms",
+  "/PrivacyPolicy",
+];
 
 const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL, process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -27,13 +39,17 @@ if (error) {
   process.exit(1);
 }
 
-const urls = (data ?? [])
-  .map((vendor) => `  <url>\n    <loc>${base}/vendors/${vendor.slug}</loc>\n    <lastmod>${new Date(vendor.updated_at).toISOString().slice(0, 10)}</lastmod>\n  </url>`)
-  .join("\n");
+const staticUrls = publicPaths
+  .map((path) => `  <url>\n    <loc>${base}${path}</loc>\n  </url>`);
+const vendorUrls = (data ?? []).map((vendor) => {
+  const slug = encodeURIComponent(vendor.slug);
+  return `  <url>\n    <loc>${base}/vendors/${slug}</loc>\n    <lastmod>${new Date(vendor.updated_at).toISOString().slice(0, 10)}</lastmod>\n  </url>`;
+});
+const urls = [...staticUrls, ...vendorUrls].join("\n");
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 
 await mkdir(new URL("../public", import.meta.url), { recursive: true });
 await writeFile(new URL("../public/sitemap.xml", import.meta.url), xml, "utf8");
 
-console.log(`Wrote public/sitemap.xml with ${data?.length ?? 0} vendor URLs.`);
+console.log(`Wrote public/sitemap.xml with ${publicPaths.length} public routes and ${data?.length ?? 0} vendor URLs.`);

@@ -51,3 +51,4 @@ dist/
 # Impeccable local session state
 .impeccable/hook.cache.json
 .impeccable/config.local.json
+.vercel

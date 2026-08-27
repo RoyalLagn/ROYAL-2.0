@@ -1,0 +1,15 @@
+node_modules/
+.git/
+.expo/
+.agents/
+.impeccable/
+android/
+ios/
+dist/
+dist-web/
+test-results/
+playwright-report/
+blob-report/
+*.apk
+*.aab
+*.ipa
