@@ -27,13 +27,12 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import FavoriteNotificationDot from "@/components/favorites/FavoriteNotificationDot";
 import { useFavorites } from "@/context/FavoritesContext";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
-import { typeScale, typeLeading } from "@/constants/typography";
-
 import { brandPalette } from "@/constants/brandPalette";
 import { floatingNavigationColors, floatingNavigationTokens } from "@/constants/navigationTokens";
 
 const CENTER_ROUTE = "clips";
 const TAB_COUNT = 5;
+const PUBLIC_TAB_BASE_HEIGHT = 54;
 const CUSTOMER_TAB_ROUTES = new Set([
   "index",
   "Categories",
@@ -63,7 +62,7 @@ const ICONS: Record<string, React.ComponentType<any>> = {
   profile: AnimatedUser,
 };
 
-export const MOBILE_TAB_BASE_HEIGHT = floatingNavigationTokens.baseHeight;
+export const MOBILE_TAB_BASE_HEIGHT = PUBLIC_TAB_BASE_HEIGHT;
 
 type AnimatedTabProps = {
   routeName: string;
@@ -199,7 +198,7 @@ function AnimatedTab({
       {isCenter ? (
         <Animated.View style={[styles.homeVisual, visualStyle]}>
           <Animated.View style={[styles.homeCircle, circleStyle]}>
-            <Icon animatedProps={iconProps} size={20} strokeWidth={2.35} />
+            <Icon animatedProps={iconProps} size={19} strokeWidth={2.35} />
           </Animated.View>
         </Animated.View>
       ) : (
@@ -213,7 +212,7 @@ function AnimatedTab({
               style={[styles.favoritePulse, favoritePulseStyle]}
             />
           ) : null}
-          <Icon animatedProps={iconProps} size={21} strokeWidth={focused ? 2.35 : 2} />
+          <Icon animatedProps={iconProps} size={20} strokeWidth={focused ? 2.35 : 2} />
           {isFavorites ? (
             <FavoriteNotificationDot
               visible={hasUnviewedFavorites}
@@ -493,7 +492,7 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: floatingNavigationTokens.tabletMaxWidth,
     alignSelf: "center",
-    minHeight: floatingNavigationTokens.baseHeight,
+    minHeight: PUBLIC_TAB_BASE_HEIGHT,
     borderWidth: 1,
     borderRadius: floatingNavigationTokens.barRadius,
     overflow: "visible",
@@ -504,7 +503,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   items: {
-    minHeight: floatingNavigationTokens.baseHeight,
+    minHeight: PUBLIC_TAB_BASE_HEIGHT,
     flexDirection: "row",
     alignItems: "stretch",
     position: "relative",
@@ -523,9 +522,9 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   regularVisual: {
-    width: 34,
-    height: 31,
-    marginTop: 7,
+    width: 32,
+    height: 29,
+    marginTop: 5,
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
@@ -538,16 +537,16 @@ const styles = StyleSheet.create({
     backgroundColor: floatingNavigationTokens.customerTabs.light.active,
   },
   homeVisual: {
-    width: 44,
-    height: 40,
+    width: 40,
+    height: 37,
     marginTop: 2,
     alignItems: "center",
     justifyContent: "center",
   },
   homeCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: brandPalette.light.primaryForeground,
     alignItems: "center",
@@ -561,8 +560,8 @@ const styles = StyleSheet.create({
     width: "100%",
     marginTop: 0,
     paddingHorizontal: 1,
-    fontSize: typeScale.caption,
-    lineHeight: typeLeading.caption,
+    fontSize: 10,
+    lineHeight: 13,
     fontWeight: "600",
     textAlign: "center",
     includeFontPadding: false,

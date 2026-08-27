@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     includeFontPadding: false,
   },
-  labelCompact: { height: 27, marginTop: 6, fontSize: 10, lineHeight: 12, letterSpacing: -0.22 },
+  labelCompact: { height: 25, marginTop: 5, fontSize: 9, lineHeight: 11, letterSpacing: -0.16 },
   labelDesktop: { height: 32, marginTop: 12, fontSize: 14, lineHeight: 18 },
   labelNarrow: {
     fontSize: typeScale.caption,
