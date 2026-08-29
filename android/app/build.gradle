@@ -68,6 +68,14 @@ react {
  */
 def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBuilds') ?: false).toBoolean()
 
+def localReleaseSigningProperties = [
+    'ROYALLAGN_UPLOAD_STORE_FILE',
+    'ROYALLAGN_UPLOAD_STORE_PASSWORD',
+    'ROYALLAGN_UPLOAD_KEY_ALIAS',
+    'ROYALLAGN_UPLOAD_KEY_PASSWORD',
+]
+def hasLocalReleaseSigning = localReleaseSigningProperties.every { project.hasProperty(it) }
+
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
  *
@@ -92,7 +100,7 @@ android {
         applicationId 'com.royallagn.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
+        versionCode 7
         versionName "1.0.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
@@ -104,6 +112,14 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasLocalReleaseSigning) {
+            release {
+                storeFile file(ROYALLAGN_UPLOAD_STORE_FILE)
+                storePassword ROYALLAGN_UPLOAD_STORE_PASSWORD
+                keyAlias ROYALLAGN_UPLOAD_KEY_ALIAS
+                keyPassword ROYALLAGN_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
@@ -112,7 +128,7 @@ android {
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig hasLocalReleaseSigning ? signingConfigs.release : signingConfigs.debug
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
