@@ -14,6 +14,7 @@ import { UploadQueuePanel } from "@/clips/components";
 import type { ClipDraftRecord, ClipUpload } from "@/clips/types";
 import { validateClipSource } from "@/clips/utils/validation";
 import PremiumRouteGate from "@/components/subscriptions/PremiumRouteGate";
+import { usePublicClipsAvailability } from "@/hooks/usePublicClipsAvailability";
 import { typeScale } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
@@ -32,6 +33,12 @@ export default function VendorClipUpload() {
   const { showSuccess, showError } = useAppFeedback();
   const { data, loading } = useVendorWorkspace();
   const { registrationCategories: categories } = useCategories();
+  // Defense-in-depth: a vendor can already be sitting on this screen when
+  // Admin flips Public Clips OFF. This reuses the same focus/app-active
+  // refresh as VendorClips -- no polling -- and fails closed (null counts
+  // as disabled) so submit is blocked before the setting is confirmed on.
+  const publicClipsEnabled = usePublicClipsAvailability();
+  const uploadDisabled = publicClipsEnabled !== true;
   const queue = useClipUploadQueue(data.vendor?.id);
   const [sources, setSources] = useState<ClipUpload[]>([]);
   const [title, setTitle] = useState("");
@@ -127,6 +134,7 @@ export default function VendorClipUpload() {
     // reservations, two Cloudinary assets, two Clip rows) for the same
     // selection.
     if (submittingRef.current) return;
+    if (uploadDisabled) return;
     if (!data.vendor?.is_verified) return Alert.alert("Approved Vendor required");
     if (!sources.length || !categoryId) return Alert.alert("Complete your Clip", "Select a video and choose a category.");
     submittingRef.current = true;
@@ -183,7 +191,7 @@ export default function VendorClipUpload() {
             <Text style={[styles.label, { color: colors.text }]}>Caption</Text><TextInput value={caption} onChangeText={setCaption} maxLength={2200} multiline placeholder="Tell couples about this wedding moment…" placeholderTextColor={colors.muted} style={[styles.input, styles.caption, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSoft }]} />
             <Text style={[styles.captionCount, { color: colors.muted }]}>{caption.length}/2200</Text>
             <Text style={[styles.label, { color: colors.text }]}>Category</Text><Pressable onPress={() => setCategoryOpen(true)} style={[styles.input, styles.select, { borderColor: colors.border, backgroundColor: colors.surfaceSoft }]}><Text style={{ color: selectedCategory ? colors.text : colors.muted }}>{selectedCategory?.name || "Choose category"}</Text><ChevronDown size={18} color={colors.muted} /></Pressable>
-            <View style={styles.buttonRow}><Pressable onPress={saveDraft} style={[styles.secondary, { borderColor: colors.border }]}><Save size={17} color={colors.text} /><Text style={{ color: colors.text, fontWeight: "700" }}>Save Draft</Text></Pressable><Pressable disabled={submitting} onPress={submit} style={[styles.primary, { backgroundColor: colors.pink }, submitting && styles.primaryDisabled]}>{submitting ? <ActivityIndicator color="#FFF" size="small" /> : <Upload size={17} color="#FFF" />}<Text style={styles.primaryText}>{submitting ? "Queuing…" : "Upload Clip"}</Text></Pressable></View>
+            <View style={styles.buttonRow}><Pressable onPress={saveDraft} style={[styles.secondary, { borderColor: colors.border }]}><Save size={17} color={colors.text} /><Text style={{ color: colors.text, fontWeight: "700" }}>Save Draft</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Upload Clip" accessibilityState={{ disabled: submitting || uploadDisabled }} disabled={submitting || uploadDisabled} onPress={submit} style={[styles.primary, { backgroundColor: colors.pink }, (submitting || uploadDisabled) && styles.primaryDisabled]}>{submitting ? <ActivityIndicator color="#FFF" size="small" /> : <Upload size={17} color="#FFF" />}<Text style={styles.primaryText}>{submitting ? "Queuing…" : "Upload Clip"}</Text></Pressable></View>
           </View>
           <UploadQueuePanel items={queue.items} colors={colors} onRetry={queue.retry} onCancel={queue.cancel} onRemove={queue.remove} />
         </View>

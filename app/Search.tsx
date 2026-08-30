@@ -235,7 +235,7 @@ export default function SearchScreen() {
           <TouchableOpacity
             key={`${vendor.category}-${vendor.id}`}
             className="bg-card border border-border rounded-2xl p-3 flex-row"
-            onPress={() => router.push({ pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]", params: { slug: vendor.slug } })}
+            onPress={() => router.push({ pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]", params: { slug: vendor.slug, src: "search" } })}
           >
             <SafeImage
               accessibilityLabel={`${vendor.name} listing`}

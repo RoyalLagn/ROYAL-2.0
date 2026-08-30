@@ -213,7 +213,7 @@ export default function VendorDashboard() {
           ) : null}
 
           {data.vendor ? <SubscriptionDashboardCard /> : null}
-          {data.vendor ? <PublicProfileCard vendor={data.vendor} /> : null}
+          {data.vendor ? <PublicProfileCard vendor={data.vendor} totalEnquiries={data.stats.totalEnquiries} /> : null}
           {data.vendor ? (
             <Pressable
               onPress={() => router.push("/vendor-marketing-center")}

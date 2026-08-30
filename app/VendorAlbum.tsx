@@ -115,9 +115,10 @@ export default function VendorAlbum() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const params = useLocalSearchParams<{ vendorId?: string; albumId?: string }>();
+  const params = useLocalSearchParams<{ vendorId?: string; albumId?: string; src?: string }>();
   const vendorId = Array.isArray(params.vendorId) ? params.vendorId[0] : params.vendorId;
   const albumId = Array.isArray(params.albumId) ? params.albumId[0] : params.albumId;
+  const source = Array.isArray(params.src) ? params.src[0] : params.src;
   const [vendor, setVendor] = useState<PublicVendorListing | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -146,7 +147,7 @@ export default function VendorAlbum() {
   );
   const goBack = () => {
     if (router.canGoBack()) router.back();
-    else if (vendorId) router.replace({ pathname: "/VendorsProfile", params: { vendorId } });
+    else if (vendorId) router.replace({ pathname: "/VendorsProfile", params: { vendorId, src: source ?? "portfolio" } });
     else router.replace("/Categories");
   };
 

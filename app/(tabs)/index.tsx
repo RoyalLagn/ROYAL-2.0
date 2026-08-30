@@ -596,7 +596,7 @@ export default function HomeScreen() {
                     accessibilityLabel={`Open ${vendor.name}`}
                     style={[s.searchSuggestionRow, { borderBottomColor: border }]}
                     activeOpacity={0.72}
-                    onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category } })}
+                    onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category, src: "search" } })}
                   >
                     <View style={[s.searchSuggestionIcon, { backgroundColor: isDark ? "#33222B" : "#FFF0F5" }]}>
                       <Search size={17} color={PINK} />
@@ -772,7 +772,7 @@ export default function HomeScreen() {
                   onOpen={() =>
                       router.push({
                         pathname: "/VendorsProfile",
-                        params: { vendorId: v.id, category: v.category },
+                        params: { vendorId: v.id, category: v.category, src: "nearby" },
                       })
                   }
                   onToggleFavorite={(source) => toggleFavorite(v, source)}
@@ -837,7 +837,7 @@ export default function HomeScreen() {
                   onOpen={() =>
                       router.push({
                         pathname: "/VendorsProfile",
-                        params: { vendorId: v.id, category: v.category },
+                        params: { vendorId: v.id, category: v.category, src: "listing" },
                       })
                   }
                   onToggleFavorite={(source) => toggleFavorite(v, source)}

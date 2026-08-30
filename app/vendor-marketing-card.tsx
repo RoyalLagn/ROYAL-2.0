@@ -135,9 +135,9 @@ export default function VendorMarketingCard() {
   // than read from vendor_qr_codes.qr_url because that column hardcodes
   // https://royallagn.com (see 20260804180000_vendor_public_profiles.sql)
   // while buildVendorPublicProfileUrl honours EXPO_PUBLIC_WEB_APP_URL --
-  // same permanent path, correct configured domain. No ?src= suffix: a
-  // printed card must scan to exactly https://<domain>/vendors/<slug>.
-  const profileUrl = slug ? buildVendorPublicProfileUrl(slug) : "";
+  // same permanent path and correct configured domain. The QR destination
+  // carries explicit attribution without changing the underlying profile.
+  const profileUrl = slug ? buildVendorPublicProfileUrl(slug, "qr") : "";
   const isValid = Boolean(profileUrl);
 
   const cardData: MarketingCardData = {

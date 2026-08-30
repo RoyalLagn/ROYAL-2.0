@@ -6,6 +6,12 @@ import {
   getApprovedPublicVendorBySlug,
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
+import {
+  addTrafficSourceToUrl,
+  isPreviewTrafficSource,
+  normalizeTrafficSource,
+  type VendorTrafficSourceInput,
+} from "@/services/trafficSource";
 
 export type VendorPublicProfileLookup =
   | { kind: "found"; vendor: PublicVendorListing }
@@ -45,9 +51,9 @@ export async function getVendorPublicProfileBySlug(slug: string): Promise<Vendor
   return { kind: "redirect", slug: currentVendor.slug };
 }
 
-export function buildVendorPublicProfileUrl(slug: string, source?: string) {
+export function buildVendorPublicProfileUrl(slug: string, source?: VendorTrafficSourceInput) {
   const url = `${vendorWebBase()}${buildVendorProfilePathBySlug(slug)}`;
-  return source ? `${url}?src=${encodeURIComponent(source)}` : url;
+  return source ? addTrafficSourceToUrl(url, source) : url;
 }
 
 export type VendorQrRecord = {
@@ -107,6 +113,27 @@ export async function recordVendorProfileEvent(
     guest_id: guestId,
   });
   if (error) throw error;
+}
+
+const trafficViewWrites = new Map<string, number>();
+const TRAFFIC_VIEW_DEDUPE_MS = 1500;
+
+export async function recordVendorTrafficView(vendorId: string, sourceInput?: string | null) {
+  const source = normalizeTrafficSource(sourceInput) ?? "direct";
+  if (isPreviewTrafficSource(source)) return;
+
+  const now = Date.now();
+  const key = `${vendorId}:${source}`;
+  const lastWrite = trafficViewWrites.get(key) ?? 0;
+  if (now - lastWrite < TRAFFIC_VIEW_DEDUPE_MS) return;
+  trafficViewWrites.set(key, now);
+
+  try {
+    await recordVendorProfileEvent(vendorId, "view", source);
+  } catch (error) {
+    trafficViewWrites.delete(key);
+    throw error;
+  }
 }
 
 export type VendorProfileEventStats = {

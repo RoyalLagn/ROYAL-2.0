@@ -381,7 +381,7 @@ function ClipsFeed() {
   }, [engagement, requireProfile]);
 
   const openVendor = useCallback((clip: PublicClip) => {
-    router.push({ pathname: "/VendorsProfile", params: { vendorId: clip.vendor.id, category: clip.vendor.categoryName } });
+    router.push({ pathname: "/VendorsProfile", params: { vendorId: clip.vendor.id, category: clip.vendor.categoryName, src: "clip" } });
   }, [router]);
   const contactVendor = useCallback(async (clip: PublicClip) => {
     if (!clip.vendor.contactPhone) return openVendor(clip);

@@ -103,8 +103,8 @@ export default function AdminVendorDetailsScreen() {
                     className="min-h-11 px-4 rounded-full bg-primary items-center justify-center flex-row"
                     onPress={() =>
                       vendor?.slug
-                        ? router.push({ pathname: "/vendors/[slug]", params: { slug: vendor.slug } })
-                        : router.push({ pathname: "/VendorsProfile", params: { vendorId: record.vendor_id } })
+                        ? router.push({ pathname: "/vendors/[slug]", params: { slug: vendor.slug, src: "admin_preview" } })
+                        : router.push({ pathname: "/VendorsProfile", params: { vendorId: record.vendor_id, src: "admin_preview" } })
                     }
                   >
                     <ExternalLink size={14} color="#FFFFFF" />

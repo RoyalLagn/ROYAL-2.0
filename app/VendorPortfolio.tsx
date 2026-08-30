@@ -13,8 +13,9 @@ export default function VendorPortfolio() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const params = useLocalSearchParams<{ vendorId?: string }>();
+  const params = useLocalSearchParams<{ vendorId?: string; src?: string }>();
   const vendorId = Array.isArray(params.vendorId) ? params.vendorId[0] : params.vendorId;
+  const source = Array.isArray(params.src) ? params.src[0] : params.src;
   const [vendor, setVendor] = useState<PublicVendorListing | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +34,7 @@ export default function VendorPortfolio() {
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
-    else if (vendorId) router.replace({ pathname: "/VendorsProfile", params: { vendorId } });
+    else if (vendorId) router.replace({ pathname: "/VendorsProfile", params: { vendorId, src: source ?? "portfolio" } });
     else router.replace("/Categories");
   };
 
@@ -65,7 +66,7 @@ export default function VendorPortfolio() {
             showHeading={false}
             onOpenAlbum={(album) => router.push({
               pathname: "/VendorAlbum",
-              params: { vendorId: vendor.id, albumId: album.id },
+              params: { vendorId: vendor.id, albumId: album.id, src: source ?? "portfolio" },
             })}
           />
         ) : (

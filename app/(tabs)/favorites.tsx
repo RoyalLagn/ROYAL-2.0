@@ -150,7 +150,7 @@ export default function FavoritesScreen() {
                   muted={muted}
                   border={border}
                   cardWidth={CARD_W}
-                  onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category } })}
+                  onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category, src: "favorites" } })}
                   onRemove={() => setConfirmId(vendor.id)}
                 />
               ))}
@@ -173,7 +173,7 @@ export default function FavoritesScreen() {
                 border={border}
                 isDark={isDark}
                 width={contentWidth}
-                onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category } })}
+                onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category, src: "favorites" } })}
                 onRemove={() => setConfirmId(vendor.id)}
               />
             ))}

@@ -235,7 +235,7 @@ export default function NearbyVendorsScreen() {
         compact={compact}
         favorite={isFavorite(item.vendor.id)}
         fallbackImage={fallbackImage}
-        onOpen={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: item.vendor.id, category: item.vendor.category } })}
+        onOpen={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: item.vendor.id, category: item.vendor.category, src: "nearby" } })}
         onToggleFavorite={(source) => toggleVendorFavorite(item.vendor, source)}
       />
     </HomeReveal>

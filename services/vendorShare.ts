@@ -4,6 +4,7 @@ import {
   buildVendorProfilePathBySlug,
   vendorWebBase,
 } from "@/services/contactActions";
+import { addTrafficSourceToUrl, type VendorTrafficSource } from "@/services/trafficSource";
 
 export type VendorShareInput = {
   vendorId: string;
@@ -16,11 +17,14 @@ export type VendorShareInput = {
 export type VendorShareResult = "shared" | "copied" | "dismissed";
 let activeShare: Promise<VendorShareResult> | null = null;
 
-export function buildVendorProfileUrl(input: Pick<VendorShareInput, "vendorId" | "category" | "slug">) {
+export function buildVendorProfileUrl(
+  input: Pick<VendorShareInput, "vendorId" | "category" | "slug">,
+  source: VendorTrafficSource = "share",
+) {
   const path = input.slug?.trim()
     ? buildVendorProfilePathBySlug(input.slug.trim())
     : buildVendorProfilePath(input.vendorId, input.category);
-  return `${vendorWebBase()}${path}`;
+  return addTrafficSourceToUrl(`${vendorWebBase()}${path}`, source);
 }
 
 function shareCopy(input: VendorShareInput, url: string) {

@@ -2,10 +2,11 @@ import { Platform } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { recordVendorProfileEvent } from "@/services/vendorPublicProfile";
 import { shareVendorProfile } from "@/services/vendorShare";
+import { addTrafficSourceToUrl } from "@/services/trafficSource";
 
 export async function copyProfileLink(vendorId: string, url: string) {
   if (!url) return;
-  await Clipboard.setStringAsync(url);
+  await Clipboard.setStringAsync(addTrafficSourceToUrl(url, "share"));
   void recordVendorProfileEvent(vendorId, "copy_link").catch(() => {});
 }
 

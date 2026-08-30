@@ -31,6 +31,9 @@ export type VendorWorkspace = {
   services: any[];
   subscription: any | null;
   stats: {
+    totalEnquiries: number;
+    whatsappEnquiries: number;
+    callEnquiries: number;
     openEnquiries: number;
     unreadNotifications: number;
     portfolioMedia: number;
@@ -42,7 +45,7 @@ export type VendorWorkspace = {
 const emptyWorkspace: VendorWorkspace = {
   vendor: null, albums: [], media: [], heroMedia: [], availability: [], enquiries: [],
   notifications: [], reviews: [], services: [], subscription: null,
-  stats: { openEnquiries: 0, unreadNotifications: 0, portfolioMedia: 0, averageRating: 0, reviewCount: 0 },
+  stats: { totalEnquiries: 0, whatsappEnquiries: 0, callEnquiries: 0, openEnquiries: 0, unreadNotifications: 0, portfolioMedia: 0, averageRating: 0, reviewCount: 0 },
 };
 
 const hasText = (value?: string | null) => Boolean(value?.trim());
@@ -189,7 +192,7 @@ export function useVendorWorkspace() {
       const today = new Date().toISOString().slice(0, 10);
       const [
         albums, media, heroMedia, availability, enquiries, notifications, reviews, services, subscription,
-        openEnquiries, unreadNotifications, portfolioMedia, reviewSummary,
+        totalEnquiries, whatsappEnquiries, callEnquiries, openEnquiries, unreadNotifications, portfolioMedia, reviewSummary,
       ] = await Promise.all([
         supabase.from("vendor_portfolio_albums").select("*").eq("vendor_id", vendor.id).order("display_order"),
         supabase.from("vendor_portfolio_media").select("*").eq("vendor_id", vendor.id).order("display_order"),
@@ -200,6 +203,9 @@ export function useVendorWorkspace() {
         supabase.from("reviews").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("vendor_services").select("*").eq("vendor_id", vendor.id).order("display_order").order("created_at"),
         supabase.from("subscriptions").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("vendor_enquiries").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id),
+        supabase.from("vendor_enquiries").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id).eq("enquiry_channel", "whatsapp"),
+        supabase.from("vendor_enquiries").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id).eq("enquiry_channel", "call"),
         supabase.from("vendor_enquiries").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id).neq("status", "closed").neq("status", "booked"),
         supabase.from("vendor_notifications").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id).eq("is_read", false),
         supabase.from("vendor_portfolio_media").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id),
@@ -210,7 +216,7 @@ export function useVendorWorkspace() {
       // the existing Vendor UI usable while a deployment is still applying the
       // new migration instead of failing the whole workspace.
       const failed = [
-        reviews, services, subscription, openEnquiries, unreadNotifications, portfolioMedia, reviewSummary,
+        reviews, services, subscription, totalEnquiries, whatsappEnquiries, callEnquiries, openEnquiries, unreadNotifications, portfolioMedia, reviewSummary,
       ].find((result) => result.error);
       if (failed?.error) throw failed.error;
       const portfolioFailure = albums.error ?? media.error ?? heroMedia.error;
@@ -233,6 +239,9 @@ export function useVendorWorkspace() {
         services: services.data ?? [],
         subscription: subscription.data ?? null,
         stats: {
+          totalEnquiries: totalEnquiries.count ?? 0,
+          whatsappEnquiries: whatsappEnquiries.count ?? 0,
+          callEnquiries: callEnquiries.count ?? 0,
           openEnquiries: openEnquiries.count ?? 0,
           unreadNotifications: unreadNotifications.count ?? 0,
           portfolioMedia: portfolioMedia.count ?? 0,

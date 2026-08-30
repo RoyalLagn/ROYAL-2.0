@@ -541,7 +541,7 @@ export default function VendorsListingScreen() {
           onOpen={() =>
             router.push({
               pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]",
-              params: { slug: vendor.slug },
+              params: { slug: vendor.slug, src: "listing" },
             })
           }
           onToggleFavorite={(source) => toggleVendorFavorite(vendor, source)}

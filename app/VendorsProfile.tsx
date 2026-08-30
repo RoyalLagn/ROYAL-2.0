@@ -25,6 +25,7 @@ import VendorInfoPanel from "@/components/vendor-profile/VendorInfoPanel";
 import VendorQuickActions from "@/components/vendor-profile/VendorQuickActions";
 import VendorAvailabilityModal from "@/components/vendor-profile/VendorAvailabilityModal";
 import VendorClipsGrid from "@/components/vendor-profile/VendorClipsGrid";
+import VendorClipsComingSoon from "@/components/vendor-profile/VendorClipsComingSoon";
 import VendorClipsReelViewer from "@/components/vendor-profile/VendorClipsReelViewer";
 import VendorProfileTabs, {
   type VendorProfileTab, } from "@/components/vendor-profile/VendorProfileTabs";
@@ -40,6 +41,8 @@ import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 import type { VendorPackage } from "@/services/vendorPackages";
 import { EnquiryExternalOpenError, EnquiryService, type EnquiryChannel } from "@/services/enquiries";
 import { shareVendorProfile } from "@/services/vendorShare";
+import { recordVendorTrafficView } from "@/services/vendorPublicProfile";
+import { resolveTrafficSource } from "@/services/trafficSource";
 import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
 import { SkeletonBone, SkeletonList } from "@/components/loading/Skeleton";
 import PageLoader from "@/components/loading/PageLoader";
@@ -53,6 +56,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { MotionDistance, MotionTiming } from "@/utils/motion";
+import { usePublicClipsAvailability } from "@/hooks/usePublicClipsAvailability";
 
 const PINK = brandPalette.light.primary;
 
@@ -169,9 +173,10 @@ export default function VendorsProfile() {
   const desktop = width >= 1100;
   const wideProfile = width >= 768;
   const splitDesktopContent = width >= 980;
-  const params = useLocalSearchParams<{ vendorId?: string; category?: string }>();
+  const params = useLocalSearchParams<{ vendorId?: string; category?: string; src?: string }>();
   const vendorId = Array.isArray(params.vendorId) ? params.vendorId[0] : params.vendorId;
   const paramCategory = Array.isArray(params.category) ? params.category[0] : params.category;
+  const explicitSource = Array.isArray(params.src) ? params.src[0] : params.src;
   const [vendor, setVendor] = useState<PublicVendorListing | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -191,6 +196,7 @@ export default function VendorsProfile() {
   const [clipsError, setClipsError] = useState("");
   const [clipsReloadKey, setClipsReloadKey] = useState(0);
   const [reelViewerIndex, setReelViewerIndex] = useState<number | null>(null);
+  const publicClipsEnabled = usePublicClipsAvailability();
   const [profileScrollOffset, setProfileScrollOffset] = useState(0);
   const [desktopDetailScrollOffset, setDesktopDetailScrollOffset] = useState(0);
   const contactPromptVisible = useRef(false);
@@ -235,7 +241,11 @@ export default function VendorsProfile() {
     void recordPublicVendorProfileView(vendor.id).catch(() => {
       // Profile viewing must never block the public Vendor page.
     });
-  }, [vendor?.id]);
+    const source = resolveTrafficSource(explicitSource);
+    void recordVendorTrafficView(vendor.id, source).catch(() => {
+      // Analytics must never block the public Vendor page.
+    });
+  }, [explicitSource, vendor?.id]);
 
   useEffect(() => {
     if (!vendorId) return;
@@ -254,7 +264,13 @@ export default function VendorsProfile() {
   }, [vendorId]);
 
   useEffect(() => {
-    if (!vendor?.id) return;
+    if (!vendor?.id || publicClipsEnabled !== true) {
+      setVendorClips([]);
+      setClipsLoading(false);
+      setClipsError("");
+      setReelViewerIndex(null);
+      return;
+    }
     let active = true;
     setClipsLoading(true);
     setClipsError("");
@@ -273,7 +289,7 @@ export default function VendorsProfile() {
     return () => {
       active = false;
     };
-  }, [clipsReloadKey, vendor?.id]);
+  }, [clipsReloadKey, publicClipsEnabled, vendor?.id]);
 
   const colors = brandColors(dark);
   const background = colors.background;
@@ -490,10 +506,10 @@ export default function VendorsProfile() {
                       <PortfolioAlbums
                         albums={vendor.portfolioAlbums}
                         dark={dark}
-                        onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id } })}
+                        onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id, src: explicitSource } })}
                         onOpenAlbum={(album) => router.push({
                           pathname: "/VendorAlbum",
-                          params: { vendorId: vendor.id, albumId: album.id },
+                          params: { vendorId: vendor.id, albumId: album.id, src: explicitSource },
                         })}
                       />
                     </SectionErrorBoundary>
@@ -508,14 +524,16 @@ export default function VendorsProfile() {
                   )
                 ) : (
                   <SectionErrorBoundary label="Clips" key={`clips-${vendor.id}`}>
-                    <VendorClipsGrid
-                      clips={vendorClips}
-                      loading={clipsLoading}
-                      error={clipsError}
-                      dark={dark}
-                      onOpen={setReelViewerIndex}
-                      onRetry={() => setClipsReloadKey((current) => current + 1)}
-                    />
+                    {publicClipsEnabled === true ? (
+                      <VendorClipsGrid
+                        clips={vendorClips}
+                        loading={clipsLoading}
+                        error={clipsError}
+                        dark={dark}
+                        onOpen={setReelViewerIndex}
+                        onRetry={() => setClipsReloadKey((current) => current + 1)}
+                      />
+                    ) : <VendorClipsComingSoon dark={dark} loading={publicClipsEnabled === null} />}
                   </SectionErrorBoundary>
                 )}
               </ProfileTabPanel>
@@ -643,14 +661,14 @@ export default function VendorsProfile() {
           dark={dark}
           onClose={() => setCalendarVisible(false)}
         />
-        <VendorClipsReelViewer
+        {publicClipsEnabled === true ? <VendorClipsReelViewer
           visible={reelViewerIndex !== null}
           clips={vendorClips}
           initialIndex={reelViewerIndex ?? 0}
           vendorName={vendor.name}
           verified
           onClose={() => setReelViewerIndex(null)}
-        />
+        /> : null}
       </View>
     );
   }
@@ -764,10 +782,10 @@ export default function VendorsProfile() {
                           <PortfolioAlbums
                             albums={vendor.portfolioAlbums}
                             dark={dark}
-                            onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id } })}
+                            onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id, src: explicitSource } })}
                             onOpenAlbum={(album) => router.push({
                               pathname: "/VendorAlbum",
-                              params: { vendorId: vendor.id, albumId: album.id },
+                              params: { vendorId: vendor.id, albumId: album.id, src: explicitSource },
                             })}
                           />
                         </SectionErrorBoundary>
@@ -783,14 +801,16 @@ export default function VendorsProfile() {
                     )
                   ) : (
                     <SectionErrorBoundary label="Clips" key={`clips-${vendor.id}`}>
-                      <VendorClipsGrid
-                        clips={vendorClips}
-                        loading={clipsLoading}
-                        error={clipsError}
-                        dark={dark}
-                        onOpen={setReelViewerIndex}
-                        onRetry={() => setClipsReloadKey((current) => current + 1)}
-                      />
+                      {publicClipsEnabled === true ? (
+                        <VendorClipsGrid
+                          clips={vendorClips}
+                          loading={clipsLoading}
+                          error={clipsError}
+                          dark={dark}
+                          onOpen={setReelViewerIndex}
+                          onRetry={() => setClipsReloadKey((current) => current + 1)}
+                        />
+                      ) : <VendorClipsComingSoon dark={dark} loading={publicClipsEnabled === null} />}
                     </SectionErrorBoundary>
                   )}
                 </ProfileTabPanel>
@@ -878,14 +898,14 @@ export default function VendorsProfile() {
           dark={dark}
           onClose={() => setCalendarVisible(false)}
         />
-        <VendorClipsReelViewer
+        {publicClipsEnabled === true ? <VendorClipsReelViewer
           visible={reelViewerIndex !== null}
           clips={vendorClips}
           initialIndex={reelViewerIndex ?? 0}
           vendorName={vendor.name}
           verified
           onClose={() => setReelViewerIndex(null)}
-        />
+        /> : null}
       </View>
     );
   }
@@ -971,10 +991,10 @@ export default function VendorsProfile() {
                   <PortfolioAlbums
                     albums={vendor.portfolioAlbums}
                     dark={dark}
-                    onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id } })}
+                    onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id, src: explicitSource } })}
                     onOpenAlbum={(album) => router.push({
                       pathname: "/VendorAlbum",
-                      params: { vendorId: vendor.id, albumId: album.id },
+                      params: { vendorId: vendor.id, albumId: album.id, src: explicitSource },
                     })}
                   />
                 </SectionErrorBoundary>
@@ -989,14 +1009,16 @@ export default function VendorsProfile() {
               )
             ) : (
               <SectionErrorBoundary label="Clips" key={`clips-${vendor.id}`}>
-                <VendorClipsGrid
-                  clips={vendorClips}
-                  loading={clipsLoading}
-                  error={clipsError}
-                  dark={dark}
-                  onOpen={setReelViewerIndex}
-                  onRetry={() => setClipsReloadKey((current) => current + 1)}
-                />
+                {publicClipsEnabled === true ? (
+                  <VendorClipsGrid
+                    clips={vendorClips}
+                    loading={clipsLoading}
+                    error={clipsError}
+                    dark={dark}
+                    onOpen={setReelViewerIndex}
+                    onRetry={() => setClipsReloadKey((current) => current + 1)}
+                  />
+                ) : <VendorClipsComingSoon dark={dark} loading={publicClipsEnabled === null} />}
               </SectionErrorBoundary>
             )}
             </ProfileTabPanel>
@@ -1079,14 +1101,14 @@ export default function VendorsProfile() {
         dark={dark}
         onClose={() => setCalendarVisible(false)}
       />
-      <VendorClipsReelViewer
+      {publicClipsEnabled === true ? <VendorClipsReelViewer
         visible={reelViewerIndex !== null}
         clips={vendorClips}
         initialIndex={reelViewerIndex ?? 0}
         vendorName={vendor.name}
         verified
         onClose={() => setReelViewerIndex(null)}
-      />
+      /> : null}
     </View>
   );
 }

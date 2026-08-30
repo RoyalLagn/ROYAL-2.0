@@ -28,6 +28,7 @@ import VendorInfoPanel from "@/components/vendor-profile/VendorInfoPanel";
 import VendorQuickActions from "@/components/vendor-profile/VendorQuickActions";
 import VendorAvailabilityModal from "@/components/vendor-profile/VendorAvailabilityModal";
 import VendorClipsGrid from "@/components/vendor-profile/VendorClipsGrid";
+import VendorClipsComingSoon from "@/components/vendor-profile/VendorClipsComingSoon";
 import VendorClipsReelViewer from "@/components/vendor-profile/VendorClipsReelViewer";
 import VendorProfileTabs, {
   type VendorProfileTab,
@@ -51,6 +52,7 @@ import { SectionErrorBoundary } from "@/components/SectionErrorBoundary";
 import {
   getVendorPublicProfileBySlug,
   recordVendorProfileEvent,
+  recordVendorTrafficView,
 } from "@/services/vendorPublicProfile";
 import { resolveTrafficSource } from "@/services/trafficSource";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
@@ -60,6 +62,7 @@ import {
 } from "@/services/externalLinks";
 import { brandPalette } from "@/constants/brandPalette";
 import { buildVendorProfilePathBySlug, vendorWebBase } from "@/services/contactActions";
+import { usePublicClipsAvailability } from "@/hooks/usePublicClipsAvailability";
 
 const PINK = brandPalette.light.primary;
 
@@ -89,8 +92,9 @@ export default function VendorPublicProfileScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const desktop = width >= 1100;
-  const params = useLocalSearchParams<{ slug?: string }>();
+  const params = useLocalSearchParams<{ slug?: string; src?: string }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
+  const explicitSource = Array.isArray(params.src) ? params.src[0] : params.src;
 
   const [state, setState] = useState<LoadState>("loading");
   const [vendor, setVendor] = useState<PublicVendorListing | null>(null);
@@ -109,6 +113,7 @@ export default function VendorPublicProfileScreen() {
   const [clipsError, setClipsError] = useState("");
   const [clipsReloadKey, setClipsReloadKey] = useState(0);
   const [reelViewerIndex, setReelViewerIndex] = useState<number | null>(null);
+  const publicClipsEnabled = usePublicClipsAvailability();
   const [enquiryOpen, setEnquiryOpen] = useState(false);
   const [enquiryMessage, setEnquiryMessage] = useState("");
   const [enquiryStatus, setEnquiryStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -127,7 +132,7 @@ export default function VendorPublicProfileScreen() {
           setVendor(result.vendor);
           setState("found");
         } else if (result.kind === "redirect") {
-          router.replace({ pathname: "/vendor/[slug]", params: { slug: result.slug } });
+          router.replace({ pathname: "/vendor/[slug]", params: { slug: result.slug, src: explicitSource } });
         } else {
           setState("not_found");
         }
@@ -138,18 +143,18 @@ export default function VendorPublicProfileScreen() {
     return () => {
       active = false;
     };
-  }, [slug, router]);
+  }, [explicitSource, slug, router]);
 
   useEffect(() => {
     if (!vendor?.id) return;
     void recordPublicVendorProfileView(vendor.id).catch(() => {
       // Profile viewing must never block the public vendor page.
     });
-    const source = resolveTrafficSource();
-    void recordVendorProfileEvent(vendor.id, "view", source).catch(() => {
+    const source = resolveTrafficSource(explicitSource);
+    void recordVendorTrafficView(vendor.id, source).catch(() => {
       // Analytics must never block the public vendor page.
     });
-  }, [vendor?.id]);
+  }, [explicitSource, vendor?.id]);
 
   useEffect(() => {
     if (!vendor?.id) return;
@@ -168,7 +173,13 @@ export default function VendorPublicProfileScreen() {
   }, [vendor?.id]);
 
   useEffect(() => {
-    if (!vendor?.id) return;
+    if (!vendor?.id || publicClipsEnabled !== true) {
+      setVendorClips([]);
+      setClipsLoading(false);
+      setClipsError("");
+      setReelViewerIndex(null);
+      return;
+    }
     let active = true;
     setClipsLoading(true);
     setClipsError("");
@@ -187,7 +198,7 @@ export default function VendorPublicProfileScreen() {
     return () => {
       active = false;
     };
-  }, [clipsReloadKey, vendor?.id]);
+  }, [clipsReloadKey, publicClipsEnabled, vendor?.id]);
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined" || !vendor) return;
@@ -522,24 +533,26 @@ export default function VendorPublicProfileScreen() {
                 <PortfolioAlbums
                   albums={vendor.portfolioAlbums}
                   dark={dark}
-                  onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id } })}
+                  onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id, src: explicitSource } })}
                   onOpenAlbum={(album) => router.push({
                     pathname: "/VendorAlbum",
-                    params: { vendorId: vendor.id, albumId: album.id },
+                    params: { vendorId: vendor.id, albumId: album.id, src: explicitSource },
                   })}
                 />
               </SectionErrorBoundary>
             </View> : null
           ) : (
             <SectionErrorBoundary label="Clips" key={`clips-${vendor.id}`}>
-              <VendorClipsGrid
-                clips={vendorClips}
-                loading={clipsLoading}
-                error={clipsError}
-                dark={dark}
-                onOpen={setReelViewerIndex}
-                onRetry={() => setClipsReloadKey((current) => current + 1)}
-              />
+              {publicClipsEnabled === true ? (
+                <VendorClipsGrid
+                  clips={vendorClips}
+                  loading={clipsLoading}
+                  error={clipsError}
+                  dark={dark}
+                  onOpen={setReelViewerIndex}
+                  onRetry={() => setClipsReloadKey((current) => current + 1)}
+                />
+              ) : <VendorClipsComingSoon dark={dark} loading={publicClipsEnabled === null} />}
             </SectionErrorBoundary>
           )}
 
@@ -685,14 +698,14 @@ export default function VendorPublicProfileScreen() {
         dark={dark}
         onClose={() => setCalendarVisible(false)}
       />
-      <VendorClipsReelViewer
+      {publicClipsEnabled === true ? <VendorClipsReelViewer
         visible={reelViewerIndex !== null}
         clips={vendorClips}
         initialIndex={reelViewerIndex ?? 0}
         vendorName={vendor.name}
         verified
         onClose={() => setReelViewerIndex(null)}
-      />
+      /> : null}
       <DownloadAppPopup dark={dark} />
     </View>
   );

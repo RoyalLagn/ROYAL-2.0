@@ -12,7 +12,6 @@ import QuickActionsGrid from "@/components/vendor-marketing/QuickActionsGrid";
 import QrCodeSection from "@/components/vendor-marketing/QrCodeSection";
 import AnalyticsSummaryCard from "@/components/vendor-marketing/AnalyticsSummaryCard";
 import MarketingTipsCard from "@/components/vendor-marketing/MarketingTipsCard";
-import ProfileHealthCard from "@/components/vendor-marketing/ProfileHealthCard";
 import {
   buildVendorPublicProfileUrl,
   getVendorProfileAnalytics,
@@ -30,7 +29,7 @@ export default function VendorMarketingCenter() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { showSuccess, showError } = useAppFeedback();
-  const { data, loading, error, completion, refresh } = useVendorWorkspace();
+  const { data, loading, error, refresh } = useVendorWorkspace();
   const desktop = width >= 900;
   const qrRef = useRef<any>(null);
   const [analytics, setAnalytics] = useState<VendorProfileAnalytics | null>(null);
@@ -44,14 +43,17 @@ export default function VendorMarketingCenter() {
 
   useFocusEffect(useCallback(() => {
     refresh();
-  }, [refresh]));
-
-  useEffect(() => {
     if (!vendor?.id || !available) return;
     let active = true;
     getVendorProfileAnalytics(vendor.id)
       .then((result) => { if (active) setAnalytics(result); })
       .catch(() => { if (active) setAnalytics(null); });
+    return () => { active = false; };
+  }, [available, refresh, vendor?.id]));
+
+  useEffect(() => {
+    if (!vendor?.id || !available) return;
+    let active = true;
     getVendorQrRecord(vendor.id)
       .then((record) => { if (active) setGeneratedAt(record?.generatedAt ?? null); })
       .catch(() => { if (active) setGeneratedAt(null); });
@@ -61,7 +63,7 @@ export default function VendorMarketingCenter() {
   const handleOpenWebsite = useCallback(() => {
     if (!slug) return;
     void recordVendorProfileEvent(vendor.id, "website_click", "dashboard").catch(() => {});
-    router.push({ pathname: "/vendors/[slug]", params: { slug } });
+    router.push({ pathname: "/vendors/[slug]", params: { slug, src: "vendor_preview" } });
   }, [router, slug, vendor?.id]);
 
   const handleCopyLink = useCallback(() => {
@@ -123,8 +125,8 @@ export default function VendorMarketingCenter() {
                 colors={colors}
                 url={url}
                 generatedAt={generatedAt}
-                totalViews={analytics?.view?.count ?? 0}
-                qrScans={analytics?.qr_scan?.count ?? 0}
+                totalViews={Number(vendor.profile_views ?? 0)}
+                qrScans={analytics?.view?.bySource?.qr ?? 0}
               />
               <QuickActionsGrid
                 colors={colors}
@@ -142,9 +144,15 @@ export default function VendorMarketingCenter() {
                 onDownload={handleDownloadQr}
                 onShare={handleShareQr}
               />
-              <AnalyticsSummaryCard colors={colors} analytics={analytics} />
+              <AnalyticsSummaryCard
+                colors={colors}
+                analytics={analytics}
+                profileViews={Number(vendor.profile_views ?? 0)}
+                totalEnquiries={data.stats.totalEnquiries}
+                whatsappEnquiries={data.stats.whatsappEnquiries}
+                callEnquiries={data.stats.callEnquiries}
+              />
               <MarketingTipsCard colors={colors} />
-              <ProfileHealthCard colors={colors} percent={completion.percent} items={completion.items} />
             </>
           ) : null}
         </VendorDashboardReveal>

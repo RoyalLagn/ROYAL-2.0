@@ -21,9 +21,11 @@ import { ClipStatusBadge, PublicClipVideo, PublicClipVideoBoundary } from "@/cli
 import { useVendorClipOverview } from "@/clips/hooks";
 import type { ClipStatus } from "@/clips/types";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
+import { usePublicClipsAvailability } from "@/hooks/usePublicClipsAvailability";
 import { typeScale, typeLeading, typeStyles } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
+import InteropSafePressable from "@/components/InteropSafePressable";
 
 type ClipGroup = "approved" | "pending" | "draft" | "hidden" | "rejected";
 
@@ -53,6 +55,13 @@ export default function VendorClips() {
   const { data, loading: workspaceLoading } = useVendorWorkspace();
   const { drafts, loading, error, overview, refresh } = useVendorClipOverview(data.vendor?.id);
   const { hasFeature, requireFeature } = useSubscriptionAccess();
+  // Public Clips availability gates STARTING a new upload only (Case A-D in
+  // the vendor upload-disable spec) -- independent of, and checked before,
+  // the upload_clips subscription gate below. Fails closed: null (still
+  // loading) and false both disable, so a vendor can never start an upload
+  // before the setting is known.
+  const publicClipsEnabled = usePublicClipsAvailability();
+  const uploadDisabled = publicClipsEnabled !== true;
   const [group, setGroup] = useState<ClipGroup>("approved");
   const [previewClip, setPreviewClip] = useState<any | null>(null);
   const [actionClip, setActionClip] = useState<any | null>(null);
@@ -74,7 +83,6 @@ export default function VendorClips() {
     { key: "pending", label: "Pending", count: overview.byStatus.pending.length },
     { key: "draft", label: "Drafts", count: overview.byStatus.draft.length + drafts.length },
     { key: "hidden", label: "Hidden", count: overview.byStatus.hidden.length },
-    { key: "rejected", label: "Rejected", count: overview.byStatus.rejected.length },
   ];
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -85,14 +93,19 @@ export default function VendorClips() {
   // The ref is set synchronously before any await runs, closing that window;
   // `deletingId` still drives the visible disabled/spinner state.
   const deletingRef = useRef<string | null>(null);
-  const openUpload = (draftId?: string) => requireFeature("upload_clips", () => {
-    if (overview.limitReached) {
-      Alert.alert("Clip limit reached", `Your plan allows ${overview.maximumClips ?? 0} Clips. Upgrade your plan or remove a Clip before uploading another.`, [{ text: "Not now", style: "cancel" }, { text: "View plans", onPress: () => router.push("/VendorSubscription") }]);
-      return;
-    }
-    if (draftId) router.push({ pathname: "/VendorClipUpload", params: { draftId } });
-    else router.push("/VendorClipUpload");
-  });
+  const openUpload = (draftId?: string) => {
+    // Guard first, and independently of requireFeature: Public Clips OFF must
+    // stop navigation even for a vendor whose plan already has upload_clips.
+    if (uploadDisabled) return;
+    requireFeature("upload_clips", () => {
+      if (overview.limitReached) {
+        Alert.alert("Clip limit reached", `Your plan allows ${overview.maximumClips ?? 0} Clips. Upgrade your plan or remove a Clip before uploading another.`, [{ text: "Not now", style: "cancel" }, { text: "View plans", onPress: () => router.push("/VendorSubscription") }]);
+        return;
+      }
+      if (draftId) router.push({ pathname: "/VendorClipUpload", params: { draftId } });
+      else router.push("/VendorClipUpload");
+    });
+  };
   const openEdit = (clipId: string) => requireFeature("upload_clips", () => {
     router.push({ pathname: "/VendorClipEdit", params: { id: clipId } });
   });
@@ -163,9 +176,9 @@ export default function VendorClips() {
           <Text style={[styles.heading, { color: colors.text }]}>Your Clips</Text>
           <Text style={[styles.subheading, { color: colors.muted }]}>{overview.maximumClips ? `${overview.total} of ${overview.maximumClips} clips used` : `${overview.total} clips used`}  <Text style={{ color: colors.pink }}>•</Text>  {drafts.length} {drafts.length === 1 ? "draft" : "drafts"}</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Upload Clip" onPress={() => openUpload()} style={({ pressed }) => [styles.primary, { backgroundColor: colors.surface, borderColor: `${colors.pink}40` }, pressed && styles.pressed]}>
+        <InteropSafePressable accessibilityRole="button" accessibilityLabel="Upload Clip" accessibilityState={{ disabled: uploadDisabled }} disabled={uploadDisabled} onPress={() => openUpload()} style={({ pressed }) => [styles.primary, { backgroundColor: colors.surface, borderColor: `${colors.pink}40` }, uploadDisabled && styles.actionDisabled, pressed && styles.pressed]}>
           <Plus size={19} color={colors.pink} /><Text style={[styles.primaryText, { color: colors.pink }]}>Upload Clip</Text>
-        </Pressable>
+        </InteropSafePressable>
       </View>
 
       {error ? <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -181,23 +194,23 @@ export default function VendorClips() {
           ].map(([label, value, Icon]: any) => <View key={label} style={[styles.overviewMetric, { width: metricWidth, backgroundColor: colors.surface, borderColor: `${colors.pink}22` }]}><Icon size={20} color={colors.pink} /><Text style={[styles.overviewValue, { color: colors.text }]}>{value}</Text><Text style={[styles.overviewLabel, { color: colors.muted }]}>{label}</Text></View>)}
       </View> : null}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+      <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
         {groupTabs.map((tab) => {
           const selected = group === tab.key;
-          return <Pressable accessibilityRole="tab" accessibilityState={{ selected }} key={tab.key} onPress={() => setGroup(tab.key)} style={({ pressed }) => [styles.tab, { borderColor: selected ? `${colors.pink}55` : colors.border, backgroundColor: selected ? `${colors.pink}10` : colors.surface }, pressed && styles.pressed]}><Text style={{ color: selected ? colors.pink : colors.muted, fontWeight: "700", fontSize: typeScale.metadata }}>{tab.label}</Text><Text style={{ color: selected ? colors.pink : colors.muted, fontSize: typeScale.caption, fontWeight: "700" }}>{tab.count}</Text></Pressable>;
+          return <InteropSafePressable accessibilityRole="tab" accessibilityState={{ selected }} key={tab.key} onPress={() => setGroup(tab.key)} style={({ pressed }) => [styles.tab, { borderColor: selected ? `${colors.pink}55` : colors.border, backgroundColor: selected ? `${colors.pink}10` : colors.surface }, pressed && styles.pressed]}><Text style={{ color: selected ? colors.pink : colors.muted, fontWeight: "700", fontSize: typeScale.metadata }}>{tab.label}</Text><Text style={{ color: selected ? colors.pink : colors.muted, fontSize: typeScale.caption, fontWeight: "700" }}>{tab.count}</Text></InteropSafePressable>;
         })}
       </ScrollView>
 
       {group === "draft" && drafts.length > 0 ? <View style={[styles.draftBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Saved drafts</Text>
-        {drafts.map((draft) => <Pressable key={draft.id} onPress={() => openUpload(draft.id)} style={({ pressed }) => [styles.draftRow, pressed && styles.pressed]}><Save size={16} color={colors.pink} /><Text numberOfLines={1} style={[styles.draftText, { color: colors.text }]}>{draft.title || "Untitled Clip"}</Text><Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>Resume</Text></Pressable>)}
+        {drafts.map((draft) => <Pressable key={draft.id} accessibilityRole="button" accessibilityLabel={`Resume ${draft.title || "Untitled Clip"}`} accessibilityState={{ disabled: uploadDisabled }} disabled={uploadDisabled} onPress={() => openUpload(draft.id)} style={({ pressed }) => [styles.draftRow, uploadDisabled && styles.actionDisabled, pressed && styles.pressed]}><Save size={16} color={colors.pink} /><Text numberOfLines={1} style={[styles.draftText, { color: colors.text }]}>{draft.title || "Untitled Clip"}</Text><Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>Resume</Text></Pressable>)}
       </View> : null}
 
       {!visibleClips.length && !(group === "draft" && drafts.length) ? <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={[styles.emptyIllustration, { backgroundColor: colors.surfaceSoft }]}><Video size={36} color={colors.pink} /></View>
         <Text style={[styles.emptyTitle, { color: colors.text }]}>{overview.total ? `No ${group} Clips` : "Share your best wedding work and inspire future couples."}</Text>
         <Text style={[styles.emptyText, { color: colors.muted }]}>{overview.total ? "Your Clips will appear here when their status changes." : "Short, beautiful videos help couples discover your business."}</Text>
-        {!overview.total ? <Pressable onPress={() => openUpload()} style={({ pressed }) => [styles.emptyButton, { backgroundColor: colors.pink }, pressed && styles.pressed]}><Plus size={17} color="#FFF" /><Text style={styles.primaryText}>Upload First Clip</Text></Pressable> : null}
+        {!overview.total ? <Pressable accessibilityRole="button" accessibilityLabel="Upload First Clip" accessibilityState={{ disabled: uploadDisabled }} disabled={uploadDisabled} onPress={() => openUpload()} style={({ pressed }) => [styles.emptyButton, { backgroundColor: colors.pink }, uploadDisabled && styles.actionDisabled, pressed && styles.pressed]}><Plus size={17} color="#FFF" /><Text style={styles.primaryText}>Upload First Clip</Text></Pressable> : null}
       </View> : <View style={[styles.grid, { gap: gridGap }]}>{visibleClips.map((clip) => {
         const clipName = clip.title?.trim() || clip.caption?.trim() || "Wedding Clip";
         return <View key={clip.id} style={[styles.gridTile, { width: gridTileWidth }]}>
@@ -223,7 +236,7 @@ export default function VendorClips() {
 
       <View style={[styles.tipsCard, { backgroundColor: colors.surface, borderColor: `${colors.pink}22` }]}>
         <View style={styles.tipsTitle}><View style={[styles.tipsIcon, { backgroundColor: colors.surfaceSoft }]}><Lightbulb size={22} color={colors.pink} /></View><Text style={[styles.sectionTitle, { color: colors.text }]}>Tips for Better Clips</Text></View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tipsGrid}>{[
+        <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tipsGrid}>{[
           ["Portrait (9:16)", Smartphone],
           ["Under 30s", Timer],
           ["Hook first few seconds", Play],
@@ -271,12 +284,12 @@ export default function VendorClips() {
             </View>
             {previewClip.caption?.trim() ? <Text numberOfLines={3} style={[styles.previewCaption, { color: colors.muted }]}>{previewClip.caption.trim()}</Text> : null}
             <View style={[styles.previewActions, { borderTopColor: colors.border }]}>
-              <Pressable accessibilityLabel="View Clip analytics" onPress={() => showAnalytics(previewClip)} style={({ pressed }) => [styles.previewAction, { backgroundColor: `${colors.pink}0D` }, pressed && styles.pressed]}><BarChart3 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Analytics</Text></Pressable>
-              <Pressable accessibilityLabel="Edit Clip" onPress={() => { const clipId = previewClip.id; closePreview(); openEdit(clipId); }} style={({ pressed }) => [styles.previewAction, pressed && styles.pressed]}><Edit3 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Edit</Text></Pressable>
-              <Pressable accessibilityLabel="Share Clip" onPress={() => void share(previewClip)} style={({ pressed }) => [styles.previewAction, pressed && styles.pressed]}><Share2 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Share</Text></Pressable>
-              <Pressable accessibilityLabel="Copy Clip link coming soon" disabled style={[styles.previewAction, styles.actionDisabled]}><Link2 size={16} color={colors.muted} /><Text style={[styles.actionLabel, { color: colors.muted }]}>Copy Link</Text></Pressable>
+              <InteropSafePressable accessibilityLabel="View Clip analytics" onPress={() => showAnalytics(previewClip)} style={({ pressed }) => [styles.previewAction, { backgroundColor: `${colors.pink}0D` }, pressed && styles.pressed]}><BarChart3 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Analytics</Text></InteropSafePressable>
+              <InteropSafePressable accessibilityLabel="Edit Clip" onPress={() => { const clipId = previewClip.id; closePreview(); openEdit(clipId); }} style={({ pressed }) => [styles.previewAction, pressed && styles.pressed]}><Edit3 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Edit</Text></InteropSafePressable>
+              <InteropSafePressable accessibilityLabel="Share Clip" onPress={() => void share(previewClip)} style={({ pressed }) => [styles.previewAction, pressed && styles.pressed]}><Share2 size={16} color={colors.pink} /><Text style={[styles.actionLabel, { color: colors.pink }]}>Share</Text></InteropSafePressable>
+              <InteropSafePressable accessibilityLabel="Copy Clip link coming soon" disabled style={[styles.previewAction, styles.actionDisabled]}><Link2 size={16} color={colors.muted} /><Text style={[styles.actionLabel, { color: colors.muted }]}>Copy Link</Text></InteropSafePressable>
             </View>
-            <Pressable accessibilityLabel="Delete Clip" disabled={deletingId === previewClip.id} onPress={() => { const clip = previewClip; closePreview(); remove(clip); }} style={({ pressed }) => [styles.previewDelete, deletingId === previewClip.id && styles.actionDisabled, pressed && styles.pressed]}>{deletingId === previewClip.id ? <ActivityIndicator size="small" color="#DC2626" /> : <Trash2 size={15} color="#DC2626" />}<Text style={styles.previewDeleteText}>{deletingId === previewClip.id ? "Deleting…" : "Delete"}</Text></Pressable>
+            <InteropSafePressable accessibilityLabel="Delete Clip" disabled={deletingId === previewClip.id} onPress={() => { const clip = previewClip; closePreview(); remove(clip); }} style={({ pressed }) => [styles.previewDelete, deletingId === previewClip.id && styles.actionDisabled, pressed && styles.pressed]}>{deletingId === previewClip.id ? <ActivityIndicator size="small" color="#DC2626" /> : <Trash2 size={15} color="#DC2626" />}<Text style={styles.previewDeleteText}>{deletingId === previewClip.id ? "Deleting…" : "Delete"}</Text></InteropSafePressable>
           </ScrollView>
         </View>
       </View> : null}

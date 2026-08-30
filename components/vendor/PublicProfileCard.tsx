@@ -23,15 +23,15 @@ import { shareVendorProfile } from "@/services/vendorShare";
 import { typeScale, typeLeading } from "@/constants/typography";
 import Pressable from "@/components/InteropSafePressable";
 
-export default function PublicProfileCard({ vendor }: { vendor: any }) {
+export default function PublicProfileCard({ vendor, totalEnquiries }: { vendor: any; totalEnquiries: number }) {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { width } = useWindowDimensions();
   const desktop = width >= 900;
+  const compactStats = width <= 480;
   const router = useRouter();
   const qrRef = useRef<any>(null);
   const [copied, setCopied] = useState(false);
-  const [comingSoonNote, setComingSoonNote] = useState("");
   const [analytics, setAnalytics] = useState<VendorProfileAnalytics | null>(null);
   const enabled = vendor?.public_profile_enabled !== false;
   const slug: string | undefined = vendor?.slug;
@@ -87,11 +87,6 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
     if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri);
   }, [qrUrl, slug]);
 
-  const showComingSoon = useCallback((feature: string) => {
-    setComingSoonNote(`${feature} is coming in a future update.`);
-    setTimeout(() => setComingSoonNote(""), 2500);
-  }, []);
-
   if (!slug) {
     return (
       <View style={[styles.card, { backgroundColor: colors.background, borderColor: colors.border }]}>
@@ -126,7 +121,7 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
         </View>
         <View style={[styles.actionsCol, desktop && styles.actionsColDesktop]}>
           <ActionButton desktop={desktop} label="Copy Link" icon={<Copy size={15} color={colors.pink} />} colors={colors} onPress={handleCopy} />
-          <ActionButton desktop={desktop} label="Open Profile" icon={<ExternalLink size={15} color={colors.pink} />} colors={colors} onPress={() => router.push({ pathname: "/vendors/[slug]", params: { slug } })} />
+          <ActionButton desktop={desktop} label="Open Profile" icon={<ExternalLink size={15} color={colors.pink} />} colors={colors} onPress={() => router.push({ pathname: "/vendors/[slug]", params: { slug, src: "vendor_preview" } })} />
           <ActionButton desktop={desktop} label="Share" icon={<Share2 size={15} color={colors.pink} />} colors={colors} onPress={handleShare} />
           <ActionButton desktop={desktop} label="Download QR" icon={<QrCode size={15} color={colors.pink} />} colors={colors} onPress={handleDownload} />
         </View>
@@ -144,11 +139,11 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
       ) : null}
 
       <View style={[styles.statsRow, { borderColor: colors.border }]}>
-        <StatTile label="Views" value={analytics?.view?.count ?? 0} colors={colors} />
-        <StatTile label="Visitors" value={analytics?.view?.uniqueVisitors ?? 0} colors={colors} />
-        <StatTile label="QR Scans" value={analytics?.view?.bySource?.qr ?? 0} colors={colors} />
-        <StatTile label="Shares" value={analytics?.link_share?.count ?? 0} colors={colors} />
-        <StatTile label="Enquiries" value={analytics?.enquiry?.count ?? 0} colors={colors} />
+        <StatTile label={compactStats ? "Profile\nViews" : "Profile Views"} value={Number(vendor.profile_views ?? 0)} compact={compactStats} colors={colors} />
+        <StatTile label={compactStats ? "Unique\nVisitors" : "Unique Visitors"} value={analytics?.view?.uniqueVisitors ?? 0} compact={compactStats} colors={colors} />
+        <StatTile label={compactStats ? "QR\nScans" : "QR Scans"} value={analytics?.view?.bySource?.qr ?? 0} compact={compactStats} colors={colors} />
+        <StatTile label="Shares" value={analytics?.link_share?.count ?? 0} compact={compactStats} colors={colors} />
+        <StatTile label="Enquiries" value={totalEnquiries} compact={compactStats} colors={colors} />
       </View>
 
       <View style={styles.footerRow}>
@@ -167,22 +162,7 @@ export default function PublicProfileCard({ vendor }: { vendor: any }) {
           <Sparkles size={14} color="#FFF" />
           <Text style={[styles.footerButtonText, { color: "#FFF" }]}>Marketing Card</Text>
         </Pressable>
-        <Pressable
-          onPress={() => showComingSoon("Profile settings")}
-          accessibilityRole="button"
-          accessibilityLabel="Profile settings"
-          style={({ pressed, hovered, focused }) => [
-            styles.footerButton,
-            styles.footerButtonWide,
-            { backgroundColor: colors.surfaceSoft },
-            (hovered || focused) && styles.hoverLift,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Text style={[styles.footerButtonText, { color: colors.text }]}>Profile Settings</Text>
-        </Pressable>
       </View>
-      {comingSoonNote ? <Text style={[styles.analyticsNote, { color: colors.muted }]}>{comingSoonNote}</Text> : null}
     </View>
   );
 }
@@ -207,11 +187,11 @@ function ActionButton({ desktop, label, icon, colors, onPress }: { desktop: bool
   );
 }
 
-function StatTile({ label, value, colors }: { label: string; value: number; colors: typeof vendorTheme.light }) {
+function StatTile({ label, value, compact, colors }: { label: string; value: number; compact: boolean; colors: typeof vendorTheme.light }) {
   return (
     <View style={styles.statTile}>
-      <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: colors.muted }]}>{label}</Text>
+      <Text style={[styles.statValue, compact && styles.statValueCompact, { color: colors.text }]}>{value}</Text>
+      <Text numberOfLines={2} style={[styles.statLabel, compact && styles.statLabelCompact, { color: colors.muted }]}>{label}</Text>
     </View>
   );
 }
@@ -236,15 +216,16 @@ const styles = StyleSheet.create({
   copiedText: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 8 },
   settingsRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14, paddingTop: 14, borderTopWidth: 1 },
   settingsLabel: { flex: 1, fontSize: typeScale.metadata, fontWeight: "700" },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14, paddingTop: 14, borderTopWidth: 1 },
-  statTile: { minWidth: 62, alignItems: "center" },
+  statsRow: { flexDirection: "row", marginTop: 14, paddingTop: 14, borderTopWidth: 1 },
+  statTile: { flex: 1, minWidth: 0, alignItems: "center", paddingHorizontal: 2 },
   statValue: { fontSize: typeScale.body, fontWeight: "700" },
-  statLabel: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 2 },
+  statValueCompact: { fontSize: 14 },
+  statLabel: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 2, textAlign: "center" },
+  statLabelCompact: { fontSize: 10, lineHeight: 12 },
   footerRow: { flexDirection: "row", gap: 8, marginTop: 14 },
   footerButton: { flex: 1, minHeight: 36, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   footerButtonWide: { flex: 1 },
   footerButtonText: { fontSize: typeScale.metadata, fontWeight: "700" },
-  analyticsNote: { fontSize: typeScale.caption, marginTop: 8 },
   hoverLift: { transform: [{ translateY: -1 }] },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
 });

@@ -11,8 +11,8 @@ const TILES: { key: keyof VendorProfileAnalytics; label: string; field: "count" 
   { key: "qr_scan", label: "QR Scans", field: "count" },
   { key: "copy_link", label: "Copy Link", field: "count" },
   { key: "link_share", label: "Shares", field: "count" },
-  { key: "whatsapp_click", label: "WhatsApp Clicks", field: "count" },
-  { key: "call_click", label: "Call Clicks", field: "count" },
+  { key: "whatsapp_click", label: "WhatsApp Enquiries", field: "count" },
+  { key: "call_click", label: "Call Enquiries", field: "count" },
   { key: "enquiry", label: "Enquiries", field: "count" },
 ];
 
@@ -26,9 +26,17 @@ const SOURCE_LABELS: Record<string, string> = {
 export default function AnalyticsSummaryCard({
   colors,
   analytics,
+  profileViews,
+  totalEnquiries,
+  whatsappEnquiries,
+  callEnquiries,
 }: {
   colors: typeof vendorTheme.light;
   analytics: VendorProfileAnalytics | null;
+  profileViews: number;
+  totalEnquiries: number;
+  whatsappEnquiries: number;
+  callEnquiries: number;
 }) {
   const sources = analytics?.view?.bySource ?? {};
   const sourceEntries = Object.entries(sources).sort((a, b) => b[1] - a[1]);
@@ -45,7 +53,19 @@ export default function AnalyticsSummaryCard({
       <View style={styles.grid}>
         {TILES.map((tile, index) => {
           const stat = analytics?.[tile.key];
-          const value = stat ? stat[tile.field] : 0;
+          const value = tile.key === "enquiry"
+            ? totalEnquiries
+            : tile.key === "whatsapp_click"
+              ? whatsappEnquiries
+              : tile.key === "call_click"
+                ? callEnquiries
+                : tile.key === "view" && tile.field === "count"
+                  ? profileViews
+                  : tile.key === "qr_scan"
+                    ? analytics?.view?.bySource?.qr ?? 0
+                    : stat
+                      ? stat[tile.field]
+                      : 0;
           return (
             <View key={`${tile.key}-${index}`} style={[styles.tile, { backgroundColor: colors.surfaceSoft }]}>
               <Text style={[styles.tileValue, { color: colors.text }]}>{value}</Text>
