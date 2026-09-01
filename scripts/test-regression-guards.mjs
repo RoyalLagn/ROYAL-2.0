@@ -75,6 +75,33 @@ assert.match(startupSplashSource, /resizeMode="cover"/, "Startup artwork must co
 assert.match(layoutSource, /<PageLoaderProvider suppressed=\{startupSplashVisible\}>/, "The page loader must not cover the startup splash.");
 assert.match(layoutSource, /Platform\.OS !== 'web'/, "The branded startup splash must remain native-only.");
 assert.match(layoutSource, /webBootLoading \? <PageLoader \/>/, "Web startup and refresh must use the shared page loader instead of the branded splash.");
+const androidSplashStyleSource = await read("android/app/src/main/res/values/styles.xml");
+assert.match(androidSplashStyleSource, /windowSplashScreenAnimatedIcon">@android:color\/transparent</, "Android's mandatory system launch surface must not show the obsolete centered splash logo before StartupSplash.");
+
+// --- Native auth screens must remain usable above the Android keyboard ---
+const [authLayoutSource, otpFieldSource] = await Promise.all([
+  read("components/auth/AuthScreenLayout.tsx"),
+  read("components/auth/OtpCodeField.tsx"),
+]);
+assert.match(authLayoutSource, /behavior=\{Platform\.OS === "ios" \? "padding" : undefined\}/, "Android auth forms must rely on adjustResize rather than a competing keyboard-height calculation.");
+assert.match(authLayoutSource, /keyboardShouldPersistTaps="always"/, "Auth controls must remain tappable while the keyboard is open.");
+assert.match(otpFieldSource, /InteractionManager\.runAfterInteractions/, "OTP focus must wait until navigation has completed so Android opens the keypad.");
+assert.match(otpFieldSource, /showSoftInputOnFocus/, "OTP input must explicitly request the software keypad.");
+assert.match(otpFieldSource, /inset: 0, opacity: 0\.01/, "OTP input must keep a touch-sized native focus target.");
+
+// --- Native vendor profiles must not recompose heavy hero media on scroll ---
+const [pinnedHeroSource, vendorProfileSource] = await Promise.all([
+  read("components/vendor-profile/PinnedHeroProfileLayout.tsx"),
+  read("app/VendorsProfile.tsx"),
+]);
+assert.match(pinnedHeroSource, /const useHeroParallax = Platform\.OS === "web" && !reducedMotion;/, "Native vendor heroes must not scale while their parent scrolls.");
+assert.match(vendorProfileSource, /const trackProfileScroll = Platform\.OS === "web";/, "Native vendor profile scrolling must stay off the React render path.");
+
+// --- Homepage location uses device permission in place, never Near Me route ---
+const homeScreenSource = await read("app/(tabs)/index.tsx");
+assert.match(homeScreenSource, /requestDeviceLocationPermission/, "Homepage location action must request device permission from the explicit tap.");
+assert.match(homeScreenSource, /onPress=\{\(\) => void refreshHomeLocation\(true\)\}/, "Homepage location icon must fetch in place rather than navigate away.");
+assert.doesNotMatch(homeScreenSource, /router\.push\("\/NearbyVendors"\)/, "Homepage must not route location actions to the obsolete NearbyVendors screen.");
 
 // --- App alerts must stay cross-platform and app-wide -------------------
 const [dialogProviderSource, alertBridgeSource] = await Promise.all([
@@ -395,15 +422,20 @@ const KEYBOARD_SURFACES = [
 const keyboardSources = await Promise.all(KEYBOARD_SURFACES.map(read));
 KEYBOARD_SURFACES.forEach((path, index) => {
   const source = keyboardSources[index];
+  const isAuthLayout = path === "components/auth/AuthScreenLayout.tsx";
   assert.match(
     source,
-    /behavior=\{Platform\.OS === ["']ios["'] \? ["']padding["'] : ["']height["']\}/,
-    `${path} must keep an explicit Android KeyboardAvoidingView behavior (not undefined).`,
+    isAuthLayout
+      ? /behavior=\{Platform\.OS === ["']ios["'] \? ["']padding["'] : undefined\}/
+      : /behavior=\{Platform\.OS === ["']ios["'] \? ["']padding["'] : ["']height["']\}/,
+    isAuthLayout
+      ? `${path} must let Android's adjustResize handle the keyboard without a competing height calculation.`
+      : `${path} must keep an explicit Android KeyboardAvoidingView behavior.`,
   );
   assert.match(
     source,
-    /keyboardShouldPersistTaps=["']handled["']/,
-    `${path} must keep keyboardShouldPersistTaps="handled" so taps reach controls while the keyboard is open.`,
+    /keyboardShouldPersistTaps=["'](?:handled|always)["']/,
+    `${path} must keep keyboardShouldPersistTaps enabled so taps reach controls while the keyboard is open.`,
   );
 });
 
