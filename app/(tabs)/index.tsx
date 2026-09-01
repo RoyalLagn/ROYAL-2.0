@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { type Href, useRouter } from "expo-router";
@@ -35,8 +35,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { MotionDuration, MotionStagger } from "@/utils/motion";
 import {
+  DeviceLocationError,
   getCurrentDeviceLocation,
   getDevicePermissionStatus,
+  requestDeviceLocationPermission,
   reverseGeocodeLabel,
 } from "@/services/deviceLocation";
 import { useCustomerLocation } from "@/context/LocationContext";
@@ -155,25 +157,53 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  // Never prompt from the home screen. If permission was already granted,
-  // refresh the same device GPS + first-party locality label used by Near Me.
+  const refreshHomeLocation = useCallback(async (requestAccess: boolean) => {
+    setHomeLocationLoading(true);
+    try {
+      let permission = await getDevicePermissionStatus();
+      if (permission !== "granted" && requestAccess) {
+        permission = await requestDeviceLocationPermission();
+      }
+      if (permission !== "granted") {
+        if (requestAccess) {
+          Alert.alert(
+            "Turn on location permission",
+            "Allow location access in your device settings to see vendors near you.",
+          );
+        }
+        return;
+      }
+
+      const coords = await getCurrentDeviceLocation();
+      const label = await reverseGeocodeLabel(coords).catch(() => null);
+      setHomeLocation(label ?? "Current location");
+    } catch (error) {
+      setHomeLocation(null);
+      if (requestAccess) {
+        const unavailable = error instanceof DeviceLocationError && error.reason === "unavailable";
+        Alert.alert(
+          unavailable ? "Turn on device location" : "Unable to get location",
+          unavailable
+            ? "Turn on Location Services on your device, then try again."
+            : "We could not determine your current location. Please try again.",
+        );
+      }
+    } finally {
+      setHomeLocationLoading(false);
+    }
+  }, []);
+
+  // Never prompt on load. Refresh only when the user has already granted
+  // access; tapping the location icon is the explicit permission action.
   useEffect(() => {
     let active = true;
-    (async () => {
-      if (await getDevicePermissionStatus() !== "granted" || !active) return;
-      setHomeLocationLoading(true);
-      try {
-        const coords = await getCurrentDeviceLocation();
-        const label = await reverseGeocodeLabel(coords).catch(() => null);
-        if (active) setHomeLocation(label ?? `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`);
-      } catch {
-        if (active) setHomeLocation(null);
-      } finally {
-        if (active) setHomeLocationLoading(false);
+    void (async () => {
+      if (await getDevicePermissionStatus() === "granted" && active) {
+        await refreshHomeLocation(false);
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [refreshHomeLocation]);
 
   const colors = brandColors(isDark);
   const bg = isDark ? colors.background : "#FFF9FB";
@@ -203,8 +233,7 @@ export default function HomeScreen() {
     setFilters(value);
     setFiltersVisible(false);
     if (value.nearbyOnly) {
-      router.push("/NearbyVendors");
-      return;
+      void refreshHomeLocation(true);
     }
     router.push({ pathname: "/Search", params: searchParams(value) });
   };
@@ -296,9 +325,9 @@ export default function HomeScreen() {
           <HomeReveal direction="down" style={[s.header, { width: featureWidth }]}>
             <TouchableOpacity
               accessibilityRole="button"
-              accessibilityLabel={homeLocation ? `Your current location: ${homeLocation}. Open nearby vendors` : "Set location and find nearby vendors"}
+              accessibilityLabel={homeLocation ? `Refresh your current location: ${homeLocation}` : "Use your device location"}
               style={[s.nearMeHeader, { width: headerSideWidth }]}
-              onPress={() => router.push("/NearbyVendors")}
+              onPress={() => void refreshHomeLocation(true)}
               activeOpacity={0.72}
             >
               <View style={[s.locationIconWrap, { backgroundColor: colors.actionTint }]}><LocateFixed size={15} color={PINK} /></View>

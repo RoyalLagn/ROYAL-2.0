@@ -226,11 +226,6 @@ export default function TabsWebLayout() {
                 onPress={() => router.push("/(tabs)")}
               />
               <NavItem
-                label="Near Me"
-                active={pathname.toLowerCase() === "/nearbyvendors"}
-                onPress={() => router.push("/NearbyVendors")}
-              />
-              <NavItem
                 label="Categories"
                 active={isActive("/(tabs)/Categories")}
                 onPress={() => router.push("/(tabs)/Categories")}
