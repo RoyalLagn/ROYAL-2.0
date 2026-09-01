@@ -129,33 +129,38 @@ function ProfileSectionReveal({
   style?: StyleProp<ViewStyle>;
 }>) {
   const reducedMotion = useReducedMotion();
+  // Native scroll must stay on the UI thread while hero media is being
+  // composited. Web retains the editorial reveal; native renders sections
+  // ready to avoid scroll-driven React work.
+  const animateOnScroll = Platform.OS === "web" && !reducedMotion;
   const [sectionTop, setSectionTop] = useState<number | null>(null);
   const sectionRef = useRef<any>(null);
-  const revealed = useRef(reducedMotion);
-  const progress = useSharedValue(reducedMotion ? 1 : 0);
+  const revealed = useRef(!animateOnScroll);
+  const progress = useSharedValue(animateOnScroll ? 0 : 1);
 
   useEffect(() => {
+    if (!animateOnScroll) return;
     if (revealed.current || sectionTop === null) return;
     if (scrollOffset + viewportHeight * 0.9 < sectionTop) return;
     revealed.current = true;
     progress.value = withDelay(delay, withTiming(1, MotionTiming.base));
-  }, [delay, progress, scrollOffset, sectionTop, viewportHeight]);
+  }, [animateOnScroll, delay, progress, scrollOffset, sectionTop, viewportHeight]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
-    transform: [{ translateY: reducedMotion ? 0 : (1 - progress.value) * MotionDistance.screenEnter }],
+    transform: [{ translateY: animateOnScroll ? (1 - progress.value) * MotionDistance.screenEnter : 0 }],
   }));
 
   return (
     <Animated.View
       ref={sectionRef}
-      onLayout={() => {
+      onLayout={animateOnScroll ? () => {
         requestAnimationFrame(() => {
           sectionRef.current?.measureInWindow?.((_x: number, y: number) => {
             setSectionTop((current) => current ?? scrollOffset + y);
           });
         });
-      }}
+      } : undefined}
       style={[style, animatedStyle]}
     >
       {children}
@@ -199,6 +204,7 @@ export default function VendorsProfile() {
   const publicClipsEnabled = usePublicClipsAvailability();
   const [profileScrollOffset, setProfileScrollOffset] = useState(0);
   const [desktopDetailScrollOffset, setDesktopDetailScrollOffset] = useState(0);
+  const trackProfileScroll = Platform.OS === "web";
   const contactPromptVisible = useRef(false);
   const contactOpening = useRef(false);
 
@@ -463,10 +469,10 @@ export default function VendorsProfile() {
             style={[styles.desktopPane, styles.desktopMediaPane]}
             contentContainerStyle={styles.desktopMediaContent}
             showsVerticalScrollIndicator={false}
-            onScroll={(event) => {
+            onScroll={trackProfileScroll ? (event) => {
               const offset = event.nativeEvent.contentOffset.y;
               setProfileScrollOffset((current) => Math.abs(current - offset) >= 64 ? offset : current);
-            }}
+            } : undefined}
             scrollEventThrottle={32}
           >
             <DesktopProfileReveal>
@@ -544,10 +550,10 @@ export default function VendorsProfile() {
             style={[styles.desktopPane, styles.desktopDetailsPane, { borderColor: sectionDivider }]}
             contentContainerStyle={styles.desktopDetailsContent}
             showsVerticalScrollIndicator={false}
-            onScroll={(event) => {
+            onScroll={trackProfileScroll ? (event) => {
               const offset = event.nativeEvent.contentOffset.y;
               setDesktopDetailScrollOffset((current) => Math.abs(current - offset) >= 64 ? offset : current);
-            }}
+            } : undefined}
             scrollEventThrottle={32}
           >
             <DesktopProfileReveal>
@@ -686,10 +692,10 @@ export default function VendorsProfile() {
           style={styles.wideScroll}
           contentContainerStyle={[styles.wideScrollContent, { paddingBottom: desktop ? 48 : mobileTabBarHeight + 28 }]}
           showsVerticalScrollIndicator={false}
-          onScroll={(event) => {
+          onScroll={trackProfileScroll ? (event) => {
             const offset = event.nativeEvent.contentOffset.y;
             setProfileScrollOffset((current) => Math.abs(current - offset) >= 96 ? offset : current);
-          }}
+          } : undefined}
           scrollEventThrottle={32}
         >
           <View style={[styles.widePage, { width: widePageWidth }]}>
@@ -920,7 +926,7 @@ export default function VendorsProfile() {
         backgroundColor={background}
         sheetColor={background}
         contentContainerStyle={{ paddingBottom: desktop ? 28 : mobileTabBarHeight }}
-        onScrollPosition={setProfileScrollOffset}
+        onScrollPosition={trackProfileScroll ? setProfileScrollOffset : undefined}
         hero={(
           <VendorHeroCarousel
             images={heroImages}

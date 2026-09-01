@@ -63,6 +63,10 @@ function PinnedHeroProfileLayout({
 }: Props) {
   const scrollY = useSharedValue(0);
   const reducedMotion = useReducedMotion();
+  // Scaling a remote image while its parent ScrollView is moving makes the
+  // whole profile visibly vibrate on some Android GPUs. Keep that editorial
+  // parallax on web, but make the native hero a stable composited surface.
+  const useHeroParallax = Platform.OS === "web" && !reducedMotion;
   const sheetOffset = Math.max(0, heroHeight - overlap);
   const coverDistance = Math.max(1, Math.min(heroHeight, motionDistance));
   const [measuredWidth, setMeasuredWidth] = useState(0);
@@ -89,7 +93,7 @@ function PinnedHeroProfileLayout({
   });
 
   const heroStyle = useAnimatedStyle<ViewStyle>(() => {
-    if (reducedMotion) return { transform: [{ translateY: 0 }, { scale: 1 }] } as ViewStyle;
+    if (!useHeroParallax) return { transform: [{ translateY: 0 }, { scale: 1 }] } as ViewStyle;
     const translateY = interpolate(
       scrollY.value,
       [-64, 0, coverDistance],
@@ -103,13 +107,13 @@ function PinnedHeroProfileLayout({
       Extrapolation.CLAMP,
     );
     return { transform: [{ translateY }, { scale }] } as ViewStyle;
-  }, [coverDistance, heroHeight, reducedMotion]);
+  }, [coverDistance, heroHeight, useHeroParallax]);
 
   const shadeStyle = useAnimatedStyle(() => ({
-    opacity: reducedMotion
-      ? 0
-      : interpolate(scrollY.value, [0, coverDistance], [0, 0.12], Extrapolation.CLAMP),
-  }), [coverDistance, reducedMotion]);
+    opacity: useHeroParallax
+      ? interpolate(scrollY.value, [0, coverDistance], [0, 0.12], Extrapolation.CLAMP)
+      : 0,
+  }), [coverDistance, useHeroParallax]);
 
   return (
     <View
