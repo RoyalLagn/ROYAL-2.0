@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { InteractionManager, Pressable, Text, TextInput, View } from "react-native";
 
 type OtpCodeFieldProps = {
   length: number;
@@ -25,8 +25,17 @@ export function OtpCodeField({
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
-    if (autoFocus) inputRef.current?.focus();
-  }, [autoFocus]);
+    if (!autoFocus || disabled) return;
+
+    // Navigation transitions can finish after this screen first renders.
+    // Waiting for them makes the Android native input reliably request its
+    // numeric keyboard instead of silently receiving focus too early.
+    const task = InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    });
+
+    return () => task.cancel();
+  }, [autoFocus, disabled]);
 
   return (
     <Pressable
@@ -62,8 +71,11 @@ export function OtpCodeField({
         maxLength={length}
         editable={!disabled}
         caretHidden
+        showSoftInputOnFocus
         onSubmitEditing={onSubmit}
-        style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
+        // Keep a real, touch-sized native input over the digit boxes. Android
+        // may not open its keyboard for a fully hidden 1×1 input.
+        style={{ position: "absolute", inset: 0, opacity: 0.01 }}
       />
     </Pressable>
   );

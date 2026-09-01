@@ -61,7 +61,11 @@ export function AuthScreenLayout({
       <AuthBackButton fallbackRoute={backRoute} />
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        // Android is already configured with windowSoftInputMode="adjustResize".
+        // Let the system resize the ScrollView once instead of applying a
+        // second height reduction here, which could leave lower fields behind
+        // the IME in release builds.
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
           contentContainerStyle={{
@@ -72,7 +76,7 @@ export function AuthScreenLayout({
             paddingTop: keyboardVisible ? 12 : 60,
             paddingBottom: keyboardVisible ? 20 : 32,
           }}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
           showsVerticalScrollIndicator={false}
