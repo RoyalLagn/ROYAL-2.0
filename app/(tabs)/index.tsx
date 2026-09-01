@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { type Href, useRouter } from "expo-router";
-import Head from "expo-router/head";
 import {
   Bell, LocateFixed, MapPin, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, Settings2, } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -45,13 +44,6 @@ import { rankVendorsByLocationAndMembership } from "@/locations/domain";
 import { buildVendorListingPath } from "@/services/publicSeoRoutes";
 
 const PINK = brandPalette.light.primaryStrong;
-const SEO_BASE_URL = (
-  process.env.EXPO_PUBLIC_WEB_APP_URL?.trim()
-  || process.env.EXPO_PUBLIC_APP_URL?.trim()
-  || "https://royallagn.com"
-).replace(/\/$/, "");
-const SEO_TITLE = "RoyalLagn | Discover Trusted Wedding Vendors";
-const SEO_DESCRIPTION = "Discover trusted wedding photographers, venues, decorators, makeup artists and more with RoyalLagn. Explore verified wedding vendors and send enquiries directly.";
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
 const PRIMARY_CATEGORY_COUNT = 10;
 /** Optimized WebP floral corner (was 1.4MB PNG). */
@@ -286,41 +278,6 @@ export default function HomeScreen() {
 
   return (
     <>
-      <Head>
-        <title>{SEO_TITLE}</title>
-        <meta name="description" content={SEO_DESCRIPTION} />
-        <meta name="robots" content="index, follow, max-image-preview:large" />
-        <link rel="canonical" href={`${SEO_BASE_URL}/`} />
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="RoyalLagn" />
-        <meta property="og:title" content={SEO_TITLE} />
-        <meta property="og:description" content={SEO_DESCRIPTION} />
-        <meta property="og:url" content={`${SEO_BASE_URL}/`} />
-        <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content={SEO_TITLE} />
-        <meta name="twitter:description" content={SEO_DESCRIPTION} />
-        <script type="application/ld+json">{JSON.stringify({
-          "@context": "https://schema.org",
-          "@graph": [
-            {
-              "@type": "Organization",
-              "@id": `${SEO_BASE_URL}/#organization`,
-              name: "RoyalLagn",
-              url: `${SEO_BASE_URL}/`,
-              description: SEO_DESCRIPTION,
-            },
-            {
-              "@type": "WebSite",
-              "@id": `${SEO_BASE_URL}/#website`,
-              url: `${SEO_BASE_URL}/`,
-              name: "RoyalLagn",
-              description: SEO_DESCRIPTION,
-              publisher: { "@id": `${SEO_BASE_URL}/#organization` },
-              inLanguage: "en-IN",
-            },
-          ],
-        })}</script>
-      </Head>
       <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top", "left", "right"]}>
       {vendorsLoading || (categoriesLoading && !categories.length) ? <PageLoader /> : null}
       <Animated.ScrollView
