@@ -53,3 +53,10 @@ dist-web/
 .impeccable/hook.cache.json
 .impeccable/config.local.json
 .vercel
+
+# Android generated build output and machine-specific caches
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/.cxx/
+/android/app/.cxx/
