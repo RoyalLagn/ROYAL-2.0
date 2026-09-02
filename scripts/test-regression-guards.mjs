@@ -76,7 +76,7 @@ assert.match(layoutSource, /<PageLoaderProvider suppressed=\{startupSplashVisibl
 assert.match(layoutSource, /Platform\.OS !== 'web'/, "The branded startup splash must remain native-only.");
 assert.match(layoutSource, /webBootLoading \? <PageLoader \/>/, "Web startup and refresh must use the shared page loader instead of the branded splash.");
 const androidSplashStyleSource = await read("android/app/src/main/res/values/styles.xml");
-assert.match(androidSplashStyleSource, /windowSplashScreenAnimatedIcon">@android:color\/transparent</, "Android's mandatory system launch surface must not show the obsolete centered splash logo before StartupSplash.");
+assert.match(androidSplashStyleSource, /windowSplashScreenAnimatedIcon">@drawable\/splashscreen_logo</, "Android's mandatory system launch surface must show the branded splash logo while React Native starts.");
 
 // --- Native auth screens must remain usable above the Android keyboard ---
 const [authLayoutSource, otpFieldSource, keyboardAwareScrollSource] = await Promise.all([
