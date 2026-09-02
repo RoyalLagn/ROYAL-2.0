@@ -15,6 +15,7 @@ type PasswordFieldProps = {
   hint?: string;
   /** "current-password" on login, "new-password" when setting one. */
   autoComplete?: "current-password" | "new-password";
+  variant?: "default" | "soft";
 };
 
 export const PasswordField = forwardRef(function PasswordField(
@@ -29,6 +30,7 @@ export const PasswordField = forwardRef(function PasswordField(
     error,
     hint,
     autoComplete = "current-password",
+    variant = "default",
   }: PasswordFieldProps,
   ref: React.Ref<TextInput>,
 ) {
@@ -48,6 +50,7 @@ export const PasswordField = forwardRef(function PasswordField(
       secureTextEntry={!visible}
       textContentType={autoComplete === "new-password" ? "newPassword" : "password"}
       autoComplete={autoComplete}
+      variant={variant}
       returnKeyType={returnKeyType}
       onSubmitEditing={onSubmitEditing}
       onFocus={onFocus}

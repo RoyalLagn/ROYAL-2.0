@@ -20,6 +20,7 @@ type Props = {
   onChange: (value: LocationPreference) => void;
   helper?: string;
   required?: boolean;
+  variant?: "default" | "soft";
 };
 
 export function SupportedLocationField({
@@ -29,6 +30,7 @@ export function SupportedLocationField({
   onChange,
   helper,
   required,
+  variant = "default",
 }: Props) {
   const [visible, setVisible] = useState(false);
   const [query, setQuery] = useState("");
@@ -46,9 +48,9 @@ export function SupportedLocationField({
   }, [locations, query]);
 
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, variant === "soft" && styles.softField]}>
       <Text style={styles.label}>{label}{required ? <Text style={styles.required}> *</Text> : null}</Text>
-      <Pressable onPress={() => setVisible(true)} style={({ pressed }) => [styles.control, pressed && styles.pressed]}>
+      <Pressable onPress={() => setVisible(true)} style={({ pressed }) => [styles.control, variant === "soft" && styles.softControl, pressed && styles.pressed]}>
         <MapPin size={18} color="#E91E63" />
         <Text numberOfLines={1} style={[styles.value, !selectedCity && styles.placeholder]}>{display}</Text>
         <ChevronDown size={18} color="#8A8589" />
@@ -88,10 +90,12 @@ export function SupportedLocationField({
 
 const styles = StyleSheet.create({
   field: { marginBottom: 16 },
+  softField: { marginBottom: 6 },
   flex: { flex: 1, minWidth: 0 },
   label: { color: "#241D21", fontSize: typeScale.body, fontWeight: "600", marginBottom: 8 },
   required: { color: "#E91E63" },
   control: { height: 56, borderWidth: 1, borderColor: "#E7E1E4", borderRadius: 16, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF" },
+  softControl: { height: 62, borderColor: "#F2E6EA", borderRadius: 20, shadowColor: "#B77F91", shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.10, shadowRadius: 14, elevation: 3 },
   value: { flex: 1, minWidth: 0, color: "#241D21", fontSize: typeScale.body },
   placeholder: { color: "#8A8589" },
   helper: { color: "#786D73", fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 6 },
@@ -111,4 +115,3 @@ const styles = StyleSheet.create({
   optionDetail: { color: "#786D73", fontSize: typeScale.caption, marginTop: 3 },
   empty: { color: "#786D73", fontSize: typeScale.bodyCompact, textAlign: "center", paddingVertical: 26 },
 });
-

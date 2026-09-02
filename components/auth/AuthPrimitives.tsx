@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { CircleCheckBig, TriangleAlert } from "lucide-react-native";
 
 type AuthSubmitButtonProps = {
@@ -9,6 +9,7 @@ type AuthSubmitButtonProps = {
   disabled?: boolean;
   onPress: () => void;
   accessibilityLabel?: string;
+  variant?: "default" | "soft";
 };
 
 /** Full-width primary action with an inline spinner while the request runs. */
@@ -19,6 +20,7 @@ export function AuthSubmitButton({
   disabled = false,
   onPress,
   accessibilityLabel,
+  variant = "default",
 }: AuthSubmitButtonProps) {
   const inactive = loading || disabled;
   return (
@@ -31,6 +33,7 @@ export function AuthSubmitButton({
       className={`h-14 rounded-2xl flex-row items-center justify-center gap-2 ${
         inactive ? "bg-primary/45" : "bg-primary active:opacity-90"
       }`}
+      style={variant === "soft" ? [styles.softCta, inactive && styles.softCtaDisabled] : undefined}
     >
       {loading ? <ActivityIndicator size="small" color="#FFFFFF" /> : null}
       <Text className="text-primary-foreground font-semibold text-body">
@@ -73,12 +76,13 @@ type AuthTabsProps<T extends string> = {
   active: T;
   onChange: (tab: T) => void;
   disabled?: boolean;
+  variant?: "default" | "soft";
 };
 
 /** Segmented Login / Sign Up switcher. */
-export function AuthTabs<T extends string>({ tabs, active, onChange, disabled }: AuthTabsProps<T>) {
+export function AuthTabs<T extends string>({ tabs, active, onChange, disabled, variant = "default" }: AuthTabsProps<T>) {
   return (
-    <View className="flex-row bg-muted rounded-2xl p-1">
+    <View className="flex-row bg-muted rounded-2xl p-1" style={variant === "soft" ? styles.softTabs : undefined}>
       {tabs.map((tab) => {
         const selected = tab.id === active;
         return (
@@ -87,6 +91,7 @@ export function AuthTabs<T extends string>({ tabs, active, onChange, disabled }:
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             className={`flex-1 rounded-xl py-3 items-center ${selected ? "bg-card" : ""}`}
+            style={variant === "soft" && selected ? styles.softTabSelected : undefined}
             onPress={() => onChange(tab.id)}
             disabled={disabled}
           >
@@ -99,6 +104,13 @@ export function AuthTabs<T extends string>({ tabs, active, onChange, disabled }:
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  softTabs: { backgroundColor: "#F9F5F7", padding: 5, borderRadius: 22 },
+  softTabSelected: { backgroundColor: "#FEFDFE", shadowColor: "#B77F91", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.11, shadowRadius: 9, elevation: 3 },
+  softCta: { minHeight: 58, borderRadius: 20, shadowColor: "#C51654", shadowOffset: { width: 0, height: 9 }, shadowOpacity: 0.18, shadowRadius: 14, elevation: 5 },
+  softCtaDisabled: { shadowOpacity: 0 },
+});
 
 type AuthLinkButtonProps = {
   onPress: () => void;

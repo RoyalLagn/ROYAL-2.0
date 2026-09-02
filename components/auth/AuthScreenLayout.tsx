@@ -21,6 +21,7 @@ type AuthScreenLayoutProps = {
   children: React.ReactNode;
   /** Rendered under the form card, outside its padding. */
   footer?: React.ReactNode;
+  variant?: "default" | "soft";
 };
 
 const CONTENT_MAX_WIDTH = 440;
@@ -40,6 +41,7 @@ export function AuthScreenLayout({
   subtitle,
   children,
   footer,
+  variant = "default",
 }: AuthScreenLayoutProps) {
   const { width } = useWindowDimensions();
   const wide = width >= 640;
@@ -55,7 +57,7 @@ export function AuthScreenLayout({
   }, []);
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right", "bottom"]}>
+    <SafeAreaView className={variant === "soft" ? "flex-1 bg-[#FCFBFC]" : "flex-1 bg-background"} edges={["top", "left", "right", "bottom"]}>
       <AuthBackButton fallbackRoute={backRoute} />
       <KeyboardAwareScrollView
           containerStyle={{ flex: 1 }}
@@ -63,8 +65,8 @@ export function AuthScreenLayout({
             flexGrow: 1,
             justifyContent: keyboardVisible ? "flex-start" : "center",
             alignItems: "center",
-            paddingHorizontal: wide ? 24 : 20,
-            paddingTop: keyboardVisible ? 12 : 60,
+            paddingHorizontal: wide ? 24 : 22,
+            paddingTop: keyboardVisible ? 12 : variant === "soft" ? 44 : 60,
             paddingBottom: keyboardVisible ? 20 : 32,
           }}
           keyboardShouldPersistTaps="always"
@@ -78,8 +80,8 @@ export function AuthScreenLayout({
           >
             <View className={`items-center ${keyboardVisible ? "mb-4" : "mb-7"}`}>
               <RoyalLagnLogo
-                width={keyboardVisible ? 196 : 232}
-                height={keyboardVisible ? 54 : 66}
+                width={keyboardVisible ? 196 : variant === "soft" ? 252 : 232}
+                height={keyboardVisible ? 54 : variant === "soft" ? 72 : 66}
                 scale={1.9}
               />
               {eyebrow ? (
@@ -87,7 +89,7 @@ export function AuthScreenLayout({
                   {eyebrow}
                 </Text>
               ) : null}
-              <Text className="text-foreground text-section-title font-bold text-center mt-3">
+              <Text className={`text-foreground text-section-title font-bold text-center mt-3 ${variant === "soft" ? "tracking-[-0.5px]" : ""}`}>
                 {title}
               </Text>
               {subtitle ? (

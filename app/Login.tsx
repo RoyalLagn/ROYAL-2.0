@@ -136,8 +136,9 @@ export default function LoginScreen() {
       backRoute="/(tabs)"
       title={tab === "login" ? "Welcome back" : signupAudience ? "Customer account" : "Create your account"}
       subtitle={tab === "login" ? "Plan your celebration with RoyalLagn." : undefined}
+      variant="soft"
     >
-      <AuthTabs tabs={TABS} active={tab} onChange={changeTab} disabled={loading} />
+      <AuthTabs tabs={TABS} active={tab} onChange={changeTab} disabled={loading} variant="soft" />
 
       <View className="gap-4 mt-5">
         {params.reset === "success" ? (
@@ -199,6 +200,7 @@ export default function LoginScreen() {
               autoComplete="name"
               returnKeyType="next"
               onSubmitEditing={() => phoneRef.current?.focus()}
+              variant="soft"
             />
             <SupportedLocationField
               label="Preferred browsing location"
@@ -207,6 +209,7 @@ export default function LoginScreen() {
               value={signupLocation}
               onChange={(value) => { setSignupLocation(value); setError(""); }}
               helper="Used only to prioritize nearby vendors. You can change it anytime."
+              variant="soft"
             />
             <AuthField
               ref={phoneRef}
@@ -222,6 +225,7 @@ export default function LoginScreen() {
               autoComplete="tel"
               returnKeyType="next"
               onSubmitEditing={() => emailRef.current?.focus()}
+              variant="soft"
             />
           </>
         ) : null}
@@ -239,6 +243,7 @@ export default function LoginScreen() {
           autoComplete="email"
           returnKeyType={tab === "login" ? "next" : "done"}
           onSubmitEditing={tab === "login" ? () => passwordRef.current?.focus() : () => { Keyboard.dismiss(); void sendOtp(); }}
+          variant="soft"
         /> : null}
 
         {tab === "login" ? (
@@ -250,6 +255,7 @@ export default function LoginScreen() {
               placeholder="Enter your password"
               returnKeyType="done"
               onSubmitEditing={() => void login()}
+              variant="soft"
             />
             <AuthLinkButton align="end" onPress={() => router.replace("/ForgotPassword")} disabled={loading}>
               <Text className="text-primary font-semibold text-body">Forgot password?</Text>
@@ -265,6 +271,7 @@ export default function LoginScreen() {
           loading={loading}
           disabled={tab === "signup" && !signupValid}
           onPress={() => void (tab === "login" ? login() : sendOtp())}
+          variant="soft"
         /> : null}
       </View>
     </AuthScreenLayout>

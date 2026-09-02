@@ -1,5 +1,6 @@
 import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import {
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -33,6 +34,7 @@ export type AuthFieldProps = {
   /** Rendered at the right edge of the input (e.g. a password visibility toggle). */
   accessory?: React.ReactNode;
   secureTextEntry?: boolean;
+  variant?: "default" | "soft";
 };
 
 export function authPlaceholderColor(dark: boolean) {
@@ -61,6 +63,7 @@ export const AuthField = forwardRef(function AuthField(
     onFocus,
     accessory,
     secureTextEntry,
+    variant = "default",
   }: AuthFieldProps,
   ref: React.Ref<TextInput>,
 ) {
@@ -86,6 +89,7 @@ export const AuthField = forwardRef(function AuthField(
         className={`flex-row items-center bg-card border rounded-2xl px-4 ${borderClass} ${
           editable ? "" : "opacity-60"
         }`}
+        style={variant === "soft" ? [styles.softField, focused && styles.softFieldFocused, error && styles.softFieldError] : undefined}
       >
         {Icon ? <Icon size={19} className="text-muted-foreground" /> : null}
         <TextInput
@@ -124,4 +128,26 @@ export const AuthField = forwardRef(function AuthField(
       ) : null}
     </View>
   );
+});
+
+const styles = StyleSheet.create({
+  softField: {
+    minHeight: 62,
+    borderWidth: 1,
+    borderColor: "#F2E6EA",
+    backgroundColor: "#FEFDFE",
+    shadowColor: "#B77F91",
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+  softFieldFocused: {
+    borderColor: "#E91E63",
+    shadowColor: "#E91E63",
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  softFieldError: { borderColor: "#DC2626" },
 });
