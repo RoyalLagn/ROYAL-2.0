@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import React, { useMemo, useRef, useState } from "react";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Check } from "lucide-react-native";
 import { AuthAlert, AuthSubmitButton } from "@/components/auth/AuthPrimitives";
@@ -33,6 +33,8 @@ export function CreatePasswordForm({
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
   const requirements = useMemo(() => passwordRequirements(password), [password]);
   const matches = confirmPassword.length > 0 && password === confirmPassword;
   const validPassword = validatePassword(password);
@@ -73,14 +75,17 @@ export function CreatePasswordForm({
     >
       <View className="gap-4">
         <PasswordField
+          ref={passwordRef}
           label="New password"
           autoComplete="new-password"
           value={password}
           onChangeText={(text) => { setPassword(text); setError(""); }}
           placeholder="Create a password"
           returnKeyType="next"
+          onSubmitEditing={() => confirmPasswordRef.current?.focus()}
         />
         <PasswordField
+          ref={confirmPasswordRef}
           label="Confirm password"
           autoComplete="new-password"
           value={confirmPassword}

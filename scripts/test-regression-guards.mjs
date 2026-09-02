@@ -86,13 +86,30 @@ const [authLayoutSource, otpFieldSource, keyboardAwareScrollSource] = await Prom
 ]);
 assert.match(authLayoutSource, /<KeyboardAwareScrollView/, "Auth screens must use the shared keyboard-aware form scroller.");
 assert.match(keyboardAwareScrollSource, /behavior=\{Platform\.OS === "ios" \? "padding" : undefined\}/, "Android forms must rely on adjustResize rather than a competing keyboard-height calculation.");
+assert.match(keyboardAwareScrollSource, /keyboardDismissMode = "none"/, "Manual auth-form scrolling must never dismiss the keyboard.");
+assert.doesNotMatch(keyboardAwareScrollSource, /FOCUS_POLL_MS|setInterval\(/, "Focused auth inputs must reveal directly instead of relying on a polling loop.");
+assert.match(keyboardAwareScrollSource, /KeyboardAwareFormContext\.Provider/, "The shared form scroller must expose one direct focus-to-scroll coordinator.");
 assert.match(keyboardAwareScrollSource, /TextInput\.State\.currentlyFocusedInput\(\)/, "The shared form scroller must discover focus centrally without per-field handlers.");
 assert.match(keyboardAwareScrollSource, /scrollResponderScrollNativeHandleToKeyboard/, "The shared form scroller must use React Native's native keyboard-aware focus reveal path.");
 assert.match(keyboardAwareScrollSource, /keyboardDidShow/, "The shared form scroller must re-check focus after Android finishes resizing for the keyboard.");
 assert.match(authLayoutSource, /keyboardShouldPersistTaps="always"/, "Auth controls must remain tappable while the keyboard is open.");
+assert.match(authLayoutSource, /keyboardDismissMode="none"/, "The auth shell must not opt into iOS interactive or Android drag keyboard dismissal.");
+const [authFieldSource, passwordFieldSource, createPasswordFormSource, loginSource, vendorAuthSource] = await Promise.all([
+  read("components/auth/AuthField.tsx"),
+  read("components/auth/PasswordField.tsx"),
+  read("components/auth/CreatePasswordForm.tsx"),
+  read("app/Login.tsx"),
+  read("app/VendorAuth.tsx"),
+]);
+assert.match(authFieldSource, /keyboardForm\?\.revealInput\(inputRef\.current\)/, "Every shared auth input must notify the form scroller when focused.");
+assert.match(passwordFieldSource, /requestAnimationFrame\(\(\) => inputRef\.current\?\.focus\(\)\)/, "Toggling password visibility must retain native input focus and its keyboard.");
+assert.match(createPasswordFormSource, /onSubmitEditing=\{\(\) => confirmPasswordRef\.current\?\.focus\(\)\}/, "Password Next must advance to Confirm Password.");
+assert.match(loginSource, /const fullNameRef = useRef<TextInput>\(null\)/, "Signup must keep a dedicated Full name native focus reference.");
+assert.match(vendorAuthSource, /const ownerNameRef = useRef<TextInput>\(null\)/, "Vendor signup must keep a dedicated Owner name native focus reference.");
 assert.match(otpFieldSource, /InteractionManager\.runAfterInteractions/, "OTP focus must wait until navigation has completed so Android opens the keypad.");
 assert.match(otpFieldSource, /showSoftInputOnFocus/, "OTP input must explicitly request the software keypad.");
 assert.match(otpFieldSource, /inset: 0, opacity: 0\.01/, "OTP input must keep a touch-sized native focus target.");
+assert.match(otpFieldSource, /keyboardForm\?\.revealInput\(inputRef\.current\)/, "OTP focus must use the same direct keyboard-aware reveal path as text fields.");
 
 // --- Native vendor profiles must not recompose heavy hero media on scroll ---
 const [pinnedHeroSource, vendorProfileSource] = await Promise.all([

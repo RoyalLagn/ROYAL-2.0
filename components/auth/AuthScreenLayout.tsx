@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   Keyboard,
-  Platform,
   Text,
   View,
   useWindowDimensions,
@@ -69,8 +68,8 @@ export function AuthScreenLayout({
             paddingBottom: keyboardVisible ? 20 : 32,
           }}
           keyboardShouldPersistTaps="always"
-          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+          keyboardDismissMode="none"
+          automaticallyAdjustKeyboardInsets={false}
           showsVerticalScrollIndicator={false}
       >
           <View

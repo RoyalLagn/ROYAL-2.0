@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from "react";
+import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import {
   Text,
   TextInput,
@@ -8,6 +8,7 @@ import {
   type TextInputProps,
 } from "react-native";
 import { useColorScheme } from "nativewind";
+import { useKeyboardAwareForm } from "@/components/keyboard/KeyboardAwareScrollView";
 
 export type AuthFieldProps = {
   label: string;
@@ -65,6 +66,9 @@ export const AuthField = forwardRef(function AuthField(
 ) {
   const { colorScheme } = useColorScheme();
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  const keyboardForm = useKeyboardAwareForm();
+  useImperativeHandle(ref, () => inputRef.current as TextInput);
 
   const borderClass = error
     ? "border-destructive"
@@ -85,7 +89,7 @@ export const AuthField = forwardRef(function AuthField(
       >
         {Icon ? <Icon size={19} className="text-muted-foreground" /> : null}
         <TextInput
-          ref={ref}
+          ref={inputRef}
           className={`flex-1 text-foreground text-body py-3.5 ${Icon ? "ml-3" : ""}`}
           placeholder={placeholder}
           placeholderTextColor={authPlaceholderColor(colorScheme === "dark")}
@@ -106,6 +110,7 @@ export const AuthField = forwardRef(function AuthField(
           accessibilityLabel={label}
           onFocus={(event) => {
             setFocused(true);
+            keyboardForm?.revealInput(inputRef.current);
             onFocus?.(event);
           }}
           onBlur={() => setFocused(false)}

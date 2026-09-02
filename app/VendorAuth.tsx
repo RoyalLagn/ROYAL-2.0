@@ -29,6 +29,7 @@ export default function VendorAuthScreen() {
   const [error, setError] = useState("");
   const phoneRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
+  const ownerNameRef = useRef<TextInput>(null);
 
   const signupValid = useMemo(
     () => validateFullName(ownerName) && validatePhone(phone) && validateEmail(email),
@@ -133,6 +134,7 @@ export default function VendorAuthScreen() {
         ) : null}
 
         <AuthField
+          ref={ownerNameRef}
           label="Owner name"
           required
           icon={User}

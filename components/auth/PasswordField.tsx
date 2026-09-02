@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from "react";
+import React, { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Eye, EyeOff, Lock } from "lucide-react-native";
 import { Pressable, type TextInput, type TextInputProps } from "react-native";
 import { AuthField } from "@/components/auth/AuthField";
@@ -33,9 +33,11 @@ export const PasswordField = forwardRef(function PasswordField(
   ref: React.Ref<TextInput>,
 ) {
   const [visible, setVisible] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  useImperativeHandle(ref, () => inputRef.current as TextInput);
   return (
     <AuthField
-      ref={ref}
+      ref={inputRef}
       label={label}
       icon={Lock}
       value={value}
@@ -55,7 +57,10 @@ export const PasswordField = forwardRef(function PasswordField(
           accessibilityLabel={visible ? "Hide password" : "Show password"}
           hitSlop={10}
           className="pl-3 active:opacity-60"
-          onPress={() => setVisible((current) => !current)}
+          onPress={() => {
+            setVisible((current) => !current);
+            requestAnimationFrame(() => inputRef.current?.focus());
+          }}
         >
           {visible
             ? <EyeOff size={19} className="text-muted-foreground" />

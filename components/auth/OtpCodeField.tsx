@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { InteractionManager, Pressable, Text, TextInput, View } from "react-native";
+import { useKeyboardAwareForm } from "@/components/keyboard/KeyboardAwareScrollView";
 
 type OtpCodeFieldProps = {
   length: number;
@@ -23,6 +24,7 @@ export function OtpCodeField({
   autoFocus = true,
 }: OtpCodeFieldProps) {
   const inputRef = useRef<TextInput>(null);
+  const keyboardForm = useKeyboardAwareForm();
 
   useEffect(() => {
     if (!autoFocus || disabled) return;
@@ -72,6 +74,7 @@ export function OtpCodeField({
         editable={!disabled}
         caretHidden
         showSoftInputOnFocus
+        onFocus={() => keyboardForm?.revealInput(inputRef.current)}
         onSubmitEditing={onSubmit}
         // Keep a real, touch-sized native input over the digit boxes. Android
         // may not open its keyboard for a fully hidden 1×1 input.

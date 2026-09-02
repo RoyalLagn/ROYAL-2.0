@@ -51,6 +51,7 @@ export default function LoginScreen() {
 
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
+  const fullNameRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
 
   const signupValid = useMemo(
@@ -186,6 +187,7 @@ export default function LoginScreen() {
               </View>
             </AuthLinkButton>
             <AuthField
+              ref={fullNameRef}
               label="Full name"
               required
               icon={User}

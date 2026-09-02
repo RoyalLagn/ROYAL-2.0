@@ -8,8 +8,6 @@ import {
   StyleSheet,
   TextInput,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   type ScrollViewProps,
   type StyleProp,
   type ViewStyle,
@@ -21,19 +19,29 @@ type KeyboardAwareScrollViewProps = ScrollViewProps & {
 };
 
 const DEFAULT_KEYBOARD_GAP = 96;
-const FOCUS_POLL_MS = 80;
-
 type MeasurableInput = {
   measureInWindow?: (callback: (x: number, y: number, width: number, height: number) => void) => void;
 };
+
+type KeyboardAwareFormContextValue = {
+  revealInput: (input?: TextInput | null) => void;
+};
+
+const KeyboardAwareFormContext = React.createContext<KeyboardAwareFormContextValue | null>(null);
+
+/** Lets shared auth inputs request an immediate, deterministic visibility check. */
+export function useKeyboardAwareForm() {
+  return React.useContext(KeyboardAwareFormContext);
+}
 
 /**
  * Shared form scroller for native screens and modal bodies.
  *
  * Android already uses windowSoftInputMode="adjustResize", so the outer view
  * deliberately has no Android behavior. Once the activity or modal window is
- * resized, the bounded ScrollView can bring its focused native child into view
- * and remains manually scrollable while the IME is open.
+ * resized, the bounded ScrollView can bring its focused native child into view.
+ * Fields notify this scroller directly on focus; there is no polling loop or
+ * drag-to-dismiss behavior competing with typing.
  */
 export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwareScrollViewProps>(
   function KeyboardAwareScrollView(
@@ -42,14 +50,14 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
       containerStyle,
       keyboardGap = DEFAULT_KEYBOARD_GAP,
       keyboardShouldPersistTaps = "handled",
-      keyboardDismissMode = Platform.OS === "ios" ? "interactive" : "on-drag",
-      automaticallyAdjustKeyboardInsets = Platform.OS === "ios",
+      keyboardDismissMode = "none",
+      automaticallyAdjustKeyboardInsets = false,
       nestedScrollEnabled = true,
       showsVerticalScrollIndicator = false,
       style,
       onLayout,
       onScroll,
-      onTouchEnd,
+      onContentSizeChange,
       scrollEventThrottle = 16,
       ...props
     },
@@ -61,15 +69,14 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
     const keyboardHeightRef = React.useRef(0);
     const keyboardTopRef = React.useRef(Number.POSITIVE_INFINITY);
     const [keyboardTailHeight, setKeyboardTailHeight] = React.useState(0);
-    const lastFocusedRef = React.useRef<unknown>(null);
     const pendingFrameRef = React.useRef<number | null>(null);
 
     React.useImperativeHandle(ref, () => scrollRef.current as ScrollView);
 
-    const revealFocusedInput = React.useCallback(() => {
+    const revealInput = React.useCallback((requestedInput?: TextInput | null) => {
       if (Platform.OS === "web") return;
       const scrollView = scrollRef.current;
-      const focused = TextInput.State.currentlyFocusedInput() as unknown as MeasurableInput | null;
+      const focused = (requestedInput ?? TextInput.State.currentlyFocusedInput()) as unknown as MeasurableInput | null;
       if (!scrollView || !focused) return;
       scrollView.scrollResponderScrollNativeHandleToKeyboard(focused, keyboardGap, true);
       focused.measureInWindow?.((_x, inputTop, _width, inputHeight) => {
@@ -81,30 +88,19 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
       });
     }, [keyboardGap]);
 
-    const scheduleReveal = React.useCallback(() => {
+    const scheduleReveal = React.useCallback((input?: TextInput | null) => {
       if (Platform.OS === "web") return;
       if (pendingFrameRef.current !== null) cancelAnimationFrame(pendingFrameRef.current);
       pendingFrameRef.current = requestAnimationFrame(() => {
         pendingFrameRef.current = requestAnimationFrame(() => {
           pendingFrameRef.current = null;
-          revealFocusedInput();
+          revealInput(input);
         });
       });
-    }, [revealFocusedInput]);
+    }, [revealInput]);
 
     React.useEffect(() => {
       if (Platform.OS === "web") return;
-      let focusPoll: ReturnType<typeof setInterval> | null = null;
-      const startFocusPoll = () => {
-        if (focusPoll) clearInterval(focusPoll);
-        focusPoll = setInterval(() => {
-          const focused = TextInput.State.currentlyFocusedInput();
-          if (focused && focused !== lastFocusedRef.current) {
-            lastFocusedRef.current = focused;
-            scheduleReveal();
-          }
-        }, FOCUS_POLL_MS);
-      };
       const show = Keyboard.addListener("keyboardDidShow", (event) => {
         keyboardVisibleRef.current = true;
         const screenHeight = Dimensions.get("screen").height;
@@ -115,59 +111,55 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
         keyboardTopRef.current = keyboardTop;
         keyboardHeightRef.current = Math.max(0, screenHeight - keyboardTop);
         setKeyboardTailHeight(Platform.OS === "android" ? keyboardHeightRef.current : 0);
-        lastFocusedRef.current = TextInput.State.currentlyFocusedInput();
         scheduleReveal();
-        startFocusPoll();
       });
       const hide = Keyboard.addListener("keyboardDidHide", () => {
         keyboardVisibleRef.current = false;
         keyboardHeightRef.current = 0;
         keyboardTopRef.current = Number.POSITIVE_INFINITY;
         setKeyboardTailHeight(0);
-        lastFocusedRef.current = null;
-        if (focusPoll) clearInterval(focusPoll);
-        focusPoll = null;
       });
       return () => {
         show.remove();
         hide.remove();
-        if (focusPoll) clearInterval(focusPoll);
         if (pendingFrameRef.current !== null) cancelAnimationFrame(pendingFrameRef.current);
       };
     }, [scheduleReveal]);
 
     return (
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={[styles.container, containerStyle]}
-      >
-        <ScrollView
-          {...props}
-          ref={scrollRef}
-          style={[styles.scroller, style]}
-          keyboardShouldPersistTaps={keyboardShouldPersistTaps}
-          keyboardDismissMode={keyboardDismissMode}
-          automaticallyAdjustKeyboardInsets={automaticallyAdjustKeyboardInsets}
-          nestedScrollEnabled={nestedScrollEnabled}
-          showsVerticalScrollIndicator={showsVerticalScrollIndicator}
-          scrollEventThrottle={scrollEventThrottle}
-          onLayout={(event) => {
+      <KeyboardAwareFormContext.Provider value={{ revealInput: scheduleReveal }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={[styles.container, containerStyle]}
+        >
+          <ScrollView
+            {...props}
+            ref={scrollRef}
+            style={[styles.scroller, style]}
+            keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+            keyboardDismissMode={keyboardDismissMode}
+            automaticallyAdjustKeyboardInsets={automaticallyAdjustKeyboardInsets}
+            nestedScrollEnabled={nestedScrollEnabled}
+            showsVerticalScrollIndicator={showsVerticalScrollIndicator}
+            scrollEventThrottle={scrollEventThrottle}
+            onLayout={(event) => {
             onLayout?.(event);
             if (keyboardVisibleRef.current) scheduleReveal();
-          }}
-          onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
-            scrollYRef.current = event.nativeEvent.contentOffset.y;
-            onScroll?.(event);
-          }}
-          onTouchEnd={(event) => {
-            onTouchEnd?.(event);
-            if (keyboardVisibleRef.current) scheduleReveal();
-          }}
-        >
-          {children}
-          {keyboardTailHeight > 0 ? <View style={{ height: keyboardTailHeight }} importantForAccessibility="no-hide-descendants" /> : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+            }}
+            onContentSizeChange={(width, height) => {
+              onContentSizeChange?.(width, height);
+              if (keyboardVisibleRef.current) scheduleReveal();
+            }}
+            onScroll={(event) => {
+              scrollYRef.current = event.nativeEvent.contentOffset.y;
+              onScroll?.(event);
+            }}
+          >
+            {children}
+            {keyboardTailHeight > 0 ? <View style={{ height: keyboardTailHeight }} importantForAccessibility="no-hide-descendants" /> : null}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </KeyboardAwareFormContext.Provider>
     );
   },
 );
