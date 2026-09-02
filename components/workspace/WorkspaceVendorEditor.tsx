@@ -6,6 +6,7 @@ import type { CrmVendorCategory } from "@/types/crm/category";
 import type { CrmWorkspaceVendorInput } from "@/types/crm/workspace";
 import type { CrmVendorPriority } from "@/types/crm/vendor";
 import { sanitizePhoneInput, validatePhone } from "@/utils/authValidation";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 
 type WorkspaceVendorEditorProps = {
   visible: boolean;
@@ -74,7 +75,7 @@ export function WorkspaceVendorEditor({ visible, initial, isEdit, saving, error,
             <Pressable accessibilityLabel="Close" onPress={onClose}><X size={20} className="text-foreground" /></Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <KeyboardAwareScrollView>
             {error ? <Text className="text-red-500 text-xs mb-3">{error}</Text> : null}
 
             <Text className="text-foreground text-xs font-semibold mb-1.5">Category</Text>
@@ -121,7 +122,7 @@ export function WorkspaceVendorEditor({ visible, initial, isEdit, saving, error,
             >
               {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text className="text-white text-sm font-bold">{isEdit ? "Save Changes" : "Add Vendor"}</Text>}
             </Pressable>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </Pressable>
       </Pressable>
     </Modal>

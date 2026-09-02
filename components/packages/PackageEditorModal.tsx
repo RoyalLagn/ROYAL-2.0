@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Check, Gift, Minus, Plus, Trash2, X } from "lucide-react-native";
 import { validateVendorPackage, type VendorPackage, type VendorPackageInput, type VendorPackageItem, type VendorPackageItemType, type VendorPackagePriceType, type VendorPackageStatus } from "@/services/vendorPackages";
 import { typeScale, typeLeading } from "@/constants/typography";
 import { brandPalette } from "@/constants/brandPalette";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 
 const PINK = brandPalette.light.primary;
 
@@ -82,7 +83,7 @@ export default function PackageEditorModal({ visible, vendorId, item, dark = fal
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
     <View style={[styles.backdrop, width >= 820 && styles.centered]}><View style={[styles.sheet, width >= 820 && styles.desktop, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}><View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>{item ? "Edit package" : "Create package"}</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Customer-facing information and package contents</Text></View><Pressable accessibilityLabel="Close package editor" onPress={onClose} style={[styles.close, { backgroundColor: colors.background }]}><X size={20} color={colors.text} /></Pressable></View>
-      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={styles.form}>
+      <KeyboardAwareScrollView contentContainerStyle={styles.form}>
         <Section title="Package basics" hint="Use a clear name and concise summary." colors={colors} />
         <Field label="Package name *" value={title} onChangeText={setTitle} placeholder="e.g. Signature Wedding Photography" colors={colors} maxLength={120} />
         <View style={styles.two}><Field label="Service category" value={category} onChangeText={setCategory} placeholder="Photography, decor…" colors={colors} /><Field label="Package status" colors={colors} custom={<ChoiceRow values={["draft", "active", "inactive"]} selected={status} onSelect={(value) => setStatus(value as VendorPackageStatus)} colors={colors} />} /></View>
@@ -104,7 +105,7 @@ export default function PackageEditorModal({ visible, vendorId, item, dark = fal
         <Section title="Terms" hint="Add important booking, travel or cancellation notes." colors={colors} />
         <Field label="Package terms" value={terms} onChangeText={setTerms} placeholder="Deposit, travel, overtime or cancellation terms" colors={colors} multiline />
         {error ? <Text style={styles.error}>{error}</Text> : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
         <Pressable disabled={saving} onPress={() => submit("draft")} style={[styles.draft, { backgroundColor: colors.soft }, saving && styles.disabled]}><Text style={styles.draftText}>Save draft</Text></Pressable>
         <Pressable disabled={saving} onPress={() => submit()} style={[styles.save, saving && styles.disabled]}>{saving ? <ActivityIndicator color="#FFF" /> : <><Check size={16} color="#FFF" /><Text style={styles.saveText}>{status === "active" ? "Save & publish" : "Save package"}</Text></>}</Pressable>

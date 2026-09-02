@@ -7,6 +7,7 @@ import type { CrmVendorCategory } from "@/types/crm/category";
 import type { CrmSalesExecutive } from "@/types/crm/executive";
 import type { CrmVendorInput, CrmVendorListItem, CrmVendorPriority } from "@/types/crm/vendor";
 import { sanitizePhoneInput, validateEmail, validatePhone } from "@/utils/authValidation";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 
 const isValidUrlLike = (value: string) => {
   const trimmed = value.trim();
@@ -162,7 +163,7 @@ export function VendorEditorModal({
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName="p-5 pb-6 sm:p-6">
+          <KeyboardAwareScrollView contentContainerClassName="p-5 pb-6 sm:p-6">
             {error ? <View className="border border-red-200 bg-red-50 rounded-xl px-3.5 py-3 mb-3.5"><Text className="text-red-600 text-xs font-medium">{error}</Text></View> : null}
 
             <FormSection title="Vendor details" description="Core business and category information" icon={BriefcaseBusiness}>
@@ -254,7 +255,7 @@ export function VendorEditorModal({
             <FormSection title="Notes" description="Additional context for your team" icon={NotebookPen}>
               <Field label="Notes" value={form.notes ?? ""} onChangeText={(value) => set("notes", value)} placeholder="Quick summary" multiline />
             </FormSection>
-          </ScrollView>
+          </KeyboardAwareScrollView>
 
           <View className="flex-row gap-3 px-5 py-4 border-t border-primary/10 bg-card sm:px-6">
             <Pressable

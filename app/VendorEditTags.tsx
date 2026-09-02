@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { Alert, Text, View } from "react-native";
 import { Search } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -8,6 +8,7 @@ import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorks
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
 // Search tags: the keywords customers use to discover this business in
@@ -61,7 +62,7 @@ export default function VendorEditTags() {
   return (
     <View style={[kitStyles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={kitStyles.content}>
+      <KeyboardAwareScrollView contentContainerStyle={kitStyles.content}>
         <View style={kitStyles.heading}>
           <View style={kitStyles.headingRow}>
             <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · SEARCH TAGS</Text>
@@ -100,7 +101,7 @@ export default function VendorEditTags() {
             onPress={() => void save()}
           />
         </VendorWorkspaceGate>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
@@ -9,6 +9,7 @@ import { CRMCard } from "@/components/admin/crm/ui/CRMCard";
 import { DateField } from "@/components/admin/crm/ui/DateField";
 import { CrmMarketingWorkspaceService } from "@/services/crm/marketingWorkspaceService";
 import type { MarketingWorkspacePriority, MarketingWorkspaceStatus } from "@/types/crm/marketingWorkspace";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 
 const priorities: MarketingWorkspacePriority[] = ["low", "medium", "high"];
 const statuses: MarketingWorkspaceStatus[] = ["active", "paused", "completed"];
@@ -94,7 +95,7 @@ export default function AdminCrmMarketingWorkspaceCreate() {
         </View>
       </ResponsiveContainer>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+      <KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 60 }}>
         <ResponsiveContainer>
           {error ? <ResponsiveSection><Text className="text-red-500 text-xs">{error}</Text></ResponsiveSection> : null}
 
@@ -145,7 +146,7 @@ export default function AdminCrmMarketingWorkspaceCreate() {
             </Pressable>
           </ResponsiveSection>
         </ResponsiveContainer>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

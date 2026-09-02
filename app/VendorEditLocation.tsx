@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { Alert, Text, View } from "react-native";
 import { MapPin } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -18,6 +18,7 @@ import {
 } from "@/services/locations";
 import { getVendorGeoStatus } from "@/services/geoLocations";
 import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
 const emptyLocation: VendorLocationValue = {
@@ -182,7 +183,7 @@ export default function VendorEditLocation() {
   return (
     <View style={[kitStyles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={kitStyles.content}>
+      <KeyboardAwareScrollView contentContainerStyle={kitStyles.content}>
         <View style={kitStyles.heading}>
           <View style={kitStyles.headingRow}>
             <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · LOCATION</Text>
@@ -229,7 +230,7 @@ export default function VendorEditLocation() {
             onPress={() => void save()}
           />
         </VendorWorkspaceGate>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

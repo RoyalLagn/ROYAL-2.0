@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { Alert, Pressable, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Bold, FileText, Heading2, List, ListOrdered, RefreshCw, Save } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
@@ -8,6 +8,7 @@ import { AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminS
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { LegalDocumentRenderer } from "@/components/legal/LegalDocumentRenderer";
 import { DEFAULT_PRIVACY_CONTENT, DEFAULT_TERMS_CONTENT, LegalDocumentsService } from "@/services/legalDocuments";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 
 type AdminLegalDocumentProps = { documentType?: "terms" | "privacy" };
 
@@ -100,7 +101,7 @@ export default function AdminTerms({ documentType = "terms" }: AdminLegalDocumen
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         <ResponsiveContainer style={{ maxWidth: 1180, alignSelf: "center" }}>
           <AdminPageHeader
             title={title}
@@ -180,7 +181,7 @@ export default function AdminTerms({ documentType = "terms" }: AdminLegalDocumen
             </>
           )}
         </ResponsiveContainer>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <AdminFooter activeTab="profile" />
     </SafeAreaView>
   );

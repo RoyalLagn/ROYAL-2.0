@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
   Text,
   View,
   useWindowDimensions,
@@ -12,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { Href } from "expo-router";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { AuthBackButton } from "@/components/auth/AuthBackButton";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 
 type AuthScreenLayoutProps = {
   /** Where the back arrow (and Android hardware back) goes from this screen. */
@@ -59,15 +58,8 @@ export function AuthScreenLayout({
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right", "bottom"]}>
       <AuthBackButton fallbackRoute={backRoute} />
-      <KeyboardAvoidingView
-        className="flex-1"
-        // Android is already configured with windowSoftInputMode="adjustResize".
-        // Let the system resize the ScrollView once instead of applying a
-        // second height reduction here, which could leave lower fields behind
-        // the IME in release builds.
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <ScrollView
+      <KeyboardAwareScrollView
+          containerStyle={{ flex: 1 }}
           contentContainerStyle={{
             flexGrow: 1,
             justifyContent: keyboardVisible ? "flex-start" : "center",
@@ -80,7 +72,7 @@ export function AuthScreenLayout({
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
           automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
           showsVerticalScrollIndicator={false}
-        >
+      >
           <View
             style={{ width: "100%", maxWidth: CONTENT_MAX_WIDTH }}
             className={wide ? "bg-card border border-border rounded-3xl px-7 py-8" : ""}
@@ -114,8 +106,7 @@ export function AuthScreenLayout({
               {footer}
             </View>
           ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

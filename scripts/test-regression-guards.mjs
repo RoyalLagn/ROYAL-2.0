@@ -79,11 +79,16 @@ const androidSplashStyleSource = await read("android/app/src/main/res/values/sty
 assert.match(androidSplashStyleSource, /windowSplashScreenAnimatedIcon">@android:color\/transparent</, "Android's mandatory system launch surface must not show the obsolete centered splash logo before StartupSplash.");
 
 // --- Native auth screens must remain usable above the Android keyboard ---
-const [authLayoutSource, otpFieldSource] = await Promise.all([
+const [authLayoutSource, otpFieldSource, keyboardAwareScrollSource] = await Promise.all([
   read("components/auth/AuthScreenLayout.tsx"),
   read("components/auth/OtpCodeField.tsx"),
+  read("components/keyboard/KeyboardAwareScrollView.tsx"),
 ]);
-assert.match(authLayoutSource, /behavior=\{Platform\.OS === "ios" \? "padding" : undefined\}/, "Android auth forms must rely on adjustResize rather than a competing keyboard-height calculation.");
+assert.match(authLayoutSource, /<KeyboardAwareScrollView/, "Auth screens must use the shared keyboard-aware form scroller.");
+assert.match(keyboardAwareScrollSource, /behavior=\{Platform\.OS === "ios" \? "padding" : undefined\}/, "Android forms must rely on adjustResize rather than a competing keyboard-height calculation.");
+assert.match(keyboardAwareScrollSource, /TextInput\.State\.currentlyFocusedInput\(\)/, "The shared form scroller must discover focus centrally without per-field handlers.");
+assert.match(keyboardAwareScrollSource, /scrollResponderScrollNativeHandleToKeyboard/, "The shared form scroller must use React Native's native keyboard-aware focus reveal path.");
+assert.match(keyboardAwareScrollSource, /keyboardDidShow/, "The shared form scroller must re-check focus after Android finishes resizing for the keyboard.");
 assert.match(authLayoutSource, /keyboardShouldPersistTaps="always"/, "Auth controls must remain tappable while the keyboard is open.");
 assert.match(otpFieldSource, /InteractionManager\.runAfterInteractions/, "OTP focus must wait until navigation has completed so Android opens the keypad.");
 assert.match(otpFieldSource, /showSoftInputOnFocus/, "OTP input must explicitly request the software keypad.");
@@ -426,10 +431,10 @@ KEYBOARD_SURFACES.forEach((path, index) => {
   assert.match(
     source,
     isAuthLayout
-      ? /behavior=\{Platform\.OS === ["']ios["'] \? ["']padding["'] : undefined\}/
+      ? /<KeyboardAwareScrollView/
       : /behavior=\{Platform\.OS === ["']ios["'] \? ["']padding["'] : ["']height["']\}/,
     isAuthLayout
-      ? `${path} must let Android's adjustResize handle the keyboard without a competing height calculation.`
+      ? `${path} must use the shared form scroller that lets Android adjustResize handle the keyboard.`
       : `${path} must keep an explicit Android KeyboardAvoidingView behavior.`,
   );
   assert.match(

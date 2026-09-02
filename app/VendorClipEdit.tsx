@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronDown, ChevronLeft, ImagePlus, Save } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -15,6 +15,7 @@ import PremiumRouteGate from "@/components/subscriptions/PremiumRouteGate";
 import PageLoader from "@/components/loading/PageLoader";
 import { typeScale } from "@/constants/typography";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 
 export default function VendorClipEdit() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -135,7 +136,7 @@ export default function VendorClipEdit() {
   }
   return <PremiumRouteGate feature="upload_clips"><View style={[styles.root, { backgroundColor: colors.background }]}>
     <VendorHeader />
-    <ScrollView contentContainerStyle={styles.scroll}>
+    <KeyboardAwareScrollView contentContainerStyle={styles.scroll}>
       <View style={styles.titleRow}><Pressable onPress={() => router.back()} style={[styles.back, { backgroundColor: colors.surface }]}><ChevronLeft size={20} color={colors.text} /></Pressable><View style={styles.flex}><Text style={[styles.heading, { color: colors.text }]}>Edit Clip</Text><Text style={[styles.subheading, { color: colors.muted }]}>Video replacement is disabled after upload</Text></View><ClipStatusBadge status={clip.status} /></View>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.video}><PortfolioVideoPlayer uri={clip.video_url} /></View>
@@ -149,7 +150,7 @@ export default function VendorClipEdit() {
         <Text style={[styles.label, { color: colors.text }]}>Visibility</Text><View style={styles.visibility}>{(["public", "unlisted", "private"] as ClipVisibility[]).map((value) => <Pressable key={value} onPress={() => setVisibility(value)} style={[styles.visibilityChoice, { borderColor: visibility === value ? colors.pink : colors.border, backgroundColor: visibility === value ? `${colors.pink}14` : colors.surfaceSoft }]}><Text style={{ color: visibility === value ? colors.pink : colors.muted, fontWeight: "700", fontSize: typeScale.metadata }}>{value}</Text></Pressable>)}</View>
         <Pressable disabled={saving} onPress={save} style={[styles.primary, { backgroundColor: colors.pink }]}>{saving ? <ActivityIndicator color="#FFF" /> : <><Save size={17} color="#FFF" /><Text style={styles.primaryText}>Save Changes</Text></>}</Pressable>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   </View></PremiumRouteGate>;
 }
 

@@ -16,6 +16,7 @@ import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorks
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { DropdownArrow, Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 import { typeScale } from "@/constants/typography";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
@@ -103,7 +104,7 @@ export default function VendorEditBusinessInfo() {
   return (
     <View style={[kitStyles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={kitStyles.content}>
+      <KeyboardAwareScrollView contentContainerStyle={kitStyles.content}>
         <View style={kitStyles.heading}>
           <View style={kitStyles.headingRow}>
             <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · BUSINESS INFORMATION</Text>
@@ -152,7 +153,7 @@ export default function VendorEditBusinessInfo() {
             onPress={() => void save()}
           />
         </VendorWorkspaceGate>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <AnimatedBottomSheet visible={categoryOpen} onRequestClose={() => setCategoryOpen(false)} sheetStyle={[styles.categorySheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.sheetHeader}>

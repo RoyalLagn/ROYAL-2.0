@@ -18,6 +18,7 @@ import { usePublicClipsAvailability } from "@/hooks/usePublicClipsAvailability";
 import { typeScale } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 
 function Preview({ source }: { source: ClipUpload }) {
   const player = useVideoPlayer(source.uri, (instance) => { instance.loop = true; });
@@ -171,7 +172,7 @@ export default function VendorClipUpload() {
   if (loading) return <PageLoader />;
   return <PremiumRouteGate feature="upload_clips"><View style={[styles.root, { backgroundColor: colors.background }]}>
     <VendorHeader />
-    <ScrollView contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll]} keyboardShouldPersistTaps="handled">
+    <KeyboardAwareScrollView contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll]}>
       <View style={styles.titleRow}><Pressable onPress={() => router.back()} style={[styles.back, { backgroundColor: colors.surface }]}><ChevronLeft size={20} color={colors.text} /></Pressable><View><Text style={[styles.heading, { color: colors.text }]}>Share a Clip</Text><Text style={[styles.subheading, { color: colors.muted }]}>Choose a wedding video, add a caption and share</Text></View></View>
       <View style={desktop ? styles.columns : undefined}>
         <View style={desktop ? styles.column : undefined}>
@@ -196,7 +197,7 @@ export default function VendorClipUpload() {
           <UploadQueuePanel items={queue.items} colors={colors} onRetry={queue.retry} onCancel={queue.cancel} onRemove={queue.remove} />
         </View>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
     <Modal visible={categoryOpen} transparent animationType="fade"><Pressable onPress={() => setCategoryOpen(false)} style={styles.backdrop}><View style={[styles.sheet, { backgroundColor: colors.surface }]}><View style={styles.sheetHead}><Text style={[styles.heading2, { color: colors.text }]}>Choose category</Text><Pressable onPress={() => setCategoryOpen(false)}><X color={colors.text} /></Pressable></View><ScrollView>{categories.map((category) => <Pressable key={category.id} onPress={() => { setCategoryId(category.id); setCategoryOpen(false); }} style={[styles.category, { borderBottomColor: colors.border }]}><Text style={{ color: colors.text }}>{category.name}</Text></Pressable>)}</ScrollView></View></Pressable></Modal>
   </View></PremiumRouteGate>;
 }

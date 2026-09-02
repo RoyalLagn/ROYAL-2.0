@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyhole, Save } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -17,6 +17,7 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { interactionTokens } from "@/constants/interactionTokens";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { updateVendorPublicProfile, type VendorBusinessHourEntry } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
@@ -229,7 +230,7 @@ export default function VendorCalendar() {
   };
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-    <ScrollView
+    <KeyboardAwareScrollView
       contentContainerStyle={[styles.content, { paddingBottom: 24 + Math.max(insets.bottom, 8) + VENDOR_TAB_BASE_HEIGHT + 16 }]}
       showsVerticalScrollIndicator={false}
       decelerationRate="fast"
@@ -401,7 +402,7 @@ export default function VendorCalendar() {
         </View>
       </View>
       </VendorDashboardReveal>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   </View>;
 }
 

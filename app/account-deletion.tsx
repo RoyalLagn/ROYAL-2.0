@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { CheckCircle2, ShieldCheck, Trash2, UserRound, Store } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import Pressable from "@/components/InteropSafePressable";
@@ -7,6 +7,7 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { requestAccountDeletion, type AccountDeletionType } from "@/services/accountDeletion";
 import { typeLeading, typeScale } from "@/constants/typography";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -41,7 +42,7 @@ export default function AccountDeletion() {
   };
 
   return (
-    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.page}>
+    <KeyboardAwareScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.page}>
       <View style={[styles.shell, { maxWidth: compact ? 560 : 760 }]}>
         <Pressable onPress={() => router.replace("/")} accessibilityRole="link" style={styles.brandLink}>
           <Text style={[styles.brand, { color: colors.pink }]}>RoyalLagn</Text>
@@ -96,7 +97,7 @@ export default function AccountDeletion() {
           </>
         )}
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

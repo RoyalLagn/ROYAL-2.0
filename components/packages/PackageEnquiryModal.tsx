@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { CalendarDays, Send, X } from "lucide-react-native";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import type { VendorPackage } from "@/services/vendorPackages";
@@ -8,6 +8,7 @@ import { typeScale } from "@/constants/typography";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 import { brandPalette } from "@/constants/brandPalette";
 import { sanitizePhoneInput, validatePhone } from "@/utils/authValidation";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 
 const PINK = brandPalette.light.primary;
 
@@ -69,11 +70,11 @@ export default function PackageEnquiryModal({ visible, vendorId, vendorName, ite
     sheetStyle={[styles.sheet, width >= 700 && styles.desktop, { backgroundColor: colors.surface, borderColor: colors.border }]}
   >
       <View style={styles.header}><View style={styles.icon}><Send size={20} color={PINK} /></View><View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>Enquire about package</Text><Text style={[styles.subtitle, { color: colors.muted }]}>{item?.title}</Text></View><Pressable onPress={onClose} accessibilityLabel="Close enquiry" style={[styles.close, { backgroundColor: colors.background }]}><X size={20} color={colors.text} /></Pressable></View>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
+      <KeyboardAwareScrollView contentContainerStyle={styles.form}>
         <Field label="Phone" value={phone} onChangeText={(value: string) => setPhone(sanitizePhoneInput(value))} placeholder="10-digit mobile number" colors={colors} keyboardType="phone-pad" maxLength={20} />
         <View style={styles.two}><Field label="Event date" value={eventDate} onChangeText={setEventDate} placeholder="YYYY-MM-DD" colors={colors} icon={<CalendarDays size={15} color={PINK} />} /><Field label="Event type" value={eventType} onChangeText={setEventType} placeholder="Wedding, reception…" colors={colors} /></View>
         <Field label="Message" value={message} onChangeText={setMessage} placeholder="Tell the vendor what you need" colors={colors} multiline />
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <Pressable disabled={sending || authLoading} onPress={() => void send()} style={[styles.send, (sending || authLoading) && styles.disabled]}>{sending ? <ActivityIndicator color="#FFF" /> : <><Send size={16} color="#FFF" /><Text style={styles.sendText}>{isPublicAuthenticated ? "Send package enquiry" : "Sign in to enquire"}</Text></>}</Pressable>
   </AnimatedBottomSheet>;
 }
