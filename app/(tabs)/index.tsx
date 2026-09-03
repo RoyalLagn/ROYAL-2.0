@@ -35,10 +35,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { MotionDuration, MotionStagger } from "@/utils/motion";
 import {
-  DeviceLocationError,
   getCurrentDeviceLocation,
   getDevicePermissionStatus,
   requestDeviceLocationPermission,
+  requestDeviceLocationServices,
   reverseGeocodeLabel,
 } from "@/services/deviceLocation";
 import { useCustomerLocation } from "@/context/LocationContext";
@@ -174,20 +174,15 @@ export default function HomeScreen() {
         return;
       }
 
+      if (requestAccess && !(await requestDeviceLocationServices())) {
+        return;
+      }
+
       const coords = await getCurrentDeviceLocation();
       const label = await reverseGeocodeLabel(coords).catch(() => null);
       setHomeLocation(label ?? "Current location");
-    } catch (error) {
+    } catch {
       setHomeLocation(null);
-      if (requestAccess) {
-        const unavailable = error instanceof DeviceLocationError && error.reason === "unavailable";
-        Alert.alert(
-          unavailable ? "Turn on device location" : "Unable to get location",
-          unavailable
-            ? "Turn on Location Services on your device, then try again."
-            : "We could not determine your current location. Please try again.",
-        );
-      }
     } finally {
       setHomeLocationLoading(false);
     }

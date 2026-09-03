@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import {
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Check, ChevronDown, MapPin, Search, X } from "lucide-react-native";
+import Pressable from "@/components/InteropSafePressable";
 import type { LocationPreference, SupportedCity } from "@/locations/types";
 import { typeScale, typeLeading } from "@/constants/typography";
 

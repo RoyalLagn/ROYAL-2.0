@@ -67,16 +67,15 @@ assert.doesNotMatch(
   "app/_layout.tsx must not reintroduce the Playfair barrel import (bundles all 12 weights).",
 );
 
-// --- Responsive startup splash must remain a real two-second handoff -----
-const startupSplashSource = await read("components/loading/StartupSplash.tsx");
-assert.match(startupSplashSource, /const SPLASH_VISIBLE_MS = 1_600;/, "The native branded startup image must remain visible for 1.6 seconds after loading.");
-assert.match(startupSplashSource, /width >= height \? LANDSCAPE_SPLASH : PORTRAIT_SPLASH/, "Startup artwork must follow viewport orientation rather than a device-name guess.");
-assert.match(startupSplashSource, /resizeMode="cover"/, "Startup artwork must cover the complete viewport.");
-assert.match(layoutSource, /<PageLoaderProvider suppressed=\{startupSplashVisible\}>/, "The page loader must not cover the startup splash.");
-assert.match(layoutSource, /Platform\.OS !== 'web'/, "The branded startup splash must remain native-only.");
+// --- Android must show one canonical system splash, then the app --------
+assert.doesNotMatch(layoutSource, /StartupSplash|startupSplashVisible/, "The app must not render a second splash after Android's mandatory system launch surface.");
+assert.match(layoutSource, /<PageLoaderProvider suppressed=\{false\}>/, "The page loader must remain available after the system splash is dismissed.");
 assert.match(layoutSource, /webBootLoading \? <PageLoader \/>/, "Web startup and refresh must use the shared page loader instead of the branded splash.");
 const androidSplashStyleSource = await read("android/app/src/main/res/values/styles.xml");
-assert.match(androidSplashStyleSource, /windowSplashScreenAnimatedIcon">@drawable\/splashscreen_logo</, "Android's mandatory system launch surface must show the branded splash logo while React Native starts.");
+assert.match(androidSplashStyleSource, /windowSplashScreenAnimatedIcon">@drawable\/splashscreen_logo_inset</, "Android's mandatory system launch surface must show the safely inset canonical app icon.");
+const androidSplashInsetSource = await read("android/app/src/main/res/drawable/splashscreen_logo_inset.xml");
+assert.match(androidSplashInsetSource, /android:drawable="@mipmap\/ic_launcher_foreground"/, "The Android splash inset must use the canonical app icon artwork.");
+assert.match(androidSplashInsetSource, /android:inset="22%"/, "The Android splash icon must retain enough safe padding to avoid system-mask cropping.");
 
 // --- Native auth screens must remain usable above the Android keyboard ---
 const [authLayoutSource, otpFieldSource, keyboardAwareScrollSource] = await Promise.all([
@@ -122,8 +121,13 @@ assert.match(vendorProfileSource, /const trackProfileScroll = Platform\.OS === "
 // --- Homepage location uses device permission in place, never Near Me route ---
 const homeScreenSource = await read("app/(tabs)/index.tsx");
 assert.match(homeScreenSource, /requestDeviceLocationPermission/, "Homepage location action must request device permission from the explicit tap.");
+assert.match(homeScreenSource, /requestDeviceLocationServices\(\)/, "Homepage location action must invoke Android's system location-resolution dialog when services are off.");
 assert.match(homeScreenSource, /onPress=\{\(\) => void refreshHomeLocation\(true\)\}/, "Homepage location icon must fetch in place rather than navigate away.");
 assert.doesNotMatch(homeScreenSource, /router\.push\("\/NearbyVendors"\)/, "Homepage must not route location actions to the obsolete NearbyVendors screen.");
+assert.doesNotMatch(homeScreenSource, /Unable to get location|Turn on device location/, "Homepage startup and resume must not show stale location-error modals.");
+const deviceLocationSource = await read("services/deviceLocation.ts");
+assert.match(deviceLocationSource, /Location\.enableNetworkProviderAsync\(\)/, "Android location recovery must use the official Google Play services resolution flow.");
+assert.match(deviceLocationSource, /LAST_LOCATION_COORDINATES_KEY[\s\S]*RECENT_COORDINATES_MAX_AGE_MS/, "A recently verified Home location must remain reusable without another Android prompt.");
 
 // --- App alerts must stay cross-platform and app-wide -------------------
 const [dialogProviderSource, alertBridgeSource] = await Promise.all([
@@ -529,6 +533,10 @@ const [vendorListingSource, vendorDiscoverySource, locationRankMigrationSource] 
   read("supabase/migrations/20260815130000_location_ranked_category_vendors.sql"),
 ]);
 assert.match(vendorListingSource, /fetchLocationRankedVendors\(/, "VendorsListing must use the full location-ranked query when GPS is available.");
+assert.match(vendorListingSource, /onUseCurrentLocation=\{useCurrentLocation\}/, "The category Taluka sheet must offer current-location vendor discovery.");
+assert.match(vendorListingSource, /requestDeviceLocationServices\(\)/, "Category current-location discovery must use Android's system location-resolution flow.");
+assert.match(vendorListingSource, /if \(deviceOrigin\)[\s\S]{0,420}clearGuestGeoPreference\(\)/, "Category current-location discovery must reuse an already-resolved Home/listing origin without re-prompting.");
+assert.match(vendorListingSource, /getLastDetectedCoordinates\(\)/, "Category listings must reuse the recent verified Home coordinates before requesting location again.");
 assert.doesNotMatch(vendorListingSource, /radiusKm/, "VendorsListing must not restore a customer-selectable distance cutoff.");
 assert.match(vendorDiscoverySource, /LISTING_NEARBY_THRESHOLD_KM = 20/, "The category listing nearby priority bucket must remain 20 km.");
 assert.doesNotMatch(locationRankMigrationSource, /st_dwithin/i, "The category listing query must rank by distance without excluding farther vendors.");

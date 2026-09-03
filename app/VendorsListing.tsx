@@ -37,7 +37,7 @@ import {
   type TalukaPageCursor,
 } from "@/services/geoLocations";
 import type { GeoSelection, GeoState } from "@/locations/types";
-import { getCurrentDeviceLocation, getDevicePermissionStatus, getLastDetectedLocationLabel, reverseGeocodeLabel, type DeviceCoordinates } from "@/services/deviceLocation";
+import { getCurrentDeviceLocation, getDevicePermissionStatus, getLastDetectedCoordinates, getLastDetectedLocationLabel, requestDeviceLocationPermission, requestDeviceLocationServices, reverseGeocodeLabel, type DeviceCoordinates } from "@/services/deviceLocation";
 import { fetchLocationRankedVendors } from "@/services/vendorDiscovery";
 import { buildVendorListingPath, buildVendorProfilePathBySlug, displayLocationFromSlug } from "@/services/publicSeoRoutes";
 import { vendorWebBase } from "@/services/contactActions";
@@ -204,9 +204,14 @@ export default function VendorsListingScreen() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const cachedLabel = await getLastDetectedLocationLabel();
+      const permission = await getDevicePermissionStatus();
+      const [cachedLabel, cachedCoords] = await Promise.all([
+        getLastDetectedLocationLabel(),
+        permission === "granted" ? getLastDetectedCoordinates() : Promise.resolve(null),
+      ]);
       if (active && cachedLabel) setCurrentLocationLabel(cachedLabel);
-      if (await getDevicePermissionStatus() !== "granted" || !active) return;
+      if (active && cachedCoords) setDeviceOrigin(cachedCoords);
+      if (permission !== "granted" || !active) return;
       try {
         const coords = await getCurrentDeviceLocation();
         if (active) setDeviceOrigin(coords);
@@ -234,6 +239,35 @@ export default function VendorsListingScreen() {
     setGeoError("");
     void clearGuestGeoPreference();
   }, []);
+
+  const useCurrentLocation = useCallback(async () => {
+    // The listing already resolves an authorized device origin on mount.
+    // Reuse it when Home (or this listing) has just detected the location so
+    // an explicit category selection never triggers a redundant OS dialog.
+    if (deviceOrigin) {
+      setGeoSelection(null);
+      setGeoDistrictName("");
+      setGeoTalukaName("");
+      setGeoError("");
+      await clearGuestGeoPreference();
+      return;
+    }
+
+    let permission = await getDevicePermissionStatus();
+    if (permission !== "granted") permission = await requestDeviceLocationPermission();
+    if (permission !== "granted") throw new Error("Location permission was not granted.");
+    if (!(await requestDeviceLocationServices())) throw new Error("Location services remain off.");
+
+    const coords = await getCurrentDeviceLocation();
+    const label = await reverseGeocodeLabel(coords).catch(() => null);
+    setGeoSelection(null);
+    setGeoDistrictName("");
+    setGeoTalukaName("");
+    setGeoError("");
+    setDeviceOrigin(coords);
+    if (label) setCurrentLocationLabel(label);
+    await clearGuestGeoPreference();
+  }, [deviceOrigin]);
 
   const resolveGeoLabel = useCallback((districtName: string, talukaName: string) => {
     setGeoDistrictName(districtName);
@@ -581,7 +615,7 @@ export default function VendorsListingScreen() {
             dark={isDark}
             active={{ sort: filters.sort !== "popular", price: filters.maximumPrice > 0, rating: filters.minimumRating > 0 }}
             onPress={openFilters}
-            trailing={<TalukaLocationSelector states={geoStates} value={geoSelection} onChange={selectGeoLocation} onClear={clearGeoLocation} onResolvedLabel={resolveGeoLabel} loading={geoLoading} hideLabel compact />}
+            trailing={<TalukaLocationSelector states={geoStates} value={geoSelection} onChange={selectGeoLocation} onClear={clearGeoLocation} onResolvedLabel={resolveGeoLabel} onUseCurrentLocation={useCurrentLocation} loading={geoLoading} hideLabel compact />}
           />
           {geoError ? <Text accessibilityRole="alert" style={[styles.locationModeError, { color: colors.destructive }]}>{geoError}</Text> : null}
         </HomeReveal>

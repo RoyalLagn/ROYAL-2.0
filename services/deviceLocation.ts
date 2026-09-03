@@ -13,6 +13,8 @@ import { supabase } from "@/services/supabase";
 
 const PREVIOUSLY_DENIED_KEY = "royallagn:device-location-denied:v1";
 const LAST_LOCATION_LABEL_KEY = "royallagn:last-device-location-label:v1";
+const LAST_LOCATION_COORDINATES_KEY = "royallagn:last-device-location-coordinates:v1";
+const RECENT_COORDINATES_MAX_AGE_MS = 30 * 60 * 1000;
 
 export type DevicePermissionStatus = "granted" | "denied" | "undetermined";
 
@@ -28,6 +30,24 @@ export class DeviceLocationError extends Error {
 }
 
 export type DeviceCoordinates = { latitude: number; longitude: number };
+
+export async function getLastDetectedCoordinates(): Promise<DeviceCoordinates | null> {
+  try {
+    const raw = await AsyncStorage.getItem(LAST_LOCATION_COORDINATES_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DeviceCoordinates & { detectedAt?: number };
+    if (!Number.isFinite(parsed.latitude) || !Number.isFinite(parsed.longitude)) return null;
+    if (!parsed.detectedAt || Date.now() - parsed.detectedAt > RECENT_COORDINATES_MAX_AGE_MS) return null;
+    return { latitude: parsed.latitude, longitude: parsed.longitude };
+  } catch {
+    return null;
+  }
+}
+
+async function rememberCoordinates(coords: DeviceCoordinates) {
+  await AsyncStorage.setItem(LAST_LOCATION_COORDINATES_KEY, JSON.stringify({ ...coords, detectedAt: Date.now() })).catch(() => {});
+  return coords;
+}
 
 export async function getLastDetectedLocationLabel(): Promise<string | null> {
   return AsyncStorage.getItem(LAST_LOCATION_LABEL_KEY);
@@ -77,6 +97,22 @@ export async function requestDeviceLocationPermission(): Promise<DevicePermissio
   }
 }
 
+/** On Android, asks Google Play services to show its native location-settings
+ * resolution dialog. The OS still requires the user's explicit confirmation;
+ * after they accept, callers can fetch the location immediately. */
+export async function requestDeviceLocationServices(): Promise<boolean> {
+  try {
+    if (await Location.hasServicesEnabledAsync()) return true;
+    if (Platform.OS !== "android") return false;
+    await Location.enableNetworkProviderAsync();
+    return Location.hasServicesEnabledAsync();
+  } catch {
+    // The promise rejects when the user cancels or the device cannot resolve
+    // the setting. Keep that outcome non-fatal and leave the location unset.
+    return false;
+  }
+}
+
 /** Resolves the device's current coordinates. Never throws a raw error --
  * always resolves to coordinates or rejects with a classified
  * DeviceLocationError so the UI can show a specific, friendly message. */
@@ -103,7 +139,7 @@ export async function getCurrentDeviceLocation(timeoutMs = 12000): Promise<Devic
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
       timeout,
     ]);
-    return { latitude: position.coords.latitude, longitude: position.coords.longitude };
+    return rememberCoordinates({ latitude: position.coords.latitude, longitude: position.coords.longitude });
   } catch (error) {
     if (error instanceof DeviceLocationError) throw error;
     throw new DeviceLocationError("unavailable", "Could not determine your current location.");

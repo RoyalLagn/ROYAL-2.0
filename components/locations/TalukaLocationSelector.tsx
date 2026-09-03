@@ -10,7 +10,7 @@ import {
   View,
 } from "react-native";
 import Pressable from "@/components/InteropSafePressable";
-import { Check, ChevronDown, MapPin, Search, X } from "lucide-react-native";
+import { Check, ChevronDown, LocateFixed, MapPin, Search, X } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
 import type { GeoDistrict, GeoSelection, GeoState, GeoTaluka } from "@/locations/types";
 import { listActiveGeoDistricts, listActiveGeoTalukas } from "@/services/geoLocations";
@@ -23,6 +23,7 @@ type Props = {
   onChange: (value: GeoSelection, districtName: string, talukaName: string) => void;
   onClear?: () => void;
   onResolvedLabel?: (districtName: string, talukaName: string) => void;
+  onUseCurrentLocation?: () => Promise<void>;
   loading?: boolean;
   hideLabel?: boolean;
   compact?: boolean;
@@ -43,7 +44,7 @@ type Props = {
  * geo_states, a State-selection row appears here with no code change
  * required anywhere else.
  */
-export function TalukaLocationSelector({ states, value, onChange, onClear, onResolvedLabel, loading, hideLabel = false, compact = false }: Props) {
+export function TalukaLocationSelector({ states, value, onChange, onClear, onResolvedLabel, onUseCurrentLocation, loading, hideLabel = false, compact = false }: Props) {
   const { colorScheme } = useColorScheme();
   const colors = brandColors(colorScheme === "dark");
   const [visible, setVisible] = useState(false);
@@ -58,6 +59,8 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
   const [selectedStateName, setSelectedStateName] = useState("");
   const [selectedDistrictName, setSelectedDistrictName] = useState("");
   const [selectedTalukaName, setSelectedTalukaName] = useState("");
+  const [usingCurrentLocation, setUsingCurrentLocation] = useState(false);
+  const [currentLocationError, setCurrentLocationError] = useState("");
 
   const showStateStep = states.length > 1;
 
@@ -162,6 +165,21 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
 
   const loadingOptions = loadingDistricts || loadingTalukas;
 
+  const handleUseCurrentLocation = async () => {
+    if (!onUseCurrentLocation || usingCurrentLocation) return;
+    setUsingCurrentLocation(true);
+    setCurrentLocationError("");
+    try {
+      await onUseCurrentLocation();
+      setVisible(false);
+      setQuery("");
+    } catch {
+      setCurrentLocationError("We couldn't use your current location. Try again or choose a Taluka below.");
+    } finally {
+      setUsingCurrentLocation(false);
+    }
+  };
+
   const display = selectedTalukaName
     ? showStateStep
       ? `${selectedTalukaName}, ${selectedDistrictName}, ${selectedStateName}`
@@ -211,6 +229,29 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
                 <X size={20} color={colors.foreground} />
               </Pressable>
             </View>
+
+            {onUseCurrentLocation ? (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Use current location to find nearby vendors"
+                  disabled={usingCurrentLocation}
+                  onPress={() => void handleUseCurrentLocation()}
+                  style={({ pressed }) => [styles.currentLocation, { borderColor: colors.border, backgroundColor: colors.secondary }, pressed && styles.pressed]}
+                >
+                  <View style={[styles.currentLocationIcon, { backgroundColor: colors.background }]}>
+                    {usingCurrentLocation
+                      ? <ActivityIndicator size="small" color={colors.primary} />
+                      : <LocateFixed size={19} color={colors.primary} />}
+                  </View>
+                  <View style={styles.flex}>
+                    <Text style={[styles.currentLocationTitle, { color: colors.primaryStrong }]}>Use current location</Text>
+                    <Text style={[styles.currentLocationDetail, { color: colors.mutedForeground }]}>Show vendors nearest to you</Text>
+                  </View>
+                </Pressable>
+                {currentLocationError ? <Text accessibilityRole="alert" style={[styles.currentLocationError, { color: colors.destructive }]}>{currentLocationError}</Text> : null}
+              </>
+            ) : null}
 
             {showStateStep ? (
               <View style={styles.stateRow}>
@@ -324,6 +365,11 @@ const styles = StyleSheet.create({
   title: { fontSize: typeScale.sectionTitle, fontWeight: "700" },
   subtitle: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 3 },
   close: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
+  currentLocation: { minHeight: 64, marginBottom: 14, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderRadius: 16, flexDirection: "row", alignItems: "center", gap: 11 },
+  currentLocationIcon: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
+  currentLocationTitle: { fontSize: typeScale.body, fontWeight: "700" },
+  currentLocationDetail: { marginTop: 2, fontSize: typeScale.caption },
+  currentLocationError: { marginTop: -6, marginBottom: 12, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
   stateRow: { marginBottom: 12 },
   districtRow: { marginBottom: 12 },
   stepLabel: { fontSize: typeScale.caption, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 },

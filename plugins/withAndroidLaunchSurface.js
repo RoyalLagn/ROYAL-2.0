@@ -2,8 +2,8 @@ const { withAndroidStyles } = require("expo/config-plugins");
 
 /**
  * Android 12+ always shows a system launch surface before React Native starts.
- * Use the same branded artwork as the native splash so the mandatory Android
- * launch surface is never a blank pink frame while React Native boots.
+ * Keep the mandatory Android launch surface on the canonical app icon so it
+ * hands directly to the application without a second branded splash screen.
  */
 module.exports = function withAndroidLaunchSurface(config) {
   return withAndroidStyles(config, (config) => {
@@ -16,7 +16,7 @@ module.exports = function withAndroidLaunchSurface(config) {
     );
 
     if (icon) {
-      icon._ = "@drawable/splashscreen_logo";
+      icon._ = "@drawable/splashscreen_logo_inset";
     }
 
     return config;
