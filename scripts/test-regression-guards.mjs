@@ -67,10 +67,14 @@ assert.doesNotMatch(
   "app/_layout.tsx must not reintroduce the Playfair barrel import (bundles all 12 weights).",
 );
 
-// --- Android must show one canonical system splash, then the app --------
-assert.doesNotMatch(layoutSource, /StartupSplash|startupSplashVisible/, "The app must not render a second splash after Android's mandatory system launch surface.");
-assert.match(layoutSource, /<PageLoaderProvider suppressed=\{false\}>/, "The page loader must remain available after the system splash is dismissed.");
+// --- Android system splash hands off to the 1.5s branded mobile splash --
+assert.match(layoutSource, /startupSplashVisible/, "Native startup must show the branded splash after Android's mandatory system launch surface.");
+assert.match(layoutSource, /<StartupSplash[\s\S]*onReady=\{revealStartupSplash\}[\s\S]*onFinish=\{finishStartupSplash\}/, "The branded splash must own the native-to-app handoff.");
+assert.match(layoutSource, /<PageLoaderProvider suppressed=\{startupSplashVisible\}>/, "The page loader must remain suppressed while the branded splash is visible.");
 assert.match(layoutSource, /webBootLoading \? <PageLoader \/>/, "Web startup and refresh must use the shared page loader instead of the branded splash.");
+const startupSplashSource = await read("components/loading/StartupSplash.tsx");
+assert.match(startupSplashSource, /assets\/images\/splash_mobile\.png/, "The native branded splash must use splash_mobile.png in portrait orientation.");
+assert.match(startupSplashSource, /SPLASH_VISIBLE_MS = 1_500/, "The branded splash must remain visible for exactly 1.5 seconds after its image loads.");
 const androidSplashStyleSource = await read("android/app/src/main/res/values/styles.xml");
 assert.match(androidSplashStyleSource, /windowSplashScreenAnimatedIcon">@drawable\/splashscreen_logo_inset</, "Android's mandatory system launch surface must show the safely inset canonical app icon.");
 const androidSplashInsetSource = await read("android/app/src/main/res/drawable/splashscreen_logo_inset.xml");
@@ -535,7 +539,7 @@ const [vendorListingSource, vendorDiscoverySource, locationRankMigrationSource] 
 assert.match(vendorListingSource, /fetchLocationRankedVendors\(/, "VendorsListing must use the full location-ranked query when GPS is available.");
 assert.match(vendorListingSource, /onUseCurrentLocation=\{useCurrentLocation\}/, "The category Taluka sheet must offer current-location vendor discovery.");
 assert.match(vendorListingSource, /requestDeviceLocationServices\(\)/, "Category current-location discovery must use Android's system location-resolution flow.");
-assert.match(vendorListingSource, /if \(deviceOrigin\)[\s\S]{0,420}clearGuestGeoPreference\(\)/, "Category current-location discovery must reuse an already-resolved Home/listing origin without re-prompting.");
+assert.match(vendorListingSource, /requestDeviceLocationServices\(\)[\s\S]{0,500}if \(deviceOrigin\)[\s\S]{0,420}clearGuestGeoPreference\(\)/, "Category current-location discovery must confirm services are enabled before reusing an already-resolved Home/listing origin.");
 assert.match(vendorListingSource, /getLastDetectedCoordinates\(\)/, "Category listings must reuse the recent verified Home coordinates before requesting location again.");
 assert.doesNotMatch(vendorListingSource, /radiusKm/, "VendorsListing must not restore a customer-selectable distance cutoff.");
 assert.match(vendorDiscoverySource, /LISTING_NEARBY_THRESHOLD_KM = 20/, "The category listing nearby priority bucket must remain 20 km.");

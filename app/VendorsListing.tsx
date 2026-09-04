@@ -241,9 +241,14 @@ export default function VendorsListingScreen() {
   }, []);
 
   const useCurrentLocation = useCallback(async () => {
-    // The listing already resolves an authorized device origin on mount.
-    // Reuse it when Home (or this listing) has just detected the location so
-    // an explicit category selection never triggers a redundant OS dialog.
+    let permission = await getDevicePermissionStatus();
+    if (permission !== "granted") permission = await requestDeviceLocationPermission();
+    if (permission !== "granted") throw new Error("Location permission was not granted.");
+    if (!(await requestDeviceLocationServices())) throw new Error("Location services remain off.");
+
+    // Reuse a recently resolved Home/listing origin only after confirming that
+    // device location is currently enabled. This preserves the official Android
+    // turn-on prompt when the user has switched location services off.
     if (deviceOrigin) {
       setGeoSelection(null);
       setGeoDistrictName("");
@@ -252,11 +257,6 @@ export default function VendorsListingScreen() {
       await clearGuestGeoPreference();
       return;
     }
-
-    let permission = await getDevicePermissionStatus();
-    if (permission !== "granted") permission = await requestDeviceLocationPermission();
-    if (permission !== "granted") throw new Error("Location permission was not granted.");
-    if (!(await requestDeviceLocationServices())) throw new Error("Location services remain off.");
 
     const coords = await getCurrentDeviceLocation();
     const label = await reverseGeocodeLabel(coords).catch(() => null);

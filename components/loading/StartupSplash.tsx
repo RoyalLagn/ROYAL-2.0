@@ -10,7 +10,7 @@ import {
 
 const PORTRAIT_SPLASH = require("../../assets/images/splash_mobile.png");
 const LANDSCAPE_SPLASH = require("../../assets/images/splash_desktop.png");
-const SPLASH_VISIBLE_MS = 1_600;
+const SPLASH_VISIBLE_MS = 1_500;
 
 type StartupSplashProps = {
   onReady: () => void;
@@ -20,7 +20,7 @@ type StartupSplashProps = {
 /**
  * Branded startup handoff shown after the native launch surface is ready.
  * The real app stays mounted underneath so startup work can finish during
- * the two-second brand moment rather than beginning after it.
+ * the 1.5-second brand moment rather than beginning after it.
  */
 export function StartupSplash({ onReady, onFinish }: StartupSplashProps) {
   const { width, height } = useWindowDimensions();
