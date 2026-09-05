@@ -46,6 +46,9 @@ const [pushRegistrarSource, pushServiceSource] = await Promise.all([
   read("components/notifications/PushTokenRegistrar.tsx"),
   read("services/pushTokens.ts"),
 ]);
+const enquiryServiceSource = await read("services/enquiries.ts");
+const enquiryPushFunctionSource = await read("supabase/functions/send-enquiry-push/index.ts");
+const enquiryPushMigrationSource = await read("supabase/migrations/20260905170000_enquiry_push_delivery.sql");
 for (const [path, source] of [
   ["components/notifications/PushTokenRegistrar.tsx", pushRegistrarSource],
   ["services/pushTokens.ts", pushServiceSource],
@@ -61,6 +64,13 @@ for (const [path, source] of [
     `${path} must keep the Expo Go runtime guard.`,
   );
 }
+assert.match(pushServiceSource, /setNotificationChannelAsync\("enquiries"[\s\S]{0,300}AndroidImportance\.MAX/, "Android must create the high-importance enquiry channel before requesting an Expo token.");
+assert.match(pushRegistrarSource, /targetPath[\s\S]{0,500}addNotificationResponseReceivedListener/, "Tapping a push notification must navigate to its internal target.");
+assert.match(enquiryServiceSource, /create_tracked_enquiry[\s\S]{0,900}send-enquiry-push/, "A saved tracked enquiry must request best-effort vendor push delivery.");
+assert.match(enquiryPushFunctionSource, /action_token !== actionToken/, "Enquiry push delivery must verify the unguessable create action token.");
+assert.match(enquiryPushFunctionSource, /enquiry_push_deliveries[\s\S]{0,1400}duplicate/, "Enquiry push delivery must be idempotent.");
+assert.match(enquiryPushFunctionSource, /channelId: "enquiries"[\s\S]{0,200}targetPath: "\/VendorEnquiries"/, "Enquiry pushes must use the dedicated channel and deep-link to the Vendor enquiry inbox.");
+assert.match(enquiryPushMigrationSource, /revoke all on public\.enquiry_push_deliveries from public, anon, authenticated/, "Push-delivery idempotency records must remain server-only.");
 assert.doesNotMatch(
   layoutSource,
   /from ['"]@expo-google-fonts\/playfair-display['"]/, // Guard the package barrel import.
@@ -80,6 +90,37 @@ assert.match(androidSplashStyleSource, /windowSplashScreenAnimatedIcon">@drawabl
 const androidSplashInsetSource = await read("android/app/src/main/res/drawable/splashscreen_logo_inset.xml");
 assert.match(androidSplashInsetSource, /android:drawable="@mipmap\/ic_launcher_foreground"/, "The Android splash inset must use the canonical app icon artwork.");
 assert.match(androidSplashInsetSource, /android:inset="22%"/, "The Android splash icon must retain enough safe padding to avoid system-mask cropping.");
+
+// --- Vendor portfolio management actions must stay discoverable --------
+const vendorGallerySource = await read("app/VendorGallery.tsx");
+const vendorGalleryStylesSource = await read("components/vendor/gallery/vendorGalleryStyles.ts");
+const reviewFormSource = await read("components/reviews/ReviewForm.tsx");
+const connectedVendorReviewsSource = await read("components/reviews/ConnectedVendorReviews.tsx");
+const vendorReviewsSectionSource = await read("components/reviews/VendorReviewsSection.tsx");
+assert.doesNotMatch(reviewFormSource, /ReviewPhotoUploader|Add photo|Photos \(optional\)/, "The public Vendor Profile review form must not offer photo uploads.");
+assert.doesNotMatch(connectedVendorReviewsSource, /pickReviewPhotos|uploadReviewPhoto|onAddPhotos|onRemovePhoto/, "The connected review form must not retain unreachable photo-upload actions.");
+assert.match(connectedVendorReviewsSource, /imageUrls: reviewPhotos/, "Editing an existing review must preserve its previously saved photos.");
+assert.match(vendorReviewsSectionSource, /<Modal[\s\S]{0,300}visible=\{Boolean\(props\.showForm && props\.onSubmitReview\)\}/, "Writing or editing a review must open in a focused modal.");
+assert.match(vendorReviewsSectionSource, /KeyboardAvoidingView[\s\S]{0,500}keyboardShouldPersistTaps="handled"/, "The review modal must remain usable while the keyboard is open.");
+assert.match(vendorGallerySource, /access\?\.photo_usage/, "Portfolio summary must show the authoritative current-plan photo usage.");
+assert.match(vendorGallerySource, /access\?\.photo_limit/, "Portfolio summary must show the authoritative current-plan photo limit.");
+assert.match(vendorGallerySource, /setSelectedAlbumId\(album\.id\);[\s\S]{0,100}setAlbumPreview\(album\)/, "Tapping a Your Albums card must open that album.");
+assert.match(vendorGallerySource, /accessibilityLabel=\{`Delete \$\{item\.resource_type\}`\}[\s\S]{0,180}removeMedia\(item\)/, "Every uploaded media tile must expose its delete action.");
+assert.match(vendorGallerySource, /accessibilityLabel=\{`Delete \$\{item\.resource_type\} from \$\{albumPreview\?\.title \|\| "album"\}`\}[\s\S]{0,180}removeMedia\(item, albumPreview\)/, "Every image in the open album preview must expose a direct delete action.");
+assert.match(vendorGallerySource, /const removeMedia[\s\S]{0,180}requireFeature\("upload_gallery"\)/, "Portfolio media deletion must use the same subscription feature enforced by the delete backend.");
+assert.match(vendorGallerySource, /Platform\.OS === "web" && returnToAlbum[\s\S]{0,400}setTimeout\(showDeleteConfirmation, 0\)/, "Web album deletion must present its confirmation above the album preview modal.");
+assert.match(vendorGallerySource, /style=\{styles\.previewFooter\}/, "The full-screen media preview must keep its controls in a visible footer.");
+assert.match(vendorGallerySource, /accessibilityLabel="Delete media"[\s\S]{0,180}setPreviewDeleteCandidate\(preview\)/, "The preview delete action must open its confirmation in place.");
+assert.match(vendorGallerySource, /previewDeleteCandidate && <View style=\{styles\.previewConfirmBackdrop\}>[\s\S]{0,1200}deleteMediaNow\(previewDeleteCandidate\)/, "Media preview deletion must be confirmed inside the active preview modal.");
+assert.doesNotMatch(vendorGalleryStylesSource, /previewActions:\s*\{[^}]*position:\s*["']absolute["']/, "Preview actions must remain in normal layout flow instead of overlapping the image.");
+assert.match(vendorGallerySource, /uploadsCompleted[\s\S]{0,500}finishUpload[\s\S]{0,500}>Done</, "A completed upload must replace the Upload action with Done.");
+const portfolioDeleteFunctionSource = await read("supabase/functions/cloudinary-delete/index.ts");
+const portfolioDeleteGrantSource = await read("supabase/migrations/20260905123000_grant_service_role_portfolio_delete.sql");
+assert.match(portfolioDeleteFunctionSource, /SUPABASE_SERVICE_ROLE_KEY/, "Portfolio deletion must use the trusted server client after user ownership is verified.");
+assert.match(vendorGallerySource, /deletePortfolioMedia\(item\.id, \{[\s\S]{0,180}vendorId: data\.vendor\.id,[\s\S]{0,180}publicId: item\.public_id/, "Portfolio deletion must provide the owned Cloudinary identity when a legacy media ID is stale.");
+assert.match(portfolioDeleteFunctionSource, /if \(!media && vendorId && publicId\)[\s\S]{0,350}\.eq\("vendor_id", vendorId\)\.eq\("public_id", publicId\)/, "Portfolio deletion must safely resolve stale media IDs by vendor and public ID.");
+assert.match(portfolioDeleteFunctionSource, /admin\.from\("vendor_portfolio_media"\)\.delete\(\)/, "Portfolio deletion must remove the database record after Cloudinary cleanup succeeds.");
+assert.match(portfolioDeleteGrantSource, /grant select, delete on public\.vendor_portfolio_media to service_role/, "The portfolio delete service role must be able to resolve and remove the owned media row.");
 
 // --- Native auth screens must remain usable above the Android keyboard ---
 const [authLayoutSource, otpFieldSource, keyboardAwareScrollSource] = await Promise.all([
@@ -540,12 +581,20 @@ assert.match(vendorListingSource, /fetchLocationRankedVendors\(/, "VendorsListin
 assert.match(vendorListingSource, /onUseCurrentLocation=\{useCurrentLocation\}/, "The category Taluka sheet must offer current-location vendor discovery.");
 assert.match(vendorListingSource, /requestDeviceLocationServices\(\)/, "Category current-location discovery must use Android's system location-resolution flow.");
 assert.match(vendorListingSource, /requestDeviceLocationServices\(\)[\s\S]{0,500}if \(deviceOrigin\)[\s\S]{0,420}clearGuestGeoPreference\(\)/, "Category current-location discovery must confirm services are enabled before reusing an already-resolved Home/listing origin.");
-assert.match(vendorListingSource, /getLastDetectedCoordinates\(\)/, "Category listings must reuse the recent verified Home coordinates before requesting location again.");
+assert.doesNotMatch(vendorListingSource, /getLastDetectedCoordinates\(\)|getLastDetectedLocationLabel\(\)|loadGuestGeoPreference\(\)/, "Category listings must not auto-activate a location from cached Home GPS or a stored Taluka preference.");
+assert.match(vendorListingSource, /useState<GeoSelection \| null>\(null\)/, "Category listings must begin without an active location filter.");
 assert.doesNotMatch(vendorListingSource, /radiusKm/, "VendorsListing must not restore a customer-selectable distance cutoff.");
 assert.match(vendorDiscoverySource, /LISTING_NEARBY_THRESHOLD_KM = 20/, "The category listing nearby priority bucket must remain 20 km.");
 assert.doesNotMatch(locationRankMigrationSource, /st_dwithin/i, "The category listing query must rank by distance without excluding farther vendors.");
 assert.match(locationRankMigrationSource, /distance_bucket asc,\s*membership_rank asc,/i, "Distance bucket must rank before Elite/Premium membership priority.");
 assert.match(locationRankMigrationSource, /when 'elite' then 0\s*when 'premium' then 1/i, "Elite must rank before Premium in location-ranked results.");
+
+// --- Public vendor app-download prompt must respect its dismissal cooldown --
+const downloadAppPopupSource = await read("components/vendor-profile/DownloadAppPopup.tsx");
+assert.match(downloadAppPopupSource, /7 \* 24 \* 60 \* 60 \* 1000/, "The app-download popup dismissal cooldown must remain seven days.");
+assert.match(downloadAppPopupSource, /localStorage\?\.getItem\(DISMISSED_AT_KEY\)/, "The app-download popup must read its previous dismissal before scheduling itself.");
+assert.match(downloadAppPopupSource, /localStorage\?\.setItem\(DISMISSED_AT_KEY, String\(Date\.now\(\)\)\)/, "Closing the app-download popup must persist the dismissal time.");
+assert.match(downloadAppPopupSource, /setTimeout\(\(\) => setVisible\(true\), 1500\)/, "The existing app-download popup timing must remain unchanged.");
 
 // --- Aggregate runner must still register every non-credentialed check --
 const runnerSource = await read("scripts/run-smoke-tests.mjs");

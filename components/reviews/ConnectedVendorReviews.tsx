@@ -18,9 +18,7 @@ import {
 } from "@/services/reviews";
 import {
   deleteReviewPhoto,
-  pickReviewPhotos,
   reviewPhotoPublicId,
-  uploadReviewPhoto,
 } from "@/services/cloudinary";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import VendorReviewsSection from "./VendorReviewsSection";
@@ -98,7 +96,6 @@ export default function ConnectedVendorReviews({
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [authenticated, setAuthenticated] = useState(false);
-  const uploadedIds = useRef<Record<string, string>>({});
   const originalPhotos = useRef<string[]>([]);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -186,41 +183,11 @@ export default function ConnectedVendorReviews({
     }
   }, [router, vendorKey]);
 
-  const cleanupDraftUploads = useCallback(async () => {
-    const entries = Object.entries(uploadedIds.current);
-    uploadedIds.current = {};
-    await Promise.allSettled(entries.map(([, publicId]) => deleteReviewPhoto(publicId)));
-  }, []);
-
   const closeForm = useCallback(() => {
-    void cleanupDraftUploads();
     setShowForm(false);
     setEditingReview(null);
     setReviewPhotos([]);
     setFormError(null);
-  }, [cleanupDraftUploads]);
-
-  const addPhotos = useCallback(async () => {
-    try {
-      const remaining = 6 - reviewPhotos.length;
-      if (remaining <= 0) return;
-      setSubmitting(true);
-      const assets = await pickReviewPhotos(remaining);
-      const uploads = await Promise.all(assets.map((asset) => uploadReviewPhoto(asset)));
-      const additions = uploads.map((upload) => {
-        uploadedIds.current[upload.secureUrl] = upload.publicId;
-        return upload.secureUrl;
-      });
-      setReviewPhotos((current) => [...current, ...additions].slice(0, 6));
-    } catch (caught) {
-      setFormError(caught instanceof Error ? caught.message : "Unable to upload photos.");
-    } finally {
-      setSubmitting(false);
-    }
-  }, [reviewPhotos.length]);
-
-  const removePhoto = useCallback((uri: string) => {
-    setReviewPhotos((current) => current.filter((photo) => photo !== uri));
   }, []);
 
   const submitReview = useCallback(async (draft: ReviewDraft) => {
@@ -240,7 +207,6 @@ export default function ConnectedVendorReviews({
           return publicId ? deleteReviewPhoto(publicId, saved.id) : Promise.resolve();
         })
       );
-      uploadedIds.current = {};
       setShowForm(false);
       setEditingReview(null);
       setReviewPhotos([]);
@@ -327,8 +293,6 @@ export default function ConnectedVendorReviews({
       onWriteReview={beginReview}
       onCloseForm={closeForm}
       onSubmitReview={submitReview}
-      onAddPhotos={addPhotos}
-      onRemovePhoto={removePhoto}
       onSortChange={setSort}
       onStarFilterChange={setStarFilter}
       onHelpful={helpful}

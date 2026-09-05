@@ -729,9 +729,19 @@ export async function uploadPortfolioAsset(
   };
 }
 
-export async function deletePortfolioMedia(mediaId: string) {
-  const { error } = await supabase.functions.invoke("cloudinary-delete", { body: { mediaId } });
-  if (error) throw new CloudinaryError(error.message || "Unable to delete media.", "UPLOAD_ERROR");
+export async function deletePortfolioMedia(
+  mediaId: string,
+  fallback?: { vendorId: string; publicId: string; resourceType: "image" | "video" },
+) {
+  const { error } = await supabase.functions.invoke("cloudinary-delete", {
+    body: { mediaId, ...fallback },
+  });
+  if (error) {
+    throw new CloudinaryError(
+      await edgeFunctionErrorMessage(error, "Unable to delete media."),
+      "UPLOAD_ERROR",
+    );
+  }
 }
 
 export async function deleteUnstoredPortfolioAsset(
@@ -742,7 +752,12 @@ export async function deleteUnstoredPortfolioAsset(
   const { error } = await supabase.functions.invoke("cloudinary-delete", {
     body: { vendorId, publicId, resourceType },
   });
-  if (error) throw new CloudinaryError(error.message || "Unable to clean up uploaded media.", "UPLOAD_ERROR");
+  if (error) {
+    throw new CloudinaryError(
+      await edgeFunctionErrorMessage(error, "Unable to clean up uploaded media."),
+      "UPLOAD_ERROR",
+    );
+  }
 }
 
 type SignedReviewUpload = {

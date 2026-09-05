@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from "react-native";
-import ReviewPhotoUploader from "./ReviewPhotoUploader";
 import type { ReviewDraft } from "./types";
 import { reviewPalette } from "./types";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
@@ -8,8 +7,8 @@ import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 // [...]}` props on Android; InteropSafePressable resolves it first.
 import Pressable from "@/components/InteropSafePressable";
 
-export type ReviewFormProps = { initialValue?: Partial<ReviewDraft>; dark?: boolean; submitting?: boolean; error?: string | null; onSubmit: (draft: ReviewDraft) => void | Promise<void>; onCancel?: () => void; onAddPhotos: () => void; onRemovePhoto: (uri: string, index: number) => void; photos: string[]; submitLabel?: string };
-export default function ReviewForm({ initialValue, dark = false, submitting = false, error, onSubmit, onCancel, onAddPhotos, onRemovePhoto, photos, submitLabel }: ReviewFormProps) {
+export type ReviewFormProps = { initialValue?: Partial<ReviewDraft>; dark?: boolean; submitting?: boolean; error?: string | null; onSubmit: (draft: ReviewDraft) => void | Promise<void>; onCancel?: () => void; photos: string[]; submitLabel?: string };
+export default function ReviewForm({ initialValue, dark = false, submitting = false, error, onSubmit, onCancel, photos, submitLabel }: ReviewFormProps) {
   const c = reviewPalette(dark);
   const [rating, setRating] = useState(initialValue?.rating ?? 0);
   const [text, setText] = useState(initialValue?.text ?? "");
@@ -24,7 +23,6 @@ export default function ReviewForm({ initialValue, dark = false, submitting = fa
     <Text style={[styles.label, { color: c.text }]}>Your rating</Text>
     <View accessibilityRole="radiogroup" accessibilityLabel="Review rating" style={styles.stars}>{([1,2,3,4,5] as const).map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: rating === value, disabled: submitting }} accessibilityLabel={`${value} stars`} disabled={submitting} onPress={() => setRating(value)} hitSlop={7}><Text style={[styles.star, { color: value <= rating ? c.gold : c.inactiveStar }]}>★</Text></Pressable>)}</View>
     <TextInput accessibilityLabel="Review comment" accessibilityHint="Describe your experience with this vendor" accessibilityState={{ disabled: submitting }} value={text} onChangeText={setText} editable={!submitting} maxLength={2000} multiline placeholder="Write a comment…" placeholderTextColor={c.muted} style={[input, styles.textarea]} />
-    <ReviewPhotoUploader photos={photos} dark={dark} disabled={submitting} onAdd={onAddPhotos} onRemove={onRemovePhoto} />
     {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.error, { color: c.destructive }]}>{error}</Text> : null}
     <View style={styles.buttons}>{onCancel ? <Pressable accessibilityRole="button" accessibilityState={{ disabled: submitting }} disabled={submitting} onPress={onCancel} style={[styles.cancel, { borderColor: c.border }]}><Text style={[styles.cancelText, { color: c.muted }]}>Cancel</Text></Pressable> : null}
       <Pressable accessibilityRole="button" accessibilityState={{ disabled: !valid || submitting, busy: submitting }} accessibilityLabel={submitLabel ?? (initialValue ? "Update review" : "Submit review")} disabled={!valid || submitting} onPress={() => {

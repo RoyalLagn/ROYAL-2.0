@@ -31,13 +31,11 @@ import {
   clearGuestGeoPreference,
   fetchTalukaVendorPageCards,
   listActiveGeoStates,
-  loadGuestGeoPreference,
   saveGuestGeoPreference,
-  validateGeoSelection,
   type TalukaPageCursor,
 } from "@/services/geoLocations";
 import type { GeoSelection, GeoState } from "@/locations/types";
-import { getCurrentDeviceLocation, getDevicePermissionStatus, getLastDetectedCoordinates, getLastDetectedLocationLabel, requestDeviceLocationPermission, requestDeviceLocationServices, reverseGeocodeLabel, type DeviceCoordinates } from "@/services/deviceLocation";
+import { getCurrentDeviceLocation, getDevicePermissionStatus, requestDeviceLocationPermission, requestDeviceLocationServices, reverseGeocodeLabel, type DeviceCoordinates } from "@/services/deviceLocation";
 import { fetchLocationRankedVendors } from "@/services/vendorDiscovery";
 import { buildVendorListingPath, buildVendorProfilePathBySlug, displayLocationFromSlug } from "@/services/publicSeoRoutes";
 import { vendorWebBase } from "@/services/contactActions";
@@ -156,7 +154,7 @@ export default function VendorsListingScreen() {
   const [geoStates, setGeoStates] = useState<GeoState[]>([]);
   const [geoSelection, setGeoSelection] = useState<GeoSelection | null>(null);
   const [, setGeoDistrictName] = useState("");
-  const [, setGeoTalukaName] = useState("");
+  const [geoTalukaName, setGeoTalukaName] = useState("");
   const [geoLoading, setGeoLoading] = useState(true);
   const [geoError, setGeoError] = useState("");
   const talukaActive = geoSelection !== null;
@@ -175,52 +173,18 @@ export default function VendorsListingScreen() {
     let active = true;
     setGeoLoading(true);
     setGeoError("");
-    Promise.all([listActiveGeoStates(), loadGuestGeoPreference()])
-      .then(async ([states, stored]) => {
+    listActiveGeoStates()
+      .then((states) => {
         if (!active) return;
         setGeoStates(states);
         if (states.length === 0) {
           setGeoError("No active service locations are available right now.");
-          return;
         }
-        if (!stored) return;
-        const validated = await validateGeoSelection(stored);
-        if (!active) return;
-        if (!validated) {
-          await clearGuestGeoPreference();
-          return;
-        }
-        setGeoSelection({ stateId: validated.stateId, districtId: validated.districtId, talukaId: validated.talukaId });
-        setGeoDistrictName(validated.districtName);
-        setGeoTalukaName(validated.talukaName);
       })
       .catch(() => {
         if (active) setGeoError("District and Taluka options could not be loaded. Try again.");
       })
       .finally(() => { if (active) setGeoLoading(false); });
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const permission = await getDevicePermissionStatus();
-      const [cachedLabel, cachedCoords] = await Promise.all([
-        getLastDetectedLocationLabel(),
-        permission === "granted" ? getLastDetectedCoordinates() : Promise.resolve(null),
-      ]);
-      if (active && cachedLabel) setCurrentLocationLabel(cachedLabel);
-      if (active && cachedCoords) setDeviceOrigin(cachedCoords);
-      if (permission !== "granted" || !active) return;
-      try {
-        const coords = await getCurrentDeviceLocation();
-        if (active) setDeviceOrigin(coords);
-        const label = await reverseGeocodeLabel(coords).catch(() => null);
-        if (active && label) setCurrentLocationLabel(label);
-      } catch {
-        // Never substitute the manual Taluka selection for device GPS.
-      }
-    })();
     return () => { active = false; };
   }, []);
 
@@ -377,7 +341,9 @@ export default function VendorsListingScreen() {
   const text = isDark ? "#F8F2F5" : colors.foreground;
   const muted = colors.mutedForeground;
   const border = colors.border;
-  const locationSubtitle = requestedLocation || currentLocationLabel;
+  const locationSubtitle = requestedLocation
+    || geoTalukaName
+    || (gpsActive ? currentLocationLabel : "Choose location");
 
   useEffect(() => {
     setQuery(initialQuery);

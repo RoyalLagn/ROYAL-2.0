@@ -15,29 +15,43 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const authHeader = request.headers.get("Authorization") ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
+      supabaseUrl,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
+    );
+    const admin = createClient(
+      supabaseUrl,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false } },
     );
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Authentication required");
     const { mediaId, vendorId, publicId, resourceType } = await request.json();
     let media: { id?: string; public_id: string; resource_type: "image" | "video"; vendor_id: string } | null = null;
     if (mediaId) {
-      const { data } = await supabase.from("vendor_portfolio_media")
+      const { data, error: mediaLookupError } = await admin.from("vendor_portfolio_media")
         .select("id,public_id,resource_type,vendor_id")
         .eq("id", mediaId).maybeSingle();
+      if (mediaLookupError) throw mediaLookupError;
       media = data as typeof media;
-      if (media) {
-        const [{ data: ownedVendor }, { data: profile }] = await Promise.all([
-          supabase.from("vendors").select("id").eq("id", media.vendor_id).eq("profile_id", user.id).maybeSingle(),
-          supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
-        ]);
-        if (!ownedVendor && profile?.role !== "admin") media = null;
-      }
-    } else if (vendorId && publicId) {
-      const { data: vendor } = await supabase.from("vendors")
+    }
+    if (!media && vendorId && publicId) {
+      const { data, error: fallbackLookupError } = await admin.from("vendor_portfolio_media")
+        .select("id,public_id,resource_type,vendor_id")
+        .eq("vendor_id", vendorId).eq("public_id", publicId).maybeSingle();
+      if (fallbackLookupError) throw fallbackLookupError;
+      media = data as typeof media;
+    }
+    if (media) {
+      const [{ data: ownedVendor }, { data: profile }] = await Promise.all([
+        admin.from("vendors").select("id").eq("id", media.vendor_id).eq("profile_id", user.id).maybeSingle(),
+        admin.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+      ]);
+      if (!ownedVendor && profile?.role !== "admin") media = null;
+    } else if (!mediaId && vendorId && publicId) {
+      const { data: vendor } = await admin.from("vendors")
         .select("id").eq("id", vendorId).eq("profile_id", user.id).maybeSingle();
       const expectedPrefix = `royallagn/vendors/${vendorId}/`;
       if (vendor && String(publicId).startsWith(expectedPrefix)) {
@@ -69,7 +83,7 @@ Deno.serve(async (request) => {
     const result = await response.json();
     if (!response.ok || !["ok", "not found"].includes(result.result)) throw new Error("Cloudinary deletion failed");
     if (media.id) {
-      const { error: deleteError } = await supabase.from("vendor_portfolio_media").delete().eq("id", media.id);
+      const { error: deleteError } = await admin.from("vendor_portfolio_media").delete().eq("id", media.id);
       if (deleteError) throw deleteError;
     }
     return Response.json({ ok: true }, { headers: cors });

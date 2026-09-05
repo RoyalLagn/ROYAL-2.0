@@ -266,9 +266,8 @@ export function MobileTabBar({
     [state.routes],
   );
   const activeRouteName = state.routes[state.index]?.name;
-  const selectedIndex = Math.max(
-    0,
-    orderedRoutes.findIndex((route) => route.name === activeRouteName),
+  const selectedIndex = orderedRoutes.findIndex(
+    (route) => route.name === activeRouteName,
   );
   const activeIndex = useSharedValue(selectedIndex);
   const centerIndex = orderedRoutes.findIndex((route) => route.name === CENTER_ROUTE);
@@ -283,10 +282,12 @@ export function MobileTabBar({
     const itemWidth = itemsWidth / TAB_COUNT;
     return {
       width: Math.max(0, itemWidth - 10),
-      opacity: Math.min(1, Math.abs(activeIndex.value - centerIndex) * 2.5),
+      opacity: selectedIndex < 0
+        ? 0
+        : Math.min(1, Math.abs(activeIndex.value - centerIndex) * 2.5),
       transform: [{ translateX: activeIndex.value * itemWidth + 5 }],
     };
-  }, [centerIndex, itemsWidth]);
+  }, [centerIndex, itemsWidth, selectedIndex]);
 
   const onItemsLayout = (event: LayoutChangeEvent) => {
     setItemsWidth(event.nativeEvent.layout.width);

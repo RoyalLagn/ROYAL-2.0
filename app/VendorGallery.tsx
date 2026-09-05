@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Image, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Crosshair, Eye, FolderOpen, ImagePlus, Images, LockKeyhole, MoreHorizontal, Move, Pencil, Play, Plus, RotateCcw, Sparkles, Star, Trash2, Upload, X } from "lucide-react-native";
@@ -44,6 +44,8 @@ export default function VendorGallery() {
     error?: string;
   }>>({});
   const [preview, setPreview] = useState<any>(null);
+  const [previewDeleteCandidate, setPreviewDeleteCandidate] = useState<any>(null);
+  const [deletingMediaId, setDeletingMediaId] = useState<string | null>(null);
   const [albumPreview, setAlbumPreview] = useState<any>(null);
   const [albumActions, setAlbumActions] = useState<any>(null);
   const [deletingAlbumId, setDeletingAlbumId] = useState<string | null>(null);
@@ -107,6 +109,11 @@ export default function VendorGallery() {
   const heroPreviewOrder = heroPreview ? heroDraft.indexOf(heroPreview.id) : -1;
   const uploading = Object.values(uploadProgress).some((task) =>
     task.status === "optimizing" || task.status === "signing" || task.status === "uploading" || task.status === "processing");
+  const uploadsCompleted = pendingAssets.length > 0
+    && pendingAssets.every((asset, index) => uploadProgress[`${asset.uri}-${index}`]?.status === "completed");
+  const planPhotoUsage = access?.photo_usage
+    ?? data.media.filter((item) => item.resource_type === "image").length;
+  const planPhotoLimit = access?.photo_limit;
   const showFailure = (title: string, caught: unknown, message = "Please check your connection and try again.") => {
     if (__DEV__) console.error(title, caught);
     Alert.alert(title, message);
@@ -210,7 +217,13 @@ export default function VendorGallery() {
       const albumMedia = data.media.filter((item) => item.album_id === album.id);
       const failures: unknown[] = [];
       for (const item of albumMedia) {
-        try { await deletePortfolioMedia(item.id); }
+        try {
+          await deletePortfolioMedia(item.id, {
+            vendorId: data.vendor.id,
+            publicId: item.public_id,
+            resourceType: item.resource_type,
+          });
+        }
         catch (mediaError) { failures.push(mediaError); }
       }
       if (failures.length) {
@@ -421,6 +434,14 @@ export default function VendorGallery() {
     }
     if (uploadedCount) showSuccess(`${uploadedCount} media item${uploadedCount === 1 ? "" : "s"} uploaded`);
   };
+  const finishUpload = () => {
+    setUploadModal(false);
+    setPendingAssets([]);
+    setUploadProgress({});
+    setUploadAlbumId(null);
+    setUploadAlbumTitle("");
+    setUploadAlbumInitialCount(0);
+  };
   const removePendingAsset = (removeIndex: number) => {
     if (uploading) return;
     const next = pendingAssets.filter((_, index) => index !== removeIndex);
@@ -481,28 +502,54 @@ export default function VendorGallery() {
       showSuccess("Album order updated");
     }
   };
-  const removeMedia = (item: any) => {
-    if (!requireFeature("manage_albums")) return;
-    Alert.alert(
-      "Delete media?",
-      `${heroDraft.includes(item.id) ? "This image is selected for the public hero gallery and will be removed from it. " : ""}This removes the Cloudinary asset and cannot be undone.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: async () => {
-          try {
-            await deletePortfolioMedia(item.id);
-            if (item.is_cover) {
-              const nextCover = media.find((entry) => entry.id !== item.id);
-              if (nextCover) await supabase.from("vendor_portfolio_media").update({ is_cover: true }).eq("id", nextCover.id).eq("vendor_id", data.vendor?.id);
-            }
-            setPreview(null);
-            await refresh();
-            showSuccess("Media deleted");
-          }
-          catch (caught) { showFailure("Media not deleted", caught, "Nothing was removed. Please check your connection and try again."); }
-        }},
-      ],
-    );
+  const deleteMediaNow = async (item: any, returnToAlbum: any = null) => {
+    setDeletingMediaId(item.id);
+    try {
+      await deletePortfolioMedia(item.id, {
+        vendorId: data.vendor.id,
+        publicId: item.public_id,
+        resourceType: item.resource_type,
+      });
+      if (item.is_cover) {
+        const nextCover = media.find((entry) => entry.id !== item.id);
+        if (nextCover) await supabase.from("vendor_portfolio_media").update({ is_cover: true }).eq("id", nextCover.id).eq("vendor_id", data.vendor?.id);
+      }
+      setPreviewDeleteCandidate(null);
+      setPreview(null);
+      await refresh();
+      if (returnToAlbum) setAlbumPreview(returnToAlbum);
+      showSuccess("Media deleted");
+    } catch (caught) {
+      if (returnToAlbum) setAlbumPreview(returnToAlbum);
+      showFailure("Media not deleted", caught, "Nothing was removed. Please check your connection and try again.");
+    } finally {
+      setDeletingMediaId(null);
+    }
+  };
+  const removeMedia = (item: any, returnToAlbum: any = null) => {
+    if (!requireFeature("upload_gallery")) return;
+    const restoreAlbumPreview = () => {
+      if (returnToAlbum) setAlbumPreview(returnToAlbum);
+    };
+    const showDeleteConfirmation = () => Alert.alert(
+        "Delete media?",
+        `${heroDraft.includes(item.id) ? "This image is selected for the public hero gallery and will be removed from it. " : ""}This removes the Cloudinary asset and cannot be undone.`,
+        [
+          { text: "Cancel", style: "cancel", onPress: restoreAlbumPreview },
+          { text: "Delete", style: "destructive", onPress: async () => {
+            await deleteMediaNow(item, returnToAlbum);
+          }},
+        ],
+      );
+
+    if (Platform.OS === "web" && returnToAlbum) {
+      // React Native Web modals share one host. Close the album preview for a
+      // frame so the global confirmation dialog cannot render underneath it.
+      setAlbumPreview(null);
+      setTimeout(showDeleteConfirmation, 0);
+      return;
+    }
+    showDeleteConfirmation();
   };
 
   return <View style={[styles.page, { backgroundColor: canvas }]}>
@@ -550,10 +597,12 @@ export default function VendorGallery() {
           {
             key: "media",
             icon: <Images size={19} color={colors.pink} />,
-            value: String(data.media.length),
-            label: "Photos & videos",
-            detail: "Media uploaded",
-            progress: Math.min(1, data.media.length / (PORTFOLIO_LIMITS.albums * PORTFOLIO_LIMITS.mediaPerAlbum)),
+            value: planPhotoLimit == null ? String(planPhotoUsage) : `${planPhotoUsage}/${planPhotoLimit}`,
+            label: "Plan photo usage",
+            detail: planPhotoLimit == null
+              ? `${access?.plan_name || "Current"} plan`
+              : `${Math.max(0, planPhotoLimit - planPhotoUsage)} uploads remaining`,
+            progress: planPhotoLimit && planPhotoLimit > 0 ? Math.min(1, planPhotoUsage / planPhotoLimit) : 0,
           },
           {
             key: "visible",
@@ -722,7 +771,10 @@ export default function VendorGallery() {
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               accessibilityLabel={`Open ${album.title} album`}
-              onPress={() => setSelectedAlbumId(album.id)}
+              onPress={() => {
+                setSelectedAlbumId(album.id);
+                setAlbumPreview(album);
+              }}
               style={({ pressed, hovered, focused }) => [
                 styles.albumSelectArea,
                 (hovered || focused) && styles.hoverLift,
@@ -787,16 +839,23 @@ export default function VendorGallery() {
         </Pressable>
         {remainingCapacity === 0 && <View style={[styles.capacityNotice, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.capacityText, { color: colors.muted }]}>This album contains 15 media items. Create another album to continue uploading.</Text><Pressable onPress={() => openAlbum()}><Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>Create album</Text></Pressable></View>}
         <View onLayout={(event) => setGalleryWidth(event.nativeEvent.layout.width)} style={[styles.mediaGrid, { gap }]}>
-          {media.map((item) => <Pressable key={item.id} onPress={() => setPreview(item)} style={{ width: tileWidth }}>
-            <View style={[styles.tile, { height: tileWidth * 0.8 }, item.subscription_locked && styles.lockedTile]}>
-              <ImageFadeIn source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
-              {item.resource_type === "video" && <View style={styles.play}><Play size={18} fill="#FFF" color="#FFF" /></View>}
-              {item.resource_type === "video" && item.duration ? <View style={styles.durationBadge}><Text style={styles.durationText}>{Math.floor(item.duration / 60)}:{String(Math.round(item.duration % 60)).padStart(2, "0")}</Text></View> : null}
-              {item.is_cover && <View style={[styles.coverBadge, { backgroundColor: colors.pink }]}><Star size={10} color="#FFF" fill="#FFF" /><Text style={styles.coverText}>Cover</Text></View>}
-              {item.subscription_locked ? <View style={styles.lockedOverlay}><LockKeyhole size={18} color="#FFF" /><Text style={styles.lockedOverlayText}>Locked · Upgrade</Text></View> : null}
-              <View style={styles.viewBadge}><Eye size={13} color="#FFF" /></View>
-            </View>
-          </Pressable>)}
+          {media.map((item) => <View key={item.id} style={[styles.mediaTileWrap, { width: tileWidth }]}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Preview ${item.resource_type}`} onPress={() => setPreview(item)}>
+              <View style={[styles.tile, { height: tileWidth * 0.8 }, item.subscription_locked && styles.lockedTile]}>
+                <ImageFadeIn source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
+                {item.resource_type === "video" && <View style={styles.play}><Play size={18} fill="#FFF" color="#FFF" /></View>}
+                {item.resource_type === "video" && item.duration ? <View style={styles.durationBadge}><Text style={styles.durationText}>{Math.floor(item.duration / 60)}:{String(Math.round(item.duration % 60)).padStart(2, "0")}</Text></View> : null}
+                {item.is_cover && <View style={[styles.coverBadge, { backgroundColor: colors.pink }]}><Star size={10} color="#FFF" fill="#FFF" /><Text style={styles.coverText}>Cover</Text></View>}
+                {item.subscription_locked ? <View style={styles.lockedOverlay}><LockKeyhole size={18} color="#FFF" /><Text style={styles.lockedOverlayText}>Locked · Upgrade</Text></View> : null}
+              </View>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${item.resource_type}`}
+              onPress={() => removeMedia(item)}
+              style={({ pressed }) => [styles.mediaDeleteButton, pressed && styles.pressScale]}
+            ><Trash2 size={16} color="#FFF" /></Pressable>
+          </View>)}
         </View>
         {!media.length && <View style={styles.mediaEmpty}><ImagePlus size={26} color={colors.muted} /><Text style={[styles.emptyBody, { color: colors.muted }]}>This album is ready for its first upload.</Text></View>}
       </View>}
@@ -880,11 +939,17 @@ export default function VendorGallery() {
               {pendingAssets.length > 0 && <Text style={[styles.overallProgress, { color: colors.pink }]}>Overall {Math.round(Object.values(uploadProgress).reduce((sum, task) => sum + task.progress, 0) / pendingAssets.length * 100)}%</Text>}
             </View>
             <Pressable
-              disabled={uploading || !pendingAssets.length || Object.values(uploadProgress).every((task) => task.status === "completed")}
-              onPress={upload}
+              accessibilityRole="button"
+              accessibilityLabel={uploadsCompleted ? "Done uploading" : "Upload selected media"}
+              disabled={!uploadsCompleted && (uploading || !pendingAssets.length)}
+              onPress={uploadsCompleted ? finishUpload : upload}
               style={[styles.save, styles.uploadStart, { backgroundColor: colors.pink }, uploading && { opacity: .65 }]}
             >
-              {uploading ? <ActivityIndicator color="#FFF" /> : <><Upload size={17} color="#FFF" /><Text style={styles.primaryText}>Upload</Text></>}
+              {uploading
+                ? <ActivityIndicator color="#FFF" />
+                : uploadsCompleted
+                  ? <><Check size={17} color="#FFF" /><Text style={styles.primaryText}>Done</Text></>
+                  : <><Upload size={17} color="#FFF" /><Text style={styles.primaryText}>Upload</Text></>}
             </Pressable>
           </View>
         </View>
@@ -936,22 +1001,30 @@ export default function VendorGallery() {
             <Text style={[styles.albumPreviewDescription, { color: colors.muted }]}>{albumPreview?.description || "A curated selection from our recent work."}</Text>
           </View>
           <View onLayout={(event) => setPreviewGridWidth(event.nativeEvent.layout.width)} style={[styles.mediaGrid, { gap }]}>
-            {data.media.filter((item) => item.album_id === albumPreview?.id).map((item) => <Pressable key={item.id} onPress={() => { setAlbumPreview(null); setPreview(item); }} style={{ width: previewTileWidth }}>
-              <View style={[styles.tile, { height: previewTileWidth * .8 }]}>
-                <ImageFadeIn source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
-                {item.resource_type === "video" && <View style={styles.play}><Play size={18} fill="#FFF" color="#FFF" /></View>}
-                {item.is_cover && <View style={[styles.coverBadge, { backgroundColor: colors.pink }]}><Star size={10} color="#FFF" fill="#FFF" /><Text style={styles.coverText}>Cover</Text></View>}
-              </View>
-            </Pressable>)}
+            {data.media.filter((item) => item.album_id === albumPreview?.id).map((item) => <View key={item.id} style={[styles.mediaTileWrap, { width: previewTileWidth }]}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Preview ${item.resource_type}`} onPress={() => { setAlbumPreview(null); setPreview(item); }}>
+                <View style={[styles.tile, { height: previewTileWidth * .8 }]}>
+                  <ImageFadeIn source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
+                  {item.resource_type === "video" && <View style={styles.play}><Play size={18} fill="#FFF" color="#FFF" /></View>}
+                  {item.is_cover && <View style={[styles.coverBadge, { backgroundColor: colors.pink }]}><Star size={10} color="#FFF" fill="#FFF" /><Text style={styles.coverText}>Cover</Text></View>}
+                </View>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${item.resource_type} from ${albumPreview?.title || "album"}`}
+                onPress={() => removeMedia(item, albumPreview)}
+                style={({ pressed }) => [styles.mediaDeleteButton, pressed && styles.pressScale]}
+              ><Trash2 size={16} color="#FFF" /></Pressable>
+            </View>)}
           </View>
           {!data.media.some((item) => item.album_id === albumPreview?.id) && <View style={styles.mediaEmpty}><ImagePlus size={27} color={colors.muted} /><Text style={[styles.emptyBody, { color: colors.muted }]}>This album has no published media yet.</Text></View>}
         </ScrollView>
       </View>
     </Modal>
 
-    <Modal visible={Boolean(preview)} transparent animationType="fade" onRequestClose={() => setPreview(null)}>
-      <View style={styles.previewBackdrop}>
-        <Pressable onPress={() => setPreview(null)} style={[styles.previewClose, { top: insets.top + 12 }]}><X size={24} color="#FFF" /></Pressable>
+    <Modal visible={Boolean(preview)} transparent animationType="fade" onRequestClose={() => { setPreviewDeleteCandidate(null); setPreview(null); }}>
+      <View style={[styles.previewBackdrop, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <Pressable onPress={() => { setPreviewDeleteCandidate(null); setPreview(null); }} style={[styles.previewClose, { top: insets.top + 12 }]}><X size={24} color="#FFF" /></Pressable>
         {previewIndex > 0 && <Pressable accessibilityLabel="Previous media" onPress={() => setPreview(previewMedia[previewIndex - 1])} style={[styles.previewNav, styles.previewNavLeft]}><ChevronLeft size={26} color="#FFF" /></Pressable>}
         {previewIndex >= 0 && previewIndex < previewMedia.length - 1 && <Pressable accessibilityLabel="Next media" onPress={() => setPreview(previewMedia[previewIndex + 1])} style={[styles.previewNav, styles.previewNavRight]}><ChevronRight size={26} color="#FFF" /></Pressable>}
         {preview?.resource_type === "video"
@@ -964,19 +1037,32 @@ export default function VendorGallery() {
             centerContent
             bouncesZoom
           ><Image source={{ uri: preview.secure_url }} style={styles.previewZoomImage} resizeMode="contain" /></ScrollView>}
-        {preview && <View style={styles.previewDetails}>
-          <Text style={styles.previewPosition}>{previewIndex + 1} / {previewMedia.length}</Text>
-          <Text style={styles.previewMeta}>
-            {[preview.width && preview.height ? `${preview.width}×${preview.height}` : null, preview.bytes ? `${(preview.bytes / 1024 / 1024).toFixed(1)} MB` : null, preview.duration ? `${Math.round(preview.duration)} sec` : null].filter(Boolean).join(" · ")}
-          </Text>
+        {preview && <View style={styles.previewFooter}>
+          <View style={styles.previewDetails}>
+            <Text style={styles.previewPosition}>{previewIndex + 1} / {previewMedia.length}</Text>
+            <Text style={styles.previewMeta}>
+              {[preview.width && preview.height ? `${preview.width}×${preview.height}` : null, preview.bytes ? `${(preview.bytes / 1024 / 1024).toFixed(1)} MB` : null, preview.duration ? `${Math.round(preview.duration)} sec` : null].filter(Boolean).join(" · ")}
+            </Text>
+          </View>
+          <View style={styles.previewActions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Move media earlier" onPress={() => reorderMedia(preview, -1)} style={styles.previewButton}><Text style={styles.previewText}>← Earlier</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Move media later" onPress={() => reorderMedia(preview, 1)} style={styles.previewButton}><Text style={styles.previewText}>Later →</Text></Pressable>
+            {data.albums.length > 1 && <Pressable accessibilityRole="button" accessibilityLabel="Move media to another album" onPress={() => requireFeature("manage_albums", () => setMoveMediaItem(preview))} style={styles.previewButton}><Move size={17} color="#FFF" /><Text style={styles.previewText}>Move</Text></Pressable>}
+            {!preview.is_cover && <Pressable accessibilityRole="button" accessibilityLabel="Set media as album cover" onPress={() => { setCover(preview); setPreview(null); }} style={styles.previewButton}><Star size={17} color="#FFF" /><Text style={styles.previewText}>Set cover</Text></Pressable>}
+            {preview.resource_type === "image" && <Pressable accessibilityRole="button" accessibilityLabel="Set image focal point" onPress={() => requireFeature("upload_gallery", () => { setFocalMedia(preview); setPreview(null); })} style={styles.previewButton}><Crosshair size={17} color="#FFF" /><Text style={styles.previewText}>Focal point</Text></Pressable>}
+            <Pressable accessibilityRole="button" accessibilityLabel="Delete media" onPress={() => setPreviewDeleteCandidate(preview)} style={[styles.previewButton, styles.previewDeleteButton]}><Trash2 size={17} color="#FFF" /><Text style={styles.previewText}>Delete</Text></Pressable>
+          </View>
         </View>}
-        {preview && <View style={styles.previewActions}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Move media earlier" onPress={() => reorderMedia(preview, -1)} style={styles.previewButton}><Text style={styles.previewText}>← Earlier</Text></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Move media later" onPress={() => reorderMedia(preview, 1)} style={styles.previewButton}><Text style={styles.previewText}>Later →</Text></Pressable>
-          {data.albums.length > 1 && <Pressable accessibilityRole="button" accessibilityLabel="Move media to another album" onPress={() => requireFeature("manage_albums", () => setMoveMediaItem(preview))} style={styles.previewButton}><Move size={17} color="#FFF" /><Text style={styles.previewText}>Move</Text></Pressable>}
-          {!preview.is_cover && <Pressable accessibilityRole="button" accessibilityLabel="Set media as album cover" onPress={() => { setCover(preview); setPreview(null); }} style={styles.previewButton}><Star size={17} color="#FFF" /><Text style={styles.previewText}>Set cover</Text></Pressable>}
-          {preview.resource_type === "image" && <Pressable accessibilityRole="button" accessibilityLabel="Set image focal point" onPress={() => requireFeature("upload_gallery", () => { setFocalMedia(preview); setPreview(null); })} style={styles.previewButton}><Crosshair size={17} color="#FFF" /><Text style={styles.previewText}>Focal point</Text></Pressable>}
-          <Pressable accessibilityRole="button" accessibilityLabel="Delete media" onPress={() => removeMedia(preview)} style={styles.previewButton}><Trash2 size={17} color="#FFF" /><Text style={styles.previewText}>Delete</Text></Pressable>
+        {previewDeleteCandidate && <View style={styles.previewConfirmBackdrop}>
+          <View style={styles.previewConfirmCard}>
+            <View style={styles.previewConfirmIcon}><Trash2 size={22} color="#FFF" /></View>
+            <Text style={styles.previewConfirmTitle}>Delete this media?</Text>
+            <Text style={styles.previewConfirmBody}>This permanently removes the image from this album and Cloudinary. This cannot be undone.</Text>
+            <View style={styles.previewConfirmActions}>
+              <Pressable disabled={Boolean(deletingMediaId)} onPress={() => setPreviewDeleteCandidate(null)} style={[styles.previewConfirmButton, styles.previewConfirmCancel]}><Text style={styles.previewConfirmCancelText}>Cancel</Text></Pressable>
+              <Pressable disabled={Boolean(deletingMediaId)} onPress={() => void deleteMediaNow(previewDeleteCandidate)} style={[styles.previewConfirmButton, styles.previewConfirmDelete]}>{deletingMediaId ? <ActivityIndicator color="#FFF" /> : <><Trash2 size={17} color="#FFF" /><Text style={styles.previewConfirmDeleteText}>Delete</Text></>}</Pressable>
+            </View>
+          </View>
         </View>}
       </View>
     </Modal>

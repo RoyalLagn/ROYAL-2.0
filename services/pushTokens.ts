@@ -26,6 +26,21 @@ export const PushTokenService = {
     if (!Notifications) return null;
     if (!Device.isDevice) return null;
 
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("enquiries", {
+        name: "New enquiries",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 180, 250],
+        lightColor: "#E91E63",
+        sound: "default",
+      });
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "RoyalLagn notifications",
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: "default",
+      });
+    }
+
     const { data: auth } = await supabase.auth.getUser();
     const profileId = auth.user?.id;
     if (!profileId) return null;

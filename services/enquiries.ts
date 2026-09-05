@@ -138,13 +138,14 @@ async function create(input: {
   const current = inFlight.get(key);
   if (current) return current;
   const promise = (async () => {
+    const actionToken = uuid();
     const { data, error } = await supabase.rpc("create_tracked_enquiry", {
       target_vendor_id: input.vendorId,
       channel: input.channel,
       source: input.source,
       source_id: input.sourceRecordId ?? null,
       guest_id: guestId,
-      request_token: uuid(),
+      request_token: actionToken,
       selected_package_id: input.packageId ?? null,
       event_on: input.eventDate ?? null,
       event_kind: input.eventType?.trim() || null,
@@ -154,6 +155,11 @@ async function create(input: {
     if (error) throw error;
     const result = Array.isArray(data) ? data[0] : data;
     if (!result?.id || !result?.reference_code) throw new Error("The enquiry could not be saved.");
+    // Push delivery is best-effort and must never roll back or hide a saved
+    // enquiry. The server verifies this unguessable action token and actor.
+    await supabase.functions.invoke("send-enquiry-push", {
+      body: { enquiryId: result.id, actionToken, guestId },
+    }).catch(() => null);
     return { id: String(result.id), referenceCode: String(result.reference_code), status: result.status as EnquiryStatus };
   })();
   inFlight.set(key, promise);

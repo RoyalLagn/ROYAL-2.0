@@ -9,12 +9,21 @@ const PLAY_STORE_URL =
   process.env.EXPO_PUBLIC_PLAY_STORE_URL?.trim() ||
   "https://play.google.com/store/apps/details?id=com.royallagn.app";
 const APP_STORE_URL = process.env.EXPO_PUBLIC_APP_STORE_URL?.trim() || "https://apps.apple.com";
+const DISMISSED_AT_KEY = "royallagn:download-app-popup:dismissed-at";
+const DISMISSAL_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function DownloadAppPopup({ dark }: { dark: boolean }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
+    let dismissedAt = 0;
+    try {
+      dismissedAt = Number(globalThis.localStorage?.getItem(DISMISSED_AT_KEY)) || 0;
+    } catch {
+      // Storage can be unavailable in private/restricted browser contexts.
+    }
+    if (Date.now() - dismissedAt < DISMISSAL_COOLDOWN_MS) return;
     const timer = setTimeout(() => setVisible(true), 1500);
     return () => clearTimeout(timer);
   }, []);
@@ -24,16 +33,28 @@ export default function DownloadAppPopup({ dark }: { dark: boolean }) {
   const cardColor = dark ? "#221A1E" : "#FFFFFF";
   const textColor = dark ? "#F8F1F4" : "#261A20";
   const mutedColor = dark ? "#B79AA5" : "#7A6670";
+  const dismissForSevenDays = () => {
+    try {
+      globalThis.localStorage?.setItem(DISMISSED_AT_KEY, String(Date.now()));
+    } catch {
+      // Still close the popup when storage is unavailable.
+    }
+    setVisible(false);
+  };
+  const openStore = (url: string) => {
+    dismissForSevenDays();
+    void Linking.openURL(url);
+  };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={dismissForSevenDays}>
       <View style={styles.backdrop}>
         <View style={[styles.card, { backgroundColor: cardColor }]}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Continue on web"
             style={styles.closeButton}
-            onPress={() => setVisible(false)}
+            onPress={dismissForSevenDays}
           >
             <X size={18} color={mutedColor} />
           </Pressable>
@@ -46,17 +67,17 @@ export default function DownloadAppPopup({ dark }: { dark: boolean }) {
           </Text>
           <Pressable
             style={[styles.storeButton, { backgroundColor: PINK }]}
-            onPress={() => void Linking.openURL(PLAY_STORE_URL)}
+            onPress={() => openStore(PLAY_STORE_URL)}
           >
             <Text style={styles.storeButtonText}>Download on Google Play</Text>
           </Pressable>
           <Pressable
             style={[styles.storeButton, { backgroundColor: PINK }]}
-            onPress={() => void Linking.openURL(APP_STORE_URL)}
+            onPress={() => openStore(APP_STORE_URL)}
           >
             <Text style={styles.storeButtonText}>Download on App Store</Text>
           </Pressable>
-          <Pressable style={styles.continueButton} onPress={() => setVisible(false)}>
+          <Pressable style={styles.continueButton} onPress={dismissForSevenDays}>
             <Text style={[styles.continueText, { color: mutedColor }]}>Continue on Web</Text>
           </Pressable>
         </View>
