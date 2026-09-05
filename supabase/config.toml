@@ -423,6 +423,12 @@ verify_jwt = false
 [functions.request-account-deletion]
 verify_jwt = false
 
+# Requires a valid customer JWT and independently enforces a recent email-OTP
+# authentication method before anonymizing retained enquiries and deleting the
+# caller's own auth account.
+[functions.delete-customer-account]
+verify_jwt = true
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

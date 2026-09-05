@@ -25,3 +25,46 @@ export async function requestAccountDeletion(input: AccountDeletionRequest): Pro
   if (!data?.reference) throw new Error("The deletion request did not return a reference number.");
   return String(data.reference);
 }
+
+export async function sendCustomerDeletionOtp(expectedUserId: string): Promise<string> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const user = userData.user;
+  if (userError || !user?.email || user.id !== expectedUserId) {
+    throw userError ?? new Error("Your customer session has expired. Please sign in again.");
+  }
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (profileError) throw profileError;
+  if (profile?.role !== "public_user") throw new Error("Only customer accounts can be deleted here.");
+  const email = user.email.trim().toLowerCase();
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false },
+  });
+  if (error) throw error;
+  return email;
+}
+
+export async function verifyCustomerDeletionOtp(expectedUserId: string, email: string, token: string) {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim().toLowerCase(),
+    token: token.trim(),
+    type: "email",
+  });
+  if (error) throw error;
+  if (!data.session || !data.user || data.user.id !== expectedUserId) {
+    await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+    throw new Error("The verified email does not belong to this customer account.");
+  }
+}
+
+export async function deleteVerifiedCustomerAccount(): Promise<string> {
+  const { data, error } = await supabase.functions.invoke("delete-customer-account");
+  if (error) throw new Error(error.message || "Unable to delete your account.");
+  if (data?.error) throw new Error(String(data.error));
+  if (!data?.reference) throw new Error("Account deletion did not return a confirmation reference.");
+  return String(data.reference);
+}

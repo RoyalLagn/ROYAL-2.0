@@ -596,6 +596,23 @@ assert.match(downloadAppPopupSource, /localStorage\?\.getItem\(DISMISSED_AT_KEY\
 assert.match(downloadAppPopupSource, /localStorage\?\.setItem\(DISMISSED_AT_KEY, String\(Date\.now\(\)\)\)/, "Closing the app-download popup must persist the dismissal time.");
 assert.match(downloadAppPopupSource, /setTimeout\(\(\) => setVisible\(true\), 1500\)/, "The existing app-download popup timing must remain unchanged.");
 
+// --- OTP-verified customer self-service account deletion --
+const [accountDeletionScreenSource, accountDeletionServiceSource, customerDeletionFunctionSource, customerDeletionMigrationSource] = await Promise.all([
+  read("app/account-deletion.tsx"),
+  read("services/accountDeletion.ts"),
+  read("supabase/functions/delete-customer-account/index.ts"),
+  read("supabase/migrations/20260905190000_customer_self_service_deletion.sql"),
+]);
+assert.match(accountDeletionScreenSource, /sendCustomerDeletionOtp/, "Customer deletion must require a fresh email OTP.");
+assert.match(accountDeletionScreenSource, /Delete my account permanently/, "Customer deletion must retain an explicit irreversible confirmation.");
+assert.match(accountDeletionServiceSource, /shouldCreateUser: false/, "Deletion OTP must never create a new auth user.");
+assert.match(customerDeletionFunctionSource, /hasRecentEmailOtp\(token\)/, "The deletion backend must verify recent OTP authentication server-side.");
+assert.match(customerDeletionFunctionSource, /profile\?\.role !== "public_user"/, "The deletion backend must reject non-customer roles.");
+assert.match(customerDeletionFunctionSource, /auth\.admin\.deleteUser\(user\.id\)/, "The deletion backend must only delete the authenticated user resolved from the JWT.");
+assert.doesNotMatch(customerDeletionFunctionSource, /body\.(?:user|profile|customer)_?id/i, "The deletion backend must never trust a client-supplied account identifier.");
+assert.match(customerDeletionMigrationSource, /customer_name = 'Deleted customer'[\s\S]*customer_email = null[\s\S]*customer_phone = null/, "Retained enquiries must be anonymized before customer deletion.");
+assert.match(customerDeletionMigrationSource, /role = 'public_user'/, "The deletion transaction must enforce the customer role in PostgreSQL too.");
+
 // --- Aggregate runner must still register every non-credentialed check --
 const runnerSource = await read("scripts/run-smoke-tests.mjs");
 const expectedChecks = [
