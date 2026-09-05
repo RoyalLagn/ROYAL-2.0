@@ -553,22 +553,22 @@ assert.match(webPdfSource, /import\("jspdf"\)/, "Web PDF export must retain its 
 assert.match(webPdfSource, /import\("html2canvas"\)/, "Web PDF export must retain its DOM capture path.");
 assert.match(sharedPdfSource, /PDF_EXPORT_WIDTH \/ PixelRatio\.get\(\)/, "Native hidden capture layout must compensate for device density.");
 
-// --- Public vendor links must pass through the shared protocol allowlist ---
+// --- Public vendor profile must not expose vendor location/social actions in About ---
 const publicVendorProfileSource = await read("app/vendors/[slug].tsx");
-assert.match(
+assert.doesNotMatch(
   publicVendorProfileSource,
-  /openWebsiteUrl\(vendor\.website\)/,
-  "Public vendor websites must use the normalized external-link opener.",
-);
-assert.match(
-  publicVendorProfileSource,
-  /openInstagramUrl\(vendor\.instagram\)/,
-  "Public vendor Instagram links must use the host-validated opener.",
+  /GetDirectionsButton|styles\.directionsRow/,
+  "Public vendor About must not render vendor directions.",
 );
 assert.doesNotMatch(
   publicVendorProfileSource,
-  /Linking\.openURL\(vendor\.(?:website|instagram)\)/,
-  "Untrusted vendor URLs must never be opened directly.",
+  /openWebsiteUrl|openInstagramUrl|styles\.linkChip/,
+  "Public vendor profiles must not render Website or Instagram actions.",
+);
+assert.doesNotMatch(
+  publicVendorProfileSource,
+  /sameAs:\s*\[vendor\.website, vendor\.instagram/,
+  "Public vendor structured metadata must not expose Website or Instagram links.",
 );
 
 // --- Category listing location ranking must never become a radius filter --

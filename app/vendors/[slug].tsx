@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Platform, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
+import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
 // NativeWind's native Pressable interop doesn't resolve a function
 // `style={(state) => [...]}` prop on Android (whole style silently drops).
 // InteropSafePressable resolves it first. See VendorCalendar.tsx /
@@ -8,7 +8,7 @@ import Pressable from "@/components/InteropSafePressable";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
-import { Briefcase, ChevronRight } from "lucide-react-native";
+import { Briefcase, ChevronRight, Send, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PublicClip } from "@/clips/types";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
@@ -38,8 +38,8 @@ import AwardsSection from "@/components/vendor-profile/AwardsSection";
 import LanguagesSection from "@/components/vendor-profile/LanguagesSection";
 import BusinessHoursSection from "@/components/vendor-profile/BusinessHoursSection";
 import FaqSection from "@/components/vendor-profile/FaqSection";
-import GetDirectionsButton from "@/components/vendor-profile/GetDirectionsButton";
 import DownloadAppPopup from "@/components/vendor-profile/DownloadAppPopup";
+import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { recordPublicVendorProfileView } from "@/services/publicVendorListings";
@@ -56,10 +56,6 @@ import {
 } from "@/services/vendorPublicProfile";
 import { resolveTrafficSource } from "@/services/trafficSource";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
-import {
-  openInstagram as openInstagramUrl,
-  openWebsite as openWebsiteUrl,
-} from "@/services/externalLinks";
 import { brandPalette } from "@/constants/brandPalette";
 import { buildVendorProfilePathBySlug, vendorWebBase } from "@/services/contactActions";
 import { usePublicClipsAvailability } from "@/hooks/usePublicClipsAvailability";
@@ -260,7 +256,6 @@ export default function VendorPublicProfileScreen() {
       areaServed: vendor.location || undefined,
       priceRange: vendor.startingPrice || undefined,
       telephone: vendor.contactPhone || undefined,
-      sameAs: [vendor.website, vendor.instagram, vendor.facebook].filter(Boolean),
       ...(vendor.reviews
         ? { aggregateRating: { "@type": "AggregateRating", ratingValue: vendor.rating, reviewCount: vendor.reviews } }
         : {}),
@@ -408,13 +403,6 @@ export default function VendorPublicProfileScreen() {
     }
   };
 
-  const openWebsite = () => {
-    void recordVendorProfileEvent(vendor.id, "website_click").catch(() => {});
-  };
-  const openInstagram = () => {
-    void recordVendorProfileEvent(vendor.id, "instagram_click").catch(() => {});
-  };
-
   const handleSendEnquiry = async () => {
     if (enquiryMessage.trim().length < 10) {
       setEnquiryError("Please add a short message of at least 10 characters.");
@@ -423,13 +411,16 @@ export default function VendorPublicProfileScreen() {
     setEnquiryStatus("sending");
     setEnquiryError("");
     try {
-      await EnquiryService.createFormEnquiry({
+      const tracked = await EnquiryService.createFormEnquiry({
         vendorId: vendor.id,
         message: enquiryMessage,
         source: "vendor_profile",
       });
       void recordVendorProfileEvent(vendor.id, "enquiry").catch(() => {});
-      setEnquiryStatus("sent");
+      setEnquiryStatus("idle");
+      setEnquiryMessage("");
+      setEnquiryOpen(false);
+      Alert.alert("Enquiry sent", `${vendor.name} received your enquiry. Reference: ${tracked.referenceCode}`);
     } catch (cause) {
       setEnquiryStatus("error");
       setEnquiryError(cause instanceof Error ? cause.message : "The enquiry could not be sent.");
@@ -454,7 +445,7 @@ export default function VendorPublicProfileScreen() {
             height={heroHeight}
             onBack={() => router.replace("/")}
             focalPoints={heroFocalPoints}
-            paused={heroViewerIndex !== null || calendarVisible || packagesVisible || Boolean(enquiryPackage)}
+            paused={heroViewerIndex !== null || calendarVisible || packagesVisible || enquiryOpen || Boolean(enquiryPackage)}
             onOpen={vendor.heroMedia.length ? setHeroViewerIndex : undefined}
           />
         )}
@@ -478,7 +469,7 @@ export default function VendorPublicProfileScreen() {
             dark={dark}
             onCall={() => requestVendorContact("call")}
             onWhatsApp={() => requestVendorContact("whatsapp")}
-            onEnquire={() => setEnquiryOpen((open) => !open)}
+            onEnquire={() => { setEnquiryError(""); setEnquiryStatus("idle"); setEnquiryOpen(true); }}
             onCalendar={() => setCalendarVisible(true)}
           />
         </VendorInfoPanel>
@@ -490,36 +481,6 @@ export default function VendorPublicProfileScreen() {
             subtitle={vendor.services.length ? `${vendor.services.length} active ${vendor.services.length === 1 ? "package" : "packages"} available` : "Request a custom package"}
             onPress={() => setPackagesVisible(true)}
           />
-
-          {enquiryOpen ? (
-            <View style={[styles.sectionCard, sectionCardStyle]}>
-              {enquiryStatus === "sent" ? (
-                <Text style={[styles.aboutText, { color: text }]}>
-                  Thanks! Your enquiry has been sent to {vendor.name}.
-                </Text>
-              ) : (
-                <>
-                  <SectionHeading dark={dark}>Send Enquiry</SectionHeading>
-                  <TextInput
-                    value={enquiryMessage}
-                    onChangeText={setEnquiryMessage}
-                    placeholder="Tell us about your event..."
-                    placeholderTextColor={muted}
-                    multiline
-                    style={[styles.enquiryInput, { color: text, borderColor: sectionDivider }]}
-                  />
-                  {enquiryError ? <Text style={styles.enquiryErrorText}>{enquiryError}</Text> : null}
-                  <Pressable
-                    style={[styles.enquirySubmit, { backgroundColor: PINK, opacity: enquiryStatus === "sending" ? 0.6 : 1 }]}
-                    disabled={enquiryStatus === "sending"}
-                    onPress={() => void handleSendEnquiry()}
-                  >
-                    <Text style={styles.enquirySubmitText}>{enquiryStatus === "sending" ? "Sending..." : "Send"}</Text>
-                  </Pressable>
-                </>
-              )}
-            </View>
-          ) : null}
 
           <VendorProfileTabs
             selected={selectedTab}
@@ -586,9 +547,6 @@ export default function VendorPublicProfileScreen() {
                 />
               </Pressable>
             ) : null}
-            <View style={styles.directionsRow}>
-              <GetDirectionsButton address={vendor.address} city={vendor.location} />
-            </View>
           </View>
 
           {vendor.services.length ? (
@@ -616,27 +574,6 @@ export default function VendorPublicProfileScreen() {
             <View style={[styles.sectionCard, sectionCardStyle]}>
               <SectionHeading dark={dark}>Business Hours</SectionHeading>
               <BusinessHoursSection hours={vendor.businessHours} dark={dark} />
-            </View>
-          ) : null}
-
-          {(vendor.website || vendor.instagram) ? (
-            <View style={[styles.sectionCard, sectionCardStyle, styles.linksRow]}>
-              {vendor.website ? (
-                <Pressable
-                  style={styles.linkChip}
-                  onPress={() => { openWebsite(); void openWebsiteUrl(vendor.website); }}
-                >
-                  <Text style={styles.linkChipText}>Website</Text>
-                </Pressable>
-              ) : null}
-              {vendor.instagram ? (
-                <Pressable
-                  style={styles.linkChip}
-                  onPress={() => { openInstagram(); void openInstagramUrl(vendor.instagram); }}
-                >
-                  <Text style={styles.linkChipText}>Instagram</Text>
-                </Pressable>
-              ) : null}
             </View>
           ) : null}
 
@@ -690,6 +627,31 @@ export default function VendorPublicProfileScreen() {
         }}
         onSent={() => setEnquiryPackage(null)}
       />
+      <AnimatedBottomSheet
+        visible={enquiryOpen}
+        onRequestClose={() => { if (enquiryStatus !== "sending") setEnquiryOpen(false); }}
+        variant={width >= 700 ? "center" : "sheet"}
+        sheetStyle={[styles.enquirySheet, width >= 700 && styles.enquirySheetDesktop, { backgroundColor: surface, borderColor: sectionDivider }]}
+      >
+        <View style={styles.enquiryHeader}>
+          <View style={styles.enquiryIcon}><Send size={20} color={PINK} /></View>
+          <View style={styles.enquiryHeaderCopy}><Text style={[styles.enquiryTitle, { color: text }]}>Send Enquiry</Text><Text numberOfLines={1} style={[styles.enquirySubtitle, { color: muted }]}>Tell {vendor.name} what you need</Text></View>
+          <Pressable disabled={enquiryStatus === "sending"} onPress={() => setEnquiryOpen(false)} accessibilityLabel="Close enquiry" style={[styles.enquiryClose, { backgroundColor: background }]}><X size={20} color={text} /></Pressable>
+        </View>
+        <TextInput
+          autoFocus={Platform.OS === "web"}
+          value={enquiryMessage}
+          onChangeText={(value) => { setEnquiryMessage(value); setEnquiryError(""); }}
+          placeholder="Tell us about your event..."
+          placeholderTextColor={muted}
+          multiline
+          style={[styles.enquiryInput, { color: text, borderColor: sectionDivider, backgroundColor: background }]}
+        />
+        {enquiryError ? <Text accessibilityRole="alert" style={styles.enquiryErrorText}>{enquiryError}</Text> : null}
+        <Pressable style={[styles.enquirySubmit, { backgroundColor: PINK }]} disabled={enquiryStatus === "sending"} onPress={() => void handleSendEnquiry()}>
+          {enquiryStatus === "sending" ? <ActivityIndicator color="#FFFFFF" /> : <><Send size={16} color="#FFFFFF" /><Text style={styles.enquirySubmitText}>Send enquiry</Text></>}
+        </Pressable>
+      </AnimatedBottomSheet>
       <VendorAvailabilityModal
         visible={calendarVisible}
         vendorId={vendor.id}
@@ -739,7 +701,6 @@ const styles = StyleSheet.create({
   aboutText: { maxWidth: 900, ...typeStyles.body },
   experienceRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
   experienceText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  directionsRow: { marginTop: 12 },
   readMore: {
     minHeight: 38,
     alignSelf: "flex-end",
@@ -764,11 +725,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   goBackText: { color: "#FFFFFF", fontSize: typeScale.body, fontWeight: "700" },
-  enquiryInput: { minHeight: 88, borderWidth: 1, borderRadius: 12, padding: 12, fontSize: typeScale.body, textAlignVertical: "top" },
+  enquirySheet: { width: "100%", borderWidth: 1, padding: 18 },
+  enquirySheetDesktop: { maxWidth: 560, borderRadius: 28, paddingBottom: 24 },
+  enquiryHeader: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 14 },
+  enquiryIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: `${PINK}12`, alignItems: "center", justifyContent: "center" },
+  enquiryHeaderCopy: { flex: 1, minWidth: 0 },
+  enquiryTitle: { ...typeStyles.editorialCardTitle },
+  enquirySubtitle: { fontSize: typeScale.caption, marginTop: 2 },
+  enquiryClose: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  enquiryInput: { minHeight: 120, borderWidth: 1, borderRadius: 14, padding: 13, fontSize: typeScale.body, textAlignVertical: "top" },
   enquiryErrorText: { color: "#DC2626", fontSize: typeScale.bodyCompact, marginTop: 6 },
-  enquirySubmit: { marginTop: 12, minHeight: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  enquirySubmit: { marginTop: 12, minHeight: 50, borderRadius: 15, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
   enquirySubmitText: { color: "#FFFFFF", fontWeight: "700", fontSize: typeScale.body },
-  linksRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
-  linkChip: { minHeight: 38, paddingHorizontal: 14, borderRadius: 19, borderWidth: 1, borderColor: PINK, alignItems: "center", justifyContent: "center" },
-  linkChipText: { color: PINK, fontSize: typeScale.bodyCompact, fontWeight: "700" },
 });
