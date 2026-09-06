@@ -47,7 +47,7 @@ export default function ResultsSummary({ count, category, sortLabel, dark, onSor
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: 48, marginTop: 4, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  row: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   count: { flex: 1, minWidth: 0, ...typeStyles.cardTitle },
   sort: { maxWidth: "42%", minHeight: 40, paddingHorizontal: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 },
   sortText: { flexShrink: 1, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },

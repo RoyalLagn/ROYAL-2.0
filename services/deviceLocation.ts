@@ -15,6 +15,7 @@ const PREVIOUSLY_DENIED_KEY = "royallagn:device-location-denied:v1";
 const LAST_LOCATION_LABEL_KEY = "royallagn:last-device-location-label:v1";
 const LAST_LOCATION_COORDINATES_KEY = "royallagn:last-device-location-coordinates:v1";
 const RECENT_COORDINATES_MAX_AGE_MS = 30 * 60 * 1000;
+const locationLabelListeners = new Set<(label: string) => void>();
 
 export type DevicePermissionStatus = "granted" | "denied" | "undetermined";
 
@@ -55,7 +56,21 @@ export async function getLastDetectedLocationLabel(): Promise<string | null> {
 
 async function rememberLocationLabel(label: string) {
   await AsyncStorage.setItem(LAST_LOCATION_LABEL_KEY, label).catch(() => {});
+  locationLabelListeners.forEach((listener) => listener(label));
   return label;
+}
+
+export function shortLocationLabel(label: string | null | undefined): string {
+  return label?.split(",")[0]?.trim() || "Set location";
+}
+
+export async function saveLocationDisplayLabel(label: string) {
+  return rememberLocationLabel(shortLocationLabel(label));
+}
+
+export function subscribeToLocationDisplayLabel(listener: (label: string) => void) {
+  locationLabelListeners.add(listener);
+  return () => locationLabelListeners.delete(listener);
 }
 
 /** Whether the user has already denied the permission in a previous visit

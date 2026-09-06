@@ -12,7 +12,9 @@ import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import { useCategories } from "@/context/CategoryContext";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
+import PublicWebNavbar from "@/components/PublicWebNavbar";
 import { buildVendorListingPath } from "@/services/publicSeoRoutes";
+import { discoveryLayout } from "@/constants/discoveryLayout";
 
 const INITIAL_ANIMATED_CARDS = 6;
 const SKELETON_DELAY_MS = 200;
@@ -20,6 +22,7 @@ const SKELETON_MINIMUM_MS = 320;
 const SKELETON_IDS = Array.from({ length: 8 }, (_, index) => `category-skeleton-${index}`);
 
 type ListEntry =
+  | { kind: "search"; id: string }
   | { kind: "category"; id: string; category: CategoryCardItem; entranceIndex: number }
   | { kind: "skeleton"; id: string };
 
@@ -163,10 +166,12 @@ export default function CategoriesScreen() {
     });
   }, [categories, query, selectedCategory]);
 
-  const entries = useMemo<ListEntry[]>(() => showSkeleton
-    ? SKELETON_IDS.map((id) => ({ kind: "skeleton", id }))
-    : filtered.map((category, entranceIndex) => ({ kind: "category", id: category.id, category, entranceIndex })),
-  [filtered, showSkeleton]);
+  const entries = useMemo<ListEntry[]>(() => {
+    const content: ListEntry[] = showSkeleton
+      ? SKELETON_IDS.map((id) => ({ kind: "skeleton" as const, id }))
+      : filtered.map((category, entranceIndex) => ({ kind: "category" as const, id: category.id, category, entranceIndex }));
+    return twoColumns ? content : [{ kind: "search", id: "category-search" }, ...content];
+  }, [filtered, showSkeleton, twoColumns]);
 
   const headerStyle = useAnimatedStyle(() => ({
     opacity: interpolate(entrance.value, [0, reducedMotion ? 0.25 : 0.38], [0, 1], Extrapolation.CLAMP),
@@ -205,24 +210,23 @@ export default function CategoriesScreen() {
     setSelectedCategory(category);
     setFiltersVisible(false);
   }, []);
-  const renderItem = useCallback(({ item }: { item: ListEntry }) => item.kind === "skeleton"
-    ? <CategorySkeleton width={cardWidth} compact={compactCards} dark={isDark} />
-    : <CategoryListItem entry={item} width={cardWidth} compact={compactCards} dark={isDark} entrance={entrance} reducedMotion={reducedMotion} onSelect={openCategory} />,
-  [cardWidth, compactCards, entrance, isDark, openCategory, reducedMotion]);
+  const renderItem = useCallback(({ item }: { item: ListEntry }) => {
+    if (item.kind === "search") {
+      return (
+        <Animated.View style={[s.stickySearch, { width: contentWidth, backgroundColor: bg }, searchStyle]}>
+          <CategorySearchBar dark={isDark} query={query} activeFilterCount={selectedCategory ? 1 : 0} onChangeQuery={setQuery} onOpenFilters={openFilters} />
+        </Animated.View>
+      );
+    }
+    return item.kind === "skeleton"
+      ? <CategorySkeleton width={cardWidth} compact={compactCards} dark={isDark} />
+      : <CategoryListItem entry={item} width={cardWidth} compact={compactCards} dark={isDark} entrance={entrance} reducedMotion={reducedMotion} onSelect={openCategory} />;
+  }, [bg, cardWidth, compactCards, contentWidth, entrance, isDark, openCategory, openFilters, query, reducedMotion, searchStyle, selectedCategory]);
   const keyExtractor = useCallback((item: ListEntry) => item.id, []);
 
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top", "left", "right"]}>
       {loading && !categories.length ? <PageLoader /> : null}
-      <View style={[s.topContent, { width: contentWidth }]}>
-        <Animated.View style={headerStyle}>
-          <CategoryPageHeader dark={isDark} onBack={goBack} entrance={entrance} reducedMotion={reducedMotion} />
-        </Animated.View>
-        <Animated.View style={searchStyle}>
-          <CategorySearchBar dark={isDark} query={query} activeFilterCount={selectedCategory ? 1 : 0} onChangeQuery={setQuery} onOpenFilters={openFilters} />
-        </Animated.View>
-      </View>
-
       <FlatList
         key={twoColumns ? "category-grid-2" : "category-grid-1"}
         data={entries}
@@ -239,6 +243,24 @@ export default function CategoriesScreen() {
         windowSize={7}
         removeClippedSubviews={!isDesktop}
         contentContainerStyle={[s.list, { width: contentWidth, paddingBottom: 36 }]}
+        stickyHeaderIndices={twoColumns ? undefined : [1]}
+        ListHeaderComponent={(
+          <View>
+            {!isDesktop ? (
+              <View style={{ width: screenWidth, marginLeft: -horizontalInset }}>
+                <PublicWebNavbar activeRoute="Categories" />
+              </View>
+            ) : null}
+            <Animated.View style={headerStyle}>
+              <CategoryPageHeader dark={isDark} entrance={entrance} reducedMotion={reducedMotion} />
+            </Animated.View>
+            {twoColumns ? (
+              <Animated.View style={[s.desktopSearch, searchStyle]}>
+                <CategorySearchBar dark={isDark} query={query} activeFilterCount={selectedCategory ? 1 : 0} onChangeQuery={setQuery} onOpenFilters={openFilters} />
+              </Animated.View>
+            ) : null}
+          </View>
+        )}
         ListEmptyComponent={!loading && !showSkeleton ? (
           <View style={[s.empty, { borderColor: border }]}>
             <Text style={[s.emptyTitle, { color: text }]}>No categories found</Text>
@@ -254,10 +276,20 @@ export default function CategoriesScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1 },
-  topContent: { alignSelf: "center", paddingTop: 4 },
   list: { alignSelf: "center" },
+  stickySearch: {
+    marginTop: discoveryLayout.headerSearchOverlap,
+    paddingTop: discoveryLayout.stickySearchPaddingTop,
+    paddingBottom: discoveryLayout.stickySearchPaddingBottom,
+    zIndex: 10,
+  },
+  desktopSearch: {
+    marginTop: discoveryLayout.headerSearchOverlap,
+    paddingTop: discoveryLayout.stickySearchPaddingTop,
+    paddingBottom: discoveryLayout.stickySearchPaddingBottom,
+  },
   column: { gap: 16 },
-  separator: { height: 16 },
+  separator: { height: discoveryLayout.resultsGap },
   skeletonCard: { borderRadius: 16, flexDirection: "row", alignItems: "center", paddingLeft: 18, overflow: "hidden" },
   skeletonCompact: { height: 120, paddingLeft: 14 },
   skeletonWide: { height: 154 },

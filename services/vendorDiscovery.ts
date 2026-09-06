@@ -28,7 +28,7 @@ export type NearbyVendorPageResult = {
 
 export type LocationRankedVendorSort = "popular" | "rating" | "price";
 
-function formatDistanceLabel(distanceKm: number): string {
+export function formatDistanceLabel(distanceKm: number): string {
   if (!Number.isFinite(distanceKm)) return "";
   if (distanceKm < 1) return `${Math.max(Math.round(distanceKm * 1000), 0)} m away`;
   return `${distanceKm.toFixed(1)} km away`;
@@ -45,7 +45,8 @@ function mapNearbyRow(row: any): NearbyVendorCard {
     rating: Number(row.average_rating ?? 0),
     reviews: Number(row.review_count ?? 0),
     priceLevel: "₹ ₹",
-    location: formatDistanceLabel(distanceKm) || [row.city, row.state].filter(Boolean).join(", "),
+    location: [row.city, row.state].filter(Boolean).join(", "),
+    distanceKm,
     address: "",
     tags: Array.isArray(row.tags) ? row.tags : [],
     services: Array.isArray(row.service_titles) ? row.service_titles : [],
@@ -126,7 +127,7 @@ export async function fetchNearbyVendors(input: FetchNearbyVendorsInput): Promis
 export type FetchLocationRankedVendorsInput = {
   latitude: number;
   longitude: number;
-  categoryDisplayName: string;
+  categoryDisplayName?: string;
   search?: string;
   minRating?: number;
   maxPrice?: number;
@@ -149,7 +150,9 @@ export async function fetchLocationRankedVendors(
   const { data, error } = await supabase.rpc("get_location_ranked_vendors", {
     user_lat: input.latitude,
     user_lng: input.longitude,
-    p_category_names: databaseCategoryCandidates(input.categoryDisplayName),
+    p_category_names: input.categoryDisplayName
+      ? databaseCategoryCandidates(input.categoryDisplayName)
+      : null,
     p_search: input.search?.trim() || null,
     p_min_rating: input.minRating ?? null,
     p_max_price: input.maxPrice ?? null,

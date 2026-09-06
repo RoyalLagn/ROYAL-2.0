@@ -85,7 +85,7 @@ export default function HomeFilterModal({ visible, dark, value, city, onClose, o
             <View style={styles.headerIcon}><SlidersHorizontal size={18} color={PINK} /></View>
             <View style={styles.flex}>
               <Text style={[styles.title, { color: colors.text }]}>Filter vendors</Text>
-              <Text style={[styles.subtitle, { color: colors.muted }]}>Refine global results without leaving Home.</Text>
+              <Text style={[styles.subtitle, { color: colors.muted }]}>Refine vendor results in one place.</Text>
             </View>
             <Pressable accessibilityRole="button" accessibilityLabel="Close filters" onPress={onClose} style={styles.close}>
               <X size={20} color={colors.text} />
@@ -154,8 +154,8 @@ export default function HomeFilterModal({ visible, dark, value, city, onClose, o
                 {draft.nearbyOnly ? <Check size={14} color="#FFFFFF" /> : null}
               </View>
               <View style={styles.flex}>
-                <Text style={[styles.nearbyTitle, { color: colors.text }]}>Near {city} only</Text>
-                <Text style={[styles.nearbyDescription, { color: colors.muted }]}>Hide vendors outside your selected city.</Text>
+                <Text style={[styles.nearbyTitle, { color: colors.text }]}>Near Me</Text>
+                <Text style={[styles.nearbyDescription, { color: colors.muted }]}>Use your current location and order vendors from nearest to farthest{city ? ` near ${city}` : ""}.</Text>
               </View>
             </Pressable>
           </ScrollView>

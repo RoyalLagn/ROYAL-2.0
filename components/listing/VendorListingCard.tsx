@@ -10,6 +10,7 @@ import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading, typeStyles } from "@/constants/typography";
+import { formatDistanceLabel } from "@/services/vendorDiscovery";
 
 const PINK = brandPalette.light.primary;
 
@@ -42,6 +43,9 @@ function VendorListingCard({
   const border = colors.border;
   const imageUri = vendor.image.replace(/([?&])w=\d+/, "$1w=900");
   const membershipBadge = membershipBadgeFor(vendor.membershipPlan);
+  const distanceLabel = typeof vendor.distanceKm === "number"
+    ? formatDistanceLabel(vendor.distanceKm)
+    : "";
 
   return (
     <View
@@ -119,6 +123,7 @@ function VendorListingCard({
           <View style={styles.meta}>
             <MapPin size={13} color={PINK} />
             <Text numberOfLines={1} style={[styles.location, { color: muted }]}>{vendor.location}</Text>
+            {distanceLabel ? <Text numberOfLines={1} style={styles.distance}>{distanceLabel}</Text> : null}
           </View>
           {!compact && vendor.description ? (
             <Text numberOfLines={2} style={[styles.description, { color: muted }]}>{vendor.description}</Text>
@@ -201,6 +206,7 @@ const styles = StyleSheet.create({
   rating: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   reviews: { fontFamily: fonts.sans.regular, fontSize: typeScale.metadata },
   location: { flex: 1, minWidth: 0, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata },
+  distance: { flexShrink: 0, color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
   description: { maxWidth: 580, marginTop: 5, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   tags: { marginTop: 6, flexDirection: "row", flexWrap: "wrap", gap: 5 },
   tag: { maxWidth: "46%", minHeight: 25, borderRadius: 999, paddingHorizontal: 9, alignItems: "center", justifyContent: "center" },

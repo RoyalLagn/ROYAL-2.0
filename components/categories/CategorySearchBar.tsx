@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginTop: 0,
-    marginBottom: 14,
+    marginBottom: 0,
   },
   search: { flex: 1, minWidth: 0, height: 50 },
   filter: {

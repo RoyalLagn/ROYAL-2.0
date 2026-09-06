@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,26 +10,50 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, ChevronRight, Search as SearchIcon } from "lucide-react-native";
-import CompactSearchBar from "@/components/listing/CompactSearchBar";
-import SafeImage from "@/components/SafeImage";
+import { ChevronRight, Search as SearchIcon } from "lucide-react-native";
 import { StandaloneMobileTabBar, useMobileTabBarHeight } from "@/components/MobileTabBar";
 import { useColorScheme } from "nativewind";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import {
+  databaseCategoryCandidates,
   getApprovedPublicVendors,
   subscribeToPublicVendorChanges,
   type PublicVendorListing,
 } from "@/services/publicVendorListings";
 import { useCategories } from "@/context/CategoryContext";
-import CategoryBadge from "@/components/categories/CategoryBadge";
 import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
-import { typeScale } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { useCustomerLocation } from "@/context/LocationContext";
-import { vendorNearbyLabel } from "@/services/locations";
 import { buildVendorListingPath, buildVendorProfilePathBySlug } from "@/services/publicSeoRoutes";
 import { rankVendorsByLocationAndMembership } from "@/locations/domain";
+import VendorListingCard from "@/components/listing/VendorListingCard";
+import { useFavorites } from "@/context/FavoritesContext";
+import { fetchLocationRankedVendors } from "@/services/vendorDiscovery";
+import {
+  getCurrentDeviceLocation,
+  getDevicePermissionStatus,
+  getLastDetectedCoordinates,
+  requestDeviceLocationPermission,
+  requestDeviceLocationServices,
+  reverseGeocodeLabel,
+  saveLocationDisplayLabel,
+} from "@/services/deviceLocation";
+import PublicWebNavbar from "@/components/PublicWebNavbar";
+import CategoryPageHeader from "@/components/categories/CategoryPageHeader";
+import CategorySearchBar from "@/components/categories/CategorySearchBar";
+import HomeFilterModal, { DEFAULT_HOME_FILTERS, type HomeFilters } from "@/components/home/HomeFilterModal";
+import CategoryFilterChips from "@/components/listing/CategoryFilterChips";
+import { TalukaLocationSelector } from "@/components/locations/TalukaLocationSelector";
+import type { GeoSelection, GeoState } from "@/locations/types";
+import { discoveryLayout } from "@/constants/discoveryLayout";
+import {
+  clearGuestGeoPreference,
+  fetchTalukaVendorPageCards,
+  listActiveGeoStates,
+  loadGuestGeoPreference,
+  saveGuestGeoPreference,
+  validateGeoSelection,
+} from "@/services/geoLocations";
 
 const GLOBAL_PAGES = [
   { label: "Categories", detail: "Browse every wedding service", keywords: "categories services vendors browse", route: "/(tabs)/Categories" as const },
@@ -55,7 +80,8 @@ export default function SearchScreen() {
   const { width } = useWindowDimensions();
   const { getRating } = useReviewRatings();
   const { searchCategories } = useCategories();
-  const { preference } = useCustomerLocation();
+  const { preference, location: customerLocation } = useCustomerLocation();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const mobileTabBarHeight = useMobileTabBarHeight();
   const params = useLocalSearchParams<{
     query?: string;
@@ -72,6 +98,15 @@ export default function SearchScreen() {
   const [query, setQuery] = useState(initialQuery);
   const [vendors, setVendors] = useState<PublicVendorListing[]>([]);
   const [vendorsLoading, setVendorsLoading] = useState(true);
+  const [distanceByVendor, setDistanceByVendor] = useState<Record<string, number>>({});
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [geoStates, setGeoStates] = useState<GeoState[]>([]);
+  const [geoSelection, setGeoSelection] = useState<GeoSelection | null>(null);
+  const [geoTalukaName, setGeoTalukaName] = useState("");
+  const [geoResults, setGeoResults] = useState<PublicVendorListing[]>([]);
+  const [geoLoading, setGeoLoading] = useState(true);
+  const [geoError, setGeoError] = useState("");
 
   useEffect(() => {
     const nextQuery = Array.isArray(params.query) ? params.query[0] : params.query ?? "";
@@ -101,16 +136,146 @@ export default function SearchScreen() {
     };
   }, []);
 
-  const minimumRating = Number(Array.isArray(params.rating) ? params.rating[0] : params.rating) || 0;
-  const maximumBudget = Number(Array.isArray(params.budget) ? params.budget[0] : params.budget) || 0;
-  const selectedCategory = Array.isArray(params.category) ? params.category[0] : params.category ?? "";
-  const availabilityOnly = (Array.isArray(params.availability) ? params.availability[0] : params.availability) === "true";
-  const sort = Array.isArray(params.sort) ? params.sort[0] : params.sort ?? "recommended";
+  const [filters, setFilters] = useState<HomeFilters>(() => ({
+    ...DEFAULT_HOME_FILTERS,
+    minimumRating: Number(Array.isArray(params.rating) ? params.rating[0] : params.rating) || 0,
+    maximumBudget: Number(Array.isArray(params.budget) ? params.budget[0] : params.budget) || 0,
+    category: Array.isArray(params.category) ? params.category[0] : params.category ?? "",
+    availabilityOnly: (Array.isArray(params.availability) ? params.availability[0] : params.availability) === "true",
+    nearbyOnly: (Array.isArray(params.nearby) ? params.nearby[0] : params.nearby) === "true",
+    sort: (Array.isArray(params.sort) ? params.sort[0] : params.sort ?? "recommended") as HomeFilters["sort"],
+  }));
+
+  useEffect(() => {
+    let active = true;
+    setGeoLoading(true);
+    Promise.all([listActiveGeoStates(), loadGuestGeoPreference()])
+      .then(async ([states, stored]) => {
+        if (!active) return;
+        setGeoStates(states);
+        if (!stored) return;
+        const validated = await validateGeoSelection(stored);
+        if (!active) return;
+        if (validated) {
+          setGeoSelection({ stateId: validated.stateId, districtId: validated.districtId, talukaId: validated.talukaId });
+          setGeoTalukaName(validated.talukaName);
+        } else {
+          await clearGuestGeoPreference();
+        }
+      })
+      .catch(() => { if (active) setGeoError("Location options could not be loaded. Try again."); })
+      .finally(() => { if (active) setGeoLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  const allCategoryNames = useMemo(() => {
+    const names = searchCategories.flatMap((category) => databaseCategoryCandidates(category.name));
+    return [...new Set(names)];
+  }, [searchCategories]);
+
+  useEffect(() => {
+    if (!geoSelection || !allCategoryNames.length) {
+      setGeoResults([]);
+      return;
+    }
+    let active = true;
+    setGeoLoading(true);
+    setGeoError("");
+    const categoryNames = filters.category ? databaseCategoryCandidates(filters.category) : allCategoryNames;
+    fetchTalukaVendorPageCards({
+      categoryNames,
+      talukaId: geoSelection.talukaId,
+      search: query || undefined,
+      minRating: filters.minimumRating || undefined,
+      maxPrice: filters.maximumBudget || undefined,
+      sort: filters.sort === "recommended" ? "popular" : filters.sort,
+      limit: 200,
+    })
+      .then((page) => { if (active) setGeoResults(page.cards.map((card) => card.vendor)); })
+      .catch(() => { if (active) setGeoError("Vendors for this location could not be loaded. Try another location."); })
+      .finally(() => { if (active) setGeoLoading(false); });
+    return () => { active = false; };
+  }, [allCategoryNames, filters.category, filters.maximumBudget, filters.minimumRating, filters.sort, geoSelection, query]);
+
+  const selectGeoLocation = useCallback((selection: GeoSelection, _districtName: string, talukaName: string) => {
+    setGeoSelection(selection);
+    setGeoTalukaName(talukaName);
+    setGeoError("");
+    setFilters((current) => ({ ...current, nearbyOnly: false }));
+    void saveGuestGeoPreference(selection);
+    void saveLocationDisplayLabel(talukaName);
+  }, []);
+
+  const clearGeoLocation = useCallback(() => {
+    setGeoSelection(null);
+    setGeoTalukaName("");
+    setGeoError("");
+    void clearGuestGeoPreference();
+  }, []);
+
+  const loadDistances = useCallback(async (requestAccess: boolean) => {
+    setLocationLoading(true);
+    try {
+      let coordinates = await getLastDetectedCoordinates();
+      if (!coordinates) {
+        let permission = await getDevicePermissionStatus();
+        if (permission !== "granted" && requestAccess) permission = await requestDeviceLocationPermission();
+        if (permission !== "granted") {
+          if (requestAccess) Alert.alert("Location permission needed", "Allow location access to sort vendors nearest to you.");
+          return false;
+        }
+        if (requestAccess && !(await requestDeviceLocationServices())) return false;
+        coordinates = await getCurrentDeviceLocation().catch(() => null);
+      }
+      if (!coordinates) return false;
+      const ranked = await fetchLocationRankedVendors({
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        categoryDisplayName: filters.category || undefined,
+        search: query || undefined,
+        sort: "popular",
+        limit: 200,
+      });
+      setDistanceByVendor(Object.fromEntries(ranked.cards.map((card) => [card.vendor.id, card.distanceKm])));
+      return true;
+    } catch {
+      if (requestAccess) Alert.alert("Location unavailable", "Turn on device location and try Near Me again.");
+      return false;
+    } finally {
+      setLocationLoading(false);
+    }
+  }, [filters.category, query]);
+
+  const useCurrentLocation = useCallback(async () => {
+    let permission = await getDevicePermissionStatus();
+    if (permission !== "granted") permission = await requestDeviceLocationPermission();
+    if (permission !== "granted") throw new Error("Location permission was not granted.");
+    if (!(await requestDeviceLocationServices())) throw new Error("Location services remain off.");
+    const coordinates = await getCurrentDeviceLocation();
+    const label = await reverseGeocodeLabel(coordinates).catch(() => null);
+    setGeoSelection(null);
+    setGeoTalukaName("");
+    setGeoError("");
+    await clearGuestGeoPreference();
+    if (label) await saveLocationDisplayLabel(label);
+    setFilters((current) => ({ ...current, nearbyOnly: true }));
+    await loadDistances(true);
+  }, [loadDistances]);
+
+  useEffect(() => {
+    void loadDistances(false);
+  }, [loadDistances]);
 
   const results = useMemo(() => {
-    const ratedVendors = vendors.map((vendor) => {
+    const sourceVendors = geoSelection ? geoResults : vendors;
+    const ratedVendors = sourceVendors.map((vendor) => {
       const current = getRating(vendor.id, vendor.rating, vendor.reviews);
-      return { ...vendor, rating: current.rating, reviews: current.reviews };
+      return {
+        ...vendor,
+        rating: current.rating,
+        reviews: current.reviews,
+        distanceKm: distanceByVendor[vendor.id] ?? null,
+      };
     });
     const filtered = ratedVendors.filter((vendor) => {
       const searchable = [
@@ -122,27 +287,31 @@ export default function SearchScreen() {
         vendor.description,
       ].join(" ");
       return matchesKeyword(searchable, query)
-        && (!selectedCategory || vendor.category === selectedCategory)
-        && (!minimumRating || vendor.rating >= minimumRating)
-        && (!maximumBudget || (
+        && (!filters.category || vendor.category === filters.category)
+        && (!filters.minimumRating || vendor.rating >= filters.minimumRating)
+        && (!filters.maximumBudget || (
           vendor.startingPriceValue > 0
-          && vendor.startingPriceValue <= maximumBudget
+          && vendor.startingPriceValue <= filters.maximumBudget
         ))
-        && (!availabilityOnly || vendor.isAvailable);
+        && (!filters.availabilityOnly || vendor.isAvailable)
+        && (!filters.nearbyOnly || typeof vendor.distanceKm === "number");
     });
 
     const baseSorted = [...filtered].sort((a, b) => {
-      if (sort === "rating") return b.rating - a.rating || b.reviews - a.reviews;
-      if (sort === "price") {
+      if (filters.nearbyOnly) {
+        return (a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceKm ?? Number.POSITIVE_INFINITY);
+      }
+      if (filters.sort === "rating") return b.rating - a.rating || b.reviews - a.reviews;
+      if (filters.sort === "price") {
         return (a.startingPriceValue || Number.MAX_SAFE_INTEGER)
           - (b.startingPriceValue || Number.MAX_SAFE_INTEGER);
       }
       return b.rating - a.rating || b.reviews - a.reviews;
     });
-    return sort === "recommended"
+    return filters.sort === "recommended" && !filters.nearbyOnly
       ? rankVendorsByLocationAndMembership(baseSorted, preference)
       : baseSorted;
-  }, [availabilityOnly, getRating, maximumBudget, minimumRating, preference, query, selectedCategory, sort, vendors]);
+  }, [distanceByVendor, filters, geoResults, geoSelection, getRating, preference, query, vendors]);
 
   const pageResults = useMemo(() => {
     if (!query.trim()) return { fixedPages: [], categoryPages: [] };
@@ -158,54 +327,88 @@ export default function SearchScreen() {
     return { fixedPages, categoryPages };
   }, [query, searchCategories]);
 
-  const submit = () => setQuery(draftQuery.trim());
-  const activeFilterCount = [minimumRating > 0, maximumBudget > 0, Boolean(selectedCategory), availabilityOnly, sort !== "recommended"].filter(Boolean).length;
+  const activeFilterCount = [filters.minimumRating > 0, filters.maximumBudget > 0, Boolean(filters.category), filters.availabilityOnly, filters.nearbyOnly, filters.sort !== "recommended"].filter(Boolean).length;
+  const locationLabel = geoTalukaName || customerLocation || "Choose location";
   const horizontalInset = width < 380 ? 14 : width < 600 ? 16 : 24;
   const contentWidth = Math.min(width - horizontalInset * 2, 980);
-  const goBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
-    router.replace("/(tabs)");
-  };
-
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-      {vendorsLoading ? <PageLoader /> : null}
-      <View style={[styles.searchHeader, { width: contentWidth }]}>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          className="w-10 h-10 rounded-full bg-muted items-center justify-center"
-          onPress={goBack}
-        >
-          <ArrowLeft size={20} className="text-foreground" />
-        </TouchableOpacity>
-        <CompactSearchBar
-          accessibilityLabel="Search vendors, categories and services"
-          value={draftQuery}
-          onChangeText={(value) => {
-            setDraftQuery(value);
-            if (!value) setQuery("");
-          }}
-          onSubmit={submit}
-          placeholder="Search vendors, categories, services…"
-          dark={isDark}
-          style={styles.search}
-        />
-      </View>
-
+      {vendorsLoading || (Boolean(geoSelection) && geoLoading) ? <PageLoader /> : null}
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.results, { width: contentWidth, paddingBottom: mobileTabBarHeight }]}
+        contentContainerStyle={{ paddingBottom: mobileTabBarHeight }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[1]}
       >
-        <View className="flex-row items-center justify-between">
-          <Text className="text-sm text-muted-foreground">{results.length} vendor results</Text>
-          {activeFilterCount ? <Text className="text-primary text-xs font-semibold">{activeFilterCount} filters active</Text> : null}
+        <View>
+          <PublicWebNavbar
+            activeRoute={null}
+            locationControl={(
+              <TalukaLocationSelector
+                states={geoStates}
+                value={geoSelection}
+                displayLabel={locationLabel}
+                onChange={selectGeoLocation}
+                onClear={clearGeoLocation}
+                onUseCurrentLocation={useCurrentLocation}
+                loading={geoLoading}
+                hideLabel
+                compact
+                variant="navbar"
+              />
+            )}
+          />
+          <View style={{ width: contentWidth, alignSelf: "center" }}>
+            <CategoryPageHeader dark={isDark} title="Find Vendors" />
+          </View>
         </View>
+        <View style={[styles.stickySearch, { backgroundColor: isDark ? "#070B14" : "#FFFBFD" }]}>
+          <View style={{ width: contentWidth, alignSelf: "center" }}>
+            <CategorySearchBar
+              dark={isDark}
+              query={draftQuery}
+              activeFilterCount={activeFilterCount}
+              accessibilityLabel="Search vendors, categories and services"
+              placeholder="Search vendors, categories, services…"
+              onChangeQuery={(value) => {
+                setDraftQuery(value);
+                setQuery(value.trim());
+              }}
+              onOpenFilters={() => setFiltersVisible(true)}
+            />
+            <View style={styles.filterStrip}>
+              <CategoryFilterChips
+                dark={isDark}
+                active={{
+                  sort: filters.sort !== "recommended",
+                  price: filters.maximumBudget > 0,
+                  rating: filters.minimumRating > 0,
+                }}
+                onPress={() => setFiltersVisible(true)}
+                trailing={(
+                  <TalukaLocationSelector
+                    states={geoStates}
+                    value={geoSelection}
+                    displayLabel={locationLabel}
+                    onChange={selectGeoLocation}
+                    onClear={clearGeoLocation}
+                    onUseCurrentLocation={useCurrentLocation}
+                    loading={geoLoading}
+                    hideLabel
+                    compact
+                  />
+                )}
+              />
+              {geoError ? <Text accessibilityRole="alert" style={styles.locationError}>{geoError}</Text> : null}
+            </View>
+          </View>
+        </View>
+        <View style={[styles.results, { width: contentWidth }]}>
+          <View className="flex-row items-center justify-between">
+          <Text className="text-sm text-muted-foreground">{results.length} vendor results</Text>
+          <Text className="text-primary text-xs font-semibold">{filters.nearbyOnly ? (locationLoading ? "Finding distance…" : "Nearest first") : activeFilterCount ? `${activeFilterCount} filters active` : filters.sort === "rating" ? "Highest rated" : "Recommended"}</Text>
+          </View>
 
         {pageResults.fixedPages.length || pageResults.categoryPages.length ? (
           <View className="bg-card border border-border rounded-2xl p-2">
@@ -232,32 +435,16 @@ export default function SearchScreen() {
         ) : null}
 
         {results.map((vendor) => (
-          <TouchableOpacity
+          <VendorListingCard
             key={`${vendor.category}-${vendor.id}`}
-            className="bg-card border border-border rounded-2xl p-3 flex-row"
-            onPress={() => router.push({ pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]", params: { slug: vendor.slug, src: "search" } })}
-          >
-            <SafeImage
-              accessibilityLabel={`${vendor.name} listing`}
-              source={{ uri: vendor.image }}
-              fallbackSource={resolveMarketplaceCategoryImage(vendor.category).fallbackSource}
-              debugLabel={`search result: ${vendor.name}`}
-              deliveryWidth={80}
-              deliveryHeight={80}
-              deliveryCrop="fit"
-              resizeMode="contain"
-              style={styles.resultImage}
-            />
-            <View className="ml-3 flex-1 justify-center">
-              <Text className="text-foreground font-semibold">{vendor.name}</Text>
-              {vendorNearbyLabel(vendor, preference) ? <Text className="text-primary text-metadata font-bold mt-0.5">{vendorNearbyLabel(vendor, preference)}</Text> : null}
-              <View style={styles.categoryMeta}>
-                <CategoryBadge name={vendor.category} style={styles.categoryBadge} />
-                <Text className="text-primary text-xs">· {vendor.rating} ★</Text>
-              </View>
-              <Text className="text-muted-foreground text-xs mt-1">{vendor.location} · {vendor.startingPrice}</Text>
-            </View>
-          </TouchableOpacity>
+            vendor={vendor}
+            dark={isDark}
+            compact={width < 700}
+            favorite={isFavorite(vendor.id)}
+            fallbackImage={resolveMarketplaceCategoryImage(vendor.category).fallbackSource}
+            onOpen={() => router.push({ pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]", params: { slug: vendor.slug, src: "search" } })}
+            onToggleFavorite={(source) => toggleFavorite(vendor, source)}
+          />
         ))}
 
         {!results.length ? (
@@ -267,33 +454,45 @@ export default function SearchScreen() {
             <Text className="text-muted-foreground text-xs text-center mt-1">Try a broader keyword or reset filters from Home.</Text>
           </View>
         ) : null}
+        </View>
       </ScrollView>
 
-      <StandaloneMobileTabBar activeRoute="Categories" />
+      <StandaloneMobileTabBar activeRoute={null} />
+      <HomeFilterModal
+        visible={filtersVisible}
+        dark={isDark}
+        value={filters}
+        city={customerLocation}
+        onClose={() => setFiltersVisible(false)}
+        onApply={(next) => {
+          setFilters(next);
+          setFiltersVisible(false);
+          if (next.nearbyOnly) {
+            setGeoSelection(null);
+            setGeoTalukaName("");
+            void clearGuestGeoPreference();
+            void loadDistances(true);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  searchHeader: {
-    alignSelf: "center",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingTop: 10,
-    paddingBottom: 10,
+  stickySearch: {
+    marginTop: discoveryLayout.headerSearchOverlap,
+    paddingTop: discoveryLayout.stickySearchPaddingTop,
+    paddingBottom: discoveryLayout.stickySearchPaddingBottom,
+    zIndex: 10,
   },
-  search: {
-    flex: 1,
-    minWidth: 0,
-  },
-  resultImage: { width: 80, height: 80, borderRadius: 12, backgroundColor: "#FFFFFF" },
-  categoryMeta: { marginTop: 4, flexDirection: "row", alignItems: "center", gap: 3 },
-  categoryBadge: { color: "#E91E63", fontSize: typeScale.bodyCompact },
+  filterStrip: { marginTop: discoveryLayout.controlsGap },
+  locationError: { color: "#DC2626", fontSize: 12, lineHeight: 16, marginTop: 5 },
   scroll: { flex: 1 },
   results: {
     alignSelf: "center",
     paddingTop: 6,
-    gap: 12,
+    paddingHorizontal: 0,
+    gap: discoveryLayout.resultsGap,
   },
 });

@@ -1,23 +1,21 @@
 import React from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
-import { ChevronLeft, Crown } from "lucide-react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Crown } from "lucide-react-native";
 import Animated, { Extrapolation, interpolate, type SharedValue, useAnimatedStyle } from "react-native-reanimated";
-import { typeStyles } from "@/constants/typography";
+import { typeLeading, typeScale, typeStyles } from "@/constants/typography";
 import { brandPalette } from "@/constants/brandPalette";
-import Pressable from "@/components/InteropSafePressable";
 
 const PINK = brandPalette.light.primary;
 
 type CategoryPageHeaderProps = {
   dark: boolean;
-  onBack: () => void;
+  title?: string;
   entrance?: SharedValue<number>;
   reducedMotion?: boolean;
 };
 
-function CategoryPageHeader({ dark, onBack, entrance, reducedMotion = false }: CategoryPageHeaderProps) {
+function CategoryPageHeader({ dark, title = "All Categories", entrance, reducedMotion = false }: CategoryPageHeaderProps) {
   const text = dark ? "#F8F2F5" : "#15111E";
-  const hover = dark ? "#2A2226" : "#FFF2F7";
   const ornamentStyle = useAnimatedStyle(() => ({
     opacity: entrance ? interpolate(entrance.value, [0.08, 0.38], [0, 1], Extrapolation.CLAMP) : 1,
     transform: [{
@@ -29,22 +27,8 @@ function CategoryPageHeader({ dark, onBack, entrance, reducedMotion = false }: C
 
   return (
     <View style={styles.header}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-        onPress={onBack}
-        style={({ pressed, hovered }) => [
-          styles.action,
-          { borderColor: dark ? "#3D3036" : "#F0E1E7" },
-          hovered && Platform.OS === "web" && { backgroundColor: hover },
-          pressed && styles.pressed,
-        ]}
-      >
-        <ChevronLeft size={26} color={text} strokeWidth={2} />
-      </Pressable>
-
       <View pointerEvents="none" style={styles.titleBlock}>
-        <Text style={[styles.title, { color: text }]}>All Categories</Text>
+        <Text style={[styles.title, { color: text }]}>{title}</Text>
         <Animated.View style={[styles.ornament, ornamentStyle]}>
           <View style={styles.line} />
           <Crown size={14} color={PINK} strokeWidth={1.7} />
@@ -52,7 +36,6 @@ function CategoryPageHeader({ dark, onBack, entrance, reducedMotion = false }: C
         </Animated.View>
       </View>
 
-      <View style={styles.actionSpacer} />
     </View>
   );
 }
@@ -60,15 +43,14 @@ function CategoryPageHeader({ dark, onBack, entrance, reducedMotion = false }: C
 export default React.memo(CategoryPageHeader);
 
 const styles = StyleSheet.create({
-  header: { minHeight: 86, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  action: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  actionSpacer: { width: 44, height: 44 },
-  pressed: { opacity: 0.74, transform: [{ scale: 0.97 }] },
+  header: { minHeight: 58, alignItems: "center", justifyContent: "center" },
   titleBlock: { flex: 1, minWidth: 0, alignItems: "center", paddingHorizontal: 12 },
   title: {
     ...typeStyles.editorialPageTitle,
+    fontSize: typeScale.editorialCardTitle,
+    lineHeight: typeLeading.editorialCardTitle,
     textAlign: "center",
   },
-  ornament: { marginTop: 5, flexDirection: "row", alignItems: "center", gap: 7 },
+  ornament: { marginTop: 3, flexDirection: "row", alignItems: "center", gap: 7 },
   line: { width: 30, height: 1, backgroundColor: "#E9B65C" },
 });

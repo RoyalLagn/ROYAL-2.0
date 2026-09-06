@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Alert, Image, Platform, Pressable, Text, useWindowDimensions, View } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Image, Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Bell, Clapperboard, Grid3X3, Heart, Home, MessageSquareText, Share2, User } from "lucide-react-native";
+import { Bell, Clapperboard, Grid3X3, Heart, Home, MapPin, MessageSquareText, Share2, User } from "lucide-react-native";
 import { cssInterop, useColorScheme } from "nativewind";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
   interpolate,
   useAnimatedStyle,
@@ -22,6 +23,21 @@ import { useFavorites } from "@/context/FavoritesContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { shareRoyalLagnApp } from "@/services/AppShareService";
+import {
+  DeviceLocationError,
+  getCurrentDeviceLocation,
+  getDevicePermissionStatus,
+  getLastDetectedLocationLabel,
+  requestDeviceLocationPermission,
+  requestDeviceLocationServices,
+  reverseGeocodeLabel,
+  shortLocationLabel,
+  subscribeToLocationDisplayLabel,
+} from "@/services/deviceLocation";
+import { useCustomerLocation } from "@/context/LocationContext";
+import { brandColors, brandPalette } from "@/constants/brandPalette";
+import { fonts, typeScale } from "@/constants/typography";
+import Pressable from "@/components/InteropSafePressable";
 
 cssInterop(Home, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3, { className: { target: "style", nativeStyleToProp: { color: true } } });
@@ -32,6 +48,9 @@ cssInterop(User, { className: { target: "style", nativeStyleToProp: { color: tru
 
 type PublicWebNavbarProps = {
   activeRoute?: "Home" | "NearMe" | "Categories" | "Clips" | "Enquiry";
+  showMobile?: boolean;
+  includeSafeTop?: boolean;
+  locationControl?: React.ReactNode;
 };
 
 function NavItem({
@@ -132,17 +151,61 @@ function DesktopFavoritesButton({ onPress }: { onPress: () => void }) {
 
 export default function PublicWebNavbar({
   activeRoute = "Categories",
+  showMobile = true,
+  includeSafeTop = false,
+  locationControl,
 }: PublicWebNavbarProps) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileLayoutWidth, setMobileLayoutWidth] = useState(0);
+  const [deviceLocationLabel, setDeviceLocationLabel] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
   const openAuthenticationGateway = useAuthenticationGateway();
   const { unreadCount } = useNotifications();
   const { profile, isPublicAuthenticated } = usePublicAuth();
+  const { location } = useCustomerLocation();
+  const colors = brandColors(isDark);
 
-  if (Platform.OS !== "web" || width < 1100) return null;
+  useEffect(() => {
+    let active = true;
+    void getLastDetectedLocationLabel().then((label) => {
+      if (active && label) setDeviceLocationLabel(label);
+    });
+    const unsubscribe = subscribeToLocationDisplayLabel((label) => {
+      if (active) setDeviceLocationLabel(label);
+    });
+    return () => { active = false; unsubscribe(); };
+  }, []);
+
+  const fetchCurrentLocation = useCallback(async () => {
+    if (locating) return;
+    setLocating(true);
+    try {
+      let permission = await getDevicePermissionStatus();
+      if (permission !== "granted") permission = await requestDeviceLocationPermission();
+      if (permission !== "granted") {
+        Alert.alert("Location permission needed", "Allow location access to detect your current location.");
+        return;
+      }
+      if (!(await requestDeviceLocationServices())) {
+        Alert.alert("Turn on location", "Enable location services, then tap the location button again.");
+        return;
+      }
+      const coordinates = await getCurrentDeviceLocation();
+      const label = await reverseGeocodeLabel(coordinates);
+      setDeviceLocationLabel(label ?? "Current location");
+    } catch (error) {
+      const message = error instanceof DeviceLocationError && error.reason === "timeout"
+        ? "Location detection timed out. Please try again."
+        : "We couldn't detect your current location. Check location services and try again.";
+      Alert.alert("Location unavailable", message);
+    } finally {
+      setLocating(false);
+    }
+  }, [locating]);
 
   const submitSearch = () => {
     router.push({ pathname: "/Search", params: { query: searchQuery.trim() } });
@@ -154,6 +217,92 @@ export default function PublicWebNavbar({
       Alert.alert("Unable to share", "Please try sharing RoyalLagn again.");
     }
   };
+
+  if (Platform.OS !== "web" || width < 1100) {
+    if (!showMobile) return null;
+    const availableWidth = mobileLayoutWidth || width;
+    const horizontalInset = availableWidth < 380 ? 14 : availableWidth < 480 ? 18 : 20;
+    const logoWidth = availableWidth < 390 ? 112 : 132;
+
+    return (
+      <SafeAreaView
+        edges={includeSafeTop ? ["top", "left", "right"] : ["left", "right"]}
+        onLayout={(event) => {
+          const nextWidth = Math.round(event.nativeEvent.layout.width);
+          if (nextWidth > 0 && nextWidth !== mobileLayoutWidth) setMobileLayoutWidth(nextWidth);
+        }}
+        style={[mobileStyles.safeArea, { backgroundColor: colors.background }]}
+      >
+        <View style={[mobileStyles.header, { width: availableWidth, paddingHorizontal: horizontalInset }]}>
+          {locationControl ?? <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={locating ? "Detecting current location" : "Detect current location"}
+            accessibilityState={{ busy: locating, disabled: locating }}
+            disabled={locating}
+            onPress={() => void fetchCurrentLocation()}
+            hitSlop={4}
+            style={({ pressed }) => [mobileStyles.location, pressed && mobileStyles.pressed]}
+          >
+            <View style={[mobileStyles.locationIcon, { backgroundColor: colors.actionTint }]}>
+              {locating
+                ? <ActivityIndicator size="small" color={colors.primaryStrong} />
+                : <MapPin size={15} color={colors.primaryStrong} strokeWidth={2.1} />}
+            </View>
+            <View style={mobileStyles.locationCopy}>
+              <Text style={[mobileStyles.locationLabel, { color: colors.mutedForeground }]}>Location</Text>
+              <Text style={[mobileStyles.locationValue, { color: colors.primaryStrong }]} numberOfLines={1}>
+                {shortLocationLabel(deviceLocationLabel || location)}
+              </Text>
+            </View>
+          </Pressable>}
+
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel="RoyalLagn home"
+            onPress={() => router.push("/(tabs)")}
+            style={({ pressed }) => [mobileStyles.logo, pressed && mobileStyles.pressed]}
+          >
+            <RoyalLagnLogo width={logoWidth} height={44} />
+          </Pressable>
+
+          <View style={mobileStyles.actions}>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel="Open enquiries"
+              onPress={() => router.push("/(tabs)/enquiry")}
+              hitSlop={4}
+              style={({ pressed }) => [mobileStyles.action, pressed && mobileStyles.pressed]}
+            >
+              <MessageSquareText size={20} color={colors.foreground} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
+              onPress={() => router.push("/Notifications")}
+              hitSlop={4}
+              style={({ pressed }) => [mobileStyles.action, pressed && mobileStyles.pressed]}
+            >
+              <Bell size={20} color={colors.foreground} />
+              {unreadCount > 0 ? (
+                <View style={[mobileStyles.badge, { borderColor: colors.background }]}>
+                  <Text style={mobileStyles.badgeText}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Share RoyalLagn"
+              onPress={shareApp}
+              hitSlop={4}
+              style={({ pressed }) => [mobileStyles.action, pressed && mobileStyles.pressed]}
+            >
+              <Share2 size={20} color={colors.foreground} />
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <HomeReveal
@@ -255,3 +404,64 @@ export default function PublicWebNavbar({
     </HomeReveal>
   );
 }
+
+const mobileStyles = StyleSheet.create({
+  safeArea: {
+    width: "100%",
+    alignSelf: "stretch",
+    zIndex: 50,
+  },
+  header: {
+    width: "100%",
+    minHeight: 52,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  location: {
+    width: "33.333%",
+    minHeight: 44,
+    flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 12,
+  },
+  locationIcon: {
+    width: 27,
+    height: 27,
+    flexShrink: 0,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  locationCopy: { flex: 1, minWidth: 0, justifyContent: "center" },
+  locationLabel: { fontFamily: fonts.sans.medium, fontSize: 9, lineHeight: 11 },
+  locationValue: { marginTop: 1, fontFamily: fonts.sans.bold, fontSize: typeScale.caption, lineHeight: 15 },
+  logo: { width: "33.334%", minWidth: 0, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 12 },
+  actions: { width: "33.333%", flexDirection: "row", alignItems: "center" },
+  action: {
+    flex: 1,
+    minWidth: 0,
+    height: 44,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  badge: {
+    position: "absolute",
+    top: 3,
+    right: 0,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 2,
+    backgroundColor: brandPalette.light.primaryStrong,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: { color: "#FFFFFF", fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
+  pressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
+});

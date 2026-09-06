@@ -47,6 +47,7 @@ export type PublicVendorListing = {
   reviews: number;
   priceLevel: string;
   location: string;
+  distanceKm?: number | null;
   address: string;
   tags: string[];
   services: string[];

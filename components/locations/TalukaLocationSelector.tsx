@@ -27,6 +27,8 @@ type Props = {
   loading?: boolean;
   hideLabel?: boolean;
   compact?: boolean;
+  variant?: "default" | "navbar";
+  displayLabel?: string;
 };
 
 /**
@@ -39,16 +41,20 @@ type Props = {
  * only ever loaded for the currently selected State, and Talukas only for
  * the currently selected District -- this component never loads India's
  * full hierarchy into the client. When exactly one State is active (true
- * for the current Maharashtra-only rollout) it is preselected automatically
- * to keep the flow to two taps; the moment a second State goes active in
- * geo_states, a State-selection row appears here with no code change
- * required anywhere else.
+ * for the current Maharashtra-only rollout) it is preselected automatically,
+ * while the State dropdown remains visible so the hierarchy is always clear.
+ * Additional active States appear in that searchable dropdown automatically.
  */
-export function TalukaLocationSelector({ states, value, onChange, onClear, onResolvedLabel, onUseCurrentLocation, loading, hideLabel = false, compact = false }: Props) {
+export function TalukaLocationSelector({ states, value, onChange, onClear, onResolvedLabel, onUseCurrentLocation, loading, hideLabel = false, compact = false, variant = "default", displayLabel }: Props) {
   const { colorScheme } = useColorScheme();
   const colors = brandColors(colorScheme === "dark");
   const [visible, setVisible] = useState(false);
   const [query, setQuery] = useState("");
+  const [stateQuery, setStateQuery] = useState("");
+  const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
+  const [districtQuery, setDistrictQuery] = useState("");
+  const [districtDropdownOpen, setDistrictDropdownOpen] = useState(false);
+  const [focusedSearch, setFocusedSearch] = useState<"state" | "district" | null>(null);
   const [selectedStateId, setSelectedStateId] = useState<string | null>(null);
   const [selectedDistrictId, setSelectedDistrictId] = useState<string | null>(null);
   const [districts, setDistricts] = useState<GeoDistrict[]>([]);
@@ -162,6 +168,16 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
       talukaName: taluka.name,
     })).filter((item) => !needle || item.label.toLowerCase().includes(needle));
   }, [districts, talukas, query, selectedDistrictId, selectedStateId]);
+  const activeDistrict = districts.find((district) => district.id === selectedDistrictId);
+  const activeState = states.find((state) => state.id === selectedStateId);
+  const filteredStates = useMemo(() => {
+    const needle = stateQuery.trim().toLowerCase();
+    return states.filter((state) => !needle || state.name.toLowerCase().includes(needle));
+  }, [stateQuery, states]);
+  const filteredDistricts = useMemo(() => {
+    const needle = districtQuery.trim().toLowerCase();
+    return districts.filter((district) => !needle || district.name.toLowerCase().includes(needle));
+  }, [districtQuery, districts]);
 
   const loadingOptions = loadingDistricts || loadingTalukas;
 
@@ -180,14 +196,17 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
     }
   };
 
-  const display = selectedTalukaName
+  const fullDisplay = displayLabel || (selectedTalukaName
     ? showStateStep
       ? `${selectedTalukaName}, ${selectedDistrictName}, ${selectedStateName}`
       : `${selectedTalukaName}, ${selectedDistrictName}`
-    : compact ? "Choose location" : "Choose your District & Taluka";
+    : compact ? "Choose location" : "Choose your District & Taluka");
+  const display = variant === "navbar"
+    ? fullDisplay.split(",")[0]?.trim() || "Set location"
+    : fullDisplay;
 
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, variant === "navbar" && styles.navbarField]}>
       {!hideLabel ? <Text style={[styles.label, { color: colors.foreground }]} nativeID="taluka-selector-label">Where do you need the service?</Text> : null}
       <View style={styles.controlRow}>
         <Pressable
@@ -195,15 +214,33 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
           accessibilityState={{ expanded: visible }}
           accessibilityLabel={selectedTalukaName ? `Change service location, currently ${display}` : "Choose your District and Taluka"}
           onPress={() => setVisible(true)}
-          style={({ pressed }) => [styles.control, compact && styles.controlCompact, { backgroundColor: colors.background, borderColor: colors.border }, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.control,
+            compact && styles.controlCompact,
+            variant === "navbar" && styles.navbarControl,
+            variant === "navbar" ? null : { backgroundColor: colors.background, borderColor: colors.border },
+            pressed && styles.pressed,
+          ]}
         >
-          <MapPin size={18} color={colors.primary} />
-          <Text numberOfLines={1} style={[styles.value, { color: colors.foreground }, !selectedTalukaName && { color: colors.mutedForeground }]}>
-            {display}
-          </Text>
-          {loading ? <ActivityIndicator size="small" color={colors.primary} /> : <ChevronDown size={18} color={colors.mutedForeground} />}
+          {variant === "navbar" ? (
+            <>
+              <View style={[styles.navbarIcon, { backgroundColor: colors.actionTint }]}>
+                {loading ? <ActivityIndicator size="small" color={colors.primaryStrong} /> : <MapPin size={15} color={colors.primaryStrong} strokeWidth={2.1} />}
+              </View>
+              <View style={styles.navbarCopy}>
+                <Text style={[styles.navbarLabel, { color: colors.mutedForeground }]}>Location</Text>
+                <Text numberOfLines={1} style={[styles.navbarValue, { color: colors.primaryStrong }]}>{display}</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <MapPin size={18} color={colors.primary} />
+              <Text numberOfLines={1} style={[styles.value, { color: colors.foreground }, !selectedTalukaName && { color: colors.mutedForeground }]}>{display}</Text>
+              {loading ? <ActivityIndicator size="small" color={colors.primary} /> : <ChevronDown size={18} color={colors.mutedForeground} />}
+            </>
+          )}
         </Pressable>
-        {value && onClear ? (
+        {variant !== "navbar" && value && onClear ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Remove service location ${display}`}
@@ -218,6 +255,7 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
       <Modal visible={visible} transparent accessibilityViewIsModal animationType={Platform.OS === "web" ? "fade" : "slide"} onRequestClose={() => setVisible(false)}>
         <Pressable style={styles.backdrop} onPress={() => setVisible(false)}>
           <Pressable style={[styles.sheet, { backgroundColor: colors.background }]} onPress={(event) => event.stopPropagation()}>
+            <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
             <View style={styles.header}>
               <View style={styles.flex}>
                 <Text style={[styles.title, { color: colors.foreground }]}>Choose your location</Text>
@@ -237,68 +275,164 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
                   accessibilityLabel="Use current location to find nearby vendors"
                   disabled={usingCurrentLocation}
                   onPress={() => void handleUseCurrentLocation()}
-                  style={({ pressed }) => [styles.currentLocation, { borderColor: colors.border, backgroundColor: colors.secondary }, pressed && styles.pressed]}
+                  style={({ pressed }) => [styles.currentLocation, { backgroundColor: colors.primaryStrong }, pressed && styles.actionPressed]}
                 >
-                  <View style={[styles.currentLocationIcon, { backgroundColor: colors.background }]}>
+                  <View style={styles.currentLocationIcon}>
                     {usingCurrentLocation
-                      ? <ActivityIndicator size="small" color={colors.primary} />
-                      : <LocateFixed size={19} color={colors.primary} />}
+                      ? <ActivityIndicator size="small" color="#FFFFFF" />
+                      : <LocateFixed size={20} color="#FFFFFF" strokeWidth={2.2} />}
                   </View>
                   <View style={styles.flex}>
-                    <Text style={[styles.currentLocationTitle, { color: colors.primaryStrong }]}>Use current location</Text>
-                    <Text style={[styles.currentLocationDetail, { color: colors.mutedForeground }]}>Show vendors nearest to you</Text>
+                    <Text style={styles.currentLocationTitle}>Use current location</Text>
+                    <Text style={styles.currentLocationDetail}>Show vendors nearest to you</Text>
                   </View>
+                  <ChevronDown size={18} color="#FFFFFF" style={styles.currentLocationArrow} />
                 </Pressable>
                 {currentLocationError ? <Text accessibilityRole="alert" style={[styles.currentLocationError, { color: colors.destructive }]}>{currentLocationError}</Text> : null}
               </>
             ) : null}
 
-            {showStateStep ? (
-              <View style={styles.stateRow}>
-                <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>State</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stateChips}>
-                  {states.map((state) => {
-                    const selected = state.id === selectedStateId;
-                    return (
-                      <Pressable
-                        key={state.id}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected }}
-                        accessibilityLabel={`Select ${state.name}`}
-                        onPress={() => { setSelectedStateId(state.id); setSelectedDistrictId(null); setQuery(""); }}
-                        style={[styles.stateChip, { borderColor: colors.border, backgroundColor: colors.background }, selected && { borderColor: colors.primary, backgroundColor: colors.secondary }]}
-                      >
-                        <Text style={[styles.stateChipText, { color: selected ? colors.primaryStrong : colors.mutedForeground }]}>{state.name}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            ) : null}
+            <View style={styles.stateRow}>
+              <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>State</Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: stateDropdownOpen }}
+                accessibilityLabel={activeState ? `Change State, currently ${activeState.name}` : "Choose State"}
+                onPress={() => {
+                  setStateDropdownOpen((open) => !open);
+                  setDistrictDropdownOpen(false);
+                }}
+                style={({ pressed }) => [styles.districtSelect, { borderColor: colors.border, backgroundColor: colors.input }, stateDropdownOpen && { borderColor: colors.primary }, pressed && styles.pressed]}
+              >
+                <MapPin size={17} color={colors.primary} />
+                <Text numberOfLines={1} style={[styles.districtSelectText, { color: activeState ? colors.foreground : colors.mutedForeground }]}>
+                  {activeState?.name ?? "Choose State"}
+                </Text>
+                <ChevronDown size={18} color={colors.mutedForeground} style={stateDropdownOpen ? styles.chevronOpen : undefined} />
+              </Pressable>
+
+              {stateDropdownOpen ? (
+                <View style={[styles.districtDropdown, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                  <View style={[styles.dropdownSearch, { backgroundColor: colors.background, borderColor: focusedSearch === "state" ? colors.ring : colors.border }]}>
+                    <Search size={18} color={focusedSearch === "state" ? colors.primaryStrong : colors.mutedForeground} strokeWidth={2} />
+                    <TextInput
+                      autoFocus={Platform.OS === "web"}
+                      value={stateQuery}
+                      onChangeText={setStateQuery}
+                      onFocus={() => setFocusedSearch("state")}
+                      onBlur={() => setFocusedSearch(null)}
+                      placeholder="Search State"
+                      placeholderTextColor={colors.mutedForeground}
+                      style={[styles.dropdownSearchInput, { color: colors.foreground }]}
+                      accessibilityLabel="Search State"
+                    />
+                  </View>
+                  <ScrollView style={styles.districtOptions} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                    {filteredStates.map((state) => {
+                      const selected = state.id === selectedStateId;
+                      return (
+                        <Pressable
+                          key={state.id}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          accessibilityLabel={`Select ${state.name} State`}
+                          onPress={() => {
+                            setSelectedStateId(state.id);
+                            setSelectedDistrictId(null);
+                            setStateDropdownOpen(false);
+                            setStateQuery("");
+                            setDistrictQuery("");
+                            setQuery("");
+                          }}
+                          style={[styles.districtOption, { borderBottomColor: colors.border }, selected && { backgroundColor: colors.secondary }]}
+                        >
+                          <Text style={[styles.districtOptionText, { color: colors.foreground }]}>{state.name}</Text>
+                          {selected ? <Check size={17} color={colors.primary} /> : null}
+                        </Pressable>
+                      );
+                    })}
+                    {!filteredStates.length ? (
+                      <Text style={[styles.districtEmpty, { color: colors.mutedForeground }]}>No State found.</Text>
+                    ) : null}
+                  </ScrollView>
+                </View>
+              ) : null}
+            </View>
 
             <View style={styles.districtRow}>
               <Text style={[styles.stepLabel, { color: colors.mutedForeground }]}>District</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stateChips}>
-                {districts.map((district) => {
-                  const selected = district.id === selectedDistrictId;
-                  return (
-                    <Pressable
-                      key={district.id}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                      accessibilityLabel={`Select ${district.name} District`}
-                      onPress={() => { setSelectedDistrictId(district.id); setQuery(""); }}
-                      style={[styles.stateChip, { borderColor: colors.border, backgroundColor: colors.background }, selected && { borderColor: colors.primary, backgroundColor: colors.secondary }]}
-                    >
-                      <Text style={[styles.stateChipText, { color: selected ? colors.primaryStrong : colors.mutedForeground }]}>{district.name}</Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: districtDropdownOpen }}
+                accessibilityLabel={activeDistrict ? `Change District, currently ${activeDistrict.name}` : "Choose District"}
+                onPress={() => {
+                  setDistrictDropdownOpen((open) => !open);
+                  setStateDropdownOpen(false);
+                }}
+                style={({ pressed }) => [styles.districtSelect, { borderColor: colors.border, backgroundColor: colors.input }, districtDropdownOpen && { borderColor: colors.primary }, pressed && styles.pressed]}
+              >
+                <MapPin size={17} color={colors.primary} />
+                <Text numberOfLines={1} style={[styles.districtSelectText, { color: activeDistrict ? colors.foreground : colors.mutedForeground }]}>
+                  {activeDistrict?.name ?? "Choose District"}
+                </Text>
+                {loadingDistricts
+                  ? <ActivityIndicator size="small" color={colors.primary} />
+                  : <ChevronDown size={18} color={colors.mutedForeground} style={districtDropdownOpen ? styles.chevronOpen : undefined} />}
+              </Pressable>
+
+              {districtDropdownOpen ? (
+                <View style={[styles.districtDropdown, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                  <View style={[styles.dropdownSearch, { backgroundColor: colors.background, borderColor: focusedSearch === "district" ? colors.ring : colors.border }]}>
+                    <Search size={18} color={focusedSearch === "district" ? colors.primaryStrong : colors.mutedForeground} strokeWidth={2} />
+                    <TextInput
+                      autoFocus={Platform.OS === "web"}
+                      value={districtQuery}
+                      onChangeText={setDistrictQuery}
+                      onFocus={() => setFocusedSearch("district")}
+                      onBlur={() => setFocusedSearch(null)}
+                      placeholder="Search District"
+                      placeholderTextColor={colors.mutedForeground}
+                      style={[styles.dropdownSearchInput, { color: colors.foreground }]}
+                      accessibilityLabel="Search District"
+                    />
+                  </View>
+                  <ScrollView style={styles.districtOptions} nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                    {filteredDistricts.map((district) => {
+                      const selected = district.id === selectedDistrictId;
+                      return (
+                        <Pressable
+                          key={district.id}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          accessibilityLabel={`Select ${district.name} District`}
+                          onPress={() => {
+                            setSelectedDistrictId(district.id);
+                            setDistrictDropdownOpen(false);
+                            setDistrictQuery("");
+                            setQuery("");
+                          }}
+                          style={[styles.districtOption, { borderBottomColor: colors.border }, selected && { backgroundColor: colors.secondary }]}
+                        >
+                          <Text style={[styles.districtOptionText, { color: colors.foreground }]}>{district.name}</Text>
+                          {selected ? <Check size={17} color={colors.primary} /> : null}
+                        </Pressable>
+                      );
+                    })}
+                    {!loadingDistricts && !filteredDistricts.length ? (
+                      <Text style={[styles.districtEmpty, { color: colors.mutedForeground }]}>No District found.</Text>
+                    ) : null}
+                  </ScrollView>
+                </View>
+              ) : null}
             </View>
 
             {selectedDistrictId ? (
-              <View style={[styles.search, { backgroundColor: colors.input }]}>
+              <>
+                <View style={styles.talukaSectionHeader}>
+                  <Text style={[styles.talukaSectionTitle, { color: colors.foreground }]}>Choose a Taluka</Text>
+                  {!loadingOptions ? <Text style={[styles.talukaCount, { color: colors.mutedForeground }]}>{options.length} available</Text> : null}
+                </View>
+              <View style={[styles.search, { backgroundColor: colors.background, borderColor: colors.border }]}>
                 <Search size={17} color={colors.mutedForeground} />
                 <TextInput
                   value={query}
@@ -309,6 +443,7 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
                   accessibilityLabel="Search Taluka"
                 />
               </View>
+              </>
             ) : null}
             <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
               {loadingOptions ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} /> : null}
@@ -326,8 +461,11 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
                       setVisible(false);
                       setQuery("");
                     }}
-                    style={[styles.option, { borderBottomColor: colors.border }, selected && { backgroundColor: colors.secondary }]}
+                    style={({ pressed }) => [styles.option, { borderBottomColor: colors.border }, selected && { backgroundColor: colors.secondary }, pressed && styles.optionPressed]}
                   >
+                    <View style={[styles.optionIcon, { backgroundColor: selected ? colors.background : colors.actionTint }]}>
+                      <MapPin size={16} color={colors.primaryStrong} strokeWidth={2.1} />
+                    </View>
                     <View style={styles.flex}>
                       <Text style={[styles.optionTitle, { color: colors.foreground }]}>{item.label}</Text>
                       <Text style={[styles.optionDetail, { color: colors.mutedForeground }]}>{item.detail}</Text>
@@ -351,35 +489,56 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
 
 const styles = StyleSheet.create({
   field: { marginBottom: 4 },
+  navbarField: { width: "33.333%", flexShrink: 0, marginBottom: 0 },
   controlRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   flex: { flex: 1, minWidth: 0 },
   label: { fontSize: typeScale.body, fontWeight: "600", marginBottom: 8 },
   control: { flex: 1, height: 52, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10 },
   controlCompact: { width: 164, height: 42, borderRadius: 999, paddingHorizontal: 11, gap: 6 },
+  navbarControl: { width: "100%", height: 44, borderWidth: 0, borderRadius: 12, paddingHorizontal: 0, gap: 6 },
+  navbarIcon: { width: 27, height: 27, flexShrink: 0, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  navbarCopy: { flex: 1, minWidth: 0, justifyContent: "center" },
+  navbarLabel: { fontSize: 9, lineHeight: 11, fontWeight: "500" },
+  navbarValue: { marginTop: 1, fontSize: typeScale.caption, lineHeight: 15, fontWeight: "700" },
   clearControl: { width: 42, height: 42, flexShrink: 0, borderWidth: 1, borderRadius: 21, alignItems: "center", justifyContent: "center" },
   value: { flex: 1, minWidth: 0, fontSize: typeScale.body },
   pressed: { opacity: 0.75 },
+  actionPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
   backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(25,15,20,.5)" },
-  sheet: { width: "100%", maxWidth: 540, maxHeight: "82%", alignSelf: "center", borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 28 },
+  sheet: { width: "100%", maxWidth: 540, maxHeight: "86%", alignSelf: "center", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 },
+  sheetHandle: { width: 38, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 14 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 14 },
   title: { fontSize: typeScale.sectionTitle, fontWeight: "700" },
   subtitle: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 3 },
-  close: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
-  currentLocation: { minHeight: 64, marginBottom: 14, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderRadius: 16, flexDirection: "row", alignItems: "center", gap: 11 },
-  currentLocationIcon: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" },
-  currentLocationTitle: { fontSize: typeScale.body, fontWeight: "700" },
-  currentLocationDetail: { marginTop: 2, fontSize: typeScale.caption },
+  close: { width: 46, height: 46, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  currentLocation: { minHeight: 68, marginBottom: 18, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 16, flexDirection: "row", alignItems: "center", gap: 11 },
+  currentLocationIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: "rgba(255,255,255,.16)", alignItems: "center", justifyContent: "center" },
+  currentLocationTitle: { color: "#FFFFFF", fontSize: typeScale.body, fontWeight: "700" },
+  currentLocationDetail: { color: "rgba(255,255,255,.82)", marginTop: 2, fontSize: typeScale.caption },
+  currentLocationArrow: { transform: [{ rotate: "-90deg" }] },
   currentLocationError: { marginTop: -6, marginBottom: 12, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
-  stateRow: { marginBottom: 12 },
-  districtRow: { marginBottom: 12 },
+  stateRow: { marginBottom: 14 },
+  districtRow: { marginBottom: 14 },
   stepLabel: { fontSize: typeScale.caption, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 },
-  stateChips: { gap: 8, paddingRight: 8 },
-  stateChip: { minHeight: 48, paddingHorizontal: 16, borderRadius: 24, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  stateChipText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  search: { height: 48, borderRadius: 15, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 9 },
+  districtSelect: { minHeight: 54, borderWidth: 1, borderRadius: 15, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10 },
+  districtSelectText: { flex: 1, minWidth: 0, fontSize: typeScale.body, fontWeight: "600" },
+  chevronOpen: { transform: [{ rotate: "180deg" }] },
+  districtDropdown: { marginTop: 8, maxHeight: 248, borderWidth: 1, borderRadius: 15, overflow: "hidden" },
+  dropdownSearch: { minHeight: 48, margin: 10, marginBottom: 4, borderWidth: 1, borderRadius: 13, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 10 },
+  dropdownSearchInput: { flex: 1, minWidth: 0, minHeight: 46, paddingVertical: 0, fontSize: typeScale.bodyCompact, outlineStyle: "none" } as any,
+  districtOptions: { maxHeight: 184 },
+  districtOption: { minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
+  districtOptionText: { flex: 1, minWidth: 0, fontSize: typeScale.bodyCompact, fontWeight: "600" },
+  districtEmpty: { paddingHorizontal: 14, paddingVertical: 20, textAlign: "center", fontSize: typeScale.bodyCompact },
+  talukaSectionHeader: { marginTop: 2, marginBottom: 9, flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 },
+  talukaSectionTitle: { fontSize: typeScale.body, fontWeight: "700" },
+  talukaCount: { fontSize: typeScale.caption, fontWeight: "600" },
+  search: { height: 50, borderWidth: 1, borderRadius: 15, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 9 },
   searchInput: { flex: 1, minWidth: 0, fontSize: typeScale.body },
   list: { marginTop: 12 },
-  option: { minHeight: 58, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 6, flexDirection: "row", alignItems: "center" },
+  option: { minHeight: 64, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 11 },
+  optionIcon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  optionPressed: { opacity: 0.76, transform: [{ scale: 0.99 }] },
   optionTitle: { fontSize: typeScale.body, fontWeight: "700" },
   optionDetail: { fontSize: typeScale.caption, marginTop: 3 },
   empty: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, textAlign: "center", paddingVertical: 26 },

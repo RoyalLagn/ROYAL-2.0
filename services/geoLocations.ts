@@ -284,6 +284,7 @@ function mapCardRow(row: any): TieredVendorCard {
     reviews: Number(row.review_count ?? 0),
     priceLevel: "₹ ₹",
     location: `${row.taluka_name}, ${row.district_name}`,
+    distanceKm: Number(row.distance_km ?? 0),
     address: "",
     tags: Array.isArray(row.tags) ? row.tags : [],
     services: Array.isArray(row.service_titles) ? row.service_titles : [],
