@@ -42,7 +42,7 @@ const CUSTOMER_TAB_ROUTES = new Set([
 ]);
 const STANDALONE_TABS = [
   { routeName: "index", label: "Home", href: "/(tabs)" },
-  { routeName: "Categories", label: "Category", href: "/(tabs)/Categories" },
+  { routeName: "Categories", label: "Category", href: "/Categories" },
   { routeName: "clips", label: "Clips", href: "/(tabs)/clips" },
   { routeName: "favorites", label: "Favorites", href: "/(tabs)/favorites" },
   { routeName: "profile", label: "Profile", href: "/(tabs)/profile" },
@@ -377,7 +377,7 @@ export function MobileTabBar({
 }
 
 type StandaloneMobileTabBarProps = {
-  activeRoute?: (typeof STANDALONE_TABS)[number]["routeName"];
+  activeRoute?: (typeof STANDALONE_TABS)[number]["routeName"] | null;
 };
 
 /**
@@ -385,7 +385,7 @@ type StandaloneMobileTabBarProps = {
  * outside the Expo Router Tabs group, such as vendor listings and profiles.
  */
 export function StandaloneMobileTabBar({
-  activeRoute = "Categories",
+  activeRoute = null,
 }: StandaloneMobileTabBarProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -395,10 +395,7 @@ export function StandaloneMobileTabBar({
   const isDark = colorScheme === "dark";
   const navigationColors = floatingNavigationColors(isDark);
   const [itemsWidth, setItemsWidth] = useState(0);
-  const selectedIndex = Math.max(
-    0,
-    STANDALONE_TABS.findIndex((tab) => tab.routeName === activeRoute),
-  );
+  const selectedIndex = STANDALONE_TABS.findIndex((tab) => tab.routeName === activeRoute);
   const activeIndex = useSharedValue(selectedIndex);
 
   useEffect(() => {
@@ -411,10 +408,10 @@ export function StandaloneMobileTabBar({
     const itemWidth = itemsWidth / TAB_COUNT;
     return {
       width: Math.max(0, itemWidth - 10),
-      opacity: Math.min(1, Math.abs(activeIndex.value - 2) * 2.5),
-      transform: [{ translateX: activeIndex.value * itemWidth + 5 }],
+      opacity: selectedIndex < 0 ? 0 : Math.min(1, Math.abs(activeIndex.value - 2) * 2.5),
+      transform: [{ translateX: Math.max(0, activeIndex.value) * itemWidth + 5 }],
     };
-  }, [itemsWidth]);
+  }, [itemsWidth, selectedIndex]);
 
   return (
     <View
@@ -466,11 +463,11 @@ export function StandaloneMobileTabBar({
               isDark={isDark}
               reducedMotion={reducedMotion}
               onPress={() => {
-                if (tab.routeName === activeRoute) return;
                 if (tab.routeName === "profile") {
                   void openAuthenticationGateway();
                   return;
                 }
+                if (tab.routeName === activeRoute && tab.routeName !== "Categories") return;
                 router.replace(tab.href);
               }}
               onLongPress={() => undefined}

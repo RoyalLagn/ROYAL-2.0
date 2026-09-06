@@ -210,6 +210,7 @@ export default function NearbyVendorsScreen() {
   const toggleVendorFavorite = useCallback((vendor: PublicVendorListing, source: FavoriteSourceRef) => {
     toggleFavorite({
       id: vendor.id,
+      slug: vendor.slug,
       name: vendor.name,
       category: vendor.category,
       rating: vendor.rating,
@@ -235,7 +236,7 @@ export default function NearbyVendorsScreen() {
         compact={compact}
         favorite={isFavorite(item.vendor.id)}
         fallbackImage={fallbackImage}
-        onOpen={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: item.vendor.id, category: item.vendor.category, src: "nearby" } })}
+        onOpen={() => router.push({ pathname: "/vendor/[slug]", params: { slug: item.vendor.slug, src: "nearby" } })}
         onToggleFavorite={(source) => toggleVendorFavorite(item.vendor, source)}
       />
     </HomeReveal>

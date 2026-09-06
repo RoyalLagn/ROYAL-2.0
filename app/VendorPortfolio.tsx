@@ -73,7 +73,7 @@ export default function VendorPortfolio() {
           <View style={styles.empty}><Text style={styles.emptyTitle}>Portfolio coming soon</Text><Text style={styles.emptyText}>This vendor has not published any albums yet.</Text></View>
         )}
       </ScrollView>
-      <StandaloneMobileTabBar activeRoute="Categories" />
+      <StandaloneMobileTabBar activeRoute={null} />
     </View>
   );
 }

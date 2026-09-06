@@ -40,6 +40,7 @@ function mapClip(row: any): PublicClip {
     hashtags: row.caption?.match(/#[\p{L}\p{N}_]+/gu)?.slice(0, 8) ?? [],
     vendor: {
       id: vendor.id,
+      slug: vendor.slug || "",
       name: vendor.business_name || "RoyalLagn Vendor",
       city: vendor.city || "",
       avatarUrl: vendor.logo_url,
@@ -84,7 +85,7 @@ export const SavedClipService = {
         created_at,updated_at,published_at,deleted_at,
         categories(name),
         vendors!clips_vendor_id_fkey(
-          id,business_name,city,logo_url,contact_phone,contact_email,is_verified,
+          id,slug,business_name,city,logo_url,contact_phone,contact_email,is_verified,
           categories(name)
         )
       )

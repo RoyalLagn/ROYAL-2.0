@@ -160,7 +160,7 @@ export default function VendorAlbum() {
           <Text style={styles.emptyTitle}>Album unavailable</Text>
           <Pressable onPress={goBack} style={styles.backHome}><Text style={styles.backHomeText}>Go back</Text></Pressable>
         </View>
-        <StandaloneMobileTabBar activeRoute="Categories" />
+        <StandaloneMobileTabBar activeRoute={null} />
       </View>
     );
   }
@@ -246,7 +246,7 @@ export default function VendorAlbum() {
           </View>
         }
       />
-      <StandaloneMobileTabBar activeRoute="Categories" />
+      <StandaloneMobileTabBar activeRoute={null} />
       <FullscreenMediaViewer
         visible={viewerIndex !== null}
         media={album.media}

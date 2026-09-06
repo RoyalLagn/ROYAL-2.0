@@ -45,6 +45,7 @@ async function persistFavoriteIds(profileId: string | null, ids: string[]) {
 
 export type FavoriteVendor = {
   id: string;
+  slug?: string;
   name: string;
   category: string;
   rating: number;
@@ -356,6 +357,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
 function toFavoriteVendor(vendor: PublicVendorListing): FavoriteVendor {
   return {
     id: vendor.id,
+    slug: vendor.slug,
     name: vendor.name,
     category: vendor.category,
     rating: vendor.rating,

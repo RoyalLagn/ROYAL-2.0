@@ -283,7 +283,7 @@ async function listVendorPublicClips(vendorId: string): Promise<PublicClip[]> {
       created_at,updated_at,published_at,deleted_at,
       categories(name),
       vendors!clips_vendor_id_fkey(
-        id,business_name,city,logo_url,contact_phone,contact_email,is_verified,
+        id,slug,business_name,city,logo_url,contact_phone,contact_email,is_verified,
         categories(name)
       )
     `)
@@ -318,7 +318,7 @@ async function listVendorPublicClips(vendorId: string): Promise<PublicClip[]> {
       createdAt: row.created_at, updatedAt: row.updated_at, publishedAt: row.published_at,
       deletedAt: row.deleted_at, categoryName: clipCategory, hashtags: hashtags(row.caption),
       vendor: {
-        id: vendor.id, name: vendor.business_name || "RoyalLagn Vendor",
+        id: vendor.id, slug: vendor.slug || "", name: vendor.business_name || "RoyalLagn Vendor",
         city: vendor.city || "", avatarUrl: vendor.logo_url,
         contactPhone: vendor.contact_phone, contactEmail: vendor.contact_email,
         verified: Boolean(vendor.is_verified),
@@ -387,7 +387,7 @@ export const PublicClipService = {
       created_at,updated_at,published_at,deleted_at,
       categories(name),
       vendors!clips_vendor_id_fkey(
-        id,business_name,city,logo_url,contact_phone,contact_email,is_verified,
+        id,slug,business_name,city,logo_url,contact_phone,contact_email,is_verified,
         categories(name)
       )
     `)
@@ -413,7 +413,7 @@ export const PublicClipService = {
         createdAt: row.created_at, updatedAt: row.updated_at, publishedAt: row.published_at,
         deletedAt: row.deleted_at, categoryName: clipCategory, hashtags: hashtags(row.caption),
         vendor: {
-          id: vendor.id, name: vendor.business_name || "RoyalLagn Vendor",
+          id: vendor.id, slug: vendor.slug || "", name: vendor.business_name || "RoyalLagn Vendor",
           city: vendor.city || "", avatarUrl: vendor.logo_url,
           contactPhone: vendor.contact_phone, contactEmail: vendor.contact_email,
           verified: Boolean(vendor.is_verified),

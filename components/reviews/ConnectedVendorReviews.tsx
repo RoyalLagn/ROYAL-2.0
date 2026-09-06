@@ -71,9 +71,11 @@ function toUiReview(review: VendorReview): Review {
 
 export default function ConnectedVendorReviews({
   vendorKey,
+  vendorSlug,
   dark,
 }: {
   vendorKey: string;
+  vendorSlug: string;
   dark: boolean;
 }) {
   const router = useRouter();
@@ -157,7 +159,7 @@ export default function ConnectedVendorReviews({
     if (!data.user) {
       const loginRoute = {
         pathname: "/DashboardCenter" as const,
-        params: { returnTo: `/VendorsProfile?vendorId=${encodeURIComponent(vendorKey)}` },
+        params: { returnTo: `/vendor/${encodeURIComponent(vendorSlug)}` },
       };
       if (Platform.OS === "web") {
         router.push(loginRoute);
@@ -181,7 +183,7 @@ export default function ConnectedVendorReviews({
     } catch (caught) {
       Alert.alert("Unable to review", caught instanceof Error ? caught.message : "Please try again.");
     }
-  }, [router, vendorKey]);
+  }, [router, vendorKey, vendorSlug]);
 
   const closeForm = useCallback(() => {
     setShowForm(false);

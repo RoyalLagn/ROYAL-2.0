@@ -158,6 +158,7 @@ export interface ClipDraftRecord {
 
 export interface PublicClipVendor {
   id: string;
+  slug: string;
   name: string;
   city: string;
   avatarUrl: string | null;

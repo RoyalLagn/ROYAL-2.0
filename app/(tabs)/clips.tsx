@@ -8,7 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { useIsFocused } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronLeft, Clapperboard, RefreshCw, Search, Sparkles } from "lucide-react-native";
+import { Clapperboard, RefreshCw, Search, Sparkles } from "lucide-react-native";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { PublicClipCard } from "@/clips/components";
@@ -381,7 +381,11 @@ function ClipsFeed() {
   }, [engagement, requireProfile]);
 
   const openVendor = useCallback((clip: PublicClip) => {
-    router.push({ pathname: "/VendorsProfile", params: { vendorId: clip.vendor.id, category: clip.vendor.categoryName, src: "clip" } });
+    if (clip.vendor.slug) {
+      router.push({ pathname: "/vendor/[slug]", params: { slug: clip.vendor.slug, src: "clip" } });
+      return;
+    }
+    router.push({ pathname: "/VendorsProfile", params: { vendorId: clip.vendor.id, src: "clip" } });
   }, [router]);
   const contactVendor = useCallback(async (clip: PublicClip) => {
     if (!clip.vendor.contactPhone) return openVendor(clip);
@@ -456,14 +460,6 @@ function ClipsFeed() {
     >
       <View style={[styles.toolbarInner, { maxWidth: feedWidth }]}>
         <View style={styles.mobileSearchRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)")}
-            style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
-          >
-            <ChevronLeft size={22} color="#FFFFFF" strokeWidth={2.3} />
-          </Pressable>
           <View style={styles.searchShell}>
             <Search size={19} color="#FFFFFF" strokeWidth={2} />
             <TextInput
@@ -533,8 +529,6 @@ const styles = StyleSheet.create({
   toolbar: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 20, width: "100%", alignItems: "center", paddingBottom: 12 },
   toolbarInner: { width: "100%", paddingHorizontal: 14 },
   mobileSearchRow: { width: "100%", flexDirection: "row", alignItems: "center", gap: 10 },
-  backButton: { width: 44, height: 44, flexShrink: 0, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: "rgba(7,5,7,.38)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.38)", shadowColor: "#000", shadowOpacity: 0.24, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
-  backButtonPressed: { opacity: 0.72, transform: [{ scale: 0.97 }] },
   searchShell: { flex: 1, minWidth: 0, height: 46, borderRadius: 23, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "rgba(7,5,7,.30)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.46)", shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   searchInput: { flex: 1, minWidth: 0, height: "100%", paddingVertical: 0, color: "#FFFFFF", fontSize: typeScale.body, fontWeight: "500", textShadowColor: "rgba(0,0,0,.4)", textShadowRadius: 4 },
   feedFrame: { flex: 1, minHeight: 0, alignSelf: "center", backgroundColor: "#080608", overflow: "hidden" },

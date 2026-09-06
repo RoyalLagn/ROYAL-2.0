@@ -37,7 +37,6 @@ const PUBLIC_NOTIFICATION_ROUTES = new Set([
   "/PrivacyPolicy",
   "/SavedClips",
   "/Search",
-  "/SearchByLocation",
   "/Terms",
   "/VendorsListing",
   "/VendorsProfile",

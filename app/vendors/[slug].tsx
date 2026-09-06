@@ -15,6 +15,8 @@ import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { PublicClipService } from "@/clips/services";
 import { useFavorites } from "@/context/FavoritesContext";
 import PageLoader from "@/components/loading/PageLoader";
+import PublicWebNavbar from "@/components/PublicWebNavbar";
+import { StandaloneMobileTabBar, useMobileTabBarHeight } from "@/components/MobileTabBar";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import PackagesCard from "@/components/vendor-profile/PackagesCard";
 import PackageDetailsModal from "@/components/packages/PackageDetailsModal";
@@ -88,6 +90,7 @@ export default function VendorPublicProfileScreen() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const desktop = width >= 1100;
+  const mobileTabBarHeight = useMobileTabBarHeight();
   const params = useLocalSearchParams<{ slug?: string; src?: string }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
   const explicitSource = Array.isArray(params.src) ? params.src[0] : params.src;
@@ -272,8 +275,8 @@ export default function VendorPublicProfileScreen() {
     const usableHeight = Math.max(520, height - insets.top - insets.bottom);
     return desktop
       ? Math.max(420, Math.min(520, usableHeight * 0.5))
-      : Math.max(300, Math.min(460, usableHeight * 0.42));
-  }, [desktop, height, insets.bottom, insets.top]);
+      : Math.max(280, Math.min(420, width * 0.88, usableHeight * 0.4));
+  }, [desktop, height, insets.bottom, insets.top, width]);
   const sectionCardStyle = { backgroundColor: surface, borderColor: sectionDivider };
 
   const heroImages = useMemo(
@@ -293,7 +296,12 @@ export default function VendorPublicProfileScreen() {
   );
 
   if (state === "loading") {
-    return <PageLoader />;
+    return (
+      <View style={[styles.root, { backgroundColor: background }]}>
+        <PageLoader />
+        {!desktop ? <StandaloneMobileTabBar activeRoute={null} /> : null}
+      </View>
+    );
   }
 
   if (state === "not_found" || !vendor) {
@@ -306,6 +314,7 @@ export default function VendorPublicProfileScreen() {
         <Pressable accessibilityRole="button" onPress={() => router.replace("/")} style={styles.goBack}>
           <Text style={styles.goBackText}>Go to RoyalLagn</Text>
         </Pressable>
+        {!desktop ? <StandaloneMobileTabBar activeRoute={null} /> : null}
       </View>
     );
   }
@@ -326,6 +335,7 @@ export default function VendorPublicProfileScreen() {
   const favorite = isFavorite(vendor.id);
   const toggleVendorFavorite = (source: FavoriteSourceRef) => toggleFavorite({
     id: vendor.id,
+    slug: vendor.slug,
     name: vendor.name,
     category,
     rating: displayedRating.rating,
@@ -430,12 +440,15 @@ export default function VendorPublicProfileScreen() {
   return (
     <View style={[styles.root, { backgroundColor: background }]}>
       <PinnedHeroProfileLayout
+        header={<PublicWebNavbar activeRoute="Categories" showMobile includeSafeTop />}
         heroHeight={heroHeight}
         pageWidth={contentWidth}
-        overlap={24}
+        overlap={desktop ? 24 : 20}
+        heroHorizontalInset={desktop ? 0 : width < 480 ? 12 : 18}
+        heroTopInset={desktop ? 0 : 12}
         backgroundColor={background}
         sheetColor={background}
-        contentContainerStyle={{ paddingBottom: 28 }}
+        contentContainerStyle={{ paddingBottom: desktop ? 28 : mobileTabBarHeight }}
         hero={(
           <VendorHeroCarousel
             images={heroImages}
@@ -443,7 +456,6 @@ export default function VendorPublicProfileScreen() {
             vendorName={vendor.name}
             containMedia={!vendor.heroMedia.length}
             height={heroHeight}
-            onBack={() => router.replace("/")}
             focalPoints={heroFocalPoints}
             paused={heroViewerIndex !== null || calendarVisible || packagesVisible || enquiryOpen || Boolean(enquiryPackage)}
             onOpen={vendor.heroMedia.length ? setHeroViewerIndex : undefined}
@@ -585,7 +597,7 @@ export default function VendorPublicProfileScreen() {
           ) : null}
 
           <View style={[styles.sectionCard, styles.reviewsSection, sectionCardStyle]}>
-            <ConnectedVendorReviews vendorKey={vendor.id} dark={dark} />
+            <ConnectedVendorReviews vendorKey={vendor.id} vendorSlug={vendor.slug} dark={dark} />
           </View>
         </View>
       </PinnedHeroProfileLayout>
@@ -669,6 +681,7 @@ export default function VendorPublicProfileScreen() {
         onClose={() => setReelViewerIndex(null)}
       /> : null}
       <DownloadAppPopup dark={dark} />
+      {!desktop ? <StandaloneMobileTabBar activeRoute={null} /> : null}
     </View>
   );
 }

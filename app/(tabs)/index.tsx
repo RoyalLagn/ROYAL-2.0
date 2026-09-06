@@ -577,7 +577,7 @@ export default function HomeScreen() {
                     accessibilityLabel={`Open ${vendor.name}`}
                     style={[s.searchSuggestionRow, { borderBottomColor: border }]}
                     activeOpacity={0.72}
-                    onPress={() => router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, category: vendor.category, src: "search" } })}
+                    onPress={() => router.push({ pathname: "/vendor/[slug]", params: { slug: vendor.slug, src: "search" } })}
                   >
                     <View style={[s.searchSuggestionIcon, { backgroundColor: isDark ? "#33222B" : "#FFF0F5" }]}>
                       <Search size={17} color={PINK} />
@@ -751,10 +751,7 @@ export default function HomeScreen() {
                   favorite={isFav}
                   fallbackSource={VENDOR_CARD_PLACEHOLDER}
                   onOpen={() =>
-                      router.push({
-                        pathname: "/VendorsProfile",
-                        params: { vendorId: v.id, category: v.category, src: "nearby" },
-                      })
+                      router.push({ pathname: "/vendor/[slug]", params: { slug: v.slug, src: "nearby" } })
                   }
                   onToggleFavorite={(source) => toggleFavorite(v, source)}
                 />
@@ -816,10 +813,7 @@ export default function HomeScreen() {
                   favorite={isFav}
                   fallbackSource={VENDOR_CARD_PLACEHOLDER}
                   onOpen={() =>
-                      router.push({
-                        pathname: "/VendorsProfile",
-                        params: { vendorId: v.id, category: v.category, src: "listing" },
-                      })
+                      router.push({ pathname: "/vendor/[slug]", params: { slug: v.slug, src: "listing" } })
                   }
                   onToggleFavorite={(source) => toggleFavorite(v, source)}
                 />
