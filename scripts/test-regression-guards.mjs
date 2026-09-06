@@ -677,8 +677,9 @@ assert.equal(adminManifest.name, "RoyalLagn Admin Portal", "The installed Admin 
 assert.match(adminManifest.start_url, /^\/AdminLogin/, "The installed Admin PWA must start at the secure Admin entry route.");
 assert.equal(adminManifest.display, "standalone", "The Admin PWA must open without browser chrome.");
 assert.ok(adminManifest.icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "maskable"), "The Admin PWA must provide a safe maskable icon.");
-assert.match(adminServiceWorkerSource, /does not[\s\S]*cache authenticated Admin responses/, "The Admin service worker must not cache authenticated responses.");
+assert.match(adminServiceWorkerSource, /event\.respondWith\(fetch\(event\.request\)\)/, "The Admin service worker must satisfy installability with a functional network-only fetch handler.");
 assert.match(adminInstallControlSource, /beforeinstallprompt/, "The Admin install control must use the browser's native install prompt.");
+assert.match(adminInstallControlSource, /__royalLagnAdminInstallPrompt/, "The Admin install control must recover a native prompt captured before React mounts.");
 assert.match(adminInstallControlSource, /appinstalled/, "The Admin install control must expose the installed state.");
 assert.match(adminSidebarSource, /AdminPwaInstallControl/, "The Admin sidebar must expose the portal install action.");
 assert.match(adminProfileSource, /showMobileNav[\s\S]*AdminPwaInstallControl/, "The compact Admin profile must expose the portal install action on phone and tablet web layouts.");

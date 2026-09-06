@@ -11,6 +11,10 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
+type AdminPwaWindow = Window & {
+  __royalLagnAdminInstallPrompt?: InstallPromptEvent | null;
+};
+
 function isStandalone() {
   if (Platform.OS !== "web" || typeof window === "undefined") return false;
   return window.matchMedia("(display-mode: standalone)").matches
@@ -23,6 +27,7 @@ export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compa
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(isStandalone);
   const [installing, setInstalling] = useState(false);
+  const [promptChecked, setPromptChecked] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
@@ -36,21 +41,37 @@ export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compa
       document.head.appendChild(manifest);
     }
 
+    const browserWindow = window as AdminPwaWindow;
+    if (browserWindow.__royalLagnAdminInstallPrompt) {
+      setInstallPrompt(browserWindow.__royalLagnAdminInstallPrompt);
+    }
+
     const onPrompt = (event: Event) => {
       event.preventDefault();
-      setInstallPrompt(event as InstallPromptEvent);
+      const nextPrompt = event as InstallPromptEvent;
+      browserWindow.__royalLagnAdminInstallPrompt = nextPrompt;
+      setInstallPrompt(nextPrompt);
+    };
+    const onPromptReady = () => {
+      setInstallPrompt(browserWindow.__royalLagnAdminInstallPrompt ?? null);
+      setPromptChecked(true);
     };
     const onInstalled = () => {
       setInstalled(true);
       setInstallPrompt(null);
+      browserWindow.__royalLagnAdminInstallPrompt = null;
     };
 
     window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("royallagn-admin-install-ready", onPromptReady);
     window.addEventListener("appinstalled", onInstalled);
     void navigator.serviceWorker?.register("/admin-service-worker.js", { scope: "/" }).catch(() => undefined);
+    const promptTimer = window.setTimeout(() => setPromptChecked(true), 2500);
 
     return () => {
+      window.clearTimeout(promptTimer);
       window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("royallagn-admin-install-ready", onPromptReady);
       window.removeEventListener("appinstalled", onInstalled);
       manifest?.remove();
     };
@@ -71,6 +92,7 @@ export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compa
       const choice = await installPrompt.userChoice;
       if (choice.outcome === "accepted") setInstalled(true);
       setInstallPrompt(null);
+      (window as AdminPwaWindow).__royalLagnAdminInstallPrompt = null;
     } finally {
       setInstalling(false);
     }
@@ -84,8 +106,8 @@ export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compa
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={installed ? "Admin Portal installed" : "Install Admin Portal"}
-        accessibilityState={{ disabled: installed || installing }}
-        disabled={installed || installing}
+        accessibilityState={{ disabled: installed || installing || (!installPrompt && !promptChecked) }}
+        disabled={installed || installing || (!installPrompt && !promptChecked)}
         onPress={() => void install()}
         style={({ pressed }) => [
           styles.button,
@@ -100,7 +122,7 @@ export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compa
         {!compact ? (
           <View style={styles.copy}>
             <Text style={[styles.label, { color: installed ? colors.mutedForeground : adminPalette.brand }]}>
-              {installed ? "Admin Portal installed" : installing ? "Opening installer…" : "Install Admin Portal"}
+              {installed ? "Admin Portal installed" : installing ? "Opening installer…" : !installPrompt && !promptChecked ? "Preparing installer…" : "Install Admin Portal"}
             </Text>
             {!installed ? <Text style={[styles.hint, { color: colors.mutedForeground }]}>Open as a standalone app</Text> : null}
           </View>

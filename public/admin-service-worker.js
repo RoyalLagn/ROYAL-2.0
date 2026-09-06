@@ -14,6 +14,11 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Keep application data network-first. The worker intentionally does not
-// cache authenticated Admin responses or Supabase requests.
-self.addEventListener("fetch", () => undefined);
+// A functional fetch handler is required by browsers that still include a
+// controlling service worker in their installability checks. Responses stay
+// network-only: authenticated Admin data is never written to Cache Storage.
+self.addEventListener("fetch", (event) => {
+  if (event.request.method === "GET") {
+    event.respondWith(fetch(event.request));
+  }
+});

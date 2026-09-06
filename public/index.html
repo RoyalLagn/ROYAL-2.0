@@ -28,6 +28,19 @@
         icon.href = "/admin-icon-192.png";
         icon.dataset.royallagnAdminIcon = "true";
         document.head.appendChild(icon);
+
+        window.__royalLagnAdminInstallPrompt = null;
+        window.addEventListener("beforeinstallprompt", (event) => {
+          event.preventDefault();
+          window.__royalLagnAdminInstallPrompt = event;
+          window.dispatchEvent(new Event("royallagn-admin-install-ready"));
+        });
+        window.addEventListener("appinstalled", () => {
+          window.__royalLagnAdminInstallPrompt = null;
+        });
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.register("/admin-service-worker.js", { scope: "/" }).catch(() => undefined);
+        }
       }
     </script>
     <script type="application/ld+json">
