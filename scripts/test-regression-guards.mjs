@@ -665,11 +665,12 @@ assert.doesNotMatch(supabaseClientSource, /sessionStorage\.setItem\(key, value\)
 assert.match(supabaseClientSource, /persistSession: true/, "Supabase must keep valid Public and Vendor sessions until explicit logout or server invalidation.");
 
 // --- Installable Admin Portal PWA --------------------------------------
-const [adminManifestSource, adminServiceWorkerSource, adminInstallControlSource, adminSidebarSource] = await Promise.all([
+const [adminManifestSource, adminServiceWorkerSource, adminInstallControlSource, adminSidebarSource, adminProfileSource] = await Promise.all([
   read("public/admin-manifest.webmanifest"),
   read("public/admin-service-worker.js"),
   read("components/admin/AdminPwaInstallControl.tsx"),
   read("components/admin/AdminWorkspaceSidebar.tsx"),
+  read("app/AdminProfile.tsx"),
 ]);
 const adminManifest = JSON.parse(adminManifestSource);
 assert.equal(adminManifest.name, "RoyalLagn Admin Portal", "The installed Admin PWA must have its own product name.");
@@ -680,6 +681,7 @@ assert.match(adminServiceWorkerSource, /does not[\s\S]*cache authenticated Admin
 assert.match(adminInstallControlSource, /beforeinstallprompt/, "The Admin install control must use the browser's native install prompt.");
 assert.match(adminInstallControlSource, /appinstalled/, "The Admin install control must expose the installed state.");
 assert.match(adminSidebarSource, /AdminPwaInstallControl/, "The Admin sidebar must expose the portal install action.");
+assert.match(adminProfileSource, /showMobileNav[\s\S]*AdminPwaInstallControl/, "The compact Admin profile must expose the portal install action on phone and tablet web layouts.");
 
 // --- Aggregate runner must still register every non-credentialed check --
 const runnerSource = await read("scripts/run-smoke-tests.mjs");

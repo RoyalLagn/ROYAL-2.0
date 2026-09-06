@@ -17,7 +17,7 @@ function isStandalone() {
     || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
 }
 
-export function AdminPwaInstallControl({ compact }: { compact: boolean }) {
+export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compact: boolean; variant?: "sidebar" | "card" }) {
   const { colorScheme } = useAppTheme();
   const colors = brandColors(colorScheme === "dark");
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
@@ -77,7 +77,10 @@ export function AdminPwaInstallControl({ compact }: { compact: boolean }) {
   }, [installPrompt, installed]);
 
   return (
-    <View style={[styles.wrap, { borderTopColor: colors.border }]}>
+    <View style={[
+      variant === "sidebar" ? styles.sidebarWrap : styles.cardWrap,
+      { borderColor: colors.border, backgroundColor: variant === "card" ? colors.card : undefined },
+    ]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={installed ? "Admin Portal installed" : "Install Admin Portal"}
@@ -108,7 +111,8 @@ export function AdminPwaInstallControl({ compact }: { compact: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { borderTopWidth: StyleSheet.hairlineWidth, padding: 10 },
+  sidebarWrap: { borderTopWidth: StyleSheet.hairlineWidth, padding: 10 },
+  cardWrap: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, padding: 10, marginTop: 16 },
   button: { minHeight: 52, borderRadius: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 10 },
   compactButton: { width: 48, alignSelf: "center", justifyContent: "center", paddingHorizontal: 0 },
   copy: { flex: 1, minWidth: 0 },

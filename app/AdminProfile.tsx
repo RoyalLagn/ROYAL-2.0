@@ -18,6 +18,7 @@ import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { adminNavigationGroups } from "@/admin/navigation";
+import { AdminPwaInstallControl } from "@/components/admin/AdminPwaInstallControl";
 
 export default function AdminProfile() {
   const router = useRouter();
@@ -132,6 +133,10 @@ export default function AdminProfile() {
             </View>
             <ThemeToggle />
           </View>
+
+          {showMobileNav && Platform.OS === "web" ? (
+            <AdminPwaInstallControl compact={false} variant="card" />
+          ) : null}
 
           {showMobileNav ? (
             <View className="mt-5">
