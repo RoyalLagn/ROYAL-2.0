@@ -100,7 +100,7 @@ export default function VendorPublicProfileScreen() {
   const category = vendor?.category ?? "";
   const { isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
-  const { isPublicAuthenticated, loading: authLoading } = usePublicAuth();
+  const { isPublicAuthenticated, loading: authLoading, profile } = usePublicAuth();
   const [expanded, setExpanded] = useState(false);
   const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
@@ -414,6 +414,19 @@ export default function VendorPublicProfileScreen() {
   };
 
   const handleSendEnquiry = async () => {
+    if (!isPublicAuthenticated) {
+      setEnquiryOpen(false);
+      router.push("/Login");
+      return;
+    }
+    if (!profile?.email || !profile?.phone) {
+      setEnquiryOpen(false);
+      Alert.alert("Complete your contact details", "Add your email and mobile number to your RoyalLagn profile before sending an enquiry.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Update profile", onPress: () => router.push("/EditProfile") },
+      ]);
+      return;
+    }
     if (enquiryMessage.trim().length < 10) {
       setEnquiryError("Please add a short message of at least 10 characters.");
       return;
@@ -481,7 +494,17 @@ export default function VendorPublicProfileScreen() {
             dark={dark}
             onCall={() => requestVendorContact("call")}
             onWhatsApp={() => requestVendorContact("whatsapp")}
-            onEnquire={() => { setEnquiryError(""); setEnquiryStatus("idle"); setEnquiryOpen(true); }}
+            onEnquire={() => {
+              if (!isPublicAuthenticated) { router.push("/Login"); return; }
+              if (!profile?.email || !profile?.phone) {
+                Alert.alert("Complete your contact details", "Add your email and mobile number to your RoyalLagn profile before sending an enquiry.", [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Update profile", onPress: () => router.push("/EditProfile") },
+                ]);
+                return;
+              }
+              setEnquiryError(""); setEnquiryStatus("idle"); setEnquiryOpen(true);
+            }}
             onCalendar={() => setCalendarVisible(true)}
           />
         </VendorInfoPanel>
@@ -650,6 +673,7 @@ export default function VendorPublicProfileScreen() {
           <View style={styles.enquiryHeaderCopy}><Text style={[styles.enquiryTitle, { color: text }]}>Send Enquiry</Text><Text numberOfLines={1} style={[styles.enquirySubtitle, { color: muted }]}>Tell {vendor.name} what you need</Text></View>
           <Pressable disabled={enquiryStatus === "sending"} onPress={() => setEnquiryOpen(false)} accessibilityLabel="Close enquiry" style={[styles.enquiryClose, { backgroundColor: background }]}><X size={20} color={text} /></Pressable>
         </View>
+        <Text style={[styles.enquiryProfileNote, { color: muted }]}>Your profile email and mobile number will be shared with this vendor.</Text>
         <TextInput
           autoFocus={Platform.OS === "web"}
           value={enquiryMessage}
@@ -747,6 +771,7 @@ const styles = StyleSheet.create({
   enquirySubtitle: { fontSize: typeScale.caption, marginTop: 2 },
   enquiryClose: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   enquiryInput: { minHeight: 120, borderWidth: 1, borderRadius: 14, padding: 13, fontSize: typeScale.body, textAlignVertical: "top" },
+  enquiryProfileNote: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginBottom: 10 },
   enquiryErrorText: { color: "#DC2626", fontSize: typeScale.bodyCompact, marginTop: 6 },
   enquirySubmit: { marginTop: 12, minHeight: 50, borderRadius: 15, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
   enquirySubmitText: { color: "#FFFFFF", fontWeight: "700", fontSize: typeScale.body },
