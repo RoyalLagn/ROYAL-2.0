@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Bell, ChevronRight, CircleHelp, FolderTree, MapPinned, PanelsTopLeft, ShieldCheck, Users, WalletCards } from "lucide-react-native";
+import { Bell, ChevronRight, CircleHelp, FolderTree, MapPinned, PanelsTopLeft, ShieldCheck, Trash2, Users, WalletCards } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
@@ -10,9 +10,11 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 
 const destinations = [
+  { title: "Admin notifications", description: "Review operational alerts and pending requests", route: "/AdminNotifications", icon: Bell },
   { title: "Hero Section", description: "Manage home page carousel slides", route: "/AdminHero", icon: PanelsTopLeft },
   { title: "Push Notifications", description: "Send announcements to customers and vendors", route: "/AdminPushNotifications", icon: Bell },
   { title: "User directory", description: "View customer accounts", route: "/AdminUsers", icon: Users },
+  { title: "Vendor deletion requests", description: "Review verified requests and approve permanent deletion", route: "/AdminVendorDeletionRequests", icon: Trash2 },
   { title: "Category directory", description: "Inspect live marketplace categories", route: "/AdminCategories", icon: FolderTree },
   { title: "Location Management", description: "Manage states, districts, Talukas and PIN mappings", route: "/AdminGeoLocations", icon: MapPinned },
   { title: "Subscription configuration", description: "Manage plans, offers and access", route: "/subscriptions-admin", icon: WalletCards },

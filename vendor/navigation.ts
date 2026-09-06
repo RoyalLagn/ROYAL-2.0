@@ -32,6 +32,7 @@ export const vendorWorkspaceRoutes = new Set([
   "/VendorPaymentHistory",
   "/VendorServices",
   "/VendorSettings",
+  "/VendorAccountDeletion",
   "/VendorSubscription",
 ]);
 

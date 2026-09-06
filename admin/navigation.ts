@@ -23,6 +23,7 @@ import {
 
 export type AdminNavigationKey =
   | "dashboard"
+  | "notifications"
   | "approvals"
   | "vendors"
   | "users"
@@ -55,6 +56,7 @@ export const adminNavigationGroups: { label: string; items: AdminNavigationItem[
     label: "Overview",
     items: [
       { key: "dashboard", label: "Dashboard", route: "/admin-dashboard", icon: BarChart3 },
+      { key: "notifications", label: "Notifications", route: "/AdminNotifications", icon: Bell },
     ],
   },
   {
@@ -112,6 +114,8 @@ export const adminAuthRoutes = new Set([
 export const adminWorkspaceRoutes = new Set([
   ...adminNavigationItems.map((item) => item.route),
   "/AdminVendorDetails",
+  "/AdminVendorDeletionRequests",
+  "/AdminNotifications",
   "/VendorApplicationDetails",
   "/AdminProfile",
   "/admin-dash-logout",
@@ -163,6 +167,7 @@ const crmDrillDownRoutes = new Set([
 
 export function adminNavigationKeyForPath(pathname: string): AdminNavigationKey {
   if (pathname === "/AdminVendorDetails") return "vendors";
+  if (pathname === "/AdminVendorDeletionRequests") return "settings";
   if (pathname === "/VendorApplicationDetails") return "approvals";
   if (crmDrillDownRoutes.has(pathname)) return "crm";
   return adminNavigationItems.find((item) => item.route === pathname)?.key ?? "dashboard";

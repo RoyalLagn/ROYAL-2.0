@@ -15,6 +15,21 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="RoyalLagn | Discover Trusted Wedding Vendors" />
     <meta name="twitter:description" content="Discover trusted wedding photographers, venues, decorators, makeup artists and more with RoyalLagn. Explore verified wedding vendors and send enquiries directly." />
+    <script>
+      if (/admin/i.test(window.location.pathname) || window.location.pathname === "/VendorApplications") {
+        const manifest = document.createElement("link");
+        manifest.rel = "manifest";
+        manifest.href = "/admin-manifest.webmanifest";
+        manifest.dataset.royallagnAdminManifest = "true";
+        document.head.appendChild(manifest);
+
+        const icon = document.createElement("link");
+        icon.rel = "apple-touch-icon";
+        icon.href = "/admin-icon-192.png";
+        icon.dataset.royallagnAdminIcon = "true";
+        document.head.appendChild(icon);
+      }
+    </script>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",

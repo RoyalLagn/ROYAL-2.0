@@ -612,6 +612,75 @@ assert.doesNotMatch(customerDeletionFunctionSource, /body\.(?:user|profile|custo
 assert.match(customerDeletionMigrationSource, /customer_name = 'Deleted customer'[\s\S]*customer_email = null[\s\S]*customer_phone = null/, "Retained enquiries must be anonymized before customer deletion.");
 assert.match(customerDeletionMigrationSource, /role = 'public_user'/, "The deletion transaction must enforce the customer role in PostgreSQL too.");
 
+// --- OTP-verified vendor deletion with explicit Admin approval ---------
+const [vendorDeletionScreenSource, vendorDeletionServiceSource, vendorDeletionAdminSource, vendorDeletionFunctionSource, vendorDeletionRequestFunctionSource, vendorDeletionMigrationSource, vendorDeletionConstraintSource, vendorNavigationSource, adminNavigationSourceForDeletion] = await Promise.all([
+  read("app/VendorAccountDeletion.tsx"),
+  read("services/accountDeletion.ts"),
+  read("services/vendorDeletionAdmin.ts"),
+  read("supabase/functions/admin-process-vendor-deletion/index.ts"),
+  read("supabase/functions/request-vendor-deletion/index.ts"),
+  read("supabase/migrations/20260906200000_vendor_deletion_approval_workflow.sql"),
+  read("supabase/migrations/20260906204000_prevent_duplicate_active_vendor_deletions.sql"),
+  read("vendor/navigation.ts"),
+  read("admin/navigation.ts"),
+]);
+assert.match(vendorDeletionScreenSource, /sendVendorDeletionOtp/, "Vendor deletion must verify the registered email with OTP.");
+assert.match(vendorDeletionScreenSource, /Your vendor profile remains active until an administrator reviews/, "Vendor deletion must clearly remain pending until Admin approval.");
+assert.match(vendorDeletionScreenSource, /Deletion request pending/, "An active vendor deletion request must replace the submission form with a pending state.");
+assert.match(vendorDeletionScreenSource, /Previous request rejected/, "A rejected request must explain that the vendor may submit again.");
+assert.match(vendorDeletionServiceSource, /submitVerifiedVendorDeletion/, "The verified vendor request must use its authenticated Edge Function.");
+assert.match(vendorDeletionServiceSource, /getVendorDeletionStatus/, "The vendor screen must be able to load its latest deletion status.");
+assert.match(vendorDeletionRequestFunctionSource, /body\.action==='status'/, "The authenticated vendor deletion function must expose the caller's request status.");
+assert.match(vendorDeletionConstraintSource, /unique index[\s\S]*status in \('pending', 'verified', 'processing'\)/, "The database must prevent concurrent active deletion requests while allowing retries after rejection.");
+assert.match(vendorDeletionAdminSource, /verifyAdminSession/, "Admin deletion controls must require the fully verified Admin session.");
+assert.match(vendorDeletionFunctionSource, /hasAal2\(token\)/, "The destructive Admin Edge Function must independently enforce MFA.");
+assert.match(vendorDeletionFunctionSource, /auth\.admin\.deleteUser\(target\.profile_id\)/, "Approval must delete the vendor Auth identity.");
+assert.match(vendorDeletionFunctionSource, /vendor_snapshot: null/, "Completed deletion requests must not retain the vendor snapshot.");
+assert.match(vendorDeletionMigrationSource, /delete from public\.clips[\s\S]*delete from public\.vendor_applications[\s\S]*delete from public\.vendors/, "The approval transaction must remove restricted clips, application data and the vendor workspace in dependency order.");
+assert.match(vendorNavigationSource, /\/VendorAccountDeletion/, "Vendor deletion must remain behind the vendor workspace route guard.");
+assert.match(adminNavigationSourceForDeletion, /\/AdminVendorDeletionRequests/, "Admin deletion approval must remain behind the Admin route guard.");
+
+const [adminNotificationScreenSource, adminNotificationServiceSource, deletionNotificationMigrationSource] = await Promise.all([
+  read("app/AdminNotifications.tsx"),
+  read("services/adminNotifications.ts"),
+  read("supabase/migrations/20260906201000_admin_vendor_deletion_notifications.sql"),
+]);
+assert.match(deletionNotificationMigrationSource, /account_deletion_notify_admin/, "Verified vendor deletion requests must create an Admin notification at the database boundary.");
+assert.match(deletionNotificationMigrationSource, /on conflict \(deletion_request_id\) do nothing/, "Vendor deletion retries must not create duplicate Admin notifications.");
+assert.match(deletionNotificationMigrationSource, /account_deletion_resolve_admin_notification/, "Resolved deletion requests must also resolve their Admin notification.");
+assert.match(adminNotificationServiceSource, /AdminVendorDeletionRequests\?requestId=/, "Deletion notifications must deep-link to the matching Admin request.");
+assert.match(adminNotificationScreenSource, /markAdminNotificationRead/, "Opening an Admin notification must mark it read.");
+const deletionServiceGrantSource = await read("supabase/migrations/20260906202000_grant_service_role_deletion_workflow.sql");
+assert.match(deletionServiceGrantSource, /grant select, insert, update, delete on public\.account_deletion_requests to service_role/, "Deletion Edge Functions must have explicit service-role table privileges.");
+assert.match(adminNotificationServiceSource, /admin-notification-inbox-\$\{Date\.now\(\)\}-\$\{subscriptionSequence\}/, "Each mounted Admin notification consumer must own a unique Realtime channel, including across hot reloads.");
+const adminDeletionGrantSource = await read("supabase/migrations/20260906203000_grant_admin_deletion_request_access.sql");
+assert.match(adminDeletionGrantSource, /grant select, update on public\.account_deletion_requests to authenticated/, "Admin request reads must have table grants in addition to restrictive RLS policies.");
+
+// --- Browser authentication must survive tab changes -----------------
+const supabaseClientSource = await read("services/supabase.ts");
+assert.match(supabaseClientSource, /localStorage\.getItem\(key\)/, "Web authentication must restore from browser-persistent storage in every tab.");
+assert.match(supabaseClientSource, /localStorage\.setItem\(key, value\)/, "Web authentication must persist refreshed sessions across tabs.");
+assert.match(supabaseClientSource, /localStorage\.setItem\(key, legacyValue\)[\s\S]*sessionStorage\.removeItem\(key\)/, "Existing per-tab sessions must migrate once into persistent browser storage.");
+assert.doesNotMatch(supabaseClientSource, /sessionStorage\.setItem\(key, value\)/, "New Supabase sessions must not be persisted only in one browser tab.");
+assert.match(supabaseClientSource, /persistSession: true/, "Supabase must keep valid Public and Vendor sessions until explicit logout or server invalidation.");
+
+// --- Installable Admin Portal PWA --------------------------------------
+const [adminManifestSource, adminServiceWorkerSource, adminInstallControlSource, adminSidebarSource] = await Promise.all([
+  read("public/admin-manifest.webmanifest"),
+  read("public/admin-service-worker.js"),
+  read("components/admin/AdminPwaInstallControl.tsx"),
+  read("components/admin/AdminWorkspaceSidebar.tsx"),
+]);
+const adminManifest = JSON.parse(adminManifestSource);
+assert.equal(adminManifest.name, "RoyalLagn Admin Portal", "The installed Admin PWA must have its own product name.");
+assert.match(adminManifest.start_url, /^\/AdminLogin/, "The installed Admin PWA must start at the secure Admin entry route.");
+assert.equal(adminManifest.display, "standalone", "The Admin PWA must open without browser chrome.");
+assert.ok(adminManifest.icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "maskable"), "The Admin PWA must provide a safe maskable icon.");
+assert.match(adminServiceWorkerSource, /does not[\s\S]*cache authenticated Admin responses/, "The Admin service worker must not cache authenticated responses.");
+assert.match(adminInstallControlSource, /beforeinstallprompt/, "The Admin install control must use the browser's native install prompt.");
+assert.match(adminInstallControlSource, /appinstalled/, "The Admin install control must expose the installed state.");
+assert.match(adminSidebarSource, /AdminPwaInstallControl/, "The Admin sidebar must expose the portal install action.");
+
 // --- Aggregate runner must still register every non-credentialed check --
 const runnerSource = await read("scripts/run-smoke-tests.mjs");
 const expectedChecks = [

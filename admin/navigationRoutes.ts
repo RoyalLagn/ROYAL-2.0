@@ -34,6 +34,8 @@ export const adminWorkspaceRoutes = new Set([
   "/AdminTerms",
   "/AdminPrivacy",
   "/AdminHelp",
+  "/AdminNotifications",
+  "/AdminVendorDeletionRequests",
   "/AdminVendorDetails",
   "/VendorApplicationDetails",
   "/AdminProfile",

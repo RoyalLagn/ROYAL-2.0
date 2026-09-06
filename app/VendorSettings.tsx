@@ -49,7 +49,7 @@ export default function VendorSettings() {
       </View>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.section, { color: colors.text }]}>Account</Text>
-        <Pressable onPress={() => router.push("/account-deletion")} accessibilityRole="link" style={[styles.row, { borderTopColor: colors.border }]}>
+        <Pressable onPress={() => router.push("/VendorAccountDeletion")} accessibilityRole="link" style={[styles.row, { borderTopColor: colors.border }]}>
           <View style={[styles.icon, { backgroundColor: `${colors.warning}12` }]}><Trash2 size={19} color={colors.warning} /></View>
           <View style={styles.flex}><Text style={[styles.rowTitle, { color: colors.warning }]}>Delete vendor profile</Text><Text style={[styles.detail, { color: colors.muted }]}>Request permanent deletion of this vendor workspace and public profile.</Text></View>
         </Pressable>

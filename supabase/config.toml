@@ -429,6 +429,12 @@ verify_jwt = false
 [functions.delete-customer-account]
 verify_jwt = true
 
+[functions.request-vendor-deletion]
+verify_jwt = true
+
+[functions.admin-process-vendor-deletion]
+verify_jwt = true
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

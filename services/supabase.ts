@@ -27,41 +27,45 @@ const secureStoreAdapter: SupportedStorage = {
   removeItem: (key) => SecureStore.deleteItemAsync(key),
 };
 
-// Deliberately sessionStorage, not localStorage. Admin, Public and Vendor
-// all authenticate through this one Supabase client/project, so a shared
-// localStorage key means whichever role signs in *last* overwrites the same
-// "sb-<ref>-auth-token" entry for every open tab -- and Supabase's browser
-// client also listens for the `storage` DOM event to sync sessions across
-// tabs sharing that storage, so the other tabs' AdminAuthContext /
-// PublicAuthContext / VendorAuthContext immediately re-verify against the
-// new (wrong-role) session and sign themselves out. sessionStorage is scoped
-// to a single tab/browsing-context by the browser itself: it still survives
-// a reload of that same tab (so refresh keeps you logged in), but a
-// separately opened tab gets its own empty sessionStorage and never
-// observes another tab's writes, so `storage` events -- and therefore
-// cross-tab session replacement -- simply cannot reach it. Native keeps
-// SecureStore untouched below; this only changes the web adapter.
+// Web sessions belong to the browser profile, not to one individual tab.
+// localStorage keeps the authenticated account available across reloads,
+// newly opened tabs and ordinary tab visibility changes. Supabase also uses
+// its storage events to keep refreshed tokens synchronized between tabs.
+// Native continues to use encrypted SecureStore below.
 const webStorageAdapter: SupportedStorage = {
   getItem: (key) => {
     try {
-      return typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(key);
+      if (typeof localStorage === "undefined") return null;
+      const persistedValue = localStorage.getItem(key);
+      if (persistedValue) return persistedValue;
+
+      // Preserve a session created by older builds that used per-tab
+      // sessionStorage, then remove the legacy copy after migration.
+      const legacyValue = typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(key);
+      if (legacyValue) {
+        localStorage.setItem(key, legacyValue);
+        sessionStorage.removeItem(key);
+      }
+      return legacyValue;
     } catch {
-      // sessionStorage can throw in privacy modes / sandboxed frames.
+      // localStorage can throw in privacy modes / sandboxed frames.
       return null;
     }
   },
   setItem: (key, value) => {
     try {
-      if (typeof sessionStorage !== "undefined") {
-        sessionStorage.setItem(key, value);
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(key, value);
       }
     } catch {
-      // Best-effort: a failed write just means this tab won't persist
-      // across reload, not a crash.
+      // Best-effort: a failed write must not crash authentication.
     }
   },
   removeItem: (key) => {
     try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(key);
+      }
       if (typeof sessionStorage !== "undefined") {
         sessionStorage.removeItem(key);
       }
