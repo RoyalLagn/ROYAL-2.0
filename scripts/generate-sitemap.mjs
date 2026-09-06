@@ -22,7 +22,6 @@ const publicPaths = [
   "/Categories",
   "/NearbyVendors",
   "/Search",
-  "/SearchByLocation",
   "/BecomeVendor",
   "/Help",
   "/Terms",

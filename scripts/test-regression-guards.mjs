@@ -227,7 +227,6 @@ const INTEROP_SAFE_LISTING_PATHS = [
   "components/listing/CategoryFilterChips.tsx",
   "components/listing/CompactSearchBar.tsx",
   "components/listing/ListingFilterModal.tsx",
-  "components/locations/CategoryLocationSelector.tsx",
   "components/locations/TalukaLocationSelector.tsx",
 ];
 const interopSafeListingSources = await Promise.all(INTEROP_SAFE_LISTING_PATHS.map(read));

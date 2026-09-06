@@ -84,7 +84,7 @@ Route files are **not** considered dead merely because no source import exists: 
 ## 7. Duplicate Code
 
 - `app/VendorsProfile.tsx` and `app/vendors/[slug].tsx` duplicate public-profile orchestration and should share a profile view model while retaining both routes.
-- Location mapping occurs across `services/locations.ts`, `services/geoLocations.ts`, `services/vendorDiscovery.ts`, `services/pincodeVendorDiscovery.ts`, and `locations/domain.ts`. They serve different queries, but row-to-card and canonical-location transformations should be compared and consolidated.
+- Location mapping occurs across `services/locations.ts`, `services/geoLocations.ts`, `services/vendorDiscovery.ts`, and `locations/domain.ts`. They serve different queries, but row-to-card and canonical-location transformations should be compared and consolidated.
 - Public clip view recording exists in both `clips/services/ClipAnalyticsService.ts` and `clips/services/PublicClipEngagementService.ts`, including RPC/fallback behavior. One service should own the invariant.
 - Authentication contexts (`AdminAuthContext`, `VendorAuthContext`, `PublicAuthContext`) repeat session restoration and `onAuthStateChange` lifecycle patterns. Keep role policies separate, but reuse a small tested session-listener primitive if it stays readable.
 - Admin/CRM service files repeat generic count/query patterns (`services/crm/vendorService.ts`, `services/crm/reportService.ts`, `services/adminDashboardService.ts`). Avoid a universal repository abstraction; share only identical typed helpers.

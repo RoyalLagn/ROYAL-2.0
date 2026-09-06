@@ -120,10 +120,6 @@ assert.match(localityMigration, /if trusted_count = 1 then/);
 assert.match(localityMigration, /geo_pincode_locality_id = case when locality_row\.id is not null then locality_row\.id else null end/);
 assert.match(localityMigration, /application\.geo_pincode_locality_id/);
 
-// A failed PIN-locality vendor page must stop pagination. Without this guard,
-// FlatList.onEndReached repeatedly calls the missing/unavailable RPC.
-const searchByLocation = await readFile(new URL("../app/SearchByLocation.tsx", import.meta.url), "utf8");
-assert.match(searchByLocation, /\.catch\(\(\) => \{[\s\S]{0,300}setHasMore\(false\)/);
 const vendorsListing = await readFile(new URL("../app/VendorsListing.tsx", import.meta.url), "utf8");
 assert.match(vendorsListing, /\.catch\(\(\) => \{[\s\S]{0,300}setLocationHasMore\(false\)/);
 // Public category listings must keep the State/District/Taluka path wired to
