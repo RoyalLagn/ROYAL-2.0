@@ -123,7 +123,7 @@ export default function AdminCrmReports() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 60 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#0878E8" />}
       >
         <ResponsiveContainer>
           {error ? <ResponsiveSection><AdminErrorState message={error} onRetry={() => void load(true)} /></ResponsiveSection> : null}

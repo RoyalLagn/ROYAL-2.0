@@ -16,6 +16,7 @@ import { CalendarDays, Clock3, Mail, MoreVertical, Phone, RefreshCw, Search, Use
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
+import { adminPalette } from "@/theme";
 import { AdminReveal } from "@/components/admin/ui/AdminReveal";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
@@ -120,7 +121,7 @@ export default function AdminUsers() {
         showsVerticalScrollIndicator={false}
         decelerationRate="fast"
         contentContainerStyle={{ paddingBottom: 120 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={adminPalette.brand} />}
       >
         <ResponsiveContainer>
           <AdminPageHeader

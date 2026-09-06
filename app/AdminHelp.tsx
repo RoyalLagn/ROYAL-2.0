@@ -114,7 +114,7 @@ export default function AdminHelp() {
 
             {loading ? (
               <View style={styles.loadingState}>
-                <ActivityIndicator color="#E91E63" />
+                <ActivityIndicator color="#0878E8" />
                 <Text className="text-muted-foreground text-xs mt-3">Loading support settings…</Text>
               </View>
             ) : (
@@ -139,7 +139,7 @@ export default function AdminHelp() {
                         value={form.showEmail}
                         onValueChange={(showEmail) => setForm((current) => ({ ...current, showEmail }))}
                         trackColor={{ false: "#D8D2D5", true: "#F3A0BF" }}
-                        thumbColor={form.showEmail ? "#E91E63" : "#FFFFFF"}
+                        thumbColor={form.showEmail ? "#062B63" : "#FFFFFF"}
                         accessibilityLabel="Show support email"
                       />
                     </View>
@@ -181,7 +181,7 @@ export default function AdminHelp() {
                         value={form.showPhone}
                         onValueChange={(showPhone) => setForm((current) => ({ ...current, showPhone }))}
                         trackColor={{ false: "#D8D2D5", true: "#F3A0BF" }}
-                        thumbColor={form.showPhone ? "#E91E63" : "#FFFFFF"}
+                        thumbColor={form.showPhone ? "#062B63" : "#FFFFFF"}
                         accessibilityLabel="Show support contact number"
                       />
                     </View>
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   removeButton: { minHeight: 38, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 4, marginTop: 5 },
   removeText: { color: "#B42318", fontSize: 12, fontWeight: "600" },
   actionRow: { flexDirection: "row", justifyContent: "flex-end" },
-  saveButton: { minHeight: 46, minWidth: 156, paddingHorizontal: 20, borderRadius: 14, backgroundColor: "#E91E63", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  saveButton: { minHeight: 46, minWidth: 156, paddingHorizontal: 20, borderRadius: 14, backgroundColor: "#062B63", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   saveText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
   disabledButton: { opacity: 0.48 },
   pressed: { opacity: 0.76 },

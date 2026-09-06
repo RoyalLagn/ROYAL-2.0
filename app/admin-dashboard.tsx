@@ -15,15 +15,18 @@ import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer
 import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
 import { EquityRevenueDashboard } from "@/components/admin/revenue/EquityRevenueDashboard";
 import { DashboardClipViewsChart } from "@/components/admin/dashboard/DashboardClipViewsChart";
+import { useAppTheme } from "@/components/ThemeProvider";
 
 function DashboardContent() {
   const { snapshot, loading, refreshing, refresh } = useAdminDashboard();
+  const { colorScheme } = useAppTheme();
   const { width } = useWindowDimensions();
   const statistics = snapshot?.statistics.data;
   const desktop = width >= 1120;
   const updatedAt = snapshot?.loadedAt ?? Date.now();
+  const royal = colorScheme !== "dark";
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
+    <SafeAreaView className={royal ? undefined : "flex-1 bg-background"} style={{ flex: 1, backgroundColor: royal ? "#F5F8FC" : undefined }} edges={["top", "left", "right"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         // Native momentum keeps the admin workspace feeling deliberate on
@@ -32,32 +35,32 @@ function DashboardContent() {
         contentContainerStyle={{ paddingBottom: 118 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}
       >
-        <DashboardHeader refreshing={refreshing} onRefresh={() => void refresh()} />
+        <DashboardHeader royal={royal} refreshing={refreshing} onRefresh={() => void refresh()} />
 
-        <ResponsiveContainer style={{ maxWidth: 1440, alignSelf: "center" }}>
+        <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
           <ResponsiveSection>
-            <DashboardWidget title="Platform Overview" subtitle={`Live platform workload · Updated ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`} icon={LayoutGrid} loading={loading && !snapshot} error={snapshot?.statistics.error} onRefresh={() => void refresh()}>
-              {statistics ? <StatisticsGrid statistics={statistics} /> : <DashboardEmpty message="Statistics are currently unavailable." />}
+            <DashboardWidget royal={royal} title="Platform Overview" subtitle={`Live platform workload · Updated ${new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`} icon={LayoutGrid} loading={loading && !snapshot} error={snapshot?.statistics.error} onRefresh={() => void refresh()}>
+              {statistics ? <StatisticsGrid statistics={statistics} royal={royal} /> : <DashboardEmpty message="Statistics are currently unavailable." />}
             </DashboardWidget>
           </ResponsiveSection>
 
           <View className={desktop ? "flex-row gap-6 items-start" : "gap-0"} style={{ zIndex: 20 }}>
             <View style={desktop ? { flex: 1, minWidth: 0 } : undefined}>
               <ResponsiveSection>
-                <DashboardWidget title="Pending Tasks" subtitle="Current administrator workload" icon={ListTodo} loading={loading && !snapshot} error={snapshot?.statistics.error || snapshot?.health.error} onRefresh={() => void refresh()}>
-                  {statistics ? <PendingTasks statistics={statistics} /> : <DashboardEmpty message="Tasks are unavailable." />}
+                <DashboardWidget royal={royal} title="Pending Tasks" subtitle="Current administrator workload" icon={ListTodo} loading={loading && !snapshot} error={snapshot?.statistics.error || snapshot?.health.error} onRefresh={() => void refresh()}>
+                  {statistics ? <PendingTasks statistics={statistics} royal={royal} /> : <DashboardEmpty message="Tasks are unavailable." />}
                 </DashboardWidget>
               </ResponsiveSection>
             </View>
             <View style={desktop ? { flex: 1, minWidth: 0 } : undefined}>
               <ResponsiveSection>
-                <DashboardClipViewsChart />
+                <DashboardClipViewsChart royal={royal} />
               </ResponsiveSection>
             </View>
           </View>
 
           <ResponsiveSection style={{ zIndex: 10 }}>
-            <EquityRevenueDashboard />
+            <EquityRevenueDashboard royal={royal} />
           </ResponsiveSection>
         </ResponsiveContainer>
       </ScrollView>

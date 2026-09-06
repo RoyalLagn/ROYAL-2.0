@@ -21,9 +21,9 @@ export function LineChart({ data, height = 140 }: LineChartProps) {
     <View>
       <Svg width={width} height={height}>
         <Line x1={0} y1={height - 16} x2={width} y2={height - 16} stroke="#E7E1E4" strokeWidth={1} />
-        <Polyline points={points} fill="none" stroke="#E91E63" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        <Polyline points={points} fill="none" stroke="#0878E8" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
         {data.map((point, index) => (
-          <Circle key={point.date} cx={index * stepX} cy={toY(point.count)} r={3} fill="#E91E63" />
+          <Circle key={point.date} cx={index * stepX} cy={toY(point.count)} r={3} fill="#0878E8" />
         ))}
       </Svg>
       <View className="flex-row justify-between mt-1">

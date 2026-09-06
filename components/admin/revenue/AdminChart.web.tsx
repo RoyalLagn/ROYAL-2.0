@@ -17,7 +17,7 @@ export default function AdminChart({ type, labels, datasets, currency, height = 
         datasets: datasets.map((dataset, index) => ({
           label: dataset.label,
           data: dataset.data,
-          borderColor: dataset.borderColor || (index ? "#C58A22" : "#E91E63"),
+          borderColor: dataset.borderColor || (index ? "#C58A22" : "#0878E8"),
           backgroundColor: dataset.backgroundColor || (index ? "rgba(197,138,34,.28)" : "rgba(233,30,99,.16)"),
           borderWidth: 2,
           pointRadius: type === "line" ? 2.5 : 0,

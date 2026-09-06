@@ -342,7 +342,7 @@ export default function AdminCrmMarketingWorkspaceDetail() {
                     <Text className="text-xs font-bold ml-1.5" style={{ color: "#DC3545" }}>Revoked</Text>
                   </View>
                 )}
-                {saving ? <ActivityIndicator size="small" color="#E91E63" /> : null}
+                {saving ? <ActivityIndicator size="small" color="#0878E8" /> : null}
               </View>
               {workspace.status === "revoked" ? (
                 <Text className="text-muted-foreground text-xs mt-3">This workspace has been permanently revoked. Vendors, assignments, and progress remain stored — only the shared link is disabled.</Text>
@@ -372,7 +372,7 @@ export default function AdminCrmMarketingWorkspaceDetail() {
               </View>
             </View>
             <ScrollView className="px-5" contentContainerStyle={{ paddingVertical: 16 }}>
-              {assignedLoading ? <View className="h-36 items-center justify-center"><ActivityIndicator color="#E91E63" /></View> : assignedVendors.length ? (
+              {assignedLoading ? <View className="h-36 items-center justify-center"><ActivityIndicator color="#0878E8" /></View> : assignedVendors.length ? (
                 <View className="gap-2">
                   {assignedVendors.map((vendor) => (
                     <View key={vendor.id} className="rounded-xl border border-border px-3 py-3 flex-row items-center gap-3">

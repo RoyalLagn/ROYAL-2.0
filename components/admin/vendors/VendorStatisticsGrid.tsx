@@ -4,6 +4,7 @@ import { Building2, CheckCircle2, Clock3, Crown, ShieldCheck, ShieldX, UserCheck
 import { ResponsiveGrid } from "@/components/responsive/ResponsiveGrid";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import type { VendorStatistics } from "@/types/adminVendors";
+import { adminPalette } from "@/theme";
 
 const items = [
   ["total", "Total", Building2],
@@ -30,13 +31,13 @@ const iconTones: Record<(typeof items)[number][0], string> = {
 };
 
 const iconColors: Record<(typeof items)[number][0], string> = {
-  total: "#E91E63",
+  total: "#0878E8",
   approved: "#059669",
   pending: "#B45309",
   rejected: "#DC2626",
   suspended: "#DC2626",
   verified: "#059669",
-  premium: "#E91E63",
+  premium: "#C58A18",
   free: "#6B7280",
   activeToday: "#059669",
 };
@@ -62,7 +63,7 @@ export function VendorStatisticsGrid({
           >
             <View className="flex-row items-center gap-3 flex-1">
               <View className={`w-10 h-10 rounded-xl items-center justify-center ${isActive ? "bg-primary/20" : iconTones[key]}`}>
-                <Icon size={responsive.iconSize - 2} color={isActive ? "#E91E63" : iconColors[key]} />
+                <Icon size={responsive.iconSize - 2} color={isActive ? adminPalette.brand : iconColors[key]} />
               </View>
               <View className="flex-1 min-w-0">
                 <Text className="text-muted-foreground font-inter-medium text-body-compact" numberOfLines={1}>{label}</Text>

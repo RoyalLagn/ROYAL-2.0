@@ -68,7 +68,7 @@ export function TerritoryCard({
           value={node.is_active}
           onValueChange={onToggleActive}
           trackColor={{ false: "#E7E1E4", true: "#F4A9C4" }}
-          thumbColor={node.is_active ? "#E91E63" : "#FFFFFF"}
+          thumbColor={node.is_active ? "#062B63" : "#FFFFFF"}
         />
         <Pressable accessibilityLabel={`Delete ${node.name}`} onPress={onDelete} className="w-11 h-11 rounded-xl items-center justify-center">
           <Trash2 size={15} color="#DC3545" />

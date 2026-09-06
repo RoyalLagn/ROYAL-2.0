@@ -29,6 +29,7 @@ export const CustomerInboxService = {
       .from("customer_notifications")
       .select("id,type,title,message,target_path,is_read,read_at,created_at")
       .eq("customer_id", customerId)
+      .order("is_read", { ascending: true })
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) throw error;
@@ -78,6 +79,7 @@ export const VendorInboxService = {
       .from("vendor_notifications")
       .select("id,vendor_id,title,body,kind,target_path,is_read,read_at,created_at")
       .eq("vendor_id", vendorId)
+      .order("is_read", { ascending: true })
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) throw error;

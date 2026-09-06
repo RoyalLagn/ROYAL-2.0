@@ -94,13 +94,13 @@ export default function AdminEnquiries() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#0878E8" />}
       >
         <ResponsiveContainer style={{ maxWidth: 1180, alignSelf: "center" }}>
           <AdminPageHeader
             title="Enquiries"
             subtitle="See every customer Call or WhatsApp connection to a vendor"
-            action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh enquiries" disabled={refreshing} className="min-w-11 min-h-11 rounded-xl border border-primary/15 bg-card items-center justify-center active:bg-primary/10" style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.97 : 1 }], opacity: refreshing ? 0.55 : 1 })} onPress={() => void load(true)}>{refreshing ? <ActivityIndicator size="small" color="#E91E63" /> : <RefreshCw size={19} className="text-primary" />}</Pressable>}
+            action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh enquiries" disabled={refreshing} className="min-w-11 min-h-11 rounded-xl border border-primary/15 bg-card items-center justify-center active:bg-primary/10" style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.97 : 1 }], opacity: refreshing ? 0.55 : 1 })} onPress={() => void load(true)}>{refreshing ? <ActivityIndicator size="small" color="#0878E8" /> : <RefreshCw size={19} className="text-primary" />}</Pressable>}
           />
 
           <View className={desktop ? "flex-row items-end gap-3 mb-5" : "gap-3 mb-5"}>
@@ -193,7 +193,7 @@ function EnquiryRow({ item, desktop, onPress }: { item: AdminEnquiry; desktop: b
         <Identity image={item.vendor_logo} name={item.vendor_name} detail={item.category_name} fallbackIcon={Store} />
         <View className={desktop ? "w-32 items-start" : "flex-row items-center justify-between gap-3 pt-3 border-t border-border"}>
           <View className={`min-h-9 px-3 rounded-full flex-row items-center gap-2 ${item.enquiry_channel === "whatsapp" ? "bg-green-500/10" : "bg-primary/10"}`}>
-            <ChannelIcon size={15} color={item.enquiry_channel === "whatsapp" ? "#15803D" : "#E91E63"} />
+            <ChannelIcon size={15} color={item.enquiry_channel === "whatsapp" ? "#15803D" : "#0878E8"} />
             <Text className={`text-xs font-bold ${item.enquiry_channel === "whatsapp" ? "text-green-700" : "text-primary"}`}>{channel}</Text>
           </View>
           {!desktop ? <Timestamp value={item.created_at} /> : null}
@@ -238,7 +238,7 @@ function EnquiryTicket({ enquiry, onClose }: { enquiry: AdminEnquiry | null; onC
                 <Text className="text-primary text-sm font-bold">Ticket #{enquiry.reference_code}</Text>
                 </View>
                 <View className={`min-h-11 px-4 rounded-xl flex-row items-center gap-2 ${enquiry.enquiry_channel === "whatsapp" ? "bg-green-500/10" : "bg-primary/10"}`}>
-                  <ChannelIcon size={17} color={enquiry.enquiry_channel === "whatsapp" ? "#15803D" : "#E91E63"} />
+                  <ChannelIcon size={17} color={enquiry.enquiry_channel === "whatsapp" ? "#15803D" : "#0878E8"} />
                   <Text className={`text-sm font-bold ${enquiry.enquiry_channel === "whatsapp" ? "text-green-700" : "text-primary"}`}>{channel}</Text>
                 </View>
               </View>

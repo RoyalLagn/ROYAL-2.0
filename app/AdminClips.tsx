@@ -15,6 +15,7 @@ import { useCategories } from "@/context/CategoryContext";
 import { HierarchySelect } from "@/components/admin/locations/HierarchySelect";
 import { PublicClipVideo, PublicClipVideoBoundary } from "@/clips/components";
 import { DateField } from "@/components/admin/crm/ui/DateField";
+import { adminPalette } from "@/theme";
 
 const PAGE_SIZE = 16;
 const UNCATEGORIZED = "__uncategorized__";
@@ -156,7 +157,7 @@ export default function AdminClips() {
   };
 
   return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-    <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}>
+    <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={adminPalette.brand} />}>
       <ResponsiveContainer>
         <AdminPageHeader title="Clips" subtitle="Review vendor content and remove clips that do not belong" action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh clips" onPress={() => void load(true)} className="w-11 h-11 rounded-xl border border-border bg-card items-center justify-center hover:bg-muted active:bg-muted transition-colors duration-200"><RefreshCw size={19} className="text-primary" /></Pressable>} />
         <View className="bg-card border border-border rounded-2xl px-4 py-4 mb-5 flex-row items-center gap-4">
@@ -169,7 +170,7 @@ export default function AdminClips() {
               {availabilityError || (publicClipsEnabled === null ? "Checking the public Clips status…" : publicClipsEnabled ? "Public users can browse and watch Clips." : "Public users see a coming-soon message. Vendor Clips remain available.")}
             </Text>
           </View>
-          {publicClipsEnabled === null ? <ActivityIndicator color="#E91E63" /> : <Switch accessibilityLabel="Public Clips availability" accessibilityHint="Controls whether Clips are available in the public app" accessibilityState={{ checked: publicClipsEnabled, disabled: availabilitySaving, busy: availabilitySaving }} value={publicClipsEnabled} disabled={availabilitySaving} onValueChange={(value) => void updatePublicClips(value)} trackColor={{ false: "#D6D1D4", true: "#F5A6C2" }} thumbColor={publicClipsEnabled ? "#E91E63" : "#FFFFFF"} />}
+          {publicClipsEnabled === null ? <ActivityIndicator color={adminPalette.brand} /> : <Switch accessibilityLabel="Public Clips availability" accessibilityHint="Controls whether Clips are available in the public app" accessibilityState={{ checked: publicClipsEnabled, disabled: availabilitySaving, busy: availabilitySaving }} value={publicClipsEnabled} disabled={availabilitySaving} onValueChange={(value) => void updatePublicClips(value)} trackColor={{ false: "#D6D1D4", true: "#BFD8F5" }} thumbColor={publicClipsEnabled ? adminPalette.brand : "#FFFFFF"} />}
         </View>
         <ClipAnalyticsSection />
         <View className="mb-4"><Text className="text-foreground text-xl font-bold">All Clips</Text><Text className="text-muted-foreground text-sm mt-1">Review clips by title, vendor, category, or publish date.</Text></View>

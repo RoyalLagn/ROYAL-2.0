@@ -93,15 +93,16 @@ const fromRow = (row: CustomerInboxRow): RoyalLagnNotification => ({
   targetPath: row.target_path,
 });
 
-const sortByNewest = (items: RoyalLagnNotification[]) =>
+const sortUnreadFirst = (items: RoyalLagnNotification[]) =>
   [...items].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    (a, b) => Number(a.read) - Number(b.read)
+      || new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
   );
 
 const upsertNotification = (
   current: RoyalLagnNotification[],
   next: RoyalLagnNotification,
-) => sortByNewest([next, ...current.filter((item) => item.id !== next.id)]);
+) => sortUnreadFirst([next, ...current.filter((item) => item.id !== next.id)]);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const { profile } = usePublicAuth();
@@ -138,7 +139,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       const rows = await CustomerInboxService.list(customerId);
       if (!mounted.current || activeCustomerId.current !== customerId) return;
-      setNotifications(rows.map(fromRow));
+      setNotifications(sortUnreadFirst(rows.map(fromRow)));
       setError(null);
       initialLoadDone.current = true;
     } catch (err) {
@@ -269,9 +270,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       const previousReadAt = target.readAt ?? null;
       const readAt = new Date().toISOString();
       setNotifications((current) =>
-        current.map((item) =>
+        sortUnreadFirst(current.map((item) =>
           item.id === id ? { ...item, read: true, readAt } : item,
-        ),
+        )),
       );
       if (!customerId) return true;
 
@@ -280,9 +281,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return true;
       } catch (err) {
         setNotifications((current) =>
-          current.map((item) =>
+          sortUnreadFirst(current.map((item) =>
             item.id === id ? { ...item, read: false, readAt: previousReadAt } : item,
-          ),
+          )),
         );
         setError(err instanceof Error ? err.message : "Could not mark as read.");
         return false;
@@ -297,7 +298,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     const readAt = new Date().toISOString();
     setNotifications((current) =>
-      current.map((item) => (item.read ? item : { ...item, read: true, readAt })),
+      sortUnreadFirst(current.map((item) => (item.read ? item : { ...item, read: true, readAt }))),
     );
     if (!customerId) return true;
 
@@ -307,9 +308,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     } catch (err) {
       const unreadSet = new Set(unreadIds);
       setNotifications((current) =>
-        current.map((item) =>
+        sortUnreadFirst(current.map((item) =>
           unreadSet.has(item.id) ? { ...item, read: false, readAt: null } : item,
-        ),
+        )),
       );
       setError(err instanceof Error ? err.message : "Could not mark all as read.");
       return false;

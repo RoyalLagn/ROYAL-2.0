@@ -53,7 +53,17 @@ export default function VendorEnquiries() {
   useEffect(() => { setPage(1); }, [channelFilter, enquiryDate, filter, query, sort]);
   useEffect(() => { setPage((current) => Math.min(current, pageCount)); }, [pageCount]);
 
-  const open = (item: TrackedEnquiry) => { setSelected(item); setStatus(item.status); setNotes(item.vendor_notes ?? ""); setFollowUp(item.follow_up_date ?? ""); };
+  const open = (item: TrackedEnquiry) => {
+    setSelected({ ...item, vendor_seen_at: item.vendor_seen_at ?? new Date().toISOString() });
+    setStatus(item.status);
+    setNotes(item.vendor_notes ?? "");
+    setFollowUp(item.follow_up_date ?? "");
+    if (!item.vendor_seen_at) {
+      void EnquiryService.markVendorSeen(item.id)
+        .then(() => refresh(true))
+        .catch((cause) => Alert.alert("Enquiry not marked as opened", cause instanceof Error ? cause.message : "Please try again."));
+    }
+  };
   const save = async () => {
     if (!selected || saving) return;
     if (followUp && !/^\d{4}-\d{2}-\d{2}$/.test(followUp)) return Alert.alert("Check follow-up date", "Use YYYY-MM-DD.");
@@ -84,8 +94,8 @@ export default function VendorEnquiries() {
         <View style={styles.channelGrid}><ChannelCard label="Calls" value={channelCounts.call} icon={Phone} active={channelFilter === "call"} colors={colors} onPress={() => setChannelFilter((current) => current === "call" ? "all" : "call")} /><ChannelCard label="Text" value={channelCounts.form} icon={MessageSquareText} active={channelFilter === "form"} colors={colors} onPress={() => setChannelFilter((current) => current === "form" ? "all" : "form")} /><ChannelCard label="WhatsApp" value={channelCounts.whatsapp} icon={MessageCircle} active={channelFilter === "whatsapp"} colors={colors} onPress={() => setChannelFilter((current) => current === "whatsapp" ? "all" : "whatsapp")} /></View>
         <View style={styles.resultsHeader}><Text accessibilityLiveRegion="polite" style={[styles.resultCount, { color: colors.text }]}>{visible.length} {visible.length === 1 ? "enquiry" : "enquiries"}</Text><Text style={[styles.pageSummary, { color: colors.muted }]}>Page {page} of {pageCount}</Text></View>
       </>}
-      renderItem={({ item }) => <Pressable accessibilityRole="button" accessibilityLabel={`Open enquiry ${item.reference_code} from ${firstName(item.customer_name)}`} onPress={() => open(item)} style={({ pressed, hovered, focused }) => [styles.card, { backgroundColor: colors.surface }, (hovered || focused) && styles.cardHover, pressed && styles.pressed]}>
-        <View style={[styles.channelIcon, { backgroundColor: colors.surfaceSoft }]}>{item.enquiry_channel === "call" ? <Phone size={18} color={colors.pink} /> : item.enquiry_channel === "form" ? <MessageSquareText size={18} color={colors.pink} /> : <MessageCircle size={18} color={colors.pink} />}</View><View style={styles.flex}><Text numberOfLines={1} style={[styles.name, { color: colors.text }]}>{firstName(item.customer_name)}</Text><Text numberOfLines={1} style={[styles.enquiryNumber, { color: colors.muted }]}>{item.reference_code}</Text></View><ChevronRight size={19} color={colors.pink} />
+      renderItem={({ item }) => <Pressable accessibilityRole="button" accessibilityLabel={`${item.vendor_seen_at ? "Opened" : "Unopened"} enquiry ${item.reference_code} from ${firstName(item.customer_name)}`} onPress={() => open(item)} style={({ pressed, hovered, focused }) => [styles.card, { backgroundColor: colors.surface }, (hovered || focused) && styles.cardHover, pressed && styles.pressed]}>
+        <View style={[styles.channelIcon, { backgroundColor: colors.surfaceSoft }]}>{item.enquiry_channel === "call" ? <Phone size={18} color={colors.pink} /> : item.enquiry_channel === "form" ? <MessageSquareText size={18} color={colors.pink} /> : <MessageCircle size={18} color={colors.pink} />}</View><View style={styles.flex}><Text numberOfLines={1} style={[styles.name, { color: colors.text }]}>{firstName(item.customer_name)}</Text><Text numberOfLines={1} style={[styles.enquiryNumber, { color: colors.muted }]}>{item.reference_code}</Text></View>{!item.vendor_seen_at ? <View accessibilityLabel="Unopened enquiry" style={[styles.unreadDot, { backgroundColor: colors.pink }]} /> : null}<ChevronRight size={19} color={colors.pink} />
       </Pressable>}
       ListEmptyComponent={loading
         ? <View accessibilityRole="progressbar" accessibilityLabel="Loading enquiries"><SkeletonList count={4} height={110} /></View>
@@ -156,6 +166,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   name: { fontSize: typeScale.body, fontWeight: "700" },
   enquiryNumber: { fontSize: typeScale.caption, fontWeight: "600", marginTop: 3 },
+  unreadDot: { width: 9, height: 9, borderRadius: 5 },
   meta: { fontSize: typeScale.caption, marginTop: 3 },
   message: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab, marginTop: 12 },
   contactLine: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },

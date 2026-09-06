@@ -151,7 +151,7 @@ export default function AdminCrmCategories() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true, true)} tintColor="#E91E63" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true, true)} tintColor="#0878E8" />}
       >
         <ResponsiveContainer>
           <ResponsiveSection>
@@ -199,7 +199,7 @@ export default function AdminCrmCategories() {
                               value={category.is_active}
                               onValueChange={() => void toggleActive(category)}
                               trackColor={{ false: "#E7E1E4", true: "#F4A9C4" }}
-                              thumbColor={category.is_active ? "#E91E63" : "#FFFFFF"}
+                              thumbColor={category.is_active ? "#062B63" : "#FFFFFF"}
                             />
                             <Pressable accessibilityLabel={`Delete ${category.name}`} onPress={() => setConfirmDelete(category)} className="w-11 h-11 rounded-xl items-center justify-center">
                               <Trash2 size={15} color="#DC3545" />

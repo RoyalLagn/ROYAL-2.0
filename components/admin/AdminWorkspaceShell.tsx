@@ -20,14 +20,15 @@ export function AdminWorkspaceShell({ children }: React.PropsWithChildren) {
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
   if (!isAdminWorkspaceRoute(pathname)) return <>{children}</>;
+  const useRoyalDashboardTheme = colorScheme !== "dark";
   const adminTheme = colorScheme === "dark" ? adminDarkTheme : adminLightTheme;
   if (width < 768) return <View style={[styles.content, adminTheme]}>{children}</View>;
   return (
     <View style={[styles.shell, adminTheme]}>
       <Suspense fallback={<View style={styles.sidebarFallback} />}>
-        <AdminSidebar compact={width < 1040} />
+        <AdminSidebar compact={width < 1040} dashboard={useRoyalDashboardTheme} />
       </Suspense>
-      <View style={styles.content}>{children}</View>
+      <View style={[styles.content, useRoyalDashboardTheme && styles.dashboardContent]}>{children}</View>
     </View>
   );
 }
@@ -35,5 +36,6 @@ export function AdminWorkspaceShell({ children }: React.PropsWithChildren) {
 const styles = StyleSheet.create({
   shell: { flex: 1, flexDirection: "row", minHeight: 0 },
   content: { flex: 1, minWidth: 0, minHeight: 0 },
+  dashboardContent: { backgroundColor: "#F5F8FC" },
   sidebarFallback: { width: 248, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: "#EDE8EB" },
 });

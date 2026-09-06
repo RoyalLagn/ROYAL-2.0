@@ -63,7 +63,7 @@ export default function AdminCrmRegisteredVendors() {
         <View className="flex-1 px-2 min-w-0"><Text className="text-foreground text-xl font-bold">Registered Vendors</Text><Text className="text-muted-foreground text-xs" numberOfLines={1}>{total} registered through marketing workspace links</Text></View>
       </ResponsiveContainer>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#0878E8" />}>
         <ResponsiveContainer>
           <ResponsiveSection>
             <CrmSearchBar value={query} onChangeText={changeQuery} placeholder="Search business, owner or phone" />

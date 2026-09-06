@@ -44,7 +44,7 @@ export function HierarchySelect({
         <Text className={value ? "text-foreground text-body font-inter-semibold flex-1" : "text-muted-foreground text-body flex-1"} numberOfLines={1}>
           {loading ? `Loading ${label}s…` : value ?? `Select ${label}`}
         </Text>
-        {loading ? <ActivityIndicator size="small" color="#E91E63" /> : <ChevronDown size={18} className="text-muted-foreground" />}
+        {loading ? <ActivityIndicator size="small" color="#0878E8" /> : <ChevronDown size={18} className="text-muted-foreground" />}
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => { setOpen(false); setQuery(""); }}>

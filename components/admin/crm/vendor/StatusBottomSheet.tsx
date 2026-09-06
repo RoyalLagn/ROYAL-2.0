@@ -36,7 +36,7 @@ export function StatusBottomSheet({
                   <View className={`px-2.5 py-1.5 rounded-full ${background}`}>
                     <Text className={`text-xs font-semibold ${foreground}`}>{crmVendorStatusLabels[status]}</Text>
                   </View>
-                  {active && saving ? <ActivityIndicator size="small" color="#E91E63" /> : null}
+                  {active && saving ? <ActivityIndicator size="small" color="#0878E8" /> : null}
                 </Pressable>
               );
             })}

@@ -73,6 +73,13 @@ export default function PackageEditorModal({ visible, vendorId, item, dark = fal
 
   const submit = (nextStatus?: VendorPackageStatus) => {
     if (saving) return;
+    const incompleteRow = [...included, ...excluded, ...addOns].find(
+      (row) => !row.title.trim() && (row.description.trim() || row.price.trim()),
+    );
+    if (incompleteRow) {
+      setError("Enter a title for every service or add-on that contains details or a price.");
+      return;
+    }
     const candidate = { ...input, status: nextStatus ?? status };
     const errors = validateVendorPackage(candidate);
     if (errors.length) return setError(errors[0]);

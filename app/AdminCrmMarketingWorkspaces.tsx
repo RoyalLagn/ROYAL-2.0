@@ -128,7 +128,7 @@ export default function AdminCrmMarketingWorkspaces() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 60 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="#E91E63" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="#0878E8" />}
       >
         <ResponsiveContainer>
           {error ? <ResponsiveSection><AdminErrorState message={error} onRetry={() => void refresh()} /></ResponsiveSection> : null}

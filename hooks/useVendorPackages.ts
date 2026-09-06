@@ -6,14 +6,16 @@ export function useVendorPackages(vendorId?: string | null, publicOnly = false) 
   const [loading, setLoading] = useState(Boolean(vendorId));
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
+  const requestSequence = useRef(0);
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const refresh = useCallback(async (quiet = false) => {
+    const requestId = ++requestSequence.current;
     if (!vendorId) {
       setPackages([]);
       setLoading(false);
-      return;
+      return [];
     }
     if (!quiet) setLoading(true);
     setError(null);
@@ -21,11 +23,13 @@ export function useVendorPackages(vendorId?: string | null, publicOnly = false) 
       const rows = publicOnly
         ? await VendorPackageService.listPublic(vendorId)
         : await VendorPackageService.listVendor(vendorId);
-      if (mounted.current) setPackages(rows);
+      if (mounted.current && requestId === requestSequence.current) setPackages(rows);
+      return rows;
     } catch (cause) {
-      if (mounted.current) setError(cause instanceof Error ? cause.message : "Unable to load packages.");
+      if (mounted.current && requestId === requestSequence.current) setError(cause instanceof Error ? cause.message : "Unable to load packages.");
+      return null;
     } finally {
-      if (mounted.current) setLoading(false);
+      if (mounted.current && requestId === requestSequence.current) setLoading(false);
     }
   }, [publicOnly, vendorId]);
 

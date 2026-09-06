@@ -18,7 +18,7 @@ let subscriptionSequence = 0;
 
 export async function listAdminNotifications(): Promise<AdminNotification[]> {
   await verifyAdminSession();
-  const { data, error } = await supabase.from("admin_notifications").select(columns).order("created_at", { ascending: false }).limit(100);
+  const { data, error } = await supabase.from("admin_notifications").select(columns).order("is_read", { ascending: true }).order("created_at", { ascending: false }).limit(100);
   if (error) throw error;
   return (data ?? []) as AdminNotification[];
 }

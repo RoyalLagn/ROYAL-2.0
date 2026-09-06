@@ -9,6 +9,7 @@ import type { DashboardStatistics } from "@/types/adminDashboard";
 import { ResponsiveGrid } from "@/components/responsive/ResponsiveGrid";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import { typeStyles } from "@/constants/typography";
+import { royalAdmin } from "@/components/admin/dashboard/adminDashboardTheme";
 
 type MetricKey = keyof DashboardStatistics;
 
@@ -48,11 +49,25 @@ const toneStyles = {
   danger: { icon: "bg-red-500/10", iconText: "text-red-600 dark:text-red-400" },
 } as const;
 
-function MetricTile({ definition, statistics }: { definition: MetricDefinition; statistics: DashboardStatistics }) {
+const royalMetricTones: Partial<Record<MetricKey, { surface: string; iconSurface: string; icon: string }>> = {
+  publicUsers: { surface: royalAdmin.blueSoft, iconSurface: "#DDEEFF", icon: royalAdmin.blue },
+  totalVendors: { surface: royalAdmin.amberSoft, iconSurface: "#FFF0CF", icon: royalAdmin.amber },
+  categories: { surface: royalAdmin.violetSoft, iconSurface: "#EDE1FF", icon: royalAdmin.violet },
+  reviews: { surface: royalAdmin.roseSoft, iconSurface: "#FFE0E7", icon: royalAdmin.rose },
+  averageRating: { surface: royalAdmin.greenSoft, iconSurface: "#DDF5EA", icon: royalAdmin.green },
+  pendingApplications: { surface: royalAdmin.amberSoft, iconSurface: "#FFF0CF", icon: royalAdmin.amber },
+  todayApprovals: { surface: royalAdmin.greenSoft, iconSurface: "#DDF5EA", icon: royalAdmin.green },
+  todayRejections: { surface: royalAdmin.roseSoft, iconSurface: "#FFE0E7", icon: royalAdmin.rose },
+  todayPublicRegistrations: { surface: royalAdmin.blueSoft, iconSurface: "#DDEEFF", icon: royalAdmin.blue },
+  todayVendorRegistrations: { surface: royalAdmin.amberSoft, iconSurface: "#FFF0CF", icon: royalAdmin.amber },
+};
+
+function MetricTile({ definition, statistics, royal }: { definition: MetricDefinition; statistics: DashboardStatistics; royal?: boolean }) {
   const router = useRouter();
   const responsive = useResponsiveLayout();
   const Icon = definition.icon;
   const tone = toneStyles[definition.tone ?? "brand"];
+  const royalTone = royalMetricTones[definition.key] ?? royalMetricTones.publicUsers!;
   const value = statistics[definition.key];
   const formattedValue = definition.key === "averageRating" ? Number(value).toFixed(2) : Number(value).toLocaleString();
 
@@ -66,11 +81,14 @@ function MetricTile({ definition, statistics }: { definition: MetricDefinition; 
 
   return (
     <Pressable
-      className="min-h-11 rounded-xl border border-border bg-background active:bg-muted/60"
+      className={royal ? "min-h-11 rounded-xl" : "min-h-11 rounded-xl border border-border bg-background active:bg-muted/60"}
       style={({ pressed }) => [{
-        minHeight: responsive.isPhone ? 122 : 132,
-        padding: responsive.isPhone ? 13 : 17,
-        shadowColor: "#1B1720",
+        minHeight: responsive.isPhone ? 116 : royal ? 96 : 132,
+        padding: responsive.isPhone ? 13 : royal ? 12 : 17,
+        borderWidth: 1,
+        borderColor: royal ? royalAdmin.border : undefined,
+        backgroundColor: royal ? royalTone.surface : undefined,
+        shadowColor: royal ? royalAdmin.navy : "#1B1720",
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.025,
         shadowRadius: 8,
@@ -84,18 +102,18 @@ function MetricTile({ definition, statistics }: { definition: MetricDefinition; 
       accessibilityLabel={`${definition.label}: ${formattedValue}`}
     >
       <View className="flex-row items-center gap-3 flex-1">
-        <View className={`${compactIcon ? "w-10 h-10" : "w-12 h-12"} rounded-xl items-center justify-center ${tone.icon}`}>
-          <Icon size={compactIcon ? 19 : 23} className={tone.iconText} />
+        <View className={`${compactIcon ? "w-10 h-10" : "w-12 h-12"} rounded-xl items-center justify-center ${royal ? "" : tone.icon}`} style={royal ? { backgroundColor: royalTone.iconSurface } : undefined}>
+          <Icon size={compactIcon ? 19 : 23} color={royal ? royalTone.icon : undefined} className={royal ? undefined : tone.iconText} />
         </View>
         <View className="flex-1 min-w-0">
-          <Text className="text-muted-foreground" style={typeStyles.label} numberOfLines={1}>
+          <Text className={royal ? undefined : "text-muted-foreground"} style={[typeStyles.label, royal && { color: royalAdmin.navyMuted }]} numberOfLines={1}>
             {responsive.isPhone && definition.compactLabel ? definition.compactLabel : definition.label}
           </Text>
-          <Text className="text-foreground mt-2" style={typeStyles.metric} numberOfLines={1} adjustsFontSizeToFit>
+          <Text className={royal ? undefined : "text-foreground mt-2"} style={[typeStyles.metric, royal && { color: royalAdmin.navyDeep, marginTop: 3 }]} numberOfLines={1} adjustsFontSizeToFit>
             {formattedValue}
           </Text>
           {definition.supportingText ? (
-            <Text className="text-muted-foreground mt-2" style={typeStyles.metadata} numberOfLines={responsive.isPhone ? 2 : 1}>
+            <Text className={royal ? undefined : "text-muted-foreground mt-2"} style={[typeStyles.metadata, royal && { color: definition.key === "publicUsers" || definition.key === "totalVendors" || definition.key === "reviews" ? royalAdmin.green : royalAdmin.navyMuted, marginTop: 3 }]} numberOfLines={responsive.isPhone ? 2 : 1}>
               {definition.supportingText(statistics)}
             </Text>
           ) : null}
@@ -105,7 +123,7 @@ function MetricTile({ definition, statistics }: { definition: MetricDefinition; 
   );
 }
 
-export function StatisticsGrid({ statistics }: { statistics: DashboardStatistics; updatedAt?: number }) {
+export function StatisticsGrid({ statistics, royal = false }: { statistics: DashboardStatistics; updatedAt?: number; royal?: boolean }) {
   const responsive = useResponsiveLayout();
   // 10 metrics only divide evenly into 2 or 5 columns — 3 leaves a lone
   // orphan tile on its own row, so tablet matches phone's 2-column grid
@@ -114,8 +132,8 @@ export function StatisticsGrid({ statistics }: { statistics: DashboardStatistics
   const metrics = [...platformMetrics, ...workflowMetrics, ...growthMetrics];
 
   return (
-    <ResponsiveGrid columns={columns} gap={responsive.isPhone ? 12 : 18}>
-      {metrics.map((definition) => <MetricTile key={definition.key} definition={definition} statistics={statistics} />)}
+    <ResponsiveGrid columns={columns} gap={responsive.isPhone ? 10 : royal ? 12 : 18}>
+      {metrics.map((definition) => <MetricTile key={definition.key} definition={definition} statistics={statistics} royal={royal} />)}
     </ResponsiveGrid>
   );
 }

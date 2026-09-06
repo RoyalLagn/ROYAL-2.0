@@ -35,6 +35,7 @@ export type TrackedEnquiry = {
   booking_confirmed: boolean;
   package_id: string | null;
   package_name: string | null;
+  vendor_seen_at: string | null;
   created_at: string;
   updated_at: string;
   vendor_name?: string;
@@ -256,6 +257,14 @@ export const EnquiryService = {
       follow_up_on: followUpDate || null,
     });
     if (error) throw error;
+  },
+
+  async markVendorSeen(enquiryId: string) {
+    const { data, error } = await supabase.rpc("mark_vendor_enquiry_seen", {
+      target_enquiry_id: enquiryId,
+    });
+    if (error) throw error;
+    return String(data);
   },
 
   calculateAnalytics(items: TrackedEnquiry[], now = new Date()): VendorEnquiryAnalytics {

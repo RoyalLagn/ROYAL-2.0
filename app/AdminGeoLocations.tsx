@@ -8,6 +8,7 @@ import { HierarchySelect } from "@/components/admin/locations/HierarchySelect";
 import { TalukaAvailabilityList } from "@/components/admin/locations/TalukaAvailabilityList";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { useAdminGeoHierarchy } from "@/hooks/useAdminGeoHierarchy";
+import { adminPalette } from "@/theme";
 
 export default function AdminGeoLocations() {
   const { width } = useWindowDimensions();
@@ -39,7 +40,7 @@ export default function AdminGeoLocations() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 120 }}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="#E91E63" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={adminPalette.brand} />}
       >
         <ResponsiveContainer>
           <AdminPageHeader

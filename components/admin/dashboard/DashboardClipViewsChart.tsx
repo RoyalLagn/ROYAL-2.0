@@ -6,6 +6,7 @@ import AdminChart from "@/components/admin/revenue/AdminChart";
 import { AdminClipAnalyticsService, type ClipAnalyticsResult } from "@/services/adminClipAnalytics";
 import { DateField } from "@/components/admin/crm/ui/DateField";
 import { typeStyles } from "@/constants/typography";
+import { royalAdmin } from "@/components/admin/dashboard/adminDashboardTheme";
 
 function monthStart(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), 1);
@@ -15,7 +16,7 @@ function dateKey(value: Date) {
   return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
 }
 
-export function DashboardClipViewsChart() {
+export function DashboardClipViewsChart({ royal = false }: { royal?: boolean }) {
   const currentMonth = useMemo(() => monthStart(new Date()), []);
   const [month, setMonth] = useState(currentMonth);
   const [result, setResult] = useState<ClipAnalyticsResult | null>(null);
@@ -62,6 +63,7 @@ export function DashboardClipViewsChart() {
 
   return (
     <DashboardWidget
+      royal={royal}
       title="Monthly Clip Views"
       subtitle="Daily view movement for the selected month"
       icon={Clapperboard}
@@ -88,7 +90,7 @@ export function DashboardClipViewsChart() {
         </View>
       </View>
 
-      <View className="bg-background border border-border rounded-xl px-4 pt-4 pb-3 min-h-[290px] justify-center">
+      <View className={royal ? "border rounded-xl px-4 pt-4 pb-3 min-h-[290px] justify-center" : "bg-background border border-border rounded-xl px-4 pt-4 pb-3 min-h-[290px] justify-center"} style={royal ? { backgroundColor: "#FBFDFF", borderColor: royalAdmin.border } : undefined}>
         {noViews ? (
           <View className="min-h-[250px] items-center justify-center px-4">
             <Text className="text-foreground text-sm font-bold text-center">No clip views recorded for {period.label}.</Text>
@@ -97,7 +99,7 @@ export function DashboardClipViewsChart() {
           <AdminChart
             type="line"
             labels={labels}
-            datasets={[{ label: "Views", data: values }]}
+            datasets={[{ label: "Views", data: values, ...(royal ? { borderColor: royalAdmin.blue, backgroundColor: "rgba(8,120,232,.08)" } : {}) }]}
             height={260}
             valueFormatter={(value) => Math.round(value).toLocaleString("en-IN")}
             tooltipFooter={(_value, index) => {

@@ -155,7 +155,7 @@ export default function AdminCategories() {
   const categoryColumns = availableWidth >= 1040 ? 3 : availableWidth >= 580 ? 2 : 1;
   const categoryCardWidth = categoryColumns === 1 ? "100%" : (availableWidth - (categoryColumns - 1) * 14) / categoryColumns;
 
-  return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}><ScrollView contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload()} tintColor="#E91E63" />}>
+  return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}><ScrollView contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload()} tintColor="#0878E8" />}>
     <ResponsiveContainer><AdminPageHeader title="Categories" subtitle="Live marketplace category directory" action={<View className="flex-row items-center gap-2">
       <Pressable accessibilityRole="button" accessibilityLabel="Add New Category" onPress={openAdd} className="h-11 rounded-xl bg-primary flex-row items-center px-4 gap-2 shadow-sm hover:bg-[#D81B60] hover:-translate-y-px active:opacity-85 transition-all duration-200 ease-out"><Plus size={17} color="#FFFFFF" /><Text className="text-white text-sm font-bold">Add New Category</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Refresh categories" onPress={() => void reload()} className="w-11 h-11 rounded-xl border border-border bg-card items-center justify-center hover:bg-muted active:opacity-75 transition-colors duration-200"><RefreshCw size={19} className="text-primary" /></Pressable>
@@ -199,14 +199,14 @@ export default function AdminCategories() {
           <Text className="text-foreground text-xs font-semibold mb-2">Category Icon</Text>
           <Pressable accessibilityRole="button" disabled={uploadingIcon} onPress={() => void chooseIcon()} className="min-h-12 border border-dashed border-primary/35 rounded-xl px-4 flex-row items-center gap-3 mb-1 bg-background hover:bg-primary/5 active:opacity-75 transition-colors duration-200">
             {draft.iconUrl ? <Image source={{ uri: draft.iconUrl }} className="w-8 h-8 rounded-lg" /> : <ImagePlus size={18} className="text-muted-foreground" />}
-            {uploadingIcon ? <ActivityIndicator color="#E91E63" /> : <Text className="text-foreground text-sm font-semibold">{draft.iconUrl ? "Change icon image" : "Choose icon image"}</Text>}
+            {uploadingIcon ? <ActivityIndicator color="#0878E8" /> : <Text className="text-foreground text-sm font-semibold">{draft.iconUrl ? "Change icon image" : "Choose icon image"}</Text>}
           </Pressable>
           <Text className="text-muted-foreground text-caption mb-4">Optional. This project does not have an admin-configurable icon set — the compact icon badge shown in lists is assigned in code, so a new category shows a default icon there regardless of this image.</Text>
 
           <Text className="text-foreground text-xs font-semibold mb-2">Category Image / Logo</Text>
           <Pressable accessibilityRole="button" disabled={uploadingImage} onPress={() => void chooseImage()} className="min-h-12 border border-dashed border-primary/35 rounded-xl px-4 flex-row items-center gap-3 mb-4 bg-background hover:bg-primary/5 active:opacity-75 transition-colors duration-200">
             {draft.fallbackImageUrl ? <Image source={{ uri: draft.fallbackImageUrl }} className="w-8 h-8 rounded-lg" /> : <ImagePlus size={18} className="text-muted-foreground" />}
-            {uploadingImage ? <ActivityIndicator color="#E91E63" /> : <Text className="text-foreground text-sm font-semibold">{draft.fallbackImageUrl ? "Change category image" : "Upload image"}</Text>}
+            {uploadingImage ? <ActivityIndicator color="#0878E8" /> : <Text className="text-foreground text-sm font-semibold">{draft.fallbackImageUrl ? "Change category image" : "Upload image"}</Text>}
           </Pressable>
 
           <Text className="text-foreground text-xs font-semibold mb-2">Slug</Text>
@@ -237,7 +237,7 @@ export default function AdminCategories() {
         <Text className="text-foreground text-lg font-bold text-center">Delete Category?</Text>
 
         {checkingUsage ? (
-          <View className="items-center py-6"><ActivityIndicator color="#E91E63" /><Text className="text-muted-foreground text-xs mt-3">Checking whether this category is in use…</Text></View>
+          <View className="items-center py-6"><ActivityIndicator color="#0878E8" /><Text className="text-muted-foreground text-xs mt-3">Checking whether this category is in use…</Text></View>
         ) : usageError ? (
           <View className="mt-3 rounded-2xl px-4 py-3 bg-red-500/10"><Text className="text-red-600 text-xs">{usageError}</Text></View>
         ) : deleteUsage && deleteUsage.total > 0 ? (

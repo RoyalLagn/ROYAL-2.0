@@ -5,6 +5,7 @@ import {
   RotateCcw, Trash2, UserCheck, UserX, type LucideIcon,
 } from "lucide-react-native";
 import type { AdminVendorRecord, VendorAction } from "@/types/adminVendors";
+import { adminPalette } from "@/theme";
 
 export type ManagementOperation = VendorAction | "approve" | "reject";
 
@@ -79,7 +80,7 @@ const copy: Record<ManagementOperation, { title: string; description: (count: nu
 const toneStyles: Record<Tone, { bg: string; icon: string }> = {
   success: { bg: "bg-emerald-600", icon: "#059669" },
   destructive: { bg: "bg-destructive", icon: "#DC2626" },
-  primary: { bg: "bg-primary", icon: "#E91E63" },
+  primary: { bg: "bg-primary", icon: adminPalette.brand },
 };
 
 export function VendorActionDialog({

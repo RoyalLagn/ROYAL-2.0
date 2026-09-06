@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Check, CheckCircle2, ChevronLeft, ChevronRight, Crosshair, Eye, FolderOpen, ImagePlus, Images, LockKeyhole, MoreHorizontal, Move, Pencil, Play, Plus, RotateCcw, Sparkles, Star, Trash2, Upload, X } from "lucide-react-native";
+import { Check, CheckCircle2, ChevronLeft, ChevronRight, Crosshair, Eye, FolderOpen, ImagePlus, Images, LockKeyhole, MoreHorizontal, Move, Pencil, Play, Plus, RotateCcw, Star, Trash2, Upload, X } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -11,7 +11,7 @@ import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { deletePortfolioMedia, deleteUnstoredPortfolioAsset, pickPortfolioMedia, type PortfolioAsset, uploadPortfolioAsset } from "@/services/cloudinary";
 import { supabase } from "@/services/supabase";
 import PortfolioVideoPlayer from "@/components/vendor/PortfolioVideoPlayer";
-import { portfolioAssetFingerprint, portfolioMediaUrl, PORTFOLIO_LIMITS, replaceHeroMedia, updateMediaFocalPoint } from "@/services/vendorPortfolio";
+import { portfolioAssetFingerprint, portfolioMediaUrl, PORTFOLIO_LIMITS, updateMediaFocalPoint } from "@/services/vendorPortfolio";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import ImageFadeIn from "@/components/loading/ImageFadeIn";
 import { typeScale } from "@/constants/typography";
@@ -56,9 +56,6 @@ export default function VendorGallery() {
   const [uploadModal, setUploadModal] = useState(false);
   const [moveMediaItem, setMoveMediaItem] = useState<any>(null);
   const [moveAlbumSource, setMoveAlbumSource] = useState<any>(null);
-  const [heroDraft, setHeroDraft] = useState<string[]>([]);
-  const [heroPreviewId, setHeroPreviewId] = useState<string | null>(null);
-  const [savingHero, setSavingHero] = useState(false);
   const [focalMedia, setFocalMedia] = useState<any>(null);
   const [focalFrame, setFocalFrame] = useState({ width: 1, height: 1 });
   const gap = 10;
@@ -80,9 +77,12 @@ export default function VendorGallery() {
   };
   const tileWidth = tileWidthForContainer(galleryWidth);
   const previewTileWidth = tileWidthForContainer(previewGridWidth);
-  const albumColumns = width >= 900 ? 3 : 2;
+  const albumColumns = 2;
+  const albumStripHorizontalPadding = 2;
   const albumGridAvailableWidth = albumGridWidth || contentWidth;
-  const albumWidth = (albumGridAvailableWidth - gap * (albumColumns - 1)) / albumColumns;
+  const albumWidth = Math.floor(
+    (albumGridAvailableWidth - albumStripHorizontalPadding - gap * (albumColumns - 1)) / albumColumns,
+  );
   const albumHeight = Math.round(albumWidth * (width >= 900 ? 1.06 : 1.13));
   const albumCoverHeight = Math.round(albumWidth * 0.58);
   const activeAlbum = data.albums.find((album) => album.id === selectedAlbumId) ?? data.albums[0];
@@ -94,19 +94,6 @@ export default function VendorGallery() {
   );
   const previewIndex = previewMedia.findIndex((item) => item.id === preview?.id);
   const remainingCapacity = Math.max(0, PORTFOLIO_LIMITS.mediaPerAlbum - media.length);
-  const readyHeroImages = useMemo(() => data.media.filter((item) =>
-    item.resource_type === "image"
-    && !item.subscription_locked
-    && item.upload_status === "completed"
-    && (item.processing_status ?? "ready") === "ready"
-    && data.albums.some((album) => album.id === item.album_id && album.is_visible),
-  ), [data.albums, data.media]);
-  const requiredHeroCount = Math.min(PORTFOLIO_LIMITS.heroMin, readyHeroImages.length);
-  const heroPreview = readyHeroImages.find((item) => item.id === heroPreviewId)
-    ?? readyHeroImages.find((item) => heroDraft.includes(item.id))
-    ?? readyHeroImages[0];
-  const heroPreviewIndex = readyHeroImages.findIndex((item) => item.id === heroPreview?.id);
-  const heroPreviewOrder = heroPreview ? heroDraft.indexOf(heroPreview.id) : -1;
   const uploading = Object.values(uploadProgress).some((task) =>
     task.status === "optimizing" || task.status === "signing" || task.status === "uploading" || task.status === "processing");
   const uploadsCompleted = pendingAssets.length > 0
@@ -120,58 +107,6 @@ export default function VendorGallery() {
   };
 
   useFocusEffect(React.useCallback(() => { refresh(); }, [refresh]));
-  useEffect(() => {
-    setHeroDraft(data.heroMedia.map((item) => item.media_id));
-  }, [data.heroMedia]);
-  useEffect(() => {
-    setHeroPreviewId((current) => readyHeroImages.some((item) => item.id === current)
-      ? current
-      : readyHeroImages.find((item) => heroDraft.includes(item.id))?.id ?? readyHeroImages[0]?.id ?? null);
-  }, [readyHeroImages, heroDraft]);
-
-  const toggleHeroImage = (mediaId: string) => {
-    if (!requireFeature("upload_gallery")) return;
-    setHeroDraft((current) => {
-      if (current.includes(mediaId)) return current.filter((id) => id !== mediaId);
-      if (current.length >= PORTFOLIO_LIMITS.heroMax) {
-        Alert.alert("Hero gallery is full", "Choose no more than 8 images.");
-        return current;
-      }
-      return [...current, mediaId];
-    });
-  };
-  const moveHeroImage = (mediaId: string, direction: -1 | 1) => {
-    if (!requireFeature("upload_gallery")) return;
-    setHeroDraft((current) => {
-      const next = [...current];
-      const index = next.indexOf(mediaId);
-      const target = index + direction;
-      if (index < 0 || target < 0 || target >= next.length) return current;
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  };
-  const saveHeroGallery = async () => {
-    if (!requireFeature("upload_gallery")) return;
-    if (!data.vendor?.id) return;
-    if (heroDraft.length > 0 && heroDraft.length < requiredHeroCount) {
-      return Alert.alert(
-        "Choose more hero images",
-        `Select ${requiredHeroCount}–${PORTFOLIO_LIMITS.heroMax} images, or clear the selection to use the automatic gallery.`,
-      );
-    }
-    setSavingHero(true);
-    try {
-      await replaceHeroMedia(data.vendor.id, heroDraft);
-      await refresh();
-      showSuccess(heroDraft.length ? "Hero gallery updated" : "Automatic hero gallery restored");
-    } catch (caught) {
-      showFailure("Hero gallery not saved", caught);
-    } finally {
-      setSavingHero(false);
-    }
-  };
-
   const openAlbum = (album?: any) => {
     if (!requireFeature("manage_albums")) return;
     if (!album && data.albums.length >= PORTFOLIO_LIMITS.albums) {
@@ -533,7 +468,7 @@ export default function VendorGallery() {
     };
     const showDeleteConfirmation = () => Alert.alert(
         "Delete media?",
-        `${heroDraft.includes(item.id) ? "This image is selected for the public hero gallery and will be removed from it. " : ""}This removes the Cloudinary asset and cannot be undone.`,
+        "This removes the Cloudinary asset and cannot be undone.",
         [
           { text: "Cancel", style: "cancel", onPress: restoreAlbumPreview },
           { text: "Delete", style: "destructive", onPress: async () => {
@@ -643,116 +578,6 @@ export default function VendorGallery() {
           <View style={[styles.skeletonCover, { backgroundColor: colors.surfaceSoft }]} />
           <View style={styles.flex}><View style={[styles.skeletonLine, { backgroundColor: colors.surfaceSoft, width: "72%" }]} /><View style={[styles.skeletonLine, { backgroundColor: colors.surfaceSoft, width: "48%" }]} /></View>
         </View>)}
-      </View> : null}
-
-      {readyHeroImages.length ? <View style={[styles.heroManager, width >= 900 && styles.heroManagerDesktop, { backgroundColor: colors.background, borderColor: colors.border }]}>
-        <View style={styles.heroManagerHeader}>
-          <View style={[styles.heroTitleIcon, { backgroundColor: colors.surfaceSoft }]}>
-            <Sparkles size={19} color={colors.pink} fill={colors.pink} />
-          </View>
-          <View style={styles.flex}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile Hero Gallery</Text>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>Choose {requiredHeroCount}–{PORTFOLIO_LIMITS.heroMax} highlights for your profile.</Text>
-          </View>
-          <Text style={[styles.heroCount, { color: colors.pink, backgroundColor: colors.surfaceSoft }]}>{heroDraft.length}/{PORTFOLIO_LIMITS.heroMax} selected</Text>
-        </View>
-        {heroPreview ? <View style={[styles.heroStage, { backgroundColor: colors.surfaceSoft }]}>
-          <Image
-            key={heroPreview.id}
-            source={{ uri: portfolioMediaUrl(heroPreview, "hero") }}
-            resizeMode="cover"
-            style={StyleSheet.absoluteFillObject}
-          />
-          <LinearGradient
-            colors={["transparent", "rgba(17,7,12,.58)"]}
-            locations={[0.42, 1]}
-            style={StyleSheet.absoluteFillObject}
-          />
-          {readyHeroImages.length > 1 ? <>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Previous hero image"
-              onPress={() => setHeroPreviewId(readyHeroImages[(heroPreviewIndex - 1 + readyHeroImages.length) % readyHeroImages.length].id)}
-              style={({ pressed }) => [styles.heroStageNav, styles.heroStageNavLeft, pressed && styles.pressScale]}
-            ><ChevronLeft size={24} color="#2B1520" /></Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Next hero image"
-              onPress={() => setHeroPreviewId(readyHeroImages[(heroPreviewIndex + 1) % readyHeroImages.length].id)}
-              style={({ pressed }) => [styles.heroStageNav, styles.heroStageNavRight, pressed && styles.pressScale]}
-            ><ChevronRight size={24} color="#2B1520" /></Pressable>
-          </> : null}
-          <View style={styles.heroStageFooter}>
-            <View style={styles.heroStageMeta}>
-              <Text style={styles.heroStagePosition}>{heroPreviewIndex + 1} of {readyHeroImages.length}</Text>
-              <Text style={styles.heroStageHint}>{heroPreviewOrder >= 0 ? `Selected · position ${heroPreviewOrder + 1}` : "Tap its thumbnail to select"}</Text>
-            </View>
-            {heroPreviewOrder >= 0 ? <View style={[styles.heroSelectedBadge, { backgroundColor: colors.pink }]}>
-              <Check size={14} color="#FFF" strokeWidth={3} />
-              <Text style={styles.heroSelectedText}>Selected</Text>
-            </View> : null}
-          </View>
-        </View> : null}
-        <View style={styles.heroPicker}>
-          {readyHeroImages.map((item) => {
-            const selectedIndex = heroDraft.indexOf(item.id);
-            const selected = selectedIndex >= 0;
-            const previewing = item.id === heroPreview?.id;
-            return <Pressable
-              key={item.id}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: selected }}
-              accessibilityLabel={`${selected ? "Remove" : "Select"} hero image ${readyHeroImages.indexOf(item) + 1}`}
-              onPress={() => {
-                setHeroPreviewId(item.id);
-                toggleHeroImage(item.id);
-              }}
-              style={({ pressed, hovered, focused }) => [
-                styles.heroThumb,
-                { backgroundColor: colors.surfaceSoft },
-                previewing && { borderColor: colors.pink },
-                (hovered || focused) && styles.hoverLift,
-                pressed && styles.pressScale,
-              ]}
-            >
-              <ImageFadeIn source={{ uri: portfolioMediaUrl(item, "thumbnail") }} resizeMode="cover" style={StyleSheet.absoluteFillObject} />
-              {selected ? <View style={[styles.heroOrder, { backgroundColor: colors.pink }]}>
-                <Text style={styles.heroOrderText}>{selectedIndex + 1}</Text>
-                <Check size={11} color="#FFF" strokeWidth={3} />
-              </View> : <View style={styles.heroUnselectedDot} />}
-            </Pressable>;
-          })}
-        </View>
-        {heroPreviewOrder >= 0 ? <View style={[styles.heroReorder, { backgroundColor: colors.surfaceSoft }]}>
-          <Text style={[styles.heroReorderLabel, { color: colors.muted }]}>Position {heroPreviewOrder + 1} of {heroDraft.length}</Text>
-          <Pressable
-            disabled={heroPreviewOrder === 0}
-            accessibilityRole="button"
-            accessibilityLabel="Move selected hero image earlier"
-            accessibilityState={{ disabled: heroPreviewOrder === 0 }}
-            onPress={() => moveHeroImage(heroPreview.id, -1)}
-            style={({ pressed }) => [styles.heroReorderButton, { backgroundColor: colors.surface }, heroPreviewOrder === 0 && styles.disabled, pressed && styles.pressScale]}
-          ><ChevronLeft size={17} color={colors.text} /><Text style={[styles.heroReorderText, { color: colors.text }]}>Earlier</Text></Pressable>
-          <Pressable
-            disabled={heroPreviewOrder === heroDraft.length - 1}
-            accessibilityRole="button"
-            accessibilityLabel="Move selected hero image later"
-            accessibilityState={{ disabled: heroPreviewOrder === heroDraft.length - 1 }}
-            onPress={() => moveHeroImage(heroPreview.id, 1)}
-            style={({ pressed }) => [styles.heroReorderButton, { backgroundColor: colors.surface }, heroPreviewOrder === heroDraft.length - 1 && styles.disabled, pressed && styles.pressScale]}
-          ><Text style={[styles.heroReorderText, { color: colors.text }]}>Later</Text><ChevronRight size={17} color={colors.text} /></Pressable>
-        </View> : null}
-        <View style={styles.heroActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Use automatic hero gallery selection"
-            onPress={() => requireFeature("upload_gallery", () => setHeroDraft([]))}
-            style={({ pressed }) => [styles.heroAutomatic, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressLift]}
-          ><Sparkles size={17} color={colors.text} /><Text style={[styles.heroAutomaticText, { color: colors.text }]}>Use automatic</Text></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Save hero gallery" accessibilityState={{ disabled: savingHero, busy: savingHero }} disabled={savingHero} onPress={saveHeroGallery} style={({ pressed }) => [styles.heroSave, { backgroundColor: colors.pink, shadowColor: colors.shadow }, pressed && styles.pressLift]}>
-            {savingHero ? <ActivityIndicator color="#FFF" /> : <><Sparkles size={17} color="#FFF" /><Text style={styles.primaryText}>Save hero gallery</Text></>}
-          </Pressable>
-        </View>
       </View> : null}
 
       <View style={styles.sectionHeadingRow}>

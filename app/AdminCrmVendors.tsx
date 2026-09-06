@@ -190,7 +190,7 @@ export default function AdminCrmVendors() {
           className="min-w-11 min-h-11 items-center justify-center"
           onPress={() => void exportRows(rows)}
         >
-          {exporting ? <ActivityIndicator size="small" color="#E91E63" /> : <Download size={19} className="text-primary" />}
+          {exporting ? <ActivityIndicator size="small" color="#0878E8" /> : <Download size={19} className="text-primary" />}
         </Pressable>
         <Pressable
           accessibilityLabel="Add vendor"
@@ -204,7 +204,7 @@ export default function AdminCrmVendors() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: selectionMode && selected.size ? 190 : 120 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="#E91E63" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="#0878E8" />}
       >
         <ResponsiveContainer>
           <ResponsiveSection>

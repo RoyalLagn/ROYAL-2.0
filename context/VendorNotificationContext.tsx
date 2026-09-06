@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AppState } from "react-native";
 import { supabase } from "@/services/supabase";
 import { useVendorSession } from "@/context/VendorSessionContext";
 import {
@@ -54,13 +55,14 @@ const fromRow = (row: VendorInboxRow): VendorNotification => ({
   created_at: row.created_at,
 });
 
-const sortByNewest = (items: VendorNotification[]) =>
+const sortUnreadFirst = (items: VendorNotification[]) =>
   [...items].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    (a, b) => Number(a.is_read) - Number(b.is_read)
+      || new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
 
 const upsertNotification = (current: VendorNotification[], next: VendorNotification) =>
-  sortByNewest([next, ...current.filter((item) => item.id !== next.id)]);
+  sortUnreadFirst([next, ...current.filter((item) => item.id !== next.id)]);
 
 export function VendorNotificationProvider({ children }: React.PropsWithChildren) {
   const { isPreviewMode, workspaceEpoch } = useVendorSession();
@@ -133,7 +135,7 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
       if (!mounted.current || request !== refreshRequest.current) return;
       setVendorId(vendor.id);
       activeVendorId.current = vendor.id;
-      setNotifications(rows.map(fromRow));
+      setNotifications(sortUnreadFirst(rows.map(fromRow)));
       setError(null);
       initialLoadDone.current = true;
     } catch (err) {
@@ -152,6 +154,14 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
     initialLoadDone.current = false;
     void refresh();
   }, [refresh, workspaceEpoch]);
+
+  useEffect(() => {
+    if (isPreviewMode) return;
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") void refresh();
+    });
+    return () => subscription.remove();
+  }, [isPreviewMode, refresh]);
 
   useEffect(() => {
     if (!vendorId) return;
@@ -207,7 +217,23 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
           setNotifications((current) => current.filter((item) => item.id !== row.id));
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "vendor_enquiries",
+          filter: `vendor_id=eq.${vendorId}`,
+        },
+        () => {
+          // The enquiry notification is inserted by a database trigger in the
+          // same transaction. Re-fetching also repairs a notification event
+          // missed while a browser tab or mobile app was backgrounded.
+          void refresh();
+        },
+      )
       .subscribe((status) => {
+        if (status === "SUBSCRIBED") void refresh();
         if (status === "CHANNEL_ERROR" && mounted.current) {
           setError("Live updates unavailable. Pull to refresh.");
         }
@@ -216,7 +242,7 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [vendorId]);
+  }, [refresh, vendorId]);
 
   const markAsRead = useCallback(
     async (id: string) => {
@@ -227,9 +253,9 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
       const previousReadAt = target.read_at;
       const readAt = new Date().toISOString();
       setNotifications((current) =>
-        current.map((item) =>
+        sortUnreadFirst(current.map((item) =>
           item.id === id ? { ...item, is_read: true, read_at: readAt } : item,
-        ),
+        )),
       );
 
       try {
@@ -237,11 +263,11 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
         return true;
       } catch (err) {
         setNotifications((current) =>
-          current.map((item) =>
+          sortUnreadFirst(current.map((item) =>
             item.id === id
               ? { ...item, is_read: false, read_at: previousReadAt }
               : item,
-          ),
+          )),
         );
         setError(err instanceof Error ? err.message : "Could not mark as read.");
         return false;
@@ -257,9 +283,9 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
 
     const readAt = new Date().toISOString();
     setNotifications((current) =>
-      current.map((item) =>
+      sortUnreadFirst(current.map((item) =>
         item.is_read ? item : { ...item, is_read: true, read_at: readAt },
-      ),
+      )),
     );
 
     try {
@@ -268,11 +294,11 @@ export function VendorNotificationProvider({ children }: React.PropsWithChildren
     } catch (err) {
       const unreadSet = new Set(unreadIds);
       setNotifications((current) =>
-        current.map((item) =>
+        sortUnreadFirst(current.map((item) =>
           unreadSet.has(item.id)
             ? { ...item, is_read: false, read_at: null }
             : item,
-        ),
+        )),
       );
       setError(err instanceof Error ? err.message : "Could not mark all as read.");
       return false;

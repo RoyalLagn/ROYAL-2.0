@@ -10,6 +10,7 @@ import { AdminReveal } from "@/components/admin/ui/AdminReveal";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { supabase } from "@/services/supabase";
+import { adminPalette } from "@/theme";
 
 type ApplicationStatus = "pending" | "approved" | "rejected";
 type Application = { id: string; business_name: string; full_name: string; city: string; logo_url: string; status: ApplicationStatus; submitted_at: string; reviewed_at: string | null; categories: { name: string } | { name: string }[] | null };
@@ -42,7 +43,7 @@ export default function VendorApplications() {
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-    <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}>
+    <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={adminPalette.brand} />}>
       <ResponsiveContainer>
         <AdminPageHeader title="Vendor Approvals" subtitle="Review current and previous registration decisions" action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh applications" onPress={() => void load(true)} className="w-11 h-11 rounded-xl border border-border bg-card items-center justify-center hover:bg-muted active:bg-muted transition-colors duration-200"><RefreshCw size={19} className="text-primary" /></Pressable>} />
         <View className="bg-card border border-border rounded-2xl px-4 h-12 flex-row items-center shadow-sm"><Search size={18} className="text-muted-foreground" /><TextInput value={query} onChangeText={(value) => { setQuery(value); setPage(1); }} placeholder="Search business, owner, category or city" placeholderTextColor="#8A8589" className="flex-1 h-12 ml-3 text-foreground" /></View>

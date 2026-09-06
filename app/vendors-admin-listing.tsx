@@ -16,6 +16,7 @@ import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
 import { useAdminVendors } from "@/hooks/useAdminVendors";
 import { VendorStatisticsGrid } from "@/components/admin/vendors/VendorStatisticsGrid";
 import { VendorFilterBar } from "@/components/admin/vendors/VendorFilterBar";
+import { adminPalette } from "@/theme";
 import { VendorCard } from "@/components/admin/vendors/VendorCard";
 import {
   VendorActionDialog,
@@ -215,7 +216,7 @@ export default function VendorsAdminListing() {
                 disabled={exporting}
                 onPress={() => void exportFilteredVendors()}
               >
-                {exporting ? <ActivityIndicator size="small" color="#E91E63" /> : <Download size={20} className="text-primary" />}
+                {exporting ? <ActivityIndicator size="small" color={adminPalette.brand} /> : <Download size={20} className="text-primary" />}
               </Pressable>
             )}
           />
@@ -244,7 +245,7 @@ export default function VendorsAdminListing() {
                 </Text>
               </View>
               {registrationEnabled === null ? (
-                <ActivityIndicator color="#E91E63" />
+                <ActivityIndicator color={adminPalette.brand} />
               ) : (
                 <Switch
                   accessibilityLabel="Vendor Registration"
@@ -254,7 +255,7 @@ export default function VendorsAdminListing() {
                   disabled={registrationSaving}
                   onValueChange={(value) => void updateRegistration(value)}
                   trackColor={{ false: "#D6D1D4", true: "#F5A6C2" }}
-                  thumbColor={registrationEnabled ? "#E91E63" : "#FFFFFF"}
+                  thumbColor={registrationEnabled ? adminPalette.brand : "#FFFFFF"}
                 />
               )}
             </View>

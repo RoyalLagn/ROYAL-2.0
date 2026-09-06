@@ -78,14 +78,23 @@ export default function VendorServices() {
   const save = async (input: VendorPackageInput) => {
     if (!vendorId || saving) return;
     setSaving(true);
+    let persisted = false;
     try {
-      await VendorPackageService.save(input, editing?.id);
+      const savedId = await VendorPackageService.save(input, editing?.id);
+      persisted = true;
+      const refreshed = await refresh();
+      const savedPackage = refreshed?.find((item) => item.id === savedId);
+      if (!savedPackage || !packageContentsMatch(savedPackage, input)) {
+        setEditorOpen(false);
+        setEditing(null);
+        Alert.alert("Package saved", "The package was saved, but its latest details could not be verified. Refresh the page before editing it again.");
+        return;
+      }
       setEditorOpen(false);
       setEditing(null);
-      await refresh();
       showSuccess(input.status === "draft" ? "Package draft saved" : input.status === "active" ? "Package published" : "Package saved");
     } catch (cause) {
-      Alert.alert("Package not saved", cause instanceof Error ? cause.message : "Please try again.");
+      Alert.alert(persisted ? "Package saved" : "Package not saved", cause instanceof Error ? cause.message : "Please try again.");
     } finally {
       setSaving(false);
     }
@@ -457,6 +466,19 @@ function SmallAction({ label, icon: Icon, onPress, colors, danger, emphasis, dis
       <Text style={[styles.smallActionText, { color: foreground }]}>{label}</Text>
     </Pressable>
   );
+}
+
+function packageContentsMatch(saved: VendorPackage, submitted: VendorPackageInput) {
+  const normalize = (value?: string | null) => value?.trim() || null;
+  const normalizeItems = (items: VendorPackage["items"]) => items.map((item) => ({
+    type: item.item_type,
+    title: item.title.trim(),
+    description: normalize(item.description),
+    price: item.item_type === "add_on" && item.price != null ? Number(item.price) : null,
+  }));
+
+  return normalize(saved.delivery_details) === normalize(submitted.delivery_details)
+    && JSON.stringify(normalizeItems(saved.items)) === JSON.stringify(normalizeItems(submitted.items));
 }
 
 const styles = StyleSheet.create({

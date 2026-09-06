@@ -241,10 +241,7 @@ function normalizeVendor(
       };
     })
     .filter((album: PublicPortfolioAlbum) => album.media.length > 0);
-  const selectedHeroIds = (row.vendor_portfolio_hero_media ?? [])
-    .sort((a: any, b: any) => Number(a.display_order ?? 0) - Number(b.display_order ?? 0))
-    .map((selection: any) => selection.media_id);
-  const heroMedia = stableHeroSelection(portfolioAlbums, selectedHeroIds);
+  const heroMedia = stableHeroSelection(portfolioAlbums, []);
   const portfolioImages = portfolioAlbums
     .flatMap((album) => album.media)
     .map((media) => portfolioMediaUrl(media, "card"));

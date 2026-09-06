@@ -12,6 +12,7 @@ import { AdminOperationsService, type AdminReview } from "@/services/adminOperat
 import { CategoryService, type CategoryRecord } from "@/services/CategoryService";
 import { HierarchySelect } from "@/components/admin/locations/HierarchySelect";
 import { DateField } from "@/components/admin/crm/ui/DateField";
+import { adminPalette } from "@/theme";
 
 const PAGE_SIZE = 15;
 
@@ -51,7 +52,7 @@ export default function AdminReviews() {
   const selectedCategoryName = categoryOptions.find((category) => category.id === categoryId)?.name ?? "All categories";
 
   return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-    <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#E91E63" />}>
+    <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={adminPalette.brand} />}>
       <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
         <AdminPageHeader title="Reviews" subtitle="Monitor customer sentiment and marketplace trust" action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh reviews" accessibilityState={{ busy: refreshing }} onPress={() => void load(true)} className="min-w-11 min-h-11 rounded-xl items-center justify-center active:opacity-70"><RefreshCw size={19} className="text-primary" /></Pressable>} />
         {!loading && !error ? <View className="flex-row flex-wrap gap-3 mb-4"><SummaryMetric icon={MessageSquareText} label="Published reviews" value={items.length.toLocaleString("en-IN")} /><SummaryMetric icon={Star} label="Average rating" value={averageRating ? averageRating.toFixed(1) : "—"} tone="amber" /><SummaryMetric icon={ThumbsUp} label="Helpful votes" value={helpfulVotes.toLocaleString("en-IN")} tone="green" /></View> : null}

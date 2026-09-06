@@ -5,6 +5,7 @@ import { adminPalette } from "@/theme";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { brandColors } from "@/constants/brandPalette";
 import { typeLeading, typeScale } from "@/constants/typography";
+import { royalAdmin } from "@/components/admin/dashboard/adminDashboardTheme";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -21,7 +22,7 @@ function isStandalone() {
     || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
 }
 
-export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compact: boolean; variant?: "sidebar" | "card" }) {
+export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compact: boolean; variant?: "sidebar" | "card" | "royalSidebar" }) {
   const { colorScheme } = useAppTheme();
   const colors = brandColors(colorScheme === "dark");
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
@@ -100,7 +101,7 @@ export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compa
 
   return (
     <View style={[
-      variant === "sidebar" ? styles.sidebarWrap : styles.cardWrap,
+      variant === "card" ? styles.cardWrap : styles.sidebarWrap,
       { borderColor: colors.border, backgroundColor: variant === "card" ? colors.card : undefined },
     ]}>
       <Pressable
@@ -112,16 +113,16 @@ export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compa
         style={({ pressed }) => [
           styles.button,
           compact && styles.compactButton,
-          { backgroundColor: installed ? colors.muted : colors.actionTint },
+          { backgroundColor: installed ? colors.muted : variant === "royalSidebar" ? "transparent" : colors.actionTint },
           pressed && styles.pressed,
         ]}
       >
         {installed
           ? <CheckCircle2 size={18} color={colors.mutedForeground} />
-          : <Download size={18} color={adminPalette.brand} />}
+          : <Download size={18} color={variant === "royalSidebar" ? royalAdmin.navy : adminPalette.brand} />}
         {!compact ? (
           <View style={styles.copy}>
-            <Text style={[styles.label, { color: installed ? colors.mutedForeground : adminPalette.brand }]}>
+            <Text style={[styles.label, { color: installed ? colors.mutedForeground : variant === "royalSidebar" ? royalAdmin.navy : adminPalette.brand }]}>
               {installed ? "Admin Portal installed" : installing ? "Opening installer…" : !installPrompt && !promptChecked ? "Preparing installer…" : "Install Admin Portal"}
             </Text>
             {!installed ? <Text style={[styles.hint, { color: colors.mutedForeground }]}>Open as a standalone app</Text> : null}
