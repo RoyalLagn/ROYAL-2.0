@@ -13,8 +13,7 @@ import {
   View,
 } from "react-native";
 import { Camera, ChevronLeft, Maximize2 } from "lucide-react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { brandPalette } from "@/constants/brandPalette";
+import { LinearGradient } from "expo-linear-gradient";
 import { typeScale, typeLeading } from "@/constants/typography";
 // NativeWind's native Pressable interop drops function `style={(state) =>
 // [...]}` props on Android; InteropSafePressable resolves it first.
@@ -26,7 +25,7 @@ export type VendorHeroCarouselProps = {
   images: CarouselImage[];
   vendorName: string;
   fallbackImage?: CarouselImage;
-  onBack: () => void;
+  onBack?: () => void;
   onOpen?: (index: number) => void;
   focalPoints?: { x: number; y: number }[];
   paused?: boolean;
@@ -54,7 +53,6 @@ function VendorHeroCarousel({
   height,
   containMedia = false,
 }: VendorHeroCarouselProps) {
-  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const sources = useMemo(() => images.length ? images : fallbackImage ? [fallbackImage] : [], [fallbackImage, images]);
   const [index, setIndex] = useState(0);
@@ -66,6 +64,7 @@ function VendorHeroCarousel({
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [carouselWidth, setCarouselWidth] = useState(width);
   const heroHeight = height ?? (width >= 900 ? 470 : Math.max(300, Math.min(410, width * 0.78)));
+  const controlHorizontalInset = width < 380 ? 14 : 18;
 
   useEffect(() => {
     let mounted = true;
@@ -165,7 +164,7 @@ function VendorHeroCarousel({
           const focalPoint = focalPoints[sourceIndex] ?? { x: 0.5, y: 0.5 };
           const focalStyle = Platform.OS === "web"
             ? ({ objectPosition: `${Math.round(focalPoint.x * 100)}% ${Math.round(focalPoint.y * 100)}%` } as object)
-            : ({ transform: [{ scale: 1.04 }, { translateX: (0.5 - focalPoint.x) * 16 }, { translateY: (0.5 - focalPoint.y) * 16 }] } as object);
+            : ({ transform: [{ scale: 1.035 }, { translateX: (0.5 - focalPoint.x) * 10 }, { translateY: (0.5 - focalPoint.y) * 10 }] } as object);
           return (
             <Pressable
               key={`${sourceIndex}-${slideIndex === sources.length ? "loop" : "slide"}`}
@@ -192,13 +191,19 @@ function VendorHeroCarousel({
                   style={[styles.image, focalStyle]}
                 />
               ) : null}
-              <View pointerEvents="none" style={styles.mediaShade} />
+              <LinearGradient
+                pointerEvents="none"
+                colors={["rgba(8,5,7,0.22)", "rgba(8,5,7,0.02)", "rgba(8,5,7,0.64)"]}
+                locations={[0, 0.52, 1]}
+                style={styles.mediaShade}
+              />
+              <View pointerEvents="none" style={styles.frameLine} />
             </Pressable>
           );
         })}
       </ScrollView>
 
-      <View pointerEvents="box-none" style={[styles.topControls, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+      {onBack ? <View pointerEvents="box-none" style={[styles.topControls, { paddingHorizontal: controlHorizontalInset }]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Go back from ${vendorName}`}
@@ -215,17 +220,17 @@ function VendorHeroCarousel({
         >
           <ChevronLeft size={25} color="#FFFFFF" strokeWidth={2} />
         </Pressable>
-      </View>
+      </View> : null}
 
       {sources.length > 1 ? (
-        <View style={styles.counter}>
+        <View style={[styles.counter, { left: controlHorizontalInset }]}>
           <Camera size={13} color="#FFFFFF" strokeWidth={1.8} />
           <Text style={styles.counterText}>{index + 1}/{sources.length}</Text>
         </View>
       ) : null}
 
       {onOpen ? (
-        <View pointerEvents="none" style={styles.expandHint}>
+        <View pointerEvents="none" style={[styles.expandHint, { right: controlHorizontalInset }]}>
           <Maximize2 size={13} color="#FFFFFF" strokeWidth={1.9} />
           <Text style={styles.expandHintText}>View gallery</Text>
         </View>
@@ -247,8 +252,7 @@ const styles = StyleSheet.create({
     width: "100%",
     position: "relative",
     overflow: "hidden",
-    borderBottomLeftRadius: 26,
-    borderBottomRightRadius: 26,
+    borderRadius: 26,
     backgroundColor: "#050505",
   },
   galleryTarget: StyleSheet.absoluteFillObject,
@@ -257,13 +261,21 @@ const styles = StyleSheet.create({
   heroSlidePressed: { opacity: 0.91, transform: [{ scale: 0.992 }] },
   heroSlidePressedReduced: { opacity: 0.91 },
   image: { width: "100%", height: "100%" },
-  mediaShade: { ...StyleSheet.absoluteFillObject, backgroundColor: brandPalette.light.overlayInk, opacity: 0.12 },
-  topControls: { position: "absolute", top: 0, left: 0, right: 0, paddingHorizontal: 18 },
+  mediaShade: StyleSheet.absoluteFillObject,
+  frameLine: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,.22)",
+    borderRadius: 26,
+  },
+  topControls: { position: "absolute", top: 18, left: 0, right: 0 },
   backButton: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: "rgba(28,20,23,.58)",
+    backgroundColor: "rgba(20,14,17,.64)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,.22)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -273,16 +285,18 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 18,
     bottom: 28,
-    minHeight: 30,
-    borderRadius: 15,
-    paddingHorizontal: 11,
+    minHeight: 36,
+    borderRadius: 18,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(28,20,23,.66)",
+    backgroundColor: "rgba(20,14,17,.72)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,.2)",
   },
   counterText: { color: "#FFFFFF", fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" },
-  expandHint: { position: "absolute", right: 18, bottom: 27, minHeight: 32, borderRadius: 16, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(28,20,23,.68)" },
+  expandHint: { position: "absolute", right: 18, bottom: 27, minHeight: 36, borderRadius: 18, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(20,14,17,.74)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.2)" },
   expandHintText: { color: "#FFFFFF", fontSize: typeScale.metadata, lineHeight: typeLeading.caption, fontWeight: "700" },
   dots: { position: "absolute", bottom: 13, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 5 },
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,.5)" },

@@ -11,6 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 type Props = {
+  header?: React.ReactNode;
   hero: React.ReactNode;
   children: React.ReactNode;
   heroHeight: number;
@@ -20,6 +21,8 @@ type Props = {
    * `measuredWidth` for why. */
   pageWidth: number;
   overlap?: number;
+  heroHorizontalInset?: number;
+  heroTopInset?: number;
   motionDistance?: number;
   backgroundColor: string;
   sheetColor: string;
@@ -50,11 +53,14 @@ const DESKTOP_MAX_WIDTH = 1120;
  * first layout pass.
  */
 function PinnedHeroProfileLayout({
+  header,
   hero,
   children,
   heroHeight,
   pageWidth,
   overlap = 24,
+  heroHorizontalInset = 0,
+  heroTopInset = 0,
   motionDistance = 220,
   backgroundColor,
   sheetColor,
@@ -67,7 +73,7 @@ function PinnedHeroProfileLayout({
   // whole profile visibly vibrate on some Android GPUs. Keep that editorial
   // parallax on web, but make the native hero a stable composited surface.
   const useHeroParallax = Platform.OS === "web" && !reducedMotion;
-  const sheetOffset = Math.max(0, heroHeight - overlap);
+  const sheetOffset = Math.max(0, heroTopInset + heroHeight - overlap);
   const coverDistance = Math.max(1, Math.min(heroHeight, motionDistance));
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const lastReportedOffset = useSharedValue(-160);
@@ -130,8 +136,24 @@ function PinnedHeroProfileLayout({
         nestedScrollEnabled
         onScroll={onScroll}
       >
+        {header ? (
+          <View style={[styles.header, { width: effectiveWidth }]}>
+            {header}
+          </View>
+        ) : null}
         <View style={[styles.page, { width: effectiveWidth, paddingTop: sheetOffset }]}>
-          <Animated.View style={[styles.hero, { height: heroHeight }, heroStyle]}>
+          <Animated.View
+            style={[
+              styles.hero,
+              {
+                top: heroTopInset,
+                left: heroHorizontalInset,
+                right: heroHorizontalInset,
+                height: heroHeight,
+              },
+              heroStyle,
+            ]}
+          >
             {hero}
             <Animated.View pointerEvents="none" style={[styles.shade, shadeStyle]} />
           </Animated.View>
@@ -158,14 +180,13 @@ export default React.memo(PinnedHeroProfileLayout);
 const styles = StyleSheet.create({
   root: { flex: 1, position: "relative", overflow: "hidden" },
   scroll: { flex: 1 },
+  header: { maxWidth: "100%", alignSelf: "center", flexShrink: 0 },
   page: { maxWidth: "100%", alignSelf: "center", position: "relative" },
   hero: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
     zIndex: 0,
     overflow: "hidden",
+    borderRadius: 26,
     backgroundColor: "#050505",
   },
   shade: { ...StyleSheet.absoluteFillObject, backgroundColor: "#000000" },
