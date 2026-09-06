@@ -32,6 +32,11 @@ export type AnimatedPressableProps = PressableProps & {
   preventDuplicatePress?: boolean;
   /** Milliseconds to ignore repeat presses after a guarded press fires. */
   duplicatePressWindowMs?: number;
+  /** Optional pointer-only lift for cards. Kept neutral by default. */
+  hoverTranslateY?: number;
+  hoverScale?: number;
+  restingShadowOpacity?: number;
+  hoverShadowOpacity?: number;
 };
 
 const AnimatedRNPressable = Animated.createAnimatedComponent(Pressable);
@@ -45,15 +50,22 @@ export default function AnimatedPressable({
   pressScale = MotionPress.scale,
   preventDuplicatePress = true,
   duplicatePressWindowMs = 700,
+  hoverTranslateY = 0,
+  hoverScale = 1,
+  restingShadowOpacity,
+  hoverShadowOpacity,
   disabled,
   android_ripple,
   accessibilityState,
   hitSlop,
+  onHoverIn,
+  onHoverOut,
   ...rest
 }: AnimatedPressableProps) {
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+  const hoverProgress = useSharedValue(0);
   const lastPressAt = useRef(0);
 
   const handlePressIn = useCallback(
@@ -94,10 +106,37 @@ export default function AnimatedPressable({
     [duplicatePressWindowMs, onPress, preventDuplicatePress],
   );
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
+  const handleHoverIn = useCallback<NonNullable<PressableProps["onHoverIn"]>>(
+    (event) => {
+      if (!reducedMotion) hoverProgress.value = withTiming(1, MotionTiming.fast);
+      onHoverIn?.(event);
+    },
+    [hoverProgress, onHoverIn, reducedMotion],
+  );
+
+  const handleHoverOut = useCallback<NonNullable<PressableProps["onHoverOut"]>>(
+    (event) => {
+      if (!reducedMotion) hoverProgress.value = withTiming(0, MotionTiming.fast);
+      onHoverOut?.(event);
+    },
+    [hoverProgress, onHoverOut, reducedMotion],
+  );
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const style: ViewStyle = {
+      transform: [
+        { translateY: hoverTranslateY * hoverProgress.value },
+        { scale: scale.value * (1 + (hoverScale - 1) * hoverProgress.value) },
+      ],
+      opacity: opacity.value,
+    };
+    if (restingShadowOpacity != null && hoverShadowOpacity != null) {
+      style.shadowOpacity =
+        restingShadowOpacity +
+        (hoverShadowOpacity - restingShadowOpacity) * hoverProgress.value;
+    }
+    return style;
+  });
 
   return (
     <AnimatedRNPressable
@@ -109,6 +148,8 @@ export default function AnimatedPressable({
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
       style={[style, !disabled ? animatedStyle : null]}
     >
       {children}

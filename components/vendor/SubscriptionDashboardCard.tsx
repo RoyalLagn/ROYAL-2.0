@@ -83,18 +83,18 @@ export default function SubscriptionDashboardCard() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 16, flexDirection: "row", gap: 13 },
-  cardDesktop: { alignItems: "center", paddingHorizontal: 18, paddingVertical: 17 },
-  icon: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  card: { borderWidth: 1, borderRadius: 20, padding: 18, marginBottom: 18, flexDirection: "row", gap: 15, shadowColor: "#7D3D58", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
+  cardDesktop: { alignItems: "center", paddingHorizontal: 24, paddingVertical: 20 },
+  icon: { width: 54, height: 54, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   content: { flex: 1, minWidth: 0 },
   contentDesktop: { flexDirection: "row", alignItems: "center", gap: 20 },
   copy: { flex: 1, minWidth: 0 },
   eyebrow: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.2 },
   title: { fontSize: typeScale.cardTitle, fontWeight: "700", marginTop: 3 }, metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 5, marginTop: 7 },
   meta: { fontSize: typeScale.caption }, days: { fontSize: typeScale.caption, fontWeight: "700", marginLeft: 3 }, actions: { flexDirection: "row", gap: 8, marginTop: 11 },
-  primary: { flex: 1, minHeight: 40, borderRadius: 14, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+  primary: { flex: 1, minHeight: 44, borderRadius: 14, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, shadowColor: "#ED1762", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.14, shadowRadius: 12, elevation: 2 },
   primaryText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" }, history: { width: 42, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  actionsDesktop: { width: 300, marginTop: 0 },
-  hoverLift: { transform: [{ translateY: -1 }] },
+  actionsDesktop: { width: 320, marginTop: 0 },
+  hoverLift: { transform: [{ translateY: -2 }], shadowOpacity: 0.18 },
   pressed: { opacity: 0.88, transform: [{ scale: 0.98 }] },
 });
