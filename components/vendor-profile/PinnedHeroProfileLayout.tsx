@@ -69,10 +69,10 @@ function PinnedHeroProfileLayout({
 }: Props) {
   const scrollY = useSharedValue(0);
   const reducedMotion = useReducedMotion();
-  // Scaling a remote image while its parent ScrollView is moving makes the
-  // whole profile visibly vibrate on some Android GPUs. Keep that editorial
-  // parallax on web, but make the native hero a stable composited surface.
-  const useHeroParallax = Platform.OS === "web" && !reducedMotion;
+  // Mobile browsers composite large remote images much like native devices;
+  // translating and scaling that layer during vertical scrolling causes
+  // visible shimmer on lower-end GPUs. Keep parallax desktop-only.
+  const useHeroParallax = Platform.OS === "web" && pageWidth >= 900 && !reducedMotion;
   const sheetOffset = Math.max(0, heroTopInset + heroHeight - overlap);
   const coverDistance = Math.max(1, Math.min(heroHeight, motionDistance));
   const [measuredWidth, setMeasuredWidth] = useState(0);
@@ -134,7 +134,8 @@ function PinnedHeroProfileLayout({
         scrollEventThrottle={16}
         directionalLockEnabled
         nestedScrollEnabled
-        onScroll={onScroll}
+        stickyHeaderIndices={header ? [0] : undefined}
+        onScroll={useHeroParallax || onScrollPosition ? onScroll : undefined}
       >
         {header ? (
           <View style={[styles.header, { width: effectiveWidth }]}>
@@ -180,7 +181,7 @@ export default React.memo(PinnedHeroProfileLayout);
 const styles = StyleSheet.create({
   root: { flex: 1, position: "relative", overflow: "hidden" },
   scroll: { flex: 1 },
-  header: { maxWidth: "100%", alignSelf: "center", flexShrink: 0 },
+  header: { maxWidth: "100%", alignSelf: "center", flexShrink: 0, zIndex: 20, elevation: 20 },
   page: { maxWidth: "100%", alignSelf: "center", position: "relative" },
   hero: {
     position: "absolute",

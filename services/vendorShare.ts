@@ -5,6 +5,7 @@ import {
   vendorWebBase,
 } from "@/services/contactActions";
 import { addTrafficSourceToUrl, type VendorTrafficSource } from "@/services/trafficSource";
+import { requirePublicUser } from "@/services/requirePublicAuth";
 
 export type VendorShareInput = {
   vendorId: string;
@@ -52,6 +53,7 @@ async function copyOnWeb(value: string) {
 }
 
 async function performVendorShare(input: VendorShareInput): Promise<VendorShareResult> {
+  await requirePublicUser();
   const url = buildVendorProfileUrl(input);
   const text = shareCopy(input, url);
   if (Platform.OS === "web") {

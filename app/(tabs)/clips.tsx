@@ -329,7 +329,7 @@ function ClipsFeed() {
 
   const requireProfile = useCallback(() => {
     if (profile?.id) return profile.id;
-    Alert.alert("Sign in to continue", "Like, save and report Clips after signing in.", [
+    Alert.alert("Sign in to continue", "Log in or create an account to like, save, share, or contact vendors.", [
       { text: "Not now", style: "cancel" },
       { text: "Sign In", onPress: () => router.push("/DashboardCenter") },
     ]);
@@ -388,6 +388,7 @@ function ClipsFeed() {
     router.push({ pathname: "/VendorsProfile", params: { vendorId: clip.vendor.id, src: "clip" } });
   }, [router]);
   const contactVendor = useCallback(async (clip: PublicClip) => {
+    if (!requireProfile()) return;
     if (!clip.vendor.contactPhone) return openVendor(clip);
     try {
       await EnquiryService.trackContactAndOpen({
@@ -402,7 +403,7 @@ function ClipsFeed() {
       if (cause instanceof EnquiryExternalOpenError) Alert.alert("Dialler not opened", `${cause.message} Call Click ${cause.referenceCode} is still saved.`);
       else Alert.alert("Contact unavailable", cause instanceof Error ? cause.message : "Open the vendor profile to contact them.");
     }
-  }, [openVendor]);
+  }, [openVendor, requireProfile]);
 
   const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken<PublicClip>[] }) => {
     const visible = viewableItems.find((token) => token.isViewable && typeof token.index === "number");
@@ -444,12 +445,15 @@ function ClipsFeed() {
         onToggleMuted={() => setMuted((value) => !value)}
         onLike={() => void toggleLike(item)}
         onSave={() => void toggleSave(item)}
-        onShare={() => void sharePublicClip(item).catch(() => Alert.alert("Unable to share", "Please try again."))}
+        onShare={() => {
+          if (!requireProfile()) return;
+          void sharePublicClip(item).catch(() => Alert.alert("Unable to share", "Please try again."));
+        }}
         onVendor={() => openVendor(item)}
         onContact={() => void contactVendor(item)}
       />
     </View>
-  ), [activeIndex, background, compactPlayer, contactVendor, containerHeight, counts, dark, desktop, engagement, feedWidth, foreground, handleHoldChange, immersiveHold, isFocused, muted, openVendor, playerHeight, playerWidth, toggleLike, toggleSave]);
+  ), [activeIndex, background, compactPlayer, contactVendor, containerHeight, counts, dark, desktop, engagement, feedWidth, foreground, handleHoldChange, immersiveHold, isFocused, muted, openVendor, playerHeight, playerWidth, requireProfile, toggleLike, toggleSave]);
 
   return <View style={[styles.root, { backgroundColor: background }, Platform.OS === "web" ? styles.rootWeb : null]}>
     {loading || refreshing ? <PageLoader /> : null}

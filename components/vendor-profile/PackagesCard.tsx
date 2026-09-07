@@ -41,8 +41,8 @@ function PackagesCard({
         iconSurface: "#432833",
       }
     : {
-        surface: "#FFF5F8",
-        border: "#F6CEDC",
+        surface: "rgba(255, 253, 254, 0.96)",
+        border: "rgba(190, 123, 103, 0.20)",
         text: "#1E161A",
         muted: "#665A60",
         eyebrow: "#A73F61",
@@ -57,7 +57,7 @@ function PackagesCard({
         {
           backgroundColor: palette.surface,
           borderColor: palette.border,
-          shadowColor: dark ? "#000000" : "#A64B6D",
+          shadowColor: dark ? "#000000" : "#3C2028",
         },
       ]}
     >
@@ -111,6 +111,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
+    shadowOpacity: 0.055,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
   },
   cardCompact: { padding: 14, gap: 10, flexDirection: "column", alignItems: "stretch" },
   details: {

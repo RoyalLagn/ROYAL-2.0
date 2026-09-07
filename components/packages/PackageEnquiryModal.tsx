@@ -12,7 +12,7 @@ import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScro
 
 const PINK = brandPalette.light.primary;
 
-type Props = { visible: boolean; vendorId: string; vendorName: string; item: VendorPackage | null; dark?: boolean; onClose: () => void; onSignInRequired: () => void; onSent: () => void };
+type Props = { visible: boolean; vendorId: string; vendorName: string; item: VendorPackage | null; dark?: boolean; onClose: () => void; onSignInRequired: () => void; onSent: (referenceCode: string) => void };
 
 export default function PackageEnquiryModal({ visible, vendorId, vendorName, item, dark = false, onClose, onSignInRequired, onSent }: Props) {
   const { width } = useWindowDimensions();
@@ -56,8 +56,7 @@ export default function PackageEnquiryModal({ visible, vendorId, vendorName, ite
         customerPhone: phone,
       });
       onClose();
-      onSent();
-      Alert.alert("Enquiry saved", `${vendorName} received your package enquiry. Reference: ${tracked.referenceCode}`);
+      onSent(tracked.referenceCode);
     } catch (cause) {
       Alert.alert("Enquiry not sent", cause instanceof Error ? cause.message : "Please try again.");
     } finally { setSending(false); }

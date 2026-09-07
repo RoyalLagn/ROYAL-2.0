@@ -1,10 +1,12 @@
 import { Share } from "react-native";
 import { APP_SHARE_CONFIG } from "@/config/appShare";
 import { trackAppEvent } from "@/services/appEvents";
+import { requirePublicUser } from "@/services/requirePublicAuth";
 
 export type AppShareResult = "shared" | "dismissed";
 
 export async function shareRoyalLagnApp(): Promise<AppShareResult> {
+  await requirePublicUser();
   const message = APP_SHARE_CONFIG.appUrl
     ? `${APP_SHARE_CONFIG.message}\n${APP_SHARE_CONFIG.appUrl}`
     : APP_SHARE_CONFIG.message;

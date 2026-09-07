@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -27,6 +29,7 @@ type AnimatedBottomSheetProps = {
    *  in place, for smaller confirmation-style dialogs. */
   variant?: "sheet" | "center";
   accessibilityViewIsModal?: boolean;
+  keyboardAware?: boolean;
 } & Pick<ModalProps, "presentationStyle">;
 
 /**
@@ -54,6 +57,7 @@ export default function AnimatedBottomSheet({
   sheetStyle,
   variant = "sheet",
   accessibilityViewIsModal = true,
+  keyboardAware = false,
   presentationStyle,
 }: AnimatedBottomSheetProps) {
   const insets = useSafeAreaInsets();
@@ -103,6 +107,30 @@ export default function AnimatedBottomSheet({
 
   if (!mounted) return null;
 
+  const content = <>
+    <Animated.View style={[StyleSheet.absoluteFillObject, styles.backdropTint, backdropStyle]}>
+      <Pressable accessibilityLabel="Close" style={styles.backdropPress} onPress={onRequestClose} />
+    </Animated.View>
+    <View
+      pointerEvents="box-none"
+      style={[
+        styles.wrap,
+        variant === "center" ? styles.wrapCenter : styles.wrapSheet,
+      ]}
+    >
+      <Animated.View
+        style={[
+          variant === "sheet" ? styles.sheet : styles.center,
+          variant === "sheet" && { paddingBottom: Math.max(insets.bottom, 16) },
+          sheetAnimatedStyle,
+          sheetStyle,
+        ]}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  </>;
+
   return (
     <Modal
       visible={mounted}
@@ -112,29 +140,14 @@ export default function AnimatedBottomSheet({
       onRequestClose={onRequestClose}
       accessibilityViewIsModal={accessibilityViewIsModal}
     >
-      <View style={styles.host}>
-        <Animated.View style={[StyleSheet.absoluteFillObject, styles.backdropTint, backdropStyle]}>
-          <Pressable accessibilityLabel="Close" style={styles.backdropPress} onPress={onRequestClose} />
-        </Animated.View>
-        <View
-          pointerEvents="box-none"
-          style={[
-            styles.wrap,
-            variant === "center" ? styles.wrapCenter : styles.wrapSheet,
-          ]}
+      {keyboardAware ? (
+        <KeyboardAvoidingView
+          style={styles.host}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <Animated.View
-            style={[
-              variant === "sheet" ? styles.sheet : styles.center,
-              variant === "sheet" && { paddingBottom: Math.max(insets.bottom, 16) },
-              sheetAnimatedStyle,
-              sheetStyle,
-            ]}
-          >
-            {children}
-          </Animated.View>
-        </View>
-      </View>
+          {content}
+        </KeyboardAvoidingView>
+      ) : <View style={styles.host}>{content}</View>}
     </Modal>
   );
 }

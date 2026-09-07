@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Linking, Platform } from "react-native";
 import { supabase } from "@/services/supabase";
 import { normalizeWhatsAppPhone } from "@/services/contactActions";
+import { requirePublicUser } from "@/services/requirePublicAuth";
 export { normalizeWhatsAppPhone } from "@/services/contactActions";
 
 export const ENQUIRY_STATUSES = [
@@ -134,6 +135,7 @@ async function create(input: {
   message?: string | null;
   customerPhone?: string | null;
 }) {
+  await requirePublicUser();
   const guestId = await getGuestSessionId();
   const key = [input.vendorId, input.channel, input.source, input.sourceRecordId ?? ""].join(":");
   const current = inFlight.get(key);
@@ -265,6 +267,20 @@ export const EnquiryService = {
     });
     if (error) throw error;
     return String(data);
+  },
+
+  async getVendorUnseenCount(vendorId: string) {
+    const { count, error } = await supabase
+      .from("vendor_enquiries")
+      .select("id", { count: "exact", head: true })
+      .eq("vendor_id", vendorId)
+      .is("vendor_seen_at", null);
+    if (error) throw error;
+    return count ?? 0;
+  },
+
+  async markAllVendorSeen(enquiryIds: string[]) {
+    await Promise.all(enquiryIds.map((enquiryId) => this.markVendorSeen(enquiryId)));
   },
 
   calculateAnalytics(items: TrackedEnquiry[], now = new Date()): VendorEnquiryAnalytics {

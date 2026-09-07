@@ -50,7 +50,7 @@ export default function VendorInfoPanel({
   const compact = width < 440;
   const brand = brandColors(dark);
   const colors = {
-    surface: brand.card,
+    surface: dark ? brand.card : "rgba(255, 253, 254, 0.97)",
     text: brand.foreground,
     muted: brand.mutedForeground,
     badge: dark ? "#35262C" : "#FFF5F7",
@@ -64,7 +64,7 @@ export default function VendorInfoPanel({
   const hasActions = Boolean(membershipBadge || onToggleFavorite || onShare);
 
   return (
-    <View style={[styles.panel, !overlap && styles.panelEmbedded, { backgroundColor: colors.surface }]}>
+    <View style={[styles.panel, !overlap && styles.panelEmbedded, { backgroundColor: colors.surface, borderColor: dark ? "#303846" : "rgba(190, 123, 103, 0.16)" }]}>
       <View style={styles.headingRow}>
         <View style={styles.nameLine}>
           <Text style={[styles.name, compact && styles.nameCompact, { color: colors.text }]}>{name}</Text>
@@ -166,10 +166,11 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
     position: "relative",
     zIndex: 2,
-    shadowColor: "#6F3048",
-    shadowOpacity: 0.045,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: -4 },
+    borderWidth: 1,
+    shadowColor: "#3C2028",
+    shadowOpacity: 0.065,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
     elevation: 3,
   },
   panelEmbedded: { maxWidth: 980, alignSelf: "center", marginTop: 0, paddingTop: 22, paddingHorizontal: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },

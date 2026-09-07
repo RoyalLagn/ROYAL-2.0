@@ -34,8 +34,8 @@ export type VendorHeroCarouselProps = {
   containMedia?: boolean;
 };
 
-const DEFAULT_INTERVAL = 3500;
-const MANUAL_PAUSE_MS = 6500;
+const DEFAULT_INTERVAL = 4500;
+const MANUAL_PAUSE_MS = 10000;
 
 function remoteUri(source?: CarouselImage) {
   return typeof source === "object" && source?.uri ? source.uri : null;
@@ -58,10 +58,10 @@ function VendorHeroCarousel({
   const [index, setIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [failed, setFailed] = useState<Set<number>>(() => new Set());
+  const [manualResumeAt, setManualResumeAt] = useState<number | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const indexRef = useRef(0);
-  const pausedRef = useRef(false);
-  const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const programmaticScrollRef = useRef(false);
   const [carouselWidth, setCarouselWidth] = useState(width);
   const heroHeight = height ?? (width >= 900 ? 470 : Math.max(300, Math.min(410, width * 0.78)));
   const controlHorizontalInset = width < 380 ? 14 : 18;
@@ -88,6 +88,7 @@ function VendorHeroCarousel({
 
   const showIndex = useCallback((nextIndex: number) => {
     if (sources.length < 2) return;
+    programmaticScrollRef.current = true;
     if (nextIndex >= sources.length) {
       scrollRef.current?.scrollTo({ x: sources.length * carouselWidth, y: 0, animated: !reducedMotion });
       return;
@@ -99,25 +100,21 @@ function VendorHeroCarousel({
   }, [carouselWidth, reducedMotion, sources.length]);
 
   const pauseTemporarily = useCallback((resumeDelay = MANUAL_PAUSE_MS) => {
-    pausedRef.current = true;
-    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
-    resumeTimerRef.current = setTimeout(() => {
-      pausedRef.current = false;
-      resumeTimerRef.current = null;
-    }, resumeDelay);
+    setManualResumeAt(Date.now() + resumeDelay);
   }, []);
 
   useEffect(() => {
-    if (sources.length < 2 || reducedMotion) return;
-    const timer = setInterval(() => {
-      if (!paused && !pausedRef.current) showIndex(indexRef.current + 1);
-    }, Math.max(3000, Math.min(5000, intervalMs)));
-    return () => clearInterval(timer);
-  }, [intervalMs, paused, reducedMotion, showIndex, sources.length]);
-
-  useEffect(() => () => {
-    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
-  }, []);
+    if (sources.length < 2 || reducedMotion || paused) return;
+    const autoInterval = Math.max(4000, Math.min(6000, intervalMs));
+    const delay = manualResumeAt === null
+      ? autoInterval
+      : Math.max(0, manualResumeAt - Date.now());
+    const timer = setTimeout(() => {
+      setManualResumeAt(null);
+      showIndex(indexRef.current + 1);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [index, intervalMs, manualResumeAt, paused, reducedMotion, showIndex, sources.length]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ x: indexRef.current * carouselWidth, y: 0, animated: false });
@@ -125,6 +122,8 @@ function VendorHeroCarousel({
 
   const handleMomentumEnd = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!carouselWidth || !sources.length) return;
+    const wasProgrammatic = programmaticScrollRef.current;
+    programmaticScrollRef.current = false;
     const rawIndex = Math.round(event.nativeEvent.contentOffset.x / carouselWidth);
     if (rawIndex === sources.length) {
       indexRef.current = 0;
@@ -135,7 +134,7 @@ function VendorHeroCarousel({
     const nextIndex = Math.max(0, Math.min(rawIndex, sources.length - 1));
     indexRef.current = nextIndex;
     setIndex(nextIndex);
-    pauseTemporarily();
+    if (!wasProgrammatic) pauseTemporarily();
   }, [carouselWidth, pauseTemporarily, sources.length]);
 
   const slides = sources.length > 1 ? [...sources, sources[0]] : sources;
@@ -155,7 +154,11 @@ function VendorHeroCarousel({
         showsHorizontalScrollIndicator={false}
         scrollEventThrottle={16}
         style={styles.galleryTarget}
-        onScrollBeginDrag={() => pauseTemporarily()}
+        onTouchStart={() => pauseTemporarily()}
+        onScrollBeginDrag={() => {
+          programmaticScrollRef.current = false;
+          pauseTemporarily();
+        }}
         onMomentumScrollEnd={handleMomentumEnd}
       >
         {slides.map((source, slideIndex) => {
@@ -164,7 +167,7 @@ function VendorHeroCarousel({
           const focalPoint = focalPoints[sourceIndex] ?? { x: 0.5, y: 0.5 };
           const focalStyle = Platform.OS === "web"
             ? ({ objectPosition: `${Math.round(focalPoint.x * 100)}% ${Math.round(focalPoint.y * 100)}%` } as object)
-            : ({ transform: [{ scale: 1.035 }, { translateX: (0.5 - focalPoint.x) * 10 }, { translateY: (0.5 - focalPoint.y) * 10 }] } as object);
+            : undefined;
           return (
             <Pressable
               key={`${sourceIndex}-${slideIndex === sources.length ? "loop" : "slide"}`}
@@ -184,7 +187,6 @@ function VendorHeroCarousel({
               {shownSource ? (
                 <Image
                   source={shownSource}
-                  defaultSource={fallbackImage}
                   resizeMode={containMedia ? "contain" : "cover"}
                   accessibilityLabel={`${vendorName} gallery image ${sourceIndex + 1}`}
                   onError={() => setFailed((current) => new Set(current).add(sourceIndex))}
@@ -256,9 +258,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#050505",
   },
   galleryTarget: StyleSheet.absoluteFillObject,
-  heroSlide: { overflow: "hidden" },
-  heroSlideHovered: { opacity: 0.97, transform: [{ scale: 1.006 }] },
-  heroSlidePressed: { opacity: 0.91, transform: [{ scale: 0.992 }] },
+  heroSlide: { flexGrow: 0, flexShrink: 0, overflow: "hidden" },
+  heroSlideHovered: { opacity: 0.98 },
+  heroSlidePressed: { opacity: 0.94 },
   heroSlidePressedReduced: { opacity: 0.91 },
   image: { width: "100%", height: "100%" },
   mediaShade: StyleSheet.absoluteFillObject,

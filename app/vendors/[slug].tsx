@@ -266,16 +266,16 @@ export default function VendorPublicProfileScreen() {
   }, [slug, vendor]);
 
   const background = dark ? "#070B14" : "#FFFFFF";
-  const surface = dark ? "#0E141F" : "#FDF2F8";
+  const surface = dark ? "#0E141F" : "rgba(255, 253, 254, 0.96)";
   const text = dark ? "#FFF8FB" : "#1D1519";
   const muted = dark ? "#C6BAC0" : "#62575D";
-  const sectionDivider = dark ? "#303846" : "#ECE7EA";
+  const sectionDivider = dark ? "#303846" : "rgba(190, 123, 103, 0.20)";
   const contentWidth = Math.min(width, 1120);
   const heroHeight = useMemo(() => {
     const usableHeight = Math.max(520, height - insets.top - insets.bottom);
     return desktop
       ? Math.max(420, Math.min(520, usableHeight * 0.5))
-      : Math.max(280, Math.min(420, width * 0.88, usableHeight * 0.4));
+      : Math.max(340, Math.min(500, width * 1.18, usableHeight * 0.52));
   }, [desktop, height, insets.bottom, insets.top, width]);
   const sectionCardStyle = { backgroundColor: surface, borderColor: sectionDivider };
 
@@ -398,6 +398,17 @@ export default function VendorPublicProfileScreen() {
   };
 
   const shareProfile = async () => {
+    if (authLoading) {
+      Alert.alert("Checking sign-in", "Please wait a moment and try again.");
+      return;
+    }
+    if (!isPublicAuthenticated) {
+      Alert.alert("Login required", "Please log in or create an account before sharing this vendor.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Log in", onPress: () => router.push("/Login") },
+      ]);
+      return;
+    }
     void recordVendorProfileEvent(vendor.id, "link_share", "share").catch(() => {});
     try {
       const result = await shareVendorProfile({
@@ -632,22 +643,30 @@ export default function VendorPublicProfileScreen() {
         title={`${vendor.name} · Hero gallery`}
         onClose={() => setHeroViewerIndex(null)}
       />
-      <PackageDetailsModal
-        visible={packagesVisible}
-        vendorId={vendor.id}
-        vendorName={vendor.name}
-        contactPhone={vendor.contactPhone}
-        dark={dark}
-        onClose={() => setPackagesVisible(false)}
-        onCall={(item) => requestVendorContact("call", item)}
-        onWhatsApp={(item) => requestVendorContact("whatsapp", item)}
-        onEnquire={(item) => {
-          setPackagesVisible(false);
-          setEnquiryPackage(item);
-        }}
-      />
-      <PackageEnquiryModal
-        visible={Boolean(enquiryPackage)}
+      {packagesVisible && !enquiryPackage ? (
+        <PackageDetailsModal
+          visible
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          contactPhone={vendor.contactPhone}
+          dark={dark}
+          onClose={() => setPackagesVisible(false)}
+          onCall={(item) => {
+            setPackagesVisible(false);
+            setTimeout(() => requestVendorContact("call", item), 0);
+          }}
+          onWhatsApp={(item) => {
+            setPackagesVisible(false);
+            setTimeout(() => requestVendorContact("whatsapp", item), 0);
+          }}
+          onEnquire={(item) => {
+            setPackagesVisible(false);
+            setEnquiryPackage(item);
+          }}
+        />
+      ) : null}
+      {enquiryPackage ? <PackageEnquiryModal
+        visible
         vendorId={vendor.id}
         vendorName={vendor.name}
         item={enquiryPackage}
@@ -655,17 +674,21 @@ export default function VendorPublicProfileScreen() {
         onClose={() => setEnquiryPackage(null)}
         onSignInRequired={() => {
           setEnquiryPackage(null);
-          Alert.alert(
-            "Sign in required for packages",
-            "Package requests need a RoyalLagn account. You can still reach this vendor with the Send Enquiry or WhatsApp button as a guest.",
-          );
+          setTimeout(() => Alert.alert(
+              "Sign in required for packages",
+              "Package requests need a RoyalLagn account. You can still reach this vendor with the Send Enquiry or WhatsApp button as a guest.",
+            ), 0);
         }}
-        onSent={() => setEnquiryPackage(null)}
-      />
+        onSent={(referenceCode) => {
+          setEnquiryPackage(null);
+          setTimeout(() => Alert.alert("Enquiry saved", `${vendor.name} received your package enquiry. Reference: ${referenceCode}`), 0);
+        }}
+      /> : null}
       <AnimatedBottomSheet
         visible={enquiryOpen}
         onRequestClose={() => { if (enquiryStatus !== "sending") setEnquiryOpen(false); }}
         variant={width >= 700 ? "center" : "sheet"}
+        keyboardAware
         sheetStyle={[styles.enquirySheet, width >= 700 && styles.enquirySheetDesktop, { backgroundColor: surface, borderColor: sectionDivider }]}
       >
         <View style={styles.enquiryHeader}>
@@ -720,10 +743,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderRadius: 16,
-    shadowColor: "#6F3048",
-    shadowOpacity: 0.025,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: "#3C2028",
+    shadowOpacity: 0.055,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
     elevation: 2,
   },
   portfolioSection: { marginTop: 2 },
@@ -762,7 +785,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   goBackText: { color: "#FFFFFF", fontSize: typeScale.body, fontWeight: "700" },
-  enquirySheet: { width: "100%", borderWidth: 1, padding: 18 },
+  enquirySheet: { width: "100%", maxHeight: "92%", borderWidth: 1, padding: 18 },
   enquirySheetDesktop: { maxWidth: 560, borderRadius: 28, paddingBottom: 24 },
   enquiryHeader: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 14 },
   enquiryIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: `${PINK}12`, alignItems: "center", justifyContent: "center" },
