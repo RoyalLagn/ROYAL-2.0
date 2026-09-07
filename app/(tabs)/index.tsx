@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, View, Text, ScrollView, Image, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions, } from "react-native";
+import { Alert, View, Text, ScrollView, Image, Platform, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { type Href, useRouter } from "expo-router";
 import {
@@ -44,6 +44,7 @@ import {
 import { useCustomerLocation } from "@/context/LocationContext";
 import { rankVendorsByLocationAndMembership } from "@/locations/domain";
 import { buildVendorListingPath } from "@/services/publicSeoRoutes";
+import { listHomeFeaturedVendorIds, subscribeToHomeFeaturedVendors } from "@/services/homeFeaturedVendors";
 
 const PINK = brandPalette.light.primaryStrong;
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
@@ -69,6 +70,8 @@ export default function HomeScreen() {
   // refreshes (realtime updates) never flip this back on, so previously
   // loaded cards stay visible instead of being replaced by skeletons.
   const [vendorsLoading, setVendorsLoading] = useState(true);
+  const [featuredVendorIds, setFeaturedVendorIds] = useState<string[]>([]);
+  const [featuredVendorsLoading, setFeaturedVendorsLoading] = useState(true);
   const { isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
   const { unreadCount } = useNotifications();
@@ -150,6 +153,17 @@ export default function HomeScreen() {
       active = false;
       unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const load = () => listHomeFeaturedVendorIds()
+      .then((ids) => { if (active) setFeaturedVendorIds(ids.slice(0, 10)); })
+      .catch(() => { if (active) setFeaturedVendorIds([]); })
+      .finally(() => { if (active) setFeaturedVendorsLoading(false); });
+    void load();
+    const unsubscribe = subscribeToHomeFeaturedVendors(() => void load());
+    return () => { active = false; unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -280,6 +294,14 @@ export default function HomeScreen() {
     return ratedVendors;
   }, [liveVendors, getRating]);
 
+  const featuredVendors = useMemo(() => {
+    const byId = new Map(liveVendors.map((vendor) => [vendor.id, vendor]));
+    return featuredVendorIds.map((id) => byId.get(id)).filter(Boolean).map((vendor) => {
+      const current = getRating(vendor!.id, vendor!.rating, vendor!.reviews);
+      return { ...vendor!, rating: current.rating, reviews: current.reviews };
+    });
+  }, [featuredVendorIds, getRating, liveVendors]);
+
   const inlineSearchSuggestions = useMemo(() => {
     const query = searchText.trim().toLowerCase();
     if (query.length < 2) return { categories: [], vendors: [] };
@@ -304,6 +326,71 @@ export default function HomeScreen() {
     <>
       <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top", "left", "right"]}>
       {vendorsLoading || (categoriesLoading && !categories.length) ? <PageLoader /> : null}
+
+      {/* Keep the mobile app bar outside the scroll view. Android can
+          mis-measure a sticky scroll child during its first layout pass. */}
+      {!isDesktop ? (
+        <HomeReveal direction="down" style={[s.header, { width: featureWidth, backgroundColor: bg }]}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={homeLocation ? `Refresh your current location: ${homeLocation}` : "Use your device location"}
+            style={[s.nearMeHeader, { width: headerSideWidth }]}
+            onPress={() => void refreshHomeLocation(true)}
+            activeOpacity={0.72}
+          >
+            <View style={[s.locationIconWrap, { backgroundColor: colors.actionTint }]}><LocateFixed size={15} color={PINK} /></View>
+            <View style={s.locationCopy}>
+              <Text style={[s.locationEyebrow, { color: muted }]}>{homeLocation ? "Your location" : "Location"}</Text>
+              <Text style={[s.nearMeHeaderText, { color: PINK }]} numberOfLines={1}>
+                {homeLocationLoading ? "Locating…" : homeLocation?.split(",")[0]?.trim() || "Set location"}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <View pointerEvents="none" style={s.headerLogo}>
+            <RoyalLagnLogo width={headerLogoWidth} height={44} />
+          </View>
+
+          <View style={[s.headerActions, { width: headerSideWidth }]}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Open enquiries"
+              style={s.headerAction}
+              hitSlop={4}
+              onPress={() => router.push("/(tabs)/enquiry")}
+              activeOpacity={0.7}
+            >
+              <MessageSquareText size={20} color={text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
+              style={s.headerAction}
+              hitSlop={4}
+              onPress={() => router.push("/Notifications")}
+              activeOpacity={0.7}
+            >
+              <Bell size={20} color={text} />
+              {unreadCount > 0 ? (
+                <View style={s.badge}>
+                  <Text style={s.badgeTxt}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Share RoyalLagn"
+              style={s.headerAction}
+              hitSlop={4}
+              onPress={shareApp}
+              activeOpacity={0.7}
+            >
+              <Share2 size={20} color={text} />
+            </TouchableOpacity>
+          </View>
+        </HomeReveal>
+      ) : null}
+
       <Animated.ScrollView
         style={{ backgroundColor: bg }}
         showsVerticalScrollIndicator={false}
@@ -311,76 +398,9 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
         contentContainerStyle={[
           s.scroll,
-          { paddingBottom: isDesktop ? 48 : 110, backgroundColor: bg },
+          { paddingBottom: Platform.OS === "web" ? (isDesktop ? 32 : 16) : 110, backgroundColor: bg },
         ]}
       >
-
-        {/* ── Compact mobile header ── */}
-        {!isDesktop ? (
-          <HomeReveal direction="down" style={[s.header, { width: featureWidth }]}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={homeLocation ? `Refresh your current location: ${homeLocation}` : "Use your device location"}
-              style={[s.nearMeHeader, { width: headerSideWidth }]}
-              onPress={() => void refreshHomeLocation(true)}
-              activeOpacity={0.72}
-            >
-              <View style={[s.locationIconWrap, { backgroundColor: colors.actionTint }]}><LocateFixed size={15} color={PINK} /></View>
-              <View style={s.locationCopy}>
-                <Text style={[s.locationEyebrow, { color: muted }]}>{homeLocation ? "Your location" : "Location"}</Text>
-                <Text style={[s.nearMeHeaderText, { color: PINK }]} numberOfLines={1}>
-                  {homeLocationLoading ? "Locating…" : homeLocation?.split(",")[0]?.trim() || "Set location"}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <View
-              pointerEvents="none"
-              style={s.headerLogo}
-            >
-              <RoyalLagnLogo width={headerLogoWidth} height={44} />
-            </View>
-
-            <View style={[s.headerActions, { width: headerSideWidth }]}>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="Open enquiries"
-                style={s.headerAction}
-                hitSlop={4}
-                onPress={() => router.push("/(tabs)/enquiry")}
-                activeOpacity={0.7}
-              >
-                <MessageSquareText size={20} color={text} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
-                style={s.headerAction}
-                hitSlop={4}
-                onPress={() => router.push("/Notifications")}
-                activeOpacity={0.7}
-              >
-                <Bell size={20} color={text} />
-                {unreadCount > 0 ? (
-                  <View style={s.badge}>
-                    <Text style={s.badgeTxt}>{unreadCount > 99 ? "99+" : unreadCount}</Text>
-                  </View>
-                ) : null}
-              </TouchableOpacity>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="Share RoyalLagn"
-                style={s.headerAction}
-                hitSlop={4}
-                onPress={shareApp}
-                activeOpacity={0.7}
-              >
-                <Share2 size={20} color={text} />
-              </TouchableOpacity>
-            </View>
-          </HomeReveal>
-        ) : null}
-
         {!searchQueryActive ? (isHeroSplit ? (
           /* ── Tablet/desktop: text left, 16:9 image right ── */
           <HomeReveal
@@ -706,6 +726,26 @@ export default function HomeScreen() {
           </ScrollView>
         </HomeSectionReveal>
 
+        {/* Admin-curated homepage rail. Order is preserved exactly. */}
+        <HomeSectionReveal
+          scrollY={homeScrollY}
+          viewportHeight={viewportHeight}
+          style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}
+        >
+          <SectionHeader
+            title="Top Featured Vendors"
+            subtitle="Handpicked by RoyalLagn"
+            dark={isDark}
+            actionLabel="View All"
+            onActionPress={() => router.push({ pathname: "/Search", params: { featured: "true" } })}
+          />
+          {vendorsLoading || featuredVendorsLoading ? <View style={s.vendorScroll}><VendorCardSkeletonRow count={isDesktop ? 4 : 3} width={vendorCardWidth} imageHeight={vendorImageHeight} /></View> : featuredVendors.length ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} decelerationRate="fast" snapToAlignment="start" snapToInterval={vendorCardWidth + vendorCardGap} contentContainerStyle={[s.vendorScroll, { gap: vendorCardGap }]}>
+              {featuredVendors.map((vendor) => <HomeVendorCard key={vendor.id} vendor={vendor} width={vendorCardWidth} imageHeight={vendorImageHeight} dark={isDark} favorite={isFavorite(vendor.id)} fallbackSource={VENDOR_CARD_PLACEHOLDER} onOpen={() => router.push({ pathname: "/vendor/[slug]", params: { slug: vendor.slug, src: "featured" } })} onToggleFavorite={(source) => toggleFavorite(vendor, source)} />)}
+            </ScrollView>
+          ) : <Text style={[s.emptyVendors, { color: muted }]}>Featured vendors will appear here soon.</Text>}
+        </HomeSectionReveal>
+
         {/* All vendors, automatically ranked by saved location and membership. */}
         <HomeSectionReveal
           scrollY={homeScrollY}
@@ -877,10 +917,10 @@ export default function HomeScreen() {
 
 const s = StyleSheet.create<Record<string, any>>({
   root:            { flex: 1 },
-  scroll:          { flexGrow: 1 },
+  scroll:          {},
 
   /* Header */
-  header:          { minHeight: 52, alignSelf: "center", flexDirection: "row", alignItems: "center" },
+  header:          { minHeight: 52, alignSelf: "center", flexDirection: "row", alignItems: "center", zIndex: 30, elevation: 8 },
   headerLocation:  { flexShrink: 0, alignItems: "flex-start", justifyContent: "center" },
   nearMeHeader: { minHeight: 44, flexShrink: 0, flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 12 },
   locationIconWrap: { width: 27, height: 27, flexShrink: 0, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF0F5" },

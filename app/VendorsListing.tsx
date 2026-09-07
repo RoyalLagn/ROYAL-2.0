@@ -644,6 +644,24 @@ export default function VendorsListingScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "left", "right"]}>
       {(vendorsLoading && !approvedVendors.length) || (locationActive && locationLoading && visibleVendorCount === 0) ? <PageLoader /> : null}
+      <PublicWebNavbar
+        activeRoute="Categories"
+        locationControl={(
+          <TalukaLocationSelector
+            states={geoStates}
+            value={geoSelection}
+            displayLabel={navbarLocationLabel}
+            onChange={selectGeoLocation}
+            onClear={clearGeoLocation}
+            onResolvedLabel={resolveGeoLabel}
+            onUseCurrentLocation={useCurrentLocation}
+            loading={geoLoading}
+            hideLabel
+            compact
+            variant="navbar"
+          />
+        )}
+      />
       <SectionList
         sections={[{ key: "vendors", data: displayRows }]}
         keyExtractor={(row) => (row.kind === "vendor" ? row.vendor.id : row.key)}
@@ -688,26 +706,6 @@ export default function VendorsListingScreen() {
         )}
         ListHeaderComponent={(
           <View>
-            <View style={{ width, marginLeft: -(width - contentWidth) / 2 }}>
-              <PublicWebNavbar
-                activeRoute="Categories"
-                locationControl={(
-                  <TalukaLocationSelector
-                    states={geoStates}
-                    value={geoSelection}
-                    displayLabel={navbarLocationLabel}
-                    onChange={selectGeoLocation}
-                    onClear={clearGeoLocation}
-                    onResolvedLabel={resolveGeoLabel}
-                    onUseCurrentLocation={useCurrentLocation}
-                    loading={geoLoading}
-                    hideLabel
-                    compact
-                    variant="navbar"
-                  />
-                )}
-              />
-            </View>
             <HomeReveal direction="down">
               <CategoryListingHeader category={displayCategory} dark={isDark} />
             </HomeReveal>

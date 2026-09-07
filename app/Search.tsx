@@ -54,6 +54,7 @@ import {
   saveGuestGeoPreference,
   validateGeoSelection,
 } from "@/services/geoLocations";
+import { listHomeFeaturedVendorIds, subscribeToHomeFeaturedVendors } from "@/services/homeFeaturedVendors";
 
 const GLOBAL_PAGES = [
   { label: "Categories", detail: "Browse every wedding service", keywords: "categories services vendors browse", route: "/(tabs)/Categories" as const },
@@ -92,12 +93,16 @@ export default function SearchScreen() {
     nearby?: string;
     availability?: string;
     sort?: string;
+    featured?: string;
   }>();
+  const featuredOnly = (Array.isArray(params.featured) ? params.featured[0] : params.featured) === "true";
   const initialQuery = Array.isArray(params.query) ? params.query[0] : params.query ?? "";
   const [draftQuery, setDraftQuery] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
   const [vendors, setVendors] = useState<PublicVendorListing[]>([]);
   const [vendorsLoading, setVendorsLoading] = useState(true);
+  const [featuredVendorIds, setFeaturedVendorIds] = useState<string[]>([]);
+  const [featuredVendorsLoading, setFeaturedVendorsLoading] = useState(featuredOnly);
   const [distanceByVendor, setDistanceByVendor] = useState<Record<string, number>>({});
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -135,6 +140,21 @@ export default function SearchScreen() {
       unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!featuredOnly) {
+      setFeaturedVendorsLoading(false);
+      return;
+    }
+    let active = true;
+    const load = () => listHomeFeaturedVendorIds()
+      .then((ids) => { if (active) setFeaturedVendorIds(ids); })
+      .catch(() => { if (active) setFeaturedVendorIds([]); })
+      .finally(() => { if (active) setFeaturedVendorsLoading(false); });
+    void load();
+    const unsubscribe = subscribeToHomeFeaturedVendors(() => void load());
+    return () => { active = false; unsubscribe(); };
+  }, [featuredOnly]);
 
   const [filters, setFilters] = useState<HomeFilters>(() => ({
     ...DEFAULT_HOME_FILTERS,
@@ -267,7 +287,7 @@ export default function SearchScreen() {
   }, [loadDistances]);
 
   const results = useMemo(() => {
-    const sourceVendors = geoSelection ? geoResults : vendors;
+    const sourceVendors = featuredOnly ? vendors : geoSelection ? geoResults : vendors;
     const ratedVendors = sourceVendors.map((vendor) => {
       const current = getRating(vendor.id, vendor.rating, vendor.reviews);
       return {
@@ -287,6 +307,7 @@ export default function SearchScreen() {
         vendor.description,
       ].join(" ");
       return matchesKeyword(searchable, query)
+        && (!featuredOnly || featuredVendorIds.includes(vendor.id))
         && (!filters.category || vendor.category === filters.category)
         && (!filters.minimumRating || vendor.rating >= filters.minimumRating)
         && (!filters.maximumBudget || (
@@ -298,6 +319,7 @@ export default function SearchScreen() {
     });
 
     const baseSorted = [...filtered].sort((a, b) => {
+      if (featuredOnly) return featuredVendorIds.indexOf(a.id) - featuredVendorIds.indexOf(b.id);
       if (filters.nearbyOnly) {
         return (a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceKm ?? Number.POSITIVE_INFINITY);
       }
@@ -308,10 +330,10 @@ export default function SearchScreen() {
       }
       return b.rating - a.rating || b.reviews - a.reviews;
     });
-    return filters.sort === "recommended" && !filters.nearbyOnly
+    return !featuredOnly && filters.sort === "recommended" && !filters.nearbyOnly
       ? rankVendorsByLocationAndMembership(baseSorted, preference)
       : baseSorted;
-  }, [distanceByVendor, filters, geoResults, geoSelection, getRating, preference, query, vendors]);
+  }, [distanceByVendor, featuredOnly, featuredVendorIds, filters, geoResults, geoSelection, getRating, preference, query, vendors]);
 
   const pageResults = useMemo(() => {
     if (!query.trim()) return { fixedPages: [], categoryPages: [] };
@@ -333,7 +355,24 @@ export default function SearchScreen() {
   const contentWidth = Math.min(width - horizontalInset * 2, 980);
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-      {vendorsLoading || (Boolean(geoSelection) && geoLoading) ? <PageLoader /> : null}
+      {vendorsLoading || featuredVendorsLoading || (!featuredOnly && Boolean(geoSelection) && geoLoading) ? <PageLoader /> : null}
+      <PublicWebNavbar
+        activeRoute={null}
+        locationControl={(
+          <TalukaLocationSelector
+            states={geoStates}
+            value={geoSelection}
+            displayLabel={locationLabel}
+            onChange={selectGeoLocation}
+            onClear={clearGeoLocation}
+            onUseCurrentLocation={useCurrentLocation}
+            loading={geoLoading}
+            hideLabel
+            compact
+            variant="navbar"
+          />
+        )}
+      />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: mobileTabBarHeight }}
@@ -342,25 +381,8 @@ export default function SearchScreen() {
         stickyHeaderIndices={[1]}
       >
         <View>
-          <PublicWebNavbar
-            activeRoute={null}
-            locationControl={(
-              <TalukaLocationSelector
-                states={geoStates}
-                value={geoSelection}
-                displayLabel={locationLabel}
-                onChange={selectGeoLocation}
-                onClear={clearGeoLocation}
-                onUseCurrentLocation={useCurrentLocation}
-                loading={geoLoading}
-                hideLabel
-                compact
-                variant="navbar"
-              />
-            )}
-          />
           <View style={{ width: contentWidth, alignSelf: "center" }}>
-            <CategoryPageHeader dark={isDark} title="Find Vendors" />
+            <CategoryPageHeader dark={isDark} title={featuredOnly ? "Top Featured Vendors" : "Find Vendors"} />
           </View>
         </View>
         <View style={[styles.stickySearch, { backgroundColor: isDark ? "#070B14" : "#FFFBFD" }]}>
@@ -407,7 +429,7 @@ export default function SearchScreen() {
         <View style={[styles.results, { width: contentWidth }]}>
           <View className="flex-row items-center justify-between">
           <Text className="text-sm text-muted-foreground">{results.length} vendor results</Text>
-          <Text className="text-primary text-xs font-semibold">{filters.nearbyOnly ? (locationLoading ? "Finding distance…" : "Nearest first") : activeFilterCount ? `${activeFilterCount} filters active` : filters.sort === "rating" ? "Highest rated" : "Recommended"}</Text>
+          <Text className="text-primary text-xs font-semibold">{featuredOnly ? "RoyalLagn featured" : filters.nearbyOnly ? (locationLoading ? "Finding distance…" : "Nearest first") : activeFilterCount ? `${activeFilterCount} filters active` : filters.sort === "rating" ? "Highest rated" : "Recommended"}</Text>
           </View>
 
         {pageResults.fixedPages.length || pageResults.categoryPages.length ? (
