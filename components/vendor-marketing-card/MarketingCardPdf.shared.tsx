@@ -33,7 +33,11 @@ export function HiddenExportCard({
       pointerEvents="none"
       style={{
         position: "absolute",
-        top: 0,
+        // On web, keeping the 3000×2000 export canvas at y=0 still expands
+        // the document's vertical overflow even though it sits far left.
+        // Move it fully above the viewport so it remains capturable without
+        // creating thousands of pixels of empty page below the real content.
+        top: Platform.OS === "web" ? -100000 : 0,
         left: -100000,
         width: exportLayoutWidth,
         height: exportLayoutHeight,
