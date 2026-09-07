@@ -20,7 +20,6 @@ import { StandaloneMobileTabBar, useMobileTabBarHeight } from "@/components/Mobi
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import PackagesCard from "@/components/vendor-profile/PackagesCard";
 import PackageDetailsModal from "@/components/packages/PackageDetailsModal";
-import PackageEnquiryModal from "@/components/packages/PackageEnquiryModal";
 import FullscreenMediaViewer from "@/components/vendor-profile/FullscreenMediaViewer";
 import PortfolioAlbums from "@/components/vendor-profile/PortfolioAlbums";
 import ServiceChips from "@/components/vendor-profile/ServiceChips";
@@ -424,14 +423,47 @@ export default function VendorPublicProfileScreen() {
     }
   };
 
-  const handleSendEnquiry = async () => {
+  const openEnquiry = (item?: VendorPackage) => {
     if (!isPublicAuthenticated) {
       setEnquiryOpen(false);
+      setEnquiryPackage(null);
       router.push("/Login");
       return;
     }
     if (!profile?.email || !profile?.phone) {
       setEnquiryOpen(false);
+      setEnquiryPackage(null);
+      Alert.alert("Complete your contact details", "Add your email and mobile number to your RoyalLagn profile before sending an enquiry.", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Update profile", onPress: () => router.push("/EditProfile") },
+      ]);
+      return;
+    }
+    setEnquiryPackage(item ?? null);
+    setEnquiryMessage(item
+      ? `Hi ${vendor.name}, I would like more details and availability for the ${item.title} package.`
+      : "");
+    setEnquiryError("");
+    setEnquiryStatus("idle");
+    setEnquiryOpen(true);
+  };
+
+  const closeEnquiry = () => {
+    if (enquiryStatus === "sending") return;
+    setEnquiryOpen(false);
+    setEnquiryPackage(null);
+  };
+
+  const handleSendEnquiry = async () => {
+    if (!isPublicAuthenticated) {
+      setEnquiryOpen(false);
+      setEnquiryPackage(null);
+      router.push("/Login");
+      return;
+    }
+    if (!profile?.email || !profile?.phone) {
+      setEnquiryOpen(false);
+      setEnquiryPackage(null);
       Alert.alert("Complete your contact details", "Add your email and mobile number to your RoyalLagn profile before sending an enquiry.", [
         { text: "Cancel", style: "cancel" },
         { text: "Update profile", onPress: () => router.push("/EditProfile") },
@@ -448,12 +480,15 @@ export default function VendorPublicProfileScreen() {
       const tracked = await EnquiryService.createFormEnquiry({
         vendorId: vendor.id,
         message: enquiryMessage,
-        source: "vendor_profile",
+        packageId: enquiryPackage?.id,
+        source: enquiryPackage ? "package" : "vendor_profile",
+        sourceRecordId: enquiryPackage?.id,
       });
       void recordVendorProfileEvent(vendor.id, "enquiry").catch(() => {});
       setEnquiryStatus("idle");
       setEnquiryMessage("");
       setEnquiryOpen(false);
+      setEnquiryPackage(null);
       Alert.alert("Enquiry sent", `${vendor.name} received your enquiry. Reference: ${tracked.referenceCode}`);
     } catch (cause) {
       setEnquiryStatus("error");
@@ -505,17 +540,7 @@ export default function VendorPublicProfileScreen() {
             dark={dark}
             onCall={() => requestVendorContact("call")}
             onWhatsApp={() => requestVendorContact("whatsapp")}
-            onEnquire={() => {
-              if (!isPublicAuthenticated) { router.push("/Login"); return; }
-              if (!profile?.email || !profile?.phone) {
-                Alert.alert("Complete your contact details", "Add your email and mobile number to your RoyalLagn profile before sending an enquiry.", [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Update profile", onPress: () => router.push("/EditProfile") },
-                ]);
-                return;
-              }
-              setEnquiryError(""); setEnquiryStatus("idle"); setEnquiryOpen(true);
-            }}
+            onEnquire={() => openEnquiry()}
             onCalendar={() => setCalendarVisible(true)}
           />
         </VendorInfoPanel>
@@ -643,7 +668,7 @@ export default function VendorPublicProfileScreen() {
         title={`${vendor.name} · Hero gallery`}
         onClose={() => setHeroViewerIndex(null)}
       />
-      {packagesVisible && !enquiryPackage ? (
+      {packagesVisible ? (
         <PackageDetailsModal
           visible
           vendorId={vendor.id}
@@ -661,32 +686,13 @@ export default function VendorPublicProfileScreen() {
           }}
           onEnquire={(item) => {
             setPackagesVisible(false);
-            setEnquiryPackage(item);
+            setTimeout(() => openEnquiry(item), 0);
           }}
         />
       ) : null}
-      {enquiryPackage ? <PackageEnquiryModal
-        visible
-        vendorId={vendor.id}
-        vendorName={vendor.name}
-        item={enquiryPackage}
-        dark={dark}
-        onClose={() => setEnquiryPackage(null)}
-        onSignInRequired={() => {
-          setEnquiryPackage(null);
-          setTimeout(() => Alert.alert(
-              "Sign in required for packages",
-              "Package requests need a RoyalLagn account. You can still reach this vendor with the Send Enquiry or WhatsApp button as a guest.",
-            ), 0);
-        }}
-        onSent={(referenceCode) => {
-          setEnquiryPackage(null);
-          setTimeout(() => Alert.alert("Enquiry saved", `${vendor.name} received your package enquiry. Reference: ${referenceCode}`), 0);
-        }}
-      /> : null}
       <AnimatedBottomSheet
         visible={enquiryOpen}
-        onRequestClose={() => { if (enquiryStatus !== "sending") setEnquiryOpen(false); }}
+        onRequestClose={closeEnquiry}
         variant={width >= 700 ? "center" : "sheet"}
         keyboardAware
         sheetStyle={[styles.enquirySheet, width >= 700 && styles.enquirySheetDesktop, { backgroundColor: surface, borderColor: sectionDivider }]}
@@ -694,7 +700,7 @@ export default function VendorPublicProfileScreen() {
         <View style={styles.enquiryHeader}>
           <View style={styles.enquiryIcon}><Send size={20} color={PINK} /></View>
           <View style={styles.enquiryHeaderCopy}><Text style={[styles.enquiryTitle, { color: text }]}>Send Enquiry</Text><Text numberOfLines={1} style={[styles.enquirySubtitle, { color: muted }]}>Tell {vendor.name} what you need</Text></View>
-          <Pressable disabled={enquiryStatus === "sending"} onPress={() => setEnquiryOpen(false)} accessibilityLabel="Close enquiry" style={[styles.enquiryClose, { backgroundColor: background }]}><X size={20} color={text} /></Pressable>
+          <Pressable disabled={enquiryStatus === "sending"} onPress={closeEnquiry} accessibilityLabel="Close enquiry" style={[styles.enquiryClose, { backgroundColor: background }]}><X size={20} color={text} /></Pressable>
         </View>
         <Text style={[styles.enquiryProfileNote, { color: muted }]}>Your profile email and mobile number will be shared with this vendor.</Text>
         <TextInput
