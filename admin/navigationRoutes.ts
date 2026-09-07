@@ -56,5 +56,6 @@ export const adminWorkspaceRoutes = new Set([
 ]);
 
 export function isAdminWorkspaceRoute(pathname: string) {
-  return adminWorkspaceRoutes.has(pathname);
+  return adminWorkspaceRoutes.has(pathname)
+    || (!adminAuthRoutes.has(pathname) && pathname.toLowerCase().includes("admin"));
 }

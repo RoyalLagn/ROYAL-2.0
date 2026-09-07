@@ -1,8 +1,8 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { Home, MapPinOff } from "lucide-react-native";
+import { usePathname, useRouter } from "expo-router";
+import { ArrowLeft, Home, LayoutDashboard, MapPinOff, SearchX } from "lucide-react-native";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { brandColors } from "@/constants/brandPalette";
@@ -16,11 +16,13 @@ import { typeStyles } from "@/constants/typography";
  */
 export default function NotFoundScreen() {
   const router = useRouter();
+  const pathname = usePathname();
   const { colorScheme } = useAppTheme();
   const dark = colorScheme === "dark";
   const colors = brandColors(dark);
   const { width } = useWindowDimensions();
   const compact = width < 420;
+  const adminRoute = pathname.toLowerCase().includes("admin");
 
   const goHome = () => {
     // Clears any stacked screens above this one first (native), then
@@ -28,6 +30,47 @@ export default function NotFoundScreen() {
     if (router.canDismiss()) router.dismissAll();
     router.replace("/");
   };
+
+  if (adminRoute) {
+    return (
+      <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right", "bottom"]}>
+        <View className="flex-1 items-center justify-center px-5 py-10">
+          <View className="w-full max-w-xl bg-card border border-border rounded-2xl p-6 items-center shadow-sm">
+            <View className="w-16 h-16 rounded-2xl bg-primary/10 items-center justify-center mb-5">
+              <SearchX size={28} className="text-primary" />
+            </View>
+            <Text className="text-foreground text-2xl font-bold text-center">Admin page not found</Text>
+            <Text className="text-muted-foreground text-sm leading-5 text-center mt-2 max-w-md">
+              This admin page may have moved, been removed, or the address may be incorrect.
+            </Text>
+            <Text selectable className="text-muted-foreground text-xs text-center mt-4 px-3 py-2 rounded-xl bg-muted" numberOfLines={2}>{pathname}</Text>
+            <View className={`w-full gap-3 mt-6 ${width >= 480 ? "flex-row" : ""}`}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+                onPress={() => router.canGoBack() ? router.back() : router.replace("/admin-dashboard")}
+                className="flex-1 min-h-12 rounded-xl border border-border bg-background flex-row items-center justify-center gap-2 active:opacity-75"
+                style={({ pressed }) => pressed ? styles.buttonPressed : undefined}
+              >
+                <ArrowLeft size={18} className="text-foreground" />
+                <Text className="text-foreground font-semibold">Go back</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Go to admin dashboard"
+                onPress={() => router.replace("/admin-dashboard")}
+                className="flex-1 min-h-12 rounded-xl bg-primary flex-row items-center justify-center gap-2 active:opacity-85"
+                style={({ pressed }) => pressed ? styles.buttonPressed : undefined}
+              >
+                <LayoutDashboard size={18} color="#FFFFFF" />
+                <Text className="text-white font-semibold">Admin Dashboard</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: colors.background }]} edges={["top", "left", "right", "bottom"]}>
