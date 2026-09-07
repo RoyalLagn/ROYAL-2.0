@@ -13,6 +13,9 @@ import { mapVendorServiceLocation } from "@/services/locations";
 import type { VendorServiceLocation } from "@/locations/types";
 import { effectiveAvailabilityStatus } from "@/services/vendorAvailability";
 import { formatCanonicalVendorLocation } from "@/locations/domain";
+import { normalizeMarketplaceCategoryName, databaseCategoryCandidates } from "@/locations/marketplaceCategoryNames";
+
+export { normalizeMarketplaceCategoryName, databaseCategoryCandidates };
 
 export type PublicVendorAvailability = {
   date: string;
@@ -187,20 +190,15 @@ function relatedOne<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
 }
 
-// Moved to locations/marketplaceCategoryNames.ts (dependency-free, so it can
-// be unit-tested with plain `node` -- see
-// scripts/test-location-discovery-domain.mjs) and re-exported here so every
-// existing import of these two functions from this module keeps working.
-import { normalizeMarketplaceCategoryName, databaseCategoryCandidates } from "@/locations/marketplaceCategoryNames";
-export { normalizeMarketplaceCategoryName, databaseCategoryCandidates };
-
 function normalizeVendor(
   row: any,
   reviewSummary?: ReviewSummary,
   canonicalLocation?: PublicVendorCanonicalLocation | null,
 ): PublicVendorListing | null {
   const databaseCategory = relatedOne<{ name?: string }>(row.categories)?.name?.trim();
-  if (!row.is_verified || !databaseCategory) return null;
+  const managementStatus = row.management_status ?? "active";
+  const publicProfileEnabled = row.public_profile_enabled !== false;
+  if (!row.is_verified || !databaseCategory || managementStatus !== "active" || !publicProfileEnabled) return null;
   const category = normalizeMarketplaceCategoryName(databaseCategory);
 
   const activeServices = (row.vendor_services ?? []).filter(
@@ -300,8 +298,8 @@ function normalizeVendor(
     primaryCityId: primaryLocation?.cityId ?? row.primary_city_id ?? null,
     primaryAreaId: primaryLocation?.areaId ?? row.primary_area_id ?? null,
     serviceLocations,
-    managementStatus: row.management_status ?? "active",
-    publicProfileEnabled: row.public_profile_enabled !== false,
+    managementStatus,
+    publicProfileEnabled,
     awards: Array.isArray(row.awards) ? row.awards : [],
     languages: Array.isArray(row.languages) ? row.languages : [],
     businessHours: Array.isArray(row.business_hours) ? row.business_hours : null,
@@ -336,6 +334,11 @@ export function invalidatePublicVendorCache() {
   marketplaceCacheVersion += 1;
   marketplaceCache = null;
   marketplaceRequest = null;
+}
+
+export function refreshPublicVendorListings() {
+  invalidatePublicVendorCache();
+  marketplaceListeners.forEach((listener) => listener());
 }
 
 const recordedProfileViews = new Set<string>();

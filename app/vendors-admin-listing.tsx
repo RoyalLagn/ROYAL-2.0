@@ -386,9 +386,14 @@ export default function VendorsAdminListing() {
 
 function ActionMenu({ visible, record, onClose, onView, onAction }: { visible: boolean; record: AdminVendorRecord | null; onClose: () => void; onView: () => void; onAction: (action: ManagementOperation) => void }) {
   if (!record) return null;
-  const actions: ManagementOperation[] = record.vendor_id
-    ? ["suspend", "activate", record.is_verified ? "unverify" : "verify", "archive", "restore", "soft_delete"]
-    : ["approve", "reject"];
+  const status = record.management_status;
+  const actions: ManagementOperation[] = !record.vendor_id
+    ? ["approve", "reject"]
+    : status === "archived"
+      ? ["restore"]
+      : status === "suspended"
+        ? ["activate", record.is_verified ? "unverify" : "verify", "archive"]
+        : ["suspend", record.is_verified ? "unverify" : "verify", "archive"];
   const standardActions = actions.filter((action) => action !== "archive" && action !== "soft_delete");
   const destructiveActions = actions.filter((action) => action === "archive" || action === "soft_delete");
   return (
@@ -402,7 +407,7 @@ function ActionMenu({ visible, record, onClose, onView, onAction }: { visible: b
             </View>
             <View className="flex-1 min-w-0 pt-0.5">
               <Text className="text-foreground text-lg font-bold" numberOfLines={1}>{record.business_name}</Text>
-              <Text className="text-muted-foreground text-xs mt-0.5">Vendor management actions</Text>
+              <Text className="text-muted-foreground text-xs mt-0.5 capitalize">Current status: {record.management_status}</Text>
             </View>
             <Pressable accessibilityLabel="Close" className="min-w-11 min-h-11 -mr-2 -mt-2 rounded-xl items-center justify-center" onPress={onClose}>
               <X size={20} className="text-muted-foreground" />
@@ -445,6 +450,18 @@ const actionIcons: Record<ManagementOperation, LucideIcon> = {
   soft_delete: Trash2,
 };
 
+const actionDescriptions: Record<ManagementOperation, string> = {
+  approve: "Approve application and create access",
+  reject: "Reject the pending application",
+  suspend: "Temporarily hide and block access",
+  activate: "Reactivate marketplace access",
+  verify: "Add the verified badge",
+  unverify: "Remove the verified badge",
+  archive: "Remove from listings; can be restored",
+  restore: "Return archived vendor to active",
+  soft_delete: "Remove from active listings",
+};
+
 function ActionIcon({ action, size, color }: { action: ManagementOperation; size: number; color: string }) {
   const Icon = actionIcons[action];
   return <Icon size={size} color={color} />;
@@ -461,7 +478,10 @@ function ActionButton({ action, destructive = false, onPress }: { action: Manage
       onPress={onPress}
     >
       <ActionIcon action={action} size={18} color={color} />
-      <Text className={`font-semibold capitalize ${destructive ? "text-red-600" : "text-foreground"}`}>{label}</Text>
+      <View className="flex-1 min-w-0">
+        <Text className={`font-semibold capitalize ${destructive ? "text-red-600" : "text-foreground"}`}>{label}</Text>
+        <Text className={`text-caption mt-0.5 ${destructive ? "text-red-500" : "text-muted-foreground"}`} numberOfLines={2}>{actionDescriptions[action]}</Text>
+      </View>
     </Pressable>
   );
 }

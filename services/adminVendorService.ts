@@ -1,6 +1,7 @@
 import { Platform, Share } from "react-native";
 import { supabase } from "@/services/supabase";
 import { CategoryService } from "@/services/CategoryService";
+import { refreshPublicVendorListings } from "@/services/publicVendorListings";
 import type {
   AdminVendorRecord,
   AdminVendorLocationFacet,
@@ -215,6 +216,7 @@ export const AdminVendorService = {
     });
     if (error) throw error;
     this.invalidate();
+    refreshPublicVendorListings();
     void reason;
   },
 
