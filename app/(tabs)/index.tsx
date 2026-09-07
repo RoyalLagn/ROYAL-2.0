@@ -920,7 +920,7 @@ const s = StyleSheet.create<Record<string, any>>({
   scroll:          {},
 
   /* Header */
-  header:          { minHeight: 52, alignSelf: "center", flexDirection: "row", alignItems: "center", zIndex: 30, elevation: 8 },
+  header:          { minHeight: 52, alignSelf: "center", flexDirection: "row", alignItems: "center", zIndex: 30 },
   headerLocation:  { flexShrink: 0, alignItems: "flex-start", justifyContent: "center" },
   nearMeHeader: { minHeight: 44, flexShrink: 0, flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 12 },
   locationIconWrap: { width: 27, height: 27, flexShrink: 0, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: "#FFF0F5" },
