@@ -9,6 +9,7 @@ import {
   ScrollView,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,10 +25,11 @@ import { AdminUserService, type AdminPublicUser } from "@/services/adminUsers";
 import { adminErrorMessage } from "@/services/adminErrors";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 
-const USERS_PER_PAGE = 30;
+const USERS_PER_PAGE = 20;
 
 export default function AdminUsers() {
   const { isPhone, isTablet } = useResponsiveLayout();
+  const { width } = useWindowDimensions();
   const [users, setUsers] = useState<AdminPublicUser[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
@@ -78,7 +80,8 @@ export default function AdminUsers() {
   const pages = Math.max(1, Math.ceil(filtered.length / USERS_PER_PAGE));
   const currentPage = Math.min(page, pages);
   const visible = filtered.slice((currentPage - 1) * USERS_PER_PAGE, currentPage * USERS_PER_PAGE);
-  const userCardBasis = isPhone ? "100%" : isTablet ? "48%" : "32%";
+  const useReadableCards = isTablet || width < 1600;
+  const userCardBasis = isPhone ? "100%" : useReadableCards ? "48%" : "32%";
 
   const updateUserStatus = async (user: AdminPublicUser, isActive: boolean) => {
     setActionUser(null);
@@ -149,17 +152,24 @@ export default function AdminUsers() {
               <TextInput accessibilityLabel="Search users" value={searchInput} onChangeText={setSearchInput} placeholder="Search by name, email, phone or user ID" placeholderTextColor="#7A8190" className="flex-1 min-w-0 text-foreground text-body" />
               {searchInput ? <Pressable accessibilityRole="button" accessibilityLabel="Clear search" className="w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:bg-muted transition-colors duration-200" onPress={() => setSearchInput("")}><X size={15} className="text-muted-foreground" /></Pressable> : null}
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-              {(["all", "active", "inactive"] as const).map((value) => <Pressable key={value} onPress={() => { setStatus(value); setPage(1); }} className={status === value ? "min-h-11 px-4 rounded-xl bg-primary border border-primary items-center justify-center" : "min-h-11 px-4 rounded-xl bg-background border border-border items-center justify-center"} style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}><Text className={status === value ? "text-white text-xs font-semibold capitalize" : "text-foreground text-xs font-semibold capitalize"}>{value}</Text></Pressable>)}
-              <View className="w-px bg-border mx-1" />
-              {(["newest", "oldest", "name"] as const).map((value) => <Pressable key={value} onPress={() => setSort(value)} className={sort === value ? "min-h-11 px-4 rounded-xl bg-primary/10 border border-primary/20 items-center justify-center" : "min-h-11 px-4 rounded-xl border border-transparent items-center justify-center"} style={({ pressed }) => pressed ? { transform: [{ scale: 0.97 }] } : undefined}><Text className={sort === value ? "text-primary text-xs font-semibold capitalize" : "text-muted-foreground text-xs font-semibold capitalize"}>{value}</Text></Pressable>)}
-            </ScrollView>
+            <View className="gap-2">
+              <Text className="text-muted-foreground text-caption font-semibold">ACCOUNT STATUS</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {(["all", "active", "inactive"] as const).map((value) => <Pressable accessibilityRole="button" accessibilityState={{ selected: status === value }} key={value} onPress={() => { setStatus(value); setPage(1); }} className={status === value ? "min-h-11 px-4 rounded-xl bg-primary border border-primary items-center justify-center" : "min-h-11 px-4 rounded-xl bg-background border border-border items-center justify-center"} style={({ pressed }) => pressed ? { opacity: 0.72, transform: [{ scale: 0.97 }] } : undefined}><Text className={status === value ? "text-white text-xs font-semibold capitalize" : "text-foreground text-xs font-semibold capitalize"}>{value}</Text></Pressable>)}
+              </ScrollView>
+            </View>
+            <View className="gap-2">
+              <Text className="text-muted-foreground text-caption font-semibold">SORT BY</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {(["newest", "oldest", "name"] as const).map((value) => <Pressable accessibilityRole="button" accessibilityState={{ selected: sort === value }} key={value} onPress={() => { setSort(value); setPage(1); }} className={sort === value ? "min-h-11 px-4 rounded-xl bg-primary border border-primary items-center justify-center" : "min-h-11 px-4 rounded-xl bg-background border border-border items-center justify-center"} style={({ pressed }) => pressed ? { opacity: 0.72, transform: [{ scale: 0.97 }] } : undefined}><Text className={sort === value ? "text-white text-xs font-semibold capitalize" : "text-muted-foreground text-xs font-semibold capitalize"}>{value}</Text></Pressable>)}
+              </ScrollView>
+            </View>
           </View>
 
           {loading ? <AdminLoadingState label="Loading live customer profiles…" />
             : error ? <AdminErrorState message={error} onRetry={() => void load()} />
               : !visible.length ? <AdminEmptyState title="No users found" message={query || status !== "all" ? "Try another search or status filter." : "Customer accounts will appear here after registration."} />
-                : <View className="flex-row flex-wrap gap-3">{visible.map((user, index) => <AdminReveal key={user.id} index={index} style={{ flexBasis: userCardBasis, flexGrow: isPhone ? 0 : 1, maxWidth: userCardBasis }}><UserCard user={user} compact={isPhone} onActions={() => setActionUser(user)} /></AdminReveal>)}</View>}
+                : <View className="flex-row flex-wrap gap-3">{visible.map((user, index) => <AdminReveal key={user.id} index={index} style={{ flexBasis: userCardBasis, flexGrow: isPhone ? 0 : 1, maxWidth: userCardBasis }}><UserCard user={user} compact={isPhone || useReadableCards} onActions={() => setActionUser(user)} /></AdminReveal>)}</View>}
           {!loading && !error && filtered.length > USERS_PER_PAGE ? <PaginationBar page={currentPage} pages={pages} onPage={setPage} total={filtered.length} pageSize={USERS_PER_PAGE} /> : null}
         </ResponsiveContainer>
       </ScrollView>
@@ -183,17 +193,22 @@ function UserCard({ user, compact, onActions }: { user: AdminPublicUser; compact
     .map((part) => part[0])
     .join("")
     .toUpperCase() || "U";
+  const emailUser = () => {
+    if (user.email) void Linking.openURL(`mailto:${user.email}`);
+  };
+  const callUser = () => {
+    if (user.phone) void Linking.openURL(`tel:${user.phone}`);
+  };
   return (
     <View
-      accessible
       accessibilityLabel={`${user.full_name}, ${user.is_active ? "active" : "inactive"} account`}
-      className="bg-card border border-border rounded-2xl p-4 hover:border-primary/35 hover:bg-primary/5 transition-colors duration-200"
+      className="bg-card border border-border rounded-2xl p-3 hover:border-primary/35 hover:bg-primary/5 transition-colors duration-200"
     >
       <View className="flex-row items-start">
         {user.profile_image ? (
-          <Image source={{ uri: user.profile_image }} className="w-14 h-14 rounded-2xl bg-muted" resizeMode="cover" />
+          <Image source={{ uri: user.profile_image }} className="w-12 h-12 rounded-xl bg-muted" resizeMode="cover" />
         ) : (
-          <View className="w-14 h-14 rounded-2xl bg-primary/10 items-center justify-center">
+          <View className="w-12 h-12 rounded-xl bg-primary/10 items-center justify-center">
             <Text className="text-primary text-base font-bold">{initials}</Text>
           </View>
         )}
@@ -213,24 +228,24 @@ function UserCard({ user, compact, onActions }: { user: AdminPublicUser; compact
         </View>
       </View>
 
-      <View className={`mt-4 p-3 rounded-xl bg-background border border-border gap-3 ${compact ? "" : "flex-row"}`}>
-        <View className="flex-row items-center min-w-0 flex-1">
+      <View className={`mt-3 p-1.5 rounded-xl bg-background border border-border gap-0.5 ${compact ? "" : "flex-row"}`}>
+        <Pressable accessibilityRole="link" accessibilityLabel={user.email ? `Email ${user.full_name} at ${user.email}` : "Email not provided"} disabled={!user.email} onPress={emailUser} className="flex-row items-center min-w-0 flex-1 rounded-xl px-2 py-1.5 hover:bg-primary/5 active:bg-primary/10 transition-colors duration-150" style={({ pressed }) => pressed ? { transform: [{ scale: 0.985 }] } : undefined}>
           <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center"><Mail size={15} className="text-primary" /></View>
           <View className="flex-1 min-w-0 ml-2.5">
             <Text className="text-muted-foreground text-caption">Email address</Text>
-            <Text className="text-foreground text-xs font-medium mt-0.5" numberOfLines={1}>{user.email || "Not provided"}</Text>
+            <Text className="text-foreground text-xs font-semibold mt-0.5" selectable>{user.email || "Not provided"}</Text>
           </View>
-        </View>
-        <View className="flex-row items-center min-w-0 flex-1">
+        </Pressable>
+        <Pressable accessibilityRole="link" accessibilityLabel={user.phone ? `Call ${user.full_name} at ${user.phone}` : "Phone number not provided"} disabled={!user.phone} onPress={callUser} className="flex-row items-center min-w-0 flex-1 rounded-xl px-2 py-1.5 hover:bg-primary/5 active:bg-primary/10 transition-colors duration-150" style={({ pressed }) => pressed ? { transform: [{ scale: 0.985 }] } : undefined}>
           <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center"><Phone size={15} className="text-primary" /></View>
           <View className="flex-1 min-w-0 ml-2.5">
             <Text className="text-muted-foreground text-caption">Phone number</Text>
-            <Text className="text-foreground text-xs font-medium mt-0.5" numberOfLines={1}>{user.phone || "Not provided"}</Text>
+            <Text className="text-foreground text-xs font-semibold mt-0.5" selectable>{user.phone || "Not provided"}</Text>
           </View>
-        </View>
+        </Pressable>
       </View>
 
-      <View className="flex-row items-center justify-between gap-3 mt-3">
+      <View className="flex-row items-center justify-between gap-3 mt-2.5 px-1">
         <View className="flex-row items-center flex-1 min-w-0">
           <CalendarDays size={13} className="text-muted-foreground" />
           <Text className="text-muted-foreground text-caption ml-1.5" numberOfLines={1}>Joined {formatUserDate(user.created_at)}</Text>
