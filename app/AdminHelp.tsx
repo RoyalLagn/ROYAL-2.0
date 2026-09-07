@@ -246,7 +246,7 @@ export default function AdminHelp() {
 }
 
 const styles = StyleSheet.create({
-  scrollContent: { paddingBottom: 120 },
+  scrollContent: { paddingBottom: 72 },
   surface: Platform.OS === "web"
     ? ({ boxShadow: "0 10px 28px rgba(74, 39, 55, 0.055)" } as never)
     : { elevation: 1 },

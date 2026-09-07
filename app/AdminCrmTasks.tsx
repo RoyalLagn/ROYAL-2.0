@@ -151,7 +151,7 @@ export default function AdminCrmTasks() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 72 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#0878E8" />}
       >
         <ResponsiveContainer>

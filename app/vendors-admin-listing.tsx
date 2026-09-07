@@ -201,7 +201,7 @@ export default function VendorsAdminListing() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 72 }} keyboardShouldPersistTaps="handled">
         <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
           <AdminPageHeader
             title="Vendor Management"

@@ -56,7 +56,7 @@ export default function PaymentsAdmin() {
   ];
   const hasActiveFilters = filter !== "all" || categoryFilter !== "all" || Boolean(fromDate) || Boolean(toDate) || Boolean(search) || sort !== "recent";
   const clearFilters = () => { setSearch(""); setFilter("all"); setCategoryFilter("all"); setFromDate(""); setToDate(""); setSort("recent"); setPage(1); };
-  return <SafeAreaView style={styles.page} edges={["top","left","right"]}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+  return <SafeAreaView style={styles.page} edges={["top","left","right"]}><ScrollView contentContainerStyle={[styles.content, { paddingBottom: 72 }]} showsVerticalScrollIndicator={false}>
     <AdminPageHeader title="Payments" subtitle="Verified Razorpay orders, captures, failures and refunds" action={<Pressable accessibilityLabel="Refresh payments" onPress={() => void load()} style={styles.headerButton}><RefreshCw size={19} color={pink} /></Pressable>} />
     <View style={styles.stats}>{stats.map(({ label, value, count, icon: Icon, tint }) => <View key={label} style={styles.stat}><View style={[styles.statIcon, { backgroundColor: `${tint}15` }]}><Icon size={20} color={tint} /></View><Text style={styles.statValue}>{formatSubscriptionPrice(value)}</Text><Text style={styles.statLabel}>{label} · {count}</Text></View>)}</View>
     <View style={styles.filterSection}>

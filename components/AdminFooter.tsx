@@ -55,7 +55,7 @@ export default function AdminFooter({ activeTab }: AdminFooterProps) {
         backgroundColor: isDark
           ? floatingNavigationTokens.admin.darkCanvas
           : floatingNavigationTokens.admin.lightCanvas,
-        paddingBottom: Math.max(insets.bottom, 10),
+        paddingBottom: insets.bottom,
         paddingLeft: Math.max(insets.left, responsive.isPhone ? 8 : 24),
         paddingRight: Math.max(insets.right, responsive.isPhone ? 8 : 24),
       }}

@@ -23,7 +23,7 @@ export default function AdminReports() {
   useEffect(() => { void load(); }, [load]);
   const paid = payments.filter((item) => ["verified"].includes(String(item.payment_status ?? "").toLowerCase()));
   const revenue = paid.reduce((sum, item) => sum + Number(item.amount ?? item.amount_paid ?? 0), 0);
-  return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}><ScrollView contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={adminPalette.brand} />}>
+  return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}><ScrollView contentContainerStyle={{ paddingBottom: 72 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={adminPalette.brand} />}>
     <ResponsiveContainer><AdminPageHeader title="Reports" subtitle="Live platform and payment summaries" action={<Pressable accessibilityLabel="Refresh reports" onPress={() => void load(true)} className="min-w-11 min-h-11 items-center justify-center"><RefreshCw size={19} className="text-primary" /></Pressable>} />
       {loading ? <AdminLoadingState label="Loading reports…" /> : error ? <AdminErrorState message={error} onRetry={() => void load()} /> : <>
         <Text className="text-foreground font-bold mb-3">Payment summary</Text><View className="flex-row flex-wrap gap-3"><ReportMetric label="Payment records" value={String(payments.length)} /><ReportMetric label="Verified payments" value={String(paid.length)} /><ReportMetric label="Verified revenue" value={`₹${revenue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`} icon={IndianRupee} /></View>

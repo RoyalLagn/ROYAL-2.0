@@ -9,7 +9,7 @@ export const profileScreenStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  scrollContent: { alignItems: "center", paddingBottom: 112 },
+  scrollContent: { alignItems: "center", paddingBottom: 72 },
   pageContainer: { width: "100%", maxWidth: 1272 },
   pageIntro: { paddingTop: 30, paddingBottom: 24 },
   desktopColumns: {

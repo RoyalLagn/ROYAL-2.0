@@ -355,7 +355,7 @@ export default function SubscriptionsAdmin() {
   const subscriberPages = Math.max(1, Math.ceil(subscriberTotal / SUBSCRIBERS_PER_PAGE));
   const subscriberCardBasis = isPhone ? "100%" : isTablet ? "48%" : "32%";
 
-  return <SafeAreaView style={styles.page} edges={["top", "left", "right"]}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} decelerationRate="fast">
+  return <SafeAreaView style={styles.page} edges={["top", "left", "right"]}><ScrollView contentContainerStyle={[styles.content, { paddingBottom: 72 }]} showsVerticalScrollIndicator={false} decelerationRate="fast">
     <AdminPageHeader title="Subscriptions" subtitle="Configure plans, subscriber access and offers" action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh subscriptions" accessibilityState={{ busy: loading }} disabled={loading} onPress={() => void load()} style={styles.headerButton}><RefreshCw size={19} color={pink} /></Pressable>} />
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>{(["plans", "vendors", "offers"] as Tab[]).map((item) => <Pressable accessibilityRole="tab" accessibilityState={{ selected: tab === item }} key={item} onPress={() => setTab(item)} style={[styles.tab, tab === item && styles.tabActive]}><Text style={[styles.tabText, tab === item && styles.tabTextActive]}>{item === "vendors" ? "Subscribers" : item.charAt(0).toUpperCase() + item.slice(1)}</Text></Pressable>)}</ScrollView>
     {loading ? <ActivityIndicator color={pink} style={{ marginTop: 40 }} /> : null}{error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text><Pressable onPress={load}><Text style={styles.retry}>Retry</Text></Pressable></View> : null}

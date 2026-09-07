@@ -157,7 +157,7 @@ export default function AdminClips() {
   };
 
   return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-    <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={adminPalette.brand} />}>
+    <ScrollView showsVerticalScrollIndicator={false} decelerationRate="fast" contentContainerStyle={{ paddingBottom: 72 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={adminPalette.brand} />}>
       <ResponsiveContainer>
         <AdminPageHeader title="Clips" subtitle="Review vendor content and remove clips that do not belong" action={<Pressable accessibilityRole="button" accessibilityLabel="Refresh clips" onPress={() => void load(true)} className="w-11 h-11 rounded-xl border border-border bg-card items-center justify-center hover:bg-muted active:bg-muted transition-colors duration-200"><RefreshCw size={19} className="text-primary" /></Pressable>} />
         <View className="bg-card border border-border rounded-2xl px-4 py-4 mb-5 flex-row items-center gap-4">

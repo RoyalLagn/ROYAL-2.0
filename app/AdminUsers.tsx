@@ -120,7 +120,7 @@ export default function AdminUsers() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         decelerationRate="fast"
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 72 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={adminPalette.brand} />}
       >
         <ResponsiveContainer>

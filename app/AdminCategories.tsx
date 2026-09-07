@@ -155,7 +155,7 @@ export default function AdminCategories() {
   const categoryColumns = availableWidth >= 1040 ? 3 : availableWidth >= 580 ? 2 : 1;
   const categoryCardWidth = categoryColumns === 1 ? "100%" : (availableWidth - (categoryColumns - 1) * 14) / categoryColumns;
 
-  return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}><ScrollView contentContainerStyle={{ paddingBottom: 120 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload()} tintColor="#0878E8" />}>
+  return <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}><ScrollView contentContainerStyle={{ paddingBottom: 72 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload()} tintColor="#0878E8" />}>
     <ResponsiveContainer><AdminPageHeader title="Categories" subtitle="Live marketplace category directory" action={<View className="flex-row items-center gap-2">
       <Pressable accessibilityRole="button" accessibilityLabel="Add New Category" onPress={openAdd} className="h-11 rounded-xl bg-primary flex-row items-center px-4 gap-2 shadow-sm hover:bg-[#D81B60] hover:-translate-y-px active:opacity-85 transition-all duration-200 ease-out"><Plus size={17} color="#FFFFFF" /><Text className="text-white text-sm font-bold">Add New Category</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Refresh categories" onPress={() => void reload()} className="w-11 h-11 rounded-xl border border-border bg-card items-center justify-center hover:bg-muted active:opacity-75 transition-colors duration-200"><RefreshCw size={19} className="text-primary" /></Pressable>

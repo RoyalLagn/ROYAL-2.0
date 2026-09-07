@@ -101,7 +101,7 @@ export default function AdminTerms({ documentType = "terms" }: AdminLegalDocumen
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
-      <KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+      <KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 72 }}>
         <ResponsiveContainer style={{ maxWidth: 1180, alignSelf: "center" }}>
           <AdminPageHeader
             title={title}

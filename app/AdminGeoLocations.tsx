@@ -38,7 +38,7 @@ export default function AdminGeoLocations() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 72 }}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={adminPalette.brand} />}
       >

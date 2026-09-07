@@ -227,6 +227,7 @@ export default function CategoriesScreen() {
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top", "left", "right"]}>
       {loading && !categories.length ? <PageLoader /> : null}
+      {!isDesktop ? <PublicWebNavbar activeRoute="Categories" /> : null}
       <FlatList
         key={twoColumns ? "category-grid-2" : "category-grid-1"}
         data={entries}
@@ -246,11 +247,6 @@ export default function CategoriesScreen() {
         stickyHeaderIndices={twoColumns ? undefined : [1]}
         ListHeaderComponent={(
           <View>
-            {!isDesktop ? (
-              <View style={{ width: screenWidth, marginLeft: -horizontalInset }}>
-                <PublicWebNavbar activeRoute="Categories" />
-              </View>
-            ) : null}
             <Animated.View style={headerStyle}>
               <CategoryPageHeader dark={isDark} entrance={entrance} reducedMotion={reducedMotion} />
             </Animated.View>
@@ -278,8 +274,8 @@ const s = StyleSheet.create({
   root: { flex: 1 },
   list: { alignSelf: "center" },
   stickySearch: {
-    marginTop: discoveryLayout.headerSearchOverlap,
-    paddingTop: discoveryLayout.stickySearchPaddingTop,
+    marginTop: 0,
+    paddingTop: 8,
     paddingBottom: discoveryLayout.stickySearchPaddingBottom,
     zIndex: 10,
   },

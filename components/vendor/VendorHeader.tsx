@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/ThemeProvider";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import { useVendorNotifications } from "@/context/VendorNotificationContext";
+import { useVendorEnquiryUnreadCount } from "@/hooks/useVendorEnquiryUnreadCount";
 import { typeStyles } from "@/constants/typography";
 import Pressable from "@/components/InteropSafePressable";
 import { vendorTheme } from "./VendorTheme";
@@ -25,6 +26,7 @@ export default function VendorHeader(_props: { unread?: number }) {
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
   const { unreadCount } = useVendorNotifications();
+  const { unreadCount: unreadEnquiries } = useVendorEnquiryUnreadCount();
   const colors = vendorTheme[colorScheme];
   const unread = unreadCount;
   const desktop = Platform.OS === "web" && width >= 900;
@@ -90,7 +92,7 @@ export default function VendorHeader(_props: { unread?: number }) {
             <Pressable
               accessibilityRole="button"
               onPress={() => { if (!normalizedPath.startsWith("/vendorenquiries")) router.push("/VendorEnquiries"); }}
-              accessibilityLabel="Open enquiries"
+              accessibilityLabel={`Open enquiries${unreadEnquiries ? `, ${unreadEnquiries} new` : ""}`}
               style={({ pressed }) => [
                 styles.desktopIconButton,
                 { backgroundColor: colors.surface, borderColor: colors.border },
@@ -98,6 +100,7 @@ export default function VendorHeader(_props: { unread?: number }) {
               ]}
             >
               <MessageSquareText size={20} color={normalizedPath.startsWith("/vendorenquiries") ? colors.pink : colors.text} />
+              {unreadEnquiries > 0 ? <View style={[styles.badge, { backgroundColor: colors.pink }]}><Text style={[styles.badgeText, { color: colors.onPrimary }]}>{unreadEnquiries > 9 ? "9+" : unreadEnquiries}</Text></View> : null}
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -130,10 +133,11 @@ export default function VendorHeader(_props: { unread?: number }) {
         <RoyalLagnLogo width={168} height={46} />
       </View>
       <View style={styles.actions}>
-        <Pressable accessibilityRole="button" onPress={() => { if (!normalizedPath.startsWith("/vendorenquiries")) router.push("/VendorEnquiries"); }} accessibilityLabel="Open enquiries"
+        <Pressable accessibilityRole="button" onPress={() => { if (!normalizedPath.startsWith("/vendorenquiries")) router.push("/VendorEnquiries"); }} accessibilityLabel={`Open enquiries${unreadEnquiries ? `, ${unreadEnquiries} new` : ""}`}
           style={({ pressed }) => [styles.iconButton, Platform.OS === "web" && { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}>
           <View pointerEvents="none" style={[styles.iconButtonSurface, Platform.OS !== "web" && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
             <MessageSquareText size={19} color={colors.text} />
+            {unreadEnquiries > 0 && <View style={[styles.badge, { backgroundColor: colors.pink }]}><Text style={[styles.badgeText, { color: colors.onPrimary }]}>{unreadEnquiries > 9 ? "9+" : unreadEnquiries}</Text></View>}
           </View>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => { if (!normalizedPath.startsWith("/vendornotifications")) router.push("/VendorNotifications"); }} accessibilityLabel="Open notifications"

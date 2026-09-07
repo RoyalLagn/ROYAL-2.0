@@ -150,7 +150,7 @@ export default function AdminCrmCategories() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 72 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true, true)} tintColor="#0878E8" />}
       >
         <ResponsiveContainer>

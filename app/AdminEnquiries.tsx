@@ -93,7 +93,7 @@ export default function AdminEnquiries() {
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 72 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#0878E8" />}
       >
         <ResponsiveContainer style={{ maxWidth: 1180, alignSelf: "center" }}>

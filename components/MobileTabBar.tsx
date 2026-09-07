@@ -246,7 +246,7 @@ function AnimatedTab({
  */
 export function useMobileTabBarHeight(): number {
   const insets = useSafeAreaInsets();
-  return MOBILE_TAB_BASE_HEIGHT + Math.max(insets.bottom, 8);
+  return Platform.OS === "web" ? 12 : MOBILE_TAB_BASE_HEIGHT + insets.bottom;
 }
 
 export function MobileTabBar({
@@ -304,8 +304,9 @@ export function MobileTabBar({
       accessibilityLabel="Main"
       style={[
         styles.safeWrap,
+        Platform.OS !== "web" && styles.nativePinned,
         {
-          paddingBottom: Math.max(insets.bottom, 8),
+          paddingBottom: insets.bottom,
           paddingLeft: Math.max(insets.left, floatingNavigationTokens.horizontalInset),
           paddingRight: Math.max(insets.right, floatingNavigationTokens.horizontalInset),
           backgroundColor: navigationColors.canvas,
@@ -422,8 +423,9 @@ export function StandaloneMobileTabBar({
       accessibilityLabel="Main"
       style={[
         styles.safeWrap,
+        Platform.OS !== "web" && styles.nativePinned,
         {
-          paddingBottom: Math.max(insets.bottom, 8),
+          paddingBottom: insets.bottom,
           paddingLeft: Math.max(insets.left, floatingNavigationTokens.horizontalInset),
           paddingRight: Math.max(insets.right, floatingNavigationTokens.horizontalInset),
           backgroundColor: navigationColors.canvas,
@@ -485,6 +487,14 @@ const styles = StyleSheet.create({
     width: "100%",
     flexShrink: 0,
     paddingHorizontal: floatingNavigationTokens.horizontalInset,
+  },
+  nativePinned: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+    elevation: 20,
   },
   bar: {
     width: "100%",

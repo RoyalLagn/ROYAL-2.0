@@ -4,7 +4,7 @@ import { interactionTokens } from "@/constants/interactionTokens";
 
 export const vendorGalleryStyles = StyleSheet.create({
   page: { flex: 1 },
-  content: { position: "relative", padding: 16, paddingTop: 22, paddingBottom: 112, alignSelf: "center", width: "100%" },
+  content: { position: "relative", padding: 16, paddingTop: 22, paddingBottom: 72, alignSelf: "center", width: "100%" },
   desktop: { maxWidth: 1180, paddingHorizontal: 28, paddingTop: 30, paddingBottom: 56 },
   ambientGlow: { position: "absolute", top: -90, right: -110, width: 250, height: 250, borderRadius: 125, backgroundColor: "rgba(233,30,99,.055)" },
   flex: { flex: 1, minWidth: 0 },

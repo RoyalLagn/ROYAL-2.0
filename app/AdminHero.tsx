@@ -367,7 +367,7 @@ export default function AdminHero() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         decelerationRate="fast"
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 72 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

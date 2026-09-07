@@ -32,7 +32,7 @@ function DashboardContent() {
         // Native momentum keeps the admin workspace feeling deliberate on
         // touch devices while the content remains a normal, accessible scroll.
         decelerationRate="normal"
-        contentContainerStyle={{ paddingBottom: 118 }}
+        contentContainerStyle={{ paddingBottom: 72 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}
       >
         <DashboardHeader royal={royal} refreshing={refreshing} onRefresh={() => void refresh()} />

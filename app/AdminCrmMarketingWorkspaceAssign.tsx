@@ -261,7 +261,7 @@ export default function AdminCrmMarketingWorkspaceAssign() {
         </View>
       </ResponsiveContainer>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 72 }}>
         <ResponsiveContainer>
           {error ? <ResponsiveSection><AdminErrorState message={error} onRetry={() => void loadVendors()} /></ResponsiveSection> : null}
 
