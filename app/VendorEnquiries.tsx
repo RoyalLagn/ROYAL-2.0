@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Inbox, Mail, MessageCircle, MessageSquareText, Phone, Search, SlidersHorizontal, UserRound, X } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -36,6 +36,7 @@ export default function VendorEnquiries() {
   const [notes, setNotes] = useState("");
   const [followUp, setFollowUp] = useState("");
   const [saving, setSaving] = useState(false);
+  const markingAllSeen = useRef(false);
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return items.filter((item) => (filter === "all" || item.status === filter) && (channelFilter === "all" || item.enquiry_channel === channelFilter) && (!enquiryDate || localDateKey(item.created_at) === enquiryDate) && (!needle || [item.customer_name, item.customer_email, item.customer_phone, item.reference_code, item.package_name, item.event_type].some((value) => value?.toLowerCase().includes(needle))))
@@ -52,6 +53,15 @@ export default function VendorEnquiries() {
   const activeFilterCount = Number(channelFilter !== "all") + Number(filter !== "all") + Number(sort !== "newest");
   useEffect(() => { setPage(1); }, [channelFilter, enquiryDate, filter, query, sort]);
   useEffect(() => { setPage((current) => Math.min(current, pageCount)); }, [pageCount]);
+  useEffect(() => {
+    const unseenIds = items.filter((item) => !item.vendor_seen_at).map((item) => item.id);
+    if (loading || markingAllSeen.current || unseenIds.length === 0) return;
+    markingAllSeen.current = true;
+    void EnquiryService.markAllVendorSeen(unseenIds)
+      .then(() => refresh(true))
+      .catch(() => undefined)
+      .finally(() => { markingAllSeen.current = false; });
+  }, [items, loading, refresh]);
 
   const open = (item: TrackedEnquiry) => {
     setSelected({ ...item, vendor_seen_at: item.vendor_seen_at ?? new Date().toISOString() });

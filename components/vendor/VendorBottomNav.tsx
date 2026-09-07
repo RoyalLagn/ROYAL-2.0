@@ -184,7 +184,11 @@ export default function VendorBottomNav() {
   const normalizedPath = pathname.toLowerCase();
   const isVendorPage = vendorWorkspaceRoutes.some((route) => normalizedPath.startsWith(route));
   const shouldShow = Platform.OS !== "web" || width < 768;
-  const activeRoute = normalizedPath.startsWith("/vendorclip")
+  const isStandaloneWorkspacePage = normalizedPath.startsWith("/vendorenquiries")
+    || normalizedPath.startsWith("/vendornotifications");
+  const activeRoute = isStandaloneWorkspacePage
+    ? undefined
+    : normalizedPath.startsWith("/vendorclip")
     ? "/VendorClips"
     : normalizedPath.startsWith("/vendoreditprofile") || normalizedPath.startsWith("/vendorservices")
       ? "/Vendors_dash_profile"
@@ -196,7 +200,7 @@ export default function VendorBottomNav() {
         || normalizedPath.startsWith("/vendorterms")
         ? "/Vendors_dash_profile"
         : tabs.find((tab) => normalizedPath.startsWith(tab.route.toLowerCase()))?.route ?? "/vendor-dashboard";
-  const selectedIndex = Math.max(0, tabs.findIndex((tab) => tab.route === activeRoute));
+  const selectedIndex = tabs.findIndex((tab) => tab.route === activeRoute);
   const activeIndex = useSharedValue(selectedIndex);
 
   useEffect(() => {
@@ -209,7 +213,7 @@ export default function VendorBottomNav() {
     const itemWidth = itemsWidth / TAB_COUNT;
     return {
       width: Math.max(0, itemWidth - 10),
-      opacity: Math.min(1, Math.abs(activeIndex.value - 2) * 2.5),
+      opacity: activeIndex.value < 0 ? 0 : Math.min(1, Math.abs(activeIndex.value - 2) * 2.5),
       transform: [{ translateX: activeIndex.value * itemWidth + 5 }],
     };
   }, [itemsWidth]);
@@ -227,7 +231,7 @@ export default function VendorBottomNav() {
 
   return (
     <View pointerEvents="box-none" testID="vendor-bottom-navigation" style={[styles.safeWrap, {
-      paddingBottom: Math.max(insets.bottom, 8),
+      paddingBottom: insets.bottom,
       paddingLeft: Math.max(insets.left, floatingNavigationTokens.horizontalInset),
       paddingRight: Math.max(insets.right, floatingNavigationTokens.horizontalInset),
       backgroundColor: navigationColors.canvas,
