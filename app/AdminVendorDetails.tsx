@@ -257,7 +257,7 @@ function PublicProfileAdminControls({ vendorId, vendor, onChanged }: { vendorId:
     );
   };
 
-  const handleToggle = async () => {
+  const updatePublicProfile = async () => {
     setBusy("toggle");
     try {
       await setVendorPublicProfileEnabled(vendorId, !enabled);
@@ -267,6 +267,23 @@ function PublicProfileAdminControls({ vendorId, vendor, onChanged }: { vendorId:
     } finally {
       setBusy(null);
     }
+  };
+
+  const handleToggle = () => {
+    Alert.alert(
+      `${enabled ? "Disable" : "Enable"} public profile?`,
+      enabled
+        ? "Customers will no longer be able to open this vendor's public profile until you enable it again."
+        : "Customers will be able to view and contact this vendor from their public profile.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          style: enabled ? "destructive" : "default",
+          onPress: () => void updatePublicProfile(),
+        },
+      ],
+    );
   };
 
   if (!slug) {
