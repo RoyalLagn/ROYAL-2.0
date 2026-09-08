@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, } from "react-native";
 // NativeWind's native Pressable interop doesn't resolve a function
 // `style={(state) => [...]}` prop on Android (whole style silently drops).
 // InteropSafePressable resolves it first. See VendorCalendar.tsx /
@@ -454,6 +454,92 @@ export default function VendorPublicProfileScreen() {
     setEnquiryPackage(null);
   };
 
+  const packagesCard = (
+    <PackagesCard
+      price={vendor.startingPrice}
+      dark={dark}
+      subtitle={vendor.services.length ? `${vendor.services.length} active ${vendor.services.length === 1 ? "package" : "packages"} available` : "Request a custom package"}
+      onPress={() => setPackagesVisible(true)}
+    />
+  );
+
+  const profileTabs = (
+    <VendorProfileTabs
+      selected={selectedTab}
+      dark={dark}
+      onChange={selectProfileTab}
+    />
+  );
+
+  const portfolioOrClips = selectedTab === "portfolio" ? (
+    vendor.portfolioAlbums.length ? <View style={styles.portfolioSection}>
+      <SectionErrorBoundary label="Portfolio" key={`portfolio-${vendor.id}`}>
+        <PortfolioAlbums
+          albums={vendor.portfolioAlbums}
+          dark={dark}
+          onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id, src: explicitSource } })}
+          onOpenAlbum={(album) => router.push({
+            pathname: "/VendorAlbum",
+            params: { vendorId: vendor.id, albumId: album.id, src: explicitSource },
+          })}
+        />
+      </SectionErrorBoundary>
+    </View> : null
+  ) : (
+    <SectionErrorBoundary label="Clips" key={`clips-${vendor.id}`}>
+      {publicClipsEnabled === true ? (
+        <VendorClipsGrid
+          clips={vendorClips}
+          loading={clipsLoading}
+          error={clipsError}
+          dark={dark}
+          onOpen={setReelViewerIndex}
+          onRetry={() => setClipsReloadKey((current) => current + 1)}
+        />
+      ) : <VendorClipsComingSoon dark={dark} loading={publicClipsEnabled === null} />}
+    </SectionErrorBoundary>
+  );
+
+  const aboutSection = (
+    <View style={[styles.sectionCard, sectionCardStyle]}>
+      <SectionHeading dark={dark}>About</SectionHeading>
+      {vendor.experience != null ? (
+        <View style={styles.experienceRow}>
+          <Briefcase size={14} color={PINK} />
+          <Text style={[styles.experienceText, { color: muted }]}>
+            {vendor.experience} {vendor.experience === 1 ? "year" : "years"} of experience
+          </Text>
+        </View>
+      ) : null}
+      <Text style={[styles.aboutText, { color: muted }]}>{aboutCopy}</Text>
+      {about.length > 180 ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? "Show less about vendor" : "Read more about vendor"}
+          onPress={() => setExpanded((current) => !current)}
+          style={({ pressed, hovered }) => [
+            styles.readMore,
+            hovered && Platform.OS === "web" && styles.readMoreHover,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.readMoreText}>{expanded ? "Show Less" : "Read More"}</Text>
+          <ChevronRight size={16} color={PINK} style={{ transform: [{ rotate: expanded ? "-90deg" : "0deg" }] }} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+
+  const businessDetails = <>
+    {vendor.services.length ? <View style={[styles.sectionCard, sectionCardStyle]}><SectionHeading dark={dark}>Services</SectionHeading><ServiceChips services={vendor.services} dark={dark} /></View> : null}
+    {vendor.awards.length ? <View style={[styles.sectionCard, sectionCardStyle]}><SectionHeading dark={dark}>Awards</SectionHeading><AwardsSection awards={vendor.awards} dark={dark} /></View> : null}
+    {vendor.languages.length ? <View style={[styles.sectionCard, sectionCardStyle]}><SectionHeading dark={dark}>Languages</SectionHeading><LanguagesSection languages={vendor.languages} dark={dark} /></View> : null}
+    {vendor.businessHours?.length ? <View style={[styles.sectionCard, sectionCardStyle]}><SectionHeading dark={dark}>Business Hours</SectionHeading><BusinessHoursSection hours={vendor.businessHours} dark={dark} /></View> : null}
+    {vendor.faqs.length ? <View style={[styles.sectionCard, sectionCardStyle]}><SectionHeading dark={dark}>FAQs</SectionHeading><FaqSection faqs={vendor.faqs} dark={dark} /></View> : null}
+  </>;
+
+  const reviewsSection = <View style={[styles.sectionCard, styles.reviewsSection, sectionCardStyle]}><ConnectedVendorReviews vendorKey={vendor.id} vendorSlug={vendor.slug} dark={dark} /></View>;
+
   const handleSendEnquiry = async () => {
     if (!isPublicAuthenticated) {
       setEnquiryOpen(false);
@@ -495,6 +581,96 @@ export default function VendorPublicProfileScreen() {
       setEnquiryError(cause instanceof Error ? cause.message : "The enquiry could not be sent.");
     }
   };
+
+  // This is the original wide-screen profile composition: the media story
+  // remains on the left and the decision-making details stay independently
+  // scrollable on the right. Keep the app/mobile path below exactly as-is.
+  if (desktop) {
+    const splitHeroHeight = Math.max(500, Math.min(640, height - 170));
+
+    return (
+      <View style={[styles.root, { backgroundColor: background }]}>
+        <PublicWebNavbar activeRoute="Categories" />
+        <View style={[styles.desktopSplit, { borderColor: sectionDivider }]}>
+          <View style={[styles.desktopPane, styles.desktopMediaPane, styles.desktopMediaContent]}>
+            <View style={[styles.desktopHeroShell, { height: splitHeroHeight, backgroundColor: dark ? "#05070C" : "#F8EEF2" }]}>
+              <VendorHeroCarousel
+                images={heroImages}
+                fallbackImage={fallbackImage}
+                vendorName={vendor.name}
+                containMedia
+                height={splitHeroHeight}
+                focalPoints={heroFocalPoints}
+                paused={heroViewerIndex !== null || calendarVisible || packagesVisible || enquiryOpen || Boolean(enquiryPackage)}
+                onOpen={vendor.heroMedia.length ? setHeroViewerIndex : undefined}
+              />
+            </View>
+          </View>
+
+          <ScrollView
+            style={[styles.desktopPane, styles.desktopDetailsPane, { borderColor: sectionDivider }]}
+            contentContainerStyle={styles.desktopDetailsContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.desktopCategoryRow}>
+              <Text style={styles.desktopCategory}>{category.toUpperCase()}</Text>
+              <View style={[styles.desktopCategoryRule, { backgroundColor: sectionDivider }]} />
+            </View>
+            <VendorInfoPanel
+              name={vendor.name}
+              rating={displayedRating.rating}
+              reviewCount={displayedRating.reviews}
+              location={vendor.location}
+              specialties={vendor.tags}
+              verified
+              topRated={Boolean(vendor.isTopRated)}
+              dark={dark}
+              favorite={favorite}
+              onToggleFavorite={toggleVendorFavorite}
+              onShare={() => void shareProfile()}
+              membershipPlan={vendor.membershipPlan}
+              overlap={false}
+            >
+              <VendorQuickActions
+                dark={dark}
+                onCall={() => requestVendorContact("call")}
+                onWhatsApp={() => requestVendorContact("whatsapp")}
+                onEnquire={() => openEnquiry()}
+                onCalendar={() => setCalendarVisible(true)}
+              />
+            </VendorInfoPanel>
+            <View style={styles.desktopDetailSection}>{packagesCard}</View>
+            <View style={styles.desktopProfileMedia}>{profileTabs}{portfolioOrClips}</View>
+            <View style={[styles.desktopDetailSection, styles.desktopEditorialSection]}>{aboutSection}</View>
+            <View style={[styles.desktopDetailSection, styles.desktopEditorialSection]}>{businessDetails}</View>
+            <View style={[styles.desktopDetailSection, styles.desktopEditorialSection]}>{reviewsSection}</View>
+          </ScrollView>
+        </View>
+
+        <FullscreenMediaViewer
+          visible={heroViewerIndex !== null}
+          media={vendor.heroMedia}
+          initialIndex={heroViewerIndex ?? 0}
+          title={`${vendor.name} · Hero gallery`}
+          onClose={() => setHeroViewerIndex(null)}
+        />
+        {packagesVisible ? <PackageDetailsModal
+          visible
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          contactPhone={vendor.contactPhone}
+          dark={dark}
+          onClose={() => setPackagesVisible(false)}
+          onCall={(item) => { setPackagesVisible(false); setTimeout(() => requestVendorContact("call", item), 0); }}
+          onWhatsApp={(item) => { setPackagesVisible(false); setTimeout(() => requestVendorContact("whatsapp", item), 0); }}
+          onEnquire={(item) => { setPackagesVisible(false); setTimeout(() => openEnquiry(item), 0); }}
+        /> : null}
+        <VendorAvailabilityModal visible={calendarVisible} vendorId={vendor.id} vendorName={vendor.name} availability={vendor.availability} dark={dark} onClose={() => setCalendarVisible(false)} />
+        {publicClipsEnabled === true ? <VendorClipsReelViewer visible={reelViewerIndex !== null} clips={vendorClips} initialIndex={reelViewerIndex ?? 0} vendorName={vendor.name} verified onClose={() => setReelViewerIndex(null)} /> : null}
+        <DownloadAppPopup dark={dark} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: background }]}>
@@ -546,118 +722,12 @@ export default function VendorPublicProfileScreen() {
         </VendorInfoPanel>
 
         <View style={[styles.content, width < 600 && styles.contentCompact]}>
-          <PackagesCard
-            price={vendor.startingPrice}
-            dark={dark}
-            subtitle={vendor.services.length ? `${vendor.services.length} active ${vendor.services.length === 1 ? "package" : "packages"} available` : "Request a custom package"}
-            onPress={() => setPackagesVisible(true)}
-          />
-
-          <VendorProfileTabs
-            selected={selectedTab}
-            dark={dark}
-            onChange={selectProfileTab}
-          />
-
-          {selectedTab === "portfolio" ? (
-            vendor.portfolioAlbums.length ? <View style={styles.portfolioSection}>
-              <SectionErrorBoundary label="Portfolio" key={`portfolio-${vendor.id}`}>
-                <PortfolioAlbums
-                  albums={vendor.portfolioAlbums}
-                  dark={dark}
-                  onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id, src: explicitSource } })}
-                  onOpenAlbum={(album) => router.push({
-                    pathname: "/VendorAlbum",
-                    params: { vendorId: vendor.id, albumId: album.id, src: explicitSource },
-                  })}
-                />
-              </SectionErrorBoundary>
-            </View> : null
-          ) : (
-            <SectionErrorBoundary label="Clips" key={`clips-${vendor.id}`}>
-              {publicClipsEnabled === true ? (
-                <VendorClipsGrid
-                  clips={vendorClips}
-                  loading={clipsLoading}
-                  error={clipsError}
-                  dark={dark}
-                  onOpen={setReelViewerIndex}
-                  onRetry={() => setClipsReloadKey((current) => current + 1)}
-                />
-              ) : <VendorClipsComingSoon dark={dark} loading={publicClipsEnabled === null} />}
-            </SectionErrorBoundary>
-          )}
-
-          <View style={[styles.sectionCard, sectionCardStyle]}>
-            <SectionHeading dark={dark}>About</SectionHeading>
-            {vendor.experience != null ? (
-              <View style={styles.experienceRow}>
-                <Briefcase size={14} color={PINK} />
-                <Text style={[styles.experienceText, { color: muted }]}>
-                  {vendor.experience} {vendor.experience === 1 ? "year" : "years"} of experience
-                </Text>
-              </View>
-            ) : null}
-            <Text style={[styles.aboutText, { color: muted }]}>{aboutCopy}</Text>
-            {about.length > 180 ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={expanded ? "Show less about vendor" : "Read more about vendor"}
-                onPress={() => setExpanded((current) => !current)}
-                style={({ pressed, hovered }) => [
-                  styles.readMore,
-                  hovered && Platform.OS === "web" && styles.readMoreHover,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.readMoreText}>{expanded ? "Show Less" : "Read More"}</Text>
-                <ChevronRight
-                  size={16}
-                  color={PINK}
-                  style={{ transform: [{ rotate: expanded ? "-90deg" : "0deg" }] }}
-                />
-              </Pressable>
-            ) : null}
-          </View>
-
-          {vendor.services.length ? (
-            <View style={[styles.sectionCard, sectionCardStyle]}>
-              <SectionHeading dark={dark}>Services</SectionHeading>
-              <ServiceChips services={vendor.services} dark={dark} />
-            </View>
-          ) : null}
-
-          {vendor.awards.length ? (
-            <View style={[styles.sectionCard, sectionCardStyle]}>
-              <SectionHeading dark={dark}>Awards</SectionHeading>
-              <AwardsSection awards={vendor.awards} dark={dark} />
-            </View>
-          ) : null}
-
-          {vendor.languages.length ? (
-            <View style={[styles.sectionCard, sectionCardStyle]}>
-              <SectionHeading dark={dark}>Languages</SectionHeading>
-              <LanguagesSection languages={vendor.languages} dark={dark} />
-            </View>
-          ) : null}
-
-          {vendor.businessHours?.length ? (
-            <View style={[styles.sectionCard, sectionCardStyle]}>
-              <SectionHeading dark={dark}>Business Hours</SectionHeading>
-              <BusinessHoursSection hours={vendor.businessHours} dark={dark} />
-            </View>
-          ) : null}
-
-          {vendor.faqs.length ? (
-            <View style={[styles.sectionCard, sectionCardStyle]}>
-              <SectionHeading dark={dark}>FAQs</SectionHeading>
-              <FaqSection faqs={vendor.faqs} dark={dark} />
-            </View>
-          ) : null}
-
-          <View style={[styles.sectionCard, styles.reviewsSection, sectionCardStyle]}>
-            <ConnectedVendorReviews vendorKey={vendor.id} vendorSlug={vendor.slug} dark={dark} />
-          </View>
+          {packagesCard}
+          {profileTabs}
+          {portfolioOrClips}
+          {aboutSection}
+          {businessDetails}
+          {reviewsSection}
         </View>
       </PinnedHeroProfileLayout>
 
@@ -744,6 +814,28 @@ const styles = StyleSheet.create({
   centered: { alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
   content: { width: "100%", maxWidth: 960, alignSelf: "center", paddingHorizontal: 20, paddingTop: 16 },
   contentCompact: { paddingHorizontal: 14, paddingTop: 14 },
+  desktopSplit: { flex: 1, width: "100%", flexDirection: "row", overflow: "hidden" },
+  desktopPane: { flex: 1 },
+  desktopMediaPane: { flexBasis: "40%" },
+  desktopDetailsPane: { flexBasis: "60%", borderLeftWidth: StyleSheet.hairlineWidth },
+  desktopMediaContent: { paddingHorizontal: 32, paddingTop: 32, paddingBottom: 64 },
+  desktopDetailsContent: { paddingHorizontal: 40, paddingTop: 34, paddingBottom: 64 },
+  desktopHeroShell: {
+    width: "100%",
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#7B304B",
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 3,
+  },
+  desktopProfileMedia: { marginTop: 22 },
+  desktopCategoryRow: { width: "100%", flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
+  desktopCategory: { color: PINK, fontFamily: typeStyles.button.fontFamily, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, letterSpacing: 0.45 },
+  desktopCategoryRule: { flex: 1, height: StyleSheet.hairlineWidth },
+  desktopDetailSection: { marginTop: 24 },
+  desktopEditorialSection: { paddingTop: 26, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#F2DDE5" },
   sectionCard: {
     marginTop: 14,
     padding: 16,
