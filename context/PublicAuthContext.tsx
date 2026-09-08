@@ -8,6 +8,7 @@ import React, {
   useState,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { Platform } from "react-native";
 import { restoreSupabaseSession, supabase } from "@/services/supabase";
 import {
   ensurePublicProfile,
@@ -192,11 +193,13 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
   }, [session]);
 
   const signOut = useCallback(async () => {
-    try {
-      const { PushTokenService } = await import("@/services/pushTokens");
-      await PushTokenService.unregisterCurrentDevice();
-    } catch {
-      // Token cleanup is best-effort and must not block logout.
+    if (Platform.OS !== "web") {
+      try {
+        const { PushTokenService } = await import("@/services/pushTokens");
+        await PushTokenService.unregisterCurrentDevice();
+      } catch {
+        // Token cleanup is best-effort and must not block logout.
+      }
     }
     const { error } = await supabase.auth.signOut();
     if (error) throw error;

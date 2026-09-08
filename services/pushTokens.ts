@@ -1,11 +1,14 @@
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
+import * as SecureStore from "expo-secure-store";
 import { supabase } from "@/services/supabase";
 
 type RegisterOptions = {
   role: "public_user" | "vendor" | "admin";
 };
+
+const CURRENT_DEVICE_TOKEN_KEY = "royallagn.current-device-push-token";
 
 function projectId() {
   return (
@@ -77,28 +80,37 @@ export const PushTokenService = {
       { onConflict: "profile_id,token" },
     );
     if (error) throw error;
+    await SecureStore.setItemAsync(CURRENT_DEVICE_TOKEN_KEY, token);
     return token;
   },
 
-  async unregisterCurrentDevice() {
+  async unregisterCurrentDevice(options: { strict?: boolean } = {}) {
     const Notifications = await loadNotifications();
     if (!Notifications) return;
     try {
-      const id = projectId();
-      const tokenResponse = id
-        ? await Notifications.getExpoPushTokenAsync({ projectId: id })
-        : await Notifications.getExpoPushTokenAsync();
-      const token = tokenResponse.data?.trim();
+      let token = (await SecureStore.getItemAsync(CURRENT_DEVICE_TOKEN_KEY))?.trim();
+      if (!token) {
+        const id = projectId();
+        const tokenResponse = id
+          ? await Notifications.getExpoPushTokenAsync({ projectId: id })
+          : await Notifications.getExpoPushTokenAsync();
+        token = tokenResponse.data?.trim();
+      }
       if (!token) return;
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) return;
-      await supabase
+      const { error } = await supabase
         .from("push_tokens")
         .delete()
         .eq("profile_id", auth.user.id)
         .eq("token", token);
-    } catch {
-      // Token cleanup is best-effort on logout.
+      if (error) throw error;
+      await SecureStore.deleteItemAsync(CURRENT_DEVICE_TOKEN_KEY);
+    } catch (error) {
+      // Vendor logout uses strict mode: do not complete logout while this
+      // device is still registered to receive private enquiry pushes.
+      if (options.strict) throw error;
+      // Other callers keep their existing best-effort logout behaviour.
     }
   },
 };

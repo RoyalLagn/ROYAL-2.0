@@ -135,6 +135,26 @@ Deno.serve(async (request) => {
       .slice(0, 3);
     if (!response.ok) errors.unshift(`Expo API ${response.status}`);
 
+    // Expo permanently rejects tokens after an app is uninstalled or its
+    // notification identity changes. Removing only those exact token rows
+    // prevents repeated delivery attempts without affecting the vendor's
+    // other logged-in devices.
+    const invalidTokens = tickets.flatMap((ticket: { status?: string; details?: { error?: string } }, index: number) =>
+      ticket.status === "error" && ticket.details?.error === "DeviceNotRegistered" && tokens[index]
+        ? [tokens[index]]
+        : []
+    );
+    if (invalidTokens.length) {
+      const { error: cleanupError } = await service
+        .from("push_tokens")
+        .delete()
+        .eq("profile_id", vendor.profile_id)
+        .in("token", invalidTokens);
+      if (cleanupError) {
+        console.error("[send-enquiry-push] invalid token cleanup failed", cleanupError.message);
+      }
+    }
+
     await service.from("enquiry_push_deliveries").update({
       status: sent > 0 ? "sent" : "failed",
       sent_count: sent,

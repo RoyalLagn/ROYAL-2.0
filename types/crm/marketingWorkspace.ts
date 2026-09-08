@@ -3,7 +3,7 @@ import type { CrmVendorStatus } from "@/types/crm/vendor";
 export type MarketingWorkspaceStatus = "active" | "paused" | "completed" | "revoked";
 export type MarketingWorkspacePriority = "low" | "medium" | "high";
 export type MarketingInterestStatus = "pending" | "interested" | "not_interested";
-export type MarketingWorkspaceVendorFilter = "assigned" | "contacted" | "meeting_done" | "interested" | "not_interested" | "registered" | "pending";
+export type MarketingWorkspaceVendorFilter = "assigned" | "contacted" | "meeting_done" | "interested" | "not_interested" | "registered" | "not_registered" | "pending";
 
 // Admin-facing row shape (matches crm_marketing_workspaces).
 export type CrmMarketingWorkspace = {

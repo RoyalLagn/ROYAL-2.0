@@ -8,11 +8,7 @@ import { ResponsiveSection } from "@/components/responsive/ResponsiveSection";
 import { CRMCard } from "@/components/admin/crm/ui/CRMCard";
 import { DateField } from "@/components/admin/crm/ui/DateField";
 import { CrmMarketingWorkspaceService } from "@/services/crm/marketingWorkspaceService";
-import type { MarketingWorkspacePriority, MarketingWorkspaceStatus } from "@/types/crm/marketingWorkspace";
 import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
-
-const priorities: MarketingWorkspacePriority[] = ["low", "medium", "high"];
-const statuses: MarketingWorkspaceStatus[] = ["active", "paused", "completed"];
 
 function Field({ label, value, onChangeText, placeholder, multiline }: {
   label: string; value: string; onChangeText: (value: string) => void; placeholder?: string; multiline?: boolean;
@@ -39,8 +35,6 @@ export default function AdminCrmMarketingWorkspaceCreate() {
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [priority, setPriority] = useState<MarketingWorkspacePriority>("medium");
-  const [status, setStatus] = useState<MarketingWorkspaceStatus>("active");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,8 +63,8 @@ export default function AdminCrmMarketingWorkspaceCreate() {
         description: description.trim() || null,
         startDate: startDate.trim() || null,
         endDate: endDate.trim() || null,
-        priority,
-        status,
+        priority: "medium",
+        status: "active",
       });
       router.replace({ pathname: "/AdminCrmMarketingWorkspaceAssign", params: { workspaceId: workspace.id } });
     } catch (reason) {
@@ -106,32 +100,6 @@ export default function AdminCrmMarketingWorkspaceCreate() {
               <Field label="Description" value={description} onChangeText={setDescription} placeholder="e.g. Target Banquet Halls in Pune" multiline />
               <DateField label="Start Date" value={startDate} onChange={handleStartDateChange} />
               <DateField label="End Date" value={endDate} onChange={setEndDate} minimumDate={startDate || undefined} />
-
-              <Text className="text-foreground text-xs font-semibold mb-1.5">Priority</Text>
-              <View className="flex-row gap-2 mb-3">
-                {priorities.map((item) => (
-                  <Pressable
-                    key={item}
-                    onPress={() => setPriority(item)}
-                    className={`px-3 py-2 rounded-full border capitalize ${priority === item ? "bg-primary border-primary" : "border-border"}`}
-                  >
-                    <Text className={`text-xs font-semibold capitalize ${priority === item ? "text-white" : "text-foreground"}`}>{item}</Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              <Text className="text-foreground text-xs font-semibold mb-1.5">Status</Text>
-              <View className="flex-row gap-2">
-                {statuses.map((item) => (
-                  <Pressable
-                    key={item}
-                    onPress={() => setStatus(item)}
-                    className={`px-3 py-2 rounded-full border capitalize ${status === item ? "bg-primary border-primary" : "border-border"}`}
-                  >
-                    <Text className={`text-xs font-semibold capitalize ${status === item ? "text-white" : "text-foreground"}`}>{item}</Text>
-                  </Pressable>
-                ))}
-              </View>
             </CRMCard>
           </ResponsiveSection>
 

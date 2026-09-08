@@ -16,6 +16,7 @@ import {
 } from "@/services/vendorAuth";
 import { isRecoverySessionActive } from "@/services/authRecoverySession";
 import { ClipQueueService } from "@/clips/services/ClipQueueService";
+import { PushTokenService } from "@/services/pushTokens";
 
 type VendorAuthContextValue = {
   resolution: VendorResolution | null;
@@ -108,7 +109,11 @@ export function VendorAuthProvider({ children }: { children: React.ReactNode }) 
   }, [refresh]);
 
   const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
+    // Remove only this physical device's token while the vendor session is
+    // still available for RLS. Other devices signed into the same vendor
+    // retain their own token rows and continue receiving enquiry pushes.
+    await PushTokenService.unregisterCurrentDevice({ strict: true });
+    const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) throw error;
     setResolution(null);
     // Belt-and-braces alongside useClipUploadQueue's own vendor-id effect:

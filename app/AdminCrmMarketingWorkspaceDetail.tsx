@@ -18,12 +18,10 @@ import type { CrmMarketingWorkspaceAssignedVendor, MarketingWorkspaceVendorFilte
 // private.resolve_active_marketing_workspace (the function every share-link
 // request goes through) blocks access the moment `end_date < current_date`
 // — evaluated fresh on every request, independent of the `status` column —
-// and current_date there is the Postgres server's date, which this project
-// runs in UTC. Mirrored here with the UTC date (not the device's local
-// date/DateField's local-part formatting) so this banner only ever appears
-// exactly when the real server-side check would also block the link.
-function todayUtcIso() {
-  return new Date().toISOString().slice(0, 10);
+// Calendar lifecycle is evaluated in India time, matching the team that sets
+// these dates and the database's expiry scheduler.
+function todayIstIso() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 }
 
 // Same status palette as AdminCrmMarketingWorkspaces.tsx's list row badge —
@@ -114,14 +112,10 @@ export default function AdminCrmMarketingWorkspaceDetail() {
 
   const currentLink = buildMarketingWorkspaceUrl(workspace.token);
   const [statusBg, statusFg] = (statusColor[workspace.status] ?? statusColor.active).split(" ");
-  // Access is blocked by an expired end_date regardless of the `status`
-  // column (see private.resolve_active_marketing_workspace) — and that
-  // column doesn't reliably get flipped to "completed" for it (the write
-  // and the access-denial both happen in the one request that discovers the
-  // expiry, so the denial rolls the write back). So this is computed here
-  // rather than trusted from workspace.status, and it's what actually
-  // explains "the link won't open" independent of Pause/Regenerate/Revoke.
-  const isExpired = workspace.status === "active" && !!workspace.end_date && workspace.end_date < todayUtcIso();
+  // Expiry pauses access without invalidating the token. Keep this date
+  // check independent of status so automatically paused workspaces expose
+  // the date-extension recovery flow to the admin.
+  const isExpired = workspace.status !== "revoked" && !!workspace.end_date && workspace.end_date < todayIstIso();
   const endDateLabel = workspace.end_date ? new Date(`${workspace.end_date}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : null;
 
   const copyLink = async () => {
@@ -148,7 +142,13 @@ export default function AdminCrmMarketingWorkspaceDetail() {
   // through the AdminErrorState banner instead, so the visible status/link
   // never silently flips ahead of the backend.
   const doPause = async () => { if (await setStatus("paused")) toastRef.current?.show("Workspace paused"); };
-  const doResume = async () => { if (await setStatus("active")) toastRef.current?.show("Workspace resumed"); };
+  const doResume = async () => {
+    if (isExpired) {
+      openExtend();
+      return;
+    }
+    if (await setStatus("active")) toastRef.current?.show("Workspace resumed");
+  };
   const doRevoke = async () => { if (await setStatus("revoked")) toastRef.current?.show("Workspace revoked"); };
   const doRegenerate = async () => { if (await regenerateToken()) toastRef.current?.show("New link generated"); };
 
@@ -160,8 +160,12 @@ export default function AdminCrmMarketingWorkspaceDetail() {
     setDraftEndDate(value);
     try {
       await update({ endDate: value || null });
+      if (workspace.status === "paused" || workspace.status === "completed") {
+        const resumed = await setStatus("active");
+        if (!resumed) return;
+      }
       setExtending(false);
-      toastRef.current?.show("End date updated — link is active again");
+      toastRef.current?.show("Workspace resumed — the same link is active again");
     } catch {
       // update() already set `error`, surfaced via the AdminErrorState banner above; keep the picker open to retry.
     }
@@ -232,13 +236,10 @@ export default function AdminCrmMarketingWorkspaceDetail() {
 
           <ResponsiveSection>
             <View className="flex-row flex-wrap gap-3">
-              <StatTile label="Assigned Vendors" value={stats?.assigned ?? 0} tone="neutral" onPress={() => openVendorList("assigned", "Assigned Vendors")} />
-              <StatTile label="Contacted" value={stats?.contacted ?? 0} tone="primary" onPress={() => openVendorList("contacted", "Contacted Vendors")} />
-              <StatTile label="Meeting Done" value={stats?.meeting_done ?? 0} tone="primary" onPress={() => openVendorList("meeting_done", "Meeting Done")} />
               <StatTile label="Interested" value={stats?.interested ?? 0} tone="success" onPress={() => openVendorList("interested", "Interested Vendors")} />
               <StatTile label="Not Interested" value={stats?.not_interested ?? 0} tone="warning" onPress={() => openVendorList("not_interested", "Not Interested Vendors")} />
               <StatTile label="Registered" value={stats?.registered ?? 0} tone="success" onPress={() => openVendorList("registered", "Registered Vendors")} />
-              <StatTile label="Pending" value={stats?.pending ?? 0} tone="warning" onPress={() => openVendorList("pending", "Pending Vendors")} />
+              <StatTile label="Not Registered" value={Math.max(0, (stats?.assigned ?? 0) - (stats?.registered ?? 0))} tone="warning" onPress={() => openVendorList("not_registered", "Not Registered Vendors")} />
             </View>
           </ResponsiveSection>
 
@@ -266,17 +267,12 @@ export default function AdminCrmMarketingWorkspaceDetail() {
                   <ShieldOff size={14} color="#DC3545" style={{ marginTop: 1 }} />
                   <Text className="text-xs font-semibold flex-1" style={{ color: "#DC3545" }}>Workspace access has been revoked.</Text>
                 </View>
-              ) : workspace.status === "paused" ? (
-                <View className="mt-3 px-3 py-2.5 rounded-2xl bg-amber-500/10 flex-row items-start gap-2">
-                  <AlertTriangle size={14} color="#D97706" style={{ marginTop: 1 }} />
-                  <Text className="text-amber-600 text-xs font-semibold flex-1">Workspace is paused. The shared link is temporarily inactive.</Text>
-                </View>
               ) : isExpired ? (
                 <View className="mt-3 px-3 py-2.5 rounded-2xl bg-amber-500/10 gap-2">
                   <View className="flex-row items-start gap-2">
                     <CalendarClock size={14} color="#D97706" style={{ marginTop: 1 }} />
                     <Text className="text-amber-600 text-xs font-semibold flex-1">
-                      This workspace&apos;s End Date ({endDateLabel}) has passed, so the shared link is blocked — regenerating alone won&apos;t reopen it. Extend the end date to restore access.
+                      This workspace was automatically paused after its End Date ({endDateLabel}). Its original link and saved data are preserved. Choose a new date to resume it.
                     </Text>
                   </View>
                   {!extending ? (
@@ -285,13 +281,18 @@ export default function AdminCrmMarketingWorkspaceDetail() {
                     </Pressable>
                   ) : (
                     <View>
-                      <DateField label="New end date" value={draftEndDate} onChange={(value) => void applyNewEndDate(value)} minimumDate={workspace.start_date ?? undefined} placeholder="Select a new end date" />
-                      <Text className="text-muted-foreground text-metadata mt-0.5">Picking a date saves it immediately.</Text>
+                      <DateField label="New end date" value={draftEndDate} onChange={(value) => void applyNewEndDate(value)} minimumDate={todayIstIso()} placeholder="Select a new end date" />
+                      <Text className="text-muted-foreground text-metadata mt-0.5">Picking a date resumes the same workspace link immediately.</Text>
                       <Pressable disabled={saving} onPress={() => setExtending(false)} className="self-start mt-1.5 px-4 py-2 rounded-full border border-border">
                         <Text className="text-foreground text-xs font-bold">Cancel</Text>
                       </Pressable>
                     </View>
                   )}
+                </View>
+              ) : workspace.status === "paused" ? (
+                <View className="mt-3 px-3 py-2.5 rounded-2xl bg-amber-500/10 flex-row items-start gap-2">
+                  <AlertTriangle size={14} color="#D97706" style={{ marginTop: 1 }} />
+                  <Text className="text-amber-600 text-xs font-semibold flex-1">Workspace is paused. The original shared link and saved data are preserved.</Text>
                 </View>
               ) : null}
 
@@ -325,10 +326,10 @@ export default function AdminCrmMarketingWorkspaceDetail() {
                     <Pause size={14} className="text-amber-500" />
                     <Text className="text-amber-500 text-xs font-bold ml-1.5">Pause</Text>
                   </Pressable>
-                ) : workspace.status === "paused" ? (
+                ) : workspace.status === "paused" || workspace.status === "completed" ? (
                   <Pressable disabled={saving} onPress={() => void doResume()} className="px-4 py-2 rounded-full bg-emerald-500/10 flex-row items-center">
                     <Play size={14} className="text-emerald-500" />
-                    <Text className="text-emerald-500 text-xs font-bold ml-1.5">Resume</Text>
+                    <Text className="text-emerald-500 text-xs font-bold ml-1.5">{isExpired ? "Set date & resume" : "Resume"}</Text>
                   </Pressable>
                 ) : null}
                 {workspace.status !== "revoked" ? (
@@ -347,7 +348,7 @@ export default function AdminCrmMarketingWorkspaceDetail() {
               {workspace.status === "revoked" ? (
                 <Text className="text-muted-foreground text-xs mt-3">This workspace has been permanently revoked. Vendors, assignments, and progress remain stored — only the shared link is disabled.</Text>
               ) : isExpired ? (
-                <Text className="text-muted-foreground text-xs mt-3">This workspace shows as active, but its End Date ({endDateLabel}) has passed — the shared link is blocked until you extend it above.</Text>
+                <Text className="text-muted-foreground text-xs mt-3">The End Date ({endDateLabel}) has passed. Set a new date above to resume the same link.</Text>
               ) : null}
             </CRMCard>
           </ResponsiveSection>
