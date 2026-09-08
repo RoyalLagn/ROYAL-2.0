@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SectionList, type ListRenderItemInfo, Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Pressable from "@/components/InteropSafePressable";
-import { RefreshCw, SearchX } from "lucide-react-native";
+import { PanelsTopLeft, RefreshCw, Rows3, SearchX } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import CategoryFilterChips from "@/components/listing/CategoryFilterChips";
 import CategoryListingHeader from "@/components/listing/CategoryListingHeader";
 import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import ListingFilterModal, {
@@ -49,6 +48,7 @@ type ListRow =
   | { kind: "summary"; key: string }
   | { kind: "empty"; key: string }
   | { kind: "vendor"; vendor: PublicVendorListing }
+  | { kind: "vendor-grid"; key: string; vendors: PublicVendorListing[] }
   | { kind: "separator"; key: string; label: string };
 
 function getPriceOptions(category: string) {
@@ -122,6 +122,7 @@ export default function VendorsListingScreen() {
   const [filters, setFilters] = useState<ListingFilters>(DEFAULT_FILTERS);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [filterSection, setFilterSection] = useState<"sort" | "price" | "rating" | "filters">("filters");
+  const [listingLayout, setListingLayout] = useState<"strip" | "grid">("strip");
   const [approvedVendors, setApprovedVendors] = useState<PublicVendorListing[]>([]);
   const [vendorsLoading, setVendorsLoading] = useState(true);
   const [vendorsError, setVendorsError] = useState("");
@@ -367,8 +368,21 @@ export default function VendorsListingScreen() {
 
   const compact = width < 720;
   const desktop = width >= 1100;
-  const pageGutter = width < 380 ? 24 : width < 768 ? 32 : width < 1100 ? 48 : 96;
-  const contentWidth = Math.min(width - pageGutter, 960);
+  const gridColumns = Platform.OS === "web" && desktop
+    ? discoveryLayout.webGridColumns
+    : discoveryLayout.mobileGridColumns;
+  const pageGutter = Platform.OS === "web" && desktop
+    ? discoveryLayout.webPageGutter
+    : width < 380 ? 24 : width < 768 ? 32 : 48;
+  const contentWidth = Math.min(
+    width - pageGutter,
+    Platform.OS === "web" && desktop ? discoveryLayout.webContentMaxWidth : 960,
+  );
+  const gridCardWidth = Math.max(
+    discoveryLayout.gridMinCardWidth,
+    Math.floor((contentWidth - discoveryLayout.gridGap * (gridColumns - 1)) / gridColumns),
+  );
+  const gridViewLabel = gridColumns === discoveryLayout.webGridColumns ? "3-column grid" : "2 by 2 grid";
   const colors = brandColors(isDark);
   const background = colors.background;
   const text = isDark ? "#F8F2F5" : colors.foreground;
@@ -506,11 +520,32 @@ export default function VendorsListingScreen() {
     return rows;
   }, [filteredVendors, gpsActive, locationCardMeta, locationFilteredVendors, locationHasMore, talukaActive]);
   const visibleVendorCount = listRows.filter((row) => row.kind === "vendor").length;
+  const gridRows = useMemo<ListRow[]>(() => {
+    if (listingLayout !== "grid") return listRows;
+    const rows: ListRow[] = [];
+    let pending: PublicVendorListing[] = [];
+    const flush = () => {
+      if (!pending.length) return;
+      rows.push({ kind: "vendor-grid", key: `vendor-grid-${pending.map((vendor) => vendor.id).join("-")}`, vendors: pending });
+      pending = [];
+    };
+    for (const row of listRows) {
+      if (row.kind !== "vendor") {
+        flush();
+        rows.push(row);
+        continue;
+      }
+      pending.push(row.vendor);
+      if (pending.length === gridColumns) flush();
+    }
+    flush();
+    return rows;
+  }, [gridColumns, listRows, listingLayout]);
   const displayRows = useMemo<ListRow[]>(
     () => visibleVendorCount > 0
-      ? [{ kind: "summary", key: "results-summary" }, ...listRows]
+      ? [{ kind: "summary", key: "results-summary" }, ...gridRows]
       : [{ kind: "empty", key: "vendors-empty-state" }],
-    [listRows, visibleVendorCount],
+    [gridRows, visibleVendorCount],
   );
 
   const activeFilterCount = [
@@ -556,7 +591,7 @@ export default function VendorsListingScreen() {
     if (item.kind === "summary") {
       return (
         <HomeReveal delay={95}>
-          <ResultsSummary count={visibleVendorCount} category={displayCategory} sortLabel={sortLabel} dark={isDark} onSort={() => openFilters("sort")} hasMore={talukaActive && locationHasMore} />
+          <ResultsSummary count={visibleVendorCount} category={displayCategory} sortLabel={sortLabel} dark={isDark} onSort={() => openFilters("sort")} showSort={!desktop} hasMore={talukaActive && locationHasMore} />
         </HomeReveal>
       );
     }
@@ -620,26 +655,29 @@ export default function VendorsListingScreen() {
         </View>
       );
     }
+    const renderVendor = (vendor: PublicVendorListing, grid = false) => (
+      <VendorListingCard
+        vendor={vendor}
+        dark={isDark}
+        compact={compact}
+        layout={grid ? "grid" : "strip"}
+        cardWidth={grid ? gridCardWidth : undefined}
+        favorite={isFavorite(vendor.id)}
+        fallbackImage={fallbackImage}
+        onOpen={() => router.push({ pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]", params: { slug: vendor.slug, src: "listing" } })}
+        onToggleFavorite={(source) => toggleVendorFavorite(vendor, source)}
+      />
+    );
+    if (item.kind === "vendor-grid") {
+      return <HomeReveal delay={Math.min(index * 30, 210)}><View style={styles.gridRow}>{item.vendors.map((vendor) => <View key={vendor.id} style={{ width: gridCardWidth }}>{renderVendor(vendor, true)}</View>)}</View></HomeReveal>;
+    }
     const vendor = item.vendor;
     return (
       <HomeReveal delay={Math.min(index * 30, 210)}>
-        <VendorListingCard
-          vendor={vendor}
-          dark={isDark}
-          compact={compact}
-          favorite={isFavorite(vendor.id)}
-          fallbackImage={fallbackImage}
-          onOpen={() =>
-            router.push({
-              pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]",
-              params: { slug: vendor.slug, src: "listing" },
-            })
-          }
-          onToggleFavorite={(source) => toggleVendorFavorite(vendor, source)}
-        />
+        {renderVendor(vendor)}
       </HomeReveal>
     );
-  }, [isDark, compact, isFavorite, fallbackImage, router, toggleVendorFavorite, border, muted, visibleVendorCount, displayCategory, sortLabel, talukaActive, locationHasMore, vendorsLoading, locationActive, locationLoading, locationCards.length, vendorsError, locationError, colors, text, fetchLocationPage, loadVendors, hasSearchOrFilterRefinement, navbarLocationLabel, clearSearchAndFilters]);
+  }, [isDark, compact, desktop, isFavorite, fallbackImage, router, toggleVendorFavorite, border, muted, visibleVendorCount, displayCategory, sortLabel, talukaActive, locationHasMore, vendorsLoading, locationActive, locationLoading, locationCards.length, vendorsError, locationError, colors, text, fetchLocationPage, loadVendors, hasSearchOrFilterRefinement, navbarLocationLabel, clearSearchAndFilters, gridCardWidth]);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "left", "right"]}>
@@ -681,25 +719,34 @@ export default function VendorsListingScreen() {
           />
             </HomeReveal>
             <HomeReveal delay={70} style={styles.chips}>
-              <CategoryFilterChips
-                dark={isDark}
-                active={{ sort: filters.sort !== "popular", price: filters.maximumPrice > 0, rating: filters.minimumRating > 0 }}
-                onPress={openFilters}
-                trailing={(
-                  <TalukaLocationSelector
-                    states={geoStates}
-                    value={geoSelection}
-                    displayLabel={navbarLocationLabel}
-                    onChange={selectGeoLocation}
-                    onClear={clearGeoLocation}
-                    onResolvedLabel={resolveGeoLabel}
-                    onUseCurrentLocation={useCurrentLocation}
-                    loading={geoLoading}
-                    hideLabel
-                    compact
-                  />
-                )}
-              />
+              <View style={styles.refinementControls}>
+                <TalukaLocationSelector
+                  states={geoStates}
+                  value={geoSelection}
+                  displayLabel={navbarLocationLabel}
+                  onChange={selectGeoLocation}
+                  onClear={clearGeoLocation}
+                  onResolvedLabel={resolveGeoLabel}
+                  onUseCurrentLocation={useCurrentLocation}
+                  loading={geoLoading}
+                  hideLabel
+                  compact
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={listingLayout === "strip" ? `Switch to ${gridViewLabel} view` : "Switch to horizontal strip view"}
+                  onPress={() => setListingLayout((current) => current === "strip" ? "grid" : "strip")}
+                  style={({ pressed, hovered, focused }) => [
+                    styles.layoutToggle,
+                    compact && styles.layoutToggleCompact,
+                    { backgroundColor: listingLayout === "grid" ? (isDark ? "#3A222C" : "#FFF0F6") : colors.card, borderColor: listingLayout === "grid" ? colors.primary : border },
+                    (hovered || focused) && styles.controlInteractive,
+                    pressed && styles.controlPressed,
+                  ]}
+                >
+                  {listingLayout === "strip" ? <PanelsTopLeft size={18} color={colors.primaryStrong} strokeWidth={2} /> : <Rows3 size={18} color={colors.primaryStrong} strokeWidth={2} />}
+                </Pressable>
+              </View>
               {geoError ? <Text accessibilityRole="alert" style={[styles.locationModeError, { color: colors.destructive }]}>{geoError}</Text> : null}
             </HomeReveal>
           </View>
@@ -711,7 +758,7 @@ export default function VendorsListingScreen() {
             </HomeReveal>
           </View>
         )}
-        extraData={favorites}
+        extraData={[favorites, listingLayout]}
         showsVerticalScrollIndicator={false}
         decelerationRate="fast"
         keyboardShouldPersistTaps="handled"
@@ -758,9 +805,15 @@ const styles = StyleSheet.create({
   locationModes: { gap: 10 },
   locationModeError: { fontFamily: fonts.sans.medium, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   chips: { marginTop: discoveryLayout.controlsGap, marginBottom: 2 },
+  refinementControls: { flexDirection: "row", alignItems: "center", gap: 8 },
+  layoutToggle: { width: 40, height: 40, borderWidth: 1, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  layoutToggleCompact: { width: 48, height: 48, borderRadius: 14 },
+  controlInteractive: { transform: [{ translateY: -1 }] },
+  controlPressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
   scroll: { flex: 1 },
   list: { alignSelf: "center" },
   rowGap: { height: discoveryLayout.resultsGap },
+  gridRow: { width: "100%", flexDirection: "row", alignItems: "flex-start", columnGap: discoveryLayout.gridGap },
   empty: { minHeight: 250, marginTop: 6, borderWidth: 1, borderRadius: 20, paddingHorizontal: 28, alignItems: "center", justifyContent: "center" },
   emptyIcon: { width: 54, height: 54, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   emptyTitle: { marginTop: 15, fontFamily: fonts.serif.bold, fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, textAlign: "center" },

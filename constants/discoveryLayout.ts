@@ -5,4 +5,10 @@ export const discoveryLayout = {
   stickySearchPaddingBottom: 8,
   controlsGap: 8,
   resultsGap: 12,
+  mobileGridColumns: 2,
+  webGridColumns: 3,
+  gridGap: 12,
+  gridMinCardWidth: 150,
+  webContentMaxWidth: 1280,
+  webPageGutter: 48,
 } as const;

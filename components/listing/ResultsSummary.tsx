@@ -11,13 +11,14 @@ type ResultsSummaryProps = {
   sortLabel: string;
   dark: boolean;
   onSort: () => void;
+  showSort?: boolean;
   /** True when more pages exist beyond what's currently loaded -- shows
    * "20+" instead of "20" so the count never falsely implies the loaded
    * page is the complete total. */
   hasMore?: boolean;
 };
 
-export default function ResultsSummary({ count, category, sortLabel, dark, onSort, hasMore }: ResultsSummaryProps) {
+export default function ResultsSummary({ count, category, sortLabel, dark, onSort, hasMore, showSort = true }: ResultsSummaryProps) {
   const [sortFocused, setSortFocused] = useState(false);
   const colors = brandColors(dark);
   const text = dark ? "#F8F2F5" : colors.foreground;
@@ -25,7 +26,7 @@ export default function ResultsSummary({ count, category, sortLabel, dark, onSor
   return (
     <View style={styles.row}>
       <Text numberOfLines={1} style={[styles.count, { color: text }]}>{count}{hasMore ? "+" : ""} {countLabel} found</Text>
-      <Pressable
+      {showSort ? <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Sort results, currently ${sortLabel}`}
         onPress={onSort}
@@ -41,7 +42,7 @@ export default function ResultsSummary({ count, category, sortLabel, dark, onSor
       >
         <Text numberOfLines={1} style={[styles.sortText, { color: colors.primaryStrong }]}>{sortLabel}</Text>
         <ChevronDown size={13} color={colors.primaryStrong} />
-      </Pressable>
+      </Pressable> : null}
     </View>
   );
 }

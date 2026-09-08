@@ -205,8 +205,17 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
     ? fullDisplay.split(",")[0]?.trim() || "Set location"
     : fullDisplay;
 
+  const compactClearWidth = Platform.OS === "web" ? 42 : 48;
+  const compactFieldWidth = value && onClear ? 164 + 6 + compactClearWidth : 164;
+
   return (
-    <View style={[styles.field, variant === "navbar" && styles.navbarField]}>
+    <View
+      style={[
+        styles.field,
+        compact && variant !== "navbar" ? { width: compactFieldWidth, flexShrink: 0 } : null,
+        variant === "navbar" && styles.navbarField,
+      ]}
+    >
       {!hideLabel ? <Text style={[styles.label, { color: colors.foreground }]} nativeID="taluka-selector-label">Where do you need the service?</Text> : null}
       <View style={styles.controlRow}>
         <Pressable
@@ -217,6 +226,7 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
           style={({ pressed }) => [
             styles.control,
             compact && styles.controlCompact,
+            compact && Platform.OS !== "web" && styles.nativeCompactControl,
             variant === "navbar" && styles.navbarControl,
             variant === "navbar" ? null : { backgroundColor: colors.background, borderColor: colors.border },
             pressed && styles.pressed,
@@ -245,7 +255,7 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
             accessibilityRole="button"
             accessibilityLabel={`Remove service location ${display}`}
             onPress={onClear}
-            style={({ pressed }) => [styles.clearControl, { backgroundColor: colors.background, borderColor: colors.border }, pressed && styles.pressed]}
+            style={({ pressed }) => [styles.clearControl, compact && Platform.OS !== "web" && styles.nativeCompactClearControl, { backgroundColor: colors.background, borderColor: colors.border }, pressed && styles.pressed]}
           >
             <X size={16} color={colors.primaryStrong} strokeWidth={2.2} />
           </Pressable>
@@ -495,6 +505,8 @@ const styles = StyleSheet.create({
   label: { fontSize: typeScale.body, fontWeight: "600", marginBottom: 8 },
   control: { flex: 1, height: 52, borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10 },
   controlCompact: { width: 164, height: 42, borderRadius: 999, paddingHorizontal: 11, gap: 6 },
+  nativeCompactControl: { height: 48 },
+  nativeCompactClearControl: { width: 48, height: 48 },
   navbarControl: { width: "100%", height: 44, borderWidth: 0, borderRadius: 12, paddingHorizontal: 0, gap: 6 },
   navbarIcon: { width: 27, height: 27, flexShrink: 0, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   navbarCopy: { flex: 1, minWidth: 0, justifyContent: "center" },

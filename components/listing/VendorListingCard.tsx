@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { type ImageURISource, StyleSheet, Text, View, } from "react-native";
-import { BadgeCheck, ChevronRight, Crown, MapPin, Star } from "lucide-react-native";
+import { BadgeCheck, Crown, MapPin, Star } from "lucide-react-native";
 import FavoriteHeartButton from "@/components/favorites/FavoriteHeartButton";
 import SafeImage from "@/components/SafeImage";
 import AnimatedPressable from "@/components/animated/AnimatedPressable";
@@ -18,6 +18,8 @@ type VendorListingCardProps = {
   vendor: PublicVendorListing;
   dark: boolean;
   compact: boolean;
+  layout?: "strip" | "grid";
+  cardWidth?: number;
   favorite: boolean;
   fallbackImage: number | ImageURISource;
   onOpen: () => void;
@@ -28,6 +30,8 @@ function VendorListingCard({
   vendor,
   dark,
   compact,
+  layout = "strip",
+  cardWidth,
   favorite,
   fallbackImage,
   onOpen,
@@ -47,11 +51,15 @@ function VendorListingCard({
     ? formatDistanceLabel(vendor.distanceKm)
     : "";
 
+  const grid = layout === "grid";
+  const mobileGrid = grid && compact;
+
   return (
     <View
       style={[
         styles.card,
-        compact ? styles.cardCompact : styles.cardWide,
+        grid ? styles.cardGrid : compact ? styles.cardCompact : styles.cardWide,
+        grid && cardWidth ? { width: cardWidth } : null,
         {
           backgroundColor: surface,
           borderColor: interactive ? colors.primary : border,
@@ -72,16 +80,18 @@ function VendorListingCard({
         onFocus={() => setInteractive(true)}
         onBlur={() => setInteractive(false)}
         pressScale={0.99}
-        style={styles.main}
+        hoverTranslateY={-3}
+        hoverScale={1.003}
+        style={[styles.main, grid && styles.mainGrid]}
       >
-        <View style={[styles.imageWrap, compact ? styles.imageCompact : styles.imageWide]}>
+        <View style={[styles.imageWrap, grid ? styles.imageGrid : compact ? styles.imageCompact : styles.imageWide]}>
           <SafeImage
             accessibilityLabel={`${vendor.name} listing`}
             source={imageUri}
             fallbackSource={fallbackImage}
             debugLabel={`${vendor.name} listing`}
-            deliveryWidth={compact ? 138 : 184}
-            deliveryHeight={compact ? 146 : 184}
+            deliveryWidth={grid ? 420 : compact ? 138 : 184}
+            deliveryHeight={grid ? 300 : compact ? 146 : 184}
             deliveryCrop="fit"
             resizeMode="contain"
             style={styles.image}
@@ -94,18 +104,18 @@ function VendorListingCard({
           ) : null}
         </View>
 
-        <View style={[styles.body, compact && styles.bodyCompact]}>
+        <View style={[styles.body, (compact || grid) && styles.bodyCompact, grid && styles.bodyGrid]}>
           <View style={[styles.identityRow, compact && styles.identityRowCompact]}>
             <View style={styles.identityText}>
-              <View style={styles.nameRow}>
-                <Text numberOfLines={compact ? 1 : 2} style={[styles.name, compact && styles.nameCompact, { color: text }]}>
+              <View style={[styles.nameRow, mobileGrid && styles.nameRowMobileGrid]}>
+                <Text numberOfLines={grid || compact ? 1 : 2} style={[styles.name, (compact || grid) && styles.nameCompact, mobileGrid && styles.nameMobileGrid, { color: text }]}>
                   {vendor.name}
                 </Text>
                 <View
                   accessible
                   accessibilityRole="image"
                   accessibilityLabel="Verified vendor"
-                  style={[styles.verifiedBadge, { backgroundColor: dark ? "#38242D" : "#FFF0F6" }]}
+                  style={[styles.verifiedBadge, mobileGrid && styles.verifiedBadgeMobileGrid, { backgroundColor: dark ? "#38242D" : "#FFF0F6" }]}
                 >
                   <BadgeCheck size={compact ? 14 : 15} color={colors.primaryStrong} strokeWidth={2.4} />
                 </View>
@@ -122,13 +132,14 @@ function VendorListingCard({
           </View>
           <View style={styles.meta}>
             <MapPin size={13} color={PINK} />
-            <Text numberOfLines={1} style={[styles.location, { color: muted }]}>{vendor.location}</Text>
-            {distanceLabel ? <Text numberOfLines={1} style={styles.distance}>{distanceLabel}</Text> : null}
+            <Text numberOfLines={1} style={[styles.location, !compact && !grid && styles.locationInline, { color: muted }]}>{vendor.location}</Text>
+            {distanceLabel && !grid ? <Text numberOfLines={1} style={styles.distance}>{distanceLabel}</Text> : null}
           </View>
-          {!compact && vendor.description ? (
+          {distanceLabel && grid ? <Text numberOfLines={1} style={styles.distanceBelowLocation}>{distanceLabel}</Text> : null}
+          {!compact && !grid && vendor.description ? (
             <Text numberOfLines={2} style={[styles.description, { color: muted }]}>{vendor.description}</Text>
           ) : null}
-          {!compact ? (
+          {!compact && !grid ? (
             <View style={styles.tags}>
               {[...vendor.tags, ...vendor.services].filter((tag, index, all) => all.indexOf(tag) === index).slice(0, 3).map((tag) => (
                 <View key={tag} style={[styles.tag, { backgroundColor: dark ? "#34272D" : "#FFF2F6" }]}>
@@ -141,12 +152,6 @@ function VendorListingCard({
             <View style={[styles.price, compact && styles.priceCompact, { backgroundColor: dark ? "#38242D" : "#FFF0F6" }]}>
               <Text numberOfLines={1} style={styles.priceText}>Starts from {vendor.startingPrice}</Text>
             </View>
-            {!compact ? (
-              <View style={styles.viewProfile}>
-                <Text style={[styles.viewProfileText, { color: colors.primaryStrong }]}>View profile</Text>
-                <ChevronRight size={14} color={colors.primaryStrong} />
-              </View>
-            ) : null}
           </View>
         </View>
       </AnimatedPressable>
@@ -180,10 +185,13 @@ const styles = StyleSheet.create({
   card: { width: "100%", borderWidth: 1, overflow: "hidden", position: "relative", shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   cardCompact: { height: 164, borderRadius: 16 },
   cardWide: { height: 200, borderRadius: 16 },
+  cardGrid: { height: 296, borderRadius: 16 },
   main: { flex: 1, flexDirection: "row", padding: 8, gap: 14 },
+  mainGrid: { flexDirection: "column", padding: 0, gap: 0 },
   imageWrap: { position: "relative", flexShrink: 0, borderRadius: 13, overflow: "hidden", backgroundColor: "#F8E9EE" },
   imageCompact: { width: 138, height: 146 },
   imageWide: { width: 184, height: 184 },
+  imageGrid: { width: "100%", height: 156, borderRadius: 0 },
   // react-native-web falls back to a local image asset's own intrinsic
   // pixel size whenever the style doesn't set explicit width/height
   // (StyleSheet.absoluteFillObject only sets inset, not width/height), so a
@@ -194,19 +202,25 @@ const styles = StyleSheet.create({
   topRatedText: { color: "#FFFFFF", fontSize: typeScale.caption, fontWeight: "700" },
   body: { flex: 1, minWidth: 0, paddingVertical: 8, paddingRight: 64, justifyContent: "center" },
   bodyCompact: { paddingVertical: 4, paddingRight: 48 },
+  bodyGrid: { paddingHorizontal: 10, paddingBottom: 10 },
   identityRow: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
   identityRowCompact: { gap: 6, marginBottom: 2 },
   identityText: { flex: 1, minWidth: 0, justifyContent: "center" },
   nameRow: { maxWidth: "100%", flexDirection: "row", alignItems: "center", gap: 6 },
+  nameRowMobileGrid: { width: "100%" },
   name: { ...typeStyles.editorialCardTitle, flexShrink: 1 },
   nameCompact: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle },
+  nameMobileGrid: { flex: 1, minWidth: 0 },
   verifiedBadge: { width: 22, height: 22, flexShrink: 0, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  category: { marginTop: 2, fontFamily: fonts.sans.medium, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
+  verifiedBadgeMobileGrid: { marginLeft: "auto" },
+  category: { marginTop: 2, fontFamily: fonts.sans.medium, fontSize: typeScale.caption, lineHeight: typeLeading.caption, letterSpacing: 0.1 },
   meta: { minHeight: 22, flexDirection: "row", alignItems: "center", gap: 5 },
   rating: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   reviews: { fontFamily: fonts.sans.regular, fontSize: typeScale.metadata },
   location: { flex: 1, minWidth: 0, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata },
+  locationInline: { flex: 0, maxWidth: "72%" },
   distance: { flexShrink: 0, color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.caption },
+  distanceBelowLocation: { marginLeft: 18, marginTop: -1, color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
   description: { maxWidth: 580, marginTop: 5, fontFamily: fonts.sans.regular, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   tags: { marginTop: 6, flexDirection: "row", flexWrap: "wrap", gap: 5 },
   tag: { maxWidth: "46%", minHeight: 25, borderRadius: 999, paddingHorizontal: 9, alignItems: "center", justifyContent: "center" },
@@ -216,8 +230,6 @@ const styles = StyleSheet.create({
   price: { maxWidth: "62%", alignSelf: "flex-start", minHeight: 31, borderRadius: 999, paddingHorizontal: 11, alignItems: "center", justifyContent: "center" },
   priceCompact: { maxWidth: "100%", paddingHorizontal: 9 },
   priceText: { maxWidth: "100%", color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
-  viewProfile: { minHeight: 36, marginRight: 52, flexDirection: "row", alignItems: "center", gap: 2 },
-  viewProfileText: { fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   cardMembershipBadge: { position: "absolute", zIndex: 2, right: 8, bottom: 8 },
   favorite: { position: "absolute", zIndex: 3, top: 10, right: 10, width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   favoriteHovered: { transform: [{ translateY: -1 }] },
