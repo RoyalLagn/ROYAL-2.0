@@ -66,7 +66,17 @@ export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compa
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("royallagn-admin-install-ready", onPromptReady);
     window.addEventListener("appinstalled", onInstalled);
-    void navigator.serviceWorker?.register("/admin-service-worker.js", { scope: "/" }).catch(() => undefined);
+    const localDevelopment = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    if (localDevelopment) {
+      // A production PWA worker left behind on localhost can keep
+      // intercepting Metro asset URLs across restarts. Development does not
+      // need offline installability, so remove any stale registrations.
+      void navigator.serviceWorker?.getRegistrations()
+        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+        .catch(() => undefined);
+    } else {
+      void navigator.serviceWorker?.register("/admin-service-worker.js", { scope: "/" }).catch(() => undefined);
+    }
     const promptTimer = window.setTimeout(() => setPromptChecked(true), 2500);
 
     return () => {

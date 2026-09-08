@@ -85,11 +85,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
-    lock: processLock,
+    // Browsers use Supabase's navigator-lock implementation so tabs can
+    // coordinate refreshes. processLock is the React Native fallback and can
+    // time out immediately when used by multiple web auth operations.
+    ...(Platform.OS === "web" ? {} : { lock: processLock }),
   },
 });
 
 let sessionRestorePromise: Promise<Session | null> | null = null;
+
+function waitForSessionRetry(delayMs: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+}
 
 function isInvalidStoredSessionError(error: unknown) {
   if (!error) return false;
@@ -113,13 +120,17 @@ function isInvalidStoredSessionError(error: unknown) {
  * deliberately left untouched.
  */
 export async function clearInvalidSupabaseSession() {
+  const storage = Platform.OS === "web" ? webStorageAdapter : secureStoreAdapter;
+
   try {
     await supabase.auth.signOut({ scope: "local" });
   } catch {
-    // A malformed stored value can make signOut fail before it reaches the
-    // storage cleanup. Remove the one known auth key as a safe fallback.
-    await (Platform.OS === "web" ? webStorageAdapter : secureStoreAdapter)
-      .removeItem(SUPABASE_AUTH_STORAGE_KEY);
+    // A malformed stored value can make signOut throw before cleanup.
+  } finally {
+    // Supabase auth methods can return an error instead of throwing. Always
+    // remove the rejected credential so it cannot trigger another refresh
+    // request on the next render or page reload.
+    await storage.removeItem(SUPABASE_AUTH_STORAGE_KEY);
   }
 }
 
@@ -133,15 +144,22 @@ export function restoreSupabaseSession(): Promise<Session | null> {
   if (sessionRestorePromise) return sessionRestorePromise;
 
   sessionRestorePromise = (async () => {
-    try {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) throw error;
-      return data.session;
-    } catch (error) {
-      if (!isInvalidStoredSessionError(error)) throw error;
-      await clearInvalidSupabaseSession();
-      return null;
+    const retryDelays = [0, 350, 900];
+    for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+      if (retryDelays[attempt]) await waitForSessionRetry(retryDelays[attempt]);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        return data.session;
+      } catch (error) {
+        if (isInvalidStoredSessionError(error)) {
+          await clearInvalidSupabaseSession();
+          return null;
+        }
+        if (attempt === retryDelays.length - 1) throw error;
+      }
     }
+    return null;
   })().finally(() => {
     sessionRestorePromise = null;
   });
@@ -150,6 +168,10 @@ export function restoreSupabaseSession(): Promise<Session | null> {
 }
 
 if (Platform.OS !== "web") {
+  // The first AppState change may not occur until after the app has already
+  // been foregrounded. Start refresh immediately for a restored native
+  // session, then pause it only while the app is actually backgrounded.
+  if (AppState.currentState === "active") supabase.auth.startAutoRefresh();
   AppState.addEventListener("change", (state) => {
     if (state === "active") {
       supabase.auth.startAutoRefresh();

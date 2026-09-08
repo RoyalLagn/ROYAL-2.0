@@ -12,6 +12,7 @@ export function PendingTasks({ statistics, royal = false }: { statistics: Dashbo
   const { isPhone } = useResponsiveLayout();
   const tasks = [
     ["Pending Vendor Applications", statistics.pendingApplications, "High", "/VendorApplications"],
+    ["Vendor Account Deletion Requests", statistics.pendingVendorDeletionRequests, "High", "/AdminVendorDeletionRequests"],
   ] as const;
   return (
     <View className={royal ? undefined : "rounded-xl border border-border bg-background overflow-hidden"} style={royal ? { borderRadius: 13, borderWidth: 1, borderColor: royalAdmin.border, backgroundColor: "#F8FBFF", overflow: "hidden" } : undefined}>

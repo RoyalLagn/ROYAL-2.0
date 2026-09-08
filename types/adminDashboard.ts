@@ -2,6 +2,7 @@ export type DashboardStatistics = {
   publicUsers: number;
   totalVendors: number;
   pendingApplications: number;
+  pendingVendorDeletionRequests: number;
   approvedVendors: number;
   rejectedApplications: number;
   categories: number;

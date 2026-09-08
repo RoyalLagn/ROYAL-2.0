@@ -18,7 +18,14 @@ self.addEventListener("activate", (event) => {
 // controlling service worker in their installability checks. Responses stay
 // network-only: authenticated Admin data is never written to Cache Storage.
 self.addEventListener("fetch", (event) => {
-  if (event.request.method === "GET") {
-    event.respondWith(fetch(event.request));
-  }
+  if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  // Metro's development asset endpoint is intentionally dynamic. Let the
+  // browser fetch it directly; wrapping it in respondWith() turns an ordinary
+  // dev-server restart into an unhandled FetchEvent rejection.
+  if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return;
+  event.respondWith(fetch(event.request).catch(() => new Response("", {
+    status: 503,
+    statusText: "Temporarily unavailable",
+  })));
 });

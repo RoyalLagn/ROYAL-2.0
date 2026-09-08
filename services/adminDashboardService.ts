@@ -40,6 +40,7 @@ async function loadStatistics(): Promise<DashboardStatistics> {
     publicUsers,
     totalVendors,
     pendingApplications,
+    pendingVendorDeletionRequests,
     approvedVendors,
     rejectedApplications,
     categories,
@@ -57,6 +58,9 @@ async function loadStatistics(): Promise<DashboardStatistics> {
     count("profiles", (q) => q.eq("role", "public_user")),
     count("vendors"),
     count("vendor_applications", (q) => q.eq("status", "pending")),
+    count("account_deletion_requests", (q) =>
+      q.eq("account_type", "vendor").in("status", ["pending", "verified", "processing"]),
+    ),
     count("vendors", (q) => q.eq("is_verified", true)),
     count("vendor_applications", (q) => q.eq("status", "rejected")),
     count("categories"),
@@ -80,6 +84,7 @@ async function loadStatistics(): Promise<DashboardStatistics> {
     publicUsers,
     totalVendors,
     pendingApplications,
+    pendingVendorDeletionRequests,
     approvedVendors,
     rejectedApplications,
     categories,
@@ -257,6 +262,7 @@ export const AdminDashboardService = {
       "reviews",
       "vendors",
       "categories",
+      "account_deletion_requests",
     ]) {
       channel.on(
         "postgres_changes",

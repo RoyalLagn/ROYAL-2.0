@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "404593858857",
+    "project_id": "royallagn-app-3a048547",
+    "storage_bucket": "royallagn-app-3a048547.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:404593858857:android:b2efddf9f1eee527367f38",
+        "android_client_info": {
+          "package_name": "com.royallagn.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjn6ID9A9EDfBT-5qr4mKUaZlvY36iuVQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

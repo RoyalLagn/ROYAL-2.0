@@ -1,5 +1,6 @@
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { verifyAdminSession } from "@/services/adminAuth";
+import { AdminDashboardService } from "@/services/adminDashboardService";
 import { supabase } from "@/services/supabase";
 
 export type VendorDeletionRequest = {
@@ -44,4 +45,5 @@ export async function processVendorDeletion(requestId: string, decision: "approv
   }
   if (error) throw new Error(error.message || "Unable to process this deletion request.");
   if (data?.error) throw new Error(String(data.error));
+  AdminDashboardService.invalidate();
 }

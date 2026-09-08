@@ -13,6 +13,7 @@ import { useAppFeedback } from "@/context/AppFeedbackContext";
 import { interactionTokens } from "@/constants/interactionTokens";
 import Pressable from "@/components/InteropSafePressable";
 import { DateField } from "@/components/admin/crm/ui/DateField";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 type Filter = "all" | EnquiryStatus;
 type Sort = "newest" | "oldest" | "follow_up";
@@ -20,6 +21,9 @@ type ChannelFilter = "all" | "call" | "form" | "whatsapp";
 const PAGE_SIZE = 15;
 
 export default function VendorEnquiries() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ enquiryId?: string | string[] }>();
+  const requestedEnquiryId = Array.isArray(params.enquiryId) ? params.enquiryId[0] : params.enquiryId;
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { showSuccess } = useAppFeedback();
@@ -37,6 +41,7 @@ export default function VendorEnquiries() {
   const [followUp, setFollowUp] = useState("");
   const [saving, setSaving] = useState(false);
   const markingAllSeen = useRef(false);
+  const openedFromNotification = useRef<string | null>(null);
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return items.filter((item) => (filter === "all" || item.status === filter) && (channelFilter === "all" || item.enquiry_channel === channelFilter) && (!enquiryDate || localDateKey(item.created_at) === enquiryDate) && (!needle || [item.customer_name, item.customer_email, item.customer_phone, item.reference_code, item.package_name, item.event_type].some((value) => value?.toLowerCase().includes(needle))))
@@ -74,11 +79,23 @@ export default function VendorEnquiries() {
         .catch((cause) => Alert.alert("Enquiry not marked as opened", cause instanceof Error ? cause.message : "Please try again."));
     }
   };
+  useEffect(() => {
+    if (loading || !requestedEnquiryId || openedFromNotification.current === requestedEnquiryId) return;
+    const requested = items.find((item) => item.id === requestedEnquiryId);
+    if (!requested) return;
+    openedFromNotification.current = requestedEnquiryId;
+    open(requested);
+  }, [items, loading, requestedEnquiryId]);
+
+  const closeSelected = () => {
+    setSelected(null);
+    if (requestedEnquiryId) router.setParams({ enquiryId: "" });
+  };
   const save = async () => {
     if (!selected || saving) return;
     if (followUp && !/^\d{4}-\d{2}-\d{2}$/.test(followUp)) return Alert.alert("Check follow-up date", "Use YYYY-MM-DD.");
     setSaving(true);
-    try { await EnquiryService.updateVendor(selected.id, status, notes, followUp || null); setSelected(null); await refresh(true); showSuccess("Lead updated"); }
+    try { await EnquiryService.updateVendor(selected.id, status, notes, followUp || null); closeSelected(); await refresh(true); showSuccess("Lead updated"); }
     catch (cause) { Alert.alert("Enquiry not updated", cause instanceof Error ? cause.message : "Please try again."); }
     finally { setSaving(false); }
   };
@@ -115,8 +132,8 @@ export default function VendorEnquiries() {
       ListFooterComponent={!loading && !error && visible.length > PAGE_SIZE ? <View style={styles.pagination}><Pressable accessibilityRole="button" accessibilityLabel="Previous enquiry page" accessibilityState={{ disabled: page === 1 }} disabled={page === 1} onPress={() => setPage((current) => Math.max(1, current - 1))} style={({ pressed }) => [styles.pageButton, { backgroundColor: colors.surface, borderColor: colors.border }, page === 1 && styles.disabled, pressed && page > 1 && styles.pressed]}><ChevronLeft size={19} color={colors.text} /></Pressable><Text style={[styles.paginationText, { color: colors.muted }]}>{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, visible.length)} of {visible.length}</Text><Pressable accessibilityRole="button" accessibilityLabel="Next enquiry page" accessibilityState={{ disabled: page >= pageCount }} disabled={page >= pageCount} onPress={() => setPage((current) => Math.min(pageCount, current + 1))} style={({ pressed }) => [styles.pageButton, { backgroundColor: colors.surface, borderColor: colors.border }, page >= pageCount && styles.disabled, pressed && page < pageCount && styles.pressed]}><ChevronRight size={19} color={colors.text} /></Pressable></View> : null}
     />
     <Modal visible={filtersOpen} transparent animationType="fade" onRequestClose={() => setFiltersOpen(false)}><View style={styles.filterBackdrop}><Pressable accessibilityRole="button" accessibilityLabel="Close filters" style={StyleSheet.absoluteFill} onPress={() => setFiltersOpen(false)} /><View style={[styles.filterSheet, { backgroundColor: colors.surface }]}><View style={styles.sheetTop}><View style={styles.flex}><Text style={[styles.sheetTitle, { color: colors.text }]}>Filter enquiries</Text><Text style={[styles.meta, { color: colors.muted }]}>Narrow the list by enquiry type and lead status.</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Close filters" onPress={() => setFiltersOpen(false)} style={[styles.close, { backgroundColor: colors.surfaceSoft }]}><X size={20} color={colors.text} /></Pressable></View><Text style={[styles.filterGroupLabel, { color: colors.muted }]}>ENQUIRY TYPE</Text><View style={styles.optionList}>{(["all", "call", "form", "whatsapp"] as ChannelFilter[]).map((value) => <FilterOption key={value} label={value === "all" ? "All enquiry types" : channelLabel(value)} selected={channelFilter === value} colors={colors} onPress={() => setChannelFilter(value)} />)}</View><Text style={[styles.filterGroupLabel, { color: colors.muted }]}>LEAD STATUS</Text><ScrollView style={styles.statusFilterScroll} contentContainerStyle={styles.optionList}>{(["all", ...ENQUIRY_STATUSES] as Filter[]).map((value) => <FilterOption key={value} label={value === "all" ? "All statuses" : enquiryStatusLabel(value)} selected={filter === value} colors={colors} onPress={() => setFilter(value)} />)}</ScrollView><Text style={[styles.filterGroupLabel, { color: colors.muted }]}>SORT BY</Text><View style={styles.optionList}>{(["newest", "oldest", "follow_up"] as Sort[]).map((value) => <FilterOption key={value} label={value === "follow_up" ? "Follow-up date" : value === "newest" ? "Newest first" : "Oldest first"} selected={sort === value} colors={colors} onPress={() => setSort(value)} />)}</View><View style={styles.filterActions}><Pressable accessibilityRole="button" accessibilityLabel="Reset all filters" onPress={() => { setChannelFilter("all"); setFilter("all"); setSort("newest"); }} style={[styles.resetButton, { borderColor: colors.border }]}><Text style={[styles.resetText, { color: colors.text }]}>Reset</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Apply filters" onPress={() => setFiltersOpen(false)} style={[styles.applyButton, { backgroundColor: colors.pink }]}><Text style={[styles.applyText, { color: colors.onPrimary }]}>Show {visible.length} results</Text></Pressable></View></View></View></Modal>
-    <Modal visible={Boolean(selected)} transparent animationType="slide" onRequestClose={() => setSelected(null)}><KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === "ios" ? "padding" : "height"}><View style={[styles.sheet, { backgroundColor: colors.surface }]}><ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <View style={styles.sheetTop}><View style={styles.flex}><Text style={[styles.sheetTitle, { color: colors.text }]}>{selected?.customer_name}</Text><Text style={[styles.meta, { color: colors.muted }]}>{selected?.reference_code} · {selected ? channelLabel(selected.enquiry_channel) : ""} · {selected ? new Date(selected.created_at).toLocaleDateString("en-IN", { dateStyle: "medium" }) : ""}</Text><Text style={[styles.meta, { color: colors.muted }]}>{selected?.package_name || selected?.event_type || enquirySourceLabel(selected?.source_type || "other")}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Close enquiry details" hitSlop={4} onPress={() => setSelected(null)} style={[styles.close, { backgroundColor: colors.surfaceSoft }]}><X size={20} color={colors.text} /></Pressable></View>
+    <Modal visible={Boolean(selected)} transparent animationType="slide" onRequestClose={closeSelected}><KeyboardAvoidingView style={styles.backdrop} behavior={Platform.OS === "ios" ? "padding" : "height"}><View style={[styles.sheet, { backgroundColor: colors.surface }]}><ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <View style={styles.sheetTop}><View style={styles.flex}><Text style={[styles.sheetTitle, { color: colors.text }]}>{selected?.customer_name}</Text><Text style={[styles.meta, { color: colors.muted }]}>{selected?.reference_code} · {selected ? channelLabel(selected.enquiry_channel) : ""} · {selected ? new Date(selected.created_at).toLocaleDateString("en-IN", { dateStyle: "medium" }) : ""}</Text><Text style={[styles.meta, { color: colors.muted }]}>{selected?.package_name || selected?.event_type || enquirySourceLabel(selected?.source_type || "other")}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Close enquiry details" hitSlop={4} onPress={closeSelected} style={[styles.close, { backgroundColor: colors.surfaceSoft }]}><X size={20} color={colors.text} /></Pressable></View>
       <View style={[styles.contactPanel, { backgroundColor: colors.background }]}><View style={[styles.contactAvatar, { backgroundColor: colors.surfaceSoft }]}><UserRound size={22} color={colors.pink} /></View><View style={styles.flex}><Text style={[styles.contactName, { color: colors.text }]}>{selected?.customer_name}</Text><ContactLine icon={Phone} value={selected?.customer_phone} fallback="Mobile not provided" colors={colors} /><ContactLine icon={Mail} value={selected?.customer_email} fallback="Email not provided" colors={colors} /></View></View>
       <View style={styles.contactActions}><ContactAction label="Call customer" icon={Phone} enabled={Boolean(selected?.customer_phone)} colors={colors} onPress={() => selected?.customer_phone && void Linking.openURL(`tel:${selected.customer_phone.replace(/[^\d+]/g, "")}`)} /><ContactAction label="Email customer" icon={Mail} enabled={Boolean(selected?.customer_email)} colors={colors} onPress={() => selected?.customer_email && void Linking.openURL(`mailto:${selected.customer_email}`)} /></View>
       <View style={[styles.messagePanel, { borderColor: colors.border }]}><Text style={[styles.messageLabel, { color: colors.muted }]}>CUSTOMER MESSAGE</Text><Text style={[styles.message, styles.sheetMessage, { color: colors.text }]}>{selected?.message}</Text></View>{selected?.customer_confirmation !== "pending" ? <View style={[styles.customerNotice, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.customerNoticeText, { color: colors.pink }]}>Customer marked this enquiry: {selected?.customer_confirmation}</Text></View> : null}

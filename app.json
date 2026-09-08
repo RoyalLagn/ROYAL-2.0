@@ -15,6 +15,7 @@
     },
     "android": {
       "versionCode": 4,
+      "googleServicesFile": "./android/app/google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",

@@ -60,3 +60,4 @@ dist-web/
 /android/app/build/
 /android/.cxx/
 /android/app/.cxx/
+.codex-tmp/

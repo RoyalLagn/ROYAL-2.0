@@ -65,7 +65,9 @@ Deno.serve(async (request) => {
       .select("status,last_attempt_at,attempt_count")
       .eq("enquiry_id", enquiry.id)
       .maybeSingle();
-    if (existing?.status === "sent" || existing?.status === "skipped") {
+    // A delivery can be skipped when the vendor has not registered a device yet.
+    // Allow that enquiry to be retried after a device token becomes available.
+    if (existing?.status === "sent") {
       return json({ ok: true, duplicate: true });
     }
     if (existing?.status === "processing"

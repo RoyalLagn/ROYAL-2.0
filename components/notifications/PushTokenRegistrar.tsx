@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { useRouter } from "expo-router";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { useAdminAuth } from "@/context/AdminAuthContext";
+import { useVendorAuth } from "@/context/VendorAuthContext";
 import { supabase } from "@/services/supabase";
 import { PushTokenService } from "@/services/pushTokens";
 
@@ -16,8 +17,22 @@ const notificationsAvailable =
  */
 export default function PushTokenRegistrar() {
   const router = useRouter();
-  const { profile, isPublicAuthenticated } = usePublicAuth();
-  const { isAdminAuthenticated } = useAdminAuth();
+  const { profile, isPublicAuthenticated, loading: publicAuthLoading } = usePublicAuth();
+  const { isAdminAuthenticated, loading: adminAuthLoading } = useAdminAuth();
+  const { loading: vendorAuthLoading } = useVendorAuth();
+  const [pendingNavigation, setPendingNavigation] = useState<{ targetPath: string; enquiryId?: string } | null>(null);
+
+  useEffect(() => {
+    if (!pendingNavigation || publicAuthLoading || adminAuthLoading || vendorAuthLoading) return;
+    const timer = setTimeout(() => {
+      router.push({
+        pathname: pendingNavigation.targetPath,
+        params: pendingNavigation.enquiryId ? { enquiryId: pendingNavigation.enquiryId } : undefined,
+      } as never);
+      setPendingNavigation(null);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [adminAuthLoading, pendingNavigation, publicAuthLoading, router, vendorAuthLoading]);
 
   useEffect(() => {
     if (!notificationsAvailable) return;
@@ -40,9 +55,14 @@ export default function PushTokenRegistrar() {
         });
 
         const openNotification = (response: Awaited<ReturnType<typeof Notifications.getLastNotificationResponseAsync>>) => {
-          const targetPath = response?.notification.request.content.data?.targetPath;
+          const notificationData = response?.notification.request.content.data;
+          const targetPath = notificationData?.targetPath;
+          const enquiryId = notificationData?.enquiryId;
           if (typeof targetPath === "string" && targetPath.startsWith("/") && !targetPath.startsWith("//")) {
-            router.push(targetPath as never);
+            setPendingNavigation({
+              targetPath,
+              enquiryId: typeof enquiryId === "string" && enquiryId ? enquiryId : undefined,
+            });
           }
         };
         responseSubscription = Notifications.addNotificationResponseReceivedListener(openNotification);
