@@ -35,7 +35,20 @@ Deno.serve(async (request) => {
       .select("id,payment_status")
       .maybeSingle();
     if (error) throw error;
-    return json({ recorded: Boolean(payment), status: payment?.payment_status ?? "unchanged" });
+    if (payment) return json({ recorded: true, status: payment.payment_status });
+    const { data: featuredPayment, error: featuredError } = await admin.from("featured_vendor_payments").update({
+      payment_status: outcome,
+      failure_code: failureCode,
+      failure_reason: failureReason,
+    }).eq("vendor_id", vendor.id).eq("razorpay_order_id", orderId)
+      .in("payment_status", ["created", "pending", "authorized"])
+      .select("id,placement_id,payment_status").maybeSingle();
+    if (featuredError) throw featuredError;
+    if (featuredPayment) {
+      await admin.from("featured_vendor_placements").update({ status: "cancelled", updated_at: new Date().toISOString() })
+        .eq("id", featuredPayment.placement_id).eq("status", "reserved");
+    }
+    return json({ recorded: Boolean(featuredPayment), status: featuredPayment?.payment_status ?? "unchanged" });
   } catch (error) {
     console.error("[record-razorpay-checkout-outcome]", {
       message: error instanceof Error ? error.message : "Unable to record checkout outcome",

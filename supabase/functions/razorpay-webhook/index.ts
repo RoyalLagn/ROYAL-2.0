@@ -75,8 +75,47 @@ Deno.serve(async (request) => {
         ? await paymentLookup.eq("razorpay_payment_id", refundEntity.payment_id).maybeSingle()
         : { data: null };
     if (!payment) {
-      await admin.from("subscription_webhook_events").update({ processing_status: "ignored", processed_at: new Date().toISOString() }).eq("id", eventRowId);
-      return json({ received: true, ignored: true });
+      const featuredLookup = admin.from("featured_vendor_payments").select("id,placement_id,vendor_id,amount_minor,currency,payment_status,razorpay_order_id,razorpay_payment_id,metadata");
+      const { data: featured } = orderId
+        ? await featuredLookup.eq("razorpay_order_id", orderId).maybeSingle()
+        : refundEntity?.payment_id
+          ? await featuredLookup.eq("razorpay_payment_id", refundEntity.payment_id).maybeSingle()
+          : { data: null };
+      if (!featured) {
+        await admin.from("subscription_webhook_events").update({ processing_status: "ignored", processed_at: new Date().toISOString() }).eq("id", eventRowId);
+        return json({ received: true, ignored: true });
+      }
+      if (["payment.captured", "order.paid"].includes(eventType) && paymentEntity?.id) {
+        if (paymentEntity.order_id !== featured.razorpay_order_id || Number(paymentEntity.amount) !== Number(featured.amount_minor)
+          || String(paymentEntity.currency) !== String(featured.currency) || paymentEntity.status !== "captured") {
+          throw new Error("Featured webhook payment details do not match the server order");
+        }
+        await admin.from("featured_vendor_payments").update({ payment_status: "captured", razorpay_payment_id: paymentEntity.id,
+          payment_method: paymentEntity.method ?? null, paid_at: paymentEntity.created_at ? new Date(Number(paymentEntity.created_at) * 1000).toISOString() : new Date().toISOString() })
+          .eq("id", featured.id).in("payment_status", ["created", "pending", "authorized", "captured", "failed"]);
+        const { error: activationError } = await admin.rpc("activate_verified_featured_payment", {
+          target_payment_id: featured.id, verified_payment_id: paymentEntity.id, verified_method: paymentEntity.method ?? null,
+        });
+        if (activationError) throw activationError;
+      } else if (eventType === "payment.authorized" && paymentEntity?.id) {
+        if (paymentEntity.order_id !== featured.razorpay_order_id || Number(paymentEntity.amount) !== Number(featured.amount_minor) || String(paymentEntity.currency) !== String(featured.currency)) {
+          throw new Error("Featured authorized payment does not match the server order");
+        }
+        await admin.from("featured_vendor_payments").update({ payment_status: "authorized", razorpay_payment_id: paymentEntity.id,
+          payment_method: paymentEntity.method ?? null }).eq("id", featured.id).in("payment_status", ["created", "pending", "failed"]);
+      } else if (eventType === "payment.failed") {
+        await admin.from("featured_vendor_payments").update({ payment_status: "failed", razorpay_payment_id: paymentEntity?.id ?? null,
+          failure_code: paymentEntity?.error_code ?? "payment_failed", failure_reason: paymentEntity?.error_description ?? "Payment failed" })
+          .eq("id", featured.id).in("payment_status", ["created", "pending", "authorized"]);
+        await admin.from("featured_vendor_placements").update({ status: "cancelled", updated_at: new Date().toISOString() })
+          .eq("id", featured.placement_id).eq("status", "reserved");
+      } else if (eventType === "refund.processed") {
+        if (!refundEntity?.id || refundEntity.payment_id !== featured.razorpay_payment_id) throw new Error("Featured refund does not match the verified payment");
+        await admin.from("featured_vendor_payments").update({ payment_status: "refunded", metadata: { ...(featured.metadata ?? {}), latest_refund_id: refundEntity.id } }).eq("id", featured.id);
+        await admin.from("featured_vendor_placements").update({ status: "cancelled", ends_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", featured.placement_id);
+      }
+      await admin.from("subscription_webhook_events").update({ processing_status: "processed", processed_at: new Date().toISOString() }).eq("id", eventRowId);
+      return json({ received: true, product: "featured_placement" });
     }
 
     if (["payment.captured", "order.paid"].includes(eventType) && paymentEntity?.id) {
