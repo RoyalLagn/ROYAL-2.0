@@ -28,6 +28,7 @@
     "test:e2e:pincode-mapping": "playwright test tests/e2e/pincode-taluka-mapping.spec.ts",
     "test:auth-validation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-auth-validation.mjs",
     "test:marketing-card-pdf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-marketing-card-pdf.mjs",
+    "test:vendor-readiness": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-vendor-readiness.mjs",
     "test:smoke": "node scripts/run-smoke-tests.mjs",
     "sitemap:generate": "node scripts/generate-sitemap.mjs"
   },
