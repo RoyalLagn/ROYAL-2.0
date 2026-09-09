@@ -12,6 +12,7 @@ import {
   Palette,
   Pencil,
   Settings,
+  Sparkles,
   ShieldCheck,
   Trash2,
   X,
@@ -46,6 +47,7 @@ export default function VendorProfile() {
       { label: "Portfolio", detail: `${data.albums.length} albums · ${data.media.length} media`, icon: Images, route: "/VendorGallery" },
     ],
     [
+      { label: "Featured in your area", detail: "Promote your business from ₹999 for 30 days", icon: Sparkles, route: "/VendorFeaturedPlacement" },
       { label: "Vendor settings", detail: "Preferences and account controls", icon: Settings, route: "/VendorSettings" },
       { label: "Help and support", detail: "Guides and contact options", icon: CircleHelp, route: "/VendorHelp" },
       { label: "Privacy policy", detail: "How RoyalLagn handles your information", icon: ShieldCheck, route: "/VendorPrivacyPolicy" },

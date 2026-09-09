@@ -26,6 +26,7 @@ export const vendorWorkspaceRoutes = new Set([
   "/VendorEditLocation",
   "/VendorEditTags",
   "/VendorEnquiries",
+  "/VendorFeaturedPlacement",
   "/VendorGallery",
   "/VendorHelp",
   "/VendorNotifications",

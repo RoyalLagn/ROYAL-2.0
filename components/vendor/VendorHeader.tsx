@@ -36,6 +36,7 @@ export default function VendorHeader(_props: { unread?: number }) {
     : normalizedPath.startsWith("/vendoreditprofile")
       || normalizedPath.startsWith("/vendorservices")
       || normalizedPath.startsWith("/vendorsubscription")
+      || normalizedPath.startsWith("/vendorfeaturedplacement")
       || normalizedPath.startsWith("/vendorsettings")
       || normalizedPath.startsWith("/vendorhelp")
       || normalizedPath.startsWith("/vendorprivacy")

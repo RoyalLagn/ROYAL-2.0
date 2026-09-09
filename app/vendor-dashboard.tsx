@@ -213,6 +213,24 @@ export default function VendorDashboard() {
           ) : null}
 
           {data.vendor ? <SubscriptionDashboardCard /> : null}
+          {data.vendor ? (
+            <Pressable
+              onPress={() => router.push("/VendorFeaturedPlacement")}
+              accessibilityRole="button"
+              accessibilityLabel="Feature your business in your area"
+              style={({ pressed, hovered, focused }) => [
+                styles.marketingCenterButton,
+                desktop && styles.marketingCenterButtonDesktop,
+                { backgroundColor: colors.background, borderColor: colors.border },
+                (hovered || focused) && styles.interactiveLift,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={[styles.marketingCenterIcon, { backgroundColor: colors.pink }]}><Sparkles size={19} color="#FFF" /></View>
+              <View style={styles.flex}><Text style={[styles.marketingCenterTitle, { color: colors.text }]}>Get featured near you</Text><Text style={[styles.marketingCenterHint, { color: colors.muted }]}>₹999 for 30 days · only 10 spots per PIN code</Text></View>
+              <ChevronRight size={19} color={colors.pink} />
+            </Pressable>
+          ) : null}
           {data.vendor ? <PublicProfileCard vendor={data.vendor} totalEnquiries={data.stats.totalEnquiries} /> : null}
           {data.vendor ? (
             <Pressable
