@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronRight, Search as SearchIcon } from "lucide-react-native";
+import { ChevronRight, PanelsTopLeft, Rows3, Search as SearchIcon } from "lucide-react-native";
 import { StandaloneMobileTabBar, useMobileTabBarHeight } from "@/components/MobileTabBar";
 import { useColorScheme } from "nativewind";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
@@ -39,10 +39,11 @@ import {
   saveLocationDisplayLabel,
 } from "@/services/deviceLocation";
 import PublicWebNavbar from "@/components/PublicWebNavbar";
-import CategoryPageHeader from "@/components/categories/CategoryPageHeader";
+import CategoryListingHeader from "@/components/listing/CategoryListingHeader";
 import CategorySearchBar from "@/components/categories/CategorySearchBar";
 import HomeFilterModal, { DEFAULT_HOME_FILTERS, type HomeFilters } from "@/components/home/HomeFilterModal";
-import CategoryFilterChips from "@/components/listing/CategoryFilterChips";
+import ResultsSummary from "@/components/listing/ResultsSummary";
+import Pressable from "@/components/InteropSafePressable";
 import { TalukaLocationSelector } from "@/components/locations/TalukaLocationSelector";
 import type { GeoSelection, GeoState } from "@/locations/types";
 import { discoveryLayout } from "@/constants/discoveryLayout";
@@ -54,7 +55,7 @@ import {
   saveGuestGeoPreference,
   validateGeoSelection,
 } from "@/services/geoLocations";
-import { listHomeFeaturedVendorIds, subscribeToHomeFeaturedVendors } from "@/services/homeFeaturedVendors";
+import { listFeaturedVendorIdsForPincode, subscribeToFeaturedPlacements } from "@/services/featuredVendorPlacements";
 
 const GLOBAL_PAGES = [
   { label: "Categories", detail: "Browse every wedding service", keywords: "categories services vendors browse", route: "/(tabs)/Categories" as const },
@@ -94,8 +95,10 @@ export default function SearchScreen() {
     availability?: string;
     sort?: string;
     featured?: string;
+    pincode?: string;
   }>();
   const featuredOnly = (Array.isArray(params.featured) ? params.featured[0] : params.featured) === "true";
+  const featuredPincode = Array.isArray(params.pincode) ? params.pincode[0] : params.pincode;
   const initialQuery = Array.isArray(params.query) ? params.query[0] : params.query ?? "";
   const [draftQuery, setDraftQuery] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
@@ -105,7 +108,8 @@ export default function SearchScreen() {
   const [featuredVendorsLoading, setFeaturedVendorsLoading] = useState(featuredOnly);
   const [distanceByVendor, setDistanceByVendor] = useState<Record<string, number>>({});
   const [filtersVisible, setFiltersVisible] = useState(false);
-  const [locationLoading, setLocationLoading] = useState(false);
+  const [listingLayout, setListingLayout] = useState<"strip" | "grid">("strip");
+  const [, setLocationLoading] = useState(false);
   const [geoStates, setGeoStates] = useState<GeoState[]>([]);
   const [geoSelection, setGeoSelection] = useState<GeoSelection | null>(null);
   const [geoTalukaName, setGeoTalukaName] = useState("");
@@ -147,14 +151,14 @@ export default function SearchScreen() {
       return;
     }
     let active = true;
-    const load = () => listHomeFeaturedVendorIds()
+    const load = () => listFeaturedVendorIdsForPincode(featuredPincode)
       .then((ids) => { if (active) setFeaturedVendorIds(ids); })
       .catch(() => { if (active) setFeaturedVendorIds([]); })
       .finally(() => { if (active) setFeaturedVendorsLoading(false); });
     void load();
-    const unsubscribe = subscribeToHomeFeaturedVendors(() => void load());
+    const unsubscribe = subscribeToFeaturedPlacements(() => void load());
     return () => { active = false; unsubscribe(); };
-  }, [featuredOnly]);
+  }, [featuredOnly, featuredPincode]);
 
   const [filters, setFilters] = useState<HomeFilters>(() => ({
     ...DEFAULT_HOME_FILTERS,
@@ -194,7 +198,7 @@ export default function SearchScreen() {
   }, [searchCategories]);
 
   useEffect(() => {
-    if (!geoSelection || !allCategoryNames.length) {
+    if (!geoSelection?.talukaId || !allCategoryNames.length) {
       setGeoResults([]);
       return;
     }
@@ -319,6 +323,11 @@ export default function SearchScreen() {
     });
 
     const baseSorted = [...filtered].sort((a, b) => {
+      if (featuredOnly && filters.sort === "rating") return b.rating - a.rating || b.reviews - a.reviews;
+      if (featuredOnly && filters.sort === "price") {
+        return (a.startingPriceValue || Number.MAX_SAFE_INTEGER)
+          - (b.startingPriceValue || Number.MAX_SAFE_INTEGER);
+      }
       if (featuredOnly) return featuredVendorIds.indexOf(a.id) - featuredVendorIds.indexOf(b.id);
       if (filters.nearbyOnly) {
         return (a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceKm ?? Number.POSITIVE_INFINITY);
@@ -351,13 +360,29 @@ export default function SearchScreen() {
 
   const activeFilterCount = [filters.minimumRating > 0, filters.maximumBudget > 0, Boolean(filters.category), filters.availabilityOnly, filters.nearbyOnly, filters.sort !== "recommended"].filter(Boolean).length;
   const locationLabel = geoTalukaName || customerLocation || "Choose location";
-  const horizontalInset = width < 380 ? 14 : width < 600 ? 16 : 24;
-  const contentWidth = Math.min(width - horizontalInset * 2, 980);
+  const compact = width < 700;
+  const desktop = width >= 900;
+  const horizontalInset = desktop ? discoveryLayout.webPageGutter : width < 380 ? 14 : width < 600 ? 16 : 24;
+  const contentWidth = Math.min(width - horizontalInset * 2, discoveryLayout.webContentMaxWidth);
+  const gridColumns = desktop ? discoveryLayout.webGridColumns : discoveryLayout.mobileGridColumns;
+  const gridCardWidth = Math.floor((contentWidth - discoveryLayout.gridGap * (gridColumns - 1)) / gridColumns);
+  const listingTitle = featuredOnly
+    ? "Featured Near You"
+    : filters.sort === "rating" && !query.trim()
+      ? "Top Rated Vendors"
+      : "Find Vendors";
+  const sortLabel = featuredOnly && filters.sort === "recommended"
+    ? "Featured"
+    : filters.sort === "rating"
+      ? "Highest rated"
+      : filters.sort === "price"
+        ? "Lowest price"
+        : "Recommended";
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       {vendorsLoading || featuredVendorsLoading || (!featuredOnly && Boolean(geoSelection) && geoLoading) ? <PageLoader /> : null}
       <PublicWebNavbar
-        activeRoute={null}
+        activeRoute={undefined}
         locationControl={(
           <TalukaLocationSelector
             states={geoStates}
@@ -382,7 +407,7 @@ export default function SearchScreen() {
       >
         <View>
           <View style={{ width: contentWidth, alignSelf: "center" }}>
-            <CategoryPageHeader dark={isDark} title={featuredOnly ? "Top Featured Vendors" : "Find Vendors"} />
+            <CategoryListingHeader dark={isDark} category={listingTitle} />
           </View>
         </View>
         <View style={[styles.stickySearch, { backgroundColor: isDark ? "#070B14" : "#FFFBFD" }]}>
@@ -400,37 +425,39 @@ export default function SearchScreen() {
               onOpenFilters={() => setFiltersVisible(true)}
             />
             <View style={styles.filterStrip}>
-              <CategoryFilterChips
-                dark={isDark}
-                active={{
-                  sort: filters.sort !== "recommended",
-                  price: filters.maximumBudget > 0,
-                  rating: filters.minimumRating > 0,
-                }}
-                onPress={() => setFiltersVisible(true)}
-                trailing={(
-                  <TalukaLocationSelector
-                    states={geoStates}
-                    value={geoSelection}
-                    displayLabel={locationLabel}
-                    onChange={selectGeoLocation}
-                    onClear={clearGeoLocation}
-                    onUseCurrentLocation={useCurrentLocation}
-                    loading={geoLoading}
-                    hideLabel
-                    compact
-                  />
-                )}
-              />
+              <View style={styles.refinementControls}>
+                <TalukaLocationSelector
+                  states={geoStates}
+                  value={geoSelection}
+                  displayLabel={locationLabel}
+                  onChange={selectGeoLocation}
+                  onClear={clearGeoLocation}
+                  onUseCurrentLocation={useCurrentLocation}
+                  loading={geoLoading}
+                  hideLabel
+                  compact
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={listingLayout === "strip" ? `Switch to ${gridColumns} by ${gridColumns} grid view` : "Switch to horizontal strip view"}
+                  onPress={() => setListingLayout((current) => current === "strip" ? "grid" : "strip")}
+                  style={({ pressed, hovered, focused }) => [
+                    styles.layoutToggle,
+                    compact && styles.layoutToggleCompact,
+                    { backgroundColor: isDark ? "#211E20" : "#FFFFFF", borderColor: isDark ? "#44333B" : "#F0D4DF" },
+                    (hovered || focused) && styles.controlInteractive,
+                    pressed && styles.controlPressed,
+                  ]}
+                >
+                  {listingLayout === "strip" ? <PanelsTopLeft size={18} color="#D91B5C" strokeWidth={2} /> : <Rows3 size={18} color="#D91B5C" strokeWidth={2} />}
+                </Pressable>
+              </View>
               {geoError ? <Text accessibilityRole="alert" style={styles.locationError}>{geoError}</Text> : null}
             </View>
           </View>
         </View>
         <View style={[styles.results, { width: contentWidth }]}>
-          <View className="flex-row items-center justify-between">
-          <Text className="text-sm text-muted-foreground">{results.length} vendor results</Text>
-          <Text className="text-primary text-xs font-semibold">{featuredOnly ? "RoyalLagn featured" : filters.nearbyOnly ? (locationLoading ? "Finding distance…" : "Nearest first") : activeFilterCount ? `${activeFilterCount} filters active` : filters.sort === "rating" ? "Highest rated" : "Recommended"}</Text>
-          </View>
+          <ResultsSummary count={results.length} category="Vendors" sortLabel={sortLabel} dark={isDark} onSort={() => setFiltersVisible(true)} />
 
         {pageResults.fixedPages.length || pageResults.categoryPages.length ? (
           <View className="bg-card border border-border rounded-2xl p-2">
@@ -456,18 +483,23 @@ export default function SearchScreen() {
           </View>
         ) : null}
 
-        {results.map((vendor) => (
-          <VendorListingCard
-            key={`${vendor.category}-${vendor.id}`}
-            vendor={vendor}
-            dark={isDark}
-            compact={width < 700}
-            favorite={isFavorite(vendor.id)}
-            fallbackImage={resolveMarketplaceCategoryImage(vendor.category).fallbackSource}
-            onOpen={() => router.push({ pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]", params: { slug: vendor.slug, src: "search" } })}
-            onToggleFavorite={(source) => toggleFavorite(vendor, source)}
-          />
-        ))}
+        <View style={listingLayout === "grid" ? styles.gridResults : styles.stripResults}>
+          {results.map((vendor) => (
+            <View key={`${vendor.category}-${vendor.id}`} style={listingLayout === "grid" ? { width: gridCardWidth } : styles.stripCard}>
+              <VendorListingCard
+                vendor={vendor}
+                dark={isDark}
+                compact={compact}
+                layout={listingLayout}
+                cardWidth={listingLayout === "grid" ? gridCardWidth : undefined}
+                favorite={isFavorite(vendor.id)}
+                fallbackImage={resolveMarketplaceCategoryImage(vendor.category).fallbackSource}
+                onOpen={() => router.push({ pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]", params: { slug: vendor.slug, src: "search" } })}
+                onToggleFavorite={(source) => toggleFavorite(vendor, source)}
+              />
+            </View>
+          ))}
+        </View>
 
         {!results.length ? (
           <View className="min-h-[180px] bg-card border border-border rounded-2xl items-center justify-center px-6">
@@ -509,6 +541,11 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   filterStrip: { marginTop: discoveryLayout.controlsGap },
+  refinementControls: { flexDirection: "row", alignItems: "center", gap: 8 },
+  layoutToggle: { width: 40, height: 40, borderWidth: 1, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  layoutToggleCompact: { width: 48, height: 48, borderRadius: 14 },
+  controlInteractive: { transform: [{ translateY: -1 }], borderColor: "#D91B5C" },
+  controlPressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
   locationError: { color: "#DC2626", fontSize: 12, lineHeight: 16, marginTop: 5 },
   scroll: { flex: 1 },
   results: {
@@ -517,4 +554,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     gap: discoveryLayout.resultsGap,
   },
+  stripResults: { gap: discoveryLayout.resultsGap },
+  stripCard: { width: "100%" },
+  gridResults: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start", gap: discoveryLayout.gridGap },
 });

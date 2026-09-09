@@ -15,7 +15,6 @@ import {
   MapPinned,
   PanelsTopLeft,
   Settings,
-  Sparkles,
   Star,
   Target,
   Users,
@@ -36,7 +35,6 @@ export type AdminNavigationKey =
   | "finance"
   | "crm"
   | "hero"
-  | "featuredVendors"
   | "push"
   | "categories"
   | "locations"
@@ -90,7 +88,6 @@ export const adminNavigationGroups: { label: string; items: AdminNavigationItem[
     label: "Platform",
     items: [
       { key: "hero", label: "Hero Section", route: "/AdminHero", icon: PanelsTopLeft },
-      { key: "featuredVendors", label: "Featured Vendors", route: "/AdminFeaturedVendors", icon: Sparkles },
       { key: "push", label: "Push Notifications", route: "/AdminPushNotifications", icon: Bell },
       { key: "categories", label: "Categories", route: "/AdminCategories", icon: FolderTree },
       { key: "locations", label: "Locations", route: "/AdminGeoLocations", icon: MapPinned },

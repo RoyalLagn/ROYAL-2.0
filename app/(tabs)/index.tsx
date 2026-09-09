@@ -40,11 +40,12 @@ import {
   requestDeviceLocationPermission,
   requestDeviceLocationServices,
   reverseGeocodeLabel,
+  reverseGeocodePincode,
 } from "@/services/deviceLocation";
 import { useCustomerLocation } from "@/context/LocationContext";
 import { rankVendorsByLocationAndMembership } from "@/locations/domain";
 import { buildVendorListingPath } from "@/services/publicSeoRoutes";
-import { listHomeFeaturedVendorIds, subscribeToHomeFeaturedVendors } from "@/services/homeFeaturedVendors";
+import { listFeaturedVendorIdsForPincode, subscribeToFeaturedPlacements } from "@/services/featuredVendorPlacements";
 
 const PINK = brandPalette.light.primaryStrong;
 const TRENDING_SEARCHES = ["Wedding Photographers", "Mandap Decorators", "Destination Wedding", "Bridal Makeup"];
@@ -72,6 +73,7 @@ export default function HomeScreen() {
   const [vendorsLoading, setVendorsLoading] = useState(true);
   const [featuredVendorIds, setFeaturedVendorIds] = useState<string[]>([]);
   const [featuredVendorsLoading, setFeaturedVendorsLoading] = useState(true);
+  const [devicePincode, setDevicePincode] = useState<string | null>(null);
   const { isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
   const { unreadCount } = useNotifications();
@@ -80,7 +82,16 @@ export default function HomeScreen() {
     preference: customerLocationPreference,
     location: customerLocation,
     loading: customerLocationLoading,
+    locations: customerLocations,
   } = useCustomerLocation();
+  const customerPincode = useMemo(() => {
+    if (devicePincode) return devicePincode;
+    const explicit = customerLocationPreference?.pincode;
+    if (explicit && /^[1-9][0-9]{5}$/.test(explicit)) return explicit;
+    const city = customerLocations.find((item) => item.id === customerLocationPreference?.cityId);
+    const area = city?.areas.find((item) => item.id === customerLocationPreference?.areaId);
+    return area?.pincodes?.[0] ?? city?.pincodes?.[0] ?? null;
+  }, [customerLocationPreference, customerLocations, devicePincode]);
   const {
     categories: allCategories,
     homeCategories,
@@ -157,14 +168,14 @@ export default function HomeScreen() {
 
   useEffect(() => {
     let active = true;
-    const load = () => listHomeFeaturedVendorIds()
+    const load = () => listFeaturedVendorIdsForPincode(customerPincode)
       .then((ids) => { if (active) setFeaturedVendorIds(ids.slice(0, 10)); })
       .catch(() => { if (active) setFeaturedVendorIds([]); })
       .finally(() => { if (active) setFeaturedVendorsLoading(false); });
     void load();
-    const unsubscribe = subscribeToHomeFeaturedVendors(() => void load());
+    const unsubscribe = subscribeToFeaturedPlacements(() => void load());
     return () => { active = false; unsubscribe(); };
-  }, []);
+  }, [customerPincode]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60_000);
@@ -193,8 +204,12 @@ export default function HomeScreen() {
       }
 
       const coords = await getCurrentDeviceLocation();
-      const label = await reverseGeocodeLabel(coords).catch(() => null);
+      const [label, detectedPincode] = await Promise.all([
+        reverseGeocodeLabel(coords).catch(() => null),
+        reverseGeocodePincode(coords).catch(() => null),
+      ]);
       setHomeLocation(label ?? "Current location");
+      setDevicePincode(detectedPincode);
     } catch {
       setHomeLocation(null);
     } finally {
@@ -236,6 +251,7 @@ export default function HomeScreen() {
     availability: value.availabilityOnly ? "true" : undefined,
     nearby: value.nearbyOnly ? "true" : undefined,
     sort: value.sort,
+    pincode: customerPincode ?? undefined,
   });
   const submitSearch = () => router.push({ pathname: "/Search", params: searchParams() });
   const applyFilters = (value: HomeFilters) => {
@@ -726,25 +742,25 @@ export default function HomeScreen() {
           </ScrollView>
         </HomeSectionReveal>
 
-        {/* Admin-curated homepage rail. Order is preserved exactly. */}
-        <HomeSectionReveal
-          scrollY={homeScrollY}
-          viewportHeight={viewportHeight}
-          style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}
-        >
-          <SectionHeader
-            title="Top Featured Vendors"
-            subtitle="Handpicked by RoyalLagn"
-            dark={isDark}
-            actionLabel="View All"
-            onActionPress={() => router.push({ pathname: "/Search", params: { featured: "true" } })}
-          />
-          {vendorsLoading || featuredVendorsLoading ? <View style={s.vendorScroll}><VendorCardSkeletonRow count={isDesktop ? 4 : 3} width={vendorCardWidth} imageHeight={vendorImageHeight} /></View> : featuredVendors.length ? (
+        {/* Keep the sponsored rail completely absent until active vendors exist. */}
+        {!vendorsLoading && !featuredVendorsLoading && featuredVendors.length > 0 ? (
+          <HomeSectionReveal
+            scrollY={homeScrollY}
+            viewportHeight={viewportHeight}
+            style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}
+          >
+            <SectionHeader
+              title="Featured near you"
+              subtitle={`Sponsored businesses serving ${customerPincode}`}
+              dark={isDark}
+              actionLabel="View All"
+              onActionPress={() => router.push({ pathname: "/Search", params: { featured: "true", pincode: customerPincode ?? undefined } })}
+            />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} decelerationRate="fast" snapToAlignment="start" snapToInterval={vendorCardWidth + vendorCardGap} contentContainerStyle={[s.vendorScroll, { gap: vendorCardGap }]}>
               {featuredVendors.map((vendor) => <HomeVendorCard key={vendor.id} vendor={vendor} width={vendorCardWidth} imageHeight={vendorImageHeight} dark={isDark} favorite={isFavorite(vendor.id)} fallbackSource={VENDOR_CARD_PLACEHOLDER} onOpen={() => router.push({ pathname: "/vendor/[slug]", params: { slug: vendor.slug, src: "featured" } })} onToggleFavorite={(source) => toggleFavorite(vendor, source)} />)}
             </ScrollView>
-          ) : <Text style={[s.emptyVendors, { color: muted }]}>Featured vendors will appear here soon.</Text>}
-        </HomeSectionReveal>
+          </HomeSectionReveal>
+        ) : null}
 
         {/* All vendors, automatically ranked by saved location and membership. */}
         <HomeSectionReveal

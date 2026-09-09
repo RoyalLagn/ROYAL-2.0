@@ -195,3 +195,23 @@ export async function reverseGeocodeLabel(coords: DeviceCoordinates): Promise<st
     return null;
   }
 }
+
+/** Exact postal code for paid local placement matching. Returns null rather
+ * than guessing when the device is not near trusted canonical PIN data. */
+export async function reverseGeocodePincode(coords: DeviceCoordinates): Promise<string | null> {
+  if (Platform.OS === "web") {
+    const { data, error } = await supabase.rpc("reverse_geocode_known_pincode", {
+      customer_latitude: coords.latitude,
+      customer_longitude: coords.longitude,
+    });
+    if (error) return null;
+    return typeof data === "string" && /^[1-9][0-9]{5}$/.test(data) ? data : null;
+  }
+  try {
+    const place = (await Location.reverseGeocodeAsync(coords))?.[0];
+    const postalCode = place?.postalCode?.replace(/\D/g, "") ?? "";
+    return /^[1-9][0-9]{5}$/.test(postalCode) ? postalCode : null;
+  } catch {
+    return null;
+  }
+}
