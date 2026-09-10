@@ -34,7 +34,9 @@ function mapArea(row: any): SupportedArea {
     slug: row.slug,
     isActive: Boolean(row.is_active),
     displayOrder: number(row.display_order),
-    pincodes: (row.supported_pincodes ?? []).map((item: any) => item.pincode),
+    pincodes: (row.supported_pincodes ?? [])
+      .filter((item: any) => item.is_active !== false)
+      .map((item: any) => item.pincode),
   };
 }
 
@@ -47,7 +49,7 @@ function mapCity(row: any): SupportedCity {
     isActive: Boolean(row.is_active),
     displayOrder: number(row.display_order),
     pincodes: (row.supported_pincodes ?? [])
-      .filter((item: any) => !item.area_id)
+      .filter((item: any) => !item.area_id && item.is_active !== false)
       .map((item: any) => item.pincode),
     areas: (row.supported_areas ?? [])
       .map(mapArea)
@@ -68,7 +70,7 @@ export async function listActiveLocations(options: { force?: boolean } = {}) {
   const request = (async () => {
     const { data, error } = await supabase
       .from("supported_cities")
-      .select("id,name,state,slug,is_active,display_order,supported_areas(id,city_id,name,slug,is_active,display_order)")
+      .select("id,name,state,slug,is_active,display_order,supported_pincodes(pincode,area_id,is_active),supported_areas(id,city_id,name,slug,is_active,display_order,supported_pincodes(pincode,area_id,is_active))")
       .eq("is_active", true)
       .order("display_order")
       .order("name");

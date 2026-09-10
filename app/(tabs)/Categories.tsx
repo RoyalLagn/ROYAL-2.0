@@ -13,6 +13,7 @@ import { useCategories } from "@/context/CategoryContext";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import PublicWebNavbar from "@/components/PublicWebNavbar";
+import { useMobileTabBarHeight } from "@/components/MobileTabBar";
 import { buildVendorListingPath } from "@/services/publicSeoRoutes";
 import { discoveryLayout } from "@/constants/discoveryLayout";
 
@@ -99,6 +100,7 @@ export default function CategoriesScreen() {
   const entrance = useSharedValue(0);
   const { searchCategories: liveCategories, loading } = useCategories();
   const { width: screenWidth } = useWindowDimensions();
+  const mobileTabBarHeight = useMobileTabBarHeight();
   const isDesktop = screenWidth >= 1100;
   const horizontalInset = isDesktop ? 32 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 24;
   const twoColumns = screenWidth >= 900;
@@ -243,7 +245,13 @@ export default function CategoriesScreen() {
         maxToRenderPerBatch={8}
         windowSize={7}
         removeClippedSubviews={!isDesktop}
-        contentContainerStyle={[s.list, { width: contentWidth, paddingBottom: 36 }]}
+        contentContainerStyle={[
+          s.list,
+          {
+            width: contentWidth,
+            paddingBottom: Platform.OS === "web" ? 36 : mobileTabBarHeight + 24,
+          },
+        ]}
         stickyHeaderIndices={twoColumns ? undefined : [1]}
         ListHeaderComponent={(
           <View>

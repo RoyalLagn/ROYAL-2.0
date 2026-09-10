@@ -279,10 +279,6 @@ export const EnquiryService = {
     return count ?? 0;
   },
 
-  async markAllVendorSeen(enquiryIds: string[]) {
-    await Promise.all(enquiryIds.map((enquiryId) => this.markVendorSeen(enquiryId)));
-  },
-
   calculateAnalytics(items: TrackedEnquiry[], now = new Date()): VendorEnquiryAnalytics {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);

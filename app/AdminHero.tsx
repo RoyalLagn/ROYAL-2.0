@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   RefreshControl,
@@ -9,6 +10,7 @@ import {
   Switch,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -39,6 +41,8 @@ import Pressable from "@/components/InteropSafePressable";
 import { AdminReveal } from "@/components/admin/ui/AdminReveal";
 
 const PINK = adminPalette.brand;
+const HOME_CATEGORY_ASPECT = 18 / 25;
+const HOME_CATEGORY_RATIO_TOLERANCE = 0.02;
 
 type Draft = {
   imageUrl: string;
@@ -153,6 +157,7 @@ function HeroMetric({ icon: Icon, label, value }: { icon: React.ElementType; lab
 }
 
 export default function AdminHero() {
+  const { width: viewportWidth } = useWindowDimensions();
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,6 +166,7 @@ export default function AdminHero() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [categoryImageSavingId, setCategoryImageSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<HeroSlide | "new" | null>(null);
@@ -219,6 +225,62 @@ export default function AdminHero() {
 
   const canAdd = slides.length < HERO_SLIDES_MAX;
   const activeCount = useMemo(() => slides.filter((slide) => slide.is_active).length, [slides]);
+  const homeImageCategories = useMemo(
+    () => categories.filter((category) => category.isActive && category.showOnHome),
+    [categories],
+  );
+  const categoryCardBasis = viewportWidth >= 1500
+    ? "23.9%"
+    : viewportWidth >= 1050
+      ? "31.8%"
+      : viewportWidth >= 700
+        ? "48.8%"
+        : "100%";
+
+  const uploadCategoryHomeImage = async (category: CategoryRecord) => {
+    setError(null);
+    try {
+      const asset = await pickImage({
+        allowsEditing: true,
+        aspect: [18, 25],
+        quality: 0.9,
+      });
+      if (!asset) return;
+
+      const selectedAspect = asset.width > 0 && asset.height > 0
+        ? asset.width / asset.height
+        : null;
+      if (selectedAspect === null || Math.abs(selectedAspect - HOME_CATEGORY_ASPECT) > HOME_CATEGORY_RATIO_TOLERANCE) {
+        Alert.alert(
+          "Use an 18:25 portrait image",
+          `The selected image is ${asset.width || "unknown"} × ${asset.height || "unknown"} px. Please crop it to 18:25; 720 × 1000 px is recommended.`,
+        );
+        return;
+      }
+
+      setCategoryImageSavingId(category.id);
+      const url = await uploadToCloudinary(asset);
+      await CategoryService.updateHomeImage(category.id, url);
+      await loadCategories(true);
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setCategoryImageSavingId(null);
+    }
+  };
+
+  const restoreDefaultCategoryHomeImage = async (category: CategoryRecord) => {
+    setCategoryImageSavingId(category.id);
+    setError(null);
+    try {
+      await CategoryService.updateHomeImage(category.id, null);
+      await loadCategories(true);
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setCategoryImageSavingId(null);
+    }
+  };
 
   const openEditor = (slide: HeroSlide | "new") => {
     if (slide === "new") {
@@ -495,6 +557,94 @@ export default function AdminHero() {
               ))}
             </View>
           )}
+
+          <View style={styles.categoryImagesSection}>
+            <View style={styles.sectionHeadingRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionTitle}>Top Categories Images</Text>
+                <Text style={styles.sectionDescription}>
+                  These images appear in the public Home page Top Categories cards.
+                </Text>
+              </View>
+              <View style={styles.ratioBadge}>
+                <Text style={styles.ratioBadgeText}>18:25</Text>
+              </View>
+            </View>
+
+            <View style={styles.imageGuideline}>
+              <ImagePlus size={18} color={PINK} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.imageGuidelineTitle}>Required: 18:25 portrait</Text>
+                <Text style={styles.imageGuidelineText}>Recommended 720 × 1000 px · JPG, PNG or WebP</Text>
+              </View>
+            </View>
+
+            {categoriesLoading ? (
+              <AdminLoadingState label="Loading category images…" />
+            ) : categoriesError ? (
+              <AdminErrorState message={categoriesError} onRetry={() => void loadCategories(true)} />
+            ) : !homeImageCategories.length ? (
+              <AdminEmptyState
+                title="No Home categories"
+                message="Enable Show on Home for a category to manage its Top Categories image here."
+              />
+            ) : (
+              <View style={styles.categoryImageGrid}>
+                {homeImageCategories.map((category) => {
+                  const isSavingImage = categoryImageSavingId === category.id;
+                  return (
+                    <View key={category.id} style={[styles.categoryImageCard, { flexBasis: categoryCardBasis }]}>
+                      <View style={styles.categoryImageMedia}>
+                        <Image
+                          source={category.homeImage}
+                          resizeMode="cover"
+                          style={styles.categoryImagePreview}
+                          accessibilityLabel={`${category.name} Home category image`}
+                        />
+                        <View style={category.homeImageUrl ? styles.customBadge : styles.defaultBadge}>
+                          <Text style={category.homeImageUrl ? styles.customBadgeText : styles.defaultBadgeText}>
+                            {category.homeImageUrl ? "CUSTOM" : "DEFAULT"}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.categoryImageBody}>
+                        <Text style={styles.categoryImageTitle} numberOfLines={2}>{category.name}</Text>
+                        <View style={styles.categoryImageMetaRow}>
+                          <Text style={styles.categoryImageHint}>18:25 portrait</Text>
+                          <View style={styles.metaDot} />
+                          <Text style={styles.categoryImageHint}>720 × 1000 px</Text>
+                        </View>
+                        <View style={styles.categoryImageActions}>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={`${category.homeImageUrl ? "Replace" : "Upload"} ${category.name} Home image`}
+                            disabled={categoryImageSavingId !== null}
+                            onPress={() => void uploadCategoryHomeImage(category)}
+                            style={({ pressed }) => [styles.categoryImagePrimaryAction, pressed && styles.actionButtonPressed]}
+                          >
+                            {isSavingImage ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
+                              <Text style={styles.categoryImagePrimaryActionText}>{category.homeImageUrl ? "Replace" : "Upload"}</Text>
+                            )}
+                          </Pressable>
+                          {category.homeImageUrl ? (
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Restore default image for ${category.name}`}
+                              disabled={categoryImageSavingId !== null}
+                              onPress={() => void restoreDefaultCategoryHomeImage(category)}
+                              style={({ pressed }) => [styles.categoryImageSecondaryAction, pressed && styles.actionButtonPressed]}
+                            >
+                              <Text style={styles.categoryImageSecondaryActionText}>Use default</Text>
+                            </Pressable>
+                          ) : null}
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
         </ResponsiveContainer>
       </ScrollView>
 
@@ -789,4 +939,31 @@ const styles = StyleSheet.create({
   actionButtonHover: { backgroundColor: adminPalette.brandSubtle, transform: [{ translateY: -1 }] },
   actionButtonPressed: { transform: [{ scale: 0.97 }], opacity: 0.86 },
   actionButtonDisabled: { opacity: 0.36 },
+  categoryImagesSection: { marginTop: 28, paddingTop: 24, borderTopWidth: 1, borderTopColor: adminPalette.border },
+  sectionHeadingRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 14 },
+  sectionTitle: { color: adminPalette.text, fontSize: typeScale.sectionTitle, lineHeight: typeScale.sectionTitle + 5, fontWeight: "800" },
+  sectionDescription: { color: adminPalette.textSecondary, fontSize: typeScale.body, lineHeight: typeScale.body + 6, marginTop: 4 },
+  ratioBadge: { minHeight: 34, paddingHorizontal: 12, borderRadius: 999, backgroundColor: adminPalette.brandSubtle, alignItems: "center", justifyContent: "center" },
+  ratioBadgeText: { color: PINK, fontSize: typeScale.metadata, fontWeight: "800" },
+  imageGuideline: { flexDirection: "row", alignItems: "center", gap: 11, padding: 14, marginBottom: 16, borderRadius: 14, borderWidth: 1, borderColor: "#F8B7CF", backgroundColor: "#FFF5F8" },
+  imageGuidelineTitle: { color: adminPalette.text, fontSize: typeScale.body, fontWeight: "700" },
+  imageGuidelineText: { color: adminPalette.textSecondary, fontSize: typeScale.metadata, marginTop: 2 },
+  categoryImageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 14, alignItems: "stretch" },
+  categoryImageCard: { flexGrow: 0, minWidth: 0, overflow: "hidden", borderRadius: 16, borderWidth: 1, borderColor: adminPalette.border, backgroundColor: adminPalette.surface },
+  categoryImageMedia: { height: 184, position: "relative", alignItems: "center", justifyContent: "center", backgroundColor: "#F8F2F4", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: adminPalette.border },
+  categoryImagePreview: { height: 164, aspectRatio: HOME_CATEGORY_ASPECT, borderRadius: 12, backgroundColor: adminPalette.surfaceSubtle },
+  categoryImageBody: { flex: 1, minWidth: 0, padding: 15 },
+  categoryImageTitle: { minHeight: 23, color: adminPalette.text, fontSize: typeScale.body, lineHeight: typeScale.body + 5, fontWeight: "800" },
+  categoryImageMetaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 6, marginTop: 5 },
+  metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: adminPalette.textSecondary },
+  customBadge: { position: "absolute", top: 12, right: 12, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: "#DCFCE7" },
+  customBadgeText: { color: "#15803D", fontSize: 9, fontWeight: "800" },
+  defaultBadge: { position: "absolute", top: 12, right: 12, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: "#FFFFFF" },
+  defaultBadgeText: { color: adminPalette.textSecondary, fontSize: 9, fontWeight: "800" },
+  categoryImageHint: { color: adminPalette.textSecondary, fontSize: typeScale.metadata },
+  categoryImageActions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 14 },
+  categoryImagePrimaryAction: { minHeight: 44, flexGrow: 1, minWidth: 105, paddingHorizontal: 14, borderRadius: 11, backgroundColor: PINK, alignItems: "center", justifyContent: "center" },
+  categoryImagePrimaryActionText: { color: "#FFFFFF", fontSize: typeScale.metadata, fontWeight: "800" },
+  categoryImageSecondaryAction: { minHeight: 44, flexGrow: 1, paddingHorizontal: 12, borderRadius: 11, borderWidth: 1, borderColor: adminPalette.border, alignItems: "center", justifyContent: "center" },
+  categoryImageSecondaryActionText: { color: adminPalette.textSecondary, fontSize: typeScale.metadata, fontWeight: "700" },
 });

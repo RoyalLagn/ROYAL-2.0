@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Inbox, Mail, MessageCircle, MessageSquareText, Phone, Search, SlidersHorizontal, UserRound, X } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -40,12 +40,21 @@ export default function VendorEnquiries() {
   const [notes, setNotes] = useState("");
   const [followUp, setFollowUp] = useState("");
   const [saving, setSaving] = useState(false);
-  const markingAllSeen = useRef(false);
   const openedFromNotification = useRef<string | null>(null);
+  const unreadCount = useMemo(() => items.filter((item) => !item.vendor_seen_at).length, [items]);
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return items.filter((item) => (filter === "all" || item.status === filter) && (channelFilter === "all" || item.enquiry_channel === channelFilter) && (!enquiryDate || localDateKey(item.created_at) === enquiryDate) && (!needle || [item.customer_name, item.customer_email, item.customer_phone, item.reference_code, item.package_name, item.event_type].some((value) => value?.toLowerCase().includes(needle))))
-      .sort((a, b) => sort === "oldest" ? a.created_at.localeCompare(b.created_at) : sort === "follow_up" ? (a.follow_up_date ?? "9999").localeCompare(b.follow_up_date ?? "9999") : b.created_at.localeCompare(a.created_at));
+      .sort((a, b) => {
+        const unreadOrder = Number(Boolean(a.vendor_seen_at)) - Number(Boolean(b.vendor_seen_at));
+        if (unreadOrder !== 0) return unreadOrder;
+        if (sort === "oldest") return a.created_at.localeCompare(b.created_at);
+        if (sort === "follow_up") {
+          const followUpOrder = (a.follow_up_date ?? "9999").localeCompare(b.follow_up_date ?? "9999");
+          return followUpOrder || b.created_at.localeCompare(a.created_at);
+        }
+        return b.created_at.localeCompare(a.created_at);
+      });
   }, [channelFilter, enquiryDate, filter, items, query, sort]);
   const [page, setPage] = useState(1);
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
@@ -58,17 +67,7 @@ export default function VendorEnquiries() {
   const activeFilterCount = Number(channelFilter !== "all") + Number(filter !== "all") + Number(sort !== "newest");
   useEffect(() => { setPage(1); }, [channelFilter, enquiryDate, filter, query, sort]);
   useEffect(() => { setPage((current) => Math.min(current, pageCount)); }, [pageCount]);
-  useEffect(() => {
-    const unseenIds = items.filter((item) => !item.vendor_seen_at).map((item) => item.id);
-    if (loading || markingAllSeen.current || unseenIds.length === 0) return;
-    markingAllSeen.current = true;
-    void EnquiryService.markAllVendorSeen(unseenIds)
-      .then(() => refresh(true))
-      .catch(() => undefined)
-      .finally(() => { markingAllSeen.current = false; });
-  }, [items, loading, refresh]);
-
-  const open = (item: TrackedEnquiry) => {
+  const open = useCallback((item: TrackedEnquiry) => {
     setSelected({ ...item, vendor_seen_at: item.vendor_seen_at ?? new Date().toISOString() });
     setStatus(item.status);
     setNotes(item.vendor_notes ?? "");
@@ -78,14 +77,14 @@ export default function VendorEnquiries() {
         .then(() => refresh(true))
         .catch((cause) => Alert.alert("Enquiry not marked as opened", cause instanceof Error ? cause.message : "Please try again."));
     }
-  };
+  }, [refresh]);
   useEffect(() => {
     if (loading || !requestedEnquiryId || openedFromNotification.current === requestedEnquiryId) return;
     const requested = items.find((item) => item.id === requestedEnquiryId);
     if (!requested) return;
     openedFromNotification.current = requestedEnquiryId;
     open(requested);
-  }, [items, loading, requestedEnquiryId]);
+  }, [items, loading, open, requestedEnquiryId]);
 
   const closeSelected = () => {
     setSelected(null);
@@ -119,10 +118,10 @@ export default function VendorEnquiries() {
         <View style={styles.dateFilterRow}><View style={styles.dateFilter}><DateField label="Enquiry date" value={enquiryDate} onChange={setEnquiryDate} displayValue={enquiryDate ? formatFilterDate(enquiryDate) : undefined} placeholder="Choose a past date" maximumDate={todayKey()} /></View>{enquiryDate ? <Pressable accessibilityRole="button" accessibilityLabel="Show enquiries from all dates" onPress={() => setEnquiryDate("")} style={({ pressed }) => [styles.clearDate, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressed]}><X size={16} color={colors.pink} /><Text style={[styles.clearDateText, { color: colors.pink }]}>All dates</Text></Pressable> : null}</View>
         <View style={styles.channelHeading}><Text style={[styles.sectionLabel, styles.channelTitle, { color: colors.text }]}>Enquiries by type</Text>{channelFilter !== "all" ? <Pressable accessibilityRole="button" accessibilityLabel="Show all enquiry types" onPress={() => setChannelFilter("all")} style={styles.showAll}><Text style={[styles.showAllText, { color: colors.pink }]}>Show all</Text></Pressable> : null}</View>
         <View style={styles.channelGrid}><ChannelCard label="Calls" value={channelCounts.call} icon={Phone} active={channelFilter === "call"} colors={colors} onPress={() => setChannelFilter((current) => current === "call" ? "all" : "call")} /><ChannelCard label="Text" value={channelCounts.form} icon={MessageSquareText} active={channelFilter === "form"} colors={colors} onPress={() => setChannelFilter((current) => current === "form" ? "all" : "form")} /><ChannelCard label="WhatsApp" value={channelCounts.whatsapp} icon={MessageCircle} active={channelFilter === "whatsapp"} colors={colors} onPress={() => setChannelFilter((current) => current === "whatsapp" ? "all" : "whatsapp")} /></View>
-        <View style={styles.resultsHeader}><Text accessibilityLiveRegion="polite" style={[styles.resultCount, { color: colors.text }]}>{visible.length} {visible.length === 1 ? "enquiry" : "enquiries"}</Text><Text style={[styles.pageSummary, { color: colors.muted }]}>Page {page} of {pageCount}</Text></View>
+        <View style={styles.resultsHeader}><View><Text accessibilityLiveRegion="polite" style={[styles.resultCount, { color: colors.text }]}>{visible.length} {visible.length === 1 ? "enquiry" : "enquiries"}</Text>{unreadCount > 0 ? <Text accessibilityLiveRegion="polite" style={[styles.newCount, { color: colors.pink }]}>{unreadCount} new</Text> : null}</View><Text style={[styles.pageSummary, { color: colors.muted }]}>Page {page} of {pageCount}</Text></View>
       </>}
       renderItem={({ item }) => <Pressable accessibilityRole="button" accessibilityLabel={`${item.vendor_seen_at ? "Opened" : "Unopened"} enquiry ${item.reference_code} from ${firstName(item.customer_name)}`} onPress={() => open(item)} style={({ pressed, hovered, focused }) => [styles.card, { backgroundColor: colors.surface }, (hovered || focused) && styles.cardHover, pressed && styles.pressed]}>
-        <View style={[styles.channelIcon, { backgroundColor: colors.surfaceSoft }]}>{item.enquiry_channel === "call" ? <Phone size={18} color={colors.pink} /> : item.enquiry_channel === "form" ? <MessageSquareText size={18} color={colors.pink} /> : <MessageCircle size={18} color={colors.pink} />}</View><View style={styles.flex}><Text numberOfLines={1} style={[styles.name, { color: colors.text }]}>{firstName(item.customer_name)}</Text><Text numberOfLines={1} style={[styles.enquiryNumber, { color: colors.muted }]}>{item.reference_code}</Text></View>{!item.vendor_seen_at ? <View accessibilityLabel="Unopened enquiry" style={[styles.unreadDot, { backgroundColor: colors.pink }]} /> : null}<ChevronRight size={19} color={colors.pink} />
+        <View style={[styles.channelIcon, { backgroundColor: colors.surfaceSoft }]}>{item.enquiry_channel === "call" ? <Phone size={18} color={colors.pink} /> : item.enquiry_channel === "form" ? <MessageSquareText size={18} color={colors.pink} /> : <MessageCircle size={18} color={colors.pink} />}</View><View style={styles.flex}><Text numberOfLines={1} style={[styles.name, { color: colors.text }]}>{firstName(item.customer_name)}</Text><Text numberOfLines={1} style={[styles.enquiryNumber, { color: colors.muted }]}>{item.reference_code}</Text></View>{!item.vendor_seen_at ? <View style={styles.newIndicator}><View style={[styles.unreadDot, { backgroundColor: colors.pink }]} /><Text style={[styles.newIndicatorText, { color: colors.pink }]}>New</Text></View> : null}<ChevronRight size={19} color={colors.pink} />
       </Pressable>}
       ListEmptyComponent={loading
         ? <View accessibilityRole="progressbar" accessibilityLabel="Loading enquiries"><SkeletonList count={4} height={110} /></View>
@@ -184,6 +183,7 @@ const styles = StyleSheet.create({
   clearDateText: { fontSize: typeScale.caption, fontWeight: "700" },
   resultsHeader: { minHeight: 48, marginTop: 8, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   resultCount: { fontSize: typeScale.bodyCompact, fontWeight: "800" },
+  newCount: { marginTop: 2, fontSize: typeScale.caption, fontWeight: "800" },
   pageSummary: { fontSize: typeScale.caption, fontWeight: "600" },
   loading: { marginTop: 35 },
   card: { minHeight: 76, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12, shadowColor: "#6F3048", shadowOffset: { width: 0, height: 5 }, shadowOpacity: .055, shadowRadius: 14, elevation: 2 },
@@ -194,6 +194,8 @@ const styles = StyleSheet.create({
   name: { fontSize: typeScale.body, fontWeight: "700" },
   enquiryNumber: { fontSize: typeScale.caption, fontWeight: "600", marginTop: 3 },
   unreadDot: { width: 9, height: 9, borderRadius: 5 },
+  newIndicator: { minHeight: 32, flexDirection: "row", alignItems: "center", gap: 6 },
+  newIndicatorText: { fontSize: typeScale.caption, fontWeight: "800" },
   meta: { fontSize: typeScale.caption, marginTop: 3 },
   message: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab, marginTop: 12 },
   contactLine: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },

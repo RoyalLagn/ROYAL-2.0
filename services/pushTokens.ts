@@ -6,9 +6,11 @@ import { supabase } from "@/services/supabase";
 
 type RegisterOptions = {
   role: "public_user" | "vendor" | "admin";
+  force?: boolean;
 };
 
 const CURRENT_DEVICE_TOKEN_KEY = "royallagn.current-device-push-token";
+const pushPreferenceKey = (profileId: string) => `royallagn.push-enabled.${profileId}`;
 
 function projectId() {
   return (
@@ -47,6 +49,9 @@ export const PushTokenService = {
     const { data: auth } = await supabase.auth.getUser();
     const profileId = auth.user?.id;
     if (!profileId) return null;
+    if (!options.force && await SecureStore.getItemAsync(pushPreferenceKey(profileId)) === "false") {
+      return null;
+    }
 
     const current = await Notifications.getPermissionsAsync();
     let status = current.status;
@@ -81,7 +86,43 @@ export const PushTokenService = {
     );
     if (error) throw error;
     await SecureStore.setItemAsync(CURRENT_DEVICE_TOKEN_KEY, token);
+    await SecureStore.setItemAsync(pushPreferenceKey(profileId), "true");
     return token;
+  },
+
+  async isEnabledForCurrentDevice() {
+    const Notifications = await loadNotifications();
+    if (!Notifications || !Device.isDevice) return false;
+    const { data: auth } = await supabase.auth.getUser();
+    const profileId = auth.user?.id;
+    if (!profileId) return false;
+    if (await SecureStore.getItemAsync(pushPreferenceKey(profileId)) === "false") return false;
+    const permission = await Notifications.getPermissionsAsync();
+    if (permission.status !== "granted") return false;
+    const token = (await SecureStore.getItemAsync(CURRENT_DEVICE_TOKEN_KEY))?.trim();
+    if (!token) return false;
+    const { data, error } = await supabase
+      .from("push_tokens")
+      .select("id")
+      .eq("profile_id", profileId)
+      .eq("token", token)
+      .maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
+  },
+
+  async setEnabledForCurrentDevice(enabled: boolean, role: RegisterOptions["role"]) {
+    const { data: auth } = await supabase.auth.getUser();
+    const profileId = auth.user?.id;
+    if (!profileId) throw new Error("Sign in to change push notification settings.");
+    if (!enabled) {
+      await this.unregisterCurrentDevice({ strict: true });
+      await SecureStore.setItemAsync(pushPreferenceKey(profileId), "false");
+      return false;
+    }
+    const token = await this.registerForCurrentUser({ role, force: true });
+    if (!token) throw new Error("Allow notifications in your phone settings to enable push notifications.");
+    return true;
   },
 
   async unregisterCurrentDevice(options: { strict?: boolean } = {}) {

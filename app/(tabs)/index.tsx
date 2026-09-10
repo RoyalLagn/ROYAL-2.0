@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, View, Text, ScrollView, Image, Platform, Pressable, TouchableOpacity, StyleSheet, useWindowDimensions, } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { type Href, useRouter } from "expo-router";
 import {
-  Bell, LocateFixed, MapPin, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, Settings2, } from "lucide-react-native";
+  Bell, MapPin, MessageSquareText, Share2, Search, ChevronRight, Star, SlidersHorizontal, LayoutGrid, Settings2, } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { useFavorites } from "@/context/FavoritesContext";
@@ -34,15 +34,8 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 import { MotionDuration, MotionStagger } from "@/utils/motion";
-import {
-  getCurrentDeviceLocation,
-  getDevicePermissionStatus,
-  requestDeviceLocationPermission,
-  requestDeviceLocationServices,
-  reverseGeocodeLabel,
-  reverseGeocodePincode,
-} from "@/services/deviceLocation";
 import { useCustomerLocation } from "@/context/LocationContext";
+import LocationSelector from "@/components/home/LocationSelector";
 import { rankVendorsByLocationAndMembership } from "@/locations/domain";
 import { buildVendorListingPath } from "@/services/publicSeoRoutes";
 import { listFeaturedVendorIdsForPincode, subscribeToFeaturedPlacements } from "@/services/featuredVendorPlacements";
@@ -73,7 +66,6 @@ export default function HomeScreen() {
   const [vendorsLoading, setVendorsLoading] = useState(true);
   const [featuredVendorIds, setFeaturedVendorIds] = useState<string[]>([]);
   const [featuredVendorsLoading, setFeaturedVendorsLoading] = useState(true);
-  const [devicePincode, setDevicePincode] = useState<string | null>(null);
   const { isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
   const { unreadCount } = useNotifications();
@@ -84,22 +76,26 @@ export default function HomeScreen() {
     loading: customerLocationLoading,
     locations: customerLocations,
   } = useCustomerLocation();
-  const customerPincode = useMemo(() => {
-    if (devicePincode) return devicePincode;
+  const customerPincodes = useMemo(() => {
     const explicit = customerLocationPreference?.pincode;
-    if (explicit && /^[1-9][0-9]{5}$/.test(explicit)) return explicit;
+    if (explicit && /^[1-9][0-9]{5}$/.test(explicit)) return [explicit];
     const city = customerLocations.find((item) => item.id === customerLocationPreference?.cityId);
     const area = city?.areas.find((item) => item.id === customerLocationPreference?.areaId);
-    return area?.pincodes?.[0] ?? city?.pincodes?.[0] ?? null;
-  }, [customerLocationPreference, customerLocations, devicePincode]);
+    const pincodes = customerLocationPreference?.areaId
+      ? area?.pincodes ?? []
+      : [
+        ...(city?.pincodes ?? []),
+        ...(city?.areas.flatMap((item) => item.pincodes ?? []) ?? []),
+      ];
+    return [...new Set(pincodes)].filter((pincode) => /^[1-9][0-9]{5}$/.test(pincode));
+  }, [customerLocationPreference, customerLocations]);
+  const customerPincode = customerPincodes[0] ?? null;
   const {
     categories: allCategories,
     homeCategories,
     loading: categoriesLoading,
   } = useCategories();
   const [currentTime, setCurrentTime] = useState(() => new Date());
-  const [homeLocation, setHomeLocation] = useState<string | null>(null);
-  const [homeLocationLoading, setHomeLocationLoading] = useState(false);
   const { width: screenWidth, height: viewportHeight } = useWindowDimensions();
   const homeScrollY = useSharedValue(0);
   const handleHomeScroll = useAnimatedScrollHandler((event) => {
@@ -168,66 +164,21 @@ export default function HomeScreen() {
 
   useEffect(() => {
     let active = true;
-    const load = () => listFeaturedVendorIdsForPincode(customerPincode)
-      .then((ids) => { if (active) setFeaturedVendorIds(ids.slice(0, 10)); })
+    const load = () => Promise.all(customerPincodes.map((pincode) => listFeaturedVendorIdsForPincode(pincode)))
+      .then((groups) => {
+        if (active) setFeaturedVendorIds([...new Set(groups.flat())].slice(0, 10));
+      })
       .catch(() => { if (active) setFeaturedVendorIds([]); })
       .finally(() => { if (active) setFeaturedVendorsLoading(false); });
     void load();
     const unsubscribe = subscribeToFeaturedPlacements(() => void load());
     return () => { active = false; unsubscribe(); };
-  }, [customerPincode]);
+  }, [customerPincodes]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60_000);
     return () => clearInterval(timer);
   }, []);
-
-  const refreshHomeLocation = useCallback(async (requestAccess: boolean) => {
-    setHomeLocationLoading(true);
-    try {
-      let permission = await getDevicePermissionStatus();
-      if (permission !== "granted" && requestAccess) {
-        permission = await requestDeviceLocationPermission();
-      }
-      if (permission !== "granted") {
-        if (requestAccess) {
-          Alert.alert(
-            "Turn on location permission",
-            "Allow location access in your device settings to see vendors near you.",
-          );
-        }
-        return;
-      }
-
-      if (requestAccess && !(await requestDeviceLocationServices())) {
-        return;
-      }
-
-      const coords = await getCurrentDeviceLocation();
-      const [label, detectedPincode] = await Promise.all([
-        reverseGeocodeLabel(coords).catch(() => null),
-        reverseGeocodePincode(coords).catch(() => null),
-      ]);
-      setHomeLocation(label ?? "Current location");
-      setDevicePincode(detectedPincode);
-    } catch {
-      setHomeLocation(null);
-    } finally {
-      setHomeLocationLoading(false);
-    }
-  }, []);
-
-  // Never prompt on load. Refresh only when the user has already granted
-  // access; tapping the location icon is the explicit permission action.
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      if (await getDevicePermissionStatus() === "granted" && active) {
-        await refreshHomeLocation(false);
-      }
-    })();
-    return () => { active = false; };
-  }, [refreshHomeLocation]);
 
   const colors = brandColors(isDark);
   const bg = isDark ? colors.background : "#FFF9FB";
@@ -257,9 +208,6 @@ export default function HomeScreen() {
   const applyFilters = (value: HomeFilters) => {
     setFilters(value);
     setFiltersVisible(false);
-    if (value.nearbyOnly) {
-      void refreshHomeLocation(true);
-    }
     router.push({ pathname: "/Search", params: searchParams(value) });
   };
   const shareApp = async () => {
@@ -347,21 +295,9 @@ export default function HomeScreen() {
           mis-measure a sticky scroll child during its first layout pass. */}
       {!isDesktop ? (
         <HomeReveal direction="down" style={[s.header, { width: featureWidth, backgroundColor: bg }]}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={homeLocation ? `Refresh your current location: ${homeLocation}` : "Use your device location"}
-            style={[s.nearMeHeader, { width: headerSideWidth }]}
-            onPress={() => void refreshHomeLocation(true)}
-            activeOpacity={0.72}
-          >
-            <View style={[s.locationIconWrap, { backgroundColor: colors.actionTint }]}><LocateFixed size={15} color={PINK} /></View>
-            <View style={s.locationCopy}>
-              <Text style={[s.locationEyebrow, { color: muted }]}>{homeLocation ? "Your location" : "Location"}</Text>
-              <Text style={[s.nearMeHeaderText, { color: PINK }]} numberOfLines={1}>
-                {homeLocationLoading ? "Locating…" : homeLocation?.split(",")[0]?.trim() || "Set location"}
-              </Text>
-            </View>
-          </TouchableOpacity>
+          <View style={[s.nearMeHeader, { width: headerSideWidth }]}>
+            <LocationSelector dark={isDark} compact homeHeader />
+          </View>
 
           <View pointerEvents="none" style={s.headerLogo}>
             <RoyalLagnLogo width={headerLogoWidth} height={44} />

@@ -37,6 +37,7 @@ import {
 import { useCustomerLocation } from "@/context/LocationContext";
 import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale } from "@/constants/typography";
+import { BREAKPOINTS } from "@/utils/responsiveLayout";
 import Pressable from "@/components/InteropSafePressable";
 
 cssInterop(Home, { className: { target: "style", nativeStyleToProp: { color: true } } });
@@ -222,7 +223,9 @@ export default function PublicWebNavbar({
     if (!showMobile) return null;
     const availableWidth = mobileLayoutWidth || width;
     const horizontalInset = availableWidth < 380 ? 14 : availableWidth < 480 ? 18 : 20;
-    const logoWidth = availableWidth < 390 ? 112 : 132;
+    const contentWidth = Math.max(0, availableWidth - horizontalInset * 2);
+    const headerSideWidth = availableWidth < BREAKPOINTS.normalPhone ? 96 : 108;
+    const logoWidth = Math.max(96, Math.min(176, contentWidth - headerSideWidth * 2));
 
     return (
       <SafeAreaView
@@ -233,28 +236,30 @@ export default function PublicWebNavbar({
         }}
         style={[mobileStyles.safeArea, { backgroundColor: colors.background }]}
       >
-        <View style={[mobileStyles.header, { width: availableWidth, paddingHorizontal: horizontalInset }]}>
-          {locationControl ?? <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={locating ? "Detecting current location" : "Detect current location"}
-            accessibilityState={{ busy: locating, disabled: locating }}
-            disabled={locating}
-            onPress={() => void fetchCurrentLocation()}
-            hitSlop={4}
-            style={({ pressed }) => [mobileStyles.location, pressed && mobileStyles.pressed]}
-          >
-            <View style={[mobileStyles.locationIcon, { backgroundColor: colors.actionTint }]}>
-              {locating
-                ? <ActivityIndicator size="small" color={colors.primaryStrong} />
-                : <MapPin size={15} color={colors.primaryStrong} strokeWidth={2.1} />}
-            </View>
-            <View style={mobileStyles.locationCopy}>
-              <Text style={[mobileStyles.locationLabel, { color: colors.mutedForeground }]}>Location</Text>
-              <Text style={[mobileStyles.locationValue, { color: colors.primaryStrong }]} numberOfLines={1}>
-                {shortLocationLabel(deviceLocationLabel || location)}
-              </Text>
-            </View>
-          </Pressable>}
+        <View style={[mobileStyles.header, { width: contentWidth }]}>
+          <View style={[mobileStyles.locationSlot, { width: headerSideWidth }]}>
+            {locationControl ?? <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={locating ? "Detecting current location" : "Detect current location"}
+              accessibilityState={{ busy: locating, disabled: locating }}
+              disabled={locating}
+              onPress={() => void fetchCurrentLocation()}
+              hitSlop={4}
+              style={({ pressed }) => [mobileStyles.location, pressed && mobileStyles.pressed]}
+            >
+              <View style={[mobileStyles.locationIcon, { backgroundColor: colors.actionTint }]}>
+                {locating
+                  ? <ActivityIndicator size="small" color={colors.primaryStrong} />
+                  : <MapPin size={15} color={colors.primaryStrong} strokeWidth={2.1} />}
+              </View>
+              <View style={mobileStyles.locationCopy}>
+                <Text style={[mobileStyles.locationLabel, { color: colors.mutedForeground }]}>Location</Text>
+                <Text style={[mobileStyles.locationValue, { color: colors.primaryStrong }]} numberOfLines={1}>
+                  {shortLocationLabel(deviceLocationLabel || location)}
+                </Text>
+              </View>
+            </Pressable>}
+          </View>
 
           <Pressable
             accessibilityRole="link"
@@ -265,7 +270,7 @@ export default function PublicWebNavbar({
             <RoyalLagnLogo width={logoWidth} height={44} />
           </Pressable>
 
-          <View style={mobileStyles.actions}>
+          <View style={[mobileStyles.actions, { width: headerSideWidth }]}>
             <Pressable
               accessibilityRole="link"
               accessibilityLabel="Open enquiries"
@@ -418,8 +423,13 @@ const mobileStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  locationSlot: {
+    minWidth: 0,
+    flexShrink: 0,
+    justifyContent: "center",
+  },
   location: {
-    width: "33.333%",
+    width: "100%",
     minHeight: 44,
     flexShrink: 0,
     flexDirection: "row",
@@ -438,8 +448,8 @@ const mobileStyles = StyleSheet.create({
   locationCopy: { flex: 1, minWidth: 0, justifyContent: "center" },
   locationLabel: { fontFamily: fonts.sans.medium, fontSize: 9, lineHeight: 11 },
   locationValue: { marginTop: 1, fontFamily: fonts.sans.bold, fontSize: typeScale.caption, lineHeight: 15 },
-  logo: { width: "33.334%", minWidth: 0, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 12 },
-  actions: { width: "33.333%", flexDirection: "row", alignItems: "center" },
+  logo: { flex: 1, minWidth: 0, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 12 },
+  actions: { flexShrink: 0, flexDirection: "row", alignItems: "center" },
   action: {
     flex: 1,
     minWidth: 0,

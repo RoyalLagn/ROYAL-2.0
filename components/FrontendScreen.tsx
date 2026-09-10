@@ -60,6 +60,11 @@ type FrontendScreenProps = {
   items?: string[];
   content?: string[] | string;
   onItemPress?: (item: string) => void;
+  settingValues?: Record<string, boolean>;
+  settingDetails?: Record<string, string>;
+  settingDisabled?: Record<string, boolean>;
+  settingBusy?: string | null;
+  onSettingChange?: (item: string, enabled: boolean) => void;
 };
 
 const modeLabels: Record<FrontendScreenMode, string> = {
@@ -80,6 +85,11 @@ export default function FrontendScreen({
   items = [],
   content = [],
   onItemPress,
+  settingValues,
+  settingDetails,
+  settingDisabled = {},
+  settingBusy = null,
+  onSettingChange,
 }: FrontendScreenProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -365,12 +375,19 @@ export default function FrontendScreen({
                 {items.map((item, index) => (
                   <Pressable
                     accessibilityRole="switch"
-                    accessibilityState={{ checked: settings[item] }}
+                    accessibilityState={{ checked: settingValues?.[item] ?? settings[item], disabled: Boolean(settingDisabled[item] || settingBusy) }}
                     key={item}
+                    disabled={Boolean(settingDisabled[item] || settingBusy)}
                     className={`min-h-[76px] flex-row items-center px-4 py-3 hover:bg-muted/45 active:bg-muted/65 transition-colors duration-200 ${
                       index < items.length - 1 ? "border-b border-border/70" : ""
                     }`}
+                    style={{ opacity: settingDisabled[item] ? 0.6 : 1 }}
                     onPress={() => {
+                      const next = !(settingValues?.[item] ?? settings[item]);
+                      if (onSettingChange) {
+                        onSettingChange(item, next);
+                        return;
+                      }
                       if (onItemPress) {
                         onItemPress(item);
                         return;
@@ -388,12 +405,14 @@ export default function FrontendScreen({
                     <View className="flex-1 min-w-0">
                       <Text className="text-foreground text-body font-semibold">{item}</Text>
                       <Text className="text-xs text-muted-foreground mt-0.5">
-                        {settings[item] ? "Enabled" : "Disabled"}
+                        {settingDetails?.[item] ?? ((settingValues?.[item] ?? settings[item]) ? "Enabled" : "Disabled")}
                       </Text>
                     </View>
-                    <View className={`w-12 h-7 rounded-full p-1 ${settings[item] ? "bg-primary" : "bg-muted"}`}>
-                      <View className={`w-5 h-5 rounded-full bg-white shadow-sm ${settings[item] ? "self-end" : "self-start"}`} />
-                    </View>
+                    {settingBusy === item ? <ActivityIndicator size="small" color="#E91E63" /> : (
+                      <View className={`w-12 h-7 rounded-full p-1 ${(settingValues?.[item] ?? settings[item]) ? "bg-primary" : "bg-muted"}`}>
+                        <View className={`w-5 h-5 rounded-full bg-white shadow-sm ${(settingValues?.[item] ?? settings[item]) ? "self-end" : "self-start"}`} />
+                      </View>
+                    )}
                   </Pressable>
                 ))}
               </View>
@@ -425,36 +444,7 @@ export default function FrontendScreen({
           )}
 
           {mode === "help" && (
-            <View className={isDesktop ? "flex-row gap-6 items-start" : "gap-6"}>
-              <View
-                className={isDesktop
-                  ? "w-[42%] bg-card border border-border/80 rounded-3xl overflow-hidden"
-                  : "w-full bg-card border border-border/80 rounded-2xl overflow-hidden"}
-                style={surfaceShadow}
-              >
-                <View className="px-5 pt-5 pb-3">
-                  <Text className="text-foreground text-lg font-bold">Popular help topics</Text>
-                  <Text className="text-muted-foreground text-xs mt-1">Choose a topic to learn more</Text>
-                </View>
-                {items.map((item, index) => (
-                  <Pressable
-                    accessibilityRole="button"
-                    key={item}
-                    className={`min-h-[64px] px-5 flex-row items-center hover:bg-muted/50 active:bg-muted/70 ${
-                      index > 0 ? "border-t border-border/70" : ""
-                    }`}
-                    onPress={() => Alert.alert(item, "Help article opened.")}
-                  >
-                    <View className="w-8 h-8 rounded-xl bg-primary/10 items-center justify-center mr-3">
-                      <HelpCircle size={16} className="text-primary" />
-                    </View>
-                    <Text className="text-foreground text-sm font-medium flex-1">{item}</Text>
-                    <ChevronRight size={17} className="text-muted-foreground" />
-                  </Pressable>
-                ))}
-              </View>
-
-              <View className="flex-1 gap-4">
+            <View className="w-full gap-4">
                 <View className="bg-card border border-border/80 rounded-3xl p-5" style={surfaceShadow}>
                   <Text className="text-foreground text-lg font-bold mb-1">Contact support</Text>
                   <Text className="text-muted-foreground text-xs mb-4">
@@ -513,7 +503,6 @@ export default function FrontendScreen({
                 </Pressable>
                   </View>
                 ) : null}
-              </View>
             </View>
           )}
 

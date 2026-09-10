@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Bell,
   BadgeCheck,
@@ -9,9 +9,10 @@ import {
   Trash2,
   UserRoundCheck,
   WalletCards,
+  X,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { AuthBackButton } from "@/components/auth/AuthBackButton";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -104,9 +105,9 @@ function NotificationRow({
               ? "#1E1E1E"
               : "#FFFFFF"
             : dark
-              ? "#2A2025"
-              : "#FFF7FA",
-          borderColor: dark ? "#333333" : "#F0D9E4",
+              ? "#241D21"
+              : "#FFFCFD",
+          borderColor: dark ? "#A94369" : "#F3A4C0",
         },
       ]}
     >
@@ -126,7 +127,7 @@ function NotificationRow({
             </Text>
             {!notification.read ? <View style={styles.unreadDot} /> : null}
           </View>
-          <Text className="text-muted-foreground text-xs leading-5">
+          <Text numberOfLines={2} className="text-muted-foreground text-xs leading-5">
             {notification.message}
           </Text>
           <Text className="text-muted-foreground text-metadata mt-2">
@@ -163,6 +164,7 @@ export default function NotificationsScreen() {
     refreshNotifications,
   } = useNotifications();
   const markedOnFocus = useRef(false);
+  const [selected, setSelected] = useState<RoyalLagnNotification | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -295,8 +297,7 @@ export default function NotificationsScreen() {
                 dark={isDark}
                 onOpen={() => {
                   void markAsRead(notification.id);
-                  const destination = notificationDestination(notification);
-                  if (destination) openDestination(router, destination);
+                  setSelected(notification);
                 }}
                 onDelete={() => confirmDelete(notification)}
               />
@@ -304,6 +305,23 @@ export default function NotificationsScreen() {
           </ScrollView>
         </>
       )}
+      <Modal visible={Boolean(selected)} transparent animationType="fade" onRequestClose={() => setSelected(null)}>
+        <View style={styles.modalBackdrop}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Close notification" style={StyleSheet.absoluteFill} onPress={() => setSelected(null)} />
+          <View accessibilityRole="alert" style={[styles.modalCard, { backgroundColor: isDark ? "#1E1E1E" : "#FFFFFF", borderColor: isDark ? "#A94369" : "#F3A4C0" }]}>
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalIcon, { backgroundColor: isDark ? "#351D28" : "#FFF1F6" }]}>{selected ? React.createElement(notificationIcons[selected.type], { size: 22, color: "#E91E63", strokeWidth: 1.8 }) : null}</View>
+              <View style={styles.notificationCopy}><Text className="text-foreground text-lg font-bold">{selected?.title}</Text><Text className="text-muted-foreground text-xs mt-1">{selected ? formatTimestamp(selected.timestamp) : ""}</Text></View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close notification details" onPress={() => setSelected(null)} style={({ pressed }) => [styles.modalClose, { backgroundColor: isDark ? "#351D28" : "#FFF1F6" }, pressed && styles.pressed]}><X size={20} color={isDark ? "#F7F2F4" : "#171118"} /></Pressable>
+            </View>
+            <Text className="text-foreground text-sm leading-6" style={styles.modalMessage}>{selected?.message}</Text>
+            <View style={styles.modalActions}>
+              <Pressable accessibilityRole="button" onPress={() => setSelected(null)} style={({ pressed }) => [styles.modalButton, { borderColor: isDark ? "#A94369" : "#F3A4C0" }, pressed && styles.pressed]}><Text className="text-foreground text-xs font-bold">Close</Text></Pressable>
+              {selected && notificationDestination(selected) ? <Pressable accessibilityRole="button" onPress={() => { const destination = notificationDestination(selected); setSelected(null); if (destination) openDestination(router, destination); }} style={({ pressed }) => [styles.modalPrimary, pressed && styles.pressed]}><Text className="text-white text-xs font-bold">Open related page</Text></Pressable> : null}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -431,4 +449,30 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.72,
   },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15,8,12,.58)",
+    paddingHorizontal: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 460,
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#2A0D18",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    elevation: 8,
+  },
+  modalHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  modalIcon: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  modalClose: { width: Platform.OS === "android" ? 48 : 42, height: Platform.OS === "android" ? 48 : 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  modalMessage: { marginTop: 18 },
+  modalActions: { marginTop: 22, flexDirection: "row", gap: 10 },
+  modalButton: { minHeight: Platform.OS === "android" ? 48 : 44, flex: 1, borderWidth: 1, borderRadius: 13, alignItems: "center", justifyContent: "center", paddingHorizontal: 14 },
+  modalPrimary: { minHeight: Platform.OS === "android" ? 48 : 44, flex: 1.4, borderRadius: 13, backgroundColor: "#E91E63", alignItems: "center", justifyContent: "center", paddingHorizontal: 14 },
 });

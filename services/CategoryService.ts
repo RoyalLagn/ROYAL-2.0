@@ -18,6 +18,7 @@ export type CategoryRecord = {
   iconUrl: string | null;
   imageUrl: string;
   fallbackImageUrl: string | null;
+  homeImageUrl: string | null;
   homeImage: number | ImageURISource;
   fallbackImage: number | ImageURISource;
   isActive: boolean;
@@ -37,6 +38,7 @@ type CategoryRow = {
   sort_order?: number | null;
   icon_url?: string | null;
   fallback_image_url?: string | null;
+  home_image_url?: string | null;
   is_active?: boolean | null;
   is_featured?: boolean | null;
   show_on_home?: boolean | null;
@@ -74,6 +76,7 @@ function presentation(row: CategoryRow, vendorCount: number): CategoryRecord {
   const defaultLocal = MARKETPLACE_CATEGORIES[0];
   const iconUrl = row.icon_url ?? null;
   const fallbackImageUrl = row.fallback_image_url ?? null;
+  const homeImageUrl = row.home_image_url ?? null;
   return {
     id: row.id,
     slug: row.slug || local?.slug || slugify(row.name),
@@ -86,7 +89,9 @@ function presentation(row: CategoryRow, vendorCount: number): CategoryRecord {
     iconUrl,
     imageUrl: local?.cloudinaryImage ?? fallbackImageUrl ?? "",
     fallbackImageUrl,
-    homeImage: (local?.homeImage as number | ImageURISource | undefined)
+    homeImageUrl,
+    homeImage: (homeImageUrl ? { uri: homeImageUrl } : undefined)
+      ?? (local?.homeImage as number | ImageURISource | undefined)
       ?? (iconUrl ? { uri: iconUrl } : defaultLocal.homeImage as number),
     fallbackImage: local?.fallbackImage
       ?? (fallbackImageUrl ? { uri: fallbackImageUrl } : defaultLocal.fallbackImage),
@@ -103,7 +108,7 @@ function presentation(row: CategoryRow, vendorCount: number): CategoryRecord {
 async function fetchCategories(): Promise<CategoryRecord[]> {
   const primary = await supabase
     .from("categories")
-    .select("id,slug,name,description,sort_order,icon_url,fallback_image_url,is_active,is_featured,show_on_home,show_in_search,show_in_vendor_registration,localization_key")
+    .select("id,slug,name,description,sort_order,icon_url,fallback_image_url,home_image_url,is_active,is_featured,show_on_home,show_in_search,show_in_vendor_registration,localization_key")
     .order("sort_order")
     .order("name");
 
@@ -203,6 +208,14 @@ export const CategoryService = {
       icon_url: input.iconUrl ?? null,
       fallback_image_url: input.fallbackImageUrl ?? null,
     });
+    if (error) throw error;
+    cache = null;
+  },
+  async updateHomeImage(categoryId: string, homeImageUrl: string | null) {
+    const { error } = await supabase
+      .from("categories")
+      .update({ home_image_url: homeImageUrl })
+      .eq("id", categoryId);
     if (error) throw error;
     cache = null;
   },

@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import '@/global.css';
 import { ThemeProvider, useAppTheme } from '@/components/ThemeProvider';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -33,7 +33,7 @@ import { VendorSessionProvider } from '@/context/VendorSessionContext';
 import { NotificationProvider } from '@/context/NotificationContext';
 import { AdminAuthProvider } from '@/context/AdminAuthContext';
 import { AdminRouteGuard } from '@/components/auth/AdminRouteGuard';
-import { VendorAuthProvider } from '@/context/VendorAuthContext';
+import { VendorAuthProvider, useVendorAuth } from '@/context/VendorAuthContext';
 import { VendorRouteGuard } from '@/components/auth/VendorRouteGuard';
 import { ResponsiveLayoutProvider } from '@/context/ResponsiveLayoutContext';
 import { CategoryProvider } from '@/context/CategoryContext';
@@ -111,6 +111,31 @@ function ThemeAwareStatusBar() {
   );
 }
 
+/**
+ * Expo Router always boots the native app through the public tabs route.
+ * Once the persisted Supabase session has been resolved, move an approved
+ * vendor back into their workspace. This is deliberately a one-time startup
+ * decision and only applies to the default home route, so notification links
+ * and other explicit deep links keep their own destination.
+ */
+function VendorStartupRedirect({ onReady }: { onReady: () => void }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { loading, isVendorAuthenticated } = useVendorAuth();
+  const startupDecisionMade = React.useRef(false);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || loading || startupDecisionMade.current) return;
+    startupDecisionMade.current = true;
+    if (isVendorAuthenticated && (pathname === '/' || pathname === '/index')) {
+      router.replace('/vendor-dashboard');
+    }
+    onReady();
+  }, [isVendorAuthenticated, loading, onReady, pathname, router]);
+
+  return null;
+}
+
 function AppNavigator() {
   const { colorScheme } = useAppTheme();
   const backgroundColor = colorScheme === 'dark'
@@ -132,6 +157,12 @@ function AppNavigator() {
 export default function RootLayout() {
   const [startupSplashVisible, setStartupSplashVisible] = useState(
     () => Platform.OS !== 'web',
+  );
+  const [startupSplashMinimumElapsed, setStartupSplashMinimumElapsed] = useState(
+    () => Platform.OS === 'web',
+  );
+  const [startupRoutingReady, setStartupRoutingReady] = useState(
+    () => Platform.OS === 'web',
   );
   const [webBootLoading, setWebBootLoading] = useState(
     () => Platform.OS === 'web',
@@ -163,8 +194,18 @@ export default function RootLayout() {
   }, []);
 
   const finishStartupSplash = useCallback(() => {
-    setStartupSplashVisible(false);
+    setStartupSplashMinimumElapsed(true);
   }, []);
+
+  const finishStartupRouting = useCallback(() => {
+    setStartupRoutingReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (startupSplashMinimumElapsed && startupRoutingReady) {
+      setStartupSplashVisible(false);
+    }
+  }, [startupRoutingReady, startupSplashMinimumElapsed]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || !fontsReady) return;
@@ -196,6 +237,7 @@ export default function RootLayout() {
                                     <AppFeedbackProvider>
                                       <ResponsiveLayoutProvider>
                                         <PushTokenRegistrar />
+                                        <VendorStartupRedirect onReady={finishStartupRouting} />
                                         <ThemeAwareStatusBar />
                                         <View className="bg-background" style={styles.app}>
                                           <AdminWorkspaceShell>
