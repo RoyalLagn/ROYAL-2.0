@@ -116,10 +116,10 @@ export default function PublicProfileCard({ vendor, totalEnquiries }: { vendor: 
       </View>
 
       <View style={[styles.qrRow, desktop && styles.qrRowDesktop]}>
-        <View ref={qrRef} collapsable={false} style={[styles.qrWrap, { borderColor: colors.border }]}>
+        <View ref={qrRef} testID="public-profile-qr" collapsable={false} style={[styles.qrWrap, { borderColor: colors.border }]}>
           <QRCode value={qrUrl} size={104} backgroundColor="#FFFFFF" />
         </View>
-        <View style={[styles.actionsCol, desktop && styles.actionsColDesktop]}>
+        <View testID="public-profile-actions" style={[styles.actionsCol, desktop && styles.actionsColDesktop]}>
           <ActionButton desktop={desktop} label="Copy Link" icon={<Copy size={15} color={colors.pink} />} colors={colors} onPress={handleCopy} />
           <ActionButton desktop={desktop} label="Open Profile" icon={<ExternalLink size={15} color={colors.pink} />} colors={colors} onPress={() => router.push({ pathname: "/vendors/[slug]", params: { slug, src: "vendor_preview" } })} />
           <ActionButton desktop={desktop} label="Share" icon={<Share2 size={15} color={colors.pink} />} colors={colors} onPress={handleShare} />
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   title: { fontSize: typeScale.cardTitle, fontWeight: "700" },
   hint: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 4 },
   url: { fontSize: typeScale.metadata, fontWeight: "700", marginTop: 3 },
-  qrRow: { flexDirection: "row", gap: 16, marginTop: 18, alignItems: "flex-start" },
+  qrRow: { flexDirection: "row", gap: 16, marginTop: 18, alignItems: "center" },
   qrRowDesktop: { gap: 22, alignItems: "center" },
   qrWrap: { padding: 9, borderRadius: 16, borderWidth: 1, backgroundColor: "#FFFFFF", shadowColor: "#3A2630", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 1 },
   actionsCol: { flex: 1, gap: 10 },

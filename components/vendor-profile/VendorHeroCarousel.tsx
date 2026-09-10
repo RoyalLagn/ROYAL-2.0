@@ -62,6 +62,7 @@ function VendorHeroCarousel({
   const scrollRef = useRef<ScrollView>(null);
   const indexRef = useRef(0);
   const programmaticScrollRef = useRef(false);
+  const manualStartIndexRef = useRef<number | null>(null);
   const [carouselWidth, setCarouselWidth] = useState(width);
   const heroHeight = height ?? (width >= 900 ? 470 : Math.max(300, Math.min(410, width * 0.78)));
   const controlHorizontalInset = width < 380 ? 14 : 18;
@@ -124,7 +125,15 @@ function VendorHeroCarousel({
     if (!carouselWidth || !sources.length) return;
     const wasProgrammatic = programmaticScrollRef.current;
     programmaticScrollRef.current = false;
-    const rawIndex = Math.round(event.nativeEvent.contentOffset.x / carouselWidth);
+    const measuredIndex = Math.round(event.nativeEvent.contentOffset.x / carouselWidth);
+    const manualStartIndex = manualStartIndexRef.current;
+    manualStartIndexRef.current = null;
+    const rawIndex = !wasProgrammatic && manualStartIndex !== null
+      ? Math.max(manualStartIndex - 1, Math.min(measuredIndex, manualStartIndex + 1))
+      : measuredIndex;
+    if (rawIndex !== measuredIndex) {
+      scrollRef.current?.scrollTo({ x: rawIndex * carouselWidth, y: 0, animated: false });
+    }
     if (rawIndex === sources.length) {
       indexRef.current = 0;
       setIndex(0);
@@ -148,6 +157,9 @@ function VendorHeroCarousel({
         ref={scrollRef}
         horizontal
         pagingEnabled
+        snapToInterval={carouselWidth}
+        snapToAlignment="start"
+        disableIntervalMomentum
         nestedScrollEnabled
         bounces={false}
         decelerationRate="fast"
@@ -157,6 +169,7 @@ function VendorHeroCarousel({
         onTouchStart={() => pauseTemporarily()}
         onScrollBeginDrag={() => {
           programmaticScrollRef.current = false;
+          manualStartIndexRef.current = indexRef.current;
           pauseTemporarily();
         }}
         onMomentumScrollEnd={handleMomentumEnd}

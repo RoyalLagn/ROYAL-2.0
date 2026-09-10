@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Platform, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
-  BadgeIndianRupee, BriefcaseBusiness, CalendarDays, Check, ChevronRight, CircleAlert,
+  BadgeIndianRupee, BriefcaseBusiness, CalendarDays, Check, ChevronRight, CircleAlert, Crown,
   Clock3, Eye, FileText, Globe, Images, MapPin, MessageSquareText, Palette,
   Phone, Plus, Sparkles, Star, Tags, Target, } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -14,14 +14,16 @@ import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
 import SubscriptionDashboardCard from "@/components/vendor/SubscriptionDashboardCard";
 import PublicProfileCard from "@/components/vendor/PublicProfileCard";
 import ChecklistItem, { ReadinessChecklistGrid } from "@/components/vendor/ChecklistItem";
-import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
+import { fonts, typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import Pressable from "@/components/InteropSafePressable";
 import PageLoader from "@/components/loading/PageLoader";
+import { getMyFeaturedPlacements, type FeaturedPlacement } from "@/services/featuredVendorPlacements";
 
 // Ordered worse -> better so a state "improving" can be detected with a
 // simple index comparison when the vendor returns from a section form.
 const STATE_RANK: Record<CompletionState, number> = { missing: 0, attention: 1, partial: 2, complete: 3 };
 const HIGHLIGHT_DURATION_MS = 1600;
+const DAY_MS = 86_400_000;
 
 // Labels come from the centralized VendorReadinessLabels (see
 // hooks/useVendorWorkspace.ts) so the checklist and every section form's
@@ -58,8 +60,15 @@ export default function VendorDashboard() {
   const colors = vendorTheme[colorScheme];
   const { data, loading, error, completion, refresh } = useVendorWorkspace();
   const desktop = width >= 900;
+  // Web gets the denser, two-column workspace only when there is enough
+  // room for each card to keep its content comfortably readable. Native
+  // tablet and every compact layout keep their established composition.
+  const wideWebLayout = Platform.OS === "web" && width >= 1180;
+  const compact = width < 620;
   const dark = colorScheme === "dark";
-  const canvas = dark ? colors.background : "#FFF9FB";
+  const premiumGold = dark ? "#F0C66B" : "#9A6100";
+  const premiumBorder = dark ? "#8F6B2C" : "#C99736";
+  const canvas = dark ? colors.background : "#FFFFFF";
   const unread = data.stats.unreadNotifications;
   const openEnquiries = data.stats.openEnquiries;
   const averageRating = data.stats.reviewCount
@@ -68,6 +77,13 @@ export default function VendorDashboard() {
   const vendorName = data.vendor?.business_name || "Your vendor business";
   const completedItems = completion.items.filter((item) => item.state === "complete").length;
   const nextItem = completion.items.find((item) => item.state !== "complete");
+  const [featuredPlacements, setFeaturedPlacements] = useState<FeaturedPlacement[]>([]);
+  const activeFeaturedPlacement = useMemo(() => featuredPlacements.find((placement) =>
+    placement.status === "active" && new Date(placement.ends_at ?? 0).getTime() > Date.now(),
+  ), [featuredPlacements]);
+  const featuredDaysRemaining = activeFeaturedPlacement?.ends_at
+    ? Math.max(0, Math.min(30, Math.ceil((new Date(activeFeaturedPlacement.ends_at).getTime() - Date.now()) / DAY_MS)))
+    : null;
 
   // Tracks each checklist item's state across visits so that returning from
   // a section form (e.g. VendorEditBusinessInfo -> back -> here) can
@@ -111,6 +127,9 @@ export default function VendorDashboard() {
 
   useFocusEffect(useCallback(() => {
     void refresh();
+    void getMyFeaturedPlacements()
+      .then(setFeaturedPlacements)
+      .catch(() => setFeaturedPlacements([]));
   }, [refresh]));
 
   // Runs whenever the computed completion states change (including after
@@ -152,7 +171,7 @@ export default function VendorDashboard() {
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         decelerationRate="fast"
-        contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll]}
+        contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll, wideWebLayout && styles.wideWebScroll]}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.pink} />}
       >
         <VendorDashboardReveal>
@@ -212,28 +231,54 @@ export default function VendorDashboard() {
             </View>
           ) : null}
 
-          {data.vendor ? <SubscriptionDashboardCard /> : null}
           {data.vendor ? (
-            <Pressable
+            <View style={wideWebLayout && styles.desktopPair}>
+              <View style={wideWebLayout && styles.desktopPairItem}><SubscriptionDashboardCard /></View>
+              <Pressable
               onPress={() => router.push("/VendorFeaturedPlacement")}
               accessibilityRole="button"
-              accessibilityLabel="Feature your business in your area"
+              accessibilityLabel={activeFeaturedPlacement ? "View your active featured vendor placement" : "Feature your business in your area"}
               style={({ pressed, hovered, focused }) => [
                 styles.marketingCenterButton,
                 desktop && styles.marketingCenterButtonDesktop,
-                { backgroundColor: colors.background, borderColor: colors.border },
+                activeFeaturedPlacement
+                  ? { minHeight: compact ? 170 : 190, padding: 0, overflow: "hidden", borderRadius: 20, backgroundColor: dark ? "#241F17" : "#FFF9E9", borderColor: premiumBorder, borderWidth: 1.5, shadowColor: premiumBorder, shadowOpacity: 0.13 }
+                  : { backgroundColor: colors.background, borderColor: colors.border },
                 (hovered || focused) && styles.interactiveLift,
                 pressed && styles.pressed,
               ]}
             >
-              <View style={[styles.marketingCenterIcon, { backgroundColor: colors.pink }]}><Sparkles size={19} color="#FFF" /></View>
-              <View style={styles.flex}><Text style={[styles.marketingCenterTitle, { color: colors.text }]}>Get featured near you</Text><Text style={[styles.marketingCenterHint, { color: colors.muted }]}>₹999 for 30 days · only 10 spots per PIN code</Text></View>
-              <ChevronRight size={19} color={colors.pink} />
-            </Pressable>
+              {activeFeaturedPlacement ? <LinearGradient
+                colors={dark ? ["#302819", "#261D22"] : ["#FFFDF8", "#FFF3F7", "#FFF7DF"]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={[styles.premiumFeaturedInner, compact && styles.premiumFeaturedInnerCompact, desktop && styles.premiumFeaturedInnerDesktop]}
+              >
+                <View style={[styles.premiumGlow, { backgroundColor: `${premiumGold}12` }]} />
+                <View style={[styles.premiumIcon, compact && styles.premiumIconCompact, { backgroundColor: premiumGold, shadowColor: premiumGold }]}><Crown size={compact ? 26 : 32} color="#FFF" /></View>
+                <View style={styles.flex}>
+                  <View style={styles.featuredTitleRow}>
+                    <Text style={[styles.premiumTitle, { color: colors.text }]}>You’re a featured vendor</Text>
+                    <View style={[styles.featuredBadge, { backgroundColor: `${premiumGold}18`, borderColor: `${premiumGold}45` }]}><Star size={12} color={premiumGold} fill={premiumGold} /><Text style={[styles.featuredBadgeText, { color: premiumGold }]}>ACTIVE</Text></View>
+                  </View>
+                  <Text style={[styles.premiumLocation, { color: premiumGold }]}>Featured in PIN {activeFeaturedPlacement.pincode}</Text>
+                  <Text style={[styles.premiumHint, { color: colors.muted }]}>Priority visibility is active for customers near you.</Text>
+                </View>
+                <View style={[styles.premiumDays, { borderLeftColor: `${premiumGold}35` }]}><Text style={[styles.premiumDaysValue, { color: premiumGold }]}>{featuredDaysRemaining ?? "—"}</Text><Text style={[styles.premiumDaysLabel, { color: colors.muted }]}>DAYS LEFT</Text></View>
+                <ChevronRight size={19} color={premiumGold} />
+              </LinearGradient> : <>
+                <View style={[styles.marketingCenterIcon, { backgroundColor: colors.pink }]}><Sparkles size={19} color="#FFF" /></View>
+                <View style={styles.flex}><Text style={[styles.marketingCenterTitle, { color: colors.text }]}>Get featured near you</Text><Text style={[styles.marketingCenterHint, { color: colors.muted }]}>₹999 for 30 days · only 10 spots per PIN code</Text></View>
+                <ChevronRight size={19} color={colors.pink} />
+              </>}
+              </Pressable>
+            </View>
           ) : null}
-          {data.vendor ? <PublicProfileCard vendor={data.vendor} totalEnquiries={data.stats.totalEnquiries} /> : null}
           {data.vendor ? (
-            <Pressable
+            <View style={wideWebLayout && styles.desktopPair}>
+              <View style={wideWebLayout && styles.desktopPairItem}>
+                <PublicProfileCard vendor={data.vendor} totalEnquiries={data.stats.totalEnquiries} />
+              </View>
+              <Pressable
               onPress={() => router.push("/vendor-marketing-center")}
               accessibilityRole="button"
               accessibilityLabel="Open Marketing Center"
@@ -253,17 +298,19 @@ export default function VendorDashboard() {
                 <Text style={[styles.marketingCenterHint, { color: colors.muted }]}>Share your website, QR, and track performance</Text>
               </View>
               <ChevronRight size={19} color={colors.pink} />
-            </Pressable>
+              </Pressable>
+            </View>
           ) : null}
 
           <View
-            style={[styles.statsGrid, { backgroundColor: colors.border, borderColor: colors.border }]}
+            style={[styles.statsGrid, wideWebLayout && styles.statsGridWideWeb, { backgroundColor: colors.border, borderColor: colors.border }]}
           >
             {stats.map(({ label, value, detail, icon: Icon }) => (
               <View
                 key={label}
                 style={[
                   styles.statCard,
+                  wideWebLayout && styles.statCardWideWeb,
                   { backgroundColor: colors.background },
                 ]}
               >
@@ -371,6 +418,7 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
   scroll: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28, width: "100%", alignSelf: "center" },
   desktopScroll: { maxWidth: 1180, paddingHorizontal: 28, paddingTop: 28, paddingBottom: 52 },
+  wideWebScroll: { maxWidth: 1600, paddingHorizontal: 36 },
   flex: { flex: 1, minWidth: 0 },
   heroCard: { position: "relative", overflow: "hidden", borderWidth: 1, borderRadius: 16, padding: 20, marginBottom: 16, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.045, shadowRadius: 18, elevation: 1 },
   heroCardDesktop: { paddingHorizontal: 26, paddingVertical: 24 },
@@ -388,11 +436,30 @@ const styles = StyleSheet.create({
   retryButton: { minHeight: 36, justifyContent: "center", paddingHorizontal: 8, borderRadius: 10 },
   marketingCenterButton: { flexDirection: "row", alignItems: "center", gap: 13, borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 18, shadowColor: "#7D3D58", shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.045, shadowRadius: 18, elevation: 1 },
   marketingCenterButtonDesktop: { paddingHorizontal: 20, paddingVertical: 17 },
+  desktopPair: { flexDirection: "row", alignItems: "stretch", gap: 18 },
+  desktopPairItem: { flex: 1, minWidth: 0 },
   marketingCenterIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", shadowColor: "#ED1762", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 2 },
   marketingCenterTitle: { fontSize: typeScale.body, fontWeight: "700" },
   marketingCenterHint: { fontSize: typeScale.caption, marginTop: 2 },
+  featuredTitleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
+  featuredBadge: { minHeight: 24, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 4 },
+  featuredBadgeText: { fontSize: 10, lineHeight: 13, fontWeight: "800", letterSpacing: 0.7 },
+  premiumFeaturedInner: { position: "relative", overflow: "hidden", width: "100%", minHeight: 187, padding: 22, flexDirection: "row", alignItems: "center", gap: 15 },
+  premiumFeaturedInnerCompact: { minHeight: 167, padding: 16, gap: 13 },
+  premiumFeaturedInnerDesktop: { paddingHorizontal: 24, paddingVertical: 22 },
+  premiumGlow: { position: "absolute", width: 180, height: 180, borderRadius: 90, right: -50, top: -105 },
+  premiumIcon: { width: 86, height: 96, borderRadius: 22, alignItems: "center", justifyContent: "center", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.22, shadowRadius: 12, elevation: 3 },
+  premiumIconCompact: { width: 66, height: 74, borderRadius: 18 },
+  premiumTitle: { fontFamily: fonts.sans.bold, fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, fontWeight: "700", letterSpacing: -0.25 },
+  premiumLocation: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "800", marginTop: 5 },
+  premiumHint: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },
+  premiumDays: { minWidth: 64, borderLeftWidth: StyleSheet.hairlineWidth, paddingLeft: 14, alignItems: "center" },
+  premiumDaysValue: { fontSize: 28, lineHeight: 31, fontWeight: "800", letterSpacing: -0.8, fontVariant: ["tabular-nums"] },
+  premiumDaysLabel: { fontSize: 9, lineHeight: 12, fontWeight: "800", letterSpacing: 0.8, marginTop: 2 },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 1, marginBottom: 16, borderWidth: 1, borderRadius: 16, overflow: "hidden" },
+  statsGridWideWeb: { marginTop: 2 },
   statCard: { width: "49.8%", minHeight: 132, paddingHorizontal: 16, paddingVertical: 17 },
+  statCardWideWeb: { width: "24.8%", minHeight: 148, paddingHorizontal: 20, paddingVertical: 19 },
   statTop: { flexDirection: "row", alignItems: "center", marginBottom: 11 },
   statIcon: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   statValue: { fontSize: typeScale.pageTitle, lineHeight: typeLeading.pageTitle, fontWeight: "700", letterSpacing: -0.6, fontVariant: ["tabular-nums"] },

@@ -19,7 +19,9 @@ export const profileScreenStyles = StyleSheet.create({
     gap: 40,
     paddingBottom: 40,
   },
+  desktopColumnsTablet: { gap: 24 },
   leftColumn: { width: "30%", minWidth: 320, maxWidth: 368, gap: 18 },
+  leftColumnTablet: { width: 280, minWidth: 280 },
   rightColumn: { flex: 1, minWidth: 0, gap: 28 },
   desktopSectionColumns: {
     width: "100%",
@@ -27,6 +29,7 @@ export const profileScreenStyles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 20,
   },
+  desktopSectionColumnsTablet: { flexDirection: "column" },
   desktopSectionColumn: { flex: 1, minWidth: 0 },
   desktopTileStack: { width: "100%", gap: 16 },
   hero: {

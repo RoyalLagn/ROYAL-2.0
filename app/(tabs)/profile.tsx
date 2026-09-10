@@ -49,14 +49,16 @@ import SquareImageEditor from "@/components/vendor/SquareImageEditor";
 import Pressable from "@/components/InteropSafePressable";
 import { AccountOption, mobilePressedScale, SectionHeading } from "@/components/profile/ProfileScreenParts";
 import { profileScreenStyles as styles } from "@/components/profile/profileScreenStyles";
+import { isNativeTabletWindow, isPublicWideLayout } from "@/utils/responsiveLayout";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { session, profile, loading: authLoading, isPublicAuthenticated, refreshProfile, signOut } = usePublicAuth();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
-  const isDesktop = width >= 900;
+  const isTablet = isNativeTabletWindow(width, height);
+  const isDesktop = isPublicWideLayout(width, height) || width >= 900;
   const pagePadding = width >= 768 ? 32 : 20;
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(profile?.profile_image ?? null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -376,7 +378,7 @@ export default function ProfileScreen() {
       edges={["top", "left", "right"]}
     >
       {authLoading ? <PageLoader /> : null}
-      {!isDesktop ? (
+      {(!isDesktop || isTablet) ? (
         <View style={[styles.mobileHeader, { paddingHorizontal: pagePadding }]}>
           <View>
             <Text className="text-primary text-2xs font-bold uppercase tracking-[1.4px] mb-1">
@@ -396,7 +398,7 @@ export default function ProfileScreen() {
         ]}
       >
         <Animated.View style={[styles.pageContainer, entryAnimatedStyle]}>
-          {isDesktop ? (
+          {isDesktop && !isTablet ? (
             <View style={styles.pageIntro}>
               <Text className="text-muted-foreground text-xs font-medium mb-2">
                 Account  /  Profile
@@ -411,8 +413,8 @@ export default function ProfileScreen() {
           ) : null}
 
           {isDesktop ? (
-            <View style={styles.desktopColumns}>
-              <View style={styles.leftColumn}>
+            <View style={[styles.desktopColumns, isTablet && styles.desktopColumnsTablet]}>
+              <View style={[styles.leftColumn, isTablet && styles.leftColumnTablet]}>
                 {hero}
                 <Pressable
                   accessibilityRole="button"
@@ -426,7 +428,7 @@ export default function ProfileScreen() {
               </View>
 
               <View style={styles.rightColumn}>
-                <View style={styles.desktopSectionColumns}>
+                <View style={[styles.desktopSectionColumns, isTablet && styles.desktopSectionColumnsTablet]}>
                   <View style={styles.desktopSectionColumn}>
                     <SectionHeading eyebrow="Account" title="Account settings" />
                     <View style={styles.desktopTileStack}>

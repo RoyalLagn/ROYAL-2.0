@@ -60,6 +60,7 @@ import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { brandPalette } from "@/constants/brandPalette";
 import { buildVendorProfilePathBySlug, vendorWebBase } from "@/services/contactActions";
 import { usePublicClipsAvailability } from "@/hooks/usePublicClipsAvailability";
+import { isNativeTabletDevice, isNativeTabletWindow, isPublicWideLayout } from "@/utils/responsiveLayout";
 
 const PINK = brandPalette.light.primary;
 
@@ -88,7 +89,10 @@ export default function VendorPublicProfileScreen() {
   const dark = colorScheme === "dark";
   const router = useRouter();
   const { width, height } = useWindowDimensions();
-  const desktop = width >= 1100;
+  const tabletDevice = isNativeTabletDevice(width, height);
+  const tabletProfile = isNativeTabletWindow(width, height);
+  const tabletPortrait = tabletDevice && !tabletProfile;
+  const desktop = isPublicWideLayout(width, height);
   const mobileTabBarHeight = useMobileTabBarHeight();
   const params = useLocalSearchParams<{ slug?: string; src?: string }>();
   const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
@@ -274,8 +278,10 @@ export default function VendorPublicProfileScreen() {
     const usableHeight = Math.max(520, height - insets.top - insets.bottom);
     return desktop
       ? Math.max(420, Math.min(520, usableHeight * 0.5))
+      : tabletPortrait
+        ? Math.max(400, Math.min(460, usableHeight * 0.42))
       : Math.max(340, Math.min(500, width * 1.18, usableHeight * 0.52));
-  }, [desktop, height, insets.bottom, insets.top, width]);
+  }, [desktop, height, insets.bottom, insets.top, tabletPortrait, width]);
   const sectionCardStyle = { backgroundColor: surface, borderColor: sectionDivider };
 
   const heroImages = useMemo(
@@ -582,18 +588,19 @@ export default function VendorPublicProfileScreen() {
     }
   };
 
-  // This is the original wide-screen profile composition: the media story
-  // remains on the left and the decision-making details stay independently
-  // scrollable on the right. Keep the app/mobile path below exactly as-is.
+  // Wide web and tablet windows share the editorial split composition. Phone
+  // windows keep the original touch-first, single-column path below.
   if (desktop) {
-    const splitHeroHeight = Math.max(500, Math.min(640, height - 170));
+    const splitHeroHeight = tabletProfile
+      ? Math.max(420, Math.min(600, height - insets.top - 104))
+      : Math.max(500, Math.min(640, height - 170));
 
     return (
       <View style={[styles.root, { backgroundColor: background }]}>
-        <PublicWebNavbar activeRoute="Categories" />
+        <PublicWebNavbar activeRoute="Categories" showMobile={tabletProfile} includeSafeTop={tabletProfile} />
         <View style={[styles.desktopSplit, { borderColor: sectionDivider }]}>
-          <View style={[styles.desktopPane, styles.desktopMediaPane, styles.desktopMediaContent]}>
-            <View style={[styles.desktopHeroShell, { height: splitHeroHeight, backgroundColor: dark ? "#05070C" : "#F8EEF2" }]}>
+          <View style={[styles.desktopPane, styles.desktopMediaPane, styles.desktopMediaContent, tabletProfile && styles.tabletMediaContent]}>
+            <View style={[styles.desktopHeroShell, tabletProfile && styles.tabletHeroShell, { height: splitHeroHeight, backgroundColor: dark ? "#05070C" : "#F8EEF2" }]}>
               <VendorHeroCarousel
                 images={heroImages}
                 fallbackImage={fallbackImage}
@@ -609,7 +616,7 @@ export default function VendorPublicProfileScreen() {
 
           <ScrollView
             style={[styles.desktopPane, styles.desktopDetailsPane, { borderColor: sectionDivider }]}
-            contentContainerStyle={styles.desktopDetailsContent}
+            contentContainerStyle={[styles.desktopDetailsContent, tabletProfile && styles.tabletDetailsContent]}
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.desktopCategoryRow}>
@@ -668,6 +675,7 @@ export default function VendorPublicProfileScreen() {
         <VendorAvailabilityModal visible={calendarVisible} vendorId={vendor.id} vendorName={vendor.name} availability={vendor.availability} dark={dark} onClose={() => setCalendarVisible(false)} />
         {publicClipsEnabled === true ? <VendorClipsReelViewer visible={reelViewerIndex !== null} clips={vendorClips} initialIndex={reelViewerIndex ?? 0} vendorName={vendor.name} verified onClose={() => setReelViewerIndex(null)} /> : null}
         <DownloadAppPopup dark={dark} />
+        {tabletProfile ? <StandaloneMobileTabBar activeRoute={null} /> : null}
       </View>
     );
   }
@@ -689,7 +697,7 @@ export default function VendorPublicProfileScreen() {
             images={heroImages}
             fallbackImage={fallbackImage}
             vendorName={vendor.name}
-            containMedia={!vendor.heroMedia.length}
+            containMedia={tabletPortrait || !vendor.heroMedia.length}
             height={heroHeight}
             focalPoints={heroFocalPoints}
             paused={heroViewerIndex !== null || calendarVisible || packagesVisible || enquiryOpen || Boolean(enquiryPackage)}
@@ -820,6 +828,8 @@ const styles = StyleSheet.create({
   desktopDetailsPane: { flexBasis: "60%", borderLeftWidth: StyleSheet.hairlineWidth },
   desktopMediaContent: { paddingHorizontal: 32, paddingTop: 32, paddingBottom: 64 },
   desktopDetailsContent: { paddingHorizontal: 40, paddingTop: 34, paddingBottom: 64 },
+  tabletMediaContent: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40 },
+  tabletDetailsContent: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40 },
   desktopHeroShell: {
     width: "100%",
     borderRadius: 16,
@@ -830,6 +840,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 3,
   },
+  tabletHeroShell: { borderRadius: 14 },
   desktopProfileMedia: { marginTop: 22 },
   desktopCategoryRow: { width: "100%", flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 12 },
   desktopCategory: { color: PINK, fontFamily: typeStyles.button.fontFamily, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, letterSpacing: 0.45 },

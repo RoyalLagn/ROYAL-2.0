@@ -16,6 +16,7 @@ import PublicWebNavbar from "@/components/PublicWebNavbar";
 import { useMobileTabBarHeight } from "@/components/MobileTabBar";
 import { buildVendorListingPath } from "@/services/publicSeoRoutes";
 import { discoveryLayout } from "@/constants/discoveryLayout";
+import { isPublicWideLayout } from "@/utils/responsiveLayout";
 
 const INITIAL_ANIMATED_CARDS = 6;
 const SKELETON_DELAY_MS = 200;
@@ -99,11 +100,12 @@ export default function CategoriesScreen() {
   const entranceStarted = useRef(false);
   const entrance = useSharedValue(0);
   const { searchCategories: liveCategories, loading } = useCategories();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const mobileTabBarHeight = useMobileTabBarHeight();
-  const isDesktop = screenWidth >= 1100;
-  const horizontalInset = isDesktop ? 32 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 24;
-  const twoColumns = screenWidth >= 900;
+  const isDesktopWeb = Platform.OS === "web" && screenWidth >= 1100;
+  const wideLayout = isPublicWideLayout(screenWidth, screenHeight);
+  const horizontalInset = wideLayout ? (isDesktopWeb ? 32 : 24) : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 24;
+  const twoColumns = wideLayout || screenWidth >= 900;
   const compactCards = screenWidth < 600;
   const contentWidth = Math.min(screenWidth - horizontalInset * 2, 1240);
   const cardWidth = twoColumns ? (contentWidth - 16) / 2 : contentWidth;
@@ -229,7 +231,7 @@ export default function CategoriesScreen() {
   return (
     <SafeAreaView style={[s.root, { backgroundColor: bg }]} edges={["top", "left", "right"]}>
       {loading && !categories.length ? <PageLoader /> : null}
-      {!isDesktop ? <PublicWebNavbar activeRoute="Categories" /> : null}
+      {!isDesktopWeb ? <PublicWebNavbar activeRoute="Categories" /> : null}
       <FlatList
         key={twoColumns ? "category-grid-2" : "category-grid-1"}
         data={entries}
@@ -244,7 +246,7 @@ export default function CategoriesScreen() {
         initialNumToRender={INITIAL_ANIMATED_CARDS}
         maxToRenderPerBatch={8}
         windowSize={7}
-        removeClippedSubviews={!isDesktop}
+        removeClippedSubviews={!wideLayout}
         contentContainerStyle={[
           s.list,
           {

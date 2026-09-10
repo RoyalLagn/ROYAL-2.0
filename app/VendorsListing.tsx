@@ -41,6 +41,7 @@ import { fetchLocationRankedVendors } from "@/services/vendorDiscovery";
 import { buildVendorListingPath, buildVendorProfilePathBySlug, displayLocationFromSlug } from "@/services/publicSeoRoutes";
 import { vendorWebBase } from "@/services/contactActions";
 import { discoveryLayout } from "@/constants/discoveryLayout";
+import { isPublicWideLayout } from "@/utils/responsiveLayout";
 
 const LOCATION_PAGE_SIZE = 20;
 
@@ -108,7 +109,7 @@ export default function VendorsListingScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const params = useLocalSearchParams<{ category?: string; location?: string; query?: string }>();
   const { favorites, isFavorite, toggleFavorite } = useFavorites();
   const { getRating } = useReviewRatings();
@@ -366,17 +367,18 @@ export default function VendorsListingScreen() {
     fetchLocationPage(false);
   }, [fetchLocationPage, locationActive, locationHasMore, locationLoading]);
 
-  const compact = width < 720;
-  const desktop = width >= 1100;
-  const gridColumns = Platform.OS === "web" && desktop
+  const desktopWeb = Platform.OS === "web" && width >= 1100;
+  const wideLayout = isPublicWideLayout(width, height);
+  const compact = !wideLayout && width < 720;
+  const gridColumns = wideLayout
     ? discoveryLayout.webGridColumns
     : discoveryLayout.mobileGridColumns;
-  const pageGutter = Platform.OS === "web" && desktop
-    ? discoveryLayout.webPageGutter
+  const pageGutter = wideLayout
+    ? desktopWeb ? discoveryLayout.webPageGutter : 48
     : width < 380 ? 24 : width < 768 ? 32 : 48;
   const contentWidth = Math.min(
     width - pageGutter,
-    Platform.OS === "web" && desktop ? discoveryLayout.webContentMaxWidth : 960,
+    wideLayout ? discoveryLayout.webContentMaxWidth : 960,
   );
   const gridCardWidth = Math.max(
     discoveryLayout.gridMinCardWidth,
@@ -591,7 +593,7 @@ export default function VendorsListingScreen() {
     if (item.kind === "summary") {
       return (
         <HomeReveal delay={95}>
-          <ResultsSummary count={visibleVendorCount} category={displayCategory} sortLabel={sortLabel} dark={isDark} onSort={() => openFilters("sort")} showSort={!desktop} hasMore={talukaActive && locationHasMore} />
+          <ResultsSummary count={visibleVendorCount} category={displayCategory} sortLabel={sortLabel} dark={isDark} onSort={() => openFilters("sort")} showSort={!wideLayout} hasMore={talukaActive && locationHasMore} />
         </HomeReveal>
       );
     }
@@ -677,7 +679,7 @@ export default function VendorsListingScreen() {
         {renderVendor(vendor)}
       </HomeReveal>
     );
-  }, [isDark, compact, desktop, isFavorite, fallbackImage, router, toggleVendorFavorite, border, muted, visibleVendorCount, displayCategory, sortLabel, talukaActive, locationHasMore, vendorsLoading, locationActive, locationLoading, locationCards.length, vendorsError, locationError, colors, text, fetchLocationPage, loadVendors, hasSearchOrFilterRefinement, navbarLocationLabel, clearSearchAndFilters, gridCardWidth]);
+  }, [isDark, compact, wideLayout, isFavorite, fallbackImage, router, toggleVendorFavorite, border, muted, visibleVendorCount, displayCategory, sortLabel, talukaActive, locationHasMore, vendorsLoading, locationActive, locationLoading, locationCards.length, vendorsError, locationError, colors, text, fetchLocationPage, loadVendors, hasSearchOrFilterRefinement, navbarLocationLabel, clearSearchAndFilters, gridCardWidth]);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: background }]} edges={["top", "left", "right"]}>
@@ -763,7 +765,7 @@ export default function VendorsListingScreen() {
         decelerationRate="fast"
         keyboardShouldPersistTaps="handled"
         style={styles.scroll}
-        contentContainerStyle={[styles.list, { width: contentWidth, paddingBottom: desktop ? 44 : 112 }]}
+        contentContainerStyle={[styles.list, { width: contentWidth, paddingBottom: desktopWeb ? 44 : 112 }]}
         stickySectionHeadersEnabled
         initialNumToRender={6}
         maxToRenderPerBatch={8}
@@ -776,7 +778,7 @@ export default function VendorsListingScreen() {
         ) : null}
       />
 
-      {!desktop ? <StandaloneMobileTabBar activeRoute="Categories" /> : null}
+      {!desktopWeb ? <StandaloneMobileTabBar activeRoute="Categories" /> : null}
 
       <ListingFilterModal
         visible={filtersVisible}

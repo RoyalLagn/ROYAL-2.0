@@ -26,7 +26,7 @@ import { shareRoyalLagnApp } from "@/services/AppShareService";
 import { useCategories } from "@/context/CategoryContext";
 import { VendorCardSkeletonRow } from "@/components/loading/Skeleton";
 import PageLoader from "@/components/loading/PageLoader";
-import { BREAKPOINTS } from "@/utils/responsiveLayout";
+import { BREAKPOINTS, isPublicWideLayout } from "@/utils/responsiveLayout";
 import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
 import Animated, {
@@ -101,32 +101,33 @@ export default function HomeScreen() {
   const handleHomeScroll = useAnimatedScrollHandler((event) => {
     homeScrollY.value = event.contentOffset.y;
   });
-  const isDesktop = screenWidth >= 1100;
-  const categories = isDesktop ? allCategories.slice(0, 15) : homeCategories;
-  const horizontalInset = isDesktop ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
+  const isDesktopWeb = Platform.OS === "web" && screenWidth >= 1100;
+  const wideLayout = isPublicWideLayout(screenWidth, viewportHeight);
+  const categories = wideLayout ? allCategories.slice(0, 15) : homeCategories;
+  const horizontalInset = wideLayout ? 24 : screenWidth < 380 ? 14 : screenWidth < 480 ? 18 : 20;
   const featureWidth = Math.min(screenWidth - horizontalInset * 2, 1280);
   const headerSideWidth = screenWidth < BREAKPOINTS.normalPhone ? 96 : 108;
   const headerLogoWidth = Math.max(96, Math.min(176, featureWidth - headerSideWidth * 2));
   const categoryColumns = 5;
-  const categoryGap = isDesktop ? 28 : screenWidth >= 600 ? 10 : 6;
+  const categoryGap = wideLayout ? 28 : screenWidth >= 600 ? 10 : 6;
   const availableCategoryWidth = Math.floor((featureWidth - categoryGap * (categoryColumns - 1)) / categoryColumns);
   const categoryItemWidth = availableCategoryWidth;
-  const categoryCardInset = isDesktop ? Math.max(20, availableCategoryWidth - 184) : screenWidth >= 600 ? 14 : 3;
+  const categoryCardInset = wideLayout ? Math.max(20, availableCategoryWidth - 184) : screenWidth >= 600 ? 14 : 3;
   const categoryCardWidth = Math.max(44, categoryItemWidth - categoryCardInset);
   const vendorCardGap = screenWidth >= BREAKPOINTS.smallTablet ? 14 : 12;
-  const vendorCardWidth = isDesktop
+  const vendorCardWidth = wideLayout
     ? 360
     : screenWidth >= 600
       ? 260
       : Math.max(130, (featureWidth - vendorCardGap) / 2);
   const vendorImageHeight = Math.round(vendorCardWidth);
   const listBannerHeight = Math.min(Math.round(featureWidth * (887 / 1774)), 220);
-  const sectionSpacing = isDesktop ? 48 : screenWidth >= 600 ? 42 : 36;
-  const compactSectionSpacing = isDesktop ? 40 : screenWidth >= 600 ? 36 : 30;
+  const sectionSpacing = wideLayout ? 48 : screenWidth >= 600 ? 42 : 36;
+  const compactSectionSpacing = wideLayout ? 40 : screenWidth >= 600 ? 36 : 30;
 
   useEffect(() => {
     setShowAllCategories(false);
-  }, [isDesktop]);
+  }, [wideLayout]);
 
   // Tablet + desktop: text/search left, 16:9 image right (image column larger).
   // Image drives height via aspect-ratio — left panel stretches to match, never
@@ -293,7 +294,7 @@ export default function HomeScreen() {
 
       {/* Keep the mobile app bar outside the scroll view. Android can
           mis-measure a sticky scroll child during its first layout pass. */}
-      {!isDesktop ? (
+      {!isDesktopWeb ? (
         <HomeReveal direction="down" style={[s.header, { width: featureWidth, backgroundColor: bg }]}>
           <View style={[s.nearMeHeader, { width: headerSideWidth }]}>
             <LocationSelector dark={isDark} compact homeHeader />
@@ -350,7 +351,7 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
         contentContainerStyle={[
           s.scroll,
-          { paddingBottom: Platform.OS === "web" ? (isDesktop ? 32 : 16) : 110, backgroundColor: bg },
+          { paddingBottom: Platform.OS === "web" ? (wideLayout ? 32 : 16) : 110, backgroundColor: bg },
         ]}
       >
         {!searchQueryActive ? (isHeroSplit ? (
@@ -364,8 +365,8 @@ export default function HomeScreen() {
                 borderColor: heroBorder,
                 backgroundColor: card,
                 // Breathing room from the web navbar above and Top Categories below.
-                marginTop: isDesktop ? 28 : 18,
-                marginBottom: isDesktop ? 40 : 30,
+                marginTop: wideLayout ? 28 : 18,
+                marginBottom: wideLayout ? 40 : 30,
               },
             ]}
           >
@@ -384,7 +385,7 @@ export default function HomeScreen() {
               <Text style={[s.greetingText, { color: muted }]}>
                 {greeting}, {firstName} 👋
               </Text>
-              <Text style={[s.greetingTitle, isDesktop && s.greetingTitleDesktop, { color: text }]}>
+              <Text style={[s.greetingTitle, wideLayout && s.greetingTitleDesktop, { color: text }]}>
                 Find your <Text style={[s.greetingAccent, { color: PINK }]}>perfect</Text>{"\n"}wedding team
               </Text>
               <Text style={[s.heroSplitDescription, { color: muted }]}>
@@ -493,7 +494,7 @@ export default function HomeScreen() {
               s.searchHero,
               {
                 width: featureWidth,
-                marginTop: isDesktop ? 28 : 6,
+                marginTop: wideLayout ? 28 : 6,
                 backgroundColor: card,
                 borderColor: heroBorder,
               },
@@ -602,7 +603,7 @@ export default function HomeScreen() {
             onActionPress={() => router.push("/(tabs)/Categories")}
           />
 
-          <View style={[s.catGrid, { columnGap: categoryGap, rowGap: isDesktop ? 34 : categoryGap }]}>
+          <View style={[s.catGrid, { columnGap: categoryGap, rowGap: wideLayout ? 34 : categoryGap }]}>
             {displayedCategories.map((cat, index) => (
               <HomeCategoryCard
                 key={cat.id}
@@ -611,7 +612,7 @@ export default function HomeScreen() {
                 itemWidth={categoryItemWidth}
                 cardWidth={categoryCardWidth}
                 dark={isDark}
-                desktop={isDesktop}
+                desktop={wideLayout}
                 animateEntrance={showAllCategories && index >= PRIMARY_CATEGORY_COUNT}
                 entranceDelay={Math.min(
                   Math.max(0, index - PRIMARY_CATEGORY_COUNT) * MotionStagger.item,
@@ -717,7 +718,7 @@ export default function HomeScreen() {
           {vendorsLoading || customerLocationLoading ? (
             <View style={s.vendorScroll}>
               <VendorCardSkeletonRow
-                count={isDesktop ? 4 : 3}
+                count={wideLayout ? 4 : 3}
                 width={vendorCardWidth}
                 imageHeight={vendorImageHeight}
               />
@@ -779,7 +780,7 @@ export default function HomeScreen() {
           {vendorsLoading ? (
             <View style={s.vendorScroll}>
               <VendorCardSkeletonRow
-                count={isDesktop ? 4 : 3}
+                count={wideLayout ? 4 : 3}
                 width={vendorCardWidth}
                 imageHeight={vendorImageHeight}
               />

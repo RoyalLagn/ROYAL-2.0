@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { ImageBackground, Linking, Modal, Platform, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { X } from "lucide-react-native";
 
-const CARD_ART = require("@/assets/images/download-app-card.png");
+const CARD_ART = require("@/assets/images/download-app-card-clean.png");
 const CARD_ASPECT_RATIO = 1072 / 1467;
 const PLAY_STORE_URL = process.env.EXPO_PUBLIC_PLAY_STORE_URL?.trim()
   || "https://play.google.com/store/apps/details?id=com.royallagn.app";
@@ -22,10 +23,10 @@ function ActionOverlay({ accessibilityLabel, onPress, style }: ActionOverlayProp
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={({ hovered, focused, pressed }) => [
+      style={({ hovered, pressed }) => [
         styles.actionOverlay,
         style,
-        (hovered || focused) && styles.actionOverlayActive,
+        hovered && styles.actionOverlayActive,
         pressed && styles.actionOverlayPressed,
       ]}
     />
@@ -88,7 +89,19 @@ export default function DownloadAppPopup({ dark: _dark }: { dark: boolean }) {
           imageStyle={styles.cardImage}
           accessibilityLabel="Download the RoyalLagn app"
         >
-          <ActionOverlay accessibilityLabel="Close app download reminder" onPress={dismissForTwoHours} style={styles.closeButton} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close app download reminder"
+            hitSlop={8}
+            onPress={dismissForTwoHours}
+            style={({ hovered, pressed }) => [
+              styles.closeButton,
+              hovered && styles.closeButtonActive,
+              pressed && styles.closeButtonPressed,
+            ]}
+          >
+            <X size={22} strokeWidth={2.5} color="#B51D4D" />
+          </Pressable>
           <ActionOverlay accessibilityLabel="Download RoyalLagn on Google Play" onPress={() => void openStore(PLAY_STORE_URL)} style={styles.playStoreButton} />
           <ActionOverlay accessibilityLabel="Download RoyalLagn on the App Store" onPress={() => void openStore(APP_STORE_URL)} style={styles.appStoreButton} />
           <ActionOverlay accessibilityLabel="Continue on web" onPress={dismissForTwoHours} style={styles.continueButton} />
@@ -121,7 +134,19 @@ const styles = StyleSheet.create({
     outlineWidth: 3,
   },
   actionOverlayPressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
-  closeButton: { top: "2.4%", right: "3.3%", width: "11.5%", aspectRatio: 1 },
+  closeButton: {
+    position: "absolute",
+    top: "3.7%",
+    right: "4.8%",
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
+  closeButtonActive: { backgroundColor: "rgba(255, 255, 255, 0.24)" },
+  closeButtonPressed: { opacity: 0.72, transform: [{ scale: 0.92 }] },
   playStoreButton: { top: "50.2%", left: "17.3%", width: "65.8%", height: "8.8%" },
   appStoreButton: { top: "60.6%", left: "17.3%", width: "65.8%", height: "8.8%" },
   continueButton: { top: "71.1%", left: "35.2%", width: "29.6%", height: "5.4%" },

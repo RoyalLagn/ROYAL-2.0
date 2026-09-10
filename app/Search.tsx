@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -56,6 +57,7 @@ import {
   validateGeoSelection,
 } from "@/services/geoLocations";
 import { listFeaturedVendorIdsForPincode, subscribeToFeaturedPlacements } from "@/services/featuredVendorPlacements";
+import { isPublicWideLayout } from "@/utils/responsiveLayout";
 
 const GLOBAL_PAGES = [
   { label: "Categories", detail: "Browse every wedding service", keywords: "categories services vendors browse", route: "/(tabs)/Categories" as const },
@@ -79,7 +81,7 @@ export default function SearchScreen() {
   const router = useRouter();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { getRating } = useReviewRatings();
   const { searchCategories } = useCategories();
   const { preference, location: customerLocation } = useCustomerLocation();
@@ -360,11 +362,11 @@ export default function SearchScreen() {
 
   const activeFilterCount = [filters.minimumRating > 0, filters.maximumBudget > 0, Boolean(filters.category), filters.availabilityOnly, filters.nearbyOnly, filters.sort !== "recommended"].filter(Boolean).length;
   const locationLabel = geoTalukaName || customerLocation || "Choose location";
-  const compact = width < 700;
-  const desktop = width >= 900;
-  const horizontalInset = desktop ? discoveryLayout.webPageGutter : width < 380 ? 14 : width < 600 ? 16 : 24;
+  const wideLayout = isPublicWideLayout(width, height) || width >= 900;
+  const compact = !wideLayout && width < 700;
+  const horizontalInset = wideLayout ? (Platform.OS === "web" ? discoveryLayout.webPageGutter : 24) : width < 380 ? 14 : width < 600 ? 16 : 24;
   const contentWidth = Math.min(width - horizontalInset * 2, discoveryLayout.webContentMaxWidth);
-  const gridColumns = desktop ? discoveryLayout.webGridColumns : discoveryLayout.mobileGridColumns;
+  const gridColumns = wideLayout ? discoveryLayout.webGridColumns : discoveryLayout.mobileGridColumns;
   const gridCardWidth = Math.floor((contentWidth - discoveryLayout.gridGap * (gridColumns - 1)) / gridColumns);
   const listingTitle = featuredOnly
     ? "Featured Near You"

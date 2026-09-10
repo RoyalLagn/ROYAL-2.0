@@ -1,17 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronLeft, ChevronRight, CircleCheck, Clock3, LockKeyhole, Save } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Save } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
 import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
-// The Tentative/Blocked controls use a function `style={(state) => [...]}`
-// prop (to react to `pressed`). NativeWind's native Pressable interop does
-// not resolve that render-prop form on Android -- the whole style silently
-// drops (children still render), which is why those controls showed as
-// bare icon+text with no visible pill. InteropSafePressable (already used
-// elsewhere in the app for the same reason) resolves the callback style
-// itself before handing a plain style to the underlying Pressable.
 import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
@@ -42,10 +35,6 @@ const validTime = (value: string) => {
 
 const cleanTime = (value: string) => value.replace(/[^0-9:]/g, "").slice(0, 5);
 
-const statuses = [
-  { id: "tentative", label: "Tentative", icon: Clock3 },
-  { id: "blocked", label: "Blocked", icon: LockKeyhole },
-] as const;
 const statusColors: Record<AvailabilityStatus, { background: string; text: string }> = {
   available: { background: "#16A34A", text: "#FFFFFF" },
   tentative: { background: "#FACC15", text: "#3C2A00" },
@@ -53,10 +42,9 @@ const statusColors: Record<AvailabilityStatus, { background: string; text: strin
 };
 const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
-const STATUS_GAP = 8;
-
 export default function VendorCalendar() {
   const { width } = useWindowDimensions();
+  const wideWebLayout = Platform.OS === "web" && width >= 1180;
   const compactHours = width < 560;
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
@@ -69,17 +57,13 @@ export default function VendorCalendar() {
   // with percentage widths inside `flexWrap` (the day grid), and (2) on
   // some Expo Go/Android runtimes `useWindowDimensions()` does not reliably
   // reflect the actual rendered content width at mount time, which silently
-  // produced a near-zero/invalid computed width for the Tentative/Blocked
-  // buttons and made them collapse to their unstyled intrinsic content
-  // size. Measuring the real row width directly with onLayout sidesteps
-  // both: it's always the true available space, regardless of window
-  // timing or Yoga's aspectRatio resolution order.
+  // produced a near-zero/invalid computed width for calendar cells.
+  // Measuring the real grid width directly with onLayout sidesteps both:
+  // it is always the true available space, regardless of window timing or
+  // Yoga's aspectRatio resolution order.
   const [calendarGridWidth, setCalendarGridWidth] = useState(0);
-  const [statusRowWidth, setStatusRowWidth] = useState(0);
   const cellSize = calendarGridWidth ? Math.floor(calendarGridWidth / 7) : 0;
-  const statusButtonWidth = statusRowWidth ? Math.floor((statusRowWidth - STATUS_GAP) / 2) : 0;
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [selected, setSelected] = useState(() => iso(new Date()));
   const [savedStatuses, setSavedStatuses] = useState<Record<string, AvailabilityStatus>>({});
   const [bookingBlockedDates, setBookingBlockedDates] = useState<Set<string>>(new Set());
   const [savingStatus, setSavingStatus] = useState<AvailabilityStatus | null>(null);
@@ -188,23 +172,23 @@ export default function VendorCalendar() {
     if (bookingBlockedDates.has(date)) return "blocked";
     return savedStatuses[date] ?? "available";
   };
-  const update = async (status: AvailabilityStatus) => {
-    if (selected < today) {
+  const update = async (status: AvailabilityStatus, date: string) => {
+    if (date < today) {
       return Alert.alert("Past date is locked", "Availability records for past dates are read-only and cannot be changed.");
     }
     if (!data.vendor?.id) return Alert.alert("Vendor profile required", "Connect a vendor profile before changing availability.");
     if (savingStatus) return;
-    const previousStatus = savedStatuses[selected];
+    const previousStatus = savedStatuses[date];
     setSavedStatuses((current) => {
       const next = { ...current };
-      if (status === "available") delete next[selected];
-      else next[selected] = status;
+      if (status === "available") delete next[date];
+      else next[date] = status;
       return next;
     });
     setSavingStatus(status);
     let error: unknown = null;
     try {
-      await setVendorAvailabilityException(data.vendor.id, selected, status);
+      await setVendorAvailabilityException(data.vendor.id, date, status);
     } catch (caught) {
       error = caught;
     }
@@ -212,8 +196,8 @@ export default function VendorCalendar() {
     if (error) {
       setSavedStatuses((current) => {
         const next = { ...current };
-        if (previousStatus) next[selected] = previousStatus;
-        else delete next[selected];
+        if (previousStatus) next[date] = previousStatus;
+        else delete next[date];
         return next;
       });
       Alert.alert("Availability not saved", error instanceof Error ? error.message : "Please try again.");
@@ -222,24 +206,29 @@ export default function VendorCalendar() {
     void refresh();
     showSuccess(
       status === "available"
-        ? bookingBlockedDates.has(selected)
-          ? `${selected} still has a confirmed booking and remains blocked.`
-          : `${selected} is available by default.`
-        : `${selected} is now ${status}.`,
+        ? bookingBlockedDates.has(date)
+          ? `${date} still has a confirmed booking and remains blocked.`
+          : `${date} is available by default.`
+        : `${date} is now booked.`,
     );
+  };
+  const toggleBookedDate = (date: string) => {
+    if (bookingBlockedDates.has(date)) return;
+    void update(dateStatus(date) === "blocked" ? "available" : "blocked", date);
   };
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
     <KeyboardAwareScrollView
-      contentContainerStyle={[styles.content, { paddingBottom: 24 + Math.max(insets.bottom, 8) + VENDOR_TAB_BASE_HEIGHT + 16 }]}
+      contentContainerStyle={[styles.content, wideWebLayout && styles.wideWebContent, { paddingBottom: 24 + Math.max(insets.bottom, 8) + VENDOR_TAB_BASE_HEIGHT + 16 }]}
       showsVerticalScrollIndicator={false}
       decelerationRate="fast"
     >
       <VendorDashboardReveal>
       <Text style={[styles.eyebrow, { color: colors.pink }]}>PLAN WITH CLARITY</Text>
       <Text style={[styles.title, { color: colors.text }]}>Availability</Text>
-      <Text style={[styles.subtitle, { color: colors.muted }]}>Keep customer expectations accurate with an up-to-date working calendar.</Text>
-      <View style={[styles.calendar, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+      <Text style={[styles.subtitle, { color: colors.muted }]}>Tap a future date to mark it booked. Tap it again to make it available.</Text>
+      <View style={wideWebLayout && styles.workspaceWide}>
+      <View style={[styles.calendar, wideWebLayout && styles.wideWebPanel, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
         <View style={styles.monthRow}>
           <Pressable
             accessibilityRole="button"
@@ -270,30 +259,25 @@ export default function VendorCalendar() {
             if (!date) return <View key={`blank${index}`} style={[styles.day, cellSize ? { width: cellSize, height: cellSize } : null]} />;
             const value = iso(date);
             const status = dateStatus(value);
-            const active = value === selected;
             const past = value < today;
             const palette = status ? statusColors[status] : null;
             const backgroundColor = past
               ? colorScheme === "dark" ? "#292C33" : "#E8E8EC"
-              : palette?.background ?? (active ? colors.pink : "transparent");
+              : palette?.background ?? "transparent";
             const dateColor = past
               ? colorScheme === "dark" ? "#747982" : "#9A9AA1"
-              : palette?.text ?? (active ? "#FFFFFF" : colors.text);
+              : palette?.text ?? colors.text;
             return <Pressable
               key={value}
-              disabled={past}
-              accessibilityLabel={`${date.toLocaleDateString()}${past ? ", past date, locked" : status ? `, ${status}` : ""}`}
-              accessibilityState={{ disabled: past, selected: active }}
-              onPress={() => setSelected(value)}
+              accessibilityLabel={`${date.toLocaleDateString()}${past ? ", past date, locked" : status === "blocked" ? ", booked, tap to make available" : ", available, tap to mark booked"}`}
+              accessibilityState={{ disabled: past || savingStatus !== null, selected: status === "blocked", busy: savingStatus !== null }}
+              disabled={past || savingStatus !== null}
+              onPress={() => toggleBookedDate(value)}
               style={({ pressed, hovered, focused }) => [
                 styles.day,
                 cellSize ? { width: cellSize, height: cellSize } : null,
                 { backgroundColor },
                 past && styles.pastDay,
-                active && !past && {
-                  borderWidth: 2,
-                  borderColor: status === "tentative" ? "#6F5100" : "#FFFFFF",
-                },
                 !past && (hovered || focused) && styles.dayHover,
                 !past && pressed && styles.dayPressed,
               ]}
@@ -303,47 +287,12 @@ export default function VendorCalendar() {
           })}
         </View>
         <View style={styles.legend}>
-          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: statusColors.available.background }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Available</Text></View>
-          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: statusColors.tentative.background }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Tentative</Text></View>
-          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: statusColors.blocked.background }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Blocked</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: colors.surfaceSoft, borderColor: colors.border, borderWidth: StyleSheet.hairlineWidth }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Available</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: statusColors.blocked.background }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Booked</Text></View>
           <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: colorScheme === "dark" ? "#292C33" : "#E8E8EC" }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Past · locked</Text></View>
         </View>
       </View>
-      <View style={[styles.editor, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
-        <Text style={[styles.editorTitle, { color: colors.text }]}>{new Date(`${selected}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</Text>
-        <Text style={[styles.subtitle, { color: colors.muted }]}>Future dates are available automatically. Add an exception only when needed.</Text>
-        <View onLayout={(event) => setStatusRowWidth(event.nativeEvent.layout.width)} style={styles.statusGrid}>{statuses.map(({ id, label, icon: Icon }) => {
-          const active = dateStatus(selected) === id;
-          const palette = statusColors[id];
-          return <Pressable key={id} accessibilityRole="radio" accessibilityLabel={`Set availability to ${label}`} accessibilityState={{ checked: active, disabled: savingStatus !== null || selected < today, busy: savingStatus === id }} disabled={savingStatus !== null || selected < today} onPress={() => update(id)} style={({ pressed, hovered, focused }) => [styles.status, statusButtonWidth ? { width: statusButtonWidth } : null, { backgroundColor: active ? palette.background : colors.background, borderColor: active ? palette.background : colors.border }, (hovered || focused) && styles.hoverLift, selected < today && styles.statusDisabled, pressed && styles.pressed]}>
-            {savingStatus === id
-              ? <ActivityIndicator size="small" color={active ? palette.text : colors.pink} />
-              : <Icon size={19} color={active ? palette.text : colors.muted} />}
-            <Text numberOfLines={1} style={{ flexShrink: 1, color: active ? palette.text : colors.text, fontSize: typeScale.metadata, fontWeight: "700" }}>{label}</Text>
-          </Pressable>;
-        })}</View>
-        {selected >= today && savedStatuses[selected] ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Remove exception and mark date available"
-            accessibilityState={{ disabled: savingStatus !== null, busy: savingStatus === "available" }}
-            disabled={savingStatus !== null}
-            onPress={() => update("available")}
-            style={[styles.markAvailable, { borderColor: statusColors.available.background }]}
-          >
-            {savingStatus === "available"
-              ? <ActivityIndicator size="small" color={statusColors.available.background} />
-              : <CircleCheck size={18} color={statusColors.available.background} />}
-            <Text style={[styles.markAvailableText, { color: statusColors.available.background }]}>Mark Available</Text>
-          </Pressable>
-        ) : null}
-        {selected < today ? <View style={[styles.lockNotice, { backgroundColor: colors.surfaceSoft }]}>
-          <LockKeyhole size={16} color={colors.muted} />
-          <Text style={[styles.lockText, { color: colors.muted }]}>Past availability is read-only and cannot be changed.</Text>
-        </View> : null}
-      </View>
-
-      <View style={[styles.editor, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+      <View style={[styles.editor, wideWebLayout && styles.wideWebPanel, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
         <Text style={[styles.editorTitle, { color: colors.text }]}>Weekly working hours</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>All days are available by default. Turn off only the days your business is regularly closed.</Text>
         <View style={styles.hoursList}>
@@ -401,6 +350,7 @@ export default function VendorCalendar() {
           </Pressable>
         </View>
       </View>
+      </View>
       </VendorDashboardReveal>
     </KeyboardAwareScrollView>
   </View>;
@@ -430,16 +380,16 @@ function AvailabilityToggle({ entry, colors, onChange }: {
 
 const styles = StyleSheet.create({
   page: { flex: 1 }, content: { padding: 16, paddingTop: 20, paddingBottom: 24, width: "100%", maxWidth: 780, alignSelf: "center" },
+  wideWebContent: { maxWidth: 1120, paddingHorizontal: 28, paddingTop: 28 },
   eyebrow: { ...typeStyles.caption, letterSpacing: 1.1, marginBottom: 5 }, title: { ...typeStyles.pageTitle },
   subtitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 4 }, calendar: { borderWidth: 1, borderRadius: 16, padding: 15, marginTop: 20, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .05, shadowRadius: 18, elevation: 2 },
+  workspaceWide: { flexDirection: "row", alignItems: "flex-start", gap: 18, marginTop: 20 }, wideWebPanel: { flex: 1, minWidth: 0, marginTop: 0 },
   monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }, month: { fontSize: typeScale.cardTitle, fontWeight: "700" }, arrow: { width: interactionTokens.minimumTouchTarget, height: interactionTokens.minimumTouchTarget, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap" }, weekday: { width: "14.285%", textAlign: "center", fontSize: typeScale.caption, fontWeight: "700", paddingVertical: 8 },
   day: { width: "14.285%", borderRadius: 12, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] }, dayText: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" }, pastDay: { opacity: .6 }, dayHover: { transform: [{ scale: .95 }] }, dayPressed: { transform: [{ scale: .89 }], opacity: .9 },
   legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13, paddingTop: 16 }, legendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, legendSwatch: { width: 10, height: 10, borderRadius: 3 }, legendText: { fontSize: typeScale.caption, fontWeight: "700" },
   editor: { borderWidth: 1, borderRadius: 16, padding: 16, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .045, shadowRadius: 16, elevation: 1 }, editorTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
-  statusGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 }, status: { flex: 1, minWidth: 120, minHeight: 68, borderWidth: 1, borderRadius: 15, alignItems: "center", justifyContent: "center", gap: 7 }, statusDisabled: { opacity: .45 }, hoverLift: { transform: [{ translateY: -1 }] }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
-  markAvailable: { minHeight: 48, borderWidth: 1, borderRadius: 14, marginTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
-  markAvailableText: { fontSize: typeScale.metadata, fontWeight: "700" },
+  hoverLift: { transform: [{ translateY: -1 }] }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
   hoursList: { marginTop: 14, gap: 4 },
   hourRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth },
   hourRowCompact: { alignItems: "stretch", flexDirection: "column", gap: 9 },
@@ -459,5 +409,4 @@ const styles = StyleSheet.create({
   hoursSave: { minHeight: interactionTokens.minimumTouchTarget, minWidth: 118, borderRadius: 13, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   hoursSaveText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
   disabled: { opacity: .6 },
-  lockNotice: { minHeight: 44, borderRadius: 14, marginTop: 12, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 }, lockText: { flex: 1, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
 });

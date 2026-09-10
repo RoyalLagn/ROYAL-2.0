@@ -1,5 +1,6 @@
 import type { Breakpoint, ResponsiveLayout } from "@/types/responsive";
 import { typeScale } from "@/constants/typography";
+import { Platform } from "react-native";
 
 export const BREAKPOINTS = {
   smallPhone: 360,
@@ -10,6 +11,25 @@ export const BREAKPOINTS = {
   largeDesktop: 1440,
   ultrawide: 1920,
 } as const;
+
+/**
+ * Public discovery pages use their wide editorial composition on desktop web
+ * and on genuine native tablet windows. Requiring a 600dp short edge keeps a
+ * rotated phone on the existing phone layout.
+ */
+export function isNativeTabletDevice(width: number, height: number) {
+  return Platform.OS !== "web" && Math.min(width, height) >= 600;
+}
+
+export function isNativeTabletWindow(width: number, height: number) {
+  return isNativeTabletDevice(width, height) && width >= BREAKPOINTS.smallTablet;
+}
+
+export function isPublicWideLayout(width: number, height: number) {
+  return Platform.OS === "web"
+    ? width >= 1100
+    : isNativeTabletWindow(width, height);
+}
 
 export function breakpointFor(width: number): Breakpoint {
   if (width < BREAKPOINTS.smallPhone) return "xs";

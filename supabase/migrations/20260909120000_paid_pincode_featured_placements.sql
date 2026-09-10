@@ -48,6 +48,8 @@ alter table public.featured_vendor_payments enable row level security;
 -- privileges in addition to RLS. Writes remain RPC/service-role only.
 grant select on table public.featured_vendor_placements to anon, authenticated;
 grant select on table public.featured_vendor_payments to authenticated;
+grant select, update on table public.featured_vendor_placements to service_role;
+grant select, insert, update on table public.featured_vendor_payments to service_role;
 
 create policy featured_placements_vendor_read on public.featured_vendor_placements for select to authenticated
 using (vendor_id in (select id from public.vendors where profile_id = auth.uid()) or private.is_admin());

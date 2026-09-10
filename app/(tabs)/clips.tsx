@@ -25,6 +25,7 @@ import { EnquiryExternalOpenError, EnquiryService } from "@/services/enquiries";
 import { typeScale, typeLeading } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { getPublicClipsEnabled } from "@/services/publicClipsAvailability";
+import { isPublicWideLayout } from "@/utils/responsiveLayout";
 
 const EMPTY_ENGAGEMENT: ClipEngagementState = { liked: false, saved: false };
 
@@ -79,7 +80,8 @@ function ClipsFeed() {
   const listRef = useRef<FlatList<PublicClip>>(null);
   const viewedIds = useRef(new Set<string>());
   const previousFocus = useRef(isFocused);
-  const [containerHeight, setContainerHeight] = useState(Math.max(1, windowHeight - (width >= 1100 ? 166 : 80)));
+  const wideLayout = isPublicWideLayout(width, windowHeight);
+  const [containerHeight, setContainerHeight] = useState(Math.max(1, windowHeight - (wideLayout ? 166 : 80)));
   const [clips, setClips] = useState<PublicClip[]>([]);
   const [cursor, setCursor] = useState<PublicClipCursor | null>(null);
   const [feedSession, setFeedSession] = useState(
@@ -114,7 +116,7 @@ function ClipsFeed() {
     ].some((value) => value.toLocaleLowerCase().includes(query)));
   }, [clips, searchQuery]);
   const feedWidth = width;
-  const desktop = width >= 1100;
+  const desktop = wideLayout;
   const background = desktop && !dark ? "#FFFFFF" : "#000000";
   const playerWidth = desktop
     ? Math.max(1, Math.min(480, feedWidth - 56, containerHeight * (9 / 16)))

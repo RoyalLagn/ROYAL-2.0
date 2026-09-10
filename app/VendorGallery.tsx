@@ -22,6 +22,7 @@ import { useAppFeedback } from "@/context/AppFeedbackContext";
 export default function VendorGallery() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const wideWebLayout = Platform.OS === "web" && width >= 1180;
   const insets = useSafeAreaInsets();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
@@ -59,7 +60,7 @@ export default function VendorGallery() {
   const [focalMedia, setFocalMedia] = useState<any>(null);
   const [focalFrame, setFocalFrame] = useState({ width: 1, height: 1 });
   const gap = 10;
-  const contentWidth = Math.min(width, 1120) - (width >= 900 ? 56 : 32);
+  const contentWidth = Math.min(width, wideWebLayout ? 1600 : 1120) - (width >= 900 ? (wideWebLayout ? 72 : 56) : 32);
   // Portfolio media grid: columns/tile width are derived from the grid's own
   // measured layout width (onLayout below), not just the window width. This
   // keeps the 2-up mobile grid correct even when the rendered container is
@@ -69,7 +70,7 @@ export default function VendorGallery() {
   const [galleryWidth, setGalleryWidth] = useState(0);
   const [previewGridWidth, setPreviewGridWidth] = useState(0);
   const [albumGridWidth, setAlbumGridWidth] = useState(0);
-  const columnsForWidth = (w: number) => (w >= 900 ? 4 : w >= 600 ? 3 : 2);
+  const columnsForWidth = (w: number) => (wideWebLayout && w >= 1180 ? 5 : w >= 900 ? 4 : w >= 600 ? 3 : 2);
   const tileWidthForContainer = (containerWidth: number) => {
     const measured = containerWidth || contentWidth;
     const cols = columnsForWidth(measured);
@@ -77,14 +78,14 @@ export default function VendorGallery() {
   };
   const tileWidth = tileWidthForContainer(galleryWidth);
   const previewTileWidth = tileWidthForContainer(previewGridWidth);
-  const albumColumns = 2;
+  const albumColumns = wideWebLayout ? 3 : 2;
   const albumStripHorizontalPadding = 2;
   const albumGridAvailableWidth = albumGridWidth || contentWidth;
   const albumWidth = Math.floor(
     (albumGridAvailableWidth - albumStripHorizontalPadding - gap * (albumColumns - 1)) / albumColumns,
   );
-  const albumHeight = Math.round(albumWidth * (width >= 900 ? 1.06 : 1.13));
-  const albumCoverHeight = Math.round(albumWidth * 0.58);
+  const albumHeight = Math.round(albumWidth * (wideWebLayout ? 0.92 : width >= 900 ? 1.06 : 1.13));
+  const albumCoverHeight = Math.round(albumWidth * (wideWebLayout ? 0.54 : 0.58));
   const activeAlbum = data.albums.find((album) => album.id === selectedAlbumId) ?? data.albums[0];
   const media = useMemo(() => data.media.filter((item) => item.album_id === activeAlbum?.id), [data.media, activeAlbum?.id]);
   const lockedPhotoCount = useMemo(() => data.media.filter((item) => item.resource_type === "image" && item.subscription_locked).length, [data.media]);
@@ -490,7 +491,7 @@ export default function VendorGallery() {
   return <View style={[styles.page, { backgroundColor: canvas }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
     <ScrollView
-      contentContainerStyle={[styles.content, width >= 900 && styles.desktop]}
+      contentContainerStyle={[styles.content, width >= 900 && styles.desktop, wideWebLayout && styles.wideWeb]}
       showsVerticalScrollIndicator={false}
       decelerationRate="fast"
       bounces={false}
@@ -550,17 +551,22 @@ export default function VendorGallery() {
         ].map((stat) => <View key={stat.key} style={[
           styles.summaryCard,
           width >= 900 && styles.summaryCardDesktop,
+          wideWebLayout && styles.summaryCardWideWeb,
           width < 520 && styles.summaryCardCompact,
           { width: width >= 900 ? (contentWidth - 20) / 3 : "31%" },
           { backgroundColor: colors.background, borderColor: colors.border },
         ]}>
-          <View style={[styles.summaryIcon, { backgroundColor: colors.surfaceSoft }]}>{stat.icon}</View>
-          <Text style={[styles.summaryValue, { color: colors.text }]}>{stat.value}</Text>
-          <Text style={[styles.summaryLabel, { color: colors.muted }]}>{stat.label}</Text>
-          <View style={[styles.statProgress, { backgroundColor: colors.border }]}>
-            <View style={[styles.statProgressFill, { width: `${Math.max(4, stat.progress * 100)}%`, backgroundColor: colors.pink }]} />
+          <View style={[styles.summaryIcon, wideWebLayout && styles.summaryIconWideWeb, { backgroundColor: colors.surfaceSoft }]}>{stat.icon}</View>
+          <View style={wideWebLayout && styles.summaryCopyWideWeb}>
+            <Text style={[styles.summaryValue, { color: colors.text }]}>{stat.value}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.muted }]}>{stat.label}</Text>
           </View>
-          <Text style={[styles.summaryDetail, { color: stat.key === "albums" ? colors.muted : colors.pink }]}>{stat.detail}</Text>
+          <View style={wideWebLayout && styles.summaryMetaWideWeb}>
+            <View style={[styles.statProgress, wideWebLayout && styles.statProgressWideWeb, { backgroundColor: colors.border }]}>
+              <View style={[styles.statProgressFill, { width: `${Math.max(4, stat.progress * 100)}%`, backgroundColor: colors.pink }]} />
+            </View>
+            <Text style={[styles.summaryDetail, wideWebLayout && styles.summaryDetailWideWeb, { color: stat.key === "albums" ? colors.muted : colors.pink }]}>{stat.detail}</Text>
+          </View>
         </View>)}
       </View>
       {error && <Text style={[styles.error, { color: colors.warning }]}>We couldn’t load your portfolio. Please refresh and try again.</Text>}

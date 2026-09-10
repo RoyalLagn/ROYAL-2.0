@@ -25,6 +25,7 @@ import { MobileTabBar } from "@/components/MobileTabBar";
 import HomeReveal from "@/components/home/HomeReveal";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
+import DesktopLocationControl from "@/components/home/DesktopLocationControl";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
 import FavoriteNotificationDot from "@/components/favorites/FavoriteNotificationDot";
 import { useFavorites } from "@/context/FavoritesContext";
@@ -218,8 +219,9 @@ export default function TabsWebLayout() {
               <RoyalLagnLogo width={172} height={52} scale={1.9} />
             </Pressable>
 
+            <DesktopLocationControl />
 
-            <View className="flex-row items-center mr-6">
+            <View className="flex-row items-center mr-4">
               <NavItem
                 label="Home"
                 active={isActive("/(tabs)")}

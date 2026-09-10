@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import HomeReveal from "@/components/home/HomeReveal";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
+import DesktopLocationControl from "@/components/home/DesktopLocationControl";
 import FavoriteNotificationDot from "@/components/favorites/FavoriteNotificationDot";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
 import { useFavorites } from "@/context/FavoritesContext";
@@ -332,7 +333,9 @@ export default function PublicWebNavbar({
           <RoyalLagnLogo width={172} height={52} scale={1.9} />
         </Pressable>
 
-        <View className="flex-row items-center mr-6">
+        <DesktopLocationControl />
+
+        <View className="flex-row items-center mr-4">
           <NavItem label="Home" active={activeRoute === "Home"} onPress={() => router.push("/(tabs)")} />
           <NavItem label="Categories" active={activeRoute === "Categories"} onPress={() => router.push("/(tabs)/Categories")} />
           <NavItem label="Clips" active={activeRoute === "Clips"} onPress={() => router.push("/(tabs)/clips")} />

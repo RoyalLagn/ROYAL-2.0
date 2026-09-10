@@ -34,6 +34,7 @@ import {
 } from "@/services/deviceLocation";
 import { brandColors, brandPalette } from "@/constants/brandPalette";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
+import { isPublicWideLayout } from "@/utils/responsiveLayout";
 
 const PINK = brandPalette.light.primary;
 const VENDOR_CARD_PLACEHOLDER = require("../assets/images/optimized/vendor-placeholder.webp");
@@ -45,10 +46,11 @@ export default function NearbyVendorsScreen() {
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const compact = width < 1100;
-  const desktop = width >= 1100;
-  const contentWidth = Math.min(width - (width >= 1100 ? 96 : 32), 1120);
+  const { width, height } = useWindowDimensions();
+  const desktopWeb = Platform.OS === "web" && width >= 1100;
+  const wideLayout = isPublicWideLayout(width, height);
+  const compact = !wideLayout;
+  const contentWidth = Math.min(width - (wideLayout ? (desktopWeb ? 96 : 48) : 32), 1120);
   const colors = brandColors(isDark);
   const background = colors.background;
   const text = isDark ? "#F8F2F5" : colors.foreground;
@@ -259,7 +261,7 @@ export default function NearbyVendorsScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         style={styles.scroll}
-        contentContainerStyle={[styles.pageList, { width: contentWidth, paddingBottom: desktop ? 40 : 112 }]}
+        contentContainerStyle={[styles.pageList, { width: contentWidth, paddingBottom: desktopWeb ? 40 : 112 }]}
         initialNumToRender={6}
         maxToRenderPerBatch={8}
         windowSize={7}
@@ -281,7 +283,7 @@ export default function NearbyVendorsScreen() {
             ) : null}
 
             {showLocationPrompt ? (
-              <View style={[styles.permissionPanel, desktop && styles.permissionPanelDesktop, { backgroundColor: background, borderColor: border }]}>
+              <View style={[styles.permissionPanel, wideLayout && styles.permissionPanelDesktop, { backgroundColor: background, borderColor: border }]}>
                 <View style={styles.permissionHeading}>
                   <View style={styles.fallbackIcon}><ShieldAlert size={18} color={colors.primaryStrong} /></View>
                   <View style={styles.flex}>
@@ -297,7 +299,7 @@ export default function NearbyVendorsScreen() {
                     </Text>
                   </View>
                 </View>
-                <View style={[styles.permissionActions, desktop && styles.permissionActionsDesktop]}>
+                <View style={[styles.permissionActions, wideLayout && styles.permissionActionsDesktop]}>
                   <Pressable
                     accessibilityRole="button"
                     android_ripple={{ color: "rgba(255,255,255,0.18)" }}
@@ -329,8 +331,8 @@ export default function NearbyVendorsScreen() {
                 {resultsLoading && cards.length === 0 ? "Searching…" : `${cards.length} within ${radiusKm} km`}
               </Text>
             </View>
-            <View style={[styles.filterBody, desktop && styles.filterBodyDesktop]}>
-              <View style={[styles.searchBox, desktop && styles.searchBoxDesktop, { borderColor: border, backgroundColor: background }]}>
+            <View style={[styles.filterBody, wideLayout && styles.filterBodyDesktop]}>
+              <View style={[styles.searchBox, wideLayout && styles.searchBoxDesktop, { borderColor: border, backgroundColor: background }]}>
                 <Search size={17} color={muted} />
                 <TextInput value={searchInput} onChangeText={setSearchInput} placeholder="Search vendors or services" placeholderTextColor={muted} accessibilityLabel="Search nearby vendors or services" style={[styles.searchInput, { color: text }]} />
               </View>
@@ -440,7 +442,7 @@ export default function NearbyVendorsScreen() {
         </Pressable>
       </Modal>
 
-      {!desktop ? <StandaloneMobileTabBar activeRoute="index" /> : null}
+      {!desktopWeb ? <StandaloneMobileTabBar activeRoute="index" /> : null}
     </SafeAreaView>
   );
 }

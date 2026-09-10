@@ -15,6 +15,15 @@ const dateLabel = (value?: string | null) => value
   ? new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value))
   : "—";
 
+const remainingDaysCount = (value?: string | null) => value
+  ? Math.max(0, Math.min(30, Math.ceil((new Date(value).getTime() - Date.now()) / 86_400_000)))
+  : null;
+
+const remainingDaysLabel = (value?: string | null) => {
+  const remainingDays = remainingDaysCount(value);
+  return remainingDays === null ? "30-day placement" : `${remainingDays} of 30 days remaining`;
+};
+
 export default function VendorFeaturedPlacement() {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -34,7 +43,7 @@ export default function VendorFeaturedPlacement() {
     if (!vendor?.id || !pincode) { setLoading(false); return; }
     setError(null);
     try {
-      const [nextInventory, nextPlacements] = await Promise.all([getFeaturedInventory(pincode), getMyFeaturedPlacements(vendor.id)]);
+      const [nextInventory, nextPlacements] = await Promise.all([getFeaturedInventory(pincode, vendor.id), getMyFeaturedPlacements()]);
       setInventory(nextInventory);
       setPlacements(nextPlacements);
     } catch (caught) {
@@ -45,7 +54,14 @@ export default function VendorFeaturedPlacement() {
   useFocusEffect(useCallback(() => { void load(); }, [load]));
   useEffect(() => subscribeToFeaturedPlacements(() => void load()), [load]);
   const active = useMemo(() => placements.find((item) => item.pincode === pincode && item.status === "active" && new Date(item.ends_at ?? 0) > new Date()), [pincode, placements]);
+  const orderedSlots = useMemo(() => {
+    const slots = inventory?.slots ?? [];
+    const isOwnSlot = (slot: FeaturedInventory["slots"][number]) => slot.status === "mine" || slot.slotNumber === active?.slot_number;
+    return [...slots].sort((left, right) => Number(isOwnSlot(right)) - Number(isOwnSlot(left)));
+  }, [active, inventory?.slots]);
+  const activeDaysRemaining = remainingDaysCount(active?.ends_at);
   const remaining = inventory?.remaining ?? 0;
+  const slotCardBasis: "18.6%" | "31.5%" | "48%" = width >= 900 ? "18.6%" : width >= 620 ? "31.5%" : "48%";
 
   const purchase = async () => {
     if (!vendor?.id || !pincode || active || remaining < 1) return;
@@ -82,24 +98,50 @@ export default function VendorFeaturedPlacement() {
         <Pressable onPress={() => router.push("/VendorEditLocation")} style={({ pressed }) => [styles.smallButton, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressed]}><Text style={[styles.smallButtonText, { color: colors.pink }]}>Add location</Text></Pressable>
       </View> : null}
 
-      {pincode ? <View style={[styles.inventory, desktop && styles.inventoryDesktop]}>
+      {pincode ? <View style={styles.inventory}>
         <View style={[styles.areaPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.areaTop}><View style={[styles.pinIcon, { backgroundColor: colors.surfaceSoft }]}><MapPin size={20} color={colors.pink} /></View><View style={styles.flex}><Text style={[styles.areaLabel, { color: colors.muted }]}>YOUR FEATURED AREA</Text><Text style={[styles.areaValue, { color: colors.text }]}>PIN {pincode}</Text></View></View>
-          {loading ? <ActivityIndicator color={colors.pink} style={styles.loader} /> : <>
-            <View style={styles.slotHeader}><Text style={[styles.slotCount, { color: colors.text }]}>{remaining} {remaining === 1 ? "spot" : "spots"} remaining</Text><Text style={[styles.slotMeta, { color: colors.muted }]}>{inventory?.occupied ?? 0}/{FEATURED_PLACEMENT_CAPACITY} booked</Text></View>
-            <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: FEATURED_PLACEMENT_CAPACITY, now: inventory?.occupied ?? 0 }} style={[styles.slotTrack, { backgroundColor: colors.border }]}>
-              {Array.from({ length: FEATURED_PLACEMENT_CAPACITY }).map((_, index) => <View key={index} style={[styles.slot, { backgroundColor: index < (inventory?.occupied ?? 0) ? colors.pink : colors.surfaceSoft }]} />)}
-            </View>
-            {remaining === 0 && inventory?.nextAvailableAt ? <View style={styles.nextRow}><Clock3 size={15} color={colors.warning} /><Text style={[styles.nextText, { color: colors.warning }]}>Next spot expected {dateLabel(inventory.nextAvailableAt)}</Text></View> : null}
-          </>}
         </View>
 
-        <View style={[styles.checkoutPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {active ? <>
-            <View style={[styles.activeBadge, { backgroundColor: `${colors.success}18` }]}><Check size={17} color={colors.success} /><Text style={[styles.activeBadgeText, { color: colors.success }]}>Featured placement active</Text></View>
-            <Text style={[styles.activeTitle, { color: colors.text }]}>Customers in {pincode} can discover you first.</Text>
-            <View style={styles.dateRow}><CalendarDays size={17} color={colors.muted} /><Text style={[styles.dateText, { color: colors.muted }]}>Active until {dateLabel(active.ends_at)}</Text></View>
-          </> : <>
+        {active ? <View accessibilityRole="summary" style={[styles.activeOverview, { backgroundColor: `${colors.success}0D`, borderColor: `${colors.success}66` }]}>
+          <View style={styles.activeOverviewTop}>
+            <View style={[styles.activeOverviewIcon, { backgroundColor: colors.success }]}><Sparkles size={22} color="#FFF" /></View>
+            <View style={styles.flex}><Text style={[styles.activeOverviewTitle, { color: colors.text }]}>Your featured placement</Text><Text style={[styles.activeOverviewCopy, { color: colors.muted }]}>Your business is being promoted first to customers browsing PIN {pincode}.</Text></View>
+            <View style={[styles.activeLiveBadge, { backgroundColor: `${colors.success}18` }]}><View style={[styles.liveDot, { backgroundColor: colors.success }]} /><Text style={[styles.activeLiveText, { color: colors.success }]}>Active now</Text></View>
+          </View>
+          <View style={[styles.activeStats, { borderTopColor: `${colors.success}2E` }]}>
+            <View style={styles.activeStat}><Text style={[styles.activeStatLabel, { color: colors.muted }]}>Started</Text><Text style={[styles.activeStatValue, { color: colors.text }]}>{dateLabel(active.starts_at)}</Text></View>
+            <View style={[styles.activeStat, styles.activeStatDivider, { borderLeftColor: `${colors.success}2E` }]}><Text style={[styles.activeStatLabel, { color: colors.muted }]}>Ends</Text><Text style={[styles.activeStatValue, { color: colors.text }]}>{dateLabel(active.ends_at)}</Text></View>
+            <View style={[styles.activeStat, styles.activeStatDivider, { borderLeftColor: `${colors.success}2E` }]}><Text style={[styles.activeStatLabel, { color: colors.muted }]}>Time left</Text><Text style={[styles.activeDaysValue, { color: colors.success }]}>{activeDaysRemaining ?? "—"}</Text><Text style={[styles.activeDaysUnit, { color: colors.muted }]}>days remaining</Text></View>
+          </View>
+          {activeDaysRemaining !== null ? <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 30, now: activeDaysRemaining }} style={[styles.activeProgressTrack, { backgroundColor: `${colors.success}1F` }]}><View style={[styles.activeProgressFill, { backgroundColor: colors.success, width: `${activeDaysRemaining / 30 * 100}%` }]} /></View> : null}
+        </View> : null}
+
+        <View style={[styles.slotsPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <View style={styles.slotHeader}>
+            <View style={styles.flex}><Text style={[styles.slotTitle, { color: colors.text }]}>10 slots availability</Text><Text style={[styles.slotDescription, { color: colors.muted }]}>See which featured placements are open and when booked spots become available.</Text></View>
+            <View style={[styles.bookedBadge, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.bookedBadgeText, { color: colors.pink }]}>{inventory?.occupied ?? 0}/{FEATURED_PLACEMENT_CAPACITY} booked</Text></View>
+          </View>
+          {loading ? <ActivityIndicator color={colors.pink} style={styles.loader} /> : <View style={styles.slotGrid}>
+            {orderedSlots.map((slot) => {
+              const isAvailable = slot.status === "available";
+              const isMine = slot.status === "mine" || active?.slot_number === slot.slotNumber;
+              const availableAt = isMine ? active?.ends_at ?? slot.availableAt : slot.availableAt;
+              const accent = isMine ? colors.warning : isAvailable ? colors.success : colors.pink;
+              const label = isAvailable ? "Available" : isMine ? "Your placement" : "Booked";
+              const detail = isAvailable ? "Available now" : availableAt ? `${isMine ? "Active until" : "Available"} ${dateLabel(availableAt)}` : "Availability updating";
+              const countdown = isAvailable ? null : remainingDaysLabel(availableAt);
+              return <View key={slot.slotNumber} testID="featured-slot-card" accessibilityLabel={`${label}. ${detail}.${countdown ? ` ${countdown}.` : ""}`} style={[styles.slotCard, { width: slotCardBasis, borderColor: accent, backgroundColor: `${accent}09` }]}>
+                <View style={[styles.slotStatus, { backgroundColor: accent }]}>{isAvailable ? <Check size={14} color="#FFF" /> : <Clock3 size={14} color="#FFF" />}<Text style={styles.slotStatusText}>{label}</Text></View>
+                <View><View style={styles.slotDateRow}><CalendarDays size={17} color={accent} /><Text style={[styles.slotDate, { color: colors.text }]}>{detail}</Text></View>{countdown ? <Text style={[styles.slotCountdown, { color: accent }]}>{countdown}</Text> : null}</View>
+              </View>;
+            })}
+          </View>}
+          {!loading && remaining === 0 && inventory?.nextAvailableAt ? <View style={[styles.nextRow, { backgroundColor: `${colors.warning}12` }]}><Clock3 size={15} color={colors.warning} /><Text style={[styles.nextText, { color: colors.warning }]}>Next opening expected {dateLabel(inventory.nextAvailableAt)}</Text></View> : null}
+        </View>
+
+        {!active ? <View style={[styles.checkoutPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <>
             <Text style={[styles.checkoutTitle, { color: colors.text }]}>Reserve your area</Text>
             {["Featured placement for customers in your PIN code", "Fair daily rotation among active featured vendors", "One clear payment—no change to your main subscription"].map((copy) => <View key={copy} style={styles.benefit}><Check size={16} color={colors.success} /><Text style={[styles.benefitText, { color: colors.text }]}>{copy}</Text></View>)}
             <View style={[styles.secureRow, { borderTopColor: colors.border }]}><ShieldCheck size={16} color={colors.muted} /><Text style={[styles.secureText, { color: colors.muted }]}>Secure checkout powered by Razorpay</Text></View>
@@ -107,8 +149,8 @@ export default function VendorFeaturedPlacement() {
               style={({ pressed, hovered, focused }) => [styles.payButton, { backgroundColor: colors.pink }, (hovered || focused) && styles.lift, pressed && styles.pressed, (loading || paying || remaining < 1 || Boolean(error)) && styles.disabled]}>
               {paying ? <ActivityIndicator color="#FFF" /> : <Sparkles size={18} color="#FFF" />}<Text style={styles.payText}>{paying ? "Opening secure checkout…" : remaining < 1 ? "All spots booked" : `Pay ₹${FEATURED_PLACEMENT_PRICE} & get featured`}</Text>
             </Pressable>
-          </>}
-        </View>
+          </>
+        </View> : null}
       </View> : null}
 
       {error ? <View accessibilityRole="alert" style={[styles.error, { backgroundColor: `${colors.destructive}12` }]}><Text style={[styles.errorText, { color: colors.destructive }]}>{error}</Text><Pressable onPress={() => void load()}><Text style={[styles.retry, { color: colors.pink }]}>Try again</Text></Pressable></View> : null}
@@ -125,15 +167,23 @@ const styles = StyleSheet.create({
   title: { fontSize: typeScale.metric, lineHeight: typeLeading.metric, fontWeight: "700", letterSpacing: -0.5 }, subtitle: { fontSize: typeScale.body, lineHeight: 24, marginTop: 8, maxWidth: 630 },
   priceBlock: { minWidth: 128 }, price: { fontSize: 34, lineHeight: 40, fontWeight: "800", fontVariant: ["tabular-nums"] }, priceSuffix: { fontSize: typeScale.caption, marginTop: 2 },
   notice: { borderWidth: 1, borderRadius: 16, padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }, noticeTitle: { fontSize: typeScale.body, fontWeight: "700" }, noticeText: { fontSize: typeScale.caption, marginTop: 4 },
-  inventory: { gap: 16 }, inventoryDesktop: { flexDirection: "row", alignItems: "stretch" }, areaPanel: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 20 }, checkoutPanel: { flex: 1, borderWidth: 1, borderRadius: 16, padding: 20 },
+  inventory: { gap: 16 }, areaPanel: { borderWidth: 1, borderRadius: 16, padding: 20 }, slotsPanel: { borderWidth: 1, borderRadius: 16, padding: 20 }, checkoutPanel: { borderWidth: 1, borderRadius: 16, padding: 20 },
   areaTop: { flexDirection: "row", alignItems: "center", gap: 12 }, pinIcon: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" }, flex: { flex: 1, minWidth: 0 },
   areaLabel: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 0.8 }, areaValue: { fontSize: typeScale.cardTitle, fontWeight: "700", marginTop: 3 }, loader: { marginVertical: 28 },
-  slotHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginTop: 28 }, slotCount: { fontSize: typeScale.cardTitle, fontWeight: "700" }, slotMeta: { fontSize: typeScale.caption, fontVariant: ["tabular-nums"] },
-  slotTrack: { height: 10, borderRadius: 5, flexDirection: "row", overflow: "hidden", gap: 2, marginTop: 12 }, slot: { flex: 1, height: "100%" }, nextRow: { flexDirection: "row", gap: 7, alignItems: "center", marginTop: 15 }, nextText: { fontSize: typeScale.caption, fontWeight: "600" },
+  activeOverview: { borderWidth: 1, borderRadius: 16, padding: 20 }, activeOverviewTop: { flexDirection: "row", alignItems: "flex-start", gap: 12 }, activeOverviewIcon: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" }, activeOverviewTitle: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700" }, activeOverviewCopy: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 3, maxWidth: 600 },
+  activeLiveBadge: { minHeight: 32, borderRadius: 16, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 7 }, liveDot: { width: 7, height: 7, borderRadius: 4 }, activeLiveText: { fontSize: typeScale.caption, fontWeight: "700" },
+  activeStats: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", marginTop: 18, paddingTop: 16 }, activeStat: { flex: 1, minWidth: 0, paddingHorizontal: 12 }, activeStatDivider: { borderLeftWidth: StyleSheet.hairlineWidth }, activeStatLabel: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "600", marginBottom: 5 }, activeStatValue: { fontSize: typeScale.body, lineHeight: typeLeading.body, fontWeight: "700", fontVariant: ["tabular-nums"] }, activeDaysValue: { fontSize: typeScale.metric, lineHeight: typeLeading.metric, fontWeight: "800", fontVariant: ["tabular-nums"] }, activeDaysUnit: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: -1 },
+  activeProgressTrack: { height: 6, borderRadius: 3, overflow: "hidden", marginTop: 16 }, activeProgressFill: { height: "100%", borderRadius: 3 },
+  slotHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }, slotTitle: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700" }, slotDescription: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 3, maxWidth: 620 },
+  bookedBadge: { minHeight: 32, borderRadius: 16, paddingHorizontal: 11, alignItems: "center", justifyContent: "center" }, bookedBadgeText: { fontSize: typeScale.caption, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  slotGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 20 }, slotCard: { minHeight: 118, minWidth: 142, flexGrow: 1, borderWidth: 1, borderRadius: 14, padding: 14, justifyContent: "space-between", gap: 18 },
+  slotStatus: { alignSelf: "flex-start", minHeight: 30, borderRadius: 15, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 6 }, slotStatusText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
+  slotDateRow: { flexDirection: "row", alignItems: "center", gap: 7 }, slotDate: { flex: 1, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, fontWeight: "600" },
+  slotCountdown: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "700", marginTop: 7, marginLeft: 24, fontVariant: ["tabular-nums"] },
+  nextRow: { minHeight: 40, borderRadius: 12, paddingHorizontal: 12, flexDirection: "row", gap: 7, alignItems: "center", marginTop: 14 }, nextText: { fontSize: typeScale.caption, fontWeight: "600" },
   checkoutTitle: { fontSize: typeScale.cardTitle, fontWeight: "700", marginBottom: 15 }, benefit: { flexDirection: "row", alignItems: "flex-start", gap: 9, marginBottom: 11 }, benefitText: { flex: 1, fontSize: typeScale.caption, lineHeight: 19 },
   secureRow: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", alignItems: "center", gap: 7, paddingTop: 14, marginTop: 5 }, secureText: { fontSize: typeScale.caption },
   payButton: { minHeight: 52, borderRadius: 15, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 18, shadowColor: "#7D3D58", shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.16, shadowRadius: 16, elevation: 3 }, payText: { color: "#FFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  activeBadge: { alignSelf: "flex-start", minHeight: 34, borderRadius: 17, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 6 }, activeBadgeText: { fontSize: typeScale.caption, fontWeight: "700" }, activeTitle: { fontSize: typeScale.cardTitle, lineHeight: 26, fontWeight: "700", marginTop: 18 }, dateRow: { flexDirection: "row", alignItems: "center", gap: 7, marginTop: 12 }, dateText: { fontSize: typeScale.caption },
   error: { borderRadius: 14, padding: 14, flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16 }, errorText: { flex: 1, fontSize: typeScale.caption }, retry: { fontSize: typeScale.caption, fontWeight: "700" }, terms: { fontSize: typeScale.caption, lineHeight: 18, textAlign: "center", marginTop: 18, paddingHorizontal: 12 },
   smallButton: { minHeight: 44, borderRadius: 13, paddingHorizontal: 13, alignItems: "center", justifyContent: "center" }, smallButtonText: { fontSize: typeScale.caption, fontWeight: "700" },
   lift: { transform: [{ translateY: -1 }], shadowOpacity: 0.2 }, pressed: { transform: [{ scale: 0.97 }], opacity: 0.9 }, disabled: { opacity: 0.45 },
