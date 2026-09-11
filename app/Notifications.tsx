@@ -135,15 +135,17 @@ function NotificationRow({
           </Text>
         </View>
       </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Delete ${notification.title}`}
-        hitSlop={8}
-        onPress={onDelete}
-        style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
-      >
-        <Trash2 size={16} color={dark ? "#A3A3A3" : "#9CA3AF"} strokeWidth={1.8} />
-      </Pressable>
+      <View style={styles.deleteSlot}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Delete ${notification.title}`}
+          hitSlop={8}
+          onPress={onDelete}
+          style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
+        >
+          <Trash2 size={16} color={dark ? "#A3A3A3" : "#9CA3AF"} strokeWidth={1.8} />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -276,7 +278,12 @@ export default function NotificationsScreen() {
                 pressed && styles.pressed,
               ]}
             >
-              <Text className="text-primary text-xs font-bold">Mark all as read</Text>
+              <Text
+                className="text-xs font-bold"
+                style={{ color: unreadCount === 0 ? (isDark ? "#6B6267" : "#C7B8BE") : "#E91E63" }}
+              >
+                Mark all as read
+              </Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -401,13 +408,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 18,
     padding: 14,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
+    position: "relative",
   },
   notificationMain: {
-    flex: 1,
-    minWidth: 0,
+    width: "100%",
+    paddingRight: 42,
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
@@ -438,13 +443,20 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: "#E91E63",
   },
-  deleteButton: {
+  deleteSlot: {
+    position: "absolute",
+    top: 14,
+    right: 7,
     width: 32,
     height: 32,
+    zIndex: 1,
+  },
+  deleteButton: {
+    width: "100%",
+    height: "100%",
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
   },
   pressed: {
     opacity: 0.72,

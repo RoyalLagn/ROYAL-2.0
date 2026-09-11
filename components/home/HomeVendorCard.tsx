@@ -37,7 +37,7 @@ export default function HomeVendorCard({
   const colors = brandColors(dark);
   const text = dark ? "#F5F0F3" : colors.foreground;
   const muted = colors.mutedForeground;
-  const compact = width < 220;
+  const compact = width < 320;
   const membershipBadge = membershipBadgeFor(vendor.membershipPlan);
 
   return (
@@ -147,14 +147,14 @@ const styles = StyleSheet.create({
   card: {
     position: "relative",
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: "hidden",
     shadowOpacity: 0.09,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
-  cardCompact: { borderRadius: 16 },
+  cardCompact: { borderRadius: 14 },
   main: { flex: 1 },
   imageWrap: { position: "relative", overflow: "hidden", backgroundColor: brandPalette.light.muted },
   image: { width: "100%", height: "100%" },

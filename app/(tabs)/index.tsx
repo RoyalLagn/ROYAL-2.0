@@ -116,9 +116,9 @@ export default function HomeScreen() {
   const categoryCardWidth = Math.max(44, categoryItemWidth - categoryCardInset);
   const vendorCardGap = screenWidth >= BREAKPOINTS.smallTablet ? 14 : 12;
   const vendorCardWidth = wideLayout
-    ? 360
+    ? isDesktopWeb ? 292 : 248
     : screenWidth >= 600
-      ? 260
+      ? 236
       : Math.max(130, (featureWidth - vendorCardGap) / 2);
   const vendorImageHeight = Math.round(vendorCardWidth);
   const listBannerHeight = Math.min(Math.round(featureWidth * (887 / 1774)), 220);
