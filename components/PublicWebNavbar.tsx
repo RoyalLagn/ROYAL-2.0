@@ -18,6 +18,7 @@ import HomeReveal from "@/components/home/HomeReveal";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import DesktopLocationControl from "@/components/home/DesktopLocationControl";
+import LocationSelector from "@/components/home/LocationSelector";
 import FavoriteNotificationDot from "@/components/favorites/FavoriteNotificationDot";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
 import { useFavorites } from "@/context/FavoritesContext";
@@ -158,7 +159,7 @@ export default function PublicWebNavbar({
   locationControl,
 }: PublicWebNavbarProps) {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const [searchQuery, setSearchQuery] = useState("");
@@ -170,6 +171,7 @@ export default function PublicWebNavbar({
   const { profile, isPublicAuthenticated } = usePublicAuth();
   const { location } = useCustomerLocation();
   const colors = brandColors(isDark);
+  const nativeTablet = Platform.OS !== "web" && Math.min(width, height) >= 600;
 
   useEffect(() => {
     let active = true;
@@ -239,7 +241,11 @@ export default function PublicWebNavbar({
       >
         <View style={[mobileStyles.header, { width: contentWidth }]}>
           <View style={[mobileStyles.locationSlot, { width: headerSideWidth }]}>
-            {locationControl ?? <Pressable
+          {locationControl ?? (nativeTablet ? (
+            <View style={mobileStyles.tabletLocation}>
+              <LocationSelector dark={isDark} compact homeHeader />
+            </View>
+          ) : <Pressable
               accessibilityRole="button"
               accessibilityLabel={locating ? "Detecting current location" : "Detect current location"}
               accessibilityState={{ busy: locating, disabled: locating }}
@@ -259,7 +265,7 @@ export default function PublicWebNavbar({
                   {shortLocationLabel(deviceLocationLabel || location)}
                 </Text>
               </View>
-            </Pressable>}
+          </Pressable>)}
           </View>
 
           <Pressable
@@ -440,6 +446,7 @@ const mobileStyles = StyleSheet.create({
     gap: 6,
     borderRadius: 12,
   },
+  tabletLocation: { width: "33.333%", minHeight: 44, justifyContent: "center" },
   locationIcon: {
     width: 27,
     height: 27,

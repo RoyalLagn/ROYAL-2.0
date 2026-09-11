@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Check, ChevronDown, LocateFixed, MapPin, Navigation, X } from "lucide-react-native";
 import { useCustomerLocation } from "@/context/LocationContext";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
@@ -21,6 +21,7 @@ type LocationSelectorProps = {
   compact?: boolean;
   filterChip?: boolean;
   homeHeader?: boolean;
+  homeHeaderLabel?: string;
 };
 
 type LocationSuggestion = {
@@ -30,7 +31,9 @@ type LocationSuggestion = {
   preference: LocationPreference;
 };
 
-export default function LocationSelector({ dark, compact = false, filterChip = false, homeHeader = false }: LocationSelectorProps) {
+export default function LocationSelector({ dark, compact = false, filterChip = false, homeHeader = false, homeHeaderLabel = "Location" }: LocationSelectorProps) {
+  const { width, height } = useWindowDimensions();
+  const nativeLargeScreen = Platform.OS !== "web" && Math.min(width, height) >= 600;
   const {
     location,
     city,
@@ -202,7 +205,7 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
               <LocateFixed size={15} color={PINK} />
             </View>
             <View style={styles.homeLocationCopy}>
-              <Text style={[styles.homeLocationLabel, { color: colors.muted }]}>Location</Text>
+              <Text style={[styles.homeLocationLabel, { color: colors.muted }]}>{homeHeaderLabel}</Text>
               <Text numberOfLines={1} style={[styles.homeLocationValue, { color: PINK }]}>
                 {location === "Choose location" ? "Set location" : location.split(",")[0]?.trim()}
               </Text>
@@ -219,13 +222,14 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
         )}
       </Pressable>
 
-      <Modal visible={visible} transparent animationType={Platform.OS === "web" ? "fade" : "slide"} onRequestClose={close}>
-        <Pressable style={[styles.backdrop, Platform.OS !== "web" && styles.backdropMobile]} onPress={close}>
+      <Modal visible={visible} transparent animationType={Platform.OS === "web" || nativeLargeScreen ? "fade" : "slide"} onRequestClose={close}>
+        <Pressable style={[styles.backdrop, Platform.OS !== "web" && !nativeLargeScreen && styles.backdropMobile]} onPress={close}>
           <Pressable
             accessibilityViewIsModal
             style={[
               styles.sheet,
-              Platform.OS !== "web" && styles.sheetMobile,
+              Platform.OS !== "web" && !nativeLargeScreen && styles.sheetMobile,
+              nativeLargeScreen && styles.sheetLargeNative,
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
             onPress={(event) => event.stopPropagation()}
@@ -332,6 +336,7 @@ const styles = StyleSheet.create({
   backdropMobile: { padding: 0, justifyContent: "flex-end" },
   sheet: { width: "100%", maxWidth: 480, borderWidth: 1, borderRadius: 24, padding: 20 },
   sheetMobile: { maxWidth: "100%", borderBottomLeftRadius: 0, borderBottomRightRadius: 0, paddingBottom: 28 },
+  sheetLargeNative: { maxHeight: "82%" },
   sheetHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 16 },
   title: { fontSize: typeScale.editorialCardTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700", letterSpacing: -0.3 },
   subtitle: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 3 },
