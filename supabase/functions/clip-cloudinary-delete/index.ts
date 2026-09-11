@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { deleteClipCloudinaryAssets, fetchWithTimeout } from "../_shared/cloudinaryMedia.ts";
+import { presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -31,7 +32,7 @@ Deno.serve(async (request) => {
     } else {
       const { data: vendor } = await supabase.from("vendors").select("id")
         .eq("id", vendorId).eq("profile_id", user.id).maybeSingle();
-      if (!vendor || !publicId?.startsWith(`royallagn/clips/${vendorId}/`)) {
+      if (!vendor || !(publicId?.startsWith(`royallagn/clips/${vendorId}/`) || publicId?.startsWith("bunny:"))) {
         throw new Error("Owned Clip asset not found");
       }
     }
@@ -41,7 +42,27 @@ Deno.serve(async (request) => {
       publicId, publicIdExists: true,
     });
 
-    await deleteClipCloudinaryAssets(publicId, { requestId, clipId: clipId ?? null, vendorId: ownedVendorId ?? null });
+    if (publicId.startsWith("bunny:")) {
+      const [, videoId, storedClipId] = publicId.split(":");
+      const libraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
+      const apiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
+      if (!libraryId || !apiKey || !videoId) throw new Error("Bunny Stream deletion is not configured");
+      const videoDelete = await fetchWithTimeout(
+        `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(videoId)}`,
+        { method: "DELETE", headers: { AccessKey: apiKey } },
+      );
+      if (!videoDelete.ok && videoDelete.status !== 404) throw new Error(`Bunny Stream deletion failed (${videoDelete.status})`);
+      if (ownedVendorId && (clipId || requestedPublicId)) {
+        const targetClipId = clipId || storedClipId;
+        for (const extension of ["jpg", "png"]) {
+          const signed = await presignBunnyObject("DELETE", `clips/${ownedVendorId}/${targetClipId}/thumbnail.${extension}`);
+          const response = await fetchWithTimeout(signed.uploadUrl, { method: "DELETE" });
+          if (!response.ok && response.status !== 404) console.warn("Bunny thumbnail deletion failed", { requestId, status: response.status });
+        }
+      }
+    } else {
+      await deleteClipCloudinaryAssets(publicId, { requestId, clipId: clipId ?? null, vendorId: ownedVendorId ?? null });
+    }
 
     if (deleteClipRecord) {
       const { error: deleteError } = await supabase.rpc("vendor_soft_delete_clip", { target_clip_id: clipId });

@@ -3,6 +3,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { Platform } from "react-native";
 import { supabase } from "./supabase";
+import { authorizeBunnyUpload, uploadToBunny, type BunnySignedUpload } from "./bunnyStorage";
 
 const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
@@ -184,7 +185,12 @@ export async function prepareImageForUpload<T extends ImageLikeAsset>(
 }
 
 type SignedProfileImage = {
-  uploadMode: "signed" | "unsigned";
+  provider?: "bunny";
+  uploadUrl?: string;
+  publicUrl?: string;
+  objectKey?: string;
+  expiresAt?: string;
+  uploadMode?: "signed" | "unsigned";
   signature?: string;
   timestamp?: number;
   folder: string;
@@ -283,9 +289,18 @@ export async function uploadImage(
   image: ImageLikeAsset,
 ): Promise<string> {
   const prepared = await prepareImageForUpload(image, "general");
+  const mimeType = prepared.mimeType ?? "image/jpeg";
+  const fileSize = await imageAssetBytes(prepared);
+  try {
+    const signed = await authorizeBunnyUpload("bunny-media-sign", { purpose: "general", mimeType, fileSize });
+    if (signed) return await uploadToBunny(signed, prepared.uri, mimeType);
+  } catch (error) {
+    if (!CLOUD_NAME || !UPLOAD_PRESET) {
+      throw new CloudinaryError("Unable to authorize Bunny image upload.", "UPLOAD_ERROR", error);
+    }
+  }
   const formData = new FormData();
   const fileName = prepared.fileName ?? `image-${Date.now()}.jpg`;
-  const mimeType = prepared.mimeType ?? "image/jpeg";
 
   if (Platform.OS === "web") {
     let imageBlob: Blob;
@@ -402,6 +417,17 @@ export async function uploadProfileImage(
     body: { ...target, action: "sign", mimeType, fileSize },
   });
   if (error || !data?.uploadMode) {
+    if (data?.provider !== "bunny") {
+      throw new CloudinaryError(
+        await edgeFunctionErrorMessage(error, "Unable to authorize profile image upload."),
+        "UPLOAD_ERROR",
+      );
+    }
+  }
+  if (data?.provider === "bunny") {
+    return uploadToBunny(data as BunnySignedUpload, prepared.uri, mimeType);
+  }
+  if (!data?.uploadMode) {
     throw new CloudinaryError(
       await edgeFunctionErrorMessage(error, "Unable to authorize profile image upload."),
       "UPLOAD_ERROR",
@@ -488,10 +514,6 @@ export async function pickAndUploadBusinessDocument(): Promise<UploadedBusinessD
   if (!pickedMimeType.startsWith("image/") && asset.size && asset.size > 10 * 1024 * 1024) {
     throw new CloudinaryError("Business documents must be 10 MB or smaller.", "PICKER_ERROR");
   }
-  if (!CLOUD_NAME || !UPLOAD_PRESET) {
-    throw new CloudinaryError("Cloudinary is not configured.", "CONFIGURATION_ERROR");
-  }
-
   let uploadAsset: ImageLikeAsset | typeof asset = asset;
   if (pickedMimeType.startsWith("image/")) {
     uploadAsset = await prepareImageForUpload({
@@ -504,6 +526,21 @@ export async function pickAndUploadBusinessDocument(): Promise<UploadedBusinessD
     }, "general");
   }
   const mimeType = uploadAsset.mimeType || pickedMimeType;
+  const uploadSize = (uploadAsset as { size?: number; fileSize?: number }).size
+    ?? (uploadAsset as { size?: number; fileSize?: number }).fileSize
+    ?? 0;
+  try {
+    const signed = await authorizeBunnyUpload("bunny-media-sign", { purpose: "document", mimeType, fileSize: uploadSize });
+    if (signed) {
+      const url = await uploadToBunny(signed, uploadAsset.uri, mimeType);
+      return { name: asset.name, url, mimeType, size: uploadSize || null };
+    }
+  } catch (error) {
+    if (!CLOUD_NAME || !UPLOAD_PRESET) {
+      throw new CloudinaryError("Unable to authorize Bunny document upload.", "UPLOAD_ERROR", error);
+    }
+  }
+  if (!CLOUD_NAME || !UPLOAD_PRESET) throw new CloudinaryError("Cloudinary is not configured.", "CONFIGURATION_ERROR");
   const resourceType = mimeType.startsWith("image/") ? "image" : "raw";
   const body = new FormData();
   if (Platform.OS === "web") {
@@ -762,14 +799,19 @@ export async function deleteUnstoredPortfolioAsset(
 }
 
 type SignedReviewUpload = {
-  signature: string;
-  timestamp: number;
-  folder: string;
-  apiKey: string;
-  cloudName: string;
-  public_id: string;
-  overwrite: string;
-  unique_filename: string;
+  provider?: "bunny";
+  uploadUrl?: string;
+  publicUrl?: string;
+  objectKey?: string;
+  expiresAt?: string;
+  signature?: string;
+  timestamp?: number;
+  folder?: string;
+  apiKey?: string;
+  cloudName?: string;
+  public_id?: string;
+  overwrite?: string;
+  unique_filename?: string;
 };
 
 export async function pickReviewPhotos(selectionLimit = 4): Promise<ReviewPhotoAsset[]> {
@@ -812,11 +854,24 @@ export async function uploadReviewPhoto(
     await supabase.functions.invoke<SignedReviewUpload>("review-photo-sign", {
       body: { mimeType, fileSize },
     });
-  if (error || !data?.signature) {
+  if (error || (!data?.signature && data?.provider !== "bunny")) {
     throw new CloudinaryError(
       error?.message || "Unable to authorize review photo upload.",
       "UPLOAD_ERROR"
     );
+  }
+  if (data?.provider === "bunny") {
+    const url = await uploadToBunny(data as BunnySignedUpload, prepared.uri, mimeType, onProgress);
+    return {
+      secureUrl: url,
+      publicId: data.objectKey!,
+      resourceType: "image",
+      format: mimeType.split("/")[1],
+      width: prepared.width,
+      height: prepared.height,
+      bytes: fileSize,
+      thumbnailUrl: url,
+    };
   }
   const body = new FormData();
   if (Platform.OS === "web") {
@@ -834,13 +889,13 @@ export async function uploadReviewPhoto(
       type: mimeType,
     } as any);
   }
-  body.append("api_key", data.apiKey);
+  body.append("api_key", data.apiKey!);
   body.append("timestamp", String(data.timestamp));
-  body.append("folder", data.folder);
-  body.append("public_id", data.public_id);
-  body.append("overwrite", data.overwrite);
-  body.append("unique_filename", data.unique_filename);
-  body.append("signature", data.signature);
+  body.append("folder", data.folder!);
+  body.append("public_id", data.public_id!);
+  body.append("overwrite", data.overwrite!);
+  body.append("unique_filename", data.unique_filename!);
+  body.append("signature", data.signature!);
 
   const payload: any = await new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
@@ -885,7 +940,7 @@ export async function uploadReviewPhoto(
     width: payload.width,
     height: payload.height,
     bytes: payload.bytes,
-    thumbnailUrl: thumbnailFor(data.cloudName, payload.public_id, "image"),
+    thumbnailUrl: thumbnailFor(data.cloudName!, payload.public_id, "image"),
   };
 }
 
@@ -906,7 +961,12 @@ export async function deleteReviewPhoto(
 
 export function reviewPhotoPublicId(url: string): string | null {
   try {
-    const pathname = new URL(url).pathname;
+    const parsed = new URL(url);
+    const pathname = parsed.pathname;
+    if (parsed.hostname.endsWith(".b-cdn.net")) {
+      const objectKey = decodeURIComponent(pathname.replace(/^\//, ""));
+      return objectKey.startsWith("royallagn/reviews/") && !objectKey.includes("..") ? objectKey : null;
+    }
     const uploadIndex = pathname.indexOf("/image/upload/");
     if (uploadIndex < 0) return null;
     const afterUpload = pathname.slice(uploadIndex + "/image/upload/".length);

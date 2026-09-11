@@ -17,7 +17,9 @@ export async function pickClipVideos(selectionLimit = 10): Promise<ClipUpload[]>
     fileName: asset.fileName || `clip-${Date.now()}.mp4`,
     mimeType: asset.mimeType || "video/mp4",
     fileSizeBytes: asset.fileSize || 0,
-    durationSeconds: asset.duration ? asset.duration / 1000 : 0,
+    // Expo's web picker reports seconds; native reports milliseconds in its
+    // platform-specific adapter.
+    durationSeconds: asset.duration || 0,
     resolution: { width: asset.width, height: asset.height },
   }));
 }

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -47,6 +48,13 @@ Deno.serve(async (request) => {
         (url: string) => url.includes(publicId) || url.includes(encodedId),
       );
       if (!belongsToReview) throw new Error("Review photo not found");
+    }
+
+    if (/\.[a-z0-9]{2,5}$/i.test(publicId)) {
+      const signedDelete = await presignBunnyObject("DELETE", publicId, 60);
+      const deletion = await fetch(signedDelete.uploadUrl, { method: "DELETE" });
+      if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny review photo deletion failed");
+      return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
     }
 
     const timestamp = Math.floor(Date.now() / 1000);

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { bunnyStorageConfig, extensionForMime, presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -66,6 +67,16 @@ Deno.serve(async (request) => {
     if (!cloudName) throw new Error("Cloudinary cloud name is missing");
 
     if (body.action === "delete") {
+      const currentUrl = typeof body.url === "string" ? new URL(body.url) : null;
+      const bunny = bunnyStorageConfig();
+      if (currentUrl?.hostname === bunny.cdnHostname) {
+        const objectKey = decodeURIComponent(currentUrl.pathname.replace(/^\//, ""));
+        if (!objectKey.startsWith(prefix) || objectKey.includes("..")) throw new Error("Profile image not found");
+        const signedDelete = await presignBunnyObject("DELETE", objectKey, 60);
+        const deletion = await fetch(signedDelete.uploadUrl, { method: "DELETE" });
+        if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny profile image deletion failed");
+        return Response.json({ ok: true, managed: true, provider: "bunny" }, { headers: cors });
+      }
       if (!apiSecret || !apiKey) {
         throw new Error("Cloudinary API credentials are required to delete previous images");
       }
@@ -100,6 +111,11 @@ Deno.serve(async (request) => {
     }
     if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > 5 * 1024 * 1024) {
       throw new Error("Profile image optimization did not produce a valid upload file");
+    }
+
+    if (Deno.env.get("BUNNY_STORAGE_SECRET_ACCESS_KEY")) {
+      const objectKey = `${prefix}${crypto.randomUUID()}.${extensionForMime(mimeType)}`;
+      return Response.json(await presignBunnyObject("PUT", objectKey), { headers: cors });
     }
 
     const timestamp = Math.floor(Date.now() / 1000);

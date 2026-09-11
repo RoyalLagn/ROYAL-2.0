@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert } from "react-native";
 import type { ClipQueueItem, ClipUploadDraft } from "../types";
 import { asClipError } from "../utils/errors";
 import { ClipLogger } from "../utils/logger";
@@ -66,7 +67,8 @@ export function useClipUploadQueue(vendorId?: string | null) {
             (candidate) => candidate.id === active.id && candidate.status === "cancelled",
           );
           if (!cancelled) {
-            await ClipQueueService.update(active.id, { status: "failed", error: error.message });
+            Alert.alert("Clip upload failed", error.message);
+            await ClipQueueService.remove(active.id);
           }
           ClipLogger.error("upload", "Queue failed", {
             queueId: active.id,
@@ -97,19 +99,7 @@ export function useClipUploadQueue(vendorId?: string | null) {
     // cleared immediately rather than lingering until something else
     // happens to re-render this screen.
     void ClipQueueService.setActiveVendor(vendorId ?? null).then(process);
-    const network = ClipQueueService.onReconnect(() => {
-      void (async () => {
-        const offlineFailures = ClipQueueService.getItems().filter(
-          (item) => item.status === "failed" && /network|offline|fetch/i.test(item.error || ""),
-        );
-        for (const item of offlineFailures) {
-          await ClipQueueService.update(item.id, {
-            status: "waiting", error: null, retryCount: item.retryCount + 1,
-          });
-        }
-        await process();
-      })();
-    });
+    const network = ClipQueueService.onReconnect(() => { void process(); });
     return () => { unsubscribe(); network(); };
   }, [process, vendorId]);
 

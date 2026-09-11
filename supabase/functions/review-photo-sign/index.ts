@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { extensionForMime, presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -48,6 +49,11 @@ Deno.serve(async (request) => {
     }
     if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > 5 * 1024 * 1024) {
       throw new Error("Review photo optimization did not produce a valid upload file");
+    }
+
+    if (Deno.env.get("BUNNY_STORAGE_SECRET_ACCESS_KEY")) {
+      const objectKey = `royallagn/reviews/${user.id}/${crypto.randomUUID()}.${extensionForMime(mimeType)}`;
+      return Response.json(await presignBunnyObject("PUT", objectKey), { headers: cors });
     }
 
     const timestamp = Math.floor(Date.now() / 1000);

@@ -58,13 +58,18 @@ class Queue {
     if (this.activeVendorId !== vendorId) return this.items;
     let parsed: ClipQueueItem[] = [];
     try { parsed = raw ? JSON.parse(raw) : []; } catch { parsed = []; }
-    this.items = parsed.map((item) =>
-      ["uploading", "compressing", "thumbnail", "saving"].includes(item.status)
-        ? { ...item, status: "waiting", error: null }
-        : item,
-    );
+    // Failed attempts are transient diagnostics, not useful queue work. Do
+    // not restore them after a reload; the user can choose the source again.
+    this.items = parsed
+      .filter((item) => item.status !== "failed")
+      .map((item) =>
+        ["uploading", "compressing", "thumbnail", "saving"].includes(item.status)
+          ? { ...item, status: "waiting", error: null }
+          : item,
+      );
     this.hydratedVendorId = vendorId;
-    this.emit();
+    if (this.items.length !== parsed.length) await this.persist();
+    else this.emit();
     return this.items;
   }
 

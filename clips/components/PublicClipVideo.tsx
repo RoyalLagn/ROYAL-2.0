@@ -12,6 +12,8 @@ import { CLIP_VIDEO_DELIVERY } from "../constants";
 
 const DOUBLE_TAP_MS = 260;
 const VALID_URI = /^https?:\/\//i;
+const BUNNY_PROCESSING_RETRY_MS = 10_000;
+const BUNNY_PROCESSING_MAX_RETRIES = 18;
 
 export const PublicClipVideo = React.memo(function PublicClipVideo({
   uri, thumbnailUrl, sourceWidth, sourceHeight, active, muted, onToggleMuted, onDoubleTapLike,
@@ -35,6 +37,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [firstFrameRendered, setFirstFrameRendered] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(false);
+  const [bunnyProcessingRetries, setBunnyProcessingRetries] = useState(0);
   const lastTap = useRef(0);
   const longPressed = useRef(false);
   const holdReleaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -51,6 +54,9 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const contentFit = isReelAspectRatio ? "cover" : "contain";
 
   const hasValidSource = typeof uri === "string" && VALID_URI.test(uri.trim());
+  const isBunnyStream = hasValidSource && /\.b-cdn\.net\//i.test(uri);
+  const bunnyVideoId = isBunnyStream ? uri.match(/\.b-cdn\.net\/([^/]+)\//i)?.[1] : undefined;
+  const useBunnyWebPlayer = Platform.OS === "web" && Boolean(bunnyVideoId);
 
   // Fixed bucket, deliberately NOT derived from the rendered width/DPR —
   // see CLIP_VIDEO_DELIVERY. Every viewer requesting the same transformation
@@ -96,6 +102,21 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     };
   });
   const status = useEvent(player, "statusChange", { status: player.status });
+
+  useEffect(() => {
+    if (status?.status === "readyToPlay") setBunnyProcessingRetries(0);
+  }, [status?.status]);
+
+  useEffect(() => {
+    if (!active || !isBunnyStream || status?.status !== "error"
+      || bunnyProcessingRetries >= BUNNY_PROCESSING_MAX_RETRIES || !deliveryUri) return;
+    const timer = setTimeout(() => {
+      setBunnyProcessingRetries((value) => value + 1);
+      player.replace({ uri: deliveryUri }, true);
+      player.play();
+    }, BUNNY_PROCESSING_RETRY_MS);
+    return () => clearTimeout(timer);
+  }, [active, bunnyProcessingRetries, deliveryUri, isBunnyStream, player, status?.status]);
 
   useEffect(() => {
     if (!hasValidSource) return;
@@ -212,7 +233,9 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     transform: [{ scale: heartScale.value }],
   }));
   const videoStyle = useAnimatedStyle(() => ({ opacity: videoOpacity.value }));
-  const failed = hasValidSource && status?.status === "error";
+  const bunnyStillProcessing = !useBunnyWebPlayer && isBunnyStream && status?.status === "error"
+    && bunnyProcessingRetries < BUNNY_PROCESSING_MAX_RETRIES;
+  const failed = hasValidSource && status?.status === "error" && !bunnyStillProcessing;
   const unavailable = !hasValidSource;
   // Distinct from the poster (shown before first frame) — this covers
   // mid-playback stalls too, e.g. the player re-buffering on a slow
@@ -228,7 +251,12 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
 
   return <View style={StyleSheet.absoluteFill}>
     {posterUri ? <Image source={{ uri: posterUri }} style={styles.mediaFill} resizeMode={contentFit} /> : null}
-    {!failed && !unavailable && <Animated.View pointerEvents="none" style={[styles.mediaFill, videoStyle]}>
+    {!failed && !unavailable && (useBunnyWebPlayer ? React.createElement("iframe" as any, {
+      src: `https://player.mediadelivery.net/embed/750524/${bunnyVideoId}?autoplay=${active}&loop=true&muted=${muted}&preload=true&responsive=true`,
+      allow: "autoplay; encrypted-media; picture-in-picture; fullscreen",
+      allowFullScreen: true,
+      style: { border: 0, position: "absolute", inset: 0, width: "100%", height: "100%" },
+    }) : <Animated.View pointerEvents="none" style={[styles.mediaFill, videoStyle]}>
       <VideoView
         player={player}
         style={styles.mediaFill}
@@ -242,8 +270,8 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
           videoOpacity.value = withTiming(1, { duration: reduced ? 0 : 140 });
         }}
       />
-    </Animated.View>}
-    <Pressable
+    </Animated.View>)}
+    {!useBunnyWebPlayer && <Pressable
       accessibilityRole="button"
       accessibilityLabel={manuallyPaused || autoplayBlocked ? "Play Clip with sound" : "Pause Clip"}
       onPress={handleTap}
@@ -262,7 +290,8 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
         }, 80);
       }}
       style={styles.mediaFill}
-    />
+    />}
+    {bunnyStillProcessing && <View style={styles.center}><ActivityIndicator color="#FFF" /><Text style={styles.errorTitle}>Clip is processing…</Text><Text style={styles.processingText}>Playback will start automatically</Text></View>}
     {failed && <View style={styles.center}><Text style={styles.errorTitle}>This Clip couldn&apos;t play</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry video" onPress={retry} style={styles.retry}><RefreshCw size={17} color="#FFF" /><Text style={styles.retryText}>Retry</Text></Pressable></View>}
     {unavailable && <View style={styles.center}><TriangleAlert size={28} color="#FFB0CD" /><Text style={styles.errorTitle}>This Clip is unavailable</Text></View>}
     {buffering && <View pointerEvents="none" style={styles.buffering}><ActivityIndicator size="small" color="#FFFFFF" /></View>}
@@ -283,6 +312,7 @@ const styles = StyleSheet.create({
   mediaFill: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%" },
   center: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(10,7,9,.48)", alignItems: "center", justifyContent: "center", gap: 10 },
   errorTitle: { color: "#FFF", fontSize: 14, fontWeight: "800" },
+  processingText: { color: "rgba(255,255,255,.78)", fontSize: 11, fontWeight: "600" },
   retry: { minHeight: 44, paddingHorizontal: 16, borderRadius: 22, flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(233,30,99,.9)" },
   retryText: { color: "#FFF", fontSize: 11, fontWeight: "800" },
   playBurst: { position: "absolute", alignSelf: "center", top: "43%", width: 82, height: 82, borderRadius: 41, alignItems: "center", justifyContent: "center", paddingLeft: 5, backgroundColor: "rgba(8,5,7,.58)", borderWidth: 1, borderColor: "rgba(255,255,255,.25)" },
