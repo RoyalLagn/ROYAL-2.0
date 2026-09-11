@@ -18,6 +18,7 @@ import { typeScale } from "@/constants/typography";
 import { vendorGalleryStyles as styles } from "@/components/vendor/gallery/vendorGalleryStyles";
 import Pressable from "@/components/InteropSafePressable";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 
 export default function VendorGallery() {
   const router = useRouter();
@@ -692,8 +693,13 @@ export default function VendorGallery() {
       </View>}
     </ScrollView>
 
-    <Modal visible={albumModal} transparent animationType="fade" onRequestClose={() => setAlbumModal(false)}>
-      <View style={styles.modalBackdrop}><View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <Modal visible={albumModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setAlbumModal(false)}>
+      <KeyboardAwareScrollView
+        containerStyle={styles.albumModalKeyboard}
+        contentContainerStyle={[styles.albumModalScroll, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 16) }]}
+        keyboardShouldPersistTaps="handled"
+      >
+      <View style={styles.modalBackdrop}><View accessibilityViewIsModal style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.sheetHeader}><Text style={[styles.sectionTitle, { color: colors.text }]}>{editingAlbum ? "Edit album" : "New album"}</Text><Pressable onPress={() => setAlbumModal(false)}><X size={21} color={colors.text} /></Pressable></View>
         <Text style={[styles.inputLabel, { color: colors.text }]}>Album title</Text>
         <TextInput value={title} onChangeText={setTitle} maxLength={60} placeholder="e.g. Intimate weddings" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
@@ -722,6 +728,7 @@ export default function VendorGallery() {
           </Pressable>}
         </View>
       </View></View>
+      </KeyboardAwareScrollView>
     </Modal>
 
     <Modal visible={uploadModal} transparent animationType="fade" onRequestClose={() => !uploading && setUploadModal(false)}>

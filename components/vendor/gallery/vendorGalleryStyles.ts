@@ -126,6 +126,7 @@ export const vendorGalleryStyles = StyleSheet.create({
   viewBadge: { position: "absolute", right: 7, top: 7, width: 27, height: 27, borderRadius: 9, backgroundColor: "rgba(0,0,0,.42)", alignItems: "center", justifyContent: "center" },
   mediaDeleteButton: { position: "absolute", right: 7, top: 7, zIndex: 3, width: interactionTokens.minimumTouchTarget, height: interactionTokens.minimumTouchTarget, borderRadius: 14, backgroundColor: "rgba(150,24,55,.9)", alignItems: "center", justifyContent: "center" },
   mediaEmpty: { alignItems: "center", paddingVertical: 34 }, modalBackdrop: { flex: 1, backgroundColor: "rgba(20,10,15,.45)", justifyContent: "flex-end", padding: Platform.OS === "web" ? 20 : 0 },
+  albumModalKeyboard: { flex: 1 }, albumModalScroll: { flexGrow: 1, justifyContent: "flex-end" },
   sheet: { width: "100%", maxWidth: 520, alignSelf: "center", borderWidth: 1, borderRadius: 26, padding: 20, paddingBottom: 30 }, sheetHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
   inputLabel: { fontSize: typeScale.metadata, fontWeight: "700", marginBottom: 7 }, input: { minHeight: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, marginBottom: 15, fontSize: typeScale.body }, textarea: { minHeight: 96, paddingTop: 13, textAlignVertical: "top" },
   modalHint: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginBottom: 14, marginTop: -3 },
