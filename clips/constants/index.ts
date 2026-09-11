@@ -1,6 +1,10 @@
 export const CLIP_MEDIA_LIMITS = Object.freeze({
   maximumDurationSeconds: 30,
-  maximumFinalFileSizeBytes: 40 * 1024 * 1024,
+  // Vendors may select a source up to 40 MiB, but Cloudinary must only ever
+  // receive a prepared asset at or below 20 MiB.
+  maximumSourceFileSizeBytes: 40 * 1024 * 1024,
+  compressionThresholdBytes: 20 * 1024 * 1024,
+  maximumFinalFileSizeBytes: 20 * 1024 * 1024,
   maximumWidth: 1080,
   maximumHeight: 1920,
 });
@@ -14,7 +18,9 @@ export const CLIP_COMPRESSION_SETTINGS = Object.freeze({
   preferredAudioCodec: "aac",
   maximumAttempts: 3,
   targetVideoBitrate: 8_000_000,
-  targetFileSizeBytes: 39 * 1024 * 1024,
+  // Leave headroom for muxing/container overhead so a "20 MB" result cannot
+  // cross the enforced 20 MiB final boundary after encoding.
+  targetFileSizeBytes: 19 * 1024 * 1024,
 });
 
 export const CLIP_THUMBNAIL_SETTINGS = Object.freeze({

@@ -21,8 +21,8 @@ export function buildClipCompressionPlan(source: ClipUpload): ClipCompressionAtt
   const originalEstimatedBitrate = Math.max(500_000, Math.floor((source.fileSizeBytes * 8) / duration));
   const profiles = [
     { targetBytes: clipsConfig.compression.targetFileSizeBytes, maxDimension: 1920, overheadFactor: 0.94 },
-    { targetBytes: 37 * 1024 * 1024, maxDimension: 1280, overheadFactor: 0.9 },
-    { targetBytes: 35 * 1024 * 1024, maxDimension: 960, overheadFactor: 0.86 },
+    { targetBytes: 18 * 1024 * 1024, maxDimension: 1280, overheadFactor: 0.9 },
+    { targetBytes: 16 * 1024 * 1024, maxDimension: 960, overheadFactor: 0.86 },
   ];
 
   return profiles.slice(0, clipsConfig.compression.maximumAttempts).map((profile) => {

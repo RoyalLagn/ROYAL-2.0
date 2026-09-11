@@ -150,7 +150,7 @@ ClipCompressionService.configure({
     }
     throw new ClipModuleError(
       "COMPRESSION_ERROR",
-      "This video could not be compressed below 40 MB. Please choose a shorter video or a lower-resolution clip.",
+      "This video could not be compressed to 20 MB. Please choose a shorter video or a lower-resolution clip.",
     );
   },
 });

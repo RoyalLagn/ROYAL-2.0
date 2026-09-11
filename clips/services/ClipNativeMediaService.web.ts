@@ -36,7 +36,7 @@ ClipCompressionService.configure({
   async compress() {
     throw new ClipModuleError(
       "COMPRESSION_ERROR",
-      "Automatic video compression is available in the RoyalLagn Android and iOS apps.",
+      "Videos above 20 MB must be uploaded from the RoyalLagn Android or iOS app so they can be compressed before upload.",
     );
   },
 });

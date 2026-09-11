@@ -226,6 +226,8 @@ Vendor portfolio services coordinate albums, assets, public visibility, and Clou
 
 The Clips package separates public feed/engagement from vendor creation and administration. Upload orchestration coordinates selection, validation, compression, thumbnail generation, reservation, transfer, and commit. Atomic reservations protect quotas and retry behavior. Cache, draft, and queue services avoid placing this state in route components.
 
+The admin Finance destination also exposes a Clips business-plan calculator. It reads the current subscription-plan media policy and pricing, performs scenario calculations client-side for immediate feedback, and persists admin-only planning scenarios through `adminClipFinanceService` and RLS-protected `admin_clip_finance_scenarios`. These scenarios are planning data only; they do not alter subscription plans, vendor entitlements, or recorded finance ledger totals.
+
 ### 7.6 Packages and enquiries
 
 Vendor package services validate and persist vendor-owned packages. Public enquiry entry points preserve vendor/package context. Enquiry records protect private fields with RLS and support customer/vendor/admin views appropriate to their roles. Realtime updates refresh active enquiry workflows.

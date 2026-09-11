@@ -13,7 +13,15 @@ export function validateClipSource(source: ClipUpload) {
   if (source.fileSizeBytes <= 0) {
     throw new ClipModuleError("VALIDATION_ERROR", "Clip file size is unavailable.");
   }
+  if (source.fileSizeBytes > clipsConfig.media.maximumSourceFileSizeBytes) {
+    throw new ClipModuleError(
+      "VALIDATION_ERROR",
+      "Upload clips up to 40 MB only. Choose a smaller video.",
+    );
+  }
   return {
-    requiresCompression: source.fileSizeBytes > clipsConfig.media.maximumFinalFileSizeBytes,
+    // A file at 20 MiB or below goes straight to Cloudinary. Anything larger
+    // is prepared locally first, so the original source never reaches storage.
+    requiresCompression: source.fileSizeBytes > clipsConfig.media.compressionThresholdBytes,
   };
 }

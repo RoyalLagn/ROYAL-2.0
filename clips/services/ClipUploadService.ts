@@ -25,7 +25,7 @@ export const ClipUploadService = {
     if (!validation.requiresCompression) return draft.source;
     const compressed = await ClipCompressionService.compress(draft.source, onCompressionProgress);
     if (compressed.fileSizeBytes > clipsConfig.media.maximumFinalFileSizeBytes) {
-      throw new ClipModuleError("COMPRESSION_ERROR", "This video could not be compressed below 40 MB. Please choose a shorter video or a lower-resolution clip.");
+      throw new ClipModuleError("COMPRESSION_ERROR", "This video could not be compressed to 20 MB. Please choose a shorter video or a lower-resolution clip.");
     }
     return compressed;
   },

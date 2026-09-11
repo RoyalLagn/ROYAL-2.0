@@ -5,6 +5,11 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 const OPERATION_TIMEOUT_MS = 30_000;
+// The device may accept a source file up to the vendor plan's 40 MiB limit,
+// but it must compress that source locally before requesting this signature.
+// This signer is the server-side backstop: Cloudinary never receives a Clip
+// video larger than the 20 MiB stored-media boundary.
+const MAX_PREPARED_CLIP_BYTES = 20 * 1024 * 1024;
 
 async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit) {
   const controller = new AbortController();
@@ -45,13 +50,19 @@ Deno.serve(async (request) => {
     if (policyError) throw policyError;
     const policy = Array.isArray(policyRows) ? policyRows[0] : policyRows;
     if (!policy?.max_clip_upload_mb) throw new Error("Clips are not included in your current plan.");
-    const maximum = kind === "video" ? Number(policy.max_clip_upload_mb) * 1024 * 1024 : 8 * 1024 * 1024;
+    const maximum = kind === "video"
+      ? Math.min(Number(policy.max_clip_upload_mb) * 1024 * 1024, MAX_PREPARED_CLIP_BYTES)
+      : 8 * 1024 * 1024;
     const allowed = kind === "video"
       ? new Set(["video/mp4", "video/quicktime", "video/x-m4v", "video/hevc"])
       : new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
     if (!allowed.has(String(mimeType).toLowerCase())) throw new Error("Unsupported Clip media type");
     if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > maximum) {
-      throw new Error(kind === "video" ? `Your plan allows Clips up to ${policy.max_clip_upload_mb} MB.` : "Clip media size is not allowed");
+      throw new Error(
+        kind === "video"
+          ? "This clip must be compressed to 20 MB before upload. Please choose a shorter or lower-resolution video."
+          : "Clip media size is not allowed",
+      );
     }
     console.log(`[CLIP-DEBUG][${uploadId}] EDGE_VENDOR_AUTH START`, { requestId, vendorId, clipId, kind });
     const { data: vendor } = await supabase.from("vendors").select("id")

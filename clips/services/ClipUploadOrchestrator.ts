@@ -159,7 +159,7 @@ export const ClipUploadOrchestrator = {
       });
       ensureActive();
       if (prepared.fileSizeBytes > clipsConfig.media.maximumFinalFileSizeBytes) {
-        throw new ClipModuleError("COMPRESSION_ERROR", "This video could not be compressed below 40 MB. Please choose a shorter video or a lower-resolution clip.");
+        throw new ClipModuleError("COMPRESSION_ERROR", "This video could not be compressed to 20 MB. Please choose a shorter video or a lower-resolution clip.");
       }
 
       onProgress({ stage: "thumbnail", progress: 0.35, bytesUploaded: 0, totalBytes: prepared.fileSizeBytes, attempt: item.retryCount + 1 });
@@ -212,7 +212,7 @@ export const ClipUploadOrchestrator = {
         await withTimeout("Cleaning up oversized upload", supabase.functions.invoke("clip-cloudinary-delete", {
           body: { vendorId: draft.vendorId, publicId: uploaded.publicId },
         })).catch(() => undefined);
-        throw new ClipModuleError("UPLOAD_ERROR", "Maximum clip size is 40 MB.");
+        throw new ClipModuleError("UPLOAD_ERROR", "The processed clip is above 20 MB and was not saved. Please choose a shorter video or a lower-resolution clip.");
       }
       onProgress({ stage: "saving", progress: 0.95, bytesUploaded: prepared.fileSizeBytes, totalBytes: prepared.fileSizeBytes, attempt: item.retryCount + 1 });
       const insertStartedAt = Date.now();
