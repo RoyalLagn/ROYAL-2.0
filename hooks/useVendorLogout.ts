@@ -11,6 +11,8 @@ export function useVendorLogout() {
   return useCallback(async () => {
     if (isPreviewMode) {
       clearPreviewMode();
+      router.replace("/VendorAuth");
+      return;
     } else {
       // Goes through VendorAuthContext so the resolved vendor state (and
       // therefore every screen reading it) clears immediately, instead of
@@ -19,8 +21,8 @@ export function useVendorLogout() {
       // own via its effect cleanup once its owning screen unmounts below.
       await signOut();
     }
-
-    if (router.canDismiss()) router.dismissAll();
-    router.replace("/VendorAuth");
+    // VendorRouteGuard owns the post-sign-out redirect. Keeping navigation
+    // in one place avoids two simultaneous REPLACE actions while the auth
+    // state is unmounting the protected Vendor route.
   }, [clearPreviewMode, isPreviewMode, router, signOut]);
 }

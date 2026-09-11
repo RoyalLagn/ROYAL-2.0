@@ -110,6 +110,8 @@ export function SubscriptionProvider({ children }: React.PropsWithChildren) {
     };
   }, [refresh]);
 
+  useEffect(() => SubscriptionAccessService.subscribeToPlanConfiguration(() => void refresh()), [refresh]);
+
   useEffect(() => {
     ClipUploadService.configureLimitResolver({
       resolve: async () => {

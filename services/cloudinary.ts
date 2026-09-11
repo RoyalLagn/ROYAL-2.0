@@ -608,6 +608,7 @@ export async function uploadPortfolioAsset(
       resourceType,
       mimeType: prepared.mimeType || (resourceType === "video" ? "video/mp4" : "image/jpeg"),
       fileSize: resolvedFileSize,
+      originalFileSize: asset.fileSize ?? resolvedFileSize,
       batchSize: 1,
     },
   });

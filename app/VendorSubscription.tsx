@@ -360,6 +360,8 @@ export default function VendorSubscription() {
 
               {/* Description */}
               <Text style={[styles.planDescription, { color: colors.muted }]}>{plan.description}</Text>
+              <Text style={[styles.mediaPolicy, { color: colors.muted }]}>Images: {plan.features.find((feature) => feature.feature_key === "upload_gallery" && feature.is_enabled)?.limit_value ?? 0} · up to {plan.max_image_upload_mb} MB each · stored target ≤ {plan.stored_image_target_mb} MB</Text>
+              <Text style={[styles.mediaPolicy, { color: colors.muted }]}>{plan.max_clip_upload_mb ? `Clips: ${plan.features.find((feature) => feature.feature_key === "upload_clips" && feature.is_enabled)?.limit_value ?? 0} · up to ${plan.max_clip_upload_mb} MB each · stored target ≤ ${plan.stored_clip_target_mb} MB · ~${plan.clip_delivery_target_mb} MB/view` : "Clips: Not included"}</Text>
 
               <View style={[styles.divider, { borderTopColor: colors.border }]} />
 
@@ -409,5 +411,6 @@ const styles = StyleSheet.create({
   planDescription: { ...typeStyles.bodyCompact, marginTop: 16, lineHeight: typeLeading.bodyCompact },
   divider: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 18, marginBottom: 2 },
   prorationNote: { borderWidth: 1, borderRadius: 14, padding: 11, marginTop: 14 }, prorationTitle: { fontSize: typeScale.caption, fontWeight: "700" }, prorationText: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 3 },
+  mediaPolicy: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 6, fontWeight: "600" },
   features: { flex: 1, marginTop: 16, gap: 9 }, feature: { minHeight: 28, flexDirection: "row", alignItems: "center", gap: 9 }, featureIcon: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" }, featureText: { flex: 1, fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "600" }, intervalUnavailable: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 12, fontWeight: "600" }, subscribe: { minHeight: 50, borderRadius: 999, borderWidth: 1, borderColor: "transparent", alignItems: "center", justifyContent: "center", marginTop: 18, paddingHorizontal: 12 }, subscribeText: { color: "#FFF", fontSize: typeScale.bodyCompact, fontWeight: "700", textAlign: "center" }, pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 }, disabled: { opacity: 0.58 },
 });

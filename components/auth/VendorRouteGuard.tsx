@@ -29,8 +29,7 @@ export function VendorRouteGuard({ children }: { children: React.ReactNode }) {
     redirecting.current = true;
     // Reuse the destination the context already resolved instead of
     // resolving again -- one fetch, one decision, one redirect.
-    if (router.canDismiss()) router.dismissAll();
-    router.replace((resolution?.destination ?? { pathname: "/Login" }) as never);
+    router.replace((resolution?.destination ?? { pathname: "/VendorAuth" }) as never);
   }, [isVendorAuthenticated, loading, protectedRoute, resolution, router]);
 
   if (protectedRoute && (loading || !isVendorAuthenticated)) {

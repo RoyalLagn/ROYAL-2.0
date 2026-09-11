@@ -18,6 +18,7 @@ export type VendorInboxRow = {
   body: string | null;
   kind: string;
   target_path: string | null;
+  metadata: Record<string, unknown>;
   is_read: boolean;
   read_at: string | null;
   created_at: string;
@@ -77,7 +78,7 @@ export const VendorInboxService = {
   async list(vendorId: string, limit = 100) {
     const { data, error } = await supabase
       .from("vendor_notifications")
-      .select("id,vendor_id,title,body,kind,target_path,is_read,read_at,created_at")
+      .select("id,vendor_id,title,body,kind,target_path,metadata,is_read,read_at,created_at")
       .eq("vendor_id", vendorId)
       .order("is_read", { ascending: true })
       .order("created_at", { ascending: false })

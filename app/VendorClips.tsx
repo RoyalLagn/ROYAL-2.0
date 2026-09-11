@@ -26,6 +26,7 @@ import { typeScale, typeLeading, typeStyles } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
 import InteropSafePressable from "@/components/InteropSafePressable";
+import { EliteClipsUpgradeState } from "@/components/subscriptions/EliteClipsUpgradeState";
 
 type ClipGroup = "approved" | "pending" | "draft" | "hidden" | "rejected";
 
@@ -162,6 +163,9 @@ export default function VendorClips() {
   }
   if (!data.vendor?.is_verified) {
     return <View style={[styles.center, { backgroundColor: colors.background, padding: 24 }]}><Video size={42} color={colors.muted} /><Text style={[styles.emptyTitle, { color: colors.text }]}>Approved Vendor access required</Text><Text style={[styles.emptyText, { color: colors.muted }]}>Clips management becomes available after Vendor approval.</Text></View>;
+  }
+  if (!hasFeature("upload_clips")) {
+    return <View style={[styles.root, { backgroundColor: colors.background }]}><VendorHeader /><EliteClipsUpgradeState /></View>;
   }
 
   return <View style={[styles.root, { backgroundColor: colors.background }]}>

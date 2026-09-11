@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Platform, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
+import { Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   BriefcaseBusiness, CalendarDays, Check, ChevronRight, CircleAlert, Crown,
   Clock3, Eye, FileText, Globe, Images, MapPin, MessageSquareText, Palette,
-  Phone, Plus, Sparkles, Star, Tags, Target, } from "lucide-react-native";
+  Phone, Plus, ShieldAlert, Sparkles, Star, Tags, Target, } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -18,6 +18,7 @@ import { fonts, typeStyles, typeScale, typeLeading } from "@/constants/typograph
 import Pressable from "@/components/InteropSafePressable";
 import PageLoader from "@/components/loading/PageLoader";
 import { getMyFeaturedPlacements, type FeaturedPlacement } from "@/services/featuredVendorPlacements";
+import { useVendorNotifications } from "@/context/VendorNotificationContext";
 
 // Ordered worse -> better so a state "improving" can be detected with a
 // simple index comparison when the vendor returns from a section form.
@@ -58,6 +59,7 @@ export default function VendorDashboard() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { data, loading, error, completion, refresh } = useVendorWorkspace();
+  const { notifications, markAsRead } = useVendorNotifications();
   const desktop = width >= 900;
   // Web gets the denser, two-column workspace only when there is enough
   // room for each card to keep its content comfortably readable. Native
@@ -74,6 +76,9 @@ export default function VendorDashboard() {
     ? data.stats.averageRating.toFixed(1)
     : "—";
   const vendorName = data.vendor?.business_name || "Your vendor business";
+  const expiryWarning = notifications.find((item) => item.kind === "elite_expiry_warning" && !item.is_read) ?? null;
+  const warningDays = typeof expiryWarning?.metadata.days_remaining === "number"
+    ? expiryWarning.metadata.days_remaining : 5;
   const completedItems = completion.items.filter((item) => item.state === "complete").length;
   const nextItem = completion.items.find((item) => item.state !== "complete");
   const [featuredPlacements, setFeaturedPlacements] = useState<FeaturedPlacement[]>([]);
@@ -163,8 +168,50 @@ export default function VendorDashboard() {
 
   if (loading && !data.vendor) return <PageLoader />;
 
+  const closeExpiryWarning = () => {
+    if (expiryWarning) void markAsRead(expiryWarning.id);
+  };
+
+  const renewElite = () => {
+    closeExpiryWarning();
+    router.push({ pathname: "/VendorSubscription", params: { plan: "elite", source: "expiry-warning" } });
+  };
+
   return (
     <View style={[styles.page, { backgroundColor: canvas }]}>
+      <Modal
+        visible={Boolean(expiryWarning)}
+        transparent
+        animationType="fade"
+        onRequestClose={closeExpiryWarning}
+        accessibilityViewIsModal
+      >
+        <View style={styles.warningBackdrop}>
+          <View style={[styles.warningDialog, { backgroundColor: colors.background, shadowColor: colors.shadow }]}> 
+            <View style={[styles.warningIcon, { backgroundColor: dark ? "#4A261E" : "#FFF1EB" }]}> 
+              <ShieldAlert size={28} color={colors.warning} />
+            </View>
+            <Text style={[styles.warningTitle, { color: colors.text }]}>Your Elite plan ends in {warningDays} {warningDays === 1 ? "day" : "days"}</Text>
+            <Text style={[styles.warningBody, { color: colors.muted }]}>Renew before it ends to keep your Clips live. If Elite access expires, every Clip will be permanently deleted from your vendor dashboard and the public app.</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Renew Elite subscription"
+              onPress={renewElite}
+              style={({ pressed }) => [styles.warningPrimary, { backgroundColor: colors.pink }, pressed && styles.pressed]}
+            >
+              <Text style={styles.warningPrimaryText}>Continue Elite</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss subscription expiry warning"
+              onPress={closeExpiryWarning}
+              style={({ pressed }) => [styles.warningSecondary, { borderColor: colors.border }, pressed && styles.pressed]}
+            >
+              <Text style={[styles.warningSecondaryText, { color: colors.text }]}>I understand</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
       <VendorHeader unread={unread} />
       <ScrollView
         ref={scrollRef}
@@ -415,6 +462,15 @@ export default function VendorDashboard() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
+  warningBackdrop: { flex: 1, backgroundColor: "rgba(24,12,18,0.64)", alignItems: "center", justifyContent: "center", padding: 20 },
+  warningDialog: { width: "100%", maxWidth: 460, borderRadius: 20, padding: 24, alignItems: "center", shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.24, shadowRadius: 32, elevation: 9 },
+  warningIcon: { width: 58, height: 58, borderRadius: 16, alignItems: "center", justifyContent: "center", marginBottom: 18 },
+  warningTitle: { ...typeStyles.sectionTitle, textAlign: "center", maxWidth: 380 },
+  warningBody: { fontSize: typeScale.body, lineHeight: typeLeading.body, textAlign: "center", marginTop: 10, marginBottom: 22, maxWidth: 400 },
+  warningPrimary: { width: "100%", minHeight: 50, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 },
+  warningPrimaryText: { color: "#FFFFFF", fontSize: typeScale.body, fontWeight: "800" },
+  warningSecondary: { width: "100%", minHeight: 48, borderWidth: 1, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18, marginTop: 10 },
+  warningSecondaryText: { fontSize: typeScale.metadata, fontWeight: "700" },
   scroll: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28, width: "100%", alignSelf: "center" },
   desktopScroll: { maxWidth: 1180, paddingHorizontal: 28, paddingTop: 28, paddingBottom: 52 },
   wideWebScroll: { maxWidth: 1600, paddingHorizontal: 36 },

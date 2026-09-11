@@ -39,13 +39,19 @@ Deno.serve(async (request) => {
       requestId, uploadId, vendorId, clipId, kind, mimeType, fileSize,
     });
     if (!vendorId || !clipId || !["video", "thumbnail"].includes(kind)) throw new Error("Invalid upload request");
-    const maximum = kind === "video" ? 40 * 1024 * 1024 : 8 * 1024 * 1024;
+    const { data: policyRows, error: policyError } = await supabase.rpc("get_my_subscription_media_policy", {
+      target_vendor_id: vendorId,
+    });
+    if (policyError) throw policyError;
+    const policy = Array.isArray(policyRows) ? policyRows[0] : policyRows;
+    if (!policy?.max_clip_upload_mb) throw new Error("Clips are not included in your current plan.");
+    const maximum = kind === "video" ? Number(policy.max_clip_upload_mb) * 1024 * 1024 : 8 * 1024 * 1024;
     const allowed = kind === "video"
       ? new Set(["video/mp4", "video/quicktime", "video/x-m4v", "video/hevc"])
       : new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
     if (!allowed.has(String(mimeType).toLowerCase())) throw new Error("Unsupported Clip media type");
     if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > maximum) {
-      throw new Error(kind === "video" ? "Maximum clip size is 40 MB." : "Clip media size is not allowed");
+      throw new Error(kind === "video" ? `Your plan allows Clips up to ${policy.max_clip_upload_mb} MB.` : "Clip media size is not allowed");
     }
     console.log(`[CLIP-DEBUG][${uploadId}] EDGE_VENDOR_AUTH START`, { requestId, vendorId, clipId, kind });
     const { data: vendor } = await supabase.from("vendors").select("id")

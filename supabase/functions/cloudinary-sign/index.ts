@@ -29,17 +29,26 @@ Deno.serve(async (request) => {
       resourceType = "image",
       mimeType = "",
       fileSize = 0,
+      originalFileSize = fileSize,
       batchSize = 1,
     } = await request.json();
     const kind = resourceType === "video" ? "video" : "image";
     const allowedImages = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
     const allowedVideos = new Set(["video/mp4", "video/quicktime", "video/webm"]);
     const allowedTypes = kind === "video" ? allowedVideos : allowedImages;
-    // Images reach this signer only after the shared client preparation
-    // pipeline has produced the final upload file. Video behavior is unchanged.
+    const { data: policyRows, error: policyError } = await supabase.rpc("get_my_subscription_media_policy", {
+      target_vendor_id: vendorId,
+    });
+    if (policyError) throw policyError;
+    const policy = Array.isArray(policyRows) ? policyRows[0] : policyRows;
+    if (!policy) throw new Error("An active subscription plan is required");
+    const sourceImageMaxBytes = Number(policy.max_image_upload_mb) * 1024 * 1024;
     const maxBytes = kind === "video" ? 150 * 1024 * 1024 : 5 * 1024 * 1024;
     if (!allowedTypes.has(String(mimeType).toLowerCase())) throw new Error("Unsupported portfolio file type");
     if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > maxBytes) throw new Error("Portfolio file size is not allowed");
+    if (kind === "image" && (!Number.isFinite(originalFileSize) || originalFileSize <= 0 || originalFileSize > sourceImageMaxBytes)) {
+      throw new Error(`Your plan allows image uploads up to ${policy.max_image_upload_mb} MB.`);
+    }
     if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 15) throw new Error("Invalid upload batch");
 
     const { data: vendor } = await supabase

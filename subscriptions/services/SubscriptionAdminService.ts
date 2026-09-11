@@ -56,6 +56,11 @@ export type AdminPlanInput = {
   status?: AdminPlanStatus;
   is_permanent?: boolean;
   display_order?: number;
+  max_image_upload_mb?: number;
+  stored_image_target_mb?: number;
+  max_clip_upload_mb?: number | null;
+  stored_clip_target_mb?: number | null;
+  clip_delivery_target_mb?: number | null;
 };
 
 export type AdminBillingOptionInput = {
@@ -103,6 +108,11 @@ export class SubscriptionAdminService {
       name: input.name.trim(), slug, description: input.description?.trim() || null,
       price: input.price, discounted_price: input.discounted_price ?? null, currency: input.currency || "INR",
       grace_period_days: input.grace_period_days ?? 0,
+      max_image_upload_mb: input.max_image_upload_mb ?? 5,
+      stored_image_target_mb: input.stored_image_target_mb ?? 4,
+      max_clip_upload_mb: input.max_clip_upload_mb ?? null,
+      stored_clip_target_mb: input.stored_clip_target_mb ?? null,
+      clip_delivery_target_mb: input.clip_delivery_target_mb ?? null,
       status: isFreePlan ? "active" as const : input.status ?? (input.is_active === false ? "hidden" : "active"),
     };
     if (input.id) {

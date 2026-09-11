@@ -22,6 +22,7 @@ export type VendorNotification = {
   body: string | null;
   kind: string;
   target_path: string | null;
+  metadata: Record<string, unknown>;
   is_read: boolean;
   read_at: string | null;
   created_at: string;
@@ -50,6 +51,7 @@ const fromRow = (row: VendorInboxRow): VendorNotification => ({
   body: row.body,
   kind: row.kind,
   target_path: row.target_path,
+  metadata: row.metadata ?? {},
   is_read: row.is_read,
   read_at: row.read_at,
   created_at: row.created_at,

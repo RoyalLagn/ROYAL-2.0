@@ -112,6 +112,11 @@ export type SubscriptionPlan = {
   display_order: number;
   status: SubscriptionPlanStatus;
   is_permanent: boolean;
+  max_image_upload_mb: number;
+  stored_image_target_mb: number;
+  max_clip_upload_mb: number | null;
+  stored_clip_target_mb: number | null;
+  clip_delivery_target_mb: number | null;
   billing_options: SubscriptionPlanBillingOption[];
   features: SubscriptionPlanFeature[];
 };

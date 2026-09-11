@@ -17,6 +17,8 @@ const PLAN_SELECT = `
   id,name,slug,description,price,discounted_price,currency,billing_interval,
   billing_interval_count,duration_days,trial_enabled,trial_days,grace_period_days,
   is_active,is_featured,display_order,status,is_permanent,
+  max_image_upload_mb,stored_image_target_mb,max_clip_upload_mb,
+  stored_clip_target_mb,clip_delivery_target_mb,
   subscription_plan_features(
     is_enabled,limit_value,
     subscription_feature_definitions(feature_key,name,description)
@@ -34,6 +36,11 @@ function mapPlan(row: any): SubscriptionPlan {
     discounted_price: row.discounted_price == null ? null : Number(row.discounted_price),
     status: row.status ?? (row.is_active ? "active" : "hidden"),
     is_permanent: Boolean(row.is_permanent),
+    max_image_upload_mb: Number(row.max_image_upload_mb ?? 5),
+    stored_image_target_mb: Number(row.stored_image_target_mb ?? 4),
+    max_clip_upload_mb: row.max_clip_upload_mb == null ? null : Number(row.max_clip_upload_mb),
+    stored_clip_target_mb: row.stored_clip_target_mb == null ? null : Number(row.stored_clip_target_mb),
+    clip_delivery_target_mb: row.clip_delivery_target_mb == null ? null : Number(row.clip_delivery_target_mb),
     features: (row.subscription_plan_features ?? []).map((entry: any): SubscriptionPlanFeature => ({
       feature_key: entry.subscription_feature_definitions.feature_key,
       name: entry.subscription_feature_definitions.name,
@@ -208,6 +215,18 @@ export class SubscriptionAccessService {
         filter: `vendor_id=eq.${vendorId}`,
       }, onChange)
       .subscribe();
+    return () => {
+      void channel.unsubscribe();
+      void supabase.removeChannel(channel);
+    };
+  }
+
+  static subscribeToPlanConfiguration(onChange: () => void) {
+    const channel = supabase.channel(`subscription-plans-${Date.now()}`);
+    for (const table of ["subscription_plans", "subscription_plan_features", "subscription_plan_billing_options"]) {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, onChange);
+    }
+    channel.subscribe();
     return () => {
       void channel.unsubscribe();
       void supabase.removeChannel(channel);
