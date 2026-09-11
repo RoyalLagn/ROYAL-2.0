@@ -48,6 +48,15 @@ export const VendorReadinessRules = {
     const priced = active.some((service) => service.price_type !== "contact" && Number(service.price) > 0);
     return priced ? "complete" : "partial";
   },
+  servicesAndPackages(services: any[]): CompletionState {
+    if (!services.length) return "missing";
+    const active = services.filter((service) => service.status === "active");
+    if (!active.length) return "partial";
+    const hasPublishedPrice = active.some(
+      (service) => service.price_type !== "contact" && Number(service.price) > 0,
+    );
+    return hasPublishedPrice ? "complete" : "partial";
+  },
   portfolio(albums: any[], media: any[]): CompletionState {
     if (!media.length) return "missing";
     return media.length >= 6 && albums.length >= 1 ? "complete" : "partial";

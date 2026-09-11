@@ -5,9 +5,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
+import { KeyboardAwareTextInput } from "@/components/keyboard/KeyboardAwareScrollView";
 import { Check, CircleAlert, MapPin, Search, ShieldCheck } from "lucide-react-native";
 import type { PincodeLocality } from "@/locations/types";
 import {
@@ -246,7 +246,7 @@ export function VendorServiceLocationEditor({
       <View style={styles.pincodeRow}>
         <View style={styles.pincodeControl}>
           <MapPin size={18} color="#E91E63" />
-          <TextInput
+          <KeyboardAwareTextInput
             value={value.pincode}
             onChangeText={updatePincode}
             placeholder="6-digit Indian PIN"

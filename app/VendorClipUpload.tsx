@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronDown, ChevronLeft, ImagePlus, Play, Save, Upload, Video, X } from "lucide-react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
@@ -18,7 +18,7 @@ import { usePublicClipsAvailability } from "@/hooks/usePublicClipsAvailability";
 import { typeScale } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
-import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
+import { KeyboardAwareScrollView, KeyboardAwareTextInput } from "@/components/keyboard/KeyboardAwareScrollView";
 
 function Preview({ source }: { source: ClipUpload }) {
   const player = useVideoPlayer(source.uri, (instance) => { instance.loop = true; });
@@ -189,7 +189,7 @@ export default function VendorClipUpload() {
         </View>
         <View style={desktop ? styles.column : undefined}>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.label, { color: colors.text }]}>Caption</Text><TextInput value={caption} onChangeText={setCaption} maxLength={2200} multiline placeholder="Tell couples about this wedding moment…" placeholderTextColor={colors.muted} style={[styles.input, styles.caption, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSoft }]} />
+            <Text style={[styles.label, { color: colors.text }]}>Caption</Text><KeyboardAwareTextInput value={caption} onChangeText={setCaption} maxLength={2200} multiline placeholder="Tell couples about this wedding moment…" placeholderTextColor={colors.muted} style={[styles.input, styles.caption, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSoft }]} />
             <Text style={[styles.captionCount, { color: colors.muted }]}>{caption.length}/2200</Text>
             <Text style={[styles.label, { color: colors.text }]}>Category</Text><Pressable onPress={() => setCategoryOpen(true)} style={[styles.input, styles.select, { borderColor: colors.border, backgroundColor: colors.surfaceSoft }]}><Text style={{ color: selectedCategory ? colors.text : colors.muted }}>{selectedCategory?.name || "Choose category"}</Text><ChevronDown size={18} color={colors.muted} /></Pressable>
             <View style={styles.buttonRow}><Pressable onPress={saveDraft} style={[styles.secondary, { borderColor: colors.border }]}><Save size={17} color={colors.text} /><Text style={{ color: colors.text, fontWeight: "700" }}>Save Draft</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Upload Clip" accessibilityState={{ disabled: submitting || uploadDisabled }} disabled={submitting || uploadDisabled} onPress={submit} style={[styles.primary, { backgroundColor: colors.pink }, (submitting || uploadDisabled) && styles.primaryDisabled]}>{submitting ? <ActivityIndicator color="#FFF" size="small" /> : <Upload size={17} color="#FFF" />}<Text style={styles.primaryText}>{submitting ? "Queuing…" : "Upload Clip"}</Text></Pressable></View>

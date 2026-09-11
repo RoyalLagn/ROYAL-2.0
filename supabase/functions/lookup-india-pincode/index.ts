@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -423,6 +424,131 @@ async function listCachedLocalities(service: ReturnType<typeof createClient>, pi
   return dedupeLocalitiesBySamePlace((data ?? []).map(localityFromRow));
 }
 
+const validCoordinate = (value: unknown, min: number, max: number) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
+};
+
+async function geocodeLocalityCoordinates(
+  service: ReturnType<typeof createClient>,
+  localityId: string,
+  pincode: string,
+) {
+  const { data: locality, error } = await service
+    .from("geo_pincode_localities")
+    .select("id,pincode,locality_name,latitude,longitude,raw_response,is_active,is_trusted,geo_states(name),geo_districts(name),geo_talukas(name)")
+    .eq("id", localityId)
+    .eq("pincode", pincode)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error) throw error;
+  if (!locality) throw new Error("The selected locality does not belong to this PIN code");
+
+  const existingLatitude = validCoordinate(locality.latitude, -90, 90);
+  const existingLongitude = validCoordinate(locality.longitude, -180, 180);
+  if (existingLatitude !== null && existingLongitude !== null) {
+    return { latitude: existingLatitude, longitude: existingLongitude, cached: true };
+  }
+  const state = firstRelation(locality.geo_states)?.name ?? "";
+  const district = firstRelation(locality.geo_districts)?.name ?? "";
+  const taluka = firstRelation(locality.geo_talukas)?.name ?? "";
+  // Nominatim often rejects an otherwise valid place when every postal
+  // hierarchy segment is packed into q (for example Kanhe + Maval + Pune +
+  // PIN returns no rows, while Kanhe + Pune returns the exact 412106 row).
+  // Search with the smallest discriminating query and validate the returned
+  // country/PIN/name below before accepting coordinates.
+  const query = [locality.locality_name, district || taluka || state].filter(Boolean).join(" ");
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("q", query);
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("addressdetails", "1");
+  url.searchParams.set("countrycodes", "in");
+  url.searchParams.set("limit", "5");
+
+  const providerSlotAvailable = await checkRateLimit(service, "nominatim-global", 1, 1);
+  if (!providerSlotAvailable) throw new Error("The coordinate provider is busy. Try saving again in a moment");
+
+  const response = await fetch(url, {
+    headers: {
+      "Accept": "application/json",
+      "Accept-Language": "en-IN,en;q=0.8",
+      "User-Agent": "RoyalLagn/1.0 (support@royallagn.com)",
+    },
+    signal: AbortSignal.timeout(9000),
+  });
+  if (!response.ok) throw new Error("The coordinate provider is temporarily unavailable");
+  const candidates = await response.json().catch(() => []);
+  const localityName = normalize(locality.locality_name);
+  let selected = (Array.isArray(candidates) ? candidates : []).find((candidate: any) => {
+    const address = candidate?.address ?? {};
+    const candidateCountry = normalize(address.country_code);
+    const candidatePin = String(address.postcode ?? "").replace(/\D/g, "");
+    const candidateNames = [address.village, address.town, address.city, address.hamlet, address.suburb, candidate.display_name]
+      .map(normalize)
+      .filter(Boolean);
+    const samePlace = candidateNames.some((name: string) => name === localityName || name.includes(localityName));
+    return candidateCountry === "in" && samePlace && (!candidatePin || candidatePin === pincode);
+  });
+  let coordinateSource: "locality" | "pincode" = "locality";
+  if (!selected) {
+    // Small villages are not always individually mapped by OSM. A PIN-level
+    // point is still a verified, bounded fallback and is already supported
+    // by resolve_vendor_geo_from_pincode as coordinate_source='pincode'.
+    // It keeps every valid postal village saveable without inventing a
+    // village coordinate or maintaining one-off records.
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const fallbackSlotAvailable = await checkRateLimit(service, "nominatim-global", 1, 1);
+    if (!fallbackSlotAvailable) throw new Error("The coordinate provider is busy. Try saving again in a moment");
+    const fallbackUrl = new URL("https://nominatim.openstreetmap.org/search");
+    fallbackUrl.searchParams.set("q", [pincode, district || state].filter(Boolean).join(" "));
+    fallbackUrl.searchParams.set("format", "jsonv2");
+    fallbackUrl.searchParams.set("addressdetails", "1");
+    fallbackUrl.searchParams.set("countrycodes", "in");
+    fallbackUrl.searchParams.set("limit", "5");
+    const fallbackResponse = await fetch(fallbackUrl, {
+      headers: {
+        "Accept": "application/json",
+        "Accept-Language": "en-IN,en;q=0.8",
+        "User-Agent": "RoyalLagn/1.0 (support@royallagn.com)",
+      },
+      signal: AbortSignal.timeout(9000),
+    });
+    if (!fallbackResponse.ok) throw new Error("The coordinate provider is temporarily unavailable");
+    const fallbackCandidates = await fallbackResponse.json().catch(() => []);
+    selected = (Array.isArray(fallbackCandidates) ? fallbackCandidates : []).find((candidate: any) => {
+      const address = candidate?.address ?? {};
+      return normalize(address.country_code) === "in"
+        && String(address.postcode ?? "").replace(/\D/g, "") === pincode;
+    });
+    if (!selected) throw new Error("No coordinate match was found for this PIN code");
+    coordinateSource = "pincode";
+  }
+
+  const latitude = validCoordinate(selected.lat, -90, 90);
+  const longitude = validCoordinate(selected.lon, -180, 180);
+  if (latitude === null || longitude === null) throw new Error("The coordinate provider returned an invalid location");
+
+  const rawResponse = locality.raw_response && typeof locality.raw_response === "object"
+    ? locality.raw_response as Record<string, unknown>
+    : {};
+  const update = coordinateSource === "locality"
+    ? service.from("geo_pincode_localities").update({
+        latitude,
+        longitude,
+        raw_response: {
+          ...rawResponse,
+          coordinate_source: "OpenStreetMap Nominatim",
+          coordinate_verified_at: new Date().toISOString(),
+          coordinate_osm_type: selected.osm_type ?? null,
+          coordinate_osm_id: selected.osm_id ?? null,
+        },
+      }).eq("id", locality.id).is("latitude", null).is("longitude", null)
+    : service.from("geo_pincodes").update({ latitude, longitude }).eq("pincode", pincode);
+  const { error: updateError } = await update;
+  if (updateError) throw updateError;
+  return { latitude, longitude, cached: false, coordinateSource };
+}
+
 type ExistingCacheRow = {
   taluka_id: string | null;
   resolution_status: string;
@@ -829,6 +955,30 @@ Deno.serve(async (request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
+
+    const geocodeLocalityId = String(body?.geocodeLocalityId ?? "").trim();
+    if (geocodeLocalityId) {
+      const authorization = request.headers.get("authorization") ?? "";
+      const jwt = authorization.replace(/^Bearer\s+/i, "").trim();
+      const { data: authData } = jwt ? await service.auth.getUser(jwt) : { data: { user: null } };
+      if (!authData.user) {
+        return Response.json({ error: "Authentication required" }, { status: 401, headers: cors });
+      }
+      // Scope retries to the selected locality. A vendor correcting several
+      // villages under the same PIN must not exhaust one account-wide hourly
+      // bucket and get stuck with an unresolved location.
+      const allowed = await checkRateLimit(
+        service,
+        `locality-geocode:${authData.user.id}:${geocodeLocalityId}`,
+        6,
+        10 * 60,
+      );
+      if (!allowed) {
+        return Response.json({ error: "Too many coordinate requests. Try again later." }, { status: 429, headers: cors });
+      }
+      const coordinates = await geocodeLocalityCoordinates(service, geocodeLocalityId, pincode);
+      return Response.json(coordinates, { headers: cors });
+    }
 
     // The geo (State/District/Taluka) cache is keyed the same way as the
     // legacy supported_pincodes cache, and both are refreshed together

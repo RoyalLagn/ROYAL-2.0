@@ -26,7 +26,8 @@ import { typeScale, typeLeading } from "@/constants/typography";
 
 type Colors = typeof vendorTheme.light;
 
-type ChecklistMeta = { label: string; icon: React.ComponentType<{ size?: number; color?: string }> };
+type ChecklistIcon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+type ChecklistMeta = { label: string; icon: ChecklistIcon };
 
 const CHECKLIST_PRESENTATION: Record<string, { description: string; light: readonly [string, string]; dark: readonly [string, string]; icon: string }> = {
   business: { description: "Tell us about your business", light: ["#FFF1F6", "#FFE4EE"], dark: ["#38242D", "#302027"], icon: "#E73C78" },
@@ -34,8 +35,7 @@ const CHECKLIST_PRESENTATION: Record<string, { description: string; light: reado
   location: { description: "Add your service locations", light: ["#EAF7FF", "#DDF1FC"], dark: ["#20313A", "#1B2B33"], icon: "#EE4E83" },
   contact: { description: "Let clients reach you easily", light: ["#FFF0F6", "#FFE4EE"], dark: ["#38242D", "#302027"], icon: "#E83D78" },
   identity: { description: "Show your brand identity", light: ["#FFF8E7", "#FFF0D5"], dark: ["#382F20", "#30281C"], icon: "#BF4777" },
-  services: { description: "List your offerings", light: ["#EAFBF4", "#DDF6EA"], dark: ["#20352E", "#1B2D28"], icon: "#E26077" },
-  pricing: { description: "Add your pricing details", light: ["#F5F0FF", "#EDE5FF"], dark: ["#2D283B", "#262233"], icon: "#D87937" },
+  services: { description: "Publish offerings with pricing", light: ["#EAFBF4", "#DDF6EA"], dark: ["#20352E", "#1B2D28"], icon: "#E26077" },
   portfolio: { description: "Showcase your work", light: ["#FFF1F5", "#FFE5EB"], dark: ["#38242B", "#302027"], icon: "#E95682" },
   availability: { description: "Set your availability", light: ["#EAFBF5", "#DCF6EC"], dark: ["#20352F", "#1B2D28"], icon: "#F04B7F" },
   tags: { description: "Help clients find you", light: ["#EAF7FF", "#DDEFFC"], dark: ["#20313A", "#1B2A33"], icon: "#EB4A7C" },
@@ -65,7 +65,7 @@ export function readinessChecklistItemWidth(
 type ChecklistItemProps = {
   item: CompletionItem;
   meta: ChecklistMeta;
-  sectionIcon: React.ComponentType<{ size?: number; color?: string }>;
+  sectionIcon: ChecklistIcon;
   colors: Colors;
   /** Measured card width from the parent grid. Prefer this over percentage widths. */
   itemWidth?: number;

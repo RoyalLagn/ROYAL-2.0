@@ -15,6 +15,7 @@ import {
   listVendorServiceLocations,
   replaceVendorServiceLocations,
   lookupIndianPincode,
+  ensureIndianLocalityCoordinates,
 } from "@/services/locations";
 import { getVendorGeoStatus } from "@/services/geoLocations";
 import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
@@ -109,9 +110,13 @@ export default function VendorEditLocation() {
     setSaving(true);
     setSaveError("");
     let locationWarning = "";
+    let coordinateWarning = "";
     try {
       let locationSaved = false;
-      if (locationDirty && locationValid) {
+      const canResolveCurrentLocation = locationValid
+        && /^[1-9][0-9]{5}$/.test(vendorLocation.pincode)
+        && Boolean(vendorLocation.geoLocalityId);
+      if ((locationDirty && locationValid) || canResolveCurrentLocation) {
         // If the PIN changed since it was last loaded/verified, warm the
         // geo_pincodes cache with a fresh lookup first so the atomic save
         // below has the best chance of resolving a canonical Taluka rather
@@ -127,6 +132,20 @@ export default function VendorEditLocation() {
             await lookupIndianPincode(vendorLocation.pincode);
           } catch {
             // Ignored -- see comment above.
+          }
+        }
+        if (canResolveCurrentLocation && vendorLocation.geoLocalityId) {
+          try {
+            await ensureIndianLocalityCoordinates({
+              pincode: vendorLocation.pincode,
+              localityId: vendorLocation.geoLocalityId,
+            });
+          } catch (coordinateError) {
+            // Saving the postal address remains possible while an external
+            // geocoder is unavailable, but do not hide the actual failure.
+            coordinateWarning = coordinateError instanceof Error
+              ? coordinateError.message
+              : "Location coordinates could not be verified automatically.";
           }
         }
         try {
@@ -153,9 +172,9 @@ export default function VendorEditLocation() {
           // accurate outcome instead of a silently-assumed success.
           const geoStatus = await getVendorGeoStatus(data.vendor.id).catch(() => null);
           if (geoStatus && geoStatus.status !== "resolved") {
-            locationWarning = geoStatus.reviewReason
+            locationWarning = coordinateWarning || (geoStatus.reviewReason
               ? `Address and PIN saved. Your area's Taluka needs review: ${geoStatus.reviewReason}`
-              : "Address and PIN saved. Your area's Taluka needs review before it appears in District/Taluka search.";
+              : "Address and PIN saved. Your area's Taluka needs review before it appears in District/Taluka search.");
           }
         }
       }

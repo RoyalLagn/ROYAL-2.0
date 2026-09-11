@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -39,6 +39,9 @@ export default function VendorGallery() {
   const [description, setDescription] = useState("");
   const [isVisible, setIsVisible] = useState(true);
   const [saving, setSaving] = useState(false);
+  const albumFormScrollRef = useRef<ScrollView>(null);
+  const albumTitleRef = useRef<TextInput>(null);
+  const albumDescriptionRef = useRef<TextInput>(null);
   const [uploadProgress, setUploadProgress] = useState<Record<string, {
     name: string;
     progress: number;
@@ -106,6 +109,15 @@ export default function VendorGallery() {
   const showFailure = (title: string, caught: unknown, message = "Please check your connection and try again.") => {
     if (__DEV__) console.error(title, caught);
     Alert.alert(title, message);
+  };
+  const revealAlbumField = (field: React.RefObject<TextInput | null>) => {
+    if (Platform.OS === "web") return;
+    // Wait for the modal window to finish resizing before calculating the field position.
+    setTimeout(() => {
+      const input = field.current;
+      if (!input) return;
+      albumFormScrollRef.current?.scrollResponderScrollNativeHandleToKeyboard(input, 24, true);
+    }, 280);
   };
 
   useFocusEffect(React.useCallback(() => { refresh(); }, [refresh]));
@@ -695,16 +707,19 @@ export default function VendorGallery() {
 
     <Modal visible={albumModal} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setAlbumModal(false)}>
       <KeyboardAwareScrollView
+        ref={albumFormScrollRef}
         containerStyle={styles.albumModalKeyboard}
         contentContainerStyle={[styles.albumModalScroll, { paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 16) }]}
         keyboardShouldPersistTaps="handled"
+        avoidKeyboardOnAndroid
+        keyboardGap={24}
       >
       <View style={styles.modalBackdrop}><View accessibilityViewIsModal style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.sheetHeader}><Text style={[styles.sectionTitle, { color: colors.text }]}>{editingAlbum ? "Edit album" : "New album"}</Text><Pressable onPress={() => setAlbumModal(false)}><X size={21} color={colors.text} /></Pressable></View>
         <Text style={[styles.inputLabel, { color: colors.text }]}>Album title</Text>
-        <TextInput value={title} onChangeText={setTitle} maxLength={60} placeholder="e.g. Intimate weddings" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
+        <TextInput ref={albumTitleRef} value={title} onChangeText={setTitle} onFocus={() => revealAlbumField(albumTitleRef)} maxLength={60} returnKeyType="next" blurOnSubmit={false} onSubmitEditing={() => albumDescriptionRef.current?.focus()} placeholder="e.g. Intimate weddings" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
         <Text style={[styles.inputLabel, { color: colors.text }]}>Description</Text>
-        <TextInput value={description} onChangeText={setDescription} multiline maxLength={300} placeholder="What makes this collection special?" placeholderTextColor={colors.muted} style={[styles.input, styles.textarea, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
+        <TextInput ref={albumDescriptionRef} value={description} onChangeText={setDescription} onFocus={() => revealAlbumField(albumDescriptionRef)} multiline maxLength={300} textAlignVertical="top" placeholder="What makes this collection special?" placeholderTextColor={colors.muted} style={[styles.input, styles.textarea, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
         <View style={[styles.visibilityRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
           <View style={styles.flex}>
             <Text style={[styles.visibilityTitle, { color: colors.text }]}>Visible on public profile</Text>

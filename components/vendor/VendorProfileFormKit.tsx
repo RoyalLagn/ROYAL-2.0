@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, } from "react-native";
+import { useKeyboardAwareForm } from "@/components/keyboard/KeyboardAwareScrollView";
 import { useRouter } from "expo-router";
 import { Check, ChevronDown, Save } from "lucide-react-native";
 import Animated, {
@@ -75,6 +76,12 @@ export function Field({
   editable?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
+  const keyboardAwareForm = useKeyboardAwareForm();
+  const inputRef = React.useRef<TextInput>(null);
+  useEffect(() => {
+    const input = inputRef.current;
+    return input && keyboardAwareForm ? keyboardAwareForm.registerInput(input) : undefined;
+  }, [keyboardAwareForm]);
   const [focused, setFocused] = useState(false);
   const focusValue = useSharedValue(0);
 
@@ -101,10 +108,19 @@ export function Field({
         {required ? <Text style={{ color: colors.pink }}> *</Text> : null}
       </Text>
       <AnimatedTextInput
+        ref={inputRef}
         value={value}
         onChangeText={onChangeText}
-        onFocus={() => setFocused(true)}
+        onFocus={() => {
+          setFocused(true);
+          keyboardAwareForm?.revealInput(inputRef.current);
+        }}
         onBlur={() => setFocused(false)}
+        returnKeyType={multiline ? undefined : "next"}
+        blurOnSubmit={!multiline}
+        onSubmitEditing={() => {
+          if (!multiline && inputRef.current) keyboardAwareForm?.focusNextInput(inputRef.current);
+        }}
         placeholder={placeholder}
         placeholderTextColor={colors.muted}
         keyboardType={keyboardType}

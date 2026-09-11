@@ -406,3 +406,43 @@ export async function lookupIndianPincode(pincode: string): Promise<PincodeLooku
   }
   return data as PincodeLookupResult;
 }
+
+/**
+ * Best-effort server-side geocoding for the exact postal locality selected
+ * by a vendor. The Edge Function validates that the locality belongs to the
+ * PIN before caching coordinates; callers can safely continue saving the
+ * address when the external geocoder has no exact match.
+ */
+export async function ensureIndianLocalityCoordinates(input: {
+  pincode: string;
+  localityId: string;
+}) {
+  if (!/^[1-9][0-9]{5}$/.test(input.pincode) || !input.localityId) return null;
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (sessionError || !accessToken) {
+    throw new PincodeLookupUnavailableError("Your vendor session is not ready. Please sign in again and retry.");
+  }
+  const { data, error } = await supabase.functions.invoke("lookup-india-pincode", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: {
+      pincode: input.pincode,
+      geocodeLocalityId: input.localityId,
+    },
+  });
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const body = await error.context.json();
+        const message = body && typeof body === "object" && "error" in body
+          ? String(body.error ?? "").trim()
+          : "";
+        if (message) throw new PincodeLookupUnavailableError(message);
+      } catch (caught) {
+        if (caught instanceof PincodeLookupUnavailableError) throw caught;
+      }
+    }
+    throw new PincodeLookupUnavailableError("Location coordinates could not be verified automatically. Please try again.");
+  }
+  return data as { latitude: number; longitude: number; cached: boolean } | null;
+}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Platform, StyleSheet, Switch, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, StyleSheet, Switch, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight, Save } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -10,7 +10,7 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { interactionTokens } from "@/constants/interactionTokens";
-import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
+import { KeyboardAwareScrollView, KeyboardAwareTextInput } from "@/components/keyboard/KeyboardAwareScrollView";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { updateVendorPublicProfile, type VendorBusinessHourEntry } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
@@ -310,7 +310,7 @@ export default function VendorCalendar() {
                 <Text style={[styles.hourClosedText, { color: colors.muted }]}>Not available</Text>
               ) : (
                 <View style={styles.hourInputs}>
-                  <TextInput
+                  <KeyboardAwareTextInput
                     value={entry.opens}
                     onChangeText={(value) => updateHourEntry(entry.day, { opens: cleanTime(value) })}
                     placeholder="09:00"
@@ -321,7 +321,7 @@ export default function VendorCalendar() {
                     style={[styles.hourInput, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
                   />
                   <Text style={[styles.hourSeparator, { color: colors.muted }]}>–</Text>
-                  <TextInput
+                  <KeyboardAwareTextInput
                     value={entry.closes}
                     onChangeText={(value) => updateHourEntry(entry.day, { closes: cleanTime(value) })}
                     placeholder="18:00"

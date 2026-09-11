@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronDown, ChevronLeft, ImagePlus, Save } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -15,7 +15,7 @@ import PremiumRouteGate from "@/components/subscriptions/PremiumRouteGate";
 import PageLoader from "@/components/loading/PageLoader";
 import { typeScale } from "@/constants/typography";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
-import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
+import { KeyboardAwareScrollView, KeyboardAwareTextInput } from "@/components/keyboard/KeyboardAwareScrollView";
 
 export default function VendorClipEdit() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -143,8 +143,8 @@ export default function VendorClipEdit() {
         <Text style={[styles.label, { color: colors.text }]}>Cover thumbnail</Text><Pressable onPress={replaceThumbnail} style={styles.thumbnail}><Image source={{ uri: clip.thumbnail_url }} style={styles.image} /><View style={styles.overlay}><ImagePlus size={20} color="#FFF" /><Text style={styles.overlayText}>Replace cover</Text></View></Pressable>
       </View>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.label, { color: colors.text }]}>Title</Text><TextInput value={title} onChangeText={setTitle} maxLength={120} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSoft }]} />
-        <Text style={[styles.label, { color: colors.text }]}>Caption</Text><TextInput value={caption} onChangeText={setCaption} maxLength={2200} multiline style={[styles.input, styles.caption, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSoft }]} />
+        <Text style={[styles.label, { color: colors.text }]}>Title</Text><KeyboardAwareTextInput value={title} onChangeText={setTitle} maxLength={120} style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSoft }]} />
+        <Text style={[styles.label, { color: colors.text }]}>Caption</Text><KeyboardAwareTextInput value={caption} onChangeText={setCaption} maxLength={2200} multiline style={[styles.input, styles.caption, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surfaceSoft }]} />
         <Text style={[styles.label, { color: colors.text }]}>Category</Text><Pressable onPress={() => setCategoryOpen((value) => !value)} style={[styles.input, styles.select, { borderColor: colors.border, backgroundColor: colors.surfaceSoft }]}><Text style={{ color: colors.text }}>{selectedCategory?.name}</Text><ChevronDown size={18} color={colors.muted} /></Pressable>
         {categoryOpen && <View style={[styles.options, { borderColor: colors.border }]}>{categories.map((category) => <Pressable key={category.id} onPress={() => { setCategoryId(category.id); setCategoryOpen(false); }} style={[styles.option, { borderBottomColor: colors.border }]}><Text style={{ color: colors.text }}>{category.name}</Text></Pressable>)}</View>}
         <Text style={[styles.label, { color: colors.text }]}>Visibility</Text><View style={styles.visibility}>{(["public", "unlisted", "private"] as ClipVisibility[]).map((value) => <Pressable key={value} onPress={() => setVisibility(value)} style={[styles.visibilityChoice, { borderColor: visibility === value ? colors.pink : colors.border, backgroundColor: visibility === value ? `${colors.pink}14` : colors.surfaceSoft }]}><Text style={{ color: visibility === value ? colors.pink : colors.muted, fontWeight: "700", fontSize: typeScale.metadata }}>{value}</Text></Pressable>)}</View>

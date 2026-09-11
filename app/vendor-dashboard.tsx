@@ -3,7 +3,7 @@ import { Platform, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimens
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
-  BadgeIndianRupee, BriefcaseBusiness, CalendarDays, Check, ChevronRight, CircleAlert, Crown,
+  BriefcaseBusiness, CalendarDays, Check, ChevronRight, CircleAlert, Crown,
   Clock3, Eye, FileText, Globe, Images, MapPin, MessageSquareText, Palette,
   Phone, Plus, Sparkles, Star, Tags, Target, } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -39,14 +39,13 @@ const completionMeta = {
 // The leading icon describes the section itself. Completion belongs in the
 // smaller status line, so vendors can identify a destination before reading
 // its state instead of scanning a wall of identical checkmarks.
-const checklistSectionIcons: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
+const checklistSectionIcons: Record<string, React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>> = {
   business: BriefcaseBusiness,
   about: FileText,
   location: MapPin,
   contact: Phone,
   identity: Palette,
   services: Sparkles,
-  pricing: BadgeIndianRupee,
   portfolio: Images,
   availability: CalendarDays,
   tags: Tags,

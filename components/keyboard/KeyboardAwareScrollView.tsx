@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
   type ScrollViewProps,
+  type TextInputProps,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
@@ -16,6 +17,8 @@ import {
 type KeyboardAwareScrollViewProps = ScrollViewProps & {
   containerStyle?: StyleProp<ViewStyle>;
   keyboardGap?: number;
+  /** Transparent Android modals do not always inherit the activity's adjustResize behavior. */
+  avoidKeyboardOnAndroid?: boolean;
 };
 
 const DEFAULT_KEYBOARD_GAP = 96;
@@ -25,6 +28,8 @@ type MeasurableInput = {
 
 type KeyboardAwareFormContextValue = {
   revealInput: (input?: TextInput | null) => void;
+  registerInput: (input: TextInput) => () => void;
+  focusNextInput: (input: TextInput) => void;
 };
 
 const KeyboardAwareFormContext = React.createContext<KeyboardAwareFormContextValue | null>(null);
@@ -33,6 +38,38 @@ const KeyboardAwareFormContext = React.createContext<KeyboardAwareFormContextVal
 export function useKeyboardAwareForm() {
   return React.useContext(KeyboardAwareFormContext);
 }
+
+/** TextInput that asks the nearest KeyboardAwareScrollView to reveal it. */
+export const KeyboardAwareTextInput = React.forwardRef<TextInput, TextInputProps>(
+  function KeyboardAwareTextInput({ onFocus, ...props }, forwardedRef) {
+    const form = useKeyboardAwareForm();
+    const inputRef = React.useRef<TextInput>(null);
+    React.useImperativeHandle(forwardedRef, () => inputRef.current as TextInput);
+    React.useEffect(() => {
+      const input = inputRef.current;
+      return input && form ? form.registerInput(input) : undefined;
+    }, [form]);
+
+    return (
+      <TextInput
+        {...props}
+        ref={inputRef}
+        onFocus={(event) => {
+          onFocus?.(event);
+          form?.revealInput(inputRef.current);
+        }}
+        returnKeyType={props.returnKeyType ?? (!props.multiline ? "next" : undefined)}
+        blurOnSubmit={props.blurOnSubmit ?? !props.multiline}
+        onSubmitEditing={(event) => {
+          props.onSubmitEditing?.(event);
+          if (!props.onSubmitEditing && !props.multiline && inputRef.current) {
+            form?.focusNextInput(inputRef.current);
+          }
+        }}
+      />
+    );
+  },
+);
 
 /**
  * Shared form scroller for native screens and modal bodies.
@@ -49,6 +86,7 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
       children,
       containerStyle,
       keyboardGap = DEFAULT_KEYBOARD_GAP,
+      avoidKeyboardOnAndroid = false,
       keyboardShouldPersistTaps = "handled",
       keyboardDismissMode = "none",
       automaticallyAdjustKeyboardInsets = false,
@@ -70,6 +108,7 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
     const keyboardTopRef = React.useRef(Number.POSITIVE_INFINITY);
     const [keyboardTailHeight, setKeyboardTailHeight] = React.useState(0);
     const pendingFrameRef = React.useRef<number | null>(null);
+    const inputsRef = React.useRef<TextInput[]>([]);
 
     React.useImperativeHandle(ref, () => scrollRef.current as ScrollView);
 
@@ -99,6 +138,30 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
       });
     }, [revealInput]);
 
+    const registerInput = React.useCallback((input: TextInput) => {
+      if (!inputsRef.current.includes(input)) inputsRef.current.push(input);
+      return () => {
+        inputsRef.current = inputsRef.current.filter((candidate) => candidate !== input);
+      };
+    }, []);
+
+    const focusNextInput = React.useCallback((input: TextInput) => {
+      const currentIndex = inputsRef.current.indexOf(input);
+      const next = currentIndex >= 0 ? inputsRef.current[currentIndex + 1] : null;
+      if (next) {
+        next.focus();
+        scheduleReveal(next);
+      } else {
+        Keyboard.dismiss();
+      }
+    }, [scheduleReveal]);
+
+    const contextValue = React.useMemo(() => ({
+      revealInput: scheduleReveal,
+      registerInput,
+      focusNextInput,
+    }), [focusNextInput, registerInput, scheduleReveal]);
+
     React.useEffect(() => {
       if (Platform.OS === "web") return;
       const show = Keyboard.addListener("keyboardDidShow", (event) => {
@@ -127,9 +190,9 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
     }, [scheduleReveal]);
 
     return (
-      <KeyboardAwareFormContext.Provider value={{ revealInput: scheduleReveal }}>
+      <KeyboardAwareFormContext.Provider value={contextValue}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : avoidKeyboardOnAndroid ? "height" : undefined}
           style={[styles.container, containerStyle]}
         >
           <ScrollView
