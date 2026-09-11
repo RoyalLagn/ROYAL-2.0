@@ -499,7 +499,7 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
 
 const styles = StyleSheet.create({
   field: { marginBottom: 4 },
-  navbarField: { width: "33.333%", flexShrink: 0, marginBottom: 0 },
+  navbarField: { width: "100%", flex: 1, minWidth: 0, marginBottom: 0 },
   controlRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   flex: { flex: 1, minWidth: 0 },
   label: { fontSize: typeScale.body, fontWeight: "600", marginBottom: 8 },

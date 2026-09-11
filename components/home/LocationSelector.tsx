@@ -245,20 +245,20 @@ export default function LocationSelector({ dark, compact = false, filterChip = f
               accessibilityLabel="Use current location"
               disabled={saving || locating}
               onPress={() => void detectCurrentLocation()}
-              style={({ pressed }) => [
+              style={[
                 styles.currentLocation,
                 { borderColor: colors.border, backgroundColor: dark ? "#261922" : "#FFF5F8" },
-                pressed && styles.pressed,
                 (saving || locating) && styles.disabled,
               ]}
             >
               <View style={styles.currentLocationIcon}>
                 {locating ? <ActivityIndicator size="small" color={PINK} /> : <Navigation size={18} color={PINK} />}
               </View>
-              <View style={styles.flex}>
+              <View style={styles.currentLocationCopy}>
                 <Text style={[styles.currentLocationTitle, { color: colors.text }]}>{locating ? "Finding your location…" : "Use current location"}</Text>
                 <Text style={[styles.currentLocationDetail, { color: colors.muted }]}>Uses your device GPS</Text>
               </View>
+              <ChevronDown size={18} color={PINK} style={styles.currentLocationArrow} />
             </Pressable>
 
             <CompactSearchBar
@@ -336,10 +336,12 @@ const styles = StyleSheet.create({
   title: { fontSize: typeScale.editorialCardTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700", letterSpacing: -0.3 },
   subtitle: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 3 },
   closeButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
-  currentLocation: { minHeight: 58, marginBottom: 12, paddingHorizontal: 12, borderWidth: 1, borderRadius: 15, flexDirection: "row", alignItems: "center", gap: 11 },
-  currentLocationIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
-  currentLocationTitle: { fontSize: typeScale.bodyCompact, fontWeight: "800" },
-  currentLocationDetail: { fontSize: typeScale.caption, marginTop: 2 },
+  currentLocation: { width: "100%", alignSelf: "stretch", minHeight: 64, marginBottom: 12, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderRadius: 15, flexDirection: "row", alignItems: "center", gap: 11 },
+  currentLocationIcon: { width: 40, height: 40, flexShrink: 0, borderRadius: 12, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
+  currentLocationCopy: { flexGrow: 1, flexShrink: 1, minWidth: 0, justifyContent: "center" },
+  currentLocationTitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, fontWeight: "800", includeFontPadding: false },
+  currentLocationDetail: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 1, includeFontPadding: false },
+  currentLocationArrow: { flexShrink: 0, transform: [{ rotate: "-90deg" }] },
   groupLabel: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.1, marginTop: 18, marginBottom: 9 },
   options: { gap: 8 },
   optionScroll: { maxHeight: 330 },
