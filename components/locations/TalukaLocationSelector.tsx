@@ -270,7 +270,7 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
               <View style={styles.flex}>
                 <Text style={[styles.title, { color: colors.foreground }]}>Choose your location</Text>
                 <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-                  We&apos;ll show vendors there first, then nearby Talukas automatically.
+                  We&apos;ll show vendors there first, then nearby Talukas within 100 km.
                 </Text>
               </View>
               <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => setVisible(false)} style={[styles.close, { backgroundColor: colors.muted }]}>
