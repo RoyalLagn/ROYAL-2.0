@@ -41,7 +41,30 @@ const valueOf = (row, ...names) => {
   return "";
 };
 
+const coordinateOf = (value) => {
+  const normalized = String(value ?? "").trim();
+  if (!normalized || /^(na|n\/a|null|undefined)$/i.test(normalized)) return "";
+  return Number.isFinite(Number(normalized)) ? Number(normalized) : null;
+};
+
+const coordinatesOf = (latitude, longitude) => {
+  const lat = coordinateOf(latitude);
+  const lng = coordinateOf(longitude);
+  if (lat == null || lng == null) return { latitude: "", longitude: "" };
+  if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+    return { latitude: String(lat), longitude: String(lng) };
+  }
+  if (Math.abs(lat) <= 180 && Math.abs(lng) <= 90) {
+    return { latitude: String(lng), longitude: String(lat) };
+  }
+  return { latitude: "", longitude: "" };
+};
+
 export function normalizeIndiaPostRow(row) {
+  const coordinates = coordinatesOf(
+    valueOf(row, "latitude", "lat"),
+    valueOf(row, "longitude", "long", "lng"),
+  );
   return {
     pincode: valueOf(row, "pincode", "pin"),
     officename: valueOf(row, "officename", "office_name", "name"),
@@ -50,8 +73,7 @@ export function normalizeIndiaPostRow(row) {
     taluk: valueOf(row, "taluk", "taluka", "block", "subdistrict"),
     districtname: valueOf(row, "districtname", "district_name", "district"),
     statename: valueOf(row, "statename", "state_name", "state"),
-    latitude: valueOf(row, "latitude", "lat"),
-    longitude: valueOf(row, "longitude", "long", "lng"),
+    ...coordinates,
     circlename: valueOf(row, "circlename", "circle_name", "circle"),
     regionname: valueOf(row, "regionname", "region_name", "region"),
     divisionname: valueOf(row, "divisionname", "division_name", "division"),
@@ -85,10 +107,25 @@ async function loadApiRows(apiKey, resourceId) {
   return output;
 }
 
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function importBatchWithRetry(client, batch) {
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    const { data, error } = await client.rpc("import_india_post_pincode_batch", { rows: batch });
+    if (!error) return data;
+    if (!['40P01', '40001'].includes(error.code) || attempt === 5) throw error;
+    console.warn(`Transient database conflict; retrying batch (${attempt}/5)…`);
+    await sleep(attempt * 1000);
+  }
+  return null;
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const fileIndex = args.indexOf("--file");
   const useApi = args.includes("--api");
+  const startAtIndex = args.indexOf("--start-at");
+  const startAt = startAtIndex >= 0 ? Number(args[startAtIndex + 1]) : 0;
   if (fileIndex < 0 && !useApi) {
     throw new Error("Usage: node scripts/import-india-post-pincodes.mjs --file <official.csv> OR --api");
   }
@@ -100,6 +137,9 @@ async function main() {
     ? parseCsv(await readFile(args[fileIndex + 1], "utf8"))
     : await loadApiRows(process.env.DATA_GOV_IN_API_KEY, process.env.DATA_GOV_IN_PINCODE_RESOURCE_ID);
   const rows = validateOfficialRows(rawRows);
+  if (!Number.isInteger(startAt) || startAt < 0 || startAt > rows.length) {
+    throw new Error("--start-at must be a valid zero-based row offset.");
+  }
   const url = process.env.SUPABASE_URL ?? process.env.EXPO_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceKey) throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.");
@@ -107,14 +147,15 @@ async function main() {
   const client = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const batchSize = 500;
   let imported = 0;
-  for (let index = 0; index < rows.length; index += batchSize) {
+  for (let index = startAt; index < rows.length; index += batchSize) {
     const batch = rows.slice(index, index + batchSize);
-    const { data, error } = await client.rpc("import_india_post_pincode_batch", { rows: batch });
-    if (error) throw error;
+    const data = await importBatchWithRetry(client, batch);
     imported += Number(data?.records_imported ?? batch.length);
-    process.stdout.write(`\rImported ${imported}/${rows.length} official post-office rows`);
+    if (imported % 10000 === 0 || startAt + imported === rows.length) {
+      console.log(`Imported ${startAt + imported}/${rows.length} official post-office rows`);
+    }
   }
-  process.stdout.write("\nIndia Post PIN import completed.\n");
+  console.log("India Post PIN import completed.");
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
