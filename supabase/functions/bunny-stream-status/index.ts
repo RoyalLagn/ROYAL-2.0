@@ -5,10 +5,10 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Bunny VideoModelStatus: 4 = Finished, 6 = Failed. Other values represent
-// upload/processing stages and must not be treated as playable.
-const READY_STATUS = 4;
-const FAILED_STATUS = 6;
+// Bunny VideoModelStatus: 3 = Finished, 4 = ResolutionFinished,
+// 5 = Failed, 6/7/8 = PresignedUploadStarted/Finished/Failed.
+const READY_STATUSES = new Set([3, 4]);
+const FAILED_STATUSES = new Set([5, 8]);
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -43,11 +43,19 @@ Deno.serve(async (request) => {
     const status = typeof video.status === "number" ? video.status : null;
     const storageSize = Number(video.storageSize || 0);
     const encodeProgress = Number(video.encodeProgress || 0);
-    const state = status === FAILED_STATUS
+    const state = status !== null && FAILED_STATUSES.has(status)
       ? "failed"
-      : status === READY_STATUS && storageSize > 0
+      : status !== null && READY_STATUSES.has(status) && storageSize > 0
         ? "ready"
-        : status === 0 || status === 7 ? "queued" : "processing";
+        : status === 0 || status === 6 ? "queued" : "processing";
+    console.log("[bunny-stream-status] Result", {
+      videoId,
+      purpose,
+      status,
+      storageSize,
+      encodeProgress,
+      state,
+    });
     return Response.json({
       state,
       status,

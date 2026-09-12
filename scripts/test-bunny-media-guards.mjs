@@ -48,7 +48,7 @@ assert.match(clipAdapter, /data\.provider !== "bunny"[\s\S]*unsupported upload p
 assert.match(clipAdapter, /verifyBunnyStreamUpload[\s\S]*waitForBunnyStreamReady/, "Clip finalization must wait for Bunny processing.");
 assert.match(portfolioSigner, /uploadMode: "tus"[\s\S]*bunny-stream:/, "Portfolio video signing must return Bunny Stream TUS authorization.");
 assert.match(clipSigner, /uploadMode: "tus"[\s\S]*videoUrl:/, "Clip video signing must return Bunny Stream TUS authorization.");
-assert.match(statusFunction, /READY_STATUS = 4[\s\S]*FAILED_STATUS = 6[\s\S]*storageSize > 0/, "Bunny processing verification must require a finished, non-empty video.");
+assert.match(statusFunction, /READY_STATUSES = new Set\(\[3, 4\]\)[\s\S]*FAILED_STATUSES = new Set\(\[5, 8\]\)[\s\S]*storageSize > 0/, "Bunny processing verification must require a finished, non-empty video.");
 assert.match(portfolioDelete, /bunny-stream:\(\[0-9a-f-\]\+\)[\s\S]*method: "DELETE"/, "Portfolio cleanup must delete Bunny Stream objects.");
 assert.doesNotMatch(publicClipPlayer, /embed\/750524/, "The Bunny library ID must not be hardcoded in the public Clip player.");
 assert.match(publicClipPlayer, /EXPO_PUBLIC_BUNNY_STREAM_LIBRARY_ID/, "The public Clip player must use environment configuration.");
