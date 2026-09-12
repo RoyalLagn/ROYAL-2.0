@@ -108,12 +108,26 @@ export default function VendorGallery() {
   const overallUploadProgress = pendingAssets.length
     ? Math.round(Object.values(uploadProgress).reduce((sum, task) => sum + task.progress, 0) / pendingAssets.length * 100)
     : 0;
-  const planPhotoUsage = access?.photo_usage
-    ?? data.media.filter((item) => item.resource_type === "image").length;
+  // The workspace media rows are refreshed immediately after upload/delete
+  // and are the authoritative source for current usage. Subscription access
+  // is loaded by a separate provider and can legitimately lag behind, which
+  // left this card showing 0/60 even while the album already contained photos.
+  const planPhotoUsage = data.media.filter((item) => item.resource_type === "image").length;
   const planPhotoLimit = access?.photo_limit;
   const showFailure = (title: string, caught: unknown, message = "Please check your connection and try again.") => {
     if (__DEV__) console.error(title, caught);
     Alert.alert(title, message);
+  };
+  const uploadFailureMessage = (caught: unknown) => {
+    if (caught instanceof Error && caught.message.trim()) return caught.message;
+    if (typeof caught === "string" && caught.trim()) return caught;
+    if (caught && typeof caught === "object") {
+      const candidate = caught as { message?: unknown; error?: unknown; status?: unknown };
+      if (typeof candidate.message === "string" && candidate.message.trim()) return candidate.message;
+      if (typeof candidate.error === "string" && candidate.error.trim()) return candidate.error;
+      if (typeof candidate.status === "number") return `Upload failed (HTTP ${candidate.status}).`;
+    }
+    return "Upload failed. Please retry.";
   };
   const revealAlbumField = (field: React.RefObject<TextInput | null>) => {
     if (Platform.OS === "web") return;
@@ -368,7 +382,7 @@ export default function VendorGallery() {
         setUploadProgress((current) => ({ ...current, [key]: { name, progress: 1, status: "completed" } }));
         return true;
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "Upload failed";
+      const message = uploadFailureMessage(caught);
       if (__DEV__) console.error("Vendor portfolio upload failed", caught);
       setUploadProgress((current) => ({ ...current, [key]: { name, progress: current[key]?.progress ?? 0, status: "failed", error: message } }));
       return false;
@@ -781,7 +795,7 @@ export default function VendorGallery() {
                     {[asset.fileSize ? `${(asset.fileSize / 1024 / 1024).toFixed(1)} MB` : null, asset.type === "video" && asset.duration ? `${Math.round(asset.duration / 1000)} sec` : null].filter(Boolean).join(" · ")}
                   </Text>
                   <Text style={[styles.uploadStatus, { color: failed ? colors.warning : completed ? colors.pink : colors.muted }]}>
-                    {task?.status === "waiting" ? "Ready" : task?.status === "optimizing" ? "Optimizing image…" : task?.status === "signing" ? "Securing upload…" : task?.status === "uploading" ? `${Math.round(task.progress * 100)}% uploaded` : task?.status === "processing" ? "Finalising…" : completed ? "Stored successfully" : "Upload failed. Tap retry."}
+                    {task?.status === "waiting" ? "Ready" : task?.status === "optimizing" ? "Optimizing image…" : task?.status === "signing" ? "Securing upload…" : task?.status === "uploading" ? `${Math.round(task.progress * 100)}% uploaded` : task?.status === "processing" ? "Finalising…" : completed ? "Stored successfully" : task?.error || "Upload failed. Tap retry."}
                   </Text>
                   <View style={[styles.progress, { backgroundColor: colors.border }]}>
                     <View style={{ width: `${Math.round((task?.progress ?? 0) * 100)}%`, height: "100%", backgroundColor: failed ? colors.warning : colors.pink }} />

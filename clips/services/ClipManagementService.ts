@@ -10,7 +10,6 @@ import { uploadClipThumbnail } from "./ClipBunnyNativeAdapter";
 export interface UpdateVendorClipInput {
   title: string;
   caption?: string;
-  categoryId: string;
   visibility: ClipVisibility;
   /** Pass the Clip's current status so an edit to an already-approved Clip
    *  can be sent back for re-moderation instead of staying live unreviewed. */
@@ -26,7 +25,6 @@ export const ClipManagementService = {
     const result = await supabase.from("clips").update({
       title: input.title.trim(),
       caption: input.caption?.trim() || null,
-      category_id: input.categoryId,
       visibility: input.visibility,
       ...(input.currentStatus === "approved" ? { status: "pending" } : null),
     }).eq("id", clipId).select("*").single();

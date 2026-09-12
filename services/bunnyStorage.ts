@@ -27,7 +27,10 @@ export async function uploadToBunny(signed: BunnySignedUpload, uri: string, mime
       },
     );
     const result = await task.uploadAsync();
-    if (!result || result.status < 200 || result.status >= 300) throw new Error(`Bunny upload failed (${result?.status ?? "network"})`);
+    if (!result || result.status < 200 || result.status >= 300) {
+      const detail = result?.body?.trim().replace(/\s+/g, " ").slice(0, 180);
+      throw new Error(`Bunny upload failed (${result?.status ?? "network"})${detail ? `: ${detail}` : ""}`);
+    }
     return signed.publicUrl;
   }
   const blob = await fetch(uri).then((response) => response.blob());
@@ -37,7 +40,11 @@ export async function uploadToBunny(signed: BunnySignedUpload, uri: string, mime
     request.setRequestHeader("Content-Type", mimeType);
     request.upload.onprogress = (event) => event.lengthComputable && onProgress?.(event.loaded / event.total);
     request.onerror = () => reject(new Error("Network error during Bunny upload"));
-    request.onload = () => request.status >= 200 && request.status < 300 ? resolve() : reject(new Error(`Bunny upload failed (${request.status})`));
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) return resolve();
+      const detail = request.responseText.trim().replace(/\s+/g, " ").slice(0, 180);
+      reject(new Error(`Bunny upload failed (${request.status})${detail ? `: ${detail}` : ""}`));
+    };
     request.send(blob);
   });
   return signed.publicUrl;

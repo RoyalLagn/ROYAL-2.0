@@ -222,6 +222,7 @@ export function useVendorWorkspace() {
     const vendorTables = [
       "vendor_enquiries",
       "vendor_notifications",
+      "vendor_portfolio_albums",
       "vendor_portfolio_media",
       "vendor_services",
       "vendor_availability",

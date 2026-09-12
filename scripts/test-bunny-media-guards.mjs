@@ -48,6 +48,16 @@ assert.match(streamService, /new tus\.Upload\(file,[\s\S]*removeFingerprintOnSuc
 assert.match(clipAdapter, /data\.provider !== "bunny"[\s\S]*unsupported upload provider/, "Clip uploads must reject non-Bunny authorization.");
 assert.match(clipAdapter, /verifyBunnyStreamUpload[\s\S]*waitForBunnyStreamReady/, "Clip finalization must wait for Bunny processing.");
 assert.match(portfolioSigner, /uploadMode: "tus"[\s\S]*bunny-stream:/, "Portfolio video signing must return Bunny Stream TUS authorization.");
+assert.match(
+  await read("supabase/functions/_shared/bunnyS3.ts"),
+  /uploadMode: "signed" as const/,
+  "Bunny Storage presigned uploads must identify their upload mode to clients.",
+);
+assert.match(
+  await read("supabase/functions/_shared/bunnyS3.ts"),
+  /endpoint\.hostname\.split\("\."\)\[0\][\s\S]*region,/,
+  "Bunny Storage signatures must use the endpoint's region rather than a hard-coded one.",
+);
 assert.match(clipSigner, /uploadMode: "tus"[\s\S]*videoUrl:/, "Clip video signing must return Bunny Stream TUS authorization.");
 assert.match(statusFunction, /READY_STATUSES = new Set\(\[3, 4\]\)[\s\S]*FAILED_STATUSES = new Set\(\[5, 8\]\)[\s\S]*storageSize > 0/, "Bunny processing verification must require a finished, non-empty video.");
 assert.match(portfolioDelete, /bunny-stream:\(\[0-9a-f-\]\+\)[\s\S]*method: "DELETE"/, "Portfolio cleanup must delete Bunny Stream objects.");

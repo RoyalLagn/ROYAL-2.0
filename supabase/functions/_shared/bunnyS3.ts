@@ -25,13 +25,20 @@ function requireSecret(name: string) {
 
 export function bunnyStorageConfig() {
   const endpoint = new URL(requireSecret("BUNNY_STORAGE_S3_ENDPOINT"));
+  // Bunny's S3-compatible endpoints are regional (for example
+  // `ny.storage.bunnycdn.com` and `de.storage.bunnycdn.com`). SigV4 includes
+  // that region in the credential scope, so hard-coding `sg` makes every
+  // otherwise-valid pre-signed request fail when the storage zone lives
+  // elsewhere.
+  const endpointRegion = endpoint.hostname.split(".")[0].toLowerCase();
+  const region = /^(de|ny|sg)$/.test(endpointRegion) ? endpointRegion : "sg";
   return {
     endpoint,
     accessKeyId: requireSecret("BUNNY_STORAGE_ACCESS_KEY_ID"),
     secretAccessKey: requireSecret("BUNNY_STORAGE_SECRET_ACCESS_KEY"),
     bucket: requireSecret("BUNNY_STORAGE_ZONE"),
     cdnHostname: requireSecret("BUNNY_STORAGE_CDN_HOSTNAME").replace(/^https?:\/\//, "").replace(/\/$/, ""),
-    region: "sg",
+    region,
   };
 }
 
@@ -59,6 +66,7 @@ export async function presignBunnyObject(method: "PUT" | "DELETE", objectKey: st
   const signature = hex(await hmac(signingKey, stringToSign));
   return {
     provider: "bunny" as const,
+    uploadMode: "signed" as const,
     objectKey,
     uploadUrl: `${config.endpoint.origin}${canonicalUri}?${query.toString()}&X-Amz-Signature=${signature}`,
     publicUrl: `https://${config.cdnHostname}/${encodePath(objectKey)}`,

@@ -102,7 +102,7 @@ assert.doesNotMatch(connectedVendorReviewsSource, /pickReviewPhotos|uploadReview
 assert.match(connectedVendorReviewsSource, /imageUrls: reviewPhotos/, "Editing an existing review must preserve its previously saved photos.");
 assert.match(vendorReviewsSectionSource, /<Modal[\s\S]{0,300}visible=\{Boolean\(props\.showForm && props\.onSubmitReview\)\}/, "Writing or editing a review must open in a focused modal.");
 assert.match(vendorReviewsSectionSource, /KeyboardAvoidingView[\s\S]{0,500}keyboardShouldPersistTaps="handled"/, "The review modal must remain usable while the keyboard is open.");
-assert.match(vendorGallerySource, /access\?\.photo_usage/, "Portfolio summary must show the authoritative current-plan photo usage.");
+assert.match(vendorGallerySource, /data\.media\.filter\(\(item\) => item\.resource_type === "image"\)\.length/, "Portfolio summary must derive current photo usage from refreshed portfolio media rows.");
 assert.match(vendorGallerySource, /access\?\.photo_limit/, "Portfolio summary must show the authoritative current-plan photo limit.");
 assert.match(vendorGallerySource, /setSelectedAlbumId\(album\.id\);[\s\S]{0,100}setAlbumPreview\(album\)/, "Tapping a Your Albums card must open that album.");
 assert.match(vendorGallerySource, /accessibilityLabel=\{`Delete \$\{item\.resource_type\}`\}[\s\S]{0,180}removeMedia\(item\)/, "Every uploaded media tile must expose its delete action.");
@@ -286,18 +286,24 @@ const [publicClipsSource, publicClipVideoSource, vendorClipsReelSource] = await 
   read("clips/components/PublicClipVideo.tsx"),
   read("components/vendor-profile/VendorClipsReelViewer.tsx"),
 ]);
-const [vendorClipUploadSource, vendorClipOrchestratorSource, vendorClipCategoryMigrationSource] = await Promise.all([
+const [vendorClipUploadSource, vendorClipEditSource, vendorClipManagementSource, vendorClipOrchestratorSource, vendorClipCategoryMigrationSource, vendorClipCategorySyncMigrationSource] = await Promise.all([
   read("app/VendorClipUpload.tsx"),
+  read("app/VendorClipEdit.tsx"),
+  read("clips/services/ClipManagementService.ts"),
   read("clips/services/ClipUploadOrchestrator.ts"),
   read("supabase/migrations/20260912163000_enforce_vendor_clip_category.sql"),
+  read("supabase/migrations/20260913123000_keep_clip_category_synced_to_vendor.sql"),
 ]);
 assert.match(vendorClipUploadSource, /const categoryId = data\.vendor\?\.category_id \?\? "";/, "Clip uploads must inherit the authenticated vendor's category.");
 assert.doesNotMatch(vendorClipUploadSource, /useCategories|categoryOpen|setCategoryId|Choose category/, "Vendors must not manually choose a category while uploading Clips.");
+assert.doesNotMatch(vendorClipEditSource, /useCategories|categoryOpen|setCategoryId|ChevronDown|>Category</, "Vendors must not change a Clip's category while editing it.");
+assert.doesNotMatch(vendorClipManagementSource, /category_id:\s*input\.categoryId/, "Clip edits must not write a client-selected category.");
 assert.match(vendorClipUploadSource, /router\.push\("\/VendorEditBusinessInfo"\)/, "A vendor without a category must have a direct recovery path before uploading Clips.");
 assert.match(vendorClipOrchestratorSource, /from\("vendors"\)[\s\S]{0,120}select\("category_id"\)[\s\S]{0,120}eq\("id", draft\.vendorId\)/, "The upload pipeline must resolve the current category from the vendor row.");
 assert.match(vendorClipOrchestratorSource, /category_id: authoritativeCategoryId/, "The upload payload must use the server-read vendor category.");
 assert.match(vendorClipCategoryMigrationSource, /select vendor\.category_id into vendor_category_id/, "Clip finalization must resolve category from the authoritative vendor record.");
 assert.match(vendorClipCategoryMigrationSource, /target_vendor_id,\s+vendor_category_id,/, "Clip finalization must insert the vendor category instead of trusting the client payload.");
+assert.match(vendorClipCategorySyncMigrationSource, /before insert or update of vendor_id, category_id on public\.clips/, "Direct Clip writes must keep category synchronized with the vendor.");
 assert.match(
   publicClipsSource,
   /const \[muted, setMuted\] = useState\(false\);/,
