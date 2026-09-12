@@ -1,30 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { bunnyStorageConfig, presignBunnyObject } from "../_shared/bunnyS3.ts";
-import { deleteClipCloudinaryAssets } from "../_shared/cloudinaryMedia.ts";
+import { deleteClipBunnyAssets } from "../_shared/bunnyClipMedia.ts";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: cors });
 function hasAal2(token: string) { try { const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"); return JSON.parse(atob(part.padEnd(Math.ceil(part.length / 4) * 4, "="))).aal === "aal2"; } catch { return false; } }
-
-async function deletePrefix(prefix: string, type: "image" | "video") {
-  const cloud = Deno.env.get("CLOUDINARY_CLOUD_NAME");
-  const key = Deno.env.get("CLOUDINARY_API_KEY");
-  const secret = Deno.env.get("CLOUDINARY_API_SECRET");
-  // Legacy cleanup is best-effort so removing Cloudinary credentials cannot
-  // block deletion of a Bunny-backed vendor account.
-  if (!cloud || !key || !secret) return;
-  let cursor = "";
-  do {
-    const endpoint = new URL(`https://api.cloudinary.com/v1_1/${cloud}/resources/${type}/upload`);
-    endpoint.searchParams.set("prefix", prefix);
-    endpoint.searchParams.set("invalidate", "true");
-    if (cursor) endpoint.searchParams.set("next_cursor", cursor);
-    const response = await fetch(endpoint, { method: "DELETE", headers: { Authorization: `Basic ${btoa(`${key}:${secret}`)}` } });
-    if (!response.ok) throw new Error(`Cloudinary ${type} cleanup failed`);
-    const payload = await response.json();
-    cursor = String(payload.next_cursor || "");
-  } while (cursor);
-}
 
 async function deleteBunnyUrl(value: string | null | undefined, allowedPrefixes: string[]) {
   if (!value) return;
@@ -113,9 +93,9 @@ Deno.serve(async (request) => {
     if (!target) throw new Error("Vendor no longer exists");
     try {
       const [{ data: vendorMedia }, { data: portfolioMedia }, { data: clips }, { data: applications }] = await Promise.all([
-        service.from("vendors").select("logo_url,cover_image_url").eq("id", target.vendor_id).maybeSingle(),
+        service.from("vendors").select("logo_url").eq("id", target.vendor_id).maybeSingle(),
         service.from("vendor_portfolio_media").select("public_id,secure_url").eq("vendor_id", target.vendor_id),
-        service.from("clips").select("id,cloudinary_public_id").eq("vendor_id", target.vendor_id),
+        service.from("clips").select("id,bunny_asset_id").eq("vendor_id", target.vendor_id),
         service.from("vendor_applications").select("logo_url,cover_image_url,business_documents").eq("profile_id", target.profile_id),
       ]);
       const vendorPrefix = `royallagn/vendors/${target.vendor_id}/`;
@@ -123,7 +103,6 @@ Deno.serve(async (request) => {
       const documentPrefix = `royallagn/document/${target.profile_id}/`;
       await Promise.all([
         deleteBunnyUrl(vendorMedia?.logo_url, [vendorPrefix, generalPrefix]),
-        deleteBunnyUrl(vendorMedia?.cover_image_url, [vendorPrefix, generalPrefix]),
         ...(portfolioMedia ?? []).map((media) => deleteBunnyPortfolioAsset(media, vendorPrefix)),
         ...(applications ?? []).flatMap((application) => [
           deleteBunnyUrl(application.logo_url, [generalPrefix, vendorPrefix]),
@@ -133,18 +112,12 @@ Deno.serve(async (request) => {
         ]),
       ]);
       for (const clip of clips ?? []) {
-        if (clip.cloudinary_public_id) {
-          await deleteClipCloudinaryAssets(clip.cloudinary_public_id, {
+        if (clip.bunny_asset_id) {
+          await deleteClipBunnyAssets(clip.bunny_asset_id, {
             requestId: crypto.randomUUID(), clipId: clip.id, vendorId: target.vendor_id,
           });
         }
       }
-      await Promise.all([
-        deletePrefix(`royallagn/vendors/${target.vendor_id}/`, "image"),
-        deletePrefix(`royallagn/vendors/${target.vendor_id}/`, "video"),
-        deletePrefix(`royallagn/clips/${target.vendor_id}/`, "image"),
-        deletePrefix(`royallagn/clips/${target.vendor_id}/`, "video"),
-      ]);
       const { error: cleanupError } = await adminClient.rpc("admin_complete_vendor_deletion", { target_request_id: requestId });
       if (cleanupError) throw cleanupError;
       const { error: authError } = await service.auth.admin.deleteUser(target.profile_id);

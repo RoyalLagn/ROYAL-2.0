@@ -7,7 +7,7 @@ import Animated, {
   withSpring, withTiming,
 } from "react-native-reanimated";
 import { Heart, Play, RefreshCw, TriangleAlert, Volume2, VolumeX } from "lucide-react-native";
-import { cloudinaryDeliveryUrl, cloudinaryVideoDeliveryUrl } from "@/utils/cloudinaryDelivery";
+import { mediaDeliveryUrl, mediaVideoDeliveryUrl } from "@/utils/mediaDelivery";
 import { CLIP_VIDEO_DELIVERY } from "../constants";
 
 const DOUBLE_TAP_MS = 260;
@@ -31,7 +31,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   onDoubleTapLike: () => void;
   onHoldChange?: (holding: boolean) => void;
   showMuteControl?: boolean;
-  /** Rendered pixel size — used to request a device-appropriate Cloudinary derivative. */
+  /** Rendered pixel size used for layout and poster selection. */
   width?: number;
   height?: number;
   fillMode?: "cover" | "contain";
@@ -91,12 +91,11 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     }), "*");
   }, []);
 
-  // Fixed bucket, deliberately NOT derived from the rendered width/DPR —
-  // see CLIP_VIDEO_DELIVERY. Every viewer requesting the same transformation
-  // string is what lets Cloudinary's derivative cache actually help.
+  // Keep the original Bunny HLS URL. Bunny Stream chooses the rendition
+  // adaptively, so client-side URL transformations are neither needed nor safe.
   const deliveryUri = useMemo(() => {
     if (!hasValidSource) return null;
-    return cloudinaryVideoDeliveryUrl(uri, {
+    return mediaVideoDeliveryUrl(uri, {
       width: CLIP_VIDEO_DELIVERY.width,
       height: CLIP_VIDEO_DELIVERY.height,
       crop: "limit",
@@ -109,7 +108,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const posterUri = useMemo(() => {
     if (!thumbnailUrl) return thumbnailUrl;
     const dpr = Math.min(2, Math.max(1, PixelRatio.get()));
-    return cloudinaryDeliveryUrl(thumbnailUrl, {
+    return mediaDeliveryUrl(thumbnailUrl, {
       width: width && width > 0 ? width : undefined,
       height: height && height > 0 ? height : undefined,
       crop: "fill",

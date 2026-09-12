@@ -26,7 +26,7 @@ function mapClip(row: any): PublicClip {
     durationSeconds: Number(row.duration_seconds),
     resolution: { width: Number(row.width), height: Number(row.height) },
     fileSizeBytes: Number(row.file_size_bytes),
-    cloudinaryPublicId: row.cloudinary_public_id,
+    bunnyAssetId: row.bunny_asset_id,
     viewsCount: Number(row.views_count),
     likesCount: Number(row.likes_count),
     savesCount: Number(row.saves_count),
@@ -80,7 +80,7 @@ export const SavedClipService = {
       clip_id,created_at,
       clips!clip_saves_clip_id_fkey(
         id,vendor_id,category_id,title,caption,video_url,thumbnail_url,
-        duration_seconds,width,height,file_size_bytes,cloudinary_public_id,
+        duration_seconds,width,height,file_size_bytes,bunny_asset_id,
         views_count,likes_count,saves_count,status,visibility,subscription_locked,
         created_at,updated_at,published_at,deleted_at,
         categories(name),

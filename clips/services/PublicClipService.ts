@@ -278,7 +278,7 @@ async function listVendorPublicClips(vendorId: string): Promise<PublicClip[]> {
   while (true) {
     const { data, error } = await supabase.from("clips").select(`
       id,vendor_id,category_id,title,caption,video_url,thumbnail_url,
-      duration_seconds,width,height,file_size_bytes,cloudinary_public_id,
+      duration_seconds,width,height,file_size_bytes,bunny_asset_id,
       views_count,likes_count,saves_count,status,visibility,
       created_at,updated_at,published_at,deleted_at,
       categories(name),
@@ -312,7 +312,7 @@ async function listVendorPublicClips(vendorId: string): Promise<PublicClip[]> {
       title: row.title, caption: row.caption, videoUrl: row.video_url,
       thumbnailUrl: row.thumbnail_url, durationSeconds: Number(row.duration_seconds),
       resolution: { width: Number(row.width), height: Number(row.height) },
-      fileSizeBytes: Number(row.file_size_bytes), cloudinaryPublicId: row.cloudinary_public_id,
+      fileSizeBytes: Number(row.file_size_bytes), bunnyAssetId: row.bunny_asset_id,
       viewsCount: Number(row.views_count), likesCount: Number(row.likes_count),
       savesCount: Number(row.saves_count), status: row.status, visibility: row.visibility,
       createdAt: row.created_at, updatedAt: row.updated_at, publishedAt: row.published_at,
@@ -382,7 +382,7 @@ export const PublicClipService = {
     const clipIds = feedRows.map((row) => row.clip_id);
     const { data, error } = await supabase.from("clips").select(`
       id,vendor_id,category_id,title,caption,video_url,thumbnail_url,
-      duration_seconds,width,height,file_size_bytes,cloudinary_public_id,
+      duration_seconds,width,height,file_size_bytes,bunny_asset_id,
       views_count,likes_count,saves_count,status,visibility,
       created_at,updated_at,published_at,deleted_at,
       categories(name),
@@ -407,7 +407,7 @@ export const PublicClipService = {
         title: row.title, caption: row.caption, videoUrl: row.video_url,
         thumbnailUrl: row.thumbnail_url, durationSeconds: Number(row.duration_seconds),
         resolution: { width: Number(row.width), height: Number(row.height) },
-        fileSizeBytes: Number(row.file_size_bytes), cloudinaryPublicId: row.cloudinary_public_id,
+        fileSizeBytes: Number(row.file_size_bytes), bunnyAssetId: row.bunny_asset_id,
         viewsCount: Number(row.views_count), likesCount: Number(row.likes_count),
         savesCount: Number(row.saves_count), status: row.status, visibility: row.visibility,
         createdAt: row.created_at, updatedAt: row.updated_at, publishedAt: row.published_at,

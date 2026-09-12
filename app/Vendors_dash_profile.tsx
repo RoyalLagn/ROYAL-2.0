@@ -26,7 +26,7 @@ import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { useVendorLogout } from "@/hooks/useVendorLogout";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { supabase } from "@/services/supabase";
-import { deleteManagedProfileImage } from "@/services/cloudinary";
+import { deleteManagedProfileImage } from "@/services/media";
 import { decorativeType, fonts, typeScale, typeLeading } from "@/constants/typography";
 import Pressable from "@/components/InteropSafePressable";
 import { useAppFeedback } from "@/context/AppFeedbackContext";

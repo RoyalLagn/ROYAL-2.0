@@ -87,7 +87,7 @@ export default function VendorClips() {
   ];
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  // A ref, not just `deletingId`, gates re-entrancy into the Cloudinary/RPC
+  // A ref, not just `deletingId`, gates re-entrancy into the Bunny/RPC
   // call: two dispatches landing in the same tick (e.g. a web Alert polyfill
   // registering a fast double-tap on its "Delete" button before React
   // commits the setDeletingId update) can both read `deletingId` as null.

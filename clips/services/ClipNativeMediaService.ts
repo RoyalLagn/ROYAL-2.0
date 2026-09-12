@@ -14,7 +14,7 @@ const localMediaDirectory = `${FileSystem.documentDirectory || ""}royallagn-clip
 // `react-native-compressor` requires native NitroModules that are not available
 // inside Expo Go. Load it lazily so the app does not crash at import time; when
 // it is unavailable (Expo Go), oversized uploads fail clearly before the
-// original file can reach Cloudinary.
+// original file can reach Bunny.
 type CompressorModule = typeof import("react-native-compressor");
 let compressorModule: CompressorModule | null | undefined;
 function getCompressor(): CompressorModule | null {

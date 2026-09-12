@@ -58,7 +58,7 @@ export type FinanceTaxRecord = {
   notes: string | null;
 };
 
-export type FinanceCloudinaryUsage = {
+export type FinanceBunnyUsage = {
   id: string;
   month_start: string;
   storage_percent: number | null;
@@ -98,7 +98,7 @@ export type FinanceMonthData = {
   budget: FinanceBudget | null;
   budgetItems: FinanceBudgetItem[];
   taxes: FinanceTaxRecord[];
-  cloudinaryUsage: FinanceCloudinaryUsage | null;
+  bunnyUsage: FinanceBunnyUsage | null;
   scenarios: FinanceScenario[];
   closure: FinanceClosure | null;
 };

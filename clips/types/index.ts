@@ -34,7 +34,7 @@ export interface Clip {
   durationSeconds: number;
   resolution: ClipResolution;
   fileSizeBytes: number;
-  cloudinaryPublicId: string;
+  bunnyAssetId: string;
   viewsCount: number;
   likesCount: number;
   savesCount: number;
@@ -111,7 +111,7 @@ export interface ClipResponse<T> {
   error: import("../utils/errors").ClipModuleError | null;
 }
 
-export interface ClipCloudinaryAsset {
+export interface ClipBunnyAsset {
   videoUrl: string;
   thumbnailUrl: string;
   publicId: string;

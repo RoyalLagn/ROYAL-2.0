@@ -18,7 +18,7 @@ import {
   retryImageUri,
   type SafeImageCandidate,
 } from "@/utils/imageResolver";
-import { cloudinaryDeliveryUrl } from "@/utils/cloudinaryDelivery";
+import { mediaDeliveryUrl } from "@/utils/mediaDelivery";
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
@@ -30,10 +30,10 @@ type SafeImageProps = Omit<ImageProps, "source" | "defaultSource"> & {
   /** Set false to skip the fade-in (e.g. an image that must appear
    *  instantly, like a live camera preview thumbnail). Defaults to true. */
   fadeIn?: boolean;
-  /** Cap Cloudinary delivery width (CSS px). Applied with dpr≈2. */
+  /** Preferred delivery width (CSS px), retained for layout callers. */
   deliveryWidth?: number;
   deliveryHeight?: number;
-  /** Cloudinary fit mode. Use fit for logos so the full square asset remains visible. */
+  /** Fit mode used by the rendered image container. */
   deliveryCrop?: "fill" | "limit" | "fit";
   /** Web: lazy-load below-the-fold images. Defaults to true. */
   lazy?: boolean;
@@ -58,7 +58,7 @@ function SafeImage({
   const remoteUri = useMemo(() => {
     if (!rawRemoteUri) return rawRemoteUri;
     if (!deliveryWidth && !deliveryHeight) return rawRemoteUri;
-    return cloudinaryDeliveryUrl(rawRemoteUri, {
+    return mediaDeliveryUrl(rawRemoteUri, {
       width: deliveryWidth,
       height: deliveryHeight,
       crop: deliveryCrop,
@@ -70,7 +70,7 @@ function SafeImage({
   const [failed, setFailed] = useState(false);
   const reducedMotion = useReducedMotion();
   // Remote images fade in on load (prevents the white-flash/pop-in of a
-  // Cloudinary asset arriving over the network); bundled local assets
+  // remote Bunny asset arriving over the network); bundled local assets
   // resolve synchronously so there is nothing to fade.
   const opacity = useSharedValue(remoteUri && fadeIn ? 0 : 1);
 

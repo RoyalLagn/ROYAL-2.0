@@ -6,7 +6,7 @@ import { ArrowLeft, Camera, Check, Mail, Phone, Save, UserRound } from "lucide-r
 import { useAppTheme } from "@/components/ThemeProvider";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import {
-  CloudinaryError, deleteManagedProfileImage, pickProfileImage, uploadProfileImage, type ProfileImageAsset, } from "@/services/cloudinary";
+  MediaError, deleteManagedProfileImage, pickProfileImage, uploadProfileImage, type ProfileImageAsset, } from "@/services/media";
 import { getPublicAuthError, updatePublicProfile } from "@/services/publicAuth";
 import { sanitizePhoneInput, validatePhone } from "@/utils/authValidation";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
@@ -50,7 +50,7 @@ export default function EditProfile() {
       const asset = await pickProfileImage();
       if (asset) setPhotoEditorAsset(asset);
     } catch (error) {
-      Alert.alert("Photo not selected", error instanceof CloudinaryError ? error.message : "Unable to open this photo.");
+      Alert.alert("Photo not selected", error instanceof MediaError ? error.message : "Unable to open this photo.");
     } finally {
       setUploading(false);
     }
@@ -78,7 +78,7 @@ export default function EditProfile() {
       }
       setSaved(false);
     } catch (error) {
-      Alert.alert("Photo not uploaded", error instanceof CloudinaryError ? error.message : "Unable to upload this photo.");
+      Alert.alert("Photo not uploaded", error instanceof MediaError ? error.message : "Unable to upload this photo.");
     } finally {
       setUploading(false);
     }

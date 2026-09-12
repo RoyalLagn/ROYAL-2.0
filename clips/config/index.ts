@@ -16,7 +16,7 @@ export const clipsConfig = Object.freeze({
   pagination: CLIP_PAGINATION,
   feed: CLIP_FEED_SETTINGS,
   retry: CLIP_UPLOAD_RETRY,
-  cloudinaryFolder: "royallagn/clips",
+  bunnyFolder: "royallagn/clips",
 });
 
 export type ClipsConfig = typeof clipsConfig;

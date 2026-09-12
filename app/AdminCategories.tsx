@@ -9,7 +9,7 @@ import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import { useCategories } from "@/context/CategoryContext";
 import { CategoryService, slugify, type CategoryRecord, type CategoryUsage } from "@/services/CategoryService";
-import { CloudinaryError, deleteAdminManagedImage, pickAndUploadImage } from "@/services/cloudinary";
+import { MediaError, deleteAdminManagedImage, pickAndUploadImage } from "@/services/media";
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -64,7 +64,7 @@ export default function AdminCategories() {
       const url = await pickAndUploadImage({ quality: 0.85 });
       if (url) setDraft((current) => ({ ...current, iconUrl: url }));
     } catch (caught) {
-      setFormError(caught instanceof CloudinaryError ? caught.message : "Unable to upload the icon image.");
+      setFormError(caught instanceof MediaError ? caught.message : "Unable to upload the icon image.");
     } finally {
       setUploadingIcon(false);
     }
@@ -75,7 +75,7 @@ export default function AdminCategories() {
       const url = await pickAndUploadImage({ quality: 0.85 });
       if (url) setDraft((current) => ({ ...current, fallbackImageUrl: url }));
     } catch (caught) {
-      setFormError(caught instanceof CloudinaryError ? caught.message : "Unable to upload the category image.");
+      setFormError(caught instanceof MediaError ? caught.message : "Unable to upload the category image.");
     } finally {
       setUploadingImage(false);
     }

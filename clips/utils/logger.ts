@@ -1,7 +1,7 @@
 export type ClipLogScope =
   | "upload"
   | "compression"
-  | "cloudinary"
+  | "bunny"
   | "database"
   | "analytics"
   | "moderation";

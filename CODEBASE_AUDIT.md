@@ -27,7 +27,7 @@ The safest strategy is incremental consolidation with behavior tests, not a broa
 - `app/` contains Expo Router routes for public customers, vendors, administrators, CRM, authentication, payments, and subscriptions. Most route names are PascalCase, while newer workspace routes use kebab-case.
 - `components/` mixes shared UI, feature-specific components, shells, legal rendering, vendor profile UI, admin UI, and marketing-card rendering.
 - `hooks/` contains cross-feature hooks and CRM hooks. `useVendorWorkspace()` is a central vendor data aggregator.
-- `services/` is the main Supabase and external-service layer. It includes public/vendor/admin/CRM/location/review/Cloudinary concerns.
+- `services/` is the main Supabase and external-service layer. It includes public/vendor/admin/CRM/location/review/Bunny media concerns.
 - `clips/`, `subscriptions/`, `locations/`, `packages/`, `admin/`, and `vendor/` are partial domain modules with their own types/services/utilities.
 - `context/` owns authentication, favorites, notifications, subscription state, and location state.
 - `supabase/migrations/` and `supabase/functions/` contain the database history and server-side operations.
@@ -73,7 +73,7 @@ No candidate should be deleted in this phase.
 | `.playwright-mcp/**` | Tracked generated console logs, accessibility snapshots, screenshots/PDF evidence; not imported by application code. | High | Needs manual verification |
 | Root `marketing-card-*.png` screenshots | Browser-test outputs rather than runtime assets; no application import was found. | High | Needs manual verification |
 | `app/(tabs)/favorites.tsx`: local `muted` | TypeScript `--noUnusedLocals` reports it as unread. | High | Yes, after focused test |
-| `clips/services/ClipCloudinaryNativeAdapter.ts`: imported `ClipUpload` | TypeScript unused-symbol probe confirms it is unused. | High | Yes, after typecheck |
+| `clips/services/ClipBunnyNativeAdapter.ts`: imported `ClipUpload` | TypeScript unused-symbol probe confirms it is unused. | High | Yes, after typecheck |
 | `components/admin/finance/FinanceRevenueDashboard.tsx`: `onSync` prop | Declared but unread. Removing it may require caller/API adjustment, so first confirm whether it is planned functionality. | High | No |
 | `hooks/useVendorWorkspace.ts`: `availability` parameter in readiness calculation | Declared but unread; may signal incomplete readiness logic rather than removable API. | High | No |
 | `attached_assets/Pasted-*.txt` and similar prompt artifacts | Not code-imported, but may be intentionally retained product/design history. | Medium | Needs manual verification |
@@ -98,7 +98,7 @@ Route files are **not** considered dead merely because no source import exists: 
 | `app/VendorsProfile.tsx` (~1,227) | Legacy public vendor profile, data, tabs, actions, responsive UI | Route adapter; profile loader/view model; hero/contact sections; portfolio/clips composition |
 | `app/VendorGallery.tsx` (~1,043) | Portfolio CRUD, upload, reorder, cover, modals, UI | Portfolio mutation service; upload controller hook; album/media list sections; dialogs |
 | `app/(tabs)/index.tsx` (~991) | Marketplace home, discovery, location ranking, sections | Home discovery hook; section components; route remains composition-only |
-| `services/cloudinary.ts` (~905) | Upload preparation, native/web transport, transformation, response mapping | Image preparation; video preparation; transport adapters; typed response mapper |
+| `services/media.ts` | Upload preparation, native/web transport, and Bunny response mapping | Image preparation; video preparation; transport adapters; typed response mapper |
 | `app/AdminHero.tsx` (~792) | Hero administration and editing | Hero service/view model; editor form; preview/list sections |
 | `app/vendors/[slug].tsx` (~751) | Canonical public vendor profile | Share data/view model with legacy route; preserve canonical routing |
 | `app/VendorsListing.tsx` (~659) | Filters, discovery, pagination, rendering | Listing query hook; filter model; grid/list presentation |
@@ -194,7 +194,7 @@ subscriptions/               # retain existing cohesive domain
 locations/                   # domain rules/types; migrate data access deliberately
 services/
   supabase.ts                # client/session foundation
-  external/                  # Cloudinary, notifications, other external adapters
+  external/                  # Bunny media, notifications, other external adapters
 context/                     # cross-route application providers only
 constants/
 theme/

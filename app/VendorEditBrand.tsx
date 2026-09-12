@@ -6,12 +6,12 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorkspace";
 import {
-  CloudinaryError,
+  MediaError,
   deleteManagedProfileImage,
   pickProfileImage,
   uploadProfileImage,
   type ProfileImageAsset,
-} from "@/services/cloudinary";
+} from "@/services/media";
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
@@ -23,7 +23,7 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 // Logo and brand: the vendor's logo image, the only brand-media field on
 // the vendor record itself (portfolio photos/videos and Clips each have
 // their own dedicated management screens). Uploads are staged to
-// Cloudinary immediately, but the vendor row is only updated -- and the
+// Bunny immediately, but the vendor row is only updated -- and the
 // previous image only cleaned up -- once "Save" succeeds, so a cancelled
 // edit never leaves a half-applied change.
 export default function VendorEditBrand() {
@@ -58,7 +58,7 @@ export default function VendorEditBrand() {
       const asset = await pickProfileImage();
       if (asset) setLogoEditorAsset(asset);
     } catch (uploadError) {
-      Alert.alert("Logo not selected", uploadError instanceof CloudinaryError ? uploadError.message : "Unable to open the selected image.");
+      Alert.alert("Logo not selected", uploadError instanceof MediaError ? uploadError.message : "Unable to open the selected image.");
     } finally {
       if (mounted.current) setUploadingLogo(false);
     }
@@ -75,7 +75,7 @@ export default function VendorEditBrand() {
       setLogoUrl(url);
       setLogoEditorAsset(null);
     } catch (uploadError) {
-      Alert.alert("Logo not uploaded", uploadError instanceof CloudinaryError ? uploadError.message : "Unable to upload the edited logo.");
+      Alert.alert("Logo not uploaded", uploadError instanceof MediaError ? uploadError.message : "Unable to upload the edited logo.");
     } finally {
       if (mounted.current) setUploadingLogo(false);
     }
@@ -104,7 +104,7 @@ export default function VendorEditBrand() {
       if (!mounted.current) return;
       // A staged-but-unsaved upload is dropped from the vendor record on
       // failure so the form reflects only what is actually persisted; the
-      // orphaned Cloudinary asset is cleaned up rather than left dangling.
+      // orphaned Bunny asset is cleaned up rather than left dangling.
       if (nextLogoUrl && nextLogoUrl !== persistedLogoUrl) {
         await deleteManagedProfileImage({ kind: "vendor", vendorId: data.vendor.id }, nextLogoUrl).catch(() => undefined);
         setLogoUrl(persistedLogoUrl);

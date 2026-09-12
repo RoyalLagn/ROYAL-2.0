@@ -29,26 +29,6 @@ function hasRecentEmailOtp(token: string) {
   });
 }
 
-function customerProfilePublicId(url: string, userId: string) {
-  try {
-    const parsed = new URL(url);
-    const marker = "/image/upload/";
-    const tail = parsed.pathname.slice(parsed.pathname.indexOf(marker) + marker.length);
-    if (!parsed.pathname.includes(marker)) return null;
-    const parts = tail.split("/");
-    const versionIndex = parts.findIndex((part) => /^v\d+$/.test(part));
-    const publicId = decodeURIComponent((versionIndex >= 0 ? parts.slice(versionIndex + 1) : parts).join("/"))
-      .replace(/\.[^.]+$/, "");
-    const prefix = `royallagn/profiles/${userId}/`;
-    return publicId.startsWith(prefix) && !publicId.includes("..") ? publicId : null;
-  } catch { return null; }
-}
-
-async function sha1(value: string) {
-  const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 async function deleteProfileImage(profileImage: string | null, userId: string) {
   if (!profileImage) return;
   try {
@@ -64,24 +44,6 @@ async function deleteProfileImage(profileImage: string | null, userId: string) {
     }
   } catch (error) {
     if (error instanceof Error && error.message.includes("Bunny profile")) throw error;
-  }
-  const publicId = customerProfilePublicId(profileImage, userId);
-  if (!publicId) return;
-  const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME");
-  const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
-  const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
-  // Legacy cleanup is best-effort after the project fully leaves Cloudinary.
-  if (!cloudName || !apiKey || !apiSecret) return;
-  const timestamp = Math.floor(Date.now() / 1000);
-  const canonical = `invalidate=true&public_id=${publicId}&timestamp=${timestamp}`;
-  const body = new URLSearchParams({
-    invalidate: "true", public_id: publicId, timestamp: String(timestamp), api_key: apiKey,
-    signature: await sha1(`${canonical}${apiSecret}`),
-  });
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, { method: "POST", body });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok || !["ok", "not found"].includes(String(result.result))) {
-    throw new Error("The customer profile image could not be deleted.");
   }
 }
 

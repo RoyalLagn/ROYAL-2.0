@@ -1,8 +1,8 @@
 import { corsHeaders, json, requireEnv, serviceClient } from "../_shared/subscriptions.ts";
-import { deleteClipCloudinaryAssets } from "../_shared/cloudinaryMedia.ts";
+import { deleteClipBunnyAssets } from "../_shared/bunnyClipMedia.ts";
 
 type PushJob = { notification_id: string; title: string; body: string; target_path: string; tokens: string[] };
-type DeleteJob = { clip_id: string; vendor_id: string; cloudinary_public_id: string };
+type DeleteJob = { clip_id: string; vendor_id: string; bunny_asset_id: string };
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -48,7 +48,7 @@ Deno.serve(async (request) => {
   for (const job of (deleteJobs ?? []) as DeleteJob[]) {
     let deletionError: string | null = null;
     try {
-      await deleteClipCloudinaryAssets(job.cloudinary_public_id, {
+      await deleteClipBunnyAssets(job.bunny_asset_id, {
         requestId: crypto.randomUUID(), clipId: job.clip_id, vendorId: job.vendor_id,
       });
     } catch (caught) {

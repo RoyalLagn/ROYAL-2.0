@@ -47,19 +47,22 @@ Portfolio uploads are signed by Supabase Edge Functions. Store these as function
 
 ```bash
 npx supabase secrets set \
-  CLOUDINARY_CLOUD_NAME=your-cloud-name \
-  CLOUDINARY_API_KEY=your-api-key \
-  CLOUDINARY_API_SECRET=your-api-secret
-npx supabase functions deploy cloudinary-sign
-npx supabase functions deploy cloudinary-delete
+  BUNNY_STORAGE_ZONE=your-storage-zone \
+  BUNNY_STORAGE_CDN_HOSTNAME=your-storage-cdn-host \
+  BUNNY_STORAGE_KEY=your-storage-key \
+  BUNNY_STREAM_LIBRARY_ID=your-stream-library-id \
+  BUNNY_STREAM_CDN_HOSTNAME=your-stream-cdn-host \
+  BUNNY_STREAM_API_KEY=your-stream-api-key
+npx supabase functions deploy portfolio-media-sign
+npx supabase functions deploy portfolio-media-delete
 npx supabase functions deploy clip-upload-sign
-npx supabase functions deploy clip-cloudinary-delete
+npx supabase functions deploy clip-media-delete
 npx supabase functions deploy profile-image
 ```
 
-Uploaded portfolio assets use `royallagn/vendors/{vendorId}/albums/{albumId}/`. The app stores the secure URL, Cloudinary public ID, media type, display order, and album relationship in Supabase.
+Uploaded portfolio assets use `royallagn/vendors/{vendorId}/albums/{albumId}/`. The app stores the Bunny URL, asset ID, media type, display order, and album relationship in Supabase.
 
-Vendor Clip deletion first removes the Cloudinary video and thumbnail, then
+Vendor Clip deletion first removes the Bunny video and thumbnail, then
 soft-deletes the owned database row. Public Clip queries only return approved,
 public, unlocked rows whose `deleted_at` value is null, so a successfully deleted
 Clip cannot reappear on the public Clips screen.

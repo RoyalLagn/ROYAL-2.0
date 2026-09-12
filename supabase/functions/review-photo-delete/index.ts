@@ -6,16 +6,6 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function sha1(value: string) {
-  const digest = await crypto.subtle.digest(
-    "SHA-1",
-    new TextEncoder().encode(value),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -50,39 +40,11 @@ Deno.serve(async (request) => {
       if (!belongsToReview) throw new Error("Review photo not found");
     }
 
-    if (/\.[a-z0-9]{2,5}$/i.test(publicId)) {
-      const signedDelete = await presignBunnyObject("DELETE", publicId, 60);
-      const deletion = await fetch(signedDelete.uploadUrl, { method: "DELETE" });
-      if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny review photo deletion failed");
-      return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
-    }
-
-    const timestamp = Math.floor(Date.now() / 1000);
-    const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
-    const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
-    const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME");
-    if (!apiSecret || !apiKey || !cloudName) {
-      throw new Error("Cloudinary server configuration is missing");
-    }
-    const signature = await sha1(
-      `invalidate=true&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`,
-    );
-    const body = new URLSearchParams({
-      public_id: publicId,
-      timestamp: String(timestamp),
-      invalidate: "true",
-      api_key: apiKey,
-      signature,
-    });
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`,
-      { method: "POST", body },
-    );
-    const result = await response.json();
-    if (!response.ok || !["ok", "not found"].includes(result.result)) {
-      throw new Error("Cloudinary deletion failed");
-    }
-    return Response.json({ ok: true }, { headers: cors });
+    if (!/\.[a-z0-9]{2,5}$/i.test(publicId)) throw new Error("Review photo is not a managed Bunny asset");
+    const signedDelete = await presignBunnyObject("DELETE", publicId, 60);
+    const deletion = await fetch(signedDelete.uploadUrl, { method: "DELETE" });
+    if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny review photo deletion failed");
+    return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to delete photo" },

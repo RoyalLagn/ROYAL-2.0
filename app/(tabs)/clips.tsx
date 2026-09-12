@@ -17,7 +17,7 @@ import {
   ClipViewerHandoff, ClipViewerSessionService,
 } from "@/clips/services";
 import { CLIP_FEED_SETTINGS } from "@/clips/constants";
-import { cloudinaryDeliveryUrl } from "@/utils/cloudinaryDelivery";
+import { mediaDeliveryUrl } from "@/utils/mediaDelivery";
 import type {
   ClipEngagementState, PublicClip, PublicClipCursor,
 } from "@/clips/types";
@@ -294,14 +294,14 @@ function ClipsFeed() {
   // Controlled preloading: only the active clip ever mounts a real video
   // player (see PublicClipCard's shouldPlayVideo). To keep the *next* Clip
   // opening fast without a second decoder running, warm just its poster —
-  // the same sized Cloudinary derivative PublicClipCard will request, so
+  // the same Bunny CDN image PublicClipCard will request, so
   // this is a cache hit, not extra bytes.
   useEffect(() => {
     const dpr = Math.min(2, Math.max(1, PixelRatio.get()));
     for (let offset = 1; offset <= CLIP_FEED_SETTINGS.prefetchAhead; offset += 1) {
       const next = feedItems[activeIndex + offset];
       if (!next?.thumbnailUrl) continue;
-      const posterUri = cloudinaryDeliveryUrl(next.thumbnailUrl, {
+      const posterUri = mediaDeliveryUrl(next.thumbnailUrl, {
         width: playerWidth, height: playerHeight, crop: "fill", dpr, quality: "auto",
       });
       Image.prefetch(posterUri).catch(() => {

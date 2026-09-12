@@ -3,7 +3,7 @@ export type ClipErrorCode =
   | "PERMISSION_ERROR"
   | "UPLOAD_ERROR"
   | "COMPRESSION_ERROR"
-  | "CLOUDINARY_ERROR"
+  | "MEDIA_ERROR"
   | "DATABASE_ERROR"
   | "NOT_FOUND"
   | "LIMIT_EXCEEDED"

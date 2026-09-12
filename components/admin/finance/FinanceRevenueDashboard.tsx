@@ -70,13 +70,13 @@ export function FinanceRevenueDashboard({ data, allMonths, lastSyncedAt, syncing
 // Moved here from the removed Overview tab -- this stayed the only place in
 // the UI that shows Clips media infrastructure cost, so it comes along
 // rather than disappearing when Overview did.
-export function CloudinaryCostControl({ usage }: { usage: FinanceMonthData["cloudinaryUsage"] }) {
-  return <FinanceSection title="Cloudinary cost control" description="Manually recorded usage and invoice totals for Clips media infrastructure.">
-    {!usage ? <FinanceEmpty title="No Cloudinary usage recorded" message="Add this month’s usage and actual cost from the Cloudinary dashboard or invoice." /> : <>
+export function BunnyCostControl({ usage }: { usage: FinanceMonthData["bunnyUsage"] }) {
+  return <FinanceSection title="Bunny cost control" description="Manually recorded Bunny Storage, CDN, and Stream invoice totals.">
+    {!usage ? <FinanceEmpty title="No Bunny usage recorded" message="Add this month’s usage and actual cost from the Bunny dashboard or invoice." /> : <>
       <View style={styles.usageGrid}>
-        <CloudinaryUsageBar label="Storage" value={usage.storage_percent} />
-        <CloudinaryUsageBar label="Bandwidth" value={usage.bandwidth_percent} />
-        <CloudinaryUsageBar label="Transformations" value={usage.transformations_percent} />
+        <BunnyUsageBar label="Storage" value={usage.storage_percent} />
+        <BunnyUsageBar label="Bandwidth" value={usage.bandwidth_percent} />
+        <BunnyUsageBar label="Encoding" value={usage.transformations_percent} />
       </View>
       <View style={styles.costRow}>
         <View><Text style={styles.costLabel}>Estimated cost</Text><Text style={styles.costValue}>{formatMoney(usage.estimated_cost)}</Text></View>
@@ -86,7 +86,7 @@ export function CloudinaryCostControl({ usage }: { usage: FinanceMonthData["clou
   </FinanceSection>;
 }
 
-function CloudinaryUsageBar({ label, value }: { label: string; value: number | null }) {
+function BunnyUsageBar({ label, value }: { label: string; value: number | null }) {
   const safe = Math.min(100, Math.max(0, value ?? 0));
   const tone = safe >= 80 ? adminPalette.warning : adminPalette.brand;
   return <View style={styles.usageItem}>

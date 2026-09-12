@@ -17,13 +17,13 @@ const [
   categoryImages,
   exampleEnv,
 ] = await Promise.all([
-  read("services/cloudinary.ts"),
+  read("services/media.ts"),
   read("services/bunnyStream.ts"),
-  read("clips/services/ClipCloudinaryNativeAdapter.ts"),
-  read("supabase/functions/cloudinary-sign/index.ts"),
+  read("clips/services/ClipBunnyNativeAdapter.ts"),
+  read("supabase/functions/portfolio-media-sign/index.ts"),
   read("supabase/functions/clip-upload-sign/index.ts"),
   read("supabase/functions/bunny-stream-status/index.ts"),
-  read("supabase/functions/cloudinary-delete/index.ts"),
+  read("supabase/functions/portfolio-media-delete/index.ts"),
   read("clips/components/PublicClipVideo.tsx"),
   read("components/vendor/PortfolioVideoPlayer.tsx"),
   read("scripts/upload-category-icons-v2.mjs"),
@@ -39,7 +39,8 @@ for (const [name, source] of [
   ["category icon uploader", categoryIcons],
   ["category image uploader", categoryImages],
 ]) {
-  assert.doesNotMatch(source, /api\.cloudinary\.com\/v1_1\/[^\s`"']+\/(?:image|video)\/upload/, `${name} must not upload to Cloudinary.`);
+  const retiredProvider = ["cloud", "inary"].join("");
+  assert.doesNotMatch(source, new RegExp(`(?:res|api)\\.${retiredProvider}\\.com`), `${name} must remain Bunny-only.`);
 }
 
 assert.match(mediaService, /uploadToBunnyStream[\s\S]*waitForBunnyStreamReady/, "Portfolio videos must upload to Bunny Stream and wait for processing.");

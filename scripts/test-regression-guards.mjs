@@ -114,12 +114,12 @@ assert.match(vendorGallerySource, /accessibilityLabel="Delete media"[\s\S]{0,180
 assert.match(vendorGallerySource, /previewDeleteCandidate && <View style=\{styles\.previewConfirmBackdrop\}>[\s\S]{0,1200}deleteMediaNow\(previewDeleteCandidate\)/, "Media preview deletion must be confirmed inside the active preview modal.");
 assert.doesNotMatch(vendorGalleryStylesSource, /previewActions:\s*\{[^}]*position:\s*["']absolute["']/, "Preview actions must remain in normal layout flow instead of overlapping the image.");
 assert.match(vendorGallerySource, /uploadsCompleted[\s\S]{0,500}finishUpload[\s\S]{0,500}>Done</, "A completed upload must replace the Upload action with Done.");
-const portfolioDeleteFunctionSource = await read("supabase/functions/cloudinary-delete/index.ts");
+const portfolioDeleteFunctionSource = await read("supabase/functions/portfolio-media-delete/index.ts");
 const portfolioDeleteGrantSource = await read("supabase/migrations/20260905123000_grant_service_role_portfolio_delete.sql");
 assert.match(portfolioDeleteFunctionSource, /SUPABASE_SERVICE_ROLE_KEY/, "Portfolio deletion must use the trusted server client after user ownership is verified.");
-assert.match(vendorGallerySource, /deletePortfolioMedia\(item\.id, \{[\s\S]{0,180}vendorId: data\.vendor\.id,[\s\S]{0,180}publicId: item\.public_id/, "Portfolio deletion must provide the owned Cloudinary identity when a legacy media ID is stale.");
+assert.match(vendorGallerySource, /deletePortfolioMedia\(item\.id, \{[\s\S]{0,180}vendorId: data\.vendor\.id,[\s\S]{0,180}publicId: item\.public_id/, "Portfolio deletion must provide the owned Bunny identity when a media ID is stale.");
 assert.match(portfolioDeleteFunctionSource, /if \(!media && vendorId && publicId\)[\s\S]{0,350}\.eq\("vendor_id", vendorId\)\.eq\("public_id", publicId\)/, "Portfolio deletion must safely resolve stale media IDs by vendor and public ID.");
-assert.match(portfolioDeleteFunctionSource, /admin\.from\("vendor_portfolio_media"\)\.delete\(\)/, "Portfolio deletion must remove the database record after Cloudinary cleanup succeeds.");
+assert.match(portfolioDeleteFunctionSource, /admin\.from\("vendor_portfolio_media"\)\.delete\(\)/, "Portfolio deletion must remove the database record after Bunny cleanup succeeds.");
 assert.match(portfolioDeleteGrantSource, /grant select, delete on public\.vendor_portfolio_media to service_role/, "The portfolio delete service role must be able to resolve and remove the owned media row.");
 
 // --- Native auth screens must remain usable above the Android keyboard ---
@@ -369,35 +369,24 @@ assert.match(clipNativeMediaSource, /unavailable in standard Expo Go/, "Oversize
 assert.match(clipCompressionPlanSource, /Math\.min\(sourceMaxDimension, profile\.maxDimension\)/, "Smart Clip optimization must never upscale low-resolution input.");
 assert.match(clipCompressionPlanSource, /maxDimension: 1920[\s\S]*maxDimension: 1280[\s\S]*maxDimension: 960/, "Smart Clip optimization must preserve 1080p before progressively reducing resolution.");
 assert.match(clipCompressionPlanSource, /source\.fileSizeBytes \* 8\) \/ duration/, "Smart Clip optimization must calculate bitrate from source size and duration.");
-const [clipManagementSource, clipDeleteFunctionSource, clipDeleteMigrationSource, vendorClipsSource, publicClipSource, cloudinaryMediaSharedSource, adminDeleteClipSource] = await Promise.all([
+const [clipManagementSource, clipDeleteFunctionSource, clipDeleteMigrationSource, vendorClipsSource, publicClipSource, bunnyMediaSharedSource, adminDeleteClipSource] = await Promise.all([
   read("clips/services/ClipManagementService.ts"),
-  read("supabase/functions/clip-cloudinary-delete/index.ts"),
+  read("supabase/functions/clip-media-delete/index.ts"),
   read("supabase/migrations/20260812190000_allow_vendor_clip_deletion_without_active_plan.sql"),
   read("app/VendorClips.tsx"),
   read("clips/services/PublicClipService.ts"),
-  read("supabase/functions/_shared/cloudinaryMedia.ts"),
+  read("supabase/functions/_shared/bunnyClipMedia.ts"),
   read("supabase/functions/admin-delete-clip/index.ts"),
 ]);
-// The actual Cloudinary Admin API delete/verify/fallback mechanics were
-// extracted from clip-cloudinary-delete/index.ts into
-// _shared/cloudinaryMedia.ts so admin-delete-clip reuses the exact same,
-// already-verified logic instead of a second copy — these checks follow
-// that relocation. Ownership verification and the vendor soft-delete
-// completion step are unique to the vendor-facing function and still live
-// there, so those checks are unchanged.
-const clipDeleteInternalsSource = clipDeleteFunctionSource + cloudinaryMediaSharedSource;
-assert.doesNotMatch(clipManagementSource, /vendor_soft_delete_clip[\s\S]*ClipCloudinaryService\.delete/, "The client must not hide a Clip before storage deletion.");
-assert.match(clipDeleteFunctionSource, /vendors!inner\(profile_id\)[\s\S]*deleteClipCloudinaryAssets[\s\S]*vendor_soft_delete_clip/, "Secure Clip deletion must verify ownership, clear storage, then update the database.");
+const clipDeleteInternalsSource = clipDeleteFunctionSource + bunnyMediaSharedSource;
+assert.doesNotMatch(clipManagementSource, /vendor_soft_delete_clip[\s\S]*ClipBunnyService\.delete/, "The client must not hide a Clip before storage deletion.");
+assert.match(clipDeleteFunctionSource, /vendors!inner\(profile_id\)[\s\S]*deleteClipBunnyAssets[\s\S]*vendor_soft_delete_clip/, "Secure Clip deletion must verify ownership, clear storage, then update the database.");
 assert.match(clipDeleteFunctionSource, /Database deletion failed after storage cleanup/, "Partial Clip deletion failures must be logged for safe retry.");
-assert.doesNotMatch(cloudinaryMediaSharedSource, /for \(const \[publicId, resourceType\]/, "Clip deletion must not shadow the resolved Cloudinary public ID inside the asset loop.");
-assert.match(clipDeleteInternalsSource, /assetStatus === "deleted" \|\| assetStatus === "not_found"/, "Clip deletion must validate Cloudinary Admin API delete results and treat an already-missing asset idempotently.");
-assert.match(clipDeleteInternalsSource, /signCloudinaryParams[\s\S]*Object\.entries\(params\)[\s\S]*\.sort\([\s\S]*public_id: assetPublicId, timestamp:/, "Cloudinary destroy fallback must sign the exact sorted REST request parameters server-side.");
-assert.match(clipDeleteInternalsSource, /deliveryType = "upload"[\s\S]*Admin API DELETE \/resources \(Basic Auth\)/, "Clip deletion diagnostics must identify the Cloudinary endpoint category and delivery type.");
-assert.match(clipDeleteInternalsSource, /cloudinaryStatus: response\.status[\s\S]*cloudinaryResponse: safeResponseBody/, "Cloudinary failures must log the safe response body and HTTP status.");
-assert.doesNotMatch(clipDeleteInternalsSource, /console\.(?:log|error)\([^\n]*apiSecret|console\.(?:log|error)\([^\n]*apiKey/, "Clip deletion logs must not expose Cloudinary credentials.");
+assert.match(clipDeleteInternalsSource, /video\.bunnycdn\.com[\s\S]*method: "DELETE"/, "Clip deletion must remove the Bunny Stream video.");
+assert.match(clipDeleteInternalsSource, /thumbnail\.[\$\{]extension[\s\S]*method: "DELETE"/, "Clip deletion must remove custom Bunny thumbnails idempotently.");
 assert.doesNotMatch(clipDeleteMigrationSource, /vendor_has_subscription_feature/, "A vendor must be able to delete owned media without an active upload entitlement.");
 assert.match(vendorClipsSource, /deletingRef\.current/, "Vendor Clip deletion must retain its duplicate-tap guard.");
-assert.match(clipDeleteInternalsSource, /missingCloudinarySecrets[\s\S]*CLOUDINARY_API_KEY[\s\S]*CLOUDINARY_API_SECRET/, "Clip deletion must identify missing server-side Cloudinary credentials.");
+assert.doesNotMatch(clipDeleteInternalsSource, new RegExp(["cloud", "inary"].join(""), "i"), "Clip deletion must remain Bunny-only.");
 assert.match(publicClipSource, /\.eq\("status", "approved"\)[\s\S]*\.eq\("visibility", "public"\)[\s\S]*\.is\("deleted_at", null\)/, "Public Clip queries must never return deleted or non-public Clips.");
 // New: admin clip deletion must resolve the vendor server-side, notify
 // before touching storage/the database, and never claim success on a
@@ -405,7 +394,7 @@ assert.match(publicClipSource, /\.eq\("status", "approved"\)[\s\S]*\.eq\("visibi
 assert.doesNotMatch(adminDeleteClipSource, /body\.vendorId|body\.category_id|body\.categoryId/, "Admin clip deletion must not accept a client-supplied vendor/category as the deletion target.");
 assert.match(adminDeleteClipSource, /private\.is_admin|ADMIN_ROLES/, "Admin clip deletion must verify the caller is an authorized administrator.");
 assert.match(adminDeleteClipSource, /aal2/, "Admin clip deletion must require a real MFA-verified (aal2) session, not just the client-side MFA bypass.");
-assert.match(adminDeleteClipSource, /vendor_notifications["'][\s\S]*deleteClipCloudinaryAssets[\s\S]*admin_hard_delete_clip/, "Admin clip deletion must notify the vendor, then delete media, then hard-delete the clip, in that order.");
+assert.match(adminDeleteClipSource, /vendor_notifications["'][\s\S]*deleteClipBunnyAssets[\s\S]*admin_hard_delete_clip/, "Admin clip deletion must notify the vendor, then delete media, then hard-delete the clip, in that order.");
 assert.match(adminDeleteClipSource, /stage: "notification"/, "A failed vendor notification must be reported distinctly so the clip is never deleted without notifying the vendor.");
 const crmCardSource = await read("components/admin/crm/ui/CRMCard.tsx");
 const crmAnalyticsSource = await read("components/admin/crm/ui/AnalyticsCard.tsx");
@@ -770,7 +759,7 @@ assert.match(financeServiceSource, /status === ["']recorded["']/, "Finance summa
 assert.match(financeMigrationSource, /subscription_payments_sync_finance/, "Verified subscription payments must sync into the finance ledger.");
 assert.match(financeMigrationSource, /private\.is_admin\(\)/, "Finance tables and RPCs must remain admin-only.");
 assert.match(financeMigrationSource, /prevent_closed_finance_month_change/, "Closed finance periods must remain protected from manual ledger changes.");
-for (const guard of ["finance_budgets_closed_month_guard", "finance_budget_items_closed_month_guard", "finance_tax_records_closed_month_guard", "finance_cloudinary_usage_closed_month_guard"]) {
+for (const guard of ["finance_budgets_closed_month_guard", "finance_budget_items_closed_month_guard", "finance_tax_records_closed_month_guard"]) {
   assert.match(financeMigrationSource, new RegExp(guard), `${guard} must protect closed monthly records outside the UI.`);
 }
 assert.match(financeMigrationSource, /finance_month_is_closed\(existing_date\)[\s\S]*return new/, "Payment status updates must not mutate a closed ledger or break payment verification.");

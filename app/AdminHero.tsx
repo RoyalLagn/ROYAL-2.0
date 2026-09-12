@@ -31,7 +31,7 @@ import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
-import { deleteAdminManagedImage, pickImage, uploadImage as uploadToMedia } from "@/services/cloudinary";
+import { deleteAdminManagedImage, pickImage, uploadImage as uploadToMedia } from "@/services/media";
 import { CategoryService, type CategoryRecord } from "@/services/CategoryService";
 import { HeroSlideService } from "@/services/heroSlides";
 import { HERO_IMAGE_ASPECT, HERO_SLIDES_MAX, type HeroSlide } from "@/types/hero";

@@ -5,7 +5,7 @@ import type { ClipQueueItem, UploadProgress } from "../types";
 import { ClipModuleError } from "../utils/errors";
 import { ClipLogger } from "../utils/logger";
 import { ClipCacheService } from "./ClipCacheService";
-import { ClipCloudinaryService } from "./ClipCloudinaryService";
+import { ClipBunnyService } from "./ClipBunnyService";
 import { ClipThumbnailService } from "./ClipThumbnailService";
 import { ClipUploadService } from "./ClipUploadService";
 
@@ -73,7 +73,7 @@ export const ClipUploadOrchestrator = {
     };
     // Tracked so the catch block below can release the reservation (a
     // no-op once finalize_clip_upload() has already completed it) if any
-    // later stage -- compression, thumbnail generation, the Cloudinary
+    // later stage -- compression, thumbnail generation, the Bunny
     // upload itself -- throws. Without this a failed upload after a
     // successful reservation would otherwise hold the slot until its
     // 15 minute expiry even though no Clip was created.
@@ -208,13 +208,13 @@ export const ClipUploadOrchestrator = {
       ensureActive();
       const clipId = createClipId();
       stageStartedAt = Date.now();
-      ClipLogger.uploadDebug(uploadId, "CLOUDINARY", "START", { clipId });
+      ClipLogger.uploadDebug(uploadId, "BUNNY", "START", { clipId });
       ClipLogger.info("upload", "Uploading video and thumbnail", { queueId: item.id, clipId });
-      const uploaded = await ClipCloudinaryService.upload({
+      const uploaded = await ClipBunnyService.upload({
         debugUploadId: uploadId,
         clipId, vendorId: draft.vendorId, video: prepared, thumbnailUri: thumbnail.uri,
       }, (value) => {
-        ClipLogger.uploadDebug(uploadId, "CLOUDINARY", "PROGRESS", {
+        ClipLogger.uploadDebug(uploadId, "BUNNY", "PROGRESS", {
           clipId, fraction: value, uiProgress: 0.4 + value * 0.5,
         });
         onProgress({
@@ -223,18 +223,18 @@ export const ClipUploadOrchestrator = {
           totalBytes: prepared.fileSizeBytes, attempt: item.retryCount + 1,
         });
       });
-      ClipLogger.info("upload", "Cloudinary upload complete", { queueId: item.id, clipId });
-      ClipLogger.uploadDebug(uploadId, "CLOUDINARY", "DONE", {
+      ClipLogger.info("upload", "Bunny upload complete", { queueId: item.id, clipId });
+      ClipLogger.uploadDebug(uploadId, "BUNNY", "DONE", {
         clipId, elapsedMs: Date.now() - stageStartedAt, uploaded,
       });
       if (shouldCancel()) {
-        await withTimeout("Cleaning up cancelled upload", supabase.functions.invoke("clip-cloudinary-delete", {
+        await withTimeout("Cleaning up cancelled upload", supabase.functions.invoke("clip-media-delete", {
           body: { vendorId: draft.vendorId, publicId: uploaded.publicId },
         })).catch(() => undefined);
         throw new ClipModuleError("UPLOAD_ERROR", "Upload cancelled.");
       }
       if (uploaded.fileSizeBytes > clipsConfig.media.maximumFinalFileSizeBytes) {
-        await withTimeout("Cleaning up oversized upload", supabase.functions.invoke("clip-cloudinary-delete", {
+        await withTimeout("Cleaning up oversized upload", supabase.functions.invoke("clip-media-delete", {
           body: { vendorId: draft.vendorId, publicId: uploaded.publicId },
         })).catch(() => undefined);
         throw new ClipModuleError("UPLOAD_ERROR", "The processed clip is above 20 MB and was not saved. Please choose a shorter video or a lower-resolution clip.");
@@ -255,7 +255,7 @@ export const ClipUploadOrchestrator = {
       width: uploaded.resolution.width,
       height: uploaded.resolution.height,
       file_size_bytes: uploaded.fileSizeBytes,
-      cloudinary_public_id: uploaded.publicId,
+      bunny_asset_id: uploaded.publicId,
       };
       ClipLogger.uploadDebug(uploadId, "DATABASE_INSERT", "START", {
         table: "clips", operation: "rpc/finalize_clip_upload", clipId, payload: insertPayload,
@@ -263,7 +263,7 @@ export const ClipUploadOrchestrator = {
       // finalize_clip_upload() atomically inserts the Clip row and marks
       // the reservation completed inside a single database transaction --
       // this is what makes "reserve a slot, then insert after the
-      // Cloudinary upload" race-free instead of the old
+      // Bunny upload" race-free instead of the old
       // check-count-then-insert sequence. It is also idempotent: if this
       // call is retried after a lost response, the already-inserted Clip
       // is returned rather than duplicated.
@@ -289,7 +289,7 @@ export const ClipUploadOrchestrator = {
         elapsedMs: Date.now() - insertStartedAt,
       });
       if (error) {
-        await withTimeout("Cleaning up failed upload", supabase.functions.invoke("clip-cloudinary-delete", {
+        await withTimeout("Cleaning up failed upload", supabase.functions.invoke("clip-media-delete", {
           body: { vendorId: draft.vendorId, publicId: uploaded.publicId },
         })).catch(() => undefined);
         if (error.hint === "RESERVATION_EXPIRED" || error.code === "P0003") {

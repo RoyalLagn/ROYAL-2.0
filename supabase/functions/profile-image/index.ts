@@ -6,25 +6,6 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function sha1(value: string) {
-  const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function publicIdFromUrl(value: string) {
-  const parsed = new URL(value);
-  const marker = "/image/upload/";
-  const markerIndex = parsed.pathname.indexOf(marker);
-  if (markerIndex < 0) return null;
-  const tail = parsed.pathname.slice(markerIndex + marker.length);
-  const parts = tail.split("/");
-  const versionIndex = parts.findIndex((part) => /^v\d+$/.test(part));
-  const assetParts = versionIndex >= 0 ? parts.slice(versionIndex + 1) : parts;
-  return decodeURIComponent(assetParts.join("/")).replace(/\.[^.]+$/, "");
-}
-
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -60,9 +41,6 @@ Deno.serve(async (request) => {
       prefix = `royallagn/profiles/${user.id}/`;
     }
 
-    const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
-    const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
-    const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME");
     if (body.action === "delete") {
       const currentUrl = typeof body.url === "string" ? new URL(body.url) : null;
       const bunny = bunnyStorageConfig();
@@ -74,31 +52,7 @@ Deno.serve(async (request) => {
         if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny profile image deletion failed");
         return Response.json({ ok: true, managed: true, provider: "bunny" }, { headers: cors });
       }
-      if (!apiSecret || !apiKey || !cloudName) {
-        throw new Error("Cloudinary API credentials are required to delete previous images");
-      }
-      const publicId = typeof body.url === "string" ? publicIdFromUrl(body.url) : null;
-      if (!publicId || !publicId.startsWith(prefix) || publicId.includes("..")) {
-        return Response.json({ ok: true, managed: false }, { headers: cors });
-      }
-      const timestamp = Math.floor(Date.now() / 1000);
-      const canonical = `invalidate=true&public_id=${publicId}&timestamp=${timestamp}`;
-      const destroyBody = new URLSearchParams({
-        public_id: publicId,
-        timestamp: String(timestamp),
-        invalidate: "true",
-        api_key: apiKey,
-        signature: await sha1(`${canonical}${apiSecret}`),
-      });
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`,
-        { method: "POST", body: destroyBody },
-      );
-      const result = await response.json();
-      if (!response.ok || !["ok", "not found"].includes(result.result)) {
-        throw new Error("Cloudinary deletion failed");
-      }
-      return Response.json({ ok: true, managed: true }, { headers: cors });
+      return Response.json({ ok: true, managed: false }, { headers: cors });
     }
 
     const mimeType = String(body.mimeType ?? "").toLowerCase();

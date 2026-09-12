@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { deleteClipCloudinaryAssets, fetchWithTimeout } from "../_shared/cloudinaryMedia.ts";
+import { deleteClipBunnyAssets, fetchWithTimeout } from "../_shared/bunnyClipMedia.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -9,7 +9,7 @@ const cors = {
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   const requestId = crypto.randomUUID();
-  console.log("[clip-cloudinary-delete] Preparing deletion", { requestId });
+  console.log("[clip-media-delete] Preparing deletion", { requestId });
   try {
     const authHeader = request.headers.get("Authorization") ?? "";
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
@@ -22,10 +22,10 @@ Deno.serve(async (request) => {
     let ownedVendorId = vendorId as string | undefined;
     let deleteClipRecord = false;
     if (clipId) {
-      const { data: clip, error: clipError } = await supabase.from("clips").select("cloudinary_public_id,vendor_id,vendors!inner(profile_id)")
+      const { data: clip, error: clipError } = await supabase.from("clips").select("bunny_asset_id,vendor_id,vendors!inner(profile_id)")
         .eq("id", clipId).eq("vendors.profile_id", user.id).maybeSingle();
       if (clipError) throw clipError;
-      publicId = clip?.cloudinary_public_id;
+      publicId = clip?.bunny_asset_id;
       ownedVendorId = clip?.vendor_id;
       deleteClipRecord = true;
     } else {
@@ -36,32 +36,32 @@ Deno.serve(async (request) => {
       }
     }
     if (!publicId) throw new Error("Owned Clip not found");
-    console.log("[clip-cloudinary-delete] Ownership verified", {
+    console.log("[clip-media-delete] Ownership verified", {
       requestId, clipId: clipId ?? null, vendorId: ownedVendorId,
       publicId, publicIdExists: true,
     });
 
-    await deleteClipCloudinaryAssets(publicId, { requestId, clipId: clipId ?? null, vendorId: ownedVendorId ?? null });
+    await deleteClipBunnyAssets(publicId, { requestId, clipId: clipId ?? null, vendorId: ownedVendorId ?? null });
 
     if (deleteClipRecord) {
       const { error: deleteError } = await supabase.rpc("vendor_soft_delete_clip", { target_clip_id: clipId });
       if (deleteError) {
-        console.error("[clip-cloudinary-delete] Database deletion failed after storage cleanup", {
+        console.error("[clip-media-delete] Database deletion failed after storage cleanup", {
           requestId, clipId, vendorId: ownedVendorId, error: deleteError,
         });
         throw new Error(`Clip media was cleared, but the database update failed: ${deleteError.message}`);
       }
-      console.log("[clip-cloudinary-delete] Supabase soft deletion complete", {
+      console.log("[clip-media-delete] Supabase soft deletion complete", {
         requestId, clipId, vendorId: ownedVendorId,
       });
     }
-    console.log("[clip-cloudinary-delete] Complete", { requestId });
+    console.log("[clip-media-delete] Complete", { requestId });
     return Response.json({ deleted: true }, { headers: cors });
   } catch (error) {
     const message = error instanceof Error && error.name === "AbortError"
       ? "Media deletion timed out after 30 seconds"
       : error instanceof Error ? error.message : "Unable to delete Clip media";
-    console.error("[clip-cloudinary-delete] Failed", { requestId, error: message });
+    console.error("[clip-media-delete] Failed", { requestId, error: message });
     return Response.json({ error: message }, { status: 400, headers: cors });
   }
 });

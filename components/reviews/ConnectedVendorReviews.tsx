@@ -19,7 +19,7 @@ import {
 import {
   deleteReviewPhoto,
   reviewPhotoPublicId,
-} from "@/services/cloudinary";
+} from "@/services/media";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import VendorReviewsSection from "./VendorReviewsSection";
 import type {

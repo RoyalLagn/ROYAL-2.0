@@ -22,7 +22,7 @@ RoyalLagn combines location-aware wedding-vendor discovery, subscription-priorit
 
 ## Operating Context
 
-The product runs as an Expo/React Native application across web, iOS, and Android. Supabase provides authentication and relational data. Cloudinary stores dynamic media. Razorpay-backed subscription payment records are the verified source for received subscription revenue.
+The product runs as an Expo/React Native application across web, iOS, and Android. Supabase provides authentication and relational data. Bunny.net Storage, CDN, and Stream store and deliver dynamic media. Razorpay-backed subscription payment records are the verified source for received subscription revenue.
 
 ## Capabilities and Constraints
 

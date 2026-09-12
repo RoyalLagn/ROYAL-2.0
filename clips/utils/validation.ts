@@ -20,7 +20,7 @@ export function validateClipSource(source: ClipUpload) {
     );
   }
   return {
-    // A file at 20 MiB or below goes straight to Cloudinary. Anything larger
+    // A file at 20 MiB or below goes straight to Bunny. Anything larger
     // is prepared locally first, so the original source never reaches storage.
     requiresCompression: source.fileSizeBytes > clipsConfig.media.compressionThresholdBytes,
   };

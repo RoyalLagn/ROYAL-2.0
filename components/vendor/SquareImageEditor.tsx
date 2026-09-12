@@ -20,7 +20,7 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { typeStyles } from "@/constants/typography";
 import { brandPalette } from "@/constants/brandPalette";
-import { PROFILE_IMAGE_SIZE, type ProfileImageAsset } from "@/services/cloudinary";
+import { PROFILE_IMAGE_SIZE, type ProfileImageAsset } from "@/services/media";
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 5;

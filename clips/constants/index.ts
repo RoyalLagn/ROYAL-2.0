@@ -1,6 +1,6 @@
 export const CLIP_MEDIA_LIMITS = Object.freeze({
   maximumDurationSeconds: 30,
-  // Vendors may select a source up to 40 MiB, but Cloudinary must only ever
+  // Vendors may select a source up to 40 MiB, but Bunny must only ever
   // receive a prepared asset at or below 20 MiB.
   maximumSourceFileSizeBytes: 40 * 1024 * 1024,
   compressionThresholdBytes: 20 * 1024 * 1024,
@@ -51,15 +51,15 @@ export const CLIP_FEED_SETTINGS = Object.freeze({
 });
 
 /**
- * Cloudinary video delivery — a single fixed transformation bucket, not a
- * per-device/per-render size. Cloudinary transcodes video on-the-fly per
+ * Bunny video delivery — a stable target used by local preparation while
+ * Bunny Stream selects adaptive renditions during playback.
  * unique transformation string, and that transcode is genuinely slow
  * (measured 7-11s cold vs ~2s for the untransformed original). A width that
  * varies with viewport/DPR means practically every device requests its own
  * never-before-seen string, so it *never* hits a warm derivative. Every
  * clip in the DB is already capped at 1080x1920 at upload (see
  * clips_resolution_valid), so this bucket matches the source almost exactly
- * — Cloudinary mostly just re-encodes format/quality rather than resizing —
+ * — Bunny Stream handles the final adaptive encoding —
  * and it's the same single string for every viewer, so at most one viewer
  * ever pays the cold-transcode cost per clip.
  */

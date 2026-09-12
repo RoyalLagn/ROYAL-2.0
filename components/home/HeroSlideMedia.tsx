@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Image, Platform, StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 
 import { HERO_IMAGE_ASPECT } from "@/types/hero";
-import { cloudinaryDeliveryUrl } from "@/utils/cloudinaryDelivery";
+import { mediaDeliveryUrl } from "@/utils/mediaDelivery";
 
 type HeroSlideMediaProps = {
   uri: string;
@@ -10,7 +10,7 @@ type HeroSlideMediaProps = {
   style?: StyleProp<ViewStyle>;
   /** Corner radius on the 16:9 wrapper (overflow hidden). */
   borderRadius?: number;
-  /** Display width of the hero shell — drives Cloudinary `w_`. */
+  /** Display width of the hero shell. */
   displayWidth?: number;
   /** When true, mark as LCP-critical (eager load / high fetch priority on web). */
   priority?: boolean;
@@ -23,7 +23,7 @@ type HeroSlideMediaProps = {
 export function heroDeliveryUrl(url: string, displayWidth = 750): string {
   // Cap delivery width so large desktop shells don't pull multi‑MB creatives.
   const cssWidth = Math.max(320, Math.min(900, Math.round(displayWidth || 750)));
-  return cloudinaryDeliveryUrl(url, {
+  return mediaDeliveryUrl(url, {
     width: cssWidth,
     crop: "limit",
     dpr: 2,

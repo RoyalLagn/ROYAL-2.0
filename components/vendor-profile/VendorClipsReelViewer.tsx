@@ -31,7 +31,7 @@ import {
 } from "@/clips/services";
 import type { ClipEngagementState, PublicClip } from "@/clips/types";
 import { usePublicAuth } from "@/context/PublicAuthContext";
-import { cloudinaryDeliveryUrl } from "@/utils/cloudinaryDelivery";
+import { mediaDeliveryUrl } from "@/utils/mediaDelivery";
 import { typeScale, typeLeading } from "@/constants/typography";
 
 type ViewerItem = {
@@ -217,7 +217,7 @@ export default function VendorClipsReelViewer({
     const liked = engagement[clip.id]?.liked ?? false;
     const clipCounts = counts[clip.id] ?? { likes: clip.likesCount, views: clip.viewsCount };
     const posterUri = clip.thumbnailUrl
-      ? cloudinaryDeliveryUrl(clip.thumbnailUrl, { width, height, crop: "fill", dpr: 2, quality: "auto" })
+      ? mediaDeliveryUrl(clip.thumbnailUrl, { width, height, crop: "fill", dpr: 2, quality: "auto" })
       : clip.thumbnailUrl;
     return (
       <View

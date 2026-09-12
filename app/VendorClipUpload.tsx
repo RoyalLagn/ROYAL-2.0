@@ -129,7 +129,7 @@ export default function VendorClipUpload() {
   const submit = async () => {
     // Each call to queue.enqueue() below mints brand-new queue item ids, so a
     // duplicate dispatch here would enqueue two independent uploads (two
-    // reservations, two Cloudinary assets, two Clip rows) for the same
+    // reservations, two Bunny assets, two Clip rows) for the same
     // selection.
     if (submittingRef.current) return;
     if (uploadDisabled) return;

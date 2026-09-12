@@ -8,7 +8,7 @@ import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
-import { deletePortfolioMedia, deleteUnstoredPortfolioAsset, pickPortfolioMedia, type PortfolioAsset, uploadPortfolioAsset } from "@/services/cloudinary";
+import { deletePortfolioMedia, deleteUnstoredPortfolioAsset, pickPortfolioMedia, type PortfolioAsset, uploadPortfolioAsset } from "@/services/media";
 import { supabase } from "@/services/supabase";
 import PortfolioVideoPlayer from "@/components/vendor/PortfolioVideoPlayer";
 import { portfolioAssetFingerprint, portfolioMediaUrl, PORTFOLIO_LIMITS, updateMediaFocalPoint } from "@/services/vendorPortfolio";

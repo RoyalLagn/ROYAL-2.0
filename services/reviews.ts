@@ -236,7 +236,7 @@ export async function saveReview(
   const title = cleanRequired(input.title, "Review title", 120);
   const review = cleanRequired(input.text, "Review", 5000);
   const imageUrls = (input.imageUrls ?? []).slice(0, 6);
-  if (imageUrls.some((url) => !/^https:\/\/(?:res\.cloudinary\.com|royallagnmedia\.b-cdn\.net)\//i.test(url))) {
+  if (imageUrls.some((url) => !/^https:\/\/royallagnmedia\.b-cdn\.net\//i.test(url))) {
     throw new Error("Review photos must be secure managed-media URLs.");
   }
   const { data, error } = await supabase.rpc("upsert_vendor_review", {

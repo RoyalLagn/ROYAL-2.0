@@ -78,17 +78,6 @@ export type PublicPortfolioAlbum = VendorPortfolioAlbum & {
   hasVideo: boolean;
 };
 
-function cloudinaryTransform(
-  url: string,
-  transformation: string,
-  resourceType: "image" | "video" = "image",
-) {
-  const marker = `/${resourceType}/upload/`;
-  return url.includes(marker)
-    ? url.replace(marker, `${marker}${transformation}/`)
-    : url;
-}
-
 export function portfolioMediaUrl(
   media: VendorPortfolioMedia,
   variant: "thumbnail" | "cover" | "card" | "hero" | "fullscreen" = "card",
@@ -97,25 +86,19 @@ export function portfolioMediaUrl(
     return media.resource_type === "video"
       ? media.video_poster_url
         || media.thumbnail_url
-        || cloudinaryTransform(media.secure_url, "so_0,c_fit,w_480,h_480,q_auto,f_jpg", "video")
-      : cloudinaryTransform(media.secure_url, "c_limit,w_480,h_480,q_auto:eco,f_auto");
+        || media.secure_url
+      : media.thumbnail_url || media.secure_url;
   }
   if (media.resource_type === "video") {
     return media.video_poster_url
       || media.thumbnail_url
-      || cloudinaryTransform(media.secure_url, "so_0,c_fit,w_960,h_720,q_auto,f_jpg", "video");
-  }
-  if (variant === "cover") {
-    return cloudinaryTransform(media.secure_url, "c_limit,w_720,h_780,q_auto:good,f_auto");
-  }
-  if (variant === "hero") {
-    return cloudinaryTransform(media.secure_url, "c_limit,w_1600,h_1600,q_auto:good,f_auto");
+      || media.secure_url;
   }
   if (variant === "fullscreen") {
     return media.fullscreen_url
-      || cloudinaryTransform(media.secure_url, "c_limit,w_2560,h_2560,q_auto:good,f_auto");
+      || media.secure_url;
   }
-  return cloudinaryTransform(media.secure_url, "c_limit,w_1200,h_1200,q_auto:good,f_auto");
+  return media.secure_url;
 }
 
 export function stableHeroSelection(

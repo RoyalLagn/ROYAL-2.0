@@ -4,8 +4,8 @@ import { ClipModuleError } from "../utils/errors";
 import { ClipLogger } from "../utils/logger";
 import { withClipRetry } from "../utils/retry";
 import { ClipCacheService } from "./ClipCacheService";
-import { ClipCloudinaryService } from "./ClipCloudinaryService";
-import { uploadClipThumbnail } from "./ClipCloudinaryNativeAdapter";
+import { ClipBunnyService } from "./ClipBunnyService";
+import { uploadClipThumbnail } from "./ClipBunnyNativeAdapter";
 
 export interface UpdateVendorClipInput {
   title: string;
@@ -44,11 +44,11 @@ export const ClipManagementService = {
   },
   async remove(clipId: string) {
     // The Edge Function owns the ordered transaction: verify ownership and
-    // read the public ID while the row is visible, delete Cloudinary assets,
-    // then soft-delete the database row. Cloudinary destroy is idempotent, so
+    // read the asset ID while the row is visible, delete Bunny assets,
+    // then soft-delete the database row. Bunny deletion is idempotent, so
     // retrying also recovers storage-success/database-failure cases safely.
     await withClipRetry(
-      () => ClipCloudinaryService.delete(clipId),
+      () => ClipBunnyService.delete(clipId),
       (retryError) => !(retryError instanceof ClipModuleError) || retryError.retryable,
     );
     ClipCacheService.invalidate();
@@ -60,17 +60,17 @@ export const ClipManagementService = {
     if (!oldest?.clip_id) throw new Error("No published Clip is available to replace.");
     ClipCacheService.invalidate();
     // As with remove(), the replace RPC above is a one-shot operation (it already
-    // freed the vendor's upload slot), so a Cloudinary hiccup here must not block
+    // freed the vendor's upload slot), so a Bunny hiccup here must not block
     // the caller from proceeding to queue their new upload with the freed slot --
     // best-effort retry, then log and move on rather than throwing.
     try {
       await withClipRetry(
-        () => ClipCloudinaryService.delete(oldest.clip_id),
+        () => ClipBunnyService.delete(oldest.clip_id),
         (retryError) => !(retryError instanceof ClipModuleError) || retryError.retryable,
       );
-    } catch (cloudinaryError) {
-      ClipLogger.error("cloudinary", "Oldest Clip replaced but Cloudinary cleanup failed", {
-        clipId: oldest.clip_id, error: cloudinaryError instanceof Error ? cloudinaryError.message : String(cloudinaryError),
+    } catch (bunnyError) {
+      ClipLogger.error("bunny", "Oldest Clip replaced but Bunny cleanup failed", {
+        clipId: oldest.clip_id, error: bunnyError instanceof Error ? bunnyError.message : String(bunnyError),
       });
     }
     return oldest.clip_id as string;

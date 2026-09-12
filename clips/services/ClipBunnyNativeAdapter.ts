@@ -3,11 +3,11 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as tus from "tus-js-client";
 import { supabase } from "@/services/supabase";
 import { waitForBunnyStreamReady } from "@/services/bunnyStream";
-import type { ClipCloudinaryAsset } from "../types";
+import type { ClipBunnyAsset } from "../types";
 import { ClipModuleError } from "../utils/errors";
 import { ClipLogger } from "../utils/logger";
-import type { ClipCloudinaryUploadInput } from "./ClipCloudinaryService";
-import { ClipCloudinaryService } from "./ClipCloudinaryService";
+import type { ClipBunnyUploadInput } from "./ClipBunnyService";
+import { ClipBunnyService } from "./ClipBunnyService";
 
 type SignResponse = {
   provider: "bunny";
@@ -134,7 +134,7 @@ async function verifyBunnyStreamUpload(
   try {
     return await waitForBunnyStreamReady(data.videoId!, input.vendorId, "clip");
   } catch (error) {
-    await supabase.functions.invoke("clip-cloudinary-delete", {
+    await supabase.functions.invoke("clip-media-delete", {
       body: { vendorId: input.vendorId, publicId: `bunny:${data.videoId}:${input.clipId}` },
     }).catch(() => undefined);
     throw new ClipModuleError(
@@ -367,8 +367,8 @@ export async function uploadClipThumbnail(
   return { url: result.secure_url, publicId: result.public_id };
 }
 
-ClipCloudinaryService.configure({
-  async upload(input: ClipCloudinaryUploadInput, onProgress): Promise<ClipCloudinaryAsset> {
+ClipBunnyService.configure({
+  async upload(input: ClipBunnyUploadInput, onProgress): Promise<ClipBunnyAsset> {
     ClipLogger.info("upload", "Starting Bunny uploads", { clipId: input.clipId });
     const aborters: Array<() => void> = [];
     const uploadsStartedAt = Date.now();
@@ -434,7 +434,7 @@ ClipCloudinaryService.configure({
     };
   },
   async delete(clipId) {
-    const { error } = await supabase.functions.invoke("clip-cloudinary-delete", { body: { clipId } });
+    const { error } = await supabase.functions.invoke("clip-media-delete", { body: { clipId } });
     if (error) {
       let message = error.message;
       const context = (error as { context?: Response }).context;
@@ -442,7 +442,7 @@ ClipCloudinaryService.configure({
         const payload = await context.clone().json().catch(() => null) as { error?: string } | null;
         if (payload?.error) message = payload.error;
       }
-      throw new ClipModuleError("CLOUDINARY_ERROR", message || "Unable to delete this Clip. Please try again.", true, error);
+      throw new ClipModuleError("MEDIA_ERROR", message || "Unable to delete this Clip. Please try again.", true, error);
     }
   },
   async replace(input, _previousPublicId, onProgress) {

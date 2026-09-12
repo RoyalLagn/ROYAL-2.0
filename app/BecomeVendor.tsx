@@ -9,10 +9,10 @@ import {
   ArrowLeft, Check, ChevronDown, CircleAlert, FileText, ImagePlus, Trash2, X,
 } from "lucide-react-native";
 import {
-  CloudinaryError, deleteOwnedBunnyUpload, pickAndUploadBusinessDocument, pickAndUploadImage,
+  MediaError, deleteOwnedBunnyUpload, pickAndUploadBusinessDocument, pickAndUploadImage,
   pickProfileImage, uploadImage as uploadManagedImage, type ProfileImageAsset,
   type UploadedBusinessDocument,
-} from "@/services/cloudinary";
+} from "@/services/media";
 import { useCategories } from "@/context/CategoryContext";
 import { sanitizePhoneInput } from "@/utils/authValidation";
 import {
@@ -309,7 +309,7 @@ export default function BecomeVendor() {
         }
       }
     } catch (error) {
-      Alert.alert("Upload failed", error instanceof CloudinaryError ? error.message : "Unable to upload image.");
+      Alert.alert("Upload failed", error instanceof MediaError ? error.message : "Unable to upload image.");
     } finally {
       setUploading(null);
     }
@@ -324,7 +324,7 @@ export default function BecomeVendor() {
       if (previousUrl && previousUrl !== url) await deleteOwnedBunnyUpload(previousUrl);
       setLogoEditorAsset(null);
     } catch (error) {
-      Alert.alert("Upload failed", error instanceof CloudinaryError ? error.message : "Unable to upload the edited logo.");
+      Alert.alert("Upload failed", error instanceof MediaError ? error.message : "Unable to upload the edited logo.");
     } finally {
       setUploading(null);
     }
@@ -337,7 +337,7 @@ export default function BecomeVendor() {
       const document = await pickAndUploadBusinessDocument();
       if (document) setDocuments((current) => [...current, document]);
     } catch (error) {
-      Alert.alert("Upload failed", error instanceof CloudinaryError ? error.message : "Unable to upload document.");
+      Alert.alert("Upload failed", error instanceof MediaError ? error.message : "Unable to upload document.");
     } finally {
       setUploading(null);
     }

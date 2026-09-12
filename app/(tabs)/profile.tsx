@@ -36,12 +36,12 @@ import {
   X,
 } from "lucide-react-native";
 import {
-  CloudinaryError,
+  MediaError,
   deleteManagedProfileImage,
   pickProfileImage,
   uploadProfileImage,
   type ProfileImageAsset,
-} from "@/services/cloudinary";
+} from "@/services/media";
 import { getPublicAuthError, updatePublicProfile } from "@/services/publicAuth";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { usePublicAuth } from "@/context/PublicAuthContext";
@@ -135,7 +135,7 @@ export default function ProfileScreen() {
     } catch (error) {
       Alert.alert(
         "Photo selection failed",
-        error instanceof CloudinaryError
+        error instanceof MediaError
           ? error.message
           : getPublicAuthError(error, "Unable to open the selected photo. Please try again.")
       );
@@ -167,7 +167,7 @@ export default function ProfileScreen() {
     } catch (error) {
       Alert.alert(
         "Photo upload failed",
-        error instanceof CloudinaryError
+        error instanceof MediaError
           ? error.message
           : getPublicAuthError(error, "Unable to save the edited photo. Please try again.")
       );

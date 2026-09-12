@@ -10,21 +10,21 @@ import {
   type BunnyStreamAuthorization,
 } from "./bunnyStream";
 
-export type CloudinaryErrorCode =
+export type MediaErrorCode =
   | "CONFIGURATION_ERROR"
   | "PERMISSION_DENIED"
   | "NETWORK_ERROR"
   | "UPLOAD_ERROR"
   | "PICKER_ERROR";
 
-export class CloudinaryError extends Error {
+export class MediaError extends Error {
   constructor(
     message: string,
-    public readonly code: CloudinaryErrorCode,
+    public readonly code: MediaErrorCode,
     public readonly cause?: unknown
   ) {
     super(message);
-    this.name = "CloudinaryError";
+    this.name = "MediaError";
   }
 }
 
@@ -36,7 +36,7 @@ export type PickImageOptions = {
 
 export type PortfolioAsset = ImagePicker.ImagePickerAsset;
 export type ReviewPhotoAsset = ImagePicker.ImagePickerAsset;
-export type CloudinaryUpload = {
+export type MediaUpload = {
   secureUrl: string;
   optimizedUrl?: string;
   heroUrl?: string;
@@ -133,17 +133,17 @@ export async function prepareImageForUpload<T extends ImageLikeAsset>(
 ): Promise<T> {
   const mimeType = (asset.mimeType || "image/jpeg").toLowerCase();
   if (!PROFILE_IMAGE_TYPES.has(mimeType)) {
-    throw new CloudinaryError("Choose a JPG, PNG, WebP, HEIC or HEIF image.", "UPLOAD_ERROR");
+    throw new MediaError("Choose a JPG, PNG, WebP, HEIC or HEIF image.", "UPLOAD_ERROR");
   }
 
   let sourceBytes: number;
   try {
     sourceBytes = await imageAssetBytes(asset);
   } catch (error) {
-    throw new CloudinaryError("Unable to prepare the selected image.", "UPLOAD_ERROR", error);
+    throw new MediaError("Unable to prepare the selected image.", "UPLOAD_ERROR", error);
   }
   if (!Number.isFinite(sourceBytes) || sourceBytes <= 0) {
-    throw new CloudinaryError("Unable to read the selected image.", "UPLOAD_ERROR");
+    throw new MediaError("Unable to read the selected image.", "UPLOAD_ERROR");
   }
 
   const maxLongEdge = IMAGE_LONG_EDGE[purpose];
@@ -191,7 +191,7 @@ export async function prepareImageForUpload<T extends ImageLikeAsset>(
     }
   }
 
-  throw new CloudinaryError(
+  throw new MediaError(
     "This image could not be optimized for upload. Try a different image.",
     "UPLOAD_ERROR",
     lastError,
@@ -248,7 +248,7 @@ export async function pickImage(
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      throw new CloudinaryError(
+      throw new MediaError(
         "Photo library permission is required to select an image.",
         "PERMISSION_DENIED"
       );
@@ -272,11 +272,11 @@ export async function pickImage(
 
     return result.assets[0];
   } catch (error) {
-    if (error instanceof CloudinaryError) {
+    if (error instanceof MediaError) {
       throw error;
     }
 
-    throw new CloudinaryError(
+    throw new MediaError(
       "Unable to open the image library.",
       "PICKER_ERROR",
       error
@@ -299,7 +299,7 @@ export async function uploadImage(
     if (!signed) throw new Error("Bunny returned an incomplete upload authorization.");
     return await uploadToBunny(signed, prepared.uri, mimeType);
   } catch (error) {
-    throw new CloudinaryError("Unable to authorize Bunny image upload.", "UPLOAD_ERROR", error);
+    throw new MediaError("Unable to authorize Bunny image upload.", "UPLOAD_ERROR", error);
   }
 }
 
@@ -318,10 +318,10 @@ export async function validateProfileImage(asset: ProfileImageAsset) {
   const mimeType = asset.mimeType || "image/jpeg";
   const fileSize = await imageAssetBytes(asset);
   if (!PROFILE_IMAGE_TYPES.has(mimeType.toLowerCase())) {
-    throw new CloudinaryError("Choose a JPG, PNG, WebP, HEIC or HEIF image.", "UPLOAD_ERROR");
+    throw new MediaError("Choose a JPG, PNG, WebP, HEIC or HEIF image.", "UPLOAD_ERROR");
   }
   if (!Number.isFinite(fileSize) || fileSize <= 0) {
-    throw new CloudinaryError("Unable to read the selected profile image.", "UPLOAD_ERROR");
+    throw new MediaError("Unable to read the selected profile image.", "UPLOAD_ERROR");
   }
   return { fileSize, mimeType };
 }
@@ -343,7 +343,7 @@ export async function uploadProfileImage(
     body: { ...target, action: "sign", mimeType, fileSize },
   });
   if (error || data?.provider !== "bunny" || !data.uploadUrl || !data.publicUrl || !data.objectKey) {
-    throw new CloudinaryError(
+    throw new MediaError(
       await edgeFunctionErrorMessage(error, "Unable to authorize Bunny profile image upload."),
       "UPLOAD_ERROR",
     );
@@ -360,7 +360,7 @@ export async function deleteManagedProfileImage(
     body: { ...target, action: "delete", url },
   });
   if (error) {
-    throw new CloudinaryError(
+    throw new MediaError(
       await edgeFunctionErrorMessage(error, "Unable to delete the previous profile image."),
       "UPLOAD_ERROR",
     );
@@ -385,7 +385,7 @@ export async function pickAndUploadBusinessDocument(): Promise<UploadedBusinessD
   const asset = result.assets[0];
   const pickedMimeType = asset.mimeType || "application/octet-stream";
   if (!pickedMimeType.startsWith("image/") && asset.size && asset.size > 10 * 1024 * 1024) {
-    throw new CloudinaryError("Business documents must be 10 MB or smaller.", "PICKER_ERROR");
+    throw new MediaError("Business documents must be 10 MB or smaller.", "PICKER_ERROR");
   }
   let uploadAsset: ImageLikeAsset | typeof asset = asset;
   if (pickedMimeType.startsWith("image/")) {
@@ -408,13 +408,13 @@ export async function pickAndUploadBusinessDocument(): Promise<UploadedBusinessD
     const url = await uploadToBunny(signed, uploadAsset.uri, mimeType);
     return { name: asset.name, url, mimeType, size: uploadSize || null };
   } catch (error) {
-    throw new CloudinaryError("Unable to authorize Bunny document upload.", "UPLOAD_ERROR", error);
+    throw new MediaError("Unable to authorize Bunny document upload.", "UPLOAD_ERROR", error);
   }
 }
 
 export async function pickPortfolioMedia(selectionLimit = 12): Promise<PortfolioAsset[]> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) throw new CloudinaryError("Media library permission is required.", "PERMISSION_DENIED");
+  if (!permission.granted) throw new MediaError("Media library permission is required.", "PERMISSION_DENIED");
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images", "videos"],
     allowsMultipleSelection: true,
@@ -430,13 +430,13 @@ export async function pickPortfolioMedia(selectionLimit = 12): Promise<Portfolio
       ? asset.duration / 1000
       : 0;
     if (durationSeconds > 240) {
-      throw new CloudinaryError(
+      throw new MediaError(
         `${asset.fileName || "Video"} is longer than 4 minutes. Choose a shorter video.`,
         "PICKER_ERROR",
       );
     }
     if (isVideo && asset.fileSize && asset.fileSize > maxBytes) {
-      throw new CloudinaryError(
+      throw new MediaError(
         `${asset.fileName || (isVideo ? "Video" : "Image")} is too large to process. Choose a smaller file.`,
         "PICKER_ERROR",
       );
@@ -451,7 +451,7 @@ export async function uploadPortfolioAsset(
   albumId: string,
   onProgress?: (value: number) => void,
   onStage?: (stage: ImagePreparationStage) => void,
-): Promise<CloudinaryUpload> {
+): Promise<MediaUpload> {
   const resourceType: "image" | "video" = asset.type === "video" ? "video" : "image";
   const prepared = resourceType === "image"
     ? await prepareImageForUpload(asset, "portfolio", onStage)
@@ -461,10 +461,10 @@ export async function uploadPortfolioAsset(
     try {
       resolvedFileSize = (await fetch(prepared.uri).then((response) => response.blob())).size;
     } catch {
-      throw new CloudinaryError("Unable to read the selected file size.", "PICKER_ERROR");
+      throw new MediaError("Unable to read the selected file size.", "PICKER_ERROR");
     }
   }
-  const { data, error } = await supabase.functions.invoke<SignedUpload>("cloudinary-sign", {
+  const { data, error } = await supabase.functions.invoke<SignedUpload>("portfolio-media-sign", {
     body: {
       vendorId,
       albumId,
@@ -476,7 +476,7 @@ export async function uploadPortfolioAsset(
     },
   });
   if (error || !data?.uploadMode) {
-    throw new CloudinaryError(
+    throw new MediaError(
       await edgeFunctionErrorMessage(error, "Unable to authorize Bunny upload."),
       "UPLOAD_ERROR",
     );
@@ -487,7 +487,7 @@ export async function uploadPortfolioAsset(
       if (data.uploadMode !== "tus" || !data.endpoint || !data.authorizationSignature
         || !data.authorizationExpire || !data.videoId || !data.libraryId
         || !data.videoUrl || !data.thumbnailUrl || !data.objectKey) {
-        throw new CloudinaryError("Bunny Stream returned incomplete upload authorization.", "UPLOAD_ERROR");
+        throw new MediaError("Bunny Stream returned incomplete upload authorization.", "UPLOAD_ERROR");
       }
       try {
         const streamAuth = data as BunnyStreamAuthorization & SignedUpload;
@@ -517,7 +517,7 @@ export async function uploadPortfolioAsset(
         };
       } catch (caught) {
         await deleteUnstoredPortfolioAsset(vendorId, data.objectKey, "video").catch(() => undefined);
-        throw new CloudinaryError(
+        throw new MediaError(
           caught instanceof Error ? caught.message : "Bunny Stream video processing failed.",
           "UPLOAD_ERROR",
           caught,
@@ -545,20 +545,20 @@ export async function uploadPortfolioAsset(
         reservationId: data.reservationId ?? null,
       };
     }
-    throw new CloudinaryError("Bunny Storage returned incomplete upload authorization.", "UPLOAD_ERROR");
+    throw new MediaError("Bunny Storage returned incomplete upload authorization.", "UPLOAD_ERROR");
   }
-  throw new CloudinaryError("Bunny media upload authorization was required but not returned.", "UPLOAD_ERROR");
+  throw new MediaError("Bunny media upload authorization was required but not returned.", "UPLOAD_ERROR");
 }
 
 export async function deletePortfolioMedia(
   mediaId: string,
   fallback?: { vendorId: string; publicId: string; resourceType: "image" | "video" },
 ) {
-  const { error } = await supabase.functions.invoke("cloudinary-delete", {
+  const { error } = await supabase.functions.invoke("portfolio-media-delete", {
     body: { mediaId, ...fallback },
   });
   if (error) {
-    throw new CloudinaryError(
+    throw new MediaError(
       await edgeFunctionErrorMessage(error, "Unable to delete media."),
       "UPLOAD_ERROR",
     );
@@ -570,11 +570,11 @@ export async function deleteUnstoredPortfolioAsset(
   publicId: string,
   resourceType: "image" | "video",
 ) {
-  const { error } = await supabase.functions.invoke("cloudinary-delete", {
+  const { error } = await supabase.functions.invoke("portfolio-media-delete", {
     body: { vendorId, publicId, resourceType },
   });
   if (error) {
-    throw new CloudinaryError(
+    throw new MediaError(
       await edgeFunctionErrorMessage(error, "Unable to clean up uploaded media."),
       "UPLOAD_ERROR",
     );
@@ -600,7 +600,7 @@ type SignedReviewUpload = {
 export async function pickReviewPhotos(selectionLimit = 4): Promise<ReviewPhotoAsset[]> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
-    throw new CloudinaryError(
+    throw new MediaError(
       "Photo library permission is required.",
       "PERMISSION_DENIED"
     );
@@ -618,14 +618,14 @@ export async function pickReviewPhotos(selectionLimit = 4): Promise<ReviewPhotoA
 export async function uploadReviewPhoto(
   asset: ReviewPhotoAsset,
   onProgress?: (value: number) => void
-): Promise<CloudinaryUpload> {
+): Promise<MediaUpload> {
   const prepared = await prepareImageForUpload(asset, "review");
   let fileSize = prepared.fileSize;
   if (!fileSize) {
     try {
       fileSize = (await fetch(prepared.uri).then((response) => response.blob())).size;
     } catch (error) {
-      throw new CloudinaryError(
+      throw new MediaError(
         "Unable to read the selected review photo.",
         "PICKER_ERROR",
         error
@@ -638,7 +638,7 @@ export async function uploadReviewPhoto(
       body: { mimeType, fileSize },
     });
   if (error || data?.provider !== "bunny" || !data.uploadUrl || !data.publicUrl || !data.objectKey) {
-    throw new CloudinaryError(
+    throw new MediaError(
       error?.message || "Unable to authorize Bunny review photo upload.",
       "UPLOAD_ERROR"
     );
@@ -664,7 +664,7 @@ export async function deleteReviewPhoto(
     body: { publicId, reviewId },
   });
   if (error) {
-    throw new CloudinaryError(
+    throw new MediaError(
       error.message || "Unable to delete review photo.",
       "UPLOAD_ERROR"
     );
@@ -675,7 +675,7 @@ export async function deleteAdminManagedImage(url: string): Promise<void> {
   if (!url || !/\.b-cdn\.net\//i.test(url)) return;
   const { error } = await supabase.functions.invoke("admin-bunny-media-delete", { body: { url } });
   if (error) {
-    throw new CloudinaryError(
+    throw new MediaError(
       await edgeFunctionErrorMessage(error, "Unable to delete managed image."),
       "UPLOAD_ERROR",
     );
@@ -686,7 +686,7 @@ export async function deleteOwnedBunnyUpload(url: string): Promise<void> {
   if (!url || !/\.b-cdn\.net\//i.test(url)) return;
   const { error } = await supabase.functions.invoke("bunny-user-media-delete", { body: { url } });
   if (error) {
-    throw new CloudinaryError(
+    throw new MediaError(
       await edgeFunctionErrorMessage(error, "Unable to delete uploaded media."),
       "UPLOAD_ERROR",
     );

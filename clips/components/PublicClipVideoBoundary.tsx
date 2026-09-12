@@ -12,7 +12,7 @@ type State = { hasError: boolean };
 /**
  * Isolates a single Clip's video player from the rest of the feed. If the
  * native video binding throws (a malformed asset, an unsupported codec, a
- * deleted Cloudinary resource surfaced as a render-time error rather than a
+ * deleted Bunny resource surfaced as a render-time error rather than a
  * status event) this stops the crash from taking down the whole reels list —
  * the broken card falls back to its poster and the user can keep scrolling.
  */

@@ -39,7 +39,7 @@ On Replit specifically, the workflow entrypoint is `npm install --legacy-peer-de
 - Check `services/*.ts` for existing data-access patterns before writing new Supabase queries — most domains already have a service module (e.g. `vendorProfile.ts`, `publicVendorListings.ts`, `adminVendorService.ts`).
 - Check `context/*.tsx` before introducing new global state — there is likely a context already covering that domain (auth per-role, favorites, categories, locations, notifications, subscriptions, reviews, responsive layout).
 - Schema changes go in a new timestamped file under `supabase/migrations/` (format `YYYYMMDDHHMMSS_description.sql`) — never edit a past migration in place once it may have been applied.
-- Cloudinary secrets (`CLOUDINARY_*`) are Supabase Edge Function secrets, not `EXPO_PUBLIC_` env vars — never move them into client-exposed config.
+- Bunny Storage and Stream secrets (`BUNNY_*`) are Supabase Edge Function secrets, not `EXPO_PUBLIC_` env vars — never move them into client-exposed config.
 
 ## Conventions
 
@@ -72,7 +72,7 @@ npm run test:smoke
 - Don't hand-edit `android/` or `ios/` unless the change is already committed there — they're normally regenerated via `expo prebuild` and hand edits get silently lost on the next prebuild. Confirm with the user before treating them as source of truth.
 - Don't add new top-level state management (Redux/Zustand/etc.) — this repo standardizes on React Context per domain.
 - Don't introduce a different styling approach (styled-components, plain StyleSheet-only patterns) in new screens — match existing NativeWind usage.
-- Don't commit real Supabase/Cloudinary/Razorpay credentials; `.env.example` documents the required keys.
+- Don't commit real Supabase/Bunny/Razorpay credentials; `.env.example` documents the required keys.
 
 ## Where to Look First
 
@@ -86,4 +86,4 @@ npm run test:smoke
 | Subscriptions/billing | `subscriptions/` package, `hooks/useSubscriptionAccess.ts` |
 | Location data (state/district/taluka) | `locations/` package |
 | DB schema | `supabase/migrations/` (append-only, newest last) |
-| Media upload | `services/cloudinary.ts`, Edge Functions referenced in [README.md](README.md) |
+| Media upload | `services/media.ts`, Bunny Edge Functions referenced in [README.md](README.md) |

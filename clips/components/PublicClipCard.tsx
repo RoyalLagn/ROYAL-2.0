@@ -3,7 +3,7 @@ import { Image, PixelRatio, Platform, Pressable, StyleSheet, Text, View } from "
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { BadgeCheck, MapPin, MessageCircle, Star } from "lucide-react-native";
-import { cloudinaryDeliveryUrl } from "@/utils/cloudinaryDelivery";
+import { mediaDeliveryUrl } from "@/utils/mediaDelivery";
 import type { ClipEngagementState, PublicClip } from "../types";
 import { PublicClipActions } from "./PublicClipActions";
 import { PublicClipVideo } from "./PublicClipVideo";
@@ -56,10 +56,10 @@ function PublicClipCardComponent({
     : `${caption.slice(0, 109).trimEnd()}…`;
 
   // Vendor avatars are rendered at ~36-48px — never download the original
-  // uploaded logo when a sized Cloudinary derivative is a single URL rewrite.
+  // uploaded logo while Bunny CDN serves the original managed image.
   const avatarUri = useMemo(() => (
     clip.vendor.avatarUrl
-      ? cloudinaryDeliveryUrl(clip.vendor.avatarUrl, {
+      ? mediaDeliveryUrl(clip.vendor.avatarUrl, {
         width: 48, height: 48, crop: "fill", dpr: PixelRatio.get(), quality: "auto",
       })
       : null
@@ -69,7 +69,7 @@ function PublicClipCardComponent({
   // card's actual render dimensions instead of the full uploaded thumbnail.
   const posterUri = useMemo(() => (
     clip.thumbnailUrl
-      ? cloudinaryDeliveryUrl(clip.thumbnailUrl, {
+      ? mediaDeliveryUrl(clip.thumbnailUrl, {
         width, height, crop: "fill", dpr: PixelRatio.get(), quality: "auto",
       })
       : clip.thumbnailUrl
