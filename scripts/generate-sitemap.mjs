@@ -1,4 +1,4 @@
-import { writeFile, mkdir } from "node:fs/promises";
+import { access, writeFile, mkdir } from "node:fs/promises";
 import { loadEnvFile } from "node:process";
 import { fileURLToPath } from "node:url";
 import { createClient } from "@supabase/supabase-js";
@@ -58,7 +58,8 @@ const supabase = createClient(process.env.EXPO_PUBLIC_SUPABASE_URL, process.env.
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
 });
 
-const { data, error } = await supabase
+const sitemapPath = new URL("../public/sitemap.xml", import.meta.url);
+const fetchVendors = () => supabase
   .from("vendors")
   .select("slug,updated_at,city,categories(name)")
   .eq("is_verified", true)
@@ -66,9 +67,27 @@ const { data, error } = await supabase
   .eq("public_profile_enabled", true)
   .not("slug", "is", null);
 
+let data = null;
+let error = null;
+const maxAttempts = 3;
+for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+  ({ data, error } = await fetchVendors());
+  if (!error) break;
+  if (attempt < maxAttempts) {
+    console.warn(`Vendor sitemap query failed (${attempt}/${maxAttempts}): ${error.message}. Retrying…`);
+    await new Promise((resolve) => setTimeout(resolve, attempt * 1_000));
+  }
+}
+
 if (error) {
-  console.error("Unable to fetch vendors for sitemap:", error.message);
-  process.exit(1);
+  try {
+    await access(sitemapPath);
+    console.warn(`Unable to refresh vendors for sitemap after ${maxAttempts} attempts: ${error.message}. Keeping the checked-in sitemap.`);
+    process.exit(0);
+  } catch {
+    console.error("Unable to fetch vendors for sitemap and no fallback sitemap exists:", error.message);
+    process.exit(1);
+  }
 }
 
 const staticUrls = publicPaths
@@ -91,6 +110,6 @@ const urls = [...staticUrls, ...discoveryUrls, ...vendorUrls].join("\n");
 const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
 
 await mkdir(new URL("../public", import.meta.url), { recursive: true });
-await writeFile(new URL("../public/sitemap.xml", import.meta.url), xml, "utf8");
+await writeFile(sitemapPath, xml, "utf8");
 
 console.log(`Wrote public/sitemap.xml with ${publicPaths.length} public routes, ${discoveryUrls.length} discovery URLs, and ${data?.length ?? 0} vendor URLs.`);
