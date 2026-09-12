@@ -2,28 +2,14 @@ import { Platform } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import * as tus from "tus-js-client";
 import { supabase } from "@/services/supabase";
-import type { ClipCloudinaryAsset, ClipUpload } from "../types";
+import { waitForBunnyStreamReady } from "@/services/bunnyStream";
+import type { ClipCloudinaryAsset } from "../types";
 import { ClipModuleError } from "../utils/errors";
 import { ClipLogger } from "../utils/logger";
 import type { ClipCloudinaryUploadInput } from "./ClipCloudinaryService";
 import { ClipCloudinaryService } from "./ClipCloudinaryService";
 
 type SignResponse = {
-  provider?: "cloudinary";
-  uploadMode: "signed" | "unsigned";
-  uploadPreset?: string;
-  cloudName: string;
-  resourceType: "video" | "image";
-  folder: string;
-  public_id: string;
-  apiKey?: string;
-  timestamp?: number;
-  signature?: string;
-  eager?: string;
-  eager_async?: string;
-  overwrite?: string;
-  unique_filename?: string;
-} | {
   provider: "bunny";
   uploadMode?: "tus";
   endpoint?: string;
@@ -41,9 +27,19 @@ type SignResponse = {
   streamCdnHostname?: string;
 };
 
+type BunnyUploadResult = {
+  secure_url: string;
+  public_id: string;
+  bytes: number;
+  bunny_thumbnail_url?: string;
+  duration?: number;
+  width?: number;
+  height?: number;
+};
+
 const OPERATION_TIMEOUT_MS = 30_000;
-const MIN_UPLOAD_TIMEOUT_MS = 3 * 60_000;
-const MAX_UPLOAD_TIMEOUT_MS = 10 * 60_000;
+const MIN_UPLOAD_TIMEOUT_MS = 8 * 60_000;
+const MAX_UPLOAD_TIMEOUT_MS = 15 * 60_000;
 const ASSUMED_SLOW_UPLOAD_BYTES_PER_SECOND = 128 * 1024;
 
 function uploadTimeoutForBytes(bytes: number) {
@@ -131,6 +127,25 @@ function bunnyTusHeaders(data: Extract<SignResponse, { provider: "bunny" }>) {
   };
 }
 
+async function verifyBunnyStreamUpload(
+  data: Extract<SignResponse, { provider: "bunny" }>,
+  input: { vendorId: string; clipId: string },
+) {
+  try {
+    return await waitForBunnyStreamReady(data.videoId!, input.vendorId, "clip");
+  } catch (error) {
+    await supabase.functions.invoke("clip-cloudinary-delete", {
+      body: { vendorId: input.vendorId, publicId: `bunny:${data.videoId}:${input.clipId}` },
+    }).catch(() => undefined);
+    throw new ClipModuleError(
+      "UPLOAD_ERROR",
+      error instanceof Error ? error.message : "Bunny Stream processing verification failed.",
+      true,
+      error,
+    );
+  }
+}
+
 async function uploadBunnyTus(
   data: Extract<SignResponse, { provider: "bunny" }>,
   input: { uri: string; size: number; mimeType: string; name: string; clipId: string; vendorId: string },
@@ -183,8 +198,9 @@ async function uploadBunnyTus(
         registerAbort?.(() => request.abort()); request.send(blob);
       });
     }
+    const status = await verifyBunnyStreamUpload(data, input);
     onProgress?.(1);
-    return { secure_url: data.videoUrl, public_id: `bunny:${data.videoId}:${input.clipId}`, bytes: input.size, bunny_thumbnail_url: data.thumbnailUrl };
+    return { secure_url: data.videoUrl, public_id: `bunny:${data.videoId}:${input.clipId}`, bytes: input.size, bunny_thumbnail_url: data.thumbnailUrl, duration: status.length, width: status.width, height: status.height };
   }
   const headers = bunnyTusHeaders(data);
   if (Platform.OS === "web") {
@@ -218,8 +234,9 @@ async function uploadBunnyTus(
       registerAbort?.(() => upload.abort(true).catch(() => undefined));
       upload.start();
     });
+    const status = await verifyBunnyStreamUpload(data, input);
     onProgress?.(1);
-    return { secure_url: data.videoUrl, public_id: `bunny:${data.videoId}:${input.clipId}`, bytes: file.size, bunny_thumbnail_url: data.thumbnailUrl };
+    return { secure_url: data.videoUrl, public_id: `bunny:${data.videoId}:${input.clipId}`, bytes: file.size, bunny_thumbnail_url: data.thumbnailUrl, duration: status.length, width: status.width, height: status.height };
   }
   const create = await fetch(data.endpoint, {
     method: "POST",
@@ -249,22 +266,26 @@ async function uploadBunnyTus(
   if (!result || result.status < 200 || result.status >= 300) {
     throw new ClipModuleError("UPLOAD_ERROR", `Bunny Stream upload failed (${result?.status ?? "network"}).`, true);
   }
+  const status = await verifyBunnyStreamUpload(data, input);
   onProgress?.(1);
   return {
     secure_url: data.videoUrl,
     public_id: `bunny:${data.videoId}:${input.clipId}`,
     bytes: input.size,
     bunny_thumbnail_url: data.thumbnailUrl,
+    duration: status.length,
+    width: status.width,
+    height: status.height,
   };
 }
 
 async function uploadBunnyObject(
   data: Extract<SignResponse, { provider: "bunny" }>,
-  input: { uri: string; mimeType: string },
+  input: { uri: string; mimeType: string; size: number },
   onProgress?: (value: number) => void,
   registerAbort?: (abort: () => void) => void,
 ) {
-  if (!data.uploadUrl || !data.publicUrl) throw new ClipModuleError("UPLOAD_ERROR", "Incomplete Bunny Storage authorization.");
+  if (!data.uploadUrl || !data.publicUrl || !data.objectKey) throw new ClipModuleError("UPLOAD_ERROR", "Incomplete Bunny Storage authorization.");
   if (Platform.OS !== "web") {
     const task = FileSystem.createUploadTask(
       data.uploadUrl, input.uri,
@@ -288,217 +309,47 @@ async function uploadBunnyObject(
     });
   }
   onProgress?.(1);
-  return { secure_url: data.publicUrl, public_id: data.objectKey };
+  return { secure_url: data.publicUrl, public_id: data.objectKey, bytes: input.size };
 }
 
 async function uploadOne(
   input: { debugUploadId?: string; vendorId: string; clipId: string; kind: "video" | "thumbnail"; uri: string; name: string; mimeType: string; size: number },
   onProgress?: (value: number) => void,
   registerAbort?: (abort: () => void) => void,
-) {
+): Promise<BunnyUploadResult> {
   const uploadId = input.debugUploadId ?? input.clipId;
-  const uploadTimeoutMs = uploadTimeoutForBytes(input.size);
   const signatureStartedAt = Date.now();
   ClipLogger.uploadDebug(uploadId, `${input.kind.toUpperCase()}_SIGNATURE`, "START", {
     clipId: input.clipId, vendorId: input.vendorId, bytes: input.size,
   });
-  ClipLogger.info("cloudinary", "Signature request started", { kind: input.kind, clipId: input.clipId });
+  ClipLogger.info("upload", "Bunny authorization request started", {
+    kind: input.kind, clipId: input.clipId,
+  });
   const { data, error } = await withTimeout(
-    `Generating ${input.kind} upload signature`,
+    `Generating ${input.kind} Bunny upload authorization`,
     supabase.functions.invoke<SignResponse>("clip-upload-sign", {
-    body: {
-      vendorId: input.vendorId, clipId: input.clipId, kind: input.kind,
-      mimeType: input.mimeType, fileSize: input.size, debugUploadId: uploadId,
-    },
+      body: {
+        vendorId: input.vendorId, clipId: input.clipId, kind: input.kind,
+        mimeType: input.mimeType, fileSize: input.size, debugUploadId: uploadId,
+      },
     }),
   );
-  if (error || !data) throw new ClipModuleError("CLOUDINARY_ERROR", error?.message || "Unable to authorize upload.", true, error);
-  if (data.provider === "bunny") {
-    return input.kind === "video"
-      ? uploadBunnyTus(data, input, onProgress, registerAbort)
-      : uploadBunnyObject(data, input, onProgress, registerAbort);
+  if (error || !data) {
+    throw new ClipModuleError("UPLOAD_ERROR", error?.message || "Unable to authorize Bunny upload.", true, error);
+  }
+  if (data.provider !== "bunny") {
+    throw new ClipModuleError("UPLOAD_ERROR", "The media service returned an unsupported upload provider.", false);
   }
   ClipLogger.uploadDebug(uploadId, `${input.kind.toUpperCase()}_SIGNATURE`, "DONE", {
     clipId: input.clipId, elapsedMs: Date.now() - signatureStartedAt,
-    uploadMode: data.uploadMode, resourceType: data.resourceType,
+    provider: data.provider, uploadMode: data.uploadMode,
   });
-  ClipLogger.info("cloudinary", "Signature request completed", {
-    kind: input.kind, uploadMode: data.uploadMode, elapsedMs: Date.now() - signatureStartedAt,
+  ClipLogger.info("upload", "Bunny authorization request completed", {
+    kind: input.kind, elapsedMs: Date.now() - signatureStartedAt,
   });
-  const body = new FormData();
-  if (Platform.OS === "web") {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), OPERATION_TIMEOUT_MS);
-    let blob: Blob;
-    try {
-      const response = await fetch(input.uri, { signal: controller.signal });
-      if (!response.ok) throw new Error(`Local media read failed (${response.status})`);
-      blob = await response.blob();
-    } catch (error) {
-      throw new ClipModuleError("UPLOAD_ERROR", "Preparing Clip media failed or timed out.", false, error);
-    } finally {
-      clearTimeout(timer);
-    }
-    body.append("file", new File([blob], input.name, { type: input.mimeType }));
-  } else {
-    body.append("file", { uri: input.uri, name: input.name, type: input.mimeType } as unknown as Blob);
-  }
-  if (data.uploadMode === "signed") {
-    if (!data.apiKey || !data.timestamp || !data.signature || !data.eager) throw new ClipModuleError("CLOUDINARY_ERROR", "Incomplete signed upload.");
-    body.append("api_key", data.apiKey);
-    body.append("timestamp", String(data.timestamp));
-    body.append("folder", data.folder);
-    body.append("public_id", data.public_id);
-    body.append("overwrite", data.overwrite || "true");
-    body.append("unique_filename", data.unique_filename || "false");
-    body.append("eager", data.eager);
-    if (data.eager_async) body.append("eager_async", data.eager_async);
-    body.append("signature", data.signature);
-  } else {
-    if (!data.uploadPreset) throw new ClipModuleError("CLOUDINARY_ERROR", "Upload preset is missing.");
-    // Cloudinary rejects signed-only parameters on unsigned uploads. Delete them
-    // explicitly so the wire payload remains valid even if this builder changes
-    // or FormData construction is refactored later.
-    body.delete("api_key");
-    body.delete("timestamp");
-    body.delete("signature");
-    body.delete("overwrite");
-    body.delete("unique_filename");
-    body.delete("eager");
-    body.delete("eager_async");
-    body.append("upload_preset", data.uploadPreset);
-    body.append("folder", data.folder);
-    body.append("public_id", data.public_id);
-  }
-  const outgoingPayload: Record<string, unknown> = {};
-  body.forEach((value, key) => {
-    outgoingPayload[key] = typeof value === "string"
-      ? value
-      : {
-        type: value.type,
-        size: value.size,
-        name: "name" in value ? value.name : input.name,
-      };
-  });
-  const overwritePresent = body.has("overwrite");
-  ClipLogger.uploadDebug(uploadId, `${input.kind.toUpperCase()}_OUTGOING_PAYLOAD`, "DONE", {
-    clipId: input.clipId,
-    uploadMode: data.uploadMode,
-    keys: Object.keys(outgoingPayload),
-    overwritePresent,
-    payload: outgoingPayload,
-  });
-  if (data.uploadMode === "unsigned" && overwritePresent) {
-    throw new ClipModuleError(
-      "CLOUDINARY_ERROR",
-      "Unsigned Cloudinary payload unexpectedly contains overwrite.",
-      false,
-    );
-  }
-  return new Promise<any>((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    let settled = false;
-    const uploadStartedAt = Date.now();
-    let watchdog: ReturnType<typeof setTimeout> | undefined;
-    const clearWatchdog = () => {
-      if (watchdog) clearTimeout(watchdog);
-      watchdog = undefined;
-    };
-    const fail = (error: ClipModuleError) => {
-      if (settled) return;
-      settled = true;
-      clearWatchdog();
-      ClipLogger.error("cloudinary", `${input.kind} upload failed`, {
-        clipId: input.clipId, error: error.message, elapsedMs: Date.now() - uploadStartedAt,
-      });
-      ClipLogger.uploadDebug(uploadId, `${input.kind.toUpperCase()}_XHR`, "ERROR", {
-        clipId: input.clipId, elapsedMs: Date.now() - uploadStartedAt,
-        message: error.message, stack: error.stack,
-      });
-      reject(error);
-    };
-    request.open("POST", `https://api.cloudinary.com/v1_1/${data.cloudName}/${data.resourceType}/upload`);
-    request.timeout = uploadTimeoutMs;
-    ClipLogger.info("cloudinary", `${input.kind} upload started`, { clipId: input.clipId, bytes: input.size });
-    ClipLogger.uploadDebug(uploadId, `${input.kind.toUpperCase()}_XHR`, "START", {
-      clipId: input.clipId, url: `https://api.cloudinary.com/v1_1/${data.cloudName}/${data.resourceType}/upload`,
-      bytes: input.size,
-    });
-    request.upload.onprogress = (event) => {
-      if (!event.lengthComputable) return;
-      const fraction = event.loaded / event.total;
-      ClipLogger.uploadDebug(uploadId, `${input.kind.toUpperCase()}_XHR`, "PROGRESS", {
-        clipId: input.clipId, loaded: event.loaded, total: event.total, fraction,
-      });
-      onProgress?.(fraction);
-    };
-    request.onerror = () => fail(new ClipModuleError("UPLOAD_ERROR", `Network error while uploading ${input.kind}.`, true));
-    request.ontimeout = () => {
-      fail(new ClipModuleError("UPLOAD_ERROR", `${input.kind} upload timed out. Check your connection and try again.`, false));
-      request.abort();
-    };
-    request.onabort = () => fail(new ClipModuleError("UPLOAD_ERROR", `${input.kind} upload was cancelled.`, false));
-    request.onload = () => {
-      if (settled) return;
-      try {
-        ClipLogger.info("cloudinary", `${input.kind} HTTP response received`, {
-          clipId: input.clipId,
-          httpStatus: request.status,
-          responseBody: request.responseText,
-          elapsedMs: Date.now() - uploadStartedAt,
-        });
-        const payload = JSON.parse(request.responseText);
-        ClipLogger.info("cloudinary", `${input.kind} response parsed`, {
-          clipId: input.clipId,
-          secureUrl: payload.secure_url ?? null,
-          publicId: payload.public_id ?? null,
-          assetId: payload.asset_id ?? null,
-          version: payload.version ?? null,
-          resourceType: payload.resource_type ?? null,
-          eager: payload.eager ?? null,
-          processing: payload.processing ?? null,
-          error: payload.error ?? null,
-        });
-        if (request.status < 200 || request.status >= 300) throw new Error(payload.error?.message || "Upload failed");
-        settled = true;
-        clearWatchdog();
-        onProgress?.(1);
-        ClipLogger.info("cloudinary", `${input.kind} upload completed`, {
-          clipId: input.clipId, publicId: payload.public_id, elapsedMs: Date.now() - uploadStartedAt,
-        });
-        ClipLogger.uploadDebug(uploadId, `${input.kind.toUpperCase()}_XHR`, "DONE", {
-          clipId: input.clipId, httpStatus: request.status,
-          elapsedMs: Date.now() - uploadStartedAt,
-          response: {
-            secure_url: payload.secure_url ?? null,
-            public_id: payload.public_id ?? null,
-            asset_id: payload.asset_id ?? null,
-            version: payload.version ?? null,
-            resource_type: payload.resource_type ?? null,
-            eager: payload.eager ?? null,
-            processing: payload.processing ?? null,
-          },
-        });
-        resolve(payload);
-      } catch (caught) {
-        fail(new ClipModuleError("CLOUDINARY_ERROR", caught instanceof Error ? caught.message : "Upload failed.", true, caught));
-      }
-    };
-    const abort = () => {
-      if (!settled) request.abort();
-    };
-    registerAbort?.(abort);
-    watchdog = setTimeout(() => {
-      if (settled) return;
-      fail(new ClipModuleError(
-        "UPLOAD_ERROR",
-        `${input.kind} upload timed out while waiting for Cloudinary to return a response.`,
-        false,
-      ));
-      request.abort();
-    }, uploadTimeoutMs);
-    request.send(body);
-  });
+  return input.kind === "video"
+    ? uploadBunnyTus(data, input, onProgress, registerAbort)
+    : uploadBunnyObject(data, input, onProgress, registerAbort);
 }
 
 export async function uploadClipThumbnail(
@@ -513,12 +364,12 @@ export async function uploadClipThumbnail(
     name: `thumbnail-${clipId}.jpg`, mimeType: "image/jpeg", size: await assetSize(uri),
   }, onProgress);
   ClipLogger.info("upload", "Thumbnail upload returned", { clipId });
-  return { url: result.eager?.[0]?.secure_url || result.secure_url, publicId: result.public_id };
+  return { url: result.secure_url, publicId: result.public_id };
 }
 
 ClipCloudinaryService.configure({
   async upload(input: ClipCloudinaryUploadInput, onProgress): Promise<ClipCloudinaryAsset> {
-    ClipLogger.info("upload", "Starting Cloudinary uploads", { clipId: input.clipId });
+    ClipLogger.info("upload", "Starting Bunny uploads", { clipId: input.clipId });
     const aborters: Array<() => void> = [];
     const uploadsStartedAt = Date.now();
     let videoProgress = 0;
@@ -553,7 +404,7 @@ ClipCloudinaryService.configure({
           thumbnailProgress = Math.max(thumbnailProgress, value);
           reportCombinedProgress();
         }, (abort) => aborters.push(abort));
-        return { url: result.eager?.[0]?.secure_url || result.secure_url, publicId: result.public_id };
+        return { url: result.secure_url, publicId: result.public_id };
       })(),
     ]);
     const [video, thumbnail] = await withTimeout(
@@ -562,18 +413,15 @@ ClipCloudinaryService.configure({
       () => aborters.forEach((abort) => abort()),
       uploadTimeoutForBytes(input.video.fileSizeBytes) + OPERATION_TIMEOUT_MS,
     );
-    ClipLogger.info("upload", "Cloudinary uploads returned", {
+    ClipLogger.info("upload", "Bunny uploads returned", {
       clipId: input.clipId, elapsedMs: Date.now() - uploadsStartedAt,
     });
-    const eagerVideo = video.eager?.find((item: any) => String(item.secure_url || "").endsWith(".mp4"));
     const uploadedDuration = Number(video.duration);
     const uploadedWidth = Number(video.width);
     const uploadedHeight = Number(video.height);
     return {
-      videoUrl: eagerVideo?.secure_url || video.secure_url,
-      thumbnailUrl: String(video.public_id || "").startsWith("bunny:")
-        ? (thumbnail.url || video.bunny_thumbnail_url)
-        : thumbnail.url,
+      videoUrl: video.secure_url,
+      thumbnailUrl: thumbnail.url || video.bunny_thumbnail_url || "",
       publicId: video.public_id,
       durationSeconds: Number.isFinite(uploadedDuration) && uploadedDuration > 0
         ? uploadedDuration
@@ -582,7 +430,7 @@ ClipCloudinaryService.configure({
         width: Number.isFinite(uploadedWidth) && uploadedWidth > 0 ? uploadedWidth : input.video.resolution.width,
         height: Number.isFinite(uploadedHeight) && uploadedHeight > 0 ? uploadedHeight : input.video.resolution.height,
       },
-      fileSizeBytes: Number(eagerVideo?.bytes ?? video.bytes),
+      fileSizeBytes: Number(video.bytes),
     };
   },
   async delete(clipId) {

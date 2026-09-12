@@ -63,7 +63,6 @@ Deno.serve(async (request) => {
     const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
     const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
     const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME");
-    const uploadPreset = Deno.env.get("CLOUDINARY_UPLOAD_PRESET");
     if (body.action === "delete") {
       const currentUrl = typeof body.url === "string" ? new URL(body.url) : null;
       const bunny = bunnyStorageConfig();
@@ -114,39 +113,6 @@ Deno.serve(async (request) => {
     const objectKey = `${prefix}${crypto.randomUUID()}.${extensionForMime(mimeType)}`;
     return Response.json(await presignBunnyObject("PUT", objectKey), { headers: cors });
 
-    /* Cloudinary signing below is retained temporarily as migration reference.
-    const timestamp = Math.floor(Date.now() / 1000);
-    const folder = prefix.slice(0, -1);
-    const publicId = crypto.randomUUID();
-    if (!apiSecret || !apiKey) {
-      if (!uploadPreset) throw new Error("Cloudinary upload credentials are missing");
-      return Response.json({
-        uploadMode: "unsigned",
-        uploadPreset,
-        cloudName,
-        folder,
-        public_id: publicId,
-      }, { headers: cors });
-    }
-    const params = {
-      folder,
-      overwrite: "false",
-      public_id: publicId,
-      timestamp,
-      unique_filename: "false",
-    };
-    const canonical = Object.entries(params)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${value}`)
-      .join("&");
-    return Response.json({
-      ...params,
-      uploadMode: "signed",
-      apiKey,
-      cloudName,
-      signature: await sha1(`${canonical}${apiSecret}`),
-    }, { headers: cors });
-    */
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to manage profile image" },

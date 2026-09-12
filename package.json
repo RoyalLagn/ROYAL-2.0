@@ -24,6 +24,7 @@
     "test:location-discovery": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-location-discovery-domain.mjs",
     "locations:import-india-post": "node --env-file=.env scripts/import-india-post-pincodes.mjs",
     "test:regression-guards": "node scripts/test-regression-guards.mjs",
+    "test:bunny-media": "node scripts/test-bunny-media-guards.mjs",
     "test:geo-pincode-mapping": "node scripts/test-geo-pincode-taluka-mapping.mjs",
     "test:e2e:pincode-mapping": "playwright test tests/e2e/pincode-taluka-mapping.spec.ts",
     "test:auth-validation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-auth-validation.mjs",

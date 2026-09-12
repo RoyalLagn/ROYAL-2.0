@@ -8,8 +8,8 @@ const cors = {
 const OPERATION_TIMEOUT_MS = 30_000;
 // The device may accept a source file up to the vendor plan's 40 MiB limit,
 // but it must compress that source locally before requesting this signature.
-// This signer is the server-side backstop: Cloudinary never receives a Clip
-// video larger than the 20 MiB stored-media boundary.
+// This signer is the server-side backstop: Bunny never receives a Clip video
+// larger than the 20 MiB stored-media boundary.
 const MAX_PREPARED_CLIP_BYTES = 20 * 1024 * 1024;
 
 async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit) {
@@ -20,11 +20,6 @@ async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit) {
   } finally {
     clearTimeout(timer);
   }
-}
-
-async function sha1(value: string) {
-  const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 async function sha256(value: string) {
@@ -114,41 +109,8 @@ Deno.serve(async (request) => {
       return Response.json(await presignBunnyObject("PUT", `clips/${vendorId}/${clipId}/thumbnail.${extension}`), { headers: cors });
     }
 
-    const resourceType = kind === "video" ? "video" : "image";
-    const folder = `royallagn/clips/${vendorId}/${clipId}`;
-    const timestamp = Math.floor(Date.now() / 1000);
-    const publicId = kind;
-    const eager = kind === "video"
-      ? "c_limit,w_1080,h_1920,q_auto:good,vc_h264,ac_aac,f_mp4"
-      : "c_fill,w_720,h_1280,g_auto,q_auto:good,f_jpg";
-    const params = {
-      eager,
-      ...(kind === "video" ? { eager_async: "true" } : {}),
-      folder,
-      overwrite: "true",
-      public_id: publicId,
-      timestamp,
-      unique_filename: "false",
-    };
-    const canonical = Object.entries(params).sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${value}`).join("&");
-    const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
-    const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
-    const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME");
-    const uploadPreset = Deno.env.get("CLOUDINARY_UPLOAD_PRESET");
-    if (!cloudName) throw new Error("Cloudinary is not configured");
-    if (!apiSecret || !apiKey) {
-      if (!uploadPreset) throw new Error("Cloudinary upload credentials are not configured");
-      console.log("[clip-upload-sign] Returning unsigned response", { requestId, clipId, kind });
-      return Response.json({ uploadMode: "unsigned", uploadPreset, cloudName, resourceType, folder, public_id: publicId }, { headers: cors });
-    }
-    console.log(`[CLIP-DEBUG][${uploadId}] EDGE_SIGNATURE START`, { requestId, clipId, kind });
-    const response = Response.json({
-      ...params, uploadMode: "signed", signature: await sha1(`${canonical}${apiSecret}`),
-      apiKey, cloudName, resourceType,
-    }, { headers: cors });
-    console.log(`[CLIP-DEBUG][${uploadId}] EDGE_SIGNATURE DONE`, { requestId, clipId, kind });
-    return response;
+    throw new Error("Unsupported Clip upload kind");
+
   } catch (error) {
     const message = error instanceof Error && error.name === "AbortError"
       ? "Upload authorization timed out after 30 seconds"

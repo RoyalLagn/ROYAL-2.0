@@ -52,7 +52,7 @@ export type DashboardHealth = {
   database: HealthState;
   authentication: HealthState;
   realtime: HealthState;
-  cloudinary: HealthState;
+  bunnyMedia: HealthState;
   smtp: HealthState;
   lastCheckedAt: string;
 };

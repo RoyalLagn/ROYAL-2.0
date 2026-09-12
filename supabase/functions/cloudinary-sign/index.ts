@@ -6,9 +6,9 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function sha1(value: string) {
+async function sha256(value: string) {
   const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-1", bytes);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
@@ -68,7 +68,7 @@ Deno.serve(async (request) => {
     const currentCount = Math.max(album.media_count ?? 0, count ?? 0);
     if (currentCount + batchSize > 15) throw new Error("Album media limit reached");
 
-    // Reserve capacity before spending time/bandwidth on the Cloudinary
+    // Reserve capacity before spending time/bandwidth on the Bunny
     // upload, and before finalize_photo_upload (the only way to insert a
     // vendor_portfolio_media row -- see the migration that drops the direct
     // insert policy) so a slot always exists to finalize into. The vendor's
@@ -89,6 +89,39 @@ Deno.serve(async (request) => {
 
     const folder = `royallagn/vendors/${vendorId}/albums/${albumId}`;
     const assetId = crypto.randomUUID();
+    if (kind === "video") {
+      const libraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
+      const apiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
+      const cdnHostname = Deno.env.get("BUNNY_STREAM_CDN_HOSTNAME")?.trim()
+        .replace(/^https?:\/\//, "").replace(/\/$/, "");
+      if (!libraryId || !apiKey || !cdnHostname) throw new Error("Bunny Stream is not configured");
+      const createResponse = await fetch(
+        `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos`,
+        {
+          method: "POST",
+          headers: { AccessKey: apiKey, Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ title: `portfolio-${albumId}-${assetId}` }),
+        },
+      );
+      const created = await createResponse.json().catch(() => ({})) as { guid?: string; message?: string };
+      if (!createResponse.ok || !created.guid) throw new Error(created.message || "Unable to create Bunny Stream video");
+      const expires = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+      return Response.json({
+        provider: "bunny",
+        uploadMode: "tus",
+        endpoint: "https://video.bunnycdn.com/tusupload",
+        authorizationSignature: await sha256(`${libraryId}${apiKey}${expires}${created.guid}`),
+        authorizationExpire: expires,
+        videoId: created.guid,
+        libraryId,
+        videoUrl: `https://${cdnHostname}/${created.guid}/playlist.m3u8`,
+        thumbnailUrl: `https://${cdnHostname}/${created.guid}/thumbnail.jpg`,
+        objectKey: `bunny-stream:${created.guid}`,
+        resourceType: kind,
+        remainingCapacity: 15 - currentCount,
+        reservationId,
+      }, { headers: cors });
+    }
     const objectKey = `${folder}/${assetId}.${extensionForMime(String(mimeType))}`;
     return Response.json({
       ...await presignBunnyObject("PUT", objectKey),
@@ -97,60 +130,6 @@ Deno.serve(async (request) => {
       reservationId,
     }, { headers: cors });
 
-    /* Legacy Cloudinary signing is intentionally retained below as dormant
-       rollback/reference code until the Bunny migration has been verified. */
-    /*
-    const timestamp = Math.floor(Date.now() / 1000);
-    const eager = kind === "video"
-      ? "c_limit,w_1280,h_720,q_auto:good,vc_h264,ac_aac,f_mp4|so_0,c_fit,w_960,h_720,q_auto,f_jpg"
-      : "c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile|c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile|c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile|c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile";
-    const params = {
-      eager,
-      folder,
-      overwrite: "false",
-      public_id: assetId,
-      timestamp,
-      unique_filename: "false",
-    };
-    const canonical = Object.entries(params).sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${value}`).join("&");
-    const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
-    const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
-    const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME");
-    const uploadPreset = Deno.env.get("CLOUDINARY_UPLOAD_PRESET");
-    if (!cloudName) throw new Error("Cloudinary cloud name is not configured");
-
-    // Keep authorization and capacity checks on the server even when this
-    // project is using its existing unsigned Cloudinary preset. Once the API
-    // key and secret are configured, clients automatically receive signed
-    // upload parameters without another application release.
-    if (!apiSecret || !apiKey) {
-      if (!uploadPreset) {
-        throw new Error("Cloudinary upload credentials are not configured");
-      }
-      return Response.json({
-        uploadMode: "unsigned",
-        uploadPreset,
-        cloudName,
-        resourceType: kind,
-        folder,
-        public_id: assetId,
-        remainingCapacity: 15 - currentCount,
-        reservationId,
-      }, { headers: cors });
-    }
-
-    return Response.json({
-      ...params,
-      uploadMode: "signed",
-      signature: await sha1(`${canonical}${apiSecret}`),
-      apiKey,
-      cloudName,
-      resourceType: kind,
-      remainingCapacity: 15 - currentCount,
-      reservationId,
-    }, { headers: cors });
-    */
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Unable to sign upload" },
       { status: 400, headers: cors });

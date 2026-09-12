@@ -6,16 +6,6 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function sha1(value: string) {
-  const digest = await crypto.subtle.digest(
-    "SHA-1",
-    new TextEncoder().encode(value),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -54,36 +44,6 @@ Deno.serve(async (request) => {
     const objectKey = `royallagn/reviews/${user.id}/${crypto.randomUUID()}.${extensionForMime(mimeType)}`;
     return Response.json(await presignBunnyObject("PUT", objectKey), { headers: cors });
 
-    /* Cloudinary signing below is retained temporarily as migration reference.
-    const timestamp = Math.floor(Date.now() / 1000);
-    const folder = `royallagn/reviews/${user.id}`;
-    const params = {
-      folder,
-      overwrite: "false",
-      public_id: crypto.randomUUID(),
-      timestamp,
-      unique_filename: "false",
-    };
-    const canonical = Object.entries(params)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}=${value}`)
-      .join("&");
-    const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
-    const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
-    const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME");
-    if (!apiSecret || !apiKey || !cloudName) {
-      throw new Error("Cloudinary server configuration is missing");
-    }
-    return Response.json(
-      {
-        ...params,
-        signature: await sha1(`${canonical}${apiSecret}`),
-        apiKey,
-        cloudName,
-      },
-      { headers: cors },
-    );
-    */
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to sign upload" },

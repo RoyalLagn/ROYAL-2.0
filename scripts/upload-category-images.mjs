@@ -1,11 +1,11 @@
-import { Blob } from "node:buffer";
 import { readFile, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { join } from "node:path";
+import { createBunnyUploader } from "./lib/bunny-upload.mjs";
 
 const projectRoot = new URL("../", import.meta.url);
 const envPath = new URL("../.env", import.meta.url);
 const imageDirectory = new URL("../assets/images/category/", import.meta.url);
-const manifestPath = new URL("../data/categoryImages.cloudinary.json", import.meta.url);
+const manifestPath = new URL("../data/categoryImages.bunny.json", import.meta.url);
 
 const uploads = [
   ["dj.png", "dj"],
@@ -50,14 +50,7 @@ async function urlExists(url) {
 }
 
 const env = parseEnv(await readFile(envPath, "utf8"));
-const cloudName = env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const uploadPreset = env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-
-if (!cloudName || !uploadPreset) {
-  throw new Error(
-    "Missing EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME or EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET in .env.",
-  );
-}
+const uploadToBunny = await createBunnyUploader(env);
 
 let manifest = {};
 try {
@@ -68,7 +61,7 @@ try {
 
 const nextManifest = {};
 
-for (const [fileName, slug] of uploads) {
+for (const [fileName] of uploads) {
   const previousUrl = manifest[fileName];
   if (previousUrl && await urlExists(previousUrl)) {
     nextManifest[fileName] = previousUrl;
@@ -76,33 +69,10 @@ for (const [fileName, slug] of uploads) {
     continue;
   }
 
-  const deterministicUrl =
-    `https://res.cloudinary.com/${cloudName}/image/upload/royallagn/categories/${slug}.png`;
-  if (await urlExists(deterministicUrl)) {
-    nextManifest[fileName] = deterministicUrl;
-    console.log(`reuse ${fileName}`);
-    continue;
-  }
-
   const bytes = await readFile(new URL(fileName, imageDirectory));
-  const form = new FormData();
-  form.append("file", new Blob([bytes], { type: "image/png" }), basename(fileName));
-  form.append("upload_preset", uploadPreset);
-  form.append("public_id", `royallagn/categories/${slug}`);
-
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-    method: "POST",
-    body: form,
-  });
-  const payload = await response.json();
-
-  if (!response.ok || !payload.secure_url) {
-    throw new Error(`Upload failed for ${fileName}: ${payload.error?.message ?? response.status}`);
-  }
-
-  nextManifest[fileName] = payload.secure_url;
+  nextManifest[fileName] = await uploadToBunny(bytes, "image/png");
   console.log(`upload ${fileName}`);
 }
 
 await writeFile(manifestPath, `${JSON.stringify(nextManifest, null, 2)}\n`, "utf8");
-console.log(`saved ${join(new URL(".", projectRoot).pathname, "data/categoryImages.cloudinary.json")}`);
+console.log(`saved ${join(new URL(".", projectRoot).pathname, "data/categoryImages.bunny.json")}`);

@@ -202,9 +202,8 @@ async function loadHealth(): Promise<DashboardHealth> {
     database: database.error ? "unavailable" : "online",
     authentication: auth.error ? "unavailable" : "online",
     realtime: "unavailable",
-    cloudinary:
-      process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME
-      && process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+    bunnyMedia:
+      process.env.EXPO_PUBLIC_BUNNY_STREAM_LIBRARY_ID
         ? "configured"
         : "unavailable",
     smtp: "unavailable",

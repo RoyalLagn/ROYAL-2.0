@@ -131,9 +131,8 @@ export function requireCloudinaryEnv() {
 }
 
 /**
- * Deletes both the video asset at `publicId` and its co-located thumbnail
- * (`publicId` with a trailing `/video` replaced by `/thumbnail`) from
- * Cloudinary, verifying each deletion. Throws a clear Error on any failure —
+ * Deletes a Bunny Stream video plus its Bunny thumbnail, or (for legacy IDs)
+ * the Cloudinary video and co-located thumbnail. Every deletion is verified;
  * callers must not treat a thrown error as a partial success.
  */
 export async function deleteClipCloudinaryAssets(

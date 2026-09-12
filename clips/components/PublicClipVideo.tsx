@@ -14,6 +14,7 @@ const DOUBLE_TAP_MS = 260;
 const VALID_URI = /^https?:\/\//i;
 const BUNNY_PROCESSING_RETRY_MS = 10_000;
 const BUNNY_PROCESSING_MAX_RETRIES = 18;
+const BUNNY_STREAM_LIBRARY_ID = process.env.EXPO_PUBLIC_BUNNY_STREAM_LIBRARY_ID?.trim();
 
 export const PublicClipVideo = React.memo(function PublicClipVideo({
   uri, thumbnailUrl, sourceWidth, sourceHeight, active, muted, onToggleMuted, onDoubleTapLike,
@@ -78,7 +79,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const hasValidSource = typeof uri === "string" && VALID_URI.test(uri.trim());
   const isBunnyStream = hasValidSource && /\.b-cdn\.net\//i.test(uri);
   const bunnyVideoId = isBunnyStream ? uri.match(/\.b-cdn\.net\/([^/]+)\//i)?.[1] : undefined;
-  const useBunnyWebPlayer = Platform.OS === "web" && Boolean(bunnyVideoId);
+  const useBunnyWebPlayer = Platform.OS === "web" && Boolean(bunnyVideoId && BUNNY_STREAM_LIBRARY_ID);
   const controlBunnyPlayer = useCallback((method: "play" | "pause") => {
     bunnyFrameRef.current?.contentWindow?.postMessage(JSON.stringify({
       context: "player.js",
@@ -301,7 +302,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     {posterUri ? <Image source={{ uri: posterUri }} style={styles.mediaFill} resizeMode={contentFit} /> : null}
     {!failed && !unavailable && (useBunnyWebPlayer ? React.createElement("iframe" as any, {
       ref: bunnyFrameRef,
-      src: `https://player.mediadelivery.net/embed/750524/${bunnyVideoId}?autoplay=${active}&loop=true&muted=${muted}&preload=true&responsive=true`,
+      src: `https://player.mediadelivery.net/embed/${BUNNY_STREAM_LIBRARY_ID}/${bunnyVideoId}?autoplay=${active}&loop=true&muted=${muted}&preload=true&responsive=true`,
       allow: "autoplay; encrypted-media; picture-in-picture; fullscreen",
       style: bunnyFrameStyle,
     }) : <Animated.View pointerEvents="none" style={[styles.mediaFill, videoStyle]}>

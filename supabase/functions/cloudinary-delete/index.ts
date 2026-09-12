@@ -55,7 +55,7 @@ Deno.serve(async (request) => {
       const { data: vendor } = await admin.from("vendors")
         .select("id").eq("id", vendorId).eq("profile_id", user.id).maybeSingle();
       const expectedPrefix = `royallagn/vendors/${vendorId}/`;
-      if (vendor && String(publicId).startsWith(expectedPrefix)) {
+      if (vendor && (String(publicId).startsWith(expectedPrefix) || /^bunny-stream:[0-9a-f-]+$/i.test(String(publicId)))) {
         media = {
           vendor_id: vendorId,
           public_id: publicId,
@@ -69,6 +69,25 @@ Deno.serve(async (request) => {
       requested_feature_key: "upload_gallery",
     });
     if (accessError) throw accessError;
+
+    const streamVideoId = media.resource_type === "video"
+      ? media.public_id.match(/^bunny-stream:([0-9a-f-]+)$/i)?.[1]
+      : undefined;
+    if (streamVideoId) {
+      const libraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
+      const apiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
+      if (!libraryId || !apiKey) throw new Error("Bunny Stream deletion is not configured");
+      const deletion = await fetch(
+        `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(streamVideoId)}`,
+        { method: "DELETE", headers: { AccessKey: apiKey } },
+      );
+      if (!deletion.ok && deletion.status !== 404) throw new Error(`Bunny Stream deletion failed (${deletion.status})`);
+      if (media.id) {
+        const { error: deleteError } = await admin.from("vendor_portfolio_media").delete().eq("id", media.id);
+        if (deleteError) throw deleteError;
+      }
+      return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
+    }
 
     const mediaUrl = media.secure_url ? new URL(media.secure_url) : null;
     const isBunnyUrl = mediaUrl?.hostname.endsWith(".b-cdn.net") === true;

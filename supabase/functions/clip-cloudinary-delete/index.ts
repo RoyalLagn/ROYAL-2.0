@@ -59,7 +59,7 @@ Deno.serve(async (request) => {
     return Response.json({ deleted: true }, { headers: cors });
   } catch (error) {
     const message = error instanceof Error && error.name === "AbortError"
-      ? "Cloudinary deletion timed out after 30 seconds"
+      ? "Media deletion timed out after 30 seconds"
       : error instanceof Error ? error.message : "Unable to delete Clip media";
     console.error("[clip-cloudinary-delete] Failed", { requestId, error: message });
     return Response.json({ error: message }, { status: 400, headers: cors });
