@@ -70,6 +70,7 @@ export function extensionForMime(mimeType: string) {
   const extensions: Record<string, string> = {
     "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp",
     "image/heic": "heic", "image/heif": "heif", "application/pdf": "pdf",
+    "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm",
   };
   return extensions[mimeType.toLowerCase()] ?? "bin";
 }

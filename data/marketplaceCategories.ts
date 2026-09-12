@@ -14,7 +14,7 @@ import {
   User,
   UtensilsCrossed,
 } from "lucide-react-native";
-import categoryImageUrls from "@/data/categoryImages.cloudinary.json";
+import categoryImageUrls from "@/data/categoryImages.bunny.json";
 
 export type MarketplaceCategory = {
   slug: string;
@@ -24,14 +24,10 @@ export type MarketplaceCategory = {
   icon: React.ElementType;
   iconColor: string;
   iconBg: string;
-  cloudinaryImage: string;
+  cardImage: string;
   fallbackImage: number | ImageURISource;
   homeImage: ImageSourcePropType;
 };
-
-function cloudinaryCardImage(url: string) {
-  return url.replace("/image/upload/", "/image/upload/f_auto,q_auto,w_720/");
-}
 
 export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
   {
@@ -42,7 +38,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Building2,
     iconColor: "#F97316",
     iconBg: "#FFF3EA",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["venues.png"]),
+    cardImage: categoryImageUrls["venues.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-venue.webp"),
   },
@@ -54,7 +50,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: UtensilsCrossed,
     iconColor: "#EC4899",
     iconBg: "#FFF0F7",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["caterers.png"]),
+    cardImage: categoryImageUrls["caterers.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-caterer.webp"),
   },
@@ -66,7 +62,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Camera,
     iconColor: "#3B82F6",
     iconBg: "#EFF6FF",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["photographers.png"]),
+    cardImage: categoryImageUrls["photographers.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-photographer.webp"),
   },
@@ -78,7 +74,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Palette,
     iconColor: "#22C55E",
     iconBg: "#F0FDF4",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["decorators.png"]),
+    cardImage: categoryImageUrls["decorators.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-decorator.webp"),
   },
@@ -90,7 +86,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Sparkles,
     iconColor: "#EF4444",
     iconBg: "#FFF1F1",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["makeup-artists.png"]),
+    cardImage: categoryImageUrls["makeup-artists.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-makeup.webp"),
   },
@@ -102,7 +98,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Hand,
     iconColor: "#F97316",
     iconBg: "#FFF3EA",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["mehndi-artists.png"]),
+    cardImage: categoryImageUrls["mehndi-artists.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-mehndi.webp"),
   },
@@ -114,7 +110,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Headphones,
     iconColor: "#8B5CF6",
     iconBg: "#F5F3FF",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["dj.png"]),
+    cardImage: categoryImageUrls["dj.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-dj.webp"),
   },
@@ -126,7 +122,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Shirt,
     iconColor: "#EC4899",
     iconBg: "#FFF0F7",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["bridal-wear.png"]),
+    cardImage: categoryImageUrls["bridal-wear.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-bride-outfit.webp"),
   },
@@ -138,7 +134,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: User,
     iconColor: "#3B82F6",
     iconBg: "#EFF6FF",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["groom-wear.png"]),
+    cardImage: categoryImageUrls["groom-wear.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-groom-outfit.webp"),
   },
@@ -150,7 +146,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Gem,
     iconColor: "#F59E0B",
     iconBg: "#FFFBEA",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["jewellery-accessories.png"]),
+    cardImage: categoryImageUrls["jewellery-accessories.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-jewellery.webp"),
   },
@@ -162,7 +158,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: BookOpen,
     iconColor: "#F97316",
     iconBg: "#FFF3EA",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["pandits.png"]),
+    cardImage: categoryImageUrls["pandits.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-pandit.webp"),
   },
@@ -174,7 +170,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Mail,
     iconColor: "#8B5CF6",
     iconBg: "#F5F3FF",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["invites-cards.png"]),
+    cardImage: categoryImageUrls["invites-cards.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-invitation-cards.webp"),
   },
@@ -186,7 +182,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Camera,
     iconColor: "#3B82F6",
     iconBg: "#EFF6FF",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["pre-wedding-shoot.png"]),
+    cardImage: categoryImageUrls["pre-wedding-shoot.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-pre-wedding.webp"),
   },
@@ -198,7 +194,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Music,
     iconColor: "#EC4899",
     iconBg: "#FFF0F7",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["dance-choreography.png"]),
+    cardImage: categoryImageUrls["dance-choreography.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-dance.webp"),
   },
@@ -210,7 +206,7 @@ export const MARKETPLACE_CATEGORIES: readonly MarketplaceCategory[] = [
     icon: Music,
     iconColor: "#E91E63",
     iconBg: "#FFF0F6",
-    cloudinaryImage: cloudinaryCardImage(categoryImageUrls["wedding-bands.png"]),
+    cardImage: categoryImageUrls["wedding-bands.png"],
     fallbackImage: require("../assets/images/optimized/vendor-placeholder.webp"),
     homeImage: require("../assets/images/optimized/cat-live-orchestra-band.webp"),
   },
@@ -242,7 +238,7 @@ export function resolveMarketplaceCategoryImage(
     : value;
   const fallbackCategory = category ?? MARKETPLACE_CATEGORIES[0];
   return {
-    source: category?.cloudinaryImage ?? "",
+    source: category?.cardImage ?? "",
     fallbackSource: fallbackCategory.fallbackImage,
   };
 }

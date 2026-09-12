@@ -87,7 +87,7 @@ function presentation(row: CategoryRow, vendorCount: number): CategoryRecord {
     iconColor: local?.iconColor ?? "#E91E63",
     iconBg: local?.iconBg ?? "#FFF0F6",
     iconUrl,
-    imageUrl: local?.cloudinaryImage ?? fallbackImageUrl ?? "",
+    imageUrl: local?.cardImage ?? fallbackImageUrl ?? "",
     fallbackImageUrl,
     homeImageUrl,
     homeImage: (homeImageUrl ? { uri: homeImageUrl } : undefined)

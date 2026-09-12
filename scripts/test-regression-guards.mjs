@@ -129,10 +129,28 @@ const [authLayoutSource, otpFieldSource, keyboardAwareScrollSource] = await Prom
   read("components/keyboard/KeyboardAwareScrollView.tsx"),
 ]);
 assert.match(authLayoutSource, /<KeyboardAwareScrollView/, "Auth screens must use the shared keyboard-aware form scroller.");
-assert.match(keyboardAwareScrollSource, /behavior=\{Platform\.OS === "ios" \? "padding" : undefined\}/, "Android forms must rely on adjustResize rather than a competing keyboard-height calculation.");
+assert.match(keyboardAwareScrollSource, /behavior=\{Platform\.OS === "ios" \? "padding" : avoidKeyboardOnAndroid \? "height" : undefined\}/, "Android forms must rely on adjustResize unless a surface explicitly opts into keyboard avoidance.");
+assert.doesNotMatch(keyboardAwareScrollSource, /keyboardTailHeight|setKeyboardTailHeight/, "Keyboard-aware forms must not add a second keyboard-height spacer on top of window resizing.");
 assert.match(keyboardAwareScrollSource, /keyboardDismissMode = "none"/, "Manual auth-form scrolling must never dismiss the keyboard.");
 assert.doesNotMatch(keyboardAwareScrollSource, /FOCUS_POLL_MS|setInterval\(/, "Focused auth inputs must reveal directly instead of relying on a polling loop.");
 assert.match(keyboardAwareScrollSource, /KeyboardAwareFormContext\.Provider/, "The shared form scroller must expose one direct focus-to-scroll coordinator.");
+const [vendorEditLocationSource, vendorEditAboutSource, vendorEditContactSource, vendorFormKitSource] = await Promise.all([
+  read("app/VendorEditLocation.tsx"),
+  read("app/VendorEditAbout.tsx"),
+  read("app/VendorEditContact.tsx"),
+  read("components/vendor/VendorProfileFormKit.tsx"),
+]);
+assert.match(
+  vendorEditLocationSource,
+  /<KeyboardAwareScrollView\s+avoidKeyboardOnAndroid\s+contentContainerStyle=\{kitStyles\.content\}/,
+  "Vendor location editing must keep the Business address field above the Android keyboard.",
+);
+assert.match(vendorEditAboutSource, /<KeyboardAwareScrollView avoidKeyboardOnAndroid/, "Vendor About editing must remain visible above the Android keyboard.");
+assert.match(vendorEditContactSource, /<KeyboardAwareScrollView avoidKeyboardOnAndroid/, "Vendor Contact editing must remain visible above the Android keyboard.");
+assert.match(vendorEditAboutSource, /multiline\s+advanceOnSubmit/, "The About description keyboard action must advance to Years of experience.");
+assert.match(vendorFormKitSource, /submitBehavior=\{shouldAdvanceOnSubmit \? "submit" : "newline"\}/, "Vendor fields must submit deterministically before focusing the next input.");
+assert.match(vendorEditContactSource, /contactField: \{ width: "100%" \}/, "Vendor Contact inputs must use the full mobile card width.");
+assert.match(vendorEditContactSource, /useTwoColumns && styles\.contactFieldWide/, "Vendor Contact inputs may use two columns only on wider screens.");
 assert.match(keyboardAwareScrollSource, /TextInput\.State\.currentlyFocusedInput\(\)/, "The shared form scroller must discover focus centrally without per-field handlers.");
 assert.match(keyboardAwareScrollSource, /scrollResponderScrollNativeHandleToKeyboard/, "The shared form scroller must use React Native's native keyboard-aware focus reveal path.");
 assert.match(keyboardAwareScrollSource, /keyboardDidShow/, "The shared form scroller must re-check focus after Android finishes resizing for the keyboard.");
@@ -268,15 +286,34 @@ const [publicClipsSource, publicClipVideoSource, vendorClipsReelSource] = await 
   read("clips/components/PublicClipVideo.tsx"),
   read("components/vendor-profile/VendorClipsReelViewer.tsx"),
 ]);
+const [vendorClipUploadSource, vendorClipOrchestratorSource, vendorClipCategoryMigrationSource] = await Promise.all([
+  read("app/VendorClipUpload.tsx"),
+  read("clips/services/ClipUploadOrchestrator.ts"),
+  read("supabase/migrations/20260912163000_enforce_vendor_clip_category.sql"),
+]);
+assert.match(vendorClipUploadSource, /const categoryId = data\.vendor\?\.category_id \?\? "";/, "Clip uploads must inherit the authenticated vendor's category.");
+assert.doesNotMatch(vendorClipUploadSource, /useCategories|categoryOpen|setCategoryId|Choose category/, "Vendors must not manually choose a category while uploading Clips.");
+assert.match(vendorClipUploadSource, /router\.push\("\/VendorEditBusinessInfo"\)/, "A vendor without a category must have a direct recovery path before uploading Clips.");
+assert.match(vendorClipOrchestratorSource, /from\("vendors"\)[\s\S]{0,120}select\("category_id"\)[\s\S]{0,120}eq\("id", draft\.vendorId\)/, "The upload pipeline must resolve the current category from the vendor row.");
+assert.match(vendorClipOrchestratorSource, /category_id: authoritativeCategoryId/, "The upload payload must use the server-read vendor category.");
+assert.match(vendorClipCategoryMigrationSource, /select vendor\.category_id into vendor_category_id/, "Clip finalization must resolve category from the authoritative vendor record.");
+assert.match(vendorClipCategoryMigrationSource, /target_vendor_id,\s+vendor_category_id,/, "Clip finalization must insert the vendor category instead of trusting the client payload.");
 assert.match(
   publicClipsSource,
   /const \[muted, setMuted\] = useState\(false\);/,
   "Public Clips must start with sound enabled.",
 );
+assert.match(publicClipsSource, /const tabBarHeight = useMobileTabBarHeight\(\);/, "Native Clips must measure the real floating tab-bar height.");
+assert.match(publicClipsSource, /marginBottom: Platform\.OS === "web" \? 0 : tabBarHeight/, "Native Clips content must end above the overlaid bottom navigation.");
 assert.match(
   publicClipsSource,
-  /if \(isFocused && !previousFocus\.current\) \{[\s\S]{0,180}setMuted\(false\);/,
-  "Returning to the public Clips tab must reset playback to sound-on.",
+  /if \(isFocused && !previousFocus\.current\) \{[\s\S]{0,220}beginNewFeedSession\(\);/,
+  "Returning to the public Clips tab must begin a fresh feed session.",
+);
+assert.doesNotMatch(
+  publicClipsSource,
+  /if \(isFocused && !previousFocus\.current\) \{[\s\S]{0,220}setMuted\(false\);/,
+  "Returning to the public Clips tab must retain the viewer's sound choice.",
 );
 assert.match(
   vendorClipsReelSource,
@@ -295,10 +332,15 @@ assert.match(
   /player\.volume = 1;[\s\S]{0,100}player\.muted = muted;[\s\S]{0,100}player\.play\(\);/,
   "The user-started web playback path must apply audible volume before play.",
 );
-assert.match(publicClipVideoSource, /showMuteControl && active && controlsVisible && !unavailable/, "The Clip mute control must only render during its temporary interaction window.");
+assert.match(publicClipVideoSource, /showMuteControl && active && !unavailable/, "The active Clip must keep its mute control available.");
 assert.doesNotMatch(publicClipVideoSource, /CONTROL_HIDE_DELAY_MS|controlHideTimer/, "Clip play controls must follow playback state without a delayed hide timer.");
-assert.match(publicClipVideoSource, /player\.pause\(\);\s*setControlsVisible\(true\);/, "Pausing a Clip must immediately reveal its controls.");
-assert.match(publicClipVideoSource, /player\.play\(\);\s*setControlsVisible\(false\);/, "Resuming a Clip must immediately hide its controls.");
+assert.match(publicClipVideoSource, /singleTapTimer\.current = setTimeout\([\s\S]{0,180}togglePlayback\(\);[\s\S]{0,80}DOUBLE_TAP_MS/, "A single tap must toggle playback only after the double-tap window.");
+assert.match(publicClipVideoSource, /clearTimeout\(singleTapTimer\.current\);[\s\S]{0,180}burstHeart\(\);[\s\S]{0,80}onDoubleTapLike\(\);[\s\S]{0,30}return;/, "A double tap must like without also toggling playback.");
+assert.doesNotMatch(publicClipVideoSource, /!useBunnyWebPlayer && <Pressable/, "Bunny web Clips must keep the same center-tap playback surface as other video sources.");
+assert.match(publicClipVideoSource, /controlBunnyPlayer\("pause"\)/, "Center-tapping a playing Bunny web Clip must pause its embedded player.");
+assert.match(publicClipVideoSource, /controlBunnyPlayer\("play"\)/, "Center-tapping a paused Bunny web Clip must resume its embedded player.");
+assert.match(publicClipVideoSource, /!useBunnyWebPlayer \? <Animated\.View pointerEvents="none" style=\{\[styles\.playBurst, playStyle\]\}/, "Bunny web Clips must not render a second play icon over the embedded player's own control.");
+assert.match(publicClipVideoSource, /contentWindow\?\.postMessage\([\s\S]{0,180}"\*"\)/, "Bunny Player.js commands must remain valid while the iframe transitions away from its initial parent origin.");
 const [clipConstantsSource, clipValidationSource, clipUploadSignSource, clipLimitMigrationSource] = await Promise.all([
   read("clips/constants/index.ts"),
   read("clips/utils/validation.ts"),

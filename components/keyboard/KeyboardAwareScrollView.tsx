@@ -1,13 +1,11 @@
 import React from "react";
 import {
-  Dimensions,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   TextInput,
-  View,
   type ScrollViewProps,
   type TextInputProps,
   type StyleProp,
@@ -17,7 +15,7 @@ import {
 type KeyboardAwareScrollViewProps = ScrollViewProps & {
   containerStyle?: StyleProp<ViewStyle>;
   keyboardGap?: number;
-  /** Transparent Android modals do not always inherit the activity's adjustResize behavior. */
+  /** Opt in where an Android surface does not reliably inherit the activity's adjustResize behavior. */
   avoidKeyboardOnAndroid?: boolean;
 };
 
@@ -104,9 +102,7 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
     const scrollRef = React.useRef<ScrollView>(null);
     const scrollYRef = React.useRef(0);
     const keyboardVisibleRef = React.useRef(false);
-    const keyboardHeightRef = React.useRef(0);
     const keyboardTopRef = React.useRef(Number.POSITIVE_INFINITY);
-    const [keyboardTailHeight, setKeyboardTailHeight] = React.useState(0);
     const pendingFrameRef = React.useRef<number | null>(null);
     const inputsRef = React.useRef<TextInput[]>([]);
 
@@ -166,21 +162,12 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
       if (Platform.OS === "web") return;
       const show = Keyboard.addListener("keyboardDidShow", (event) => {
         keyboardVisibleRef.current = true;
-        const screenHeight = Dimensions.get("screen").height;
-        const keyboardTop = Math.min(
-          event.endCoordinates.screenY,
-          screenHeight - event.endCoordinates.height,
-        );
-        keyboardTopRef.current = keyboardTop;
-        keyboardHeightRef.current = Math.max(0, screenHeight - keyboardTop);
-        setKeyboardTailHeight(Platform.OS === "android" ? keyboardHeightRef.current : 0);
+        keyboardTopRef.current = event.endCoordinates.screenY;
         scheduleReveal();
       });
       const hide = Keyboard.addListener("keyboardDidHide", () => {
         keyboardVisibleRef.current = false;
-        keyboardHeightRef.current = 0;
         keyboardTopRef.current = Number.POSITIVE_INFINITY;
-        setKeyboardTailHeight(0);
       });
       return () => {
         show.remove();
@@ -219,7 +206,6 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
             }}
           >
             {children}
-            {keyboardTailHeight > 0 ? <View style={{ height: keyboardTailHeight }} importantForAccessibility="no-hide-descendants" /> : null}
           </ScrollView>
         </KeyboardAvoidingView>
       </KeyboardAwareFormContext.Provider>

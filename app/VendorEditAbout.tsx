@@ -97,7 +97,7 @@ export default function VendorEditAbout() {
   return (
     <View style={[kitStyles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <KeyboardAwareScrollView contentContainerStyle={kitStyles.content}>
+      <KeyboardAwareScrollView avoidKeyboardOnAndroid contentContainerStyle={kitStyles.content}>
         <View style={kitStyles.heading}>
           <View style={kitStyles.headingRow}>
             <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · ABOUT THE BUSINESS</Text>
@@ -120,6 +120,7 @@ export default function VendorEditAbout() {
               placeholder="Describe your experience, style and what customers can expect."
               colors={colors}
               multiline
+              advanceOnSubmit
               maxLength={1200}
               helper={`${description.length}/1200 · Aim for at least 80 useful characters.`}
             />

@@ -137,6 +137,7 @@ function PublicClipCardComponent({
             muted={muted}
             width={width}
             height={height}
+            fillMode={desktop ? "contain" : "cover"}
             onToggleMuted={onToggleMuted}
             onHoldChange={desktop ? undefined : onHoldChange}
             showMuteControl={desktop || chromeVisible}

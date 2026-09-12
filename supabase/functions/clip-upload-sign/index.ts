@@ -85,7 +85,10 @@ Deno.serve(async (request) => {
     const bunnyApiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
     const bunnyCdnHostname = Deno.env.get("BUNNY_STREAM_CDN_HOSTNAME")?.trim()
       .replace(/^https?:\/\//, "").replace(/\/$/, "");
-    if (kind === "video" && bunnyLibraryId && bunnyApiKey && bunnyCdnHostname) {
+    if (kind === "video") {
+      if (!bunnyLibraryId || !bunnyApiKey || !bunnyCdnHostname) {
+        throw new Error("Bunny Stream is not configured");
+      }
       const createResponse = await fetchWithTimeout(
         `https://video.bunnycdn.com/library/${encodeURIComponent(bunnyLibraryId)}/videos`,
         {
@@ -106,7 +109,7 @@ Deno.serve(async (request) => {
         thumbnailUrl: `https://${bunnyCdnHostname}/${created.guid}/thumbnail.jpg`,
       }, { headers: cors });
     }
-    if (kind === "thumbnail" && Deno.env.get("BUNNY_STORAGE_SECRET_ACCESS_KEY")) {
+    if (kind === "thumbnail") {
       const extension = String(mimeType).toLowerCase() === "image/png" ? "png" : "jpg";
       return Response.json(await presignBunnyObject("PUT", `clips/${vendorId}/${clipId}/thumbnail.${extension}`), { headers: cors });
     }

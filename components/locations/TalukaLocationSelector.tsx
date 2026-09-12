@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -29,6 +30,7 @@ type Props = {
   compact?: boolean;
   variant?: "default" | "navbar";
   displayLabel?: string;
+  compactWidth?: number;
 };
 
 /**
@@ -45,7 +47,7 @@ type Props = {
  * while the State dropdown remains visible so the hierarchy is always clear.
  * Additional active States appear in that searchable dropdown automatically.
  */
-export function TalukaLocationSelector({ states, value, onChange, onClear, onResolvedLabel, onUseCurrentLocation, loading, hideLabel = false, compact = false, variant = "default", displayLabel }: Props) {
+export function TalukaLocationSelector({ states, value, onChange, onClear, onResolvedLabel, onUseCurrentLocation, loading, hideLabel = false, compact = false, variant = "default", displayLabel, compactWidth }: Props) {
   const { colorScheme } = useColorScheme();
   const colors = brandColors(colorScheme === "dark");
   const [visible, setVisible] = useState(false);
@@ -67,6 +69,7 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
   const [selectedTalukaName, setSelectedTalukaName] = useState("");
   const [usingCurrentLocation, setUsingCurrentLocation] = useState(false);
   const [currentLocationError, setCurrentLocationError] = useState("");
+  const sheetScrollRef = useRef<ScrollView>(null);
 
   const showStateStep = states.length > 1;
 
@@ -181,6 +184,20 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
 
   const loadingOptions = loadingDistricts || loadingTalukas;
 
+  const revealSearch = (target: "state" | "district" | "taluka") => {
+    if (Platform.OS === "web") return;
+    setTimeout(() => {
+      if (target === "taluka") {
+        sheetScrollRef.current?.scrollToEnd({ animated: true });
+        return;
+      }
+      sheetScrollRef.current?.scrollTo({
+        y: target === "state" ? 150 : 300,
+        animated: true,
+      });
+    }, 120);
+  };
+
   const handleUseCurrentLocation = async () => {
     if (!onUseCurrentLocation || usingCurrentLocation) return;
     setUsingCurrentLocation(true);
@@ -212,7 +229,7 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
     <View
       style={[
         styles.field,
-        compact && variant !== "navbar" ? { width: compactFieldWidth, flexShrink: 0 } : null,
+        compact && variant !== "navbar" ? { width: compactWidth ?? compactFieldWidth, flexShrink: 0 } : null,
         variant === "navbar" && styles.navbarField,
       ]}
     >
@@ -226,6 +243,7 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
           style={({ pressed }) => [
             styles.control,
             compact && styles.controlCompact,
+            compact && compactWidth ? { width: "100%" } : null,
             compact && Platform.OS !== "web" && styles.nativeCompactControl,
             variant === "navbar" && styles.navbarControl,
             variant === "navbar" ? null : { backgroundColor: colors.background, borderColor: colors.border },
@@ -262,9 +280,20 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
         ) : null}
       </View>
 
-      <Modal visible={visible} transparent accessibilityViewIsModal animationType={Platform.OS === "web" ? "fade" : "slide"} onRequestClose={() => setVisible(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setVisible(false)}>
-          <Pressable style={[styles.sheet, { backgroundColor: colors.background }]} onPress={(event) => event.stopPropagation()}>
+      <Modal visible={visible} transparent statusBarTranslucent accessibilityViewIsModal animationType={Platform.OS === "web" ? "fade" : "slide"} onRequestClose={() => setVisible(false)}>
+        <KeyboardAvoidingView style={styles.keyboardHost} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <Pressable style={styles.backdrop} onPress={() => setVisible(false)}>
+            <Pressable style={[styles.sheet, { backgroundColor: colors.background }]} onPress={(event) => event.stopPropagation()}>
+              <ScrollView
+                ref={sheetScrollRef}
+                style={styles.sheetScroll}
+                contentContainerStyle={styles.sheetContent}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}
+                automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+              >
             <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
             <View style={styles.header}>
               <View style={styles.flex}>
@@ -329,7 +358,10 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
                       autoFocus={Platform.OS === "web"}
                       value={stateQuery}
                       onChangeText={setStateQuery}
-                      onFocus={() => setFocusedSearch("state")}
+                      onFocus={() => {
+                        setFocusedSearch("state");
+                        revealSearch("state");
+                      }}
                       onBlur={() => setFocusedSearch(null)}
                       placeholder="Search State"
                       placeholderTextColor={colors.mutedForeground}
@@ -398,7 +430,10 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
                       autoFocus={Platform.OS === "web"}
                       value={districtQuery}
                       onChangeText={setDistrictQuery}
-                      onFocus={() => setFocusedSearch("district")}
+                      onFocus={() => {
+                        setFocusedSearch("district");
+                        revealSearch("district");
+                      }}
                       onBlur={() => setFocusedSearch(null)}
                       placeholder="Search District"
                       placeholderTextColor={colors.mutedForeground}
@@ -447,6 +482,7 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
                 <TextInput
                   value={query}
                   onChangeText={setQuery}
+                  onFocus={() => revealSearch("taluka")}
                   placeholder="Search Taluka"
                   placeholderTextColor={colors.mutedForeground}
                   style={[styles.searchInput, { color: colors.foreground }]}
@@ -455,7 +491,7 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
               </View>
               </>
             ) : null}
-            <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
+            <View style={styles.list}>
               {loadingOptions ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} /> : null}
               {optionsError ? <Text accessibilityRole="alert" style={[styles.empty, { color: colors.destructive }]}>{optionsError}</Text> : null}
               {options.map((item) => {
@@ -489,9 +525,11 @@ export function TalukaLocationSelector({ states, value, onChange, onClear, onRes
                   {selectedDistrictId ? "No supported Taluka found in this District." : "Choose a District to see its Talukas."}
                 </Text>
               ) : null}
-            </ScrollView>
+            </View>
+              </ScrollView>
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -516,8 +554,11 @@ const styles = StyleSheet.create({
   value: { flex: 1, minWidth: 0, fontSize: typeScale.body },
   pressed: { opacity: 0.75 },
   actionPressed: { opacity: 0.9, transform: [{ scale: 0.98 }] },
+  keyboardHost: { flex: 1 },
   backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(25,15,20,.5)" },
-  sheet: { width: "100%", maxWidth: 540, maxHeight: "86%", alignSelf: "center", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 },
+  sheet: { width: "100%", maxWidth: 540, maxHeight: "92%", alignSelf: "center", borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: "hidden" },
+  sheetScroll: { width: "100%" },
+  sheetContent: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 28 },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 14 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12, marginBottom: 14 },
   title: { fontSize: typeScale.sectionTitle, fontWeight: "700" },

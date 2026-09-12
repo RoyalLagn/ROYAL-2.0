@@ -53,12 +53,16 @@ function VendorListingCard({
 
   const grid = layout === "grid";
   const mobileGrid = grid && compact;
+  const gridImageHeight = mobileGrid && cardWidth
+    ? Math.max(148, Math.min(188, Math.round(cardWidth * 0.92)))
+    : 156;
 
   return (
     <View
       style={[
         styles.card,
         grid ? styles.cardGrid : compact ? styles.cardCompact : styles.cardWide,
+        mobileGrid ? { height: gridImageHeight + 160 } : null,
         grid && cardWidth ? { width: cardWidth } : null,
         {
           backgroundColor: surface,
@@ -84,7 +88,7 @@ function VendorListingCard({
         hoverScale={1.003}
         style={[styles.main, grid && styles.mainGrid]}
       >
-        <View style={[styles.imageWrap, grid ? styles.imageGrid : compact ? styles.imageCompact : styles.imageWide]}>
+        <View style={[styles.imageWrap, grid ? styles.imageGrid : compact ? styles.imageCompact : styles.imageWide, grid ? { height: gridImageHeight } : null]}>
           <SafeImage
             accessibilityLabel={`${vendor.name} listing`}
             source={imageUri}
@@ -92,8 +96,8 @@ function VendorListingCard({
             debugLabel={`${vendor.name} listing`}
             deliveryWidth={grid ? 420 : compact ? 138 : 184}
             deliveryHeight={grid ? 300 : compact ? 146 : 184}
-            deliveryCrop="fit"
-            resizeMode="contain"
+            deliveryCrop={grid ? "fill" : "fit"}
+            resizeMode={grid ? "cover" : "contain"}
             style={styles.image}
           />
           {vendor.isTopRated ? (
@@ -149,7 +153,7 @@ function VendorListingCard({
             </View>
           ) : null}
           <View style={[styles.bottomRow, compact && styles.bottomRowCompact]}>
-            <View style={[styles.price, compact && styles.priceCompact, { backgroundColor: dark ? "#38242D" : "#FFF0F6" }]}>
+            <View style={[styles.price, compact && styles.priceCompact, grid && styles.priceGrid, { backgroundColor: grid ? "transparent" : dark ? "#38242D" : "#FFF0F6" }]}>
               <Text numberOfLines={1} style={styles.priceText}>Starts from {vendor.startingPrice}</Text>
             </View>
           </View>
@@ -185,7 +189,7 @@ const styles = StyleSheet.create({
   card: { width: "100%", borderWidth: 1, overflow: "hidden", position: "relative", shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
   cardCompact: { height: 164, borderRadius: 16 },
   cardWide: { height: 200, borderRadius: 16 },
-  cardGrid: { height: 296, borderRadius: 16 },
+  cardGrid: { height: 316, borderRadius: 16 },
   main: { flex: 1, flexDirection: "row", padding: 8, gap: 14 },
   mainGrid: { flexDirection: "column", padding: 0, gap: 0 },
   imageWrap: { position: "relative", flexShrink: 0, borderRadius: 13, overflow: "hidden", backgroundColor: "#F8E9EE" },
@@ -202,7 +206,7 @@ const styles = StyleSheet.create({
   topRatedText: { color: "#FFFFFF", fontSize: typeScale.caption, fontWeight: "700" },
   body: { flex: 1, minWidth: 0, paddingVertical: 8, paddingRight: 64, justifyContent: "center" },
   bodyCompact: { paddingVertical: 4, paddingRight: 48 },
-  bodyGrid: { paddingHorizontal: 10, paddingBottom: 10 },
+  bodyGrid: { paddingHorizontal: 11, paddingTop: 8, paddingBottom: 11 },
   identityRow: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
   identityRowCompact: { gap: 6, marginBottom: 2 },
   identityText: { flex: 1, minWidth: 0, justifyContent: "center" },
@@ -229,6 +233,7 @@ const styles = StyleSheet.create({
   bottomRowCompact: { marginTop: 4 },
   price: { maxWidth: "62%", alignSelf: "flex-start", minHeight: 31, borderRadius: 999, paddingHorizontal: 11, alignItems: "center", justifyContent: "center" },
   priceCompact: { maxWidth: "100%", paddingHorizontal: 9 },
+  priceGrid: { maxWidth: "100%", minHeight: 25, paddingHorizontal: 0, alignItems: "flex-start" },
   priceText: { maxWidth: "100%", color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   cardMembershipBadge: { position: "absolute", zIndex: 2, right: 8, bottom: 8 },
   favorite: { position: "absolute", zIndex: 3, top: 10, right: 10, width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center" },

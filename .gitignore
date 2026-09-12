@@ -61,3 +61,6 @@ dist-web/
 /android/.cxx/
 /android/app/.cxx/
 .codex-tmp/
+
+# Local production database safety snapshots
+/.local-backups/

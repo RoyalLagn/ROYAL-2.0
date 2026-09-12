@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SectionList, type ListRenderItemInfo, Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import Pressable from "@/components/InteropSafePressable";
-import { PanelsTopLeft, RefreshCw, Rows3, SearchX } from "lucide-react-native";
+import { ArrowUpDown, ChevronDown, Grid2X2, List, RefreshCw, SearchX } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -123,7 +123,7 @@ export default function VendorsListingScreen() {
   const [filters, setFilters] = useState<ListingFilters>(DEFAULT_FILTERS);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [filterSection, setFilterSection] = useState<"sort" | "price" | "rating" | "filters">("filters");
-  const [listingLayout, setListingLayout] = useState<"strip" | "grid">("strip");
+  const [listingLayout, setListingLayout] = useState<"strip" | "grid">(() => width < 720 ? "grid" : "strip");
   const [approvedVendors, setApprovedVendors] = useState<PublicVendorListing[]>([]);
   const [vendorsLoading, setVendorsLoading] = useState(true);
   const [vendorsError, setVendorsError] = useState("");
@@ -567,6 +567,9 @@ export default function VendorsListingScreen() {
     : filters.sort === "price"
       ? "Lowest price"
       : "Popular";
+  const categorySubtitle = displayCategory === "Photographers"
+    ? "Capture your special moments"
+    : `Discover trusted ${displayCategory.toLowerCase()}`;
 
   const toggleVendorFavorite = useCallback((vendor: PublicVendorListing, source: FavoriteSourceRef) => {
     toggleFavorite({
@@ -727,26 +730,26 @@ export default function VendorsListingScreen() {
                   value={geoSelection}
                   displayLabel={navbarLocationLabel}
                   onChange={selectGeoLocation}
-                  onClear={clearGeoLocation}
+                  onClear={compact ? undefined : clearGeoLocation}
                   onResolvedLabel={resolveGeoLabel}
                   onUseCurrentLocation={useCurrentLocation}
                   loading={geoLoading}
                   hideLabel
                   compact
+                  compactWidth={compact ? (width < 360 ? 118 : 138) : undefined}
                 />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={listingLayout === "strip" ? `Switch to ${gridViewLabel} view` : "Switch to horizontal strip view"}
-                  onPress={() => setListingLayout((current) => current === "strip" ? "grid" : "strip")}
-                  style={({ pressed, hovered, focused }) => [
-                    styles.layoutToggle,
-                    compact && styles.layoutToggleCompact,
-                    { backgroundColor: listingLayout === "grid" ? (isDark ? "#3A222C" : "#FFF0F6") : colors.card, borderColor: listingLayout === "grid" ? colors.primary : border },
-                    (hovered || focused) && styles.controlInteractive,
-                    pressed && styles.controlPressed,
-                  ]}
-                >
-                  {listingLayout === "strip" ? <PanelsTopLeft size={18} color={colors.primaryStrong} strokeWidth={2} /> : <Rows3 size={18} color={colors.primaryStrong} strokeWidth={2} />}
+                <View style={[styles.layoutSegment, { backgroundColor: isDark ? "#251B20" : "#FFF7FA", borderColor: border }]}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Show vendors in ${gridViewLabel} view`} accessibilityState={{ selected: listingLayout === "grid" }} onPress={() => setListingLayout("grid")} style={({ pressed }) => [styles.layoutOption, listingLayout === "grid" && { backgroundColor: isDark ? "#3A222C" : "#FFF0F6", borderColor: colors.primary }, pressed && styles.controlPressed]}>
+                    <Grid2X2 size={18} color={listingLayout === "grid" ? colors.primaryStrong : muted} strokeWidth={2.2} />
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Show vendors in list view" accessibilityState={{ selected: listingLayout === "strip" }} onPress={() => setListingLayout("strip")} style={({ pressed }) => [styles.layoutOption, listingLayout === "strip" && { backgroundColor: isDark ? "#3A222C" : "#FFF0F6", borderColor: colors.primary }, pressed && styles.controlPressed]}>
+                    <List size={19} color={listingLayout === "strip" ? colors.primaryStrong : muted} strokeWidth={2.2} />
+                  </Pressable>
+                </View>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Sort results, currently ${sortLabel}`} onPress={() => openFilters("sort")} style={({ pressed, hovered, focused }) => [styles.sortControl, { backgroundColor: colors.card, borderColor: border }, (hovered || focused) && styles.controlInteractive, pressed && styles.controlPressed]}>
+                  <ArrowUpDown size={17} color={colors.primaryStrong} strokeWidth={2.1} />
+                  {width >= 360 ? <Text numberOfLines={1} style={[styles.sortControlText, { color: text }]}>{sortLabel}</Text> : null}
+                  <ChevronDown size={15} color={colors.primaryStrong} />
                 </Pressable>
               </View>
               {geoError ? <Text accessibilityRole="alert" style={[styles.locationModeError, { color: colors.destructive }]}>{geoError}</Text> : null}
@@ -756,7 +759,7 @@ export default function VendorsListingScreen() {
         ListHeaderComponent={(
           <View>
             <HomeReveal direction="down">
-              <CategoryListingHeader category={displayCategory} dark={isDark} />
+              <CategoryListingHeader category={displayCategory} subtitle={categorySubtitle} dark={isDark} />
             </HomeReveal>
           </View>
         )}
@@ -808,8 +811,10 @@ const styles = StyleSheet.create({
   locationModeError: { fontFamily: fonts.sans.medium, fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
   chips: { marginTop: discoveryLayout.controlsGap, marginBottom: 2 },
   refinementControls: { flexDirection: "row", alignItems: "center", gap: 8 },
-  layoutToggle: { width: 40, height: 40, borderWidth: 1, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  layoutToggleCompact: { width: 48, height: 48, borderRadius: 14 },
+  layoutSegment: { height: 44, flexDirection: "row", borderWidth: 1, borderRadius: 14, padding: 2 },
+  layoutOption: { width: 40, height: 38, borderWidth: 1, borderColor: "transparent", borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  sortControl: { flex: 1, minWidth: 0, height: 44, borderWidth: 1, borderRadius: 22, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  sortControlText: { flexShrink: 1, fontFamily: fonts.sans.semibold, fontSize: typeScale.metadata },
   controlInteractive: { transform: [{ translateY: -1 }] },
   controlPressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
   scroll: { flex: 1 },

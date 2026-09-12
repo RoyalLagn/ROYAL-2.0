@@ -9,8 +9,8 @@ import {
   ArrowLeft, Check, ChevronDown, CircleAlert, FileText, ImagePlus, Trash2, X,
 } from "lucide-react-native";
 import {
-  CloudinaryError, pickAndUploadBusinessDocument, pickAndUploadImage,
-  pickProfileImage, uploadImage as uploadCloudinaryImage, type ProfileImageAsset,
+  CloudinaryError, deleteOwnedBunnyUpload, pickAndUploadBusinessDocument, pickAndUploadImage,
+  pickProfileImage, uploadImage as uploadManagedImage, type ProfileImageAsset,
   type UploadedBusinessDocument,
 } from "@/services/cloudinary";
 import { useCategories } from "@/context/CategoryContext";
@@ -302,7 +302,11 @@ export default function BecomeVendor() {
         if (asset) setLogoEditorAsset(asset);
       } else {
         const url = await pickAndUploadImage({ allowsEditing: true, aspect: [16, 9] });
-        if (url) update("coverImageUrl", url);
+        if (url) {
+          const previousUrl = form.coverImageUrl;
+          update("coverImageUrl", url);
+          if (previousUrl && previousUrl !== url) await deleteOwnedBunnyUpload(previousUrl);
+        }
       }
     } catch (error) {
       Alert.alert("Upload failed", error instanceof CloudinaryError ? error.message : "Unable to upload image.");
@@ -314,8 +318,10 @@ export default function BecomeVendor() {
   const saveEditedLogo = async (asset: ProfileImageAsset) => {
     setUploading("logo");
     try {
-      const url = await uploadCloudinaryImage(asset);
+      const url = await uploadManagedImage(asset);
+      const previousUrl = form.logoUrl;
       update("logoUrl", url);
+      if (previousUrl && previousUrl !== url) await deleteOwnedBunnyUpload(previousUrl);
       setLogoEditorAsset(null);
     } catch (error) {
       Alert.alert("Upload failed", error instanceof CloudinaryError ? error.message : "Unable to upload the edited logo.");
@@ -525,7 +531,9 @@ export default function BecomeVendor() {
                 accessibilityRole="button"
                 accessibilityLabel={`Remove document ${document.name}`}
                 hitSlop={12}
-                onPress={() => setDocuments((current) => current.filter((_, i) => i !== index))}
+                onPress={() => void deleteOwnedBunnyUpload(document.url)
+                  .then(() => setDocuments((current) => current.filter((_, i) => i !== index)))
+                  .catch((error) => Alert.alert("Document not removed", error instanceof Error ? error.message : "Please try again."))}
               ><Trash2 size={18} className="text-destructive" /></TouchableOpacity>
             </View>
           ))}

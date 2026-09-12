@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Bell, CheckCheck, MailX, Trash2 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -11,6 +11,7 @@ import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { vendorWorkspaceRoutes } from "@/vendor/navigation";
 import { safeInternalTarget } from "@/utils/safeNavigation";
+import { interactionTokens } from "@/constants/interactionTokens";
 
 const VENDOR_NOTIFICATION_ROUTES = new Set(vendorWorkspaceRoutes);
 
@@ -131,7 +132,17 @@ export default function VendorNotifications() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <VendorHeader />
-      <ScrollView contentContainerStyle={styles.content}>
+      <FlatList
+        accessibilityLabel="Vendor notifications"
+        data={loading ? [] : notifications}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews={Platform.OS !== "web"}
+        ListHeaderComponent={<>
         <View style={styles.heading}>
           <View style={styles.flex}>
             <Text style={[styles.eyebrow, { color: colors.pink }]}>STAY INFORMED</Text>
@@ -186,56 +197,49 @@ export default function VendorNotifications() {
           </View>
         ) : null}
 
-        {loading ? (
-          <SkeletonList count={5} height={78} />
-        ) : (
-          notifications.map((item) => (
-            <View
-              key={item.id}
-              style={[
-                styles.card,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: item.is_read ? colors.border : colors.pink,
-                },
-              ]}
+        {loading ? <SkeletonList count={5} height={78} /> : null}
+        </>}
+        renderItem={({ item }) => (
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.surface,
+                borderColor: item.is_read ? colors.border : colors.pink,
+              },
+            ]}
+          >
+            <AnimatedPressable
+              accessibilityRole="button"
+              accessibilityLabel={`${item.title}${item.is_read ? "" : ", unread"}`}
+              onPress={() => openNotification(item)}
+              style={styles.cardMain}
             >
-              <AnimatedPressable
-                accessibilityRole="button"
-                accessibilityLabel={`${item.title}${item.is_read ? "" : ", unread"}`}
-                onPress={() => openNotification(item)}
-                style={styles.cardMain}
-              >
-                <View style={[styles.icon, { backgroundColor: colors.surfaceSoft }]}>
-                  <Bell size={18} color={item.is_read ? colors.muted : colors.pink} />
-                </View>
-                <View style={styles.flex}>
-                  <Text style={[styles.cardTitle, { color: colors.text }]}>{item.title}</Text>
-                  <Text style={[styles.body, { color: colors.muted }]}>
-                    {item.body || "Open to mark this notification as read."}
-                  </Text>
-                  <Text style={[styles.date, { color: colors.muted }]}>
-                    {new Date(item.created_at).toLocaleString()}
-                  </Text>
-                </View>
-                {!item.is_read ? (
-                  <View style={[styles.dot, { backgroundColor: colors.pink }]} />
-                ) : null}
-              </AnimatedPressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Delete ${item.title}`}
-                hitSlop={8}
-                onPress={() => confirmDelete(item)}
-                style={styles.deleteButton}
-              >
-                <Trash2 size={15} color={colors.muted} />
-              </Pressable>
-            </View>
-          ))
+              <View style={[styles.icon, { backgroundColor: colors.surfaceSoft }]}>
+                <Bell size={18} color={item.is_read ? colors.muted : colors.pink} />
+              </View>
+              <View style={styles.flex}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{item.title}</Text>
+                <Text style={[styles.body, { color: colors.muted }]}>
+                  {item.body || "Open to mark this notification as read."}
+                </Text>
+                <Text style={[styles.date, { color: colors.muted }]}>
+                  {new Date(item.created_at).toLocaleString()}
+                </Text>
+              </View>
+              {!item.is_read ? <View style={[styles.dot, { backgroundColor: colors.pink }]} /> : null}
+            </AnimatedPressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Delete ${item.title}`}
+              onPress={() => confirmDelete(item)}
+              style={styles.deleteButton}
+            >
+              <Trash2 size={15} color={colors.muted} />
+            </Pressable>
+          </View>
         )}
-
-        {!loading && !notifications.length ? (
+        ListEmptyComponent={!loading ? (
           <View
             style={[
               styles.empty,
@@ -249,7 +253,7 @@ export default function VendorNotifications() {
             </Text>
           </View>
         ) : null}
-      </ScrollView>
+      />
     </View>
   );
 }
@@ -276,7 +280,7 @@ const styles = StyleSheet.create({
   title: { ...typeStyles.pageTitle },
   subtitle: { ...typeStyles.bodyCompact, marginTop: 4 },
   mark: {
-    height: 39,
+    minHeight: interactionTokens.minimumTouchTarget,
     borderRadius: 13,
     paddingHorizontal: 12,
     flexDirection: "row",
@@ -322,8 +326,8 @@ const styles = StyleSheet.create({
   date: { fontSize: typeScale.caption, marginTop: 7 },
   dot: { width: 7, height: 7, borderRadius: 4, marginTop: 5 },
   deleteButton: {
-    width: 28,
-    height: 28,
+    width: interactionTokens.minimumTouchTarget,
+    height: interactionTokens.minimumTouchTarget,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 2,

@@ -26,6 +26,7 @@ import { typeScale, typeLeading } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { getPublicClipsEnabled } from "@/services/publicClipsAvailability";
 import { isPublicWideLayout } from "@/utils/responsiveLayout";
+import { useMobileTabBarHeight } from "@/components/MobileTabBar";
 
 const EMPTY_ENGAGEMENT: ClipEngagementState = { liked: false, saved: false };
 
@@ -72,6 +73,7 @@ function ClipsFeed() {
   const router = useRouter();
   const { clipId, clipSearch } = useLocalSearchParams<{ clipId?: string; clipSearch?: string }>();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useMobileTabBarHeight();
   const { width, height: windowHeight } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
   const dark = colorScheme === "dark";
@@ -203,9 +205,8 @@ function ClipsFeed() {
 
   useEffect(() => {
     if (isFocused && !previousFocus.current) {
-      // Tabs stay mounted between visits. Always begin a new public Clips
-      // visit with sound enabled instead of retaining a previous mute choice.
-      setMuted(false);
+      // Tabs stay mounted between visits. Refresh the feed while retaining the
+      // viewer's current sound choice across Clips and tab switches.
       beginNewFeedSession();
     }
     previousFocus.current = isFocused;
@@ -485,7 +486,17 @@ function ClipsFeed() {
       </View>
     </Animated.View> : null}
 
-    <View onLayout={(event) => setContainerHeight(Math.max(1, Math.round(event.nativeEvent.layout.height)))} style={[styles.feedFrame, { width: feedWidth, backgroundColor: background }]}>
+    <View
+      onLayout={(event) => setContainerHeight(Math.max(1, Math.round(event.nativeEvent.layout.height)))}
+      style={[
+        styles.feedFrame,
+        {
+          width: feedWidth,
+          backgroundColor: background,
+          marginBottom: Platform.OS === "web" ? 0 : tabBarHeight,
+        },
+      ]}
+    >
       {loading ? <FeedSkeleton dark={dark} width={playerWidth} height={playerHeight} /> : error ? <View style={[styles.state, { backgroundColor: background }]}><Clapperboard size={48} color="#E91E63" /><Text style={[styles.stateTitle, { color: dark ? "#FFF" : "#171717" }]}>Inspiration is taking a moment</Text><Text style={[styles.stateText, { color: dark ? "#CBBBC3" : "#737373" }]}>Check your connection and try again.</Text><Pressable onPress={() => void loadInitial()} style={styles.retry}><RefreshCw size={17} color="#FFF" /><Text style={styles.retryText}>Retry</Text></Pressable></View> :
       !clips.length ? <View style={[styles.state, { backgroundColor: background }]}><View style={styles.emptyIllustration}><Sparkles size={26} color="#E91E63" /><Clapperboard size={54} color="#E91E63" /></View><Text style={[styles.stateTitle, { color: dark ? "#FFF" : "#171717" }]}>No wedding inspiration yet.</Text><Text style={[styles.stateText, { color: dark ? "#CBBBC3" : "#737373" }]}>Be the first vendor to upload amazing wedding moments.</Text></View> :
       !feedItems.length ? <View style={styles.state}><Search size={42} color="#E91E63" /><Text style={[styles.stateTitle, { color: dark ? "#FFF" : "#171717" }]}>No Clips match your search</Text><Text style={[styles.stateText, { color: dark ? "#CBBBC3" : "#737373" }]}>Try a vendor, city, category or another wedding keyword.</Text></View> :

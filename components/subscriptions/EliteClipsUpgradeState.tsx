@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Clapperboard, Crown, Image as ImageIcon, LockKeyhole } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -8,6 +8,7 @@ import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { formatSubscriptionPrice } from "@/subscriptions/utils";
 import { typeLeading, typeScale, typeStyles } from "@/constants/typography";
+import Pressable from "@/components/InteropSafePressable";
 
 export function EliteClipsUpgradeState({ withHeader = false }: { withHeader?: boolean }) {
   const router = useRouter();

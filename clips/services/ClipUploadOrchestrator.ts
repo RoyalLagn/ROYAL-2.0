@@ -86,6 +86,31 @@ export const ClipUploadOrchestrator = {
     try {
       ensureActive();
       let stageStartedAt = Date.now();
+      // Resolve the category from the current vendor row immediately before
+      // reserving/uploading. Draft storage and UI state are never trusted as
+      // the category authority, so old drafts and stale screens cannot publish
+      // a Clip under a different marketplace category.
+      ClipLogger.uploadDebug(uploadId, "CATEGORY", "START");
+      const { data: vendorCategory, error: vendorCategoryError } = await withTimeout(
+        "Resolving vendor category",
+        supabase
+          .from("vendors")
+          .select("category_id")
+          .eq("id", draft.vendorId)
+          .maybeSingle(),
+      );
+      if (vendorCategoryError) {
+        throw new ClipModuleError("DATABASE_ERROR", vendorCategoryError.message, true, vendorCategoryError);
+      }
+      const authoritativeCategoryId = vendorCategory?.category_id as string | null | undefined;
+      if (!authoritativeCategoryId) {
+        throw new ClipModuleError(
+          "VALIDATION_ERROR",
+          "Complete your Business information before uploading a Clip.",
+        );
+      }
+      ClipLogger.uploadDebug(uploadId, "CATEGORY", "DONE", { categoryId: authoritativeCategoryId });
+
       // The per-plan Clip limit is enforced atomically in the database via
       // reserve_clip_upload_slot() (see
       // supabase/migrations/20260805120000_atomic_clip_upload_reservations.sql).
@@ -221,7 +246,7 @@ export const ClipUploadOrchestrator = {
       });
       const insertPayload = {
       id: clipId,
-      category_id: draft.categoryId,
+      category_id: authoritativeCategoryId,
       title: draft.title.trim(),
       caption: draft.caption?.trim() || null,
       video_url: uploaded.videoUrl,

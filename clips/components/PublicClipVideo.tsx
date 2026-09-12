@@ -18,6 +18,7 @@ const BUNNY_PROCESSING_MAX_RETRIES = 18;
 export const PublicClipVideo = React.memo(function PublicClipVideo({
   uri, thumbnailUrl, sourceWidth, sourceHeight, active, muted, onToggleMuted, onDoubleTapLike,
   onHoldChange, showMuteControl = true, width, height,
+  fillMode = "contain",
 }: {
   uri: string;
   thumbnailUrl: string;
@@ -32,13 +33,15 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   /** Rendered pixel size — used to request a device-appropriate Cloudinary derivative. */
   width?: number;
   height?: number;
+  fillMode?: "cover" | "contain";
 }) {
   const [manuallyPaused, setManuallyPaused] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [firstFrameRendered, setFirstFrameRendered] = useState(false);
-  const [controlsVisible, setControlsVisible] = useState(false);
   const [bunnyProcessingRetries, setBunnyProcessingRetries] = useState(0);
   const lastTap = useRef(0);
+  const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bunnyFrameRef = useRef<HTMLIFrameElement | null>(null);
   const longPressed = useRef(false);
   const holdReleaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = useReducedMotion();
@@ -50,13 +53,42 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   const sourceAspectRatio = sourceWidth > 0 && sourceHeight > 0
     ? sourceWidth / sourceHeight
     : 9 / 16;
-  const isReelAspectRatio = sourceAspectRatio >= 0.46 && sourceAspectRatio <= 0.72;
-  const contentFit = isReelAspectRatio ? "cover" : "contain";
+  const contentFit = fillMode;
+  const bunnyFrameStyle = useMemo(() => {
+    const base = { border: 0, position: "absolute", maxWidth: "none", maxHeight: "none", pointerEvents: "none" } as any;
+    if (fillMode !== "cover" || !width || !height) {
+      return { ...base, inset: 0, width: "100%", height: "100%" };
+    }
+    const containerAspectRatio = width / height;
+    const frameWidth = containerAspectRatio > sourceAspectRatio
+      ? width
+      : height * sourceAspectRatio;
+    const frameHeight = containerAspectRatio > sourceAspectRatio
+      ? width / sourceAspectRatio
+      : height;
+    return {
+      ...base,
+      width: frameWidth,
+      height: frameHeight,
+      left: (width - frameWidth) / 2,
+      top: (height - frameHeight) / 2,
+    };
+  }, [fillMode, height, sourceAspectRatio, width]);
 
   const hasValidSource = typeof uri === "string" && VALID_URI.test(uri.trim());
   const isBunnyStream = hasValidSource && /\.b-cdn\.net\//i.test(uri);
   const bunnyVideoId = isBunnyStream ? uri.match(/\.b-cdn\.net\/([^/]+)\//i)?.[1] : undefined;
   const useBunnyWebPlayer = Platform.OS === "web" && Boolean(bunnyVideoId);
+  const controlBunnyPlayer = useCallback((method: "play" | "pause") => {
+    bunnyFrameRef.current?.contentWindow?.postMessage(JSON.stringify({
+      context: "player.js",
+      version: "0.0.11",
+      method,
+    // The iframe initially owns the parent page's origin until its Bunny URL
+    // finishes loading. Player.js specifies `*` for this outbound command;
+    // the message is still sent only to this iframe's contentWindow.
+    }), "*");
+  }, []);
 
   // Fixed bucket, deliberately NOT derived from the rendered width/DPR —
   // see CLIP_VIDEO_DELIVERY. Every viewer requesting the same transformation
@@ -127,6 +159,7 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     if (!hasValidSource) return;
     if (!active) {
       player.pause();
+      if (useBunnyWebPlayer) controlBunnyPlayer("pause");
       setManuallyPaused(false);
       return;
     }
@@ -134,9 +167,10 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     // user gesture. Let the web-only blocked-autoplay state below show the
     // play control; togglePlayback() performs play() from the user's tap.
     if (!manuallyPaused && Platform.OS !== "web") player.play();
-  }, [active, hasValidSource, manuallyPaused, player]);
+  }, [active, controlBunnyPlayer, hasValidSource, manuallyPaused, player, useBunnyWebPlayer]);
   useEffect(() => () => {
     if (holdReleaseTimer.current) clearTimeout(holdReleaseTimer.current);
+    if (singleTapTimer.current) clearTimeout(singleTapTimer.current);
     onHoldChange?.(false);
     // Stop playback immediately — the underlying player is released
     // asynchronously by useVideoPlayer's useReleasingSharedObject, but audio
@@ -166,7 +200,6 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     const timer = setTimeout(() => {
       if (player.playing) return;
       setAutoplayBlocked(true);
-      setControlsVisible(true);
       showPauseState(true);
     }, 300);
     return () => clearTimeout(timer);
@@ -174,26 +207,33 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
 
   useEffect(() => {
     if (active) return;
-    setControlsVisible(false);
+    if (singleTapTimer.current) {
+      clearTimeout(singleTapTimer.current);
+      singleTapTimer.current = null;
+    }
+    lastTap.current = 0;
     showPauseState(false);
   }, [active, showPauseState]);
 
   const togglePlayback = useCallback(() => {
     if (!active || !hasValidSource) return;
-    const nextPaused = player.playing;
+    const nextPaused = useBunnyWebPlayer ? !manuallyPaused : player.playing;
     setManuallyPaused(nextPaused);
     if (nextPaused) {
-      player.pause();
-      setControlsVisible(true);
+      if (useBunnyWebPlayer) controlBunnyPlayer("pause");
+      else player.pause();
     } else {
       setAutoplayBlocked(false);
-      player.volume = 1;
-      player.muted = muted;
-      player.play();
-      setControlsVisible(false);
+      if (useBunnyWebPlayer) {
+        controlBunnyPlayer("play");
+      } else {
+        player.volume = 1;
+        player.muted = muted;
+        player.play();
+      }
     }
     showPauseState(nextPaused);
-  }, [active, hasValidSource, muted, player, showPauseState]);
+  }, [active, controlBunnyPlayer, hasValidSource, manuallyPaused, muted, player, showPauseState, useBunnyWebPlayer]);
 
   const burstHeart = useCallback(() => {
     if (reduced) {
@@ -215,13 +255,21 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
     }
     const now = Date.now();
     if (now - lastTap.current < DOUBLE_TAP_MS) {
+      if (singleTapTimer.current) {
+        clearTimeout(singleTapTimer.current);
+        singleTapTimer.current = null;
+      }
       lastTap.current = 0;
       burstHeart();
       onDoubleTapLike();
-    } else {
-      lastTap.current = now;
+      return;
     }
-    togglePlayback();
+    lastTap.current = now;
+    singleTapTimer.current = setTimeout(() => {
+      singleTapTimer.current = null;
+      lastTap.current = 0;
+      togglePlayback();
+    }, DOUBLE_TAP_MS);
   }, [burstHeart, onDoubleTapLike, togglePlayback]);
 
   const playStyle = useAnimatedStyle(() => ({
@@ -252,10 +300,10 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
   return <View style={StyleSheet.absoluteFill}>
     {posterUri ? <Image source={{ uri: posterUri }} style={styles.mediaFill} resizeMode={contentFit} /> : null}
     {!failed && !unavailable && (useBunnyWebPlayer ? React.createElement("iframe" as any, {
+      ref: bunnyFrameRef,
       src: `https://player.mediadelivery.net/embed/750524/${bunnyVideoId}?autoplay=${active}&loop=true&muted=${muted}&preload=true&responsive=true`,
       allow: "autoplay; encrypted-media; picture-in-picture; fullscreen",
-      allowFullScreen: true,
-      style: { border: 0, position: "absolute", inset: 0, width: "100%", height: "100%" },
+      style: bunnyFrameStyle,
     }) : <Animated.View pointerEvents="none" style={[styles.mediaFill, videoStyle]}>
       <VideoView
         player={player}
@@ -271,9 +319,9 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
         }}
       />
     </Animated.View>)}
-    {!useBunnyWebPlayer && <Pressable
+    <Pressable
       accessibilityRole="button"
-      accessibilityLabel={manuallyPaused || autoplayBlocked ? "Play Clip with sound" : "Pause Clip"}
+      accessibilityLabel={manuallyPaused || autoplayBlocked ? "Play Clip" : "Pause Clip"}
       onPress={handleTap}
       delayLongPress={260}
       onLongPress={() => {
@@ -290,20 +338,21 @@ export const PublicClipVideo = React.memo(function PublicClipVideo({
         }, 80);
       }}
       style={styles.mediaFill}
-    />}
+    />
     {bunnyStillProcessing && <View style={styles.center}><ActivityIndicator color="#FFF" /><Text style={styles.errorTitle}>Clip is processing…</Text><Text style={styles.processingText}>Playback will start automatically</Text></View>}
     {failed && <View style={styles.center}><Text style={styles.errorTitle}>This Clip couldn&apos;t play</Text><Pressable accessibilityRole="button" accessibilityLabel="Retry video" onPress={retry} style={styles.retry}><RefreshCw size={17} color="#FFF" /><Text style={styles.retryText}>Retry</Text></Pressable></View>}
     {unavailable && <View style={styles.center}><TriangleAlert size={28} color="#FFB0CD" /><Text style={styles.errorTitle}>This Clip is unavailable</Text></View>}
     {buffering && <View pointerEvents="none" style={styles.buffering}><ActivityIndicator size="small" color="#FFFFFF" /></View>}
-    <Animated.View pointerEvents="none" style={[styles.playBurst, playStyle]}><Play size={44} color="#FFF" fill="#FFF" /></Animated.View>
+    {!useBunnyWebPlayer ? <Animated.View pointerEvents="none" style={[styles.playBurst, playStyle]}><Play size={44} color="#FFF" fill="#FFF" /></Animated.View> : null}
     <Animated.View pointerEvents="none" style={[styles.heartBurst, heartStyle]}><Heart size={94} color="#FFF" fill="#E91E63" strokeWidth={1.5} /></Animated.View>
-    {showMuteControl && active && controlsVisible && !unavailable ? <Pressable
+    {showMuteControl && active && !unavailable ? <Pressable
       accessibilityRole="button"
       accessibilityLabel={muted ? "Turn Clip sound on" : "Mute Clip"}
+      accessibilityHint={muted ? "Plays Clips with sound" : "Plays Clips without sound"}
       onPress={onToggleMuted}
       style={styles.muteState}
     >
-      {muted ? <VolumeX size={17} color="#FFF" /> : <Volume2 size={17} color="#FFF" />}
+      {muted ? <VolumeX size={20} color="#FFF" /> : <Volume2 size={20} color="#FFF" />}
     </Pressable> : null}
   </View>;
 });
@@ -317,6 +366,6 @@ const styles = StyleSheet.create({
   retryText: { color: "#FFF", fontSize: 11, fontWeight: "800" },
   playBurst: { position: "absolute", alignSelf: "center", top: "43%", width: 82, height: 82, borderRadius: 41, alignItems: "center", justifyContent: "center", paddingLeft: 5, backgroundColor: "rgba(8,5,7,.58)", borderWidth: 1, borderColor: "rgba(255,255,255,.25)" },
   heartBurst: { position: "absolute", alignSelf: "center", top: "38%" },
-  muteState: { position: "absolute", alignSelf: "center", top: "55%", width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,5,7,.62)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.32)", zIndex: 6 },
+  muteState: { position: "absolute", top: 92, right: 14, width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,5,7,.62)", borderWidth: StyleSheet.hairlineWidth, borderColor: "rgba(255,255,255,.32)", zIndex: 6 },
   buffering: { position: "absolute", alignSelf: "center", top: "43%", width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(8,5,7,.4)" },
 });

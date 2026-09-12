@@ -24,6 +24,7 @@ export default function VendorGallery() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const wideWebLayout = Platform.OS === "web" && width >= 1180;
+  const compactUploadSheet = Platform.OS !== "web" && width < 600;
   const insets = useSafeAreaInsets();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
@@ -103,6 +104,10 @@ export default function VendorGallery() {
     task.status === "optimizing" || task.status === "signing" || task.status === "uploading" || task.status === "processing");
   const uploadsCompleted = pendingAssets.length > 0
     && pendingAssets.every((asset, index) => uploadProgress[`${asset.uri}-${index}`]?.status === "completed");
+  const completedUploadCount = pendingAssets.filter((asset, index) => uploadProgress[`${asset.uri}-${index}`]?.status === "completed").length;
+  const overallUploadProgress = pendingAssets.length
+    ? Math.round(Object.values(uploadProgress).reduce((sum, task) => sum + task.progress, 0) / pendingAssets.length * 100)
+    : 0;
   const planPhotoUsage = access?.photo_usage
     ?? data.media.filter((item) => item.resource_type === "image").length;
   const planPhotoLimit = access?.photo_limit;
@@ -207,7 +212,7 @@ export default function VendorGallery() {
       style: "destructive",
       onPress: () => Alert.alert(
         "Delete everything?",
-        `${albumMedia.length} Cloudinary asset${albumMedia.length === 1 ? "" : "s"} will be permanently removed.`,
+        `${albumMedia.length} media asset${albumMedia.length === 1 ? "" : "s"} will be permanently removed.`,
         [{ text: "Keep album", style: "cancel" }, { text: "Delete permanently", style: "destructive", onPress: () => deleteAlbumAndMedia(album) }],
       ),
     });
@@ -482,7 +487,7 @@ export default function VendorGallery() {
     };
     const showDeleteConfirmation = () => Alert.alert(
         "Delete media?",
-        "This removes the Cloudinary asset and cannot be undone.",
+        "This removes the stored media asset and cannot be undone.",
         [
           { text: "Cancel", style: "cancel", onPress: restoreAlbumPreview },
           { text: "Delete", style: "destructive", onPress: async () => {
@@ -715,7 +720,7 @@ export default function VendorGallery() {
         keyboardGap={24}
       >
       <View style={styles.modalBackdrop}><View accessibilityViewIsModal style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={styles.sheetHeader}><Text style={[styles.sectionTitle, { color: colors.text }]}>{editingAlbum ? "Edit album" : "New album"}</Text><Pressable onPress={() => setAlbumModal(false)}><X size={21} color={colors.text} /></Pressable></View>
+        <View style={styles.sheetHeader}><Text style={[styles.sectionTitle, { color: colors.text }]}>{editingAlbum ? "Edit album" : "New album"}</Text><Pressable accessibilityRole="button" accessibilityLabel="Close album editor" hitSlop={8} onPress={() => setAlbumModal(false)}><X size={21} color={colors.text} /></Pressable></View>
         <Text style={[styles.inputLabel, { color: colors.text }]}>Album title</Text>
         <TextInput ref={albumTitleRef} value={title} onChangeText={setTitle} onFocus={() => revealAlbumField(albumTitleRef)} maxLength={60} returnKeyType="next" blurOnSubmit={false} onSubmitEditing={() => albumDescriptionRef.current?.focus()} placeholder="e.g. Intimate weddings" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]} />
         <Text style={[styles.inputLabel, { color: colors.text }]}>Description</Text>
@@ -746,23 +751,27 @@ export default function VendorGallery() {
       </KeyboardAwareScrollView>
     </Modal>
 
-    <Modal visible={uploadModal} transparent animationType="fade" onRequestClose={() => !uploading && setUploadModal(false)}>
+    <Modal visible={uploadModal} transparent statusBarTranslucent animationType="fade" onRequestClose={() => !uploading && setUploadModal(false)}>
       <View style={styles.modalBackdrop}>
-        <View style={[styles.uploadSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.sheetHeader}>
+        <View style={[
+          styles.uploadSheet,
+          compactUploadSheet && styles.uploadSheetCompact,
+          { backgroundColor: colors.surface, borderColor: colors.border, paddingBottom: Math.max(insets.bottom, compactUploadSheet ? 16 : 20) },
+        ]}>
+          <View style={[styles.sheetHeader, compactUploadSheet && styles.uploadHeaderCompact]}>
             <View style={styles.flex}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Upload media</Text>
               <Text style={[styles.subtitle, { color: colors.muted }]}>To {uploadAlbumTitle || activeAlbum?.title} · {pendingAssets.length} selected</Text>
             </View>
-            <Pressable disabled={uploading} accessibilityLabel="Close upload" onPress={() => setUploadModal(false)}><X size={21} color={colors.text} /></Pressable>
+            <Pressable disabled={uploading} accessibilityRole="button" accessibilityLabel="Close upload" hitSlop={8} onPress={() => setUploadModal(false)}><X size={21} color={colors.text} /></Pressable>
           </View>
-          <ScrollView style={styles.uploadList} contentContainerStyle={{ gap: 10 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={[styles.uploadList, compactUploadSheet && styles.uploadListCompact]} contentContainerStyle={{ gap: compactUploadSheet ? 8 : 10 }} showsVerticalScrollIndicator={false}>
             {pendingAssets.map((asset, index) => {
               const task = uploadProgress[`${asset.uri}-${index}`];
               const completed = task?.status === "completed";
               const failed = task?.status === "failed";
-              return <View key={`${asset.uri}-${index}`} style={[styles.uploadAsset, { backgroundColor: colors.background, borderColor: failed ? colors.warning : colors.border }]}>
-                <View style={styles.uploadThumb}>
+              return <View key={`${asset.uri}-${index}`} style={[styles.uploadAsset, compactUploadSheet && styles.uploadAssetCompact, { backgroundColor: colors.background, borderColor: failed ? colors.warning : colors.border }]}>
+                <View style={[styles.uploadThumb, compactUploadSheet && styles.uploadThumbCompact]}>
                   <Image source={{ uri: asset.uri }} resizeMode="contain" style={StyleSheet.absoluteFillObject} />
                   {asset.type === "video" && <View style={styles.miniPlay}><Play size={12} color="#FFF" fill="#FFF" /></View>}
                 </View>
@@ -786,17 +795,20 @@ export default function VendorGallery() {
               </View>;
             })}
           </ScrollView>
-          <View style={[styles.uploadFooter, { borderTopColor: colors.border }]}>
+          {!uploadsCompleted ? (
+            <Text style={[styles.uploadLimitHint, { color: colors.muted }]}>Images are optimized automatically · Videos up to 25 MB and 4 minutes</Text>
+          ) : null}
+          <View style={[styles.uploadFooter, compactUploadSheet && styles.uploadFooterCompact, { borderTopColor: colors.border }]}>
             <View style={styles.flex}>
-              <Text style={[styles.modalHint, { color: colors.muted, margin: 0 }]}>Large images are optimized automatically. Videos keep the existing 25 MB final limit and 4-minute duration limit.</Text>
-              {pendingAssets.length > 0 && <Text style={[styles.overallProgress, { color: colors.pink }]}>Overall {Math.round(Object.values(uploadProgress).reduce((sum, task) => sum + task.progress, 0) / pendingAssets.length * 100)}%</Text>}
+              {pendingAssets.length > 0 ? <Text style={[styles.overallProgress, { color: colors.pink }]}>Overall {overallUploadProgress}%</Text> : null}
+              {uploadsCompleted ? <Text numberOfLines={1} style={[styles.uploadCompleteLabel, { color: colors.muted }]}>{completedUploadCount} media {completedUploadCount === 1 ? "item" : "items"} stored successfully</Text> : null}
             </View>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={uploadsCompleted ? "Done uploading" : "Upload selected media"}
               disabled={!uploadsCompleted && (uploading || !pendingAssets.length)}
               onPress={uploadsCompleted ? finishUpload : upload}
-              style={[styles.save, styles.uploadStart, { backgroundColor: colors.pink }, uploading && { opacity: .65 }]}
+              style={[styles.save, styles.uploadStart, compactUploadSheet && styles.uploadStartCompact, { backgroundColor: colors.pink }, uploading && { opacity: .65 }]}
             >
               {uploading
                 ? <ActivityIndicator color="#FFF" />
@@ -877,7 +889,7 @@ export default function VendorGallery() {
 
     <Modal visible={Boolean(preview)} transparent animationType="fade" onRequestClose={() => { setPreviewDeleteCandidate(null); setPreview(null); }}>
       <View style={[styles.previewBackdrop, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <Pressable onPress={() => { setPreviewDeleteCandidate(null); setPreview(null); }} style={[styles.previewClose, { top: insets.top + 12 }]}><X size={24} color="#FFF" /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close media preview" onPress={() => { setPreviewDeleteCandidate(null); setPreview(null); }} style={[styles.previewClose, { top: insets.top + 12 }]}><X size={24} color="#FFF" /></Pressable>
         {previewIndex > 0 && <Pressable accessibilityLabel="Previous media" onPress={() => setPreview(previewMedia[previewIndex - 1])} style={[styles.previewNav, styles.previewNavLeft]}><ChevronLeft size={26} color="#FFF" /></Pressable>}
         {previewIndex >= 0 && previewIndex < previewMedia.length - 1 && <Pressable accessibilityLabel="Next media" onPress={() => setPreview(previewMedia[previewIndex + 1])} style={[styles.previewNav, styles.previewNavRight]}><ChevronRight size={26} color="#FFF" /></Pressable>}
         {preview?.resource_type === "video"
@@ -910,7 +922,7 @@ export default function VendorGallery() {
           <View style={styles.previewConfirmCard}>
             <View style={styles.previewConfirmIcon}><Trash2 size={22} color="#FFF" /></View>
             <Text style={styles.previewConfirmTitle}>Delete this media?</Text>
-            <Text style={styles.previewConfirmBody}>This permanently removes the image from this album and Cloudinary. This cannot be undone.</Text>
+            <Text style={styles.previewConfirmBody}>This permanently removes the image from this album and media storage. This cannot be undone.</Text>
             <View style={styles.previewConfirmActions}>
               <Pressable disabled={Boolean(deletingMediaId)} onPress={() => setPreviewDeleteCandidate(null)} style={[styles.previewConfirmButton, styles.previewConfirmCancel]}><Text style={styles.previewConfirmCancelText}>Cancel</Text></Pressable>
               <Pressable disabled={Boolean(deletingMediaId)} onPress={() => void deleteMediaNow(previewDeleteCandidate)} style={[styles.previewConfirmButton, styles.previewConfirmDelete]}>{deletingMediaId ? <ActivityIndicator color="#FFF" /> : <><Trash2 size={17} color="#FFF" /><Text style={styles.previewConfirmDeleteText}>Delete</Text></>}</Pressable>
@@ -924,7 +936,7 @@ export default function VendorGallery() {
       <View style={styles.modalBackdrop}><View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.sheetHeader}>
           <View style={styles.flex}><Text style={[styles.sectionTitle, { color: colors.text }]}>Set focal point</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Tap the most important subject. Hero and card crops will keep this area in view.</Text></View>
-          <Pressable onPress={() => setFocalMedia(null)}><X size={21} color={colors.text} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Close focal point editor" hitSlop={8} onPress={() => setFocalMedia(null)}><X size={21} color={colors.text} /></Pressable>
         </View>
         {focalMedia ? <Pressable
           accessibilityLabel="Choose image focal point"
@@ -949,7 +961,7 @@ export default function VendorGallery() {
             top: `${Number(focalMedia.focal_point_y ?? .5) * 100}%`,
           }]}><Crosshair size={24} color="#FFF" /></View>
         </Pressable> : null}
-        <Pressable onPress={() => setFocalMedia(null)} style={[styles.save, { backgroundColor: colors.pink }]}><Text style={styles.primaryText}>Done</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Finish editing focal point" onPress={() => setFocalMedia(null)} style={[styles.save, { backgroundColor: colors.pink }]}><Text style={styles.primaryText}>Done</Text></Pressable>
       </View></View>
     </Modal>
 
@@ -957,7 +969,7 @@ export default function VendorGallery() {
       <View style={styles.modalBackdrop}><View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.sheetHeader}>
           <View style={styles.flex}><Text style={[styles.sectionTitle, { color: colors.text }]}>Choose destination</Text><Text style={[styles.subtitle, { color: colors.muted }]}>{moveAlbumSource ? `Move every item from ${moveAlbumSource.title}` : "Move this item to another album"}</Text></View>
-          <Pressable onPress={() => { setMoveMediaItem(null); setMoveAlbumSource(null); }}><X size={21} color={colors.text} /></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Close destination picker" hitSlop={8} onPress={() => { setMoveMediaItem(null); setMoveAlbumSource(null); }}><X size={21} color={colors.text} /></Pressable>
         </View>
         <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: 9 }}>
           {data.albums.filter((album) => album.id !== (moveAlbumSource?.id || moveMediaItem?.album_id)).map((album) => {

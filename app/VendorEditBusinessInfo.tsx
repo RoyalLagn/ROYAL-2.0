@@ -104,7 +104,7 @@ export default function VendorEditBusinessInfo() {
   return (
     <View style={[kitStyles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <KeyboardAwareScrollView contentContainerStyle={kitStyles.content}>
+      <KeyboardAwareScrollView avoidKeyboardOnAndroid contentContainerStyle={kitStyles.content}>
         <View style={kitStyles.heading}>
           <View style={kitStyles.headingRow}>
             <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · BUSINESS INFORMATION</Text>

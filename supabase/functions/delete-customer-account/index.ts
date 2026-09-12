@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
+import { bunnyStorageConfig, presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -50,12 +51,27 @@ async function sha1(value: string) {
 
 async function deleteProfileImage(profileImage: string | null, userId: string) {
   if (!profileImage) return;
+  try {
+    const parsed = new URL(profileImage);
+    const bunny = bunnyStorageConfig();
+    if (parsed.hostname === bunny.cdnHostname) {
+      const objectKey = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
+      if (!objectKey.startsWith(`royallagn/profiles/${userId}/`) || objectKey.includes("..")) return;
+      const signed = await presignBunnyObject("DELETE", objectKey, 60);
+      const deletion = await fetch(signed.uploadUrl, { method: "DELETE" });
+      if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny profile image deletion failed");
+      return;
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Bunny profile")) throw error;
+  }
   const publicId = customerProfilePublicId(profileImage, userId);
   if (!publicId) return;
   const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME");
   const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
   const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
-  if (!cloudName || !apiKey || !apiSecret) throw new Error("Profile image deletion is not configured.");
+  // Legacy cleanup is best-effort after the project fully leaves Cloudinary.
+  if (!cloudName || !apiKey || !apiSecret) return;
   const timestamp = Math.floor(Date.now() / 1000);
   const canonical = `invalidate=true&public_id=${publicId}&timestamp=${timestamp}`;
   const body = new URLSearchParams({
@@ -66,6 +82,20 @@ async function deleteProfileImage(profileImage: string | null, userId: string) {
   const result = await response.json().catch(() => ({}));
   if (!response.ok || !["ok", "not found"].includes(String(result.result))) {
     throw new Error("The customer profile image could not be deleted.");
+  }
+}
+
+async function deleteReviewImages(urls: string[], userId: string) {
+  const bunny = bunnyStorageConfig();
+  for (const value of urls) {
+    let parsed: URL;
+    try { parsed = new URL(value); } catch { continue; }
+    if (parsed.hostname !== bunny.cdnHostname) continue;
+    const objectKey = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
+    if (!objectKey.startsWith(`royallagn/reviews/${userId}/`) || objectKey.includes("..")) continue;
+    const signed = await presignBunnyObject("DELETE", objectKey, 60);
+    const deletion = await fetch(signed.uploadUrl, { method: "DELETE" });
+    if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny review image deletion failed");
   }
 }
 
@@ -95,7 +125,10 @@ Deno.serve(async (request) => {
     const { data: vendor } = await service.from("vendors").select("id").eq("profile_id", user.id).maybeSingle();
     if (vendor) return json({ error: "Vendor accounts require an administrator-reviewed deletion request." }, 403);
 
+    const { data: reviews, error: reviewsError } = await service.from("reviews").select("image_urls").eq("profile_id", user.id);
+    if (reviewsError) throw reviewsError;
     await deleteProfileImage(profile.profile_image, user.id);
+    await deleteReviewImages((reviews ?? []).flatMap((row) => row.image_urls ?? []), user.id);
     const userClient = createClient(url, anonKey, { global: { headers: { Authorization: `Bearer ${token}` } } });
     const { error: prepareError } = await userClient.rpc("prepare_customer_account_deletion");
     if (prepareError) throw prepareError;

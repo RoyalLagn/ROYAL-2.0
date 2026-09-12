@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Globe2, Mail } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -18,6 +18,8 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // a customer can reach or find this business. Business identity, about,
 // location, brand and tags are all managed elsewhere.
 export default function VendorEditContact() {
+  const { width } = useWindowDimensions();
+  const useTwoColumns = width >= 700;
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { data, loading, error, refresh } = useVendorWorkspace();
@@ -98,7 +100,7 @@ export default function VendorEditContact() {
   return (
     <View style={[kitStyles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <KeyboardAwareScrollView contentContainerStyle={kitStyles.content}>
+      <KeyboardAwareScrollView avoidKeyboardOnAndroid contentContainerStyle={kitStyles.content}>
         <View style={kitStyles.heading}>
           <View style={kitStyles.headingRow}>
             <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · CONTACT INFORMATION</Text>
@@ -114,10 +116,10 @@ export default function VendorEditContact() {
           <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <SectionTitle icon={Mail} title="Customer contact" detail="Add at least one reliable way for customers to reach your business." colors={colors} />
             <View style={kitStyles.grid}>
-              <View style={{ width: "48.8%" }}>
+              <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
                 <Field label="Contact phone / WhatsApp" value={contactPhone} onChangeText={(value) => { clearFeedback(); setContactPhone(sanitizePhoneInput(value)); }} placeholder="10-digit mobile number" colors={colors} keyboardType="phone-pad" maxLength={20} />
               </View>
-              <View style={{ width: "48.8%" }}>
+              <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
                 <Field label="Contact email" value={contactEmail} onChangeText={(value) => { clearFeedback(); setContactEmail(value); }} placeholder="hello@business.com" colors={colors} keyboardType="email-address" autoCapitalize="none" />
               </View>
             </View>
@@ -126,13 +128,13 @@ export default function VendorEditContact() {
           <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <SectionTitle icon={Globe2} title="Online presence" detail="Optional links displayed together on your public profile." colors={colors} />
             <View style={kitStyles.grid}>
-              <View style={{ width: "48.8%" }}>
+              <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
                 <Field label="Website" value={website} onChangeText={(value) => { clearFeedback(); setWebsite(value); }} placeholder="yourbusiness.com" colors={colors} keyboardType="url" autoCapitalize="none" />
               </View>
-              <View style={{ width: "48.8%" }}>
+              <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
                 <Field label="Instagram" value={instagram} onChangeText={(value) => { clearFeedback(); setInstagram(value); }} placeholder="instagram.com/yourbusiness" colors={colors} keyboardType="url" autoCapitalize="none" />
               </View>
-              <View style={{ width: "48.8%" }}>
+              <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
                 <Field label="Facebook" value={facebook} onChangeText={(value) => { clearFeedback(); setFacebook(value); }} placeholder="facebook.com/yourbusiness" colors={colors} keyboardType="url" autoCapitalize="none" />
               </View>
             </View>
@@ -151,3 +153,8 @@ export default function VendorEditContact() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  contactField: { width: "100%" },
+  contactFieldWide: { width: "48.8%" },
+});

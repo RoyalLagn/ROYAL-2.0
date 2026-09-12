@@ -31,7 +31,7 @@ import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminLoadingState } from "@/components/admin/ui/AdminState";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
-import { pickImage, uploadImage as uploadToCloudinary } from "@/services/cloudinary";
+import { deleteAdminManagedImage, pickImage, uploadImage as uploadToMedia } from "@/services/cloudinary";
 import { CategoryService, type CategoryRecord } from "@/services/CategoryService";
 import { HeroSlideService } from "@/services/heroSlides";
 import { HERO_IMAGE_ASPECT, HERO_SLIDES_MAX, type HeroSlide } from "@/types/hero";
@@ -259,8 +259,9 @@ export default function AdminHero() {
       }
 
       setCategoryImageSavingId(category.id);
-      const url = await uploadToCloudinary(asset);
+      const url = await uploadToMedia(asset);
       await CategoryService.updateHomeImage(category.id, url);
+      if (category.homeImageUrl && category.homeImageUrl !== url) await deleteAdminManagedImage(category.homeImageUrl);
       await loadCategories(true);
     } catch (reason) {
       setError(errorMessage(reason));
@@ -274,6 +275,7 @@ export default function AdminHero() {
     setError(null);
     try {
       await CategoryService.updateHomeImage(category.id, null);
+      if (category.homeImageUrl) await deleteAdminManagedImage(category.homeImageUrl);
       await loadCategories(true);
     } catch (reason) {
       setError(errorMessage(reason));
@@ -318,7 +320,7 @@ export default function AdminHero() {
   const uploadImage = async () => {
     setError(null);
     try {
-      // Pick first — do not show a spinner until Cloudinary upload starts.
+      // Pick first — do not show a spinner until the managed-media upload starts.
       // (Previously the spinner started before the file picker, and web crop
       // mode often never resolved, leaving "Uploading…" stuck forever.)
       const asset = await pickImage({
@@ -329,7 +331,7 @@ export default function AdminHero() {
       if (!asset) return;
 
       setUploading(true);
-      const url = await uploadToCloudinary(asset);
+      const url = await uploadToMedia(asset);
       if (url) setDraft((current) => ({ ...current, imageUrl: url }));
     } catch (reason) {
       setError(errorMessage(reason));
@@ -369,6 +371,8 @@ export default function AdminHero() {
         await HeroSlideService.create(payload);
       } else if (editing) {
         await HeroSlideService.update(editing.id, payload);
+        if (editing.image_url !== payload.imageUrl) await deleteAdminManagedImage(editing.image_url);
+        if (editing.desktop_image_url) await deleteAdminManagedImage(editing.desktop_image_url);
       }
       setEditing(null);
       await loadSlides(false, true);
@@ -415,6 +419,8 @@ export default function AdminHero() {
     setError(null);
     try {
       await HeroSlideService.remove(confirmDelete.id);
+      await deleteAdminManagedImage(confirmDelete.image_url);
+      if (confirmDelete.desktop_image_url) await deleteAdminManagedImage(confirmDelete.desktop_image_url);
       setConfirmDelete(null);
       await loadSlides(false, true);
     } catch (reason) {

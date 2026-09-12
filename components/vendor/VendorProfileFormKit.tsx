@@ -58,6 +58,7 @@ export function Field({
   helper,
   error,
   editable = true,
+  advanceOnSubmit = false,
 }: {
   label: string;
   required?: boolean;
@@ -74,6 +75,8 @@ export function Field({
    *  appended) so showing/clearing it never shifts the layout below. */
   error?: string | null;
   editable?: boolean;
+  /** Use the keyboard action to advance even when this field is multiline. */
+  advanceOnSubmit?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const keyboardAwareForm = useKeyboardAwareForm();
@@ -100,6 +103,7 @@ export function Field({
 
   const messageText = error || helper;
   const isError = Boolean(error);
+  const shouldAdvanceOnSubmit = !multiline || advanceOnSubmit;
 
   return (
     <View style={kitStyles.field}>
@@ -116,10 +120,10 @@ export function Field({
           keyboardAwareForm?.revealInput(inputRef.current);
         }}
         onBlur={() => setFocused(false)}
-        returnKeyType={multiline ? undefined : "next"}
-        blurOnSubmit={!multiline}
+        returnKeyType={shouldAdvanceOnSubmit ? "next" : undefined}
+        submitBehavior={shouldAdvanceOnSubmit ? "submit" : "newline"}
         onSubmitEditing={() => {
-          if (!multiline && inputRef.current) keyboardAwareForm?.focusNextInput(inputRef.current);
+          if (shouldAdvanceOnSubmit && inputRef.current) keyboardAwareForm?.focusNextInput(inputRef.current);
         }}
         placeholder={placeholder}
         placeholderTextColor={colors.muted}

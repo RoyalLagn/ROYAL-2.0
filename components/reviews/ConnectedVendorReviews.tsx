@@ -196,17 +196,19 @@ export default function ConnectedVendorReviews({
     setSubmitting(true);
     setFormError(null);
     try {
-      const saved = await saveReview(vendorKey, {
+      await saveReview(vendorKey, {
         rating: draft.rating as StarRating,
         title: draft.title,
         text: draft.text,
         imageUrls: reviewPhotos,
       });
       const removed = originalPhotos.current.filter((url) => !reviewPhotos.includes(url));
-      await Promise.allSettled(
+      await Promise.all(
         removed.map((url) => {
           const publicId = reviewPhotoPublicId(url);
-          return publicId ? deleteReviewPhoto(publicId, saved.id) : Promise.resolve();
+          // The saved review no longer references removed photos. Ownership is
+          // still enforced by the user's Bunny folder prefix server-side.
+          return publicId ? deleteReviewPhoto(publicId) : Promise.resolve();
         })
       );
       setShowForm(false);
@@ -238,7 +240,7 @@ export default function ConnectedVendorReviews({
         onPress: async () => {
           try {
             const photos = (review.photos ?? []).filter((item): item is string => typeof item === "string");
-            await Promise.allSettled(photos.map((url) => {
+            await Promise.all(photos.map((url) => {
               const publicId = reviewPhotoPublicId(url);
               return publicId ? deleteReviewPhoto(publicId, review.id) : Promise.resolve();
             }));

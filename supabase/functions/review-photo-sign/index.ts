@@ -51,11 +51,10 @@ Deno.serve(async (request) => {
       throw new Error("Review photo optimization did not produce a valid upload file");
     }
 
-    if (Deno.env.get("BUNNY_STORAGE_SECRET_ACCESS_KEY")) {
-      const objectKey = `royallagn/reviews/${user.id}/${crypto.randomUUID()}.${extensionForMime(mimeType)}`;
-      return Response.json(await presignBunnyObject("PUT", objectKey), { headers: cors });
-    }
+    const objectKey = `royallagn/reviews/${user.id}/${crypto.randomUUID()}.${extensionForMime(mimeType)}`;
+    return Response.json(await presignBunnyObject("PUT", objectKey), { headers: cors });
 
+    /* Cloudinary signing below is retained temporarily as migration reference.
     const timestamp = Math.floor(Date.now() / 1000);
     const folder = `royallagn/reviews/${user.id}`;
     const params = {
@@ -84,6 +83,7 @@ Deno.serve(async (request) => {
       },
       { headers: cors },
     );
+    */
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to sign upload" },

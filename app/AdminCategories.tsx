@@ -9,7 +9,7 @@ import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import { useCategories } from "@/context/CategoryContext";
 import { CategoryService, slugify, type CategoryRecord, type CategoryUsage } from "@/services/CategoryService";
-import { CloudinaryError, pickAndUploadImage } from "@/services/cloudinary";
+import { CloudinaryError, deleteAdminManagedImage, pickAndUploadImage } from "@/services/cloudinary";
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -133,6 +133,11 @@ export default function AdminCategories() {
     setDeleteError(null);
     try {
       await CategoryService.remove(deleteTarget.id);
+      await Promise.all([
+        deleteAdminManagedImage(deleteTarget.iconUrl ?? ""),
+        deleteAdminManagedImage(deleteTarget.fallbackImageUrl ?? ""),
+        deleteAdminManagedImage(deleteTarget.homeImageUrl ?? ""),
+      ]);
       const name = deleteTarget.name;
       setDeleteTarget(null);
       setDeleteUsage(null);

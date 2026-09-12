@@ -64,8 +64,6 @@ Deno.serve(async (request) => {
     const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
     const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME");
     const uploadPreset = Deno.env.get("CLOUDINARY_UPLOAD_PRESET");
-    if (!cloudName) throw new Error("Cloudinary cloud name is missing");
-
     if (body.action === "delete") {
       const currentUrl = typeof body.url === "string" ? new URL(body.url) : null;
       const bunny = bunnyStorageConfig();
@@ -77,7 +75,7 @@ Deno.serve(async (request) => {
         if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny profile image deletion failed");
         return Response.json({ ok: true, managed: true, provider: "bunny" }, { headers: cors });
       }
-      if (!apiSecret || !apiKey) {
+      if (!apiSecret || !apiKey || !cloudName) {
         throw new Error("Cloudinary API credentials are required to delete previous images");
       }
       const publicId = typeof body.url === "string" ? publicIdFromUrl(body.url) : null;
@@ -113,11 +111,10 @@ Deno.serve(async (request) => {
       throw new Error("Profile image optimization did not produce a valid upload file");
     }
 
-    if (Deno.env.get("BUNNY_STORAGE_SECRET_ACCESS_KEY")) {
-      const objectKey = `${prefix}${crypto.randomUUID()}.${extensionForMime(mimeType)}`;
-      return Response.json(await presignBunnyObject("PUT", objectKey), { headers: cors });
-    }
+    const objectKey = `${prefix}${crypto.randomUUID()}.${extensionForMime(mimeType)}`;
+    return Response.json(await presignBunnyObject("PUT", objectKey), { headers: cors });
 
+    /* Cloudinary signing below is retained temporarily as migration reference.
     const timestamp = Math.floor(Date.now() / 1000);
     const folder = prefix.slice(0, -1);
     const publicId = crypto.randomUUID();
@@ -149,6 +146,7 @@ Deno.serve(async (request) => {
       cloudName,
       signature: await sha1(`${canonical}${apiSecret}`),
     }, { headers: cors });
+    */
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Unable to manage profile image" },

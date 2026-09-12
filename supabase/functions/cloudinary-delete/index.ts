@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -29,17 +30,17 @@ Deno.serve(async (request) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Authentication required");
     const { mediaId, vendorId, publicId, resourceType } = await request.json();
-    let media: { id?: string; public_id: string; resource_type: "image" | "video"; vendor_id: string } | null = null;
+    let media: { id?: string; public_id: string; secure_url?: string; resource_type: "image" | "video"; vendor_id: string } | null = null;
     if (mediaId) {
       const { data, error: mediaLookupError } = await admin.from("vendor_portfolio_media")
-        .select("id,public_id,resource_type,vendor_id")
+        .select("id,public_id,secure_url,resource_type,vendor_id")
         .eq("id", mediaId).maybeSingle();
       if (mediaLookupError) throw mediaLookupError;
       media = data as typeof media;
     }
     if (!media && vendorId && publicId) {
       const { data, error: fallbackLookupError } = await admin.from("vendor_portfolio_media")
-        .select("id,public_id,resource_type,vendor_id")
+        .select("id,public_id,secure_url,resource_type,vendor_id")
         .eq("vendor_id", vendorId).eq("public_id", publicId).maybeSingle();
       if (fallbackLookupError) throw fallbackLookupError;
       media = data as typeof media;
@@ -68,6 +69,38 @@ Deno.serve(async (request) => {
       requested_feature_key: "upload_gallery",
     });
     if (accessError) throw accessError;
+
+    const mediaUrl = media.secure_url ? new URL(media.secure_url) : null;
+    const isBunnyUrl = mediaUrl?.hostname.endsWith(".b-cdn.net") === true;
+    const bunnyObjectKey = media.public_id.includes(".")
+      ? media.public_id
+      : isBunnyUrl ? decodeURIComponent(mediaUrl!.pathname.replace(/^\//, "")) : null;
+    if (isBunnyUrl && bunnyObjectKey?.endsWith("playlist.m3u8")) {
+      const videoId = bunnyObjectKey.split("/")[0];
+      const libraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
+      const apiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
+      if (!videoId || !libraryId || !apiKey) throw new Error("Bunny Stream deletion is not configured");
+      const deletion = await fetch(
+        `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(videoId)}`,
+        { method: "DELETE", headers: { AccessKey: apiKey } },
+      );
+      if (!deletion.ok && deletion.status !== 404) throw new Error(`Bunny Stream deletion failed (${deletion.status})`);
+      if (media.id) {
+        const { error: deleteError } = await admin.from("vendor_portfolio_media").delete().eq("id", media.id);
+        if (deleteError) throw deleteError;
+      }
+      return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
+    }
+    if (bunnyObjectKey && !bunnyObjectKey.includes("..") && !bunnyObjectKey.endsWith("playlist.m3u8")) {
+      const signedDelete = await presignBunnyObject("DELETE", bunnyObjectKey, 60);
+      const deletion = await fetch(signedDelete.uploadUrl, { method: "DELETE" });
+      if (!deletion.ok && deletion.status !== 404) throw new Error(`Bunny portfolio deletion failed (${deletion.status})`);
+      if (media.id) {
+        const { error: deleteError } = await admin.from("vendor_portfolio_media").delete().eq("id", media.id);
+        if (deleteError) throw deleteError;
+      }
+      return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
+    }
 
     const timestamp = Math.floor(Date.now() / 1000);
     const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET")!;

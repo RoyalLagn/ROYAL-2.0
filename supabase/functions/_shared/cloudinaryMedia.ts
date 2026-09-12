@@ -4,6 +4,7 @@
 // reuses the exact same, already-tested deletion/fallback/verification
 // behavior instead of a second copy of this logic. No behavior changed here;
 // this is a relocation, not a rewrite.
+import { presignBunnyObject } from "./bunnyS3.ts";
 
 const OPERATION_TIMEOUT_MS = 30_000;
 
@@ -139,8 +140,30 @@ export async function deleteClipCloudinaryAssets(
   publicId: string,
   log: { requestId: string; clipId?: string | null; vendorId?: string | null },
 ) {
-  const { cloudName, apiKey, apiSecret } = requireCloudinaryEnv();
   const { requestId, clipId = null, vendorId = null } = log;
+  if (publicId.startsWith("bunny:")) {
+    const [, videoId, storedClipId] = publicId.split(":");
+    const libraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
+    const apiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
+    if (!libraryId || !apiKey || !videoId) throw new Error("Bunny Stream deletion is not configured");
+    const videoDelete = await fetchWithTimeout(
+      `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(videoId)}`,
+      { method: "DELETE", headers: { AccessKey: apiKey } },
+    );
+    if (!videoDelete.ok && videoDelete.status !== 404) throw new Error(`Bunny Stream deletion failed (${videoDelete.status})`);
+    const targetClipId = clipId || storedClipId;
+    if (vendorId && targetClipId) {
+      for (const extension of ["jpg", "png"]) {
+        const signed = await presignBunnyObject("DELETE", `clips/${vendorId}/${targetClipId}/thumbnail.${extension}`, 60);
+        const thumbnailDelete = await fetchWithTimeout(signed.uploadUrl, { method: "DELETE" });
+        if (!thumbnailDelete.ok && thumbnailDelete.status !== 404) {
+          throw new Error(`Bunny thumbnail deletion failed (${thumbnailDelete.status})`);
+        }
+      }
+    }
+    return;
+  }
+  const { cloudName, apiKey, apiSecret } = requireCloudinaryEnv();
   const deliveryType = "upload";
 
   for (const [assetPublicId, resourceType] of [

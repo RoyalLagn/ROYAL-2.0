@@ -40,6 +40,7 @@ export default function ResultsSummary({ count, category, sortLabel, dark, onSor
           pressed && styles.pressed,
         ]}
       >
+        <Text numberOfLines={1} style={[styles.sortPrefix, { color: colors.mutedForeground }]}>Sort by:</Text>
         <Text numberOfLines={1} style={[styles.sortText, { color: colors.primaryStrong }]}>{sortLabel}</Text>
         <ChevronDown size={13} color={colors.primaryStrong} />
       </Pressable> : null}
@@ -50,7 +51,8 @@ export default function ResultsSummary({ count, category, sortLabel, dark, onSor
 const styles = StyleSheet.create({
   row: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   count: { flex: 1, minWidth: 0, ...typeStyles.cardTitle },
-  sort: { maxWidth: "42%", minHeight: 40, paddingHorizontal: 10, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 },
+  sort: { maxWidth: "48%", minHeight: 40, paddingHorizontal: 8, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 4 },
+  sortPrefix: { fontFamily: fonts.sans.regular, fontSize: typeScale.metadata },
   sortText: { flexShrink: 1, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
 });

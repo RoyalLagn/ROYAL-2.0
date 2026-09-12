@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { extensionForMime, presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -86,9 +87,20 @@ Deno.serve(async (request) => {
     const reserved = Array.isArray(reservation) ? reservation[0] : reservation;
     const reservationId: string | null = reserved?.reservation_id ?? null;
 
-    const timestamp = Math.floor(Date.now() / 1000);
     const folder = `royallagn/vendors/${vendorId}/albums/${albumId}`;
     const assetId = crypto.randomUUID();
+    const objectKey = `${folder}/${assetId}.${extensionForMime(String(mimeType))}`;
+    return Response.json({
+      ...await presignBunnyObject("PUT", objectKey),
+      resourceType: kind,
+      remainingCapacity: 15 - currentCount,
+      reservationId,
+    }, { headers: cors });
+
+    /* Legacy Cloudinary signing is intentionally retained below as dormant
+       rollback/reference code until the Bunny migration has been verified. */
+    /*
+    const timestamp = Math.floor(Date.now() / 1000);
     const eager = kind === "video"
       ? "c_limit,w_1280,h_720,q_auto:good,vc_h264,ac_aac,f_mp4|so_0,c_fit,w_960,h_720,q_auto,f_jpg"
       : "c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile|c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile|c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile|c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile";
@@ -138,6 +150,7 @@ Deno.serve(async (request) => {
       remainingCapacity: 15 - currentCount,
       reservationId,
     }, { headers: cors });
+    */
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Unable to sign upload" },
       { status: 400, headers: cors });
