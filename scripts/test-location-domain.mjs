@@ -4,6 +4,7 @@ import {
   formatLocationPreference,
   formatCanonicalVendorLocation,
   getVendorProximity,
+  rankTopRatedVendorsByLocation,
   rankVendorsByLocation,
   rankVendorsByLocationAndMembership,
   vendorNearbyLabel,
@@ -91,6 +92,23 @@ assert.deepEqual(
 assert.deepEqual(
   rankVendorsByLocationAndMembership(membershipVendors, null).map((vendor) => vendor.id),
   ["other-elite", "city-elite", "city-premium", "city-free", "area-free"],
+);
+
+const topRatedVendors = [
+  { id: "other-five", rating: 5, reviews: 100, membershipPlan: "Elite", serviceLocations: [{ cityId: "mumbai", areaId: null, pincode: null }] },
+  { id: "city-premium", rating: 4.9, reviews: 80, membershipPlan: "Premium", serviceLocations: [{ cityId: "pune", areaId: null, pincode: null }] },
+  { id: "pin-free", rating: 4.7, reviews: 20, membershipPlan: null, serviceLocations: [{ cityId: "pune", areaId: "baner", pincode: "411045" }] },
+  { id: "pin-elite", rating: 4.7, reviews: 5, membershipPlan: "Elite", serviceLocations: [{ cityId: "pune", areaId: "baner", pincode: "411045" }] },
+  { id: "pin-premium-reviews", rating: 4.7, reviews: 50, membershipPlan: "Premium", serviceLocations: [{ cityId: "pune", areaId: "baner", pincode: "411045" }] },
+];
+
+assert.deepEqual(
+  rankTopRatedVendorsByLocation(topRatedVendors, preference).map((vendor) => vendor.id),
+  ["pin-elite", "pin-premium-reviews", "pin-free", "city-premium", "other-five"],
+);
+assert.deepEqual(
+  rankTopRatedVendorsByLocation(topRatedVendors, null).map((vendor) => vendor.id),
+  ["other-five", "city-premium", "pin-elite", "pin-premium-reviews", "pin-free"],
 );
 
 console.log("Location selection and ranking tests passed.");

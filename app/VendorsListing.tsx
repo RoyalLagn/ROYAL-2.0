@@ -532,6 +532,11 @@ export default function VendorsListingScreen() {
       pending = [];
     };
     for (const row of listRows) {
+      // Tier separators are useful in the one-column list, but a full-width
+      // separator in a two/three-column grid breaks the card row and leaves
+      // an artificial empty slot. Grid order already preserves the same
+      // local-first, nearby-next ranking, so keep its cards continuous.
+      if (row.kind === "separator") continue;
       if (row.kind !== "vendor") {
         flush();
         rows.push(row);

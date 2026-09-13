@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { type Href, useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronRight, PanelsTopLeft, Rows3, Search as SearchIcon } from "lucide-react-native";
+import { ArrowUpDown, ChevronDown, ChevronRight, PanelsTopLeft, Rows3, Search as SearchIcon } from "lucide-react-native";
 import { StandaloneMobileTabBar, useMobileTabBarHeight } from "@/components/MobileTabBar";
 import { useColorScheme } from "nativewind";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
@@ -26,7 +26,11 @@ import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 import PageLoader from "@/components/loading/PageLoader";
 import { useCustomerLocation } from "@/context/LocationContext";
 import { buildVendorListingPath, buildVendorProfilePathBySlug } from "@/services/publicSeoRoutes";
-import { rankVendorsByLocationAndMembership } from "@/locations/domain";
+import {
+  rankTopRatedVendorsByLocation,
+  rankVendorsByLocationAndMembership,
+  vendorMembershipPriority,
+} from "@/locations/domain";
 import VendorListingCard from "@/components/listing/VendorListingCard";
 import { useFavorites } from "@/context/FavoritesContext";
 import { fetchLocationRankedVendors } from "@/services/vendorDiscovery";
@@ -94,7 +98,6 @@ export default function SearchScreen() {
     budget?: string;
     category?: string;
     nearby?: string;
-    availability?: string;
     sort?: string;
     featured?: string;
     pincode?: string;
@@ -116,6 +119,7 @@ export default function SearchScreen() {
   const [geoSelection, setGeoSelection] = useState<GeoSelection | null>(null);
   const [geoTalukaName, setGeoTalukaName] = useState("");
   const [geoResults, setGeoResults] = useState<PublicVendorListing[]>([]);
+  const [geoTierByVendor, setGeoTierByVendor] = useState<Record<string, number>>({});
   const [geoLoading, setGeoLoading] = useState(true);
   const [geoError, setGeoError] = useState("");
 
@@ -167,7 +171,6 @@ export default function SearchScreen() {
     minimumRating: Number(Array.isArray(params.rating) ? params.rating[0] : params.rating) || 0,
     maximumBudget: Number(Array.isArray(params.budget) ? params.budget[0] : params.budget) || 0,
     category: Array.isArray(params.category) ? params.category[0] : params.category ?? "",
-    availabilityOnly: (Array.isArray(params.availability) ? params.availability[0] : params.availability) === "true",
     nearbyOnly: (Array.isArray(params.nearby) ? params.nearby[0] : params.nearby) === "true",
     sort: (Array.isArray(params.sort) ? params.sort[0] : params.sort ?? "recommended") as HomeFilters["sort"],
   }));
@@ -202,6 +205,7 @@ export default function SearchScreen() {
   useEffect(() => {
     if (!geoSelection?.talukaId || !allCategoryNames.length) {
       setGeoResults([]);
+      setGeoTierByVendor({});
       return;
     }
     let active = true;
@@ -217,7 +221,13 @@ export default function SearchScreen() {
       sort: filters.sort === "recommended" ? "popular" : filters.sort,
       limit: 200,
     })
-      .then((page) => { if (active) setGeoResults(page.cards.map((card) => card.vendor)); })
+      .then((page) => {
+        if (!active) return;
+        setGeoResults(page.cards.map((card) => card.vendor));
+        setGeoTierByVendor(Object.fromEntries(
+          page.cards.map((card) => [card.vendor.id, card.tier]),
+        ));
+      })
       .catch(() => { if (active) setGeoError("Vendors for this location could not be loaded. Try another location."); })
       .finally(() => { if (active) setGeoLoading(false); });
     return () => { active = false; };
@@ -320,12 +330,15 @@ export default function SearchScreen() {
           vendor.startingPriceValue > 0
           && vendor.startingPriceValue <= filters.maximumBudget
         ))
-        && (!filters.availabilityOnly || vendor.isAvailable)
         && (!filters.nearbyOnly || typeof vendor.distanceKm === "number");
     });
 
     const baseSorted = [...filtered].sort((a, b) => {
-      if (featuredOnly && filters.sort === "rating") return b.rating - a.rating || b.reviews - a.reviews;
+      if (featuredOnly && filters.sort === "rating") {
+        return b.rating - a.rating
+          || vendorMembershipPriority(b.membershipPlan) - vendorMembershipPriority(a.membershipPlan)
+          || b.reviews - a.reviews;
+      }
       if (featuredOnly && filters.sort === "price") {
         return (a.startingPriceValue || Number.MAX_SAFE_INTEGER)
           - (b.startingPriceValue || Number.MAX_SAFE_INTEGER);
@@ -334,17 +347,30 @@ export default function SearchScreen() {
       if (filters.nearbyOnly) {
         return (a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceKm ?? Number.POSITIVE_INFINITY);
       }
-      if (filters.sort === "rating") return b.rating - a.rating || b.reviews - a.reviews;
+      if (filters.sort === "rating") {
+        const locationTierDifference = geoSelection
+          ? (geoTierByVendor[a.id] ?? Number.MAX_SAFE_INTEGER)
+            - (geoTierByVendor[b.id] ?? Number.MAX_SAFE_INTEGER)
+          : 0;
+        return locationTierDifference
+          || b.rating - a.rating
+          || vendorMembershipPriority(b.membershipPlan) - vendorMembershipPriority(a.membershipPlan)
+          || b.reviews - a.reviews;
+      }
       if (filters.sort === "price") {
         return (a.startingPriceValue || Number.MAX_SAFE_INTEGER)
           - (b.startingPriceValue || Number.MAX_SAFE_INTEGER);
       }
       return b.rating - a.rating || b.reviews - a.reviews;
     });
-    return !featuredOnly && filters.sort === "recommended" && !filters.nearbyOnly
-      ? rankVendorsByLocationAndMembership(baseSorted, preference)
-      : baseSorted;
-  }, [distanceByVendor, featuredOnly, featuredVendorIds, filters, geoResults, geoSelection, getRating, preference, query, vendors]);
+    if (!featuredOnly && filters.sort === "recommended" && !filters.nearbyOnly) {
+      return rankVendorsByLocationAndMembership(baseSorted, preference);
+    }
+    if (!featuredOnly && filters.sort === "rating" && !geoSelection) {
+      return rankTopRatedVendorsByLocation(baseSorted, preference);
+    }
+    return baseSorted;
+  }, [distanceByVendor, featuredOnly, featuredVendorIds, filters, geoResults, geoSelection, geoTierByVendor, getRating, preference, query, vendors]);
 
   const pageResults = useMemo(() => {
     if (!query.trim()) return { fixedPages: [], categoryPages: [] };
@@ -360,7 +386,7 @@ export default function SearchScreen() {
     return { fixedPages, categoryPages };
   }, [query, searchCategories]);
 
-  const activeFilterCount = [filters.minimumRating > 0, filters.maximumBudget > 0, Boolean(filters.category), filters.availabilityOnly, filters.nearbyOnly, filters.sort !== "recommended"].filter(Boolean).length;
+  const activeFilterCount = [filters.minimumRating > 0, filters.maximumBudget > 0, Boolean(filters.category), filters.nearbyOnly, filters.sort !== "recommended"].filter(Boolean).length;
   const locationLabel = geoTalukaName || customerLocation || "Choose location";
   const wideLayout = isPublicWideLayout(width, height) || width >= 900;
   const compact = !wideLayout && width < 700;
@@ -433,25 +459,46 @@ export default function SearchScreen() {
                   value={geoSelection}
                   displayLabel={locationLabel}
                   onChange={selectGeoLocation}
-                  onClear={clearGeoLocation}
                   onUseCurrentLocation={useCurrentLocation}
                   loading={geoLoading}
                   hideLabel
                   compact
+                  compactWidth={compact ? 116 : 190}
                 />
+                <View style={[styles.layoutSegment, { backgroundColor: isDark ? "#211E20" : "#FFFFFF", borderColor: isDark ? "#44333B" : "#F0D4DF" }]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Use ${gridColumns} by ${gridColumns} grid view`}
+                    accessibilityState={{ selected: listingLayout === "grid" }}
+                    onPress={() => setListingLayout("grid")}
+                    style={({ pressed }) => [styles.layoutSegmentButton, listingLayout === "grid" && styles.layoutSegmentButtonActive, pressed && styles.controlPressed]}
+                  >
+                    <PanelsTopLeft size={17} color={listingLayout === "grid" ? "#D91B5C" : isDark ? "#B7AAB0" : "#786D73"} strokeWidth={2} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Use list view"
+                    accessibilityState={{ selected: listingLayout === "strip" }}
+                    onPress={() => setListingLayout("strip")}
+                    style={({ pressed }) => [styles.layoutSegmentButton, listingLayout === "strip" && styles.layoutSegmentButtonActive, pressed && styles.controlPressed]}
+                  >
+                    <Rows3 size={17} color={listingLayout === "strip" ? "#D91B5C" : isDark ? "#B7AAB0" : "#786D73"} strokeWidth={2} />
+                  </Pressable>
+                </View>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={listingLayout === "strip" ? `Switch to ${gridColumns} by ${gridColumns} grid view` : "Switch to horizontal strip view"}
-                  onPress={() => setListingLayout((current) => current === "strip" ? "grid" : "strip")}
+                  accessibilityLabel={`Choose sorting, currently ${sortLabel}`}
+                  onPress={() => setFiltersVisible(true)}
                   style={({ pressed, hovered, focused }) => [
-                    styles.layoutToggle,
-                    compact && styles.layoutToggleCompact,
-                    { backgroundColor: isDark ? "#211E20" : "#FFFFFF", borderColor: isDark ? "#44333B" : "#F0D4DF" },
+                    styles.sortControl,
+                    { backgroundColor: isDark ? "#2A2025" : "#FFF4F8", borderColor: isDark ? "#44333B" : "#F0D4DF" },
                     (hovered || focused) && styles.controlInteractive,
                     pressed && styles.controlPressed,
                   ]}
                 >
-                  {listingLayout === "strip" ? <PanelsTopLeft size={18} color="#D91B5C" strokeWidth={2} /> : <Rows3 size={18} color="#D91B5C" strokeWidth={2} />}
+                  <ArrowUpDown size={15} color="#D91B5C" strokeWidth={2.2} />
+                  <Text numberOfLines={1} style={styles.sortControlText}>{sortLabel}</Text>
+                  <ChevronDown size={14} color="#D91B5C" strokeWidth={2.2} />
                 </Pressable>
               </View>
               {geoError ? <Text accessibilityRole="alert" style={styles.locationError}>{geoError}</Text> : null}
@@ -459,7 +506,7 @@ export default function SearchScreen() {
           </View>
         </View>
         <View style={[styles.results, { width: contentWidth }]}>
-          <ResultsSummary count={results.length} category="Vendors" sortLabel={sortLabel} dark={isDark} onSort={() => setFiltersVisible(true)} />
+          <ResultsSummary count={results.length} category="Vendors" sortLabel={sortLabel} dark={isDark} onSort={() => setFiltersVisible(true)} showSort={false} />
 
         {pageResults.fixedPages.length || pageResults.categoryPages.length ? (
           <View className="bg-card border border-border rounded-2xl p-2">
@@ -543,9 +590,12 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   filterStrip: { marginTop: discoveryLayout.controlsGap },
-  refinementControls: { flexDirection: "row", alignItems: "center", gap: 8 },
-  layoutToggle: { width: 40, height: 40, borderWidth: 1, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  layoutToggleCompact: { width: 48, height: 48, borderRadius: 14 },
+  refinementControls: { flexDirection: "row", alignItems: "center", gap: 7 },
+  layoutSegment: { height: 42, width: 74, padding: 2, borderWidth: 1, borderRadius: 13, flexDirection: "row", alignItems: "center" },
+  layoutSegmentButton: { flex: 1, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  layoutSegmentButtonActive: { backgroundColor: "#FFF0F6", borderWidth: 1, borderColor: "#E91E63" },
+  sortControl: { flex: 1, minWidth: 0, height: 42, borderWidth: 1, borderRadius: 21, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+  sortControlText: { flexShrink: 1, color: "#D91B5C", fontSize: 12, fontWeight: "700" },
   controlInteractive: { transform: [{ translateY: -1 }], borderColor: "#D91B5C" },
   controlPressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
   locationError: { color: "#DC2626", fontSize: 12, lineHeight: 16, marginTop: 5 },

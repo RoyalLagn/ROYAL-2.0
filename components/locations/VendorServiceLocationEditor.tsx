@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { KeyboardAwareTextInput } from "@/components/keyboard/KeyboardAwareScrollView";
-import { Check, CircleAlert, MapPin, Search, ShieldCheck } from "lucide-react-native";
+import { Check, ChevronDown, CircleAlert, MapPin, Search, ShieldCheck } from "lucide-react-native";
 import type { PincodeLocality } from "@/locations/types";
 import {
   lookupIndianPincode,
@@ -65,6 +65,7 @@ export function VendorServiceLocationEditor({
   const [lookupCompleted, setLookupCompleted] = useState(!requireLookup);
   const [lookupMessage, setLookupMessage] = useState("");
   const [localityOptions, setLocalityOptions] = useState<PincodeLocality[]>([]);
+  const [localityPickerOpen, setLocalityPickerOpen] = useState(false);
   // Distinct from lookupMessage: this is specifically the "can a new vendor
   // apply from here" outcome, kept separate so it always renders as a hard
   // block (not just an informational verification note) and is never
@@ -96,6 +97,7 @@ export function VendorServiceLocationEditor({
     setApplicationBlockedMessage("");
     setPinTaluka(null);
     setLocalityOptions([]);
+    setLocalityPickerOpen(false);
     onChange({
       ...value,
       pincode: pincode.replace(/\D/g, "").slice(0, 6),
@@ -182,6 +184,7 @@ export function VendorServiceLocationEditor({
         setApplicationBlockedMessage(blockedMessageFor(selectedLocality, appStatus, result.geo?.applicationMessage, resolvedPinTaluka));
       }
       if (localities.length > 1 && !selectedLocality) {
+        setLocalityPickerOpen(true);
         setLookupMessage("Multiple localities match this PIN code. Select your area / village below to enable Submit Application.");
       } else if (selectedLocality) {
         // Colored/marked the same way regardless of official vs unofficial
@@ -231,6 +234,7 @@ export function VendorServiceLocationEditor({
 
   const selectLocality = (locality: PincodeLocality) => {
     onChange({ ...value, geoLocalityId: locality.id });
+    setLocalityPickerOpen(false);
     if (enforceApplicationAvailability) {
       setApplicationBlockedMessage(blockedMessageFor(locality, null, null, pinTaluka));
     }
@@ -280,16 +284,35 @@ export function VendorServiceLocationEditor({
         <View style={styles.localitySection}>
           <Text style={styles.label}>Your area / village <Text style={styles.required}>*</Text></Text>
           <Text style={styles.helper}>Select the post office or locality matching your business address.</Text>
-          <ScrollView style={styles.localityList} nestedScrollEnabled keyboardShouldPersistTaps="handled" accessibilityRole="radiogroup">
-            {localityOptions.map((locality) => {
-              const selected = locality.id === value.geoLocalityId;
-              const hierarchy = [locality.taluka?.name ?? pinTaluka?.name, locality.district?.name, locality.state?.name].filter(Boolean).join(", ");
-              return <Pressable key={locality.id} accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={() => selectLocality(locality)} style={[styles.localityOption, selected && styles.localityOptionSelected]}>
-                <View style={styles.localityText}><Text style={[styles.localityName, selected && styles.areaTextSelected]}>{locality.name}</Text><Text style={styles.localityMeta}>{hierarchy || "Hierarchy pending review"}</Text></View>
-                {selected ? <Check size={17} color="#E91E63" /> : null}
-              </Pressable>;
-            })}
-          </ScrollView>
+          {selectedLocality ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Selected area ${selectedLocality.name}. Change area`}
+              accessibilityState={{ expanded: localityPickerOpen }}
+              onPress={() => setLocalityPickerOpen((open) => !open)}
+              style={[styles.localitySelect, localityPickerOpen && styles.localitySelectOpen]}
+            >
+              <View style={styles.localityText}>
+                <Text style={styles.localityName}>{selectedLocality.name}</Text>
+                <Text style={styles.localityMeta}>
+                  {[selectedLocality.taluka?.name ?? pinTaluka?.name, selectedLocality.district?.name, selectedLocality.state?.name].filter(Boolean).join(", ") || "Hierarchy pending review"}
+                </Text>
+              </View>
+              <ChevronDown size={18} color="#786D73" style={{ transform: [{ rotate: localityPickerOpen ? "180deg" : "0deg" }] }} />
+            </Pressable>
+          ) : null}
+          {localityPickerOpen || !selectedLocality ? (
+            <ScrollView style={styles.localityList} nestedScrollEnabled keyboardShouldPersistTaps="handled" accessibilityRole="radiogroup">
+              {localityOptions.map((locality) => {
+                const selected = locality.id === value.geoLocalityId;
+                const hierarchy = [locality.taluka?.name ?? pinTaluka?.name, locality.district?.name, locality.state?.name].filter(Boolean).join(", ");
+                return <Pressable key={locality.id} accessibilityRole="radio" accessibilityState={{ checked: selected }} onPress={() => selectLocality(locality)} style={[styles.localityOption, selected && styles.localityOptionSelected]}>
+                  <View style={styles.localityText}><Text style={[styles.localityName, selected && styles.areaTextSelected]}>{locality.name}</Text><Text style={styles.localityMeta}>{hierarchy || "Hierarchy pending review"}</Text></View>
+                  {selected ? <Check size={17} color="#E91E63" /> : null}
+                </Pressable>;
+              })}
+            </ScrollView>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -315,6 +338,8 @@ const styles = StyleSheet.create({
   pendingText: { color: "#8A6100" },
   localitySection: { marginBottom: 16 },
   localityList: { maxHeight: 330, marginTop: 9 },
+  localitySelect: { minHeight: 58, borderWidth: 1, borderColor: "#E7E1E4", borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF" },
+  localitySelectOpen: { borderColor: "#E91E63", backgroundColor: "#FFF9FB" },
   localityOption: { minHeight: 54, borderWidth: 1, borderColor: "#E7E1E4", borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10, marginBottom: 8, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#FFFFFF" },
   localityOptionSelected: { borderColor: "#E91E63", backgroundColor: "#FFF3F8" },
   localityText: { flex: 1, minWidth: 0 },

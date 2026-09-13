@@ -91,6 +91,32 @@ export function vendorMembershipPriority(planName?: string | null) {
   return 0;
 }
 
+/**
+ * Ranks a Top Rated rail by the customer's saved location first, then by
+ * rating quality. Vendors outside the selected city remain as a fallback so
+ * the rail does not become sparse.
+ */
+export function rankTopRatedVendorsByLocation<
+  T extends LocationRankableVendor & {
+    rating: number;
+    reviews: number;
+    membershipPlan?: string | null;
+  },
+>(vendors: T[], preference: LocationPreference | null) {
+  return vendors
+    .map((vendor, originalIndex) => ({ vendor, originalIndex }))
+    .sort((left, right) =>
+      vendorLocationPriority(right.vendor, preference)
+      - vendorLocationPriority(left.vendor, preference)
+      || right.vendor.rating - left.vendor.rating
+      || vendorMembershipPriority(right.vendor.membershipPlan)
+      - vendorMembershipPriority(left.vendor.membershipPlan)
+      || right.vendor.reviews - left.vendor.reviews
+      || left.originalIndex - right.originalIndex,
+    )
+    .map((item) => item.vendor);
+}
+
 export function formatCanonicalVendorLocation(parts: {
   localityName?: string | null;
   talukaName?: string | null;

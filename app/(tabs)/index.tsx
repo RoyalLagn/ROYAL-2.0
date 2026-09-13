@@ -36,7 +36,10 @@ import Animated, {
 import { MotionDuration, MotionStagger } from "@/utils/motion";
 import { useCustomerLocation } from "@/context/LocationContext";
 import LocationSelector from "@/components/home/LocationSelector";
-import { rankVendorsByLocationAndMembership } from "@/locations/domain";
+import {
+  rankVendorsByLocationAndMembership,
+  vendorMembershipPriority,
+} from "@/locations/domain";
 import { buildVendorListingPath } from "@/services/publicSeoRoutes";
 import { listFeaturedVendorIdsForPincode, subscribeToFeaturedPlacements } from "@/services/featuredVendorPlacements";
 
@@ -200,7 +203,6 @@ export default function HomeScreen() {
     rating: value.minimumRating ? String(value.minimumRating) : undefined,
     budget: value.maximumBudget ? String(value.maximumBudget) : undefined,
     category: value.category || undefined,
-    availability: value.availabilityOnly ? "true" : undefined,
     nearby: value.nearbyOnly ? "true" : undefined,
     sort: value.sort,
     pincode: customerPincode ?? undefined,
@@ -222,7 +224,6 @@ export default function HomeScreen() {
     filters.minimumRating > 0,
     filters.maximumBudget > 0,
     Boolean(filters.category),
-    filters.availabilityOnly,
     filters.nearbyOnly,
     filters.sort !== "recommended",
   ].filter(Boolean).length;
@@ -247,24 +248,33 @@ export default function HomeScreen() {
   }, [customerLocationPreference, getRating, liveVendors]);
 
   const topRatedVendors = useMemo(() => {
-    // Show every vendor using the marketplace priority order. Rating remains
-    // the tie-breaker after location and membership, and unrated vendors stay
-    // visible so the row never looks sparse.
+    // Home always shows the overall highest-rated vendors. Membership only
+    // breaks equal-rating ties, followed by review count.
     const ratedVendors = liveVendors
       .map((vendor) => {
         const current = getRating(vendor.id, vendor.rating, 0);
         return { ...vendor, rating: current.rating, reviews: current.reviews };
       })
-      .sort((a, b) => b.rating - a.rating || b.reviews - a.reviews);
+      .sort((a, b) =>
+        b.rating - a.rating
+        || vendorMembershipPriority(b.membershipPlan) - vendorMembershipPriority(a.membershipPlan)
+        || b.reviews - a.reviews,
+      );
     return ratedVendors;
   }, [liveVendors, getRating]);
 
   const featuredVendors = useMemo(() => {
     const byId = new Map(liveVendors.map((vendor) => [vendor.id, vendor]));
-    return featuredVendorIds.map((id) => byId.get(id)).filter(Boolean).map((vendor) => {
-      const current = getRating(vendor!.id, vendor!.rating, vendor!.reviews);
-      return { ...vendor!, rating: current.rating, reviews: current.reviews };
-    });
+    return featuredVendorIds
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((vendor) => {
+        const current = getRating(vendor!.id, vendor!.rating, vendor!.reviews);
+        return { ...vendor!, rating: current.rating, reviews: current.reviews };
+      })
+      .sort((a, b) =>
+        vendorMembershipPriority(b.membershipPlan) - vendorMembershipPriority(a.membershipPlan),
+      );
   }, [featuredVendorIds, getRating, liveVendors]);
 
   const inlineSearchSuggestions = useMemo(() => {
@@ -699,65 +709,7 @@ export default function HomeScreen() {
           </HomeSectionReveal>
         ) : null}
 
-        {/* All vendors, automatically ranked by saved location and membership. */}
-        <HomeSectionReveal
-          scrollY={homeScrollY}
-          viewportHeight={viewportHeight}
-          style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}
-        >
-          <SectionHeader
-            title="Near Me"
-            subtitle={customerLocationPreference
-              ? `Nearby first for ${customerLocation}`
-              : "Nearby and premium vendors first"}
-            dark={isDark}
-            actionLabel="View All"
-            onActionPress={() => router.push({ pathname: "/Search", params: { sort: "recommended" } })}
-          />
-
-          {vendorsLoading || customerLocationLoading ? (
-            <View style={s.vendorScroll}>
-              <VendorCardSkeletonRow
-                count={wideLayout ? 4 : 3}
-                width={vendorCardWidth}
-                imageHeight={vendorImageHeight}
-              />
-            </View>
-          ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            snapToAlignment="start"
-            snapToInterval={vendorCardWidth + vendorCardGap}
-            contentContainerStyle={[s.vendorScroll, { gap: vendorCardGap }]}
-          >
-            {nearbyVendors.map((v) => {
-              const isFav = isFavorite(v.id);
-              return (
-                <HomeVendorCard
-                  key={v.id}
-                  vendor={v}
-                  width={vendorCardWidth}
-                  imageHeight={vendorImageHeight}
-                  dark={isDark}
-                  favorite={isFav}
-                  fallbackSource={VENDOR_CARD_PLACEHOLDER}
-                  onOpen={() =>
-                      router.push({ pathname: "/vendor/[slug]", params: { slug: v.slug, src: "nearby" } })
-                  }
-                  onToggleFavorite={(source) => toggleFavorite(v, source)}
-                />
-              );
-            })}
-          </ScrollView>
-          )}
-          {!vendorsLoading && !customerLocationLoading && !nearbyVendors.length ? (
-            <Text style={[s.emptyVendors, { color: muted }]}>No approved vendors are available right now.</Text>
-          ) : null}
-        </HomeSectionReveal>
-
-        {/* ── Top Rated Vendors ── */}
+        {/* Top-rated vendors lead discovery after sponsored placements. */}
         <HomeSectionReveal
           scrollY={homeScrollY}
           viewportHeight={viewportHeight}
@@ -816,6 +768,64 @@ export default function HomeScreen() {
           )}
           {!vendorsLoading && !topRatedVendors.length ? (
             <Text style={[s.emptyVendors, { color: muted }]}>No rated vendors yet.</Text>
+          ) : null}
+        </HomeSectionReveal>
+
+        {/* All vendors, automatically ranked by saved location and membership. */}
+        <HomeSectionReveal
+          scrollY={homeScrollY}
+          viewportHeight={viewportHeight}
+          style={[s.popularSection, { width: featureWidth, marginBottom: sectionSpacing }]}
+        >
+          <SectionHeader
+            title="Near Me"
+            subtitle={customerLocationPreference
+              ? `Nearby first for ${customerLocation}`
+              : "Nearby and premium vendors first"}
+            dark={isDark}
+            actionLabel="View All"
+            onActionPress={() => router.push({ pathname: "/Search", params: { sort: "recommended" } })}
+          />
+
+          {vendorsLoading || customerLocationLoading ? (
+            <View style={s.vendorScroll}>
+              <VendorCardSkeletonRow
+                count={wideLayout ? 4 : 3}
+                width={vendorCardWidth}
+                imageHeight={vendorImageHeight}
+              />
+            </View>
+          ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            snapToAlignment="start"
+            snapToInterval={vendorCardWidth + vendorCardGap}
+            contentContainerStyle={[s.vendorScroll, { gap: vendorCardGap }]}
+          >
+            {nearbyVendors.map((v) => {
+              const isFav = isFavorite(v.id);
+              return (
+                <HomeVendorCard
+                  key={v.id}
+                  vendor={v}
+                  width={vendorCardWidth}
+                  imageHeight={vendorImageHeight}
+                  dark={isDark}
+                  favorite={isFav}
+                  fallbackSource={VENDOR_CARD_PLACEHOLDER}
+                  onOpen={() =>
+                      router.push({ pathname: "/vendor/[slug]", params: { slug: v.slug, src: "nearby" } })
+                  }
+                  onToggleFavorite={(source) => toggleFavorite(v, source)}
+                />
+              );
+            })}
+          </ScrollView>
+          )}
+          {!vendorsLoading && !customerLocationLoading && !nearbyVendors.length ? (
+            <Text style={[s.emptyVendors, { color: muted }]}>No approved vendors are available right now.</Text>
           ) : null}
         </HomeSectionReveal>
 

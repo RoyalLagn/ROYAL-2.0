@@ -12,7 +12,6 @@ export type HomeFilters = {
   minimumRating: number;
   maximumBudget: number;
   category: string;
-  availabilityOnly: boolean;
   nearbyOnly: boolean;
   sort: "recommended" | "rating" | "price";
 };
@@ -21,7 +20,6 @@ export const DEFAULT_HOME_FILTERS: HomeFilters = {
   minimumRating: 0,
   maximumBudget: 0,
   category: "",
-  availabilityOnly: false,
   nearbyOnly: false,
   sort: "recommended",
 };
@@ -128,21 +126,6 @@ export default function HomeFilterModal({ visible, dark, value, city, onClose, o
                 </Pressable>
               ))}
             </View>
-
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: draft.availabilityOnly }}
-              onPress={() => setDraft({ ...draft, availabilityOnly: !draft.availabilityOnly })}
-              style={[styles.nearby, { backgroundColor: colors.background, borderColor: draft.availabilityOnly ? PINK : colors.border }]}
-            >
-              <View style={[styles.checkbox, { borderColor: draft.availabilityOnly ? PINK : colors.border }, draft.availabilityOnly && styles.checkboxActive]}>
-                {draft.availabilityOnly ? <Check size={14} color="#FFFFFF" /> : null}
-              </View>
-              <View style={styles.flex}>
-                <Text style={[styles.nearbyTitle, { color: colors.text }]}>Available vendors only</Text>
-                <Text style={[styles.nearbyDescription, { color: colors.muted }]}>Uses temporary UI availability until the backend exposes dates.</Text>
-              </View>
-            </Pressable>
 
             <Pressable
               accessibilityRole="checkbox"
