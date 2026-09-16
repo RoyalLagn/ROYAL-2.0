@@ -81,7 +81,7 @@ export async function verifyCustomerDeletionOtp(expectedUserId: string, email: s
 
 export async function deleteVerifiedCustomerAccount(): Promise<string> {
   const { data, error } = await supabase.functions.invoke("delete-customer-account");
-  if (error) throw new Error(error.message || "Unable to delete your account.");
+  if (error) throw new Error(await functionErrorMessage(error, "Unable to delete your account."));
   if (data?.error) throw new Error(String(data.error));
   if (!data?.reference) throw new Error("Account deletion did not return a confirmation reference.");
   return String(data.reference);

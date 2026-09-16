@@ -48,6 +48,7 @@ async function deleteProfileImage(profileImage: string | null, userId: string) {
 }
 
 async function deleteReviewImages(urls: string[], userId: string) {
+  if (urls.length === 0) return;
   const bunny = bunnyStorageConfig();
   for (const value of urls) {
     let parsed: URL;
@@ -73,6 +74,7 @@ Deno.serve(async (request) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const service = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const userClient = createClient(url, anonKey, { global: { headers: { Authorization: `Bearer ${token}` } } });
     const { data: userData, error: userError } = await service.auth.getUser(token);
     const user = userData.user;
     if (userError || !user) return json({ error: "Your session has expired. Please sign in again." }, 401);
@@ -87,11 +89,16 @@ Deno.serve(async (request) => {
     const { data: vendor } = await service.from("vendors").select("id").eq("profile_id", user.id).maybeSingle();
     if (vendor) return json({ error: "Vendor accounts require an administrator-reviewed deletion request." }, 403);
 
-    const { data: reviews, error: reviewsError } = await service.from("reviews").select("image_urls").eq("profile_id", user.id);
+    // Read review media through the caller's JWT. Existing reviews RLS limits
+    // this query to the authenticated customer's own rows and avoids granting
+    // the service role broad access to all marketplace reviews.
+    const { data: reviews, error: reviewsError } = await userClient
+      .from("reviews")
+      .select("image_urls")
+      .eq("profile_id", user.id);
     if (reviewsError) throw reviewsError;
     await deleteProfileImage(profile.profile_image, user.id);
     await deleteReviewImages((reviews ?? []).flatMap((row) => row.image_urls ?? []), user.id);
-    const userClient = createClient(url, anonKey, { global: { headers: { Authorization: `Bearer ${token}` } } });
     const { error: prepareError } = await userClient.rpc("prepare_customer_account_deletion");
     if (prepareError) throw prepareError;
     const { error: deleteError } = await service.auth.admin.deleteUser(user.id);

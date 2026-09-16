@@ -89,6 +89,20 @@ export default function OtpVerificationScreen() {
           clearRecoverySession();
           throw new Error("This account type is not supported in the RoyalLagn mobile app.");
         }
+      } else {
+        const role = await getCurrentMobileAccountRole();
+        if (isAdminRole(role)) {
+          await supabase.auth.signOut({ scope: "local" });
+          throw new Error("This email is already registered for a RoyalLagn Admin account.");
+        }
+        if (role === "vendor") {
+          await supabase.auth.signOut({ scope: "local" });
+          throw new Error("This email is already registered for a RoyalLagn Vendor account. Use a different email to create a Public account.");
+        }
+        if (role === "public_user") {
+          await supabase.auth.signOut({ scope: "local" });
+          throw new Error("A Public account already exists for this email. Please log in instead.");
+        }
       }
       router.replace({
         pathname: "/CreatePassword",

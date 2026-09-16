@@ -37,6 +37,19 @@ const PROFILE_COLUMNS =
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
+const errorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (
+    error
+    && typeof error === "object"
+    && "message" in error
+    && typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return "";
+};
+
 async function getOwnProfile(userId: string) {
   const { data, error } = await supabase
     .from("profiles")
@@ -277,7 +290,10 @@ export async function updatePublicProfile(
 }
 
 export function getPublicAuthError(error: unknown, fallback: string) {
-  const message = error instanceof Error ? error.message : "";
+  // Supabase/PostgREST failures are often plain objects rather than Error
+  // instances. Preserve their message so registration conflicts do not get
+  // hidden behind an unrelated generic fallback.
+  const message = errorMessage(error);
   const normalized = message.toLowerCase();
 
   if (normalized.includes("invalid login")) return "Incorrect email or password.";
