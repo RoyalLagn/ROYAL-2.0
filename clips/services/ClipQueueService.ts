@@ -58,13 +58,14 @@ class Queue {
     if (this.activeVendorId !== vendorId) return this.items;
     let parsed: ClipQueueItem[] = [];
     try { parsed = raw ? JSON.parse(raw) : []; } catch { parsed = []; }
-    // Failed attempts are transient diagnostics, not useful queue work. Do
-    // not restore them after a reload; the user can choose the source again.
     this.items = parsed
-      .filter((item) => item.status !== "failed")
       .map((item) =>
         ["uploading", "compressing", "thumbnail", "saving"].includes(item.status)
           ? { ...item, status: "waiting", error: null }
+          : item.status === "failed"
+            && item.retryCount < 3
+            && /network|timed out|non-2xx|connection|temporar/i.test(item.error || "")
+            ? { ...item, status: "waiting", error: null, retryCount: item.retryCount + 1 }
           : item,
       );
     this.hydratedVendorId = vendorId;
@@ -181,7 +182,12 @@ class Queue {
     this.items = this.items.filter((item) => item.id !== id);
     await this.persist();
     if (target && Platform.OS !== "web") {
-      for (const uri of [target.draft.source.uri, target.draft.customThumbnailUri]) {
+      const thumbnailStillNeeded = this.items.some((item) =>
+        item.draft.customThumbnailUri === target.draft.customThumbnailUri
+        && !["completed", "cancelled"].includes(item.status),
+      );
+      const uris = [target.draft.source.uri, thumbnailStillNeeded ? null : target.draft.customThumbnailUri];
+      for (const uri of uris) {
         if (uri?.startsWith(FileSystem.documentDirectory || "__never__")) {
           await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
         }
@@ -189,7 +195,30 @@ class Queue {
     }
   }
 
+  async cleanupCompletedMedia(id: string) {
+    const target = this.items.find((item) => item.id === id);
+    if (!target || Platform.OS === "web") return;
+    const thumbnailStillNeeded = this.items.some((item) =>
+      item.id !== id
+      && item.draft.customThumbnailUri === target.draft.customThumbnailUri
+      && !["completed", "cancelled"].includes(item.status),
+    );
+    const uris = [target.draft.source.uri, thumbnailStillNeeded ? null : target.draft.customThumbnailUri];
+    for (const uri of uris) {
+      if (uri?.startsWith(FileSystem.documentDirectory || "__never__")) {
+        await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+      }
+    }
+  }
+
   getItems() { return [...this.items]; }
+
+  isLocalUriInUse(uri: string | null | undefined) {
+    if (!uri) return false;
+    return this.items.some((item) =>
+      item.draft.source.uri === uri || item.draft.customThumbnailUri === uri,
+    );
+  }
 
   /** Clears the CURRENT vendor's persisted queue only -- never touches
    * another vendor's storage key. */

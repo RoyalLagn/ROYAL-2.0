@@ -8,6 +8,8 @@ import { ClipModuleError } from "../utils/errors";
 import { buildClipCompressionPlan } from "../utils/compressionPlan";
 import { ClipCompressionService } from "./ClipCompressionService";
 import { ClipThumbnailService } from "./ClipThumbnailService";
+import { validateClipSource } from "../utils/validation";
+import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 
 const localMediaDirectory = `${FileSystem.documentDirectory || ""}royallagn-clips/`;
 
@@ -50,24 +52,38 @@ export async function pickClipVideos(selectionLimit = 10): Promise<ClipUpload[]>
   });
   if (result.canceled) return [];
   const compressor = getCompressor();
-  return Promise.all(result.assets.map(async (asset) => {
-    const metadata = compressor
-      ? await compressor.getVideoMetaData(asset.uri)
-      : { size: 0, duration: 0, width: 0, height: 0, extension: "mp4" };
-    const fileName = asset.fileName || `clip-${Date.now()}.${metadata.extension || "mp4"}`;
-    const durableUri = await persistLocalMedia(asset.uri, fileName);
-    return {
-      uri: durableUri,
-      fileName,
-      mimeType: asset.mimeType || "video/mp4",
-      fileSizeBytes: asset.fileSize || metadata.size,
-      durationSeconds: asset.duration ? asset.duration / 1000 : metadata.duration,
-      resolution: {
-        width: asset.width || metadata.width,
-        height: asset.height || metadata.height,
-      },
-    };
-  }));
+  const persisted: ClipUpload[] = [];
+  try {
+    // Validate before copying into durable storage. Process sequentially so a
+    // bad item cannot leave other copies racing in the background.
+    for (const asset of result.assets) {
+      const metadata = compressor
+        ? await compressor.getVideoMetaData(asset.uri)
+        : { size: 0, duration: 0, width: 0, height: 0, extension: "mp4" };
+      const fileName = asset.fileName || `clip-${Date.now()}.${metadata.extension || "mp4"}`;
+      const candidate: ClipUpload = {
+        uri: asset.uri,
+        fileName,
+        mimeType: asset.mimeType || "video/mp4",
+        fileSizeBytes: asset.fileSize || metadata.size,
+        durationSeconds: asset.duration ? asset.duration / 1000 : metadata.duration,
+        resolution: { width: asset.width || metadata.width, height: asset.height || metadata.height },
+      };
+      validateClipSource(candidate);
+      persisted.push({ ...candidate, uri: await persistLocalMedia(asset.uri, fileName) });
+    }
+    return persisted;
+  } catch (error) {
+    await Promise.all(persisted.map((item) => deleteLocalClipMedia(item.uri)));
+    throw error;
+  }
+}
+
+export async function deleteLocalClipMedia(uri: string | null | undefined) {
+  if (Platform.OS === "web" || !uri || !FileSystem.documentDirectory) return;
+  if (uri.startsWith(localMediaDirectory)) {
+    await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined);
+  }
 }
 
 export async function pickClipThumbnail(): Promise<string | null> {
@@ -80,8 +96,14 @@ export async function pickClipThumbnail(): Promise<string | null> {
     quality: 0.9,
   });
   if (result.canceled || !result.assets[0]) return null;
+  // Normalize every custom cover to real JPEG bytes because the clip upload
+  // contract stores covers as image/jpeg.
+  const normalized = await manipulateAsync(result.assets[0].uri, [], {
+    compress: 0.85,
+    format: SaveFormat.JPEG,
+  });
   return persistLocalMedia(
-    result.assets[0].uri,
+    normalized.uri,
     result.assets[0].fileName || `clip-thumbnail-${Date.now()}.jpg`,
   );
 }

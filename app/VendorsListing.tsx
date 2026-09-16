@@ -123,7 +123,7 @@ export default function VendorsListingScreen() {
   const [filters, setFilters] = useState<ListingFilters>(DEFAULT_FILTERS);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [filterSection, setFilterSection] = useState<"sort" | "price" | "rating" | "filters">("filters");
-  const [listingLayout, setListingLayout] = useState<"strip" | "grid">(() => width < 720 ? "grid" : "strip");
+  const [listingLayout, setListingLayout] = useState<"strip" | "grid">("strip");
   const [approvedVendors, setApprovedVendors] = useState<PublicVendorListing[]>([]);
   const [vendorsLoading, setVendorsLoading] = useState(true);
   const [vendorsError, setVendorsError] = useState("");

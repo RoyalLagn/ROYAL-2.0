@@ -7,7 +7,7 @@ import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
-import { ClipDraftService, ClipManagementService, pickClipThumbnail, pickClipVideos } from "@/clips/services";
+import { ClipDraftService, ClipManagementService, ClipQueueService, deleteLocalClipMedia, pickClipThumbnail, pickClipVideos } from "@/clips/services";
 import { useClipUploadQueue } from "@/clips/hooks";
 import { UploadQueuePanel } from "@/clips/components";
 import type { ClipDraftRecord, ClipUpload } from "@/clips/types";
@@ -60,7 +60,7 @@ export default function VendorClipUpload() {
       if (!draft) return;
       setTitle(draft.title); setCaption(draft.caption);
       setThumbnailUri(draft.customThumbnailUri);
-      setSources(draft.source ? [draft.source] : []);
+      setSources(draft.sources?.length ? draft.sources : draft.source ? [draft.source] : []);
     });
   }, [draftId, data.vendor?.id]);
 
@@ -74,6 +74,7 @@ export default function VendorClipUpload() {
         title: internalTitle,
         caption,
         source: sources[0] ?? null,
+        sources,
         customThumbnailUri: thumbnailUri,
         updatedAt: new Date().toISOString(),
       });
@@ -87,6 +88,10 @@ export default function VendorClipUpload() {
     try {
       const picked = await pickClipVideos(10);
       picked.forEach(validateClipSource);
+      if (!picked.length) return;
+      await Promise.all(sources.map((source) =>
+        ClipQueueService.isLocalUriInUse(source.uri) ? Promise.resolve() : deleteLocalClipMedia(source.uri),
+      ));
       setSources(picked);
     } catch (error) {
       Alert.alert("Video not selected", error instanceof Error ? error.message : "Choose a supported video.");
@@ -98,7 +103,7 @@ export default function VendorClipUpload() {
     const record: ClipDraftRecord = {
       id: localDraftId,
       vendorId: data.vendor.id, categoryId, title: internalTitle, caption,
-      source: sources[0] ?? null, customThumbnailUri: thumbnailUri,
+      source: sources[0] ?? null, sources, customThumbnailUri: thumbnailUri,
       updatedAt: new Date().toISOString(),
     };
     try {
@@ -158,6 +163,20 @@ export default function VendorClipUpload() {
     }
   };
 
+  const selectThumbnail = async () => {
+    try {
+      const picked = await pickClipThumbnail();
+      if (!picked) return;
+      const previous = thumbnailUri;
+      setThumbnailUri(picked);
+      if (previous && previous !== picked && !ClipQueueService.isLocalUriInUse(previous)) {
+        await deleteLocalClipMedia(previous);
+      }
+    } catch (error) {
+      Alert.alert("Thumbnail not selected", error instanceof Error ? error.message : "Choose a supported image.");
+    }
+  };
+
   const limitFailure = queue.items.find((item) => item.error?.includes("reached your limit"));
   const retryQueueItem = queue.retry;
   useEffect(() => {
@@ -189,7 +208,7 @@ export default function VendorClipUpload() {
           </View>
           <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.label, { color: colors.text }]}>Cover thumbnail (optional)</Text>
-            <Pressable onPress={async () => setThumbnailUri(await pickClipThumbnail())} style={[styles.thumbPicker, { borderColor: colors.border, backgroundColor: colors.surfaceSoft }]}>
+            <Pressable onPress={selectThumbnail} style={[styles.thumbPicker, { borderColor: colors.border, backgroundColor: colors.surfaceSoft }]}>
               {thumbnailUri ? <Image source={{ uri: thumbnailUri }} style={styles.cover} /> : <><ImagePlus size={24} color={colors.pink} /><Text style={[styles.helper, { color: colors.muted }]}>Automatic thumbnail will be generated</Text></>}
             </Pressable>
           </View>

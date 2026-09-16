@@ -6,13 +6,14 @@ import { ClipModuleError } from "../utils/errors";
 import { ClipLogger } from "../utils/logger";
 import { ClipCacheService } from "./ClipCacheService";
 import { ClipBunnyService } from "./ClipBunnyService";
-import { ClipThumbnailService } from "./ClipThumbnailService";
 import { ClipUploadService } from "./ClipUploadService";
+import { ClipQueueService } from "./ClipQueueService";
 
 export type UploadProgressHandler = (progress: UploadProgress) => void;
 
 const OPERATION_TIMEOUT_MS = 30_000;
 const MEDIA_PREPARATION_TIMEOUT_MS = 8 * 60_000;
+const activeUploadAborters = new Map<string, () => void>();
 
 async function withTimeout<T>(
   label: string,
@@ -53,6 +54,9 @@ function createClipId() {
 }
 
 export const ClipUploadOrchestrator = {
+  cancel(queueId: string) {
+    activeUploadAborters.get(queueId)?.();
+  },
   async execute(
     item: ClipQueueItem,
     onProgress: UploadProgressHandler,
@@ -86,6 +90,26 @@ export const ClipUploadOrchestrator = {
     try {
       ensureActive();
       let stageStartedAt = Date.now();
+      // If the app was killed after finalize committed but before the queue
+      // persisted completion, treat the existing completed reservation as
+      // success instead of uploading the media a second time.
+      const { data: completedReservation, error: recoveryError } = await withTimeout(
+        "Checking previous Clip upload",
+        supabase
+          .from("clip_upload_reservations")
+          .select("clip_id,status")
+          .eq("vendor_id", draft.vendorId)
+          .eq("idempotency_key", uploadId)
+          .maybeSingle(),
+      );
+      if (recoveryError) {
+        throw new ClipModuleError("DATABASE_ERROR", recoveryError.message, true, recoveryError);
+      }
+      if (completedReservation?.status === "completed" && completedReservation.clip_id) {
+        onProgress({ stage: "complete", progress: 1, bytesUploaded: draft.source.fileSizeBytes, totalBytes: draft.source.fileSizeBytes, attempt: item.retryCount + 1 });
+        ClipCacheService.invalidate("vendor", draft.vendorId);
+        return completedReservation.clip_id;
+      }
       // Resolve the category from the current vendor row immediately before
       // reserving/uploading. Draft storage and UI state are never trusted as
       // the category authority, so old drafts and stale screens cannot publish
@@ -134,40 +158,6 @@ export const ClipUploadOrchestrator = {
         maximumClips: limits.maximumClips,
       });
 
-      stageStartedAt = Date.now();
-      ClipLogger.uploadDebug(uploadId, "RESERVE_SLOT", "START", { queueId: item.id });
-      ClipLogger.info("database", "Reserving Clip upload slot", { queueId: item.id, vendorId: draft.vendorId });
-      // The queue item id is stable across retries of the same queued
-      // upload (see ClipQueueService), so retries and double-taps that
-      // produce the same queue item reuse this reservation instead of
-      // consuming a second slot.
-      const idempotencyKey = uploadId;
-      const { data: reservationRows, error: reservationError } = await withTimeout(
-        "Reserving Clip upload slot",
-        supabase.rpc("reserve_clip_upload_slot", {
-          target_vendor_id: draft.vendorId,
-          request_idempotency_key: idempotencyKey,
-        }),
-      );
-      ClipLogger.uploadDebug(uploadId, "RESERVE_SLOT", reservationError ? "ERROR" : "DONE", {
-        elapsedMs: Date.now() - stageStartedAt,
-        error: reservationError ?? null,
-      });
-      if (reservationError) {
-        if (reservationError.hint === "LIMIT_REACHED" || reservationError.code === "P0001") {
-          throw new ClipModuleError("LIMIT_EXCEEDED", `You've reached your limit of ${limits.maximumClips} clips.`);
-        }
-        if (reservationError.hint === "SUBSCRIPTION_REQUIRED") {
-          throw new ClipModuleError("PERMISSION_ERROR", "An active subscription is required to upload Clips.");
-        }
-        throw new ClipModuleError("DATABASE_ERROR", reservationError.message, true, reservationError);
-      }
-      const reservation = Array.isArray(reservationRows) ? reservationRows[0] : reservationRows;
-      if (!reservation?.reservation_id) {
-        throw new ClipModuleError("DATABASE_ERROR", "Unable to reserve an upload slot. Please try again.", true);
-      }
-      reservationId = reservation.reservation_id as string;
-
       onProgress({ stage: "validating", progress: 0.03, bytesUploaded: 0, totalBytes: draft.source.fileSizeBytes, attempt: item.retryCount + 1 });
       stageStartedAt = Date.now();
       ClipLogger.uploadDebug(uploadId, "VIDEO_PREPARE", "START", {
@@ -193,36 +183,76 @@ export const ClipUploadOrchestrator = {
         custom: Boolean(draft.customThumbnailUri),
       });
       ClipLogger.info("upload", "Generating thumbnail", { queueId: item.id, custom: Boolean(draft.customThumbnailUri) });
+      // Bunny Stream generates a reliable cover for every video. Only prepare
+      // and upload a separate image when the vendor explicitly selected one.
       const thumbnail = draft.customThumbnailUri
         ? { uri: draft.customThumbnailUri, capturedAtSeconds: 0 }
-        : await withTimeout(
-          "Generating thumbnail",
-          ClipThumbnailService.generate(prepared, clipsConfig.thumbnail.captureAtSeconds),
-          undefined,
-          MEDIA_PREPARATION_TIMEOUT_MS,
-        );
+        : null;
       ClipLogger.info("upload", "Thumbnail ready", { queueId: item.id });
       ClipLogger.uploadDebug(uploadId, "THUMBNAIL", "DONE", {
         elapsedMs: Date.now() - stageStartedAt,
       });
       ensureActive();
-      const clipId = createClipId();
+
+      // Reserve immediately before network upload. Local compression and
+      // thumbnail generation can take several minutes on slower devices; they
+      // must not consume the reservation's 15-minute lifetime.
+      stageStartedAt = Date.now();
+      ClipLogger.uploadDebug(uploadId, "RESERVE_SLOT", "START", { queueId: item.id });
+      const { data: reservationRows, error: reservationError } = await withTimeout(
+        "Reserving Clip upload slot",
+        supabase.rpc("reserve_clip_upload_slot", {
+          target_vendor_id: draft.vendorId,
+          request_idempotency_key: uploadId,
+        }),
+      );
+      if (reservationError) {
+        if (reservationError.hint === "LIMIT_REACHED" || reservationError.code === "P0001") {
+          throw new ClipModuleError("LIMIT_EXCEEDED", `You've reached your limit of ${limits.maximumClips} clips.`);
+        }
+        if (reservationError.hint === "SUBSCRIPTION_REQUIRED") {
+          throw new ClipModuleError("PERMISSION_ERROR", "An active subscription is required to upload Clips.");
+        }
+        throw new ClipModuleError("DATABASE_ERROR", reservationError.message, true, reservationError);
+      }
+      const reservation = Array.isArray(reservationRows) ? reservationRows[0] : reservationRows;
+      if (!reservation?.reservation_id) {
+        throw new ClipModuleError("DATABASE_ERROR", "Unable to reserve an upload slot. Please try again.", true);
+      }
+      reservationId = reservation.reservation_id as string;
+      ClipLogger.uploadDebug(uploadId, "RESERVE_SLOT", "DONE", {
+        elapsedMs: Date.now() - stageStartedAt,
+        reservationId,
+      });
+
+      const clipId = item.clipId || createClipId();
       stageStartedAt = Date.now();
       ClipLogger.uploadDebug(uploadId, "BUNNY", "START", { clipId });
       ClipLogger.info("upload", "Uploading video and thumbnail", { queueId: item.id, clipId });
+      let serverProcessing = false;
       const uploaded = await ClipBunnyService.upload({
         debugUploadId: uploadId,
-        clipId, vendorId: draft.vendorId, video: prepared, thumbnailUri: thumbnail.uri,
+        clipId, vendorId: draft.vendorId, video: prepared, thumbnailUri: thumbnail?.uri,
+        resume: item.bunnyUpload,
+        onUploadState: async (bunnyUpload) => {
+          await ClipQueueService.update(item.id, { bunnyUpload });
+          item.bunnyUpload = bunnyUpload;
+        },
       }, (value) => {
+        // The native adapter deliberately caps the combined transfer phase at
+        // 0.89 while Bunny encodes the uploaded video. Treat that boundary as
+        // server processing so the UI does not look frozen at "Uploading 89%".
+        if (value >= 0.89) serverProcessing = true;
         ClipLogger.uploadDebug(uploadId, "BUNNY", "PROGRESS", {
           clipId, fraction: value, uiProgress: 0.4 + value * 0.5,
         });
         onProgress({
-          stage: "uploading", progress: 0.4 + value * 0.5,
+          stage: serverProcessing ? "processing" : "uploading",
+          progress: Math.min(0.94, 0.4 + value * 0.55),
           bytesUploaded: Math.round(prepared.fileSizeBytes * value),
           totalBytes: prepared.fileSizeBytes, attempt: item.retryCount + 1,
         });
-      });
+      }, (abort) => activeUploadAborters.set(uploadId, abort));
       ClipLogger.info("upload", "Bunny upload complete", { queueId: item.id, clipId });
       ClipLogger.uploadDebug(uploadId, "BUNNY", "DONE", {
         clipId, elapsedMs: Date.now() - stageStartedAt, uploaded,
@@ -334,6 +364,7 @@ export const ClipUploadOrchestrator = {
       await releaseReservation(reservationId);
       throw error;
     } finally {
+      activeUploadAborters.delete(uploadId);
       if (temporaryPreparedUri) {
         await FileSystem.deleteAsync(temporaryPreparedUri, { idempotent: true }).catch(() => undefined);
       }

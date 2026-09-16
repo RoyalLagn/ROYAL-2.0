@@ -114,7 +114,7 @@ export default function OtpVerificationScreen() {
         email,
         fullName,
         phone,
-        preferredCityId,
+        preferredCityId: preferredCityId || null,
         preferredAreaId: preferredAreaId || null,
       });
       setOtp("");

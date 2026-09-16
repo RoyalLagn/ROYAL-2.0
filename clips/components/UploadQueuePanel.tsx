@@ -16,6 +16,7 @@ const STAGE_LABEL: Record<string, string> = {
   compressing: "Optimizing video",
   thumbnail: "Generating thumbnail",
   uploading: "Uploading",
+  processing: "Processing video on server",
   saving: "Saving",
   complete: "Uploaded",
   failed: "Failed",
@@ -47,7 +48,9 @@ function ProgressRow({
     ? item.error
     : completed
       ? "Uploaded"
-      : `${STAGE_LABEL[item.progress.stage] ?? item.status} · ${percent}%`;
+      : item.progress.stage === "processing"
+        ? `${STAGE_LABEL.processing} · this can take a few minutes`
+        : `${STAGE_LABEL[item.progress.stage] ?? item.status} · ${percent}%`;
 
   return (
     <View style={[styles.item, { borderTopColor: colors.border }]}>

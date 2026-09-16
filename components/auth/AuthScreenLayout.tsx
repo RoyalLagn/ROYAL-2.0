@@ -61,13 +61,18 @@ export function AuthScreenLayout({
       <AuthBackButton fallbackRoute={backRoute} />
       <KeyboardAwareScrollView
           containerStyle={{ flex: 1 }}
+          keyboardGap={28}
           contentContainerStyle={{
             flexGrow: 1,
             justifyContent: keyboardVisible ? "flex-start" : "center",
             alignItems: "center",
             paddingHorizontal: wide ? 24 : 22,
             paddingTop: keyboardVisible ? 12 : variant === "soft" ? 44 : 60,
-            paddingBottom: keyboardVisible ? 20 : 32,
+            // Keep enough scroll runway below the final field/action after
+            // Android reduces the viewport for the keyboard. Without this,
+            // short screens can reach their maximum scroll offset before the
+            // focused input has cleared the keyboard.
+            paddingBottom: keyboardVisible ? 56 : 32,
           }}
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="none"

@@ -115,16 +115,38 @@ export async function waitForBunnyStreamReady(
   vendorId: string,
   purpose: "clip" | "portfolio",
   timeoutMs = PROCESSING_TIMEOUT_MS,
+  onProgress?: (encodeProgress: number) => void,
+  shouldCancel: () => boolean = () => false,
 ) {
   const startedAt = Date.now();
   let last: StreamStatus | null = null;
+  let consecutiveStatusErrors = 0;
   while (Date.now() - startedAt < timeoutMs) {
+    if (shouldCancel()) throw new Error("Upload cancelled.");
     const { data, error } = await supabase.functions.invoke<StreamStatus>("bunny-stream-status", {
       body: { videoId, vendorId, purpose },
     });
-    if (error) throw new Error(error.message || "Unable to verify Bunny Stream processing.");
+    if (error) {
+      consecutiveStatusErrors += 1;
+      if (consecutiveStatusErrors >= 5) {
+        const context = (error as { context?: Response }).context;
+        const payload = context && typeof context.clone === "function"
+          ? await context.clone().json().catch(() => null) as { error?: string } | null
+          : null;
+        throw new Error(payload?.error || error.message || "Unable to verify Bunny Stream processing.");
+      }
+      await new Promise((resolve) => setTimeout(resolve, PROCESSING_POLL_MS));
+      continue;
+    }
+    consecutiveStatusErrors = 0;
     last = data;
-    if (data?.state === "ready" && data.storageSize > 0) return data;
+    onProgress?.(Math.max(0, Math.min(100, Number(data?.encodeProgress) || 0)));
+    // The original file is durably stored once Bunny reports bytes. Encoding
+    // can legitimately remain at status 2 with 0% for several minutes; it
+    // must not block finalizing the queue or be mistaken for a failed upload.
+    // Public playback already handles Bunny's temporary processing response.
+    if (data && Number(data.storageSize) > 0
+      && (data.state === "ready" || data.state === "processing")) return data;
     if (data?.state === "failed") throw new Error(data.error || `Bunny Stream processing failed (status ${data.status ?? "unknown"}).`);
     await new Promise((resolve) => setTimeout(resolve, PROCESSING_POLL_MS));
   }

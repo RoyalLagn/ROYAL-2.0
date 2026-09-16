@@ -1,11 +1,13 @@
 import React from "react";
 import {
+  Dimensions,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
   TextInput,
+  View,
   type ScrollViewProps,
   type TextInputProps,
   type StyleProp,
@@ -103,7 +105,9 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
     const scrollYRef = React.useRef(0);
     const keyboardVisibleRef = React.useRef(false);
     const keyboardTopRef = React.useRef(Number.POSITIVE_INFINITY);
+    const [androidKeyboardTail, setAndroidKeyboardTail] = React.useState(0);
     const pendingFrameRef = React.useRef<number | null>(null);
+    const settleTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputsRef = React.useRef<TextInput[]>([]);
 
     React.useImperativeHandle(ref, () => scrollRef.current as ScrollView);
@@ -162,17 +166,40 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
       if (Platform.OS === "web") return;
       const show = Keyboard.addListener("keyboardDidShow", (event) => {
         keyboardVisibleRef.current = true;
-        keyboardTopRef.current = event.endCoordinates.screenY;
+        const screenHeight = Dimensions.get("screen").height;
+        const keyboardTop = Math.min(
+          event.endCoordinates.screenY,
+          screenHeight - event.endCoordinates.height,
+        );
+        keyboardTopRef.current = keyboardTop;
+        // Android edge-to-edge windows can keep reporting the full activity
+        // height even with adjustResize enabled. Add IME-sized scroll runway so
+        // the final field/action can move above an overlaying keyboard.
+        setAndroidKeyboardTail(
+          Platform.OS === "android" ? Math.max(0, screenHeight - keyboardTop) : 0,
+        );
         scheduleReveal();
+        // Some Android keyboards apply their final native pan just after the
+        // didShow event. Re-run once after that settles so the requested gap
+        // is not overwritten and the focused field is not left flush against
+        // (or a few pixels behind) the IME.
+        if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+        settleTimerRef.current = setTimeout(() => scheduleReveal(), 180);
       });
       const hide = Keyboard.addListener("keyboardDidHide", () => {
         keyboardVisibleRef.current = false;
         keyboardTopRef.current = Number.POSITIVE_INFINITY;
+        setAndroidKeyboardTail(0);
+        if (settleTimerRef.current) {
+          clearTimeout(settleTimerRef.current);
+          settleTimerRef.current = null;
+        }
       });
       return () => {
         show.remove();
         hide.remove();
         if (pendingFrameRef.current !== null) cancelAnimationFrame(pendingFrameRef.current);
+        if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
       };
     }, [scheduleReveal]);
 
@@ -206,6 +233,12 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
             }}
           >
             {children}
+            {androidKeyboardTail > 0 ? (
+              <View
+                style={{ height: androidKeyboardTail }}
+                importantForAccessibility="no-hide-descendants"
+              />
+            ) : null}
           </ScrollView>
         </KeyboardAvoidingView>
       </KeyboardAwareFormContext.Provider>

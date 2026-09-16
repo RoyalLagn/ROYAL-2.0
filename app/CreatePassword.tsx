@@ -53,7 +53,7 @@ export default function CreatePasswordScreen() {
           email,
           fullName,
           phone,
-          preferredCityId,
+          preferredCityId: preferredCityId || null,
           preferredAreaId: preferredAreaId || null,
         }, password);
         await refreshProfile();

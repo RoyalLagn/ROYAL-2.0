@@ -1,4 +1,4 @@
-import type { ClipBunnyAsset, ClipUpload } from "../types";
+import type { ClipBunnyAsset, ClipBunnyUploadState, ClipUpload } from "../types";
 import { ClipModuleError } from "../utils/errors";
 import { withClipRetry } from "../utils/retry";
 
@@ -7,10 +7,13 @@ export interface ClipBunnyUploadInput {
   clipId: string;
   vendorId: string;
   video: ClipUpload;
-  thumbnailUri: string;
+  /** Omitted for automatic covers; Bunny Stream's generated thumbnail is used. */
+  thumbnailUri?: string | null;
+  resume?: ClipBunnyUploadState;
+  onUploadState?: (state: ClipBunnyUploadState) => Promise<void>;
 }
 export interface ClipBunnyAdapter {
-  upload(input: ClipBunnyUploadInput, onProgress?: (value: number) => void): Promise<ClipBunnyAsset>;
+  upload(input: ClipBunnyUploadInput, onProgress?: (value: number) => void, registerAbort?: (abort: () => void) => void): Promise<ClipBunnyAsset>;
   delete(publicId: string): Promise<void>;
   replace(input: ClipBunnyUploadInput, previousPublicId: string, onProgress?: (value: number) => void): Promise<ClipBunnyAsset>;
 }
@@ -21,12 +24,11 @@ export const ClipBunnyService = {
     adapter = nextAdapter;
   },
   isConfigured: () => adapter !== null,
-  upload(input: ClipBunnyUploadInput, onProgress?: (value: number) => void) {
+  upload(input: ClipBunnyUploadInput, onProgress?: (value: number) => void, registerAbort?: (abort: () => void) => void) {
     if (!adapter) throw new Error("Clip Bunny adapter is not configured.");
-    return withClipRetry(
-      () => adapter!.upload(input, onProgress),
-      (error) => !(error instanceof ClipModuleError) || error.retryable,
-    );
+    // A whole-pipeline automatic retry creates a second Bunny video object.
+    // Keep retries explicit at queue level where cleanup/idempotency is visible.
+    return adapter.upload(input, onProgress, registerAbort);
   },
   delete(publicId: string) {
     if (!adapter) throw new Error("Clip Bunny adapter is not configured.");

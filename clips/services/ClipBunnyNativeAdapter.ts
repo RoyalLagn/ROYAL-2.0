@@ -3,7 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as tus from "tus-js-client";
 import { supabase } from "@/services/supabase";
 import { waitForBunnyStreamReady } from "@/services/bunnyStream";
-import type { ClipBunnyAsset } from "../types";
+import type { ClipBunnyAsset, ClipBunnyUploadState } from "../types";
 import { ClipModuleError } from "../utils/errors";
 import { ClipLogger } from "../utils/logger";
 import type { ClipBunnyUploadInput } from "./ClipBunnyService";
@@ -41,6 +41,16 @@ const OPERATION_TIMEOUT_MS = 30_000;
 const MIN_UPLOAD_TIMEOUT_MS = 8 * 60_000;
 const MAX_UPLOAD_TIMEOUT_MS = 15 * 60_000;
 const ASSUMED_SLOW_UPLOAD_BYTES_PER_SECOND = 128 * 1024;
+
+async function edgeFunctionMessage(error: unknown, fallback: string) {
+  const candidate = error as { message?: string; context?: Response } | null;
+  const context = candidate?.context;
+  if (context && typeof context.clone === "function") {
+    const payload = await context.clone().json().catch(() => null) as { error?: string; message?: string } | null;
+    if (payload?.error || payload?.message) return payload.error || payload.message || fallback;
+  }
+  return candidate?.message && !/non-2xx/i.test(candidate.message) ? candidate.message : fallback;
+}
 
 function uploadTimeoutForBytes(bytes: number) {
   const estimatedTransferMs = Math.ceil(
@@ -130,13 +140,19 @@ function bunnyTusHeaders(data: Extract<SignResponse, { provider: "bunny" }>) {
 async function verifyBunnyStreamUpload(
   data: Extract<SignResponse, { provider: "bunny" }>,
   input: { vendorId: string; clipId: string },
+  onProgress?: (value: number) => void,
+  shouldCancel: () => boolean = () => false,
 ) {
   try {
-    return await waitForBunnyStreamReady(data.videoId!, input.vendorId, "clip");
+    return await waitForBunnyStreamReady(
+      data.videoId!, input.vendorId, "clip", undefined,
+      (encodeProgress) => onProgress?.(0.9 + (encodeProgress / 100) * 0.09),
+      shouldCancel,
+    );
   } catch (error) {
-    await supabase.functions.invoke("clip-media-delete", {
-      body: { vendorId: input.vendorId, publicId: `bunny:${data.videoId}:${input.clipId}` },
-    }).catch(() => undefined);
+    // A timeout or transient status-check failure does not mean Bunny lost
+    // the uploaded bytes. Keep the remote object so a retry can recover it;
+    // deleting here was turning slow encoding into a real data loss.
     throw new ClipModuleError(
       "UPLOAD_ERROR",
       error instanceof Error ? error.message : "Bunny Stream processing verification failed.",
@@ -151,6 +167,8 @@ async function uploadBunnyTus(
   input: { uri: string; size: number; mimeType: string; name: string; clipId: string; vendorId: string },
   onProgress?: (value: number) => void,
   registerAbort?: (abort: () => void) => void,
+  shouldCancel: () => boolean = () => false,
+  onUploaded?: () => Promise<void>,
 ) {
   if (!data.endpoint || !data.videoId || !data.videoUrl || !data.thumbnailUrl) {
     throw new ClipModuleError("UPLOAD_ERROR", "Incomplete Bunny Stream upload details.");
@@ -198,7 +216,9 @@ async function uploadBunnyTus(
         registerAbort?.(() => request.abort()); request.send(blob);
       });
     }
-    const status = await verifyBunnyStreamUpload(data, input);
+    await onUploaded?.();
+    onProgress?.(0.9);
+    const status = await verifyBunnyStreamUpload(data, input, onProgress, shouldCancel);
     onProgress?.(1);
     return { secure_url: data.videoUrl, public_id: `bunny:${data.videoId}:${input.clipId}`, bytes: input.size, bunny_thumbnail_url: data.thumbnailUrl, duration: status.length, width: status.width, height: status.height };
   }
@@ -234,7 +254,9 @@ async function uploadBunnyTus(
       registerAbort?.(() => upload.abort(true).catch(() => undefined));
       upload.start();
     });
-    const status = await verifyBunnyStreamUpload(data, input);
+    await onUploaded?.();
+    onProgress?.(0.9);
+    const status = await verifyBunnyStreamUpload(data, input, onProgress, shouldCancel);
     onProgress?.(1);
     return { secure_url: data.videoUrl, public_id: `bunny:${data.videoId}:${input.clipId}`, bytes: file.size, bunny_thumbnail_url: data.thumbnailUrl, duration: status.length, width: status.width, height: status.height };
   }
@@ -266,7 +288,9 @@ async function uploadBunnyTus(
   if (!result || result.status < 200 || result.status >= 300) {
     throw new ClipModuleError("UPLOAD_ERROR", `Bunny Stream upload failed (${result?.status ?? "network"}).`, true);
   }
-  const status = await verifyBunnyStreamUpload(data, input);
+  await onUploaded?.();
+  onProgress?.(0.9);
+  const status = await verifyBunnyStreamUpload(data, input, onProgress, shouldCancel);
   onProgress?.(1);
   return {
     secure_url: data.videoUrl,
@@ -316,6 +340,8 @@ async function uploadOne(
   input: { debugUploadId?: string; vendorId: string; clipId: string; kind: "video" | "thumbnail"; uri: string; name: string; mimeType: string; size: number },
   onProgress?: (value: number) => void,
   registerAbort?: (abort: () => void) => void,
+  shouldCancel: () => boolean = () => false,
+  onState?: (state: ClipBunnyUploadState) => Promise<void>,
 ): Promise<BunnyUploadResult> {
   const uploadId = input.debugUploadId ?? input.clipId;
   const signatureStartedAt = Date.now();
@@ -335,7 +361,12 @@ async function uploadOne(
     }),
   );
   if (error || !data) {
-    throw new ClipModuleError("UPLOAD_ERROR", error?.message || "Unable to authorize Bunny upload.", true, error);
+    throw new ClipModuleError(
+      "UPLOAD_ERROR",
+      await edgeFunctionMessage(error, `Unable to authorize ${input.kind} upload. Check your subscription and connection, then retry.`),
+      true,
+      error,
+    );
   }
   if (data.provider !== "bunny") {
     throw new ClipModuleError("UPLOAD_ERROR", "The media service returned an unsupported upload provider.", false);
@@ -347,8 +378,14 @@ async function uploadOne(
   ClipLogger.info("upload", "Bunny authorization request completed", {
     kind: input.kind, elapsedMs: Date.now() - signatureStartedAt,
   });
+  const uploadState = input.kind === "video" && data.videoId && data.videoUrl && data.thumbnailUrl
+    ? { videoId: data.videoId, videoUrl: data.videoUrl, thumbnailUrl: data.thumbnailUrl, uploaded: false }
+    : null;
+  if (uploadState) await onState?.(uploadState);
   return input.kind === "video"
-    ? uploadBunnyTus(data, input, onProgress, registerAbort)
+    ? uploadBunnyTus(data, input, onProgress, registerAbort, shouldCancel, async () => {
+      if (uploadState) await onState?.({ ...uploadState, uploaded: true });
+    })
     : uploadBunnyObject(data, input, onProgress, registerAbort);
 }
 
@@ -368,9 +405,37 @@ export async function uploadClipThumbnail(
 }
 
 ClipBunnyService.configure({
-  async upload(input: ClipBunnyUploadInput, onProgress): Promise<ClipBunnyAsset> {
+  async upload(input: ClipBunnyUploadInput, onProgress, registerAbort): Promise<ClipBunnyAsset> {
     ClipLogger.info("upload", "Starting Bunny uploads", { clipId: input.clipId });
     const aborters: Array<() => void> = [];
+    let cancelled = false;
+    registerAbort?.(() => {
+      cancelled = true;
+      aborters.forEach((abort) => abort());
+    });
+    if (input.resume?.uploaded) {
+      onProgress?.(0.9);
+      const status = await waitForBunnyStreamReady(
+        input.resume.videoId,
+        input.vendorId,
+        "clip",
+        undefined,
+        (encodeProgress) => onProgress?.(0.9 + (encodeProgress / 100) * 0.09),
+        () => cancelled,
+      );
+      onProgress?.(1);
+      return {
+        videoUrl: input.resume.videoUrl,
+        thumbnailUrl: input.resume.thumbnailUrl,
+        publicId: `bunny:${input.resume.videoId}:${input.clipId}`,
+        durationSeconds: Number(status.length) || input.video.durationSeconds,
+        resolution: {
+          width: Number(status.width) || input.video.resolution.width,
+          height: Number(status.height) || input.video.resolution.height,
+        },
+        fileSizeBytes: input.video.fileSizeBytes,
+      };
+    }
     const uploadsStartedAt = Date.now();
     let videoProgress = 0;
     let thumbnailProgress = 0;
@@ -378,41 +443,53 @@ ClipBunnyService.configure({
     const reportCombinedProgress = () => {
       const combined = Math.max(
         lastCombinedProgress,
-        Math.min(1, videoProgress * 0.85 + thumbnailProgress * 0.15),
+        Math.min(0.89, (videoProgress * 0.85 + thumbnailProgress * 0.15) * 0.89),
       );
       lastCombinedProgress = combined;
       onProgress?.(combined);
     };
-    const uploads = Promise.all([
-      uploadOne({
-        debugUploadId: input.debugUploadId,
-        vendorId: input.vendorId, clipId: input.clipId, kind: "video",
-        uri: input.video.uri, name: input.video.fileName,
-        mimeType: input.video.mimeType, size: input.video.fileSizeBytes,
-      }, (value) => {
-        videoProgress = Math.max(videoProgress, value);
-        reportCombinedProgress();
-      }, (abort) => aborters.push(abort)),
-      (async () => {
-        const size = await assetSize(input.thumbnailUri);
+    const videoUpload = uploadOne({
+      debugUploadId: input.debugUploadId,
+      vendorId: input.vendorId, clipId: input.clipId, kind: "video",
+      uri: input.video.uri, name: input.video.fileName,
+      mimeType: input.video.mimeType, size: input.video.fileSizeBytes,
+    }, (value) => {
+      videoProgress = Math.max(videoProgress, value);
+      reportCombinedProgress();
+    }, (abort) => aborters.push(abort), () => cancelled, input.onUploadState);
+    const thumbnailUpload = input.thumbnailUri
+      ? (async () => {
+        const size = await assetSize(input.thumbnailUri!);
         const result = await uploadOne({
           debugUploadId: input.debugUploadId,
           vendorId: input.vendorId, clipId: input.clipId, kind: "thumbnail",
-          uri: input.thumbnailUri, name: `thumbnail-${input.clipId}.jpg`,
+          uri: input.thumbnailUri!, name: `thumbnail-${input.clipId}.jpg`,
           mimeType: "image/jpeg", size,
         }, (value) => {
           thumbnailProgress = Math.max(thumbnailProgress, value);
           reportCombinedProgress();
-        }, (abort) => aborters.push(abort));
+        }, (abort) => aborters.push(abort), () => cancelled);
         return { url: result.secure_url, publicId: result.public_id };
-      })(),
+      })()
+      : Promise.resolve({ url: "", publicId: "" });
+    if (!input.thumbnailUri) thumbnailProgress = 1;
+    const uploads = Promise.all([
+      videoUpload,
+      thumbnailUpload,
     ]);
-    const [video, thumbnail] = await withTimeout(
-      "Video and thumbnail uploads",
-      uploads,
-      () => aborters.forEach((abort) => abort()),
-      uploadTimeoutForBytes(input.video.fileSizeBytes) + OPERATION_TIMEOUT_MS,
-    );
+    let video: BunnyUploadResult;
+    let thumbnail: { url: string; publicId: string };
+    try {
+      [video, thumbnail] = await withTimeout(
+        "Video and thumbnail uploads",
+        uploads,
+        () => aborters.forEach((abort) => abort()),
+        uploadTimeoutForBytes(input.video.fileSizeBytes) + OPERATION_TIMEOUT_MS,
+      );
+    } catch (error) {
+      aborters.forEach((abort) => abort());
+      throw error;
+    }
     ClipLogger.info("upload", "Bunny uploads returned", {
       clipId: input.clipId, elapsedMs: Date.now() - uploadsStartedAt,
     });

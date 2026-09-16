@@ -4,6 +4,7 @@ import type { ClipQueueItem, ClipUploadDraft } from "../types";
 import { asClipError } from "../utils/errors";
 import { ClipLogger } from "../utils/logger";
 import { ClipQueueService, ClipUploadOrchestrator } from "../services";
+import { clipsConfig } from "../config";
 
 /**
  * @param vendorId The currently authenticated vendor's id (or null/undefined
@@ -22,7 +23,16 @@ export function useClipUploadQueue(vendorId?: string | null) {
     try {
       let next = ClipQueueService.getItems().find((item) => item.status === "waiting");
       while (next) {
-        const active = next;
+        let active = next;
+        if (!active.clipId) {
+          const clipId = globalThis.crypto?.randomUUID?.()
+            ?? "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (character) => {
+              const random = Math.floor(Math.random() * 16);
+              return (character === "x" ? random : (random & 0x3) | 0x8).toString(16);
+            });
+          await ClipQueueService.update(active.id, { clipId });
+          active = ClipQueueService.getItems().find((item) => item.id === active.id) ?? { ...active, clipId };
+        }
         const queueStartedAt = Date.now();
         try {
           ClipLogger.uploadDebug(active.id, "QUEUE_PROCESS", "START", {
@@ -35,6 +45,7 @@ export function useClipUploadQueue(vendorId?: string | null) {
               progress,
               status: progress.stage === "compressing" ? "compressing"
                 : progress.stage === "thumbnail" ? "thumbnail"
+                : progress.stage === "processing" ? "uploading"
                 : progress.stage === "saving" ? "saving"
                 : progress.stage === "complete" ? "completed" : "uploading",
             });
@@ -54,6 +65,7 @@ export function useClipUploadQueue(vendorId?: string | null) {
               attempt: active.retryCount + 1,
             },
           });
+          await ClipQueueService.cleanupCompletedMedia(active.id);
           ClipLogger.uploadDebug(active.id, "QUEUE_COMPLETION_PERSISTED", "DONE", {
             elapsedMs: Date.now() - queueStartedAt, progress: 1,
           });
@@ -67,8 +79,45 @@ export function useClipUploadQueue(vendorId?: string | null) {
             (candidate) => candidate.id === active.id && candidate.status === "cancelled",
           );
           if (!cancelled) {
-            Alert.alert("Clip upload failed", error.message);
-            await ClipQueueService.remove(active.id);
+            const current = ClipQueueService.getItems().find((item) => item.id === active.id);
+            const nextRetryCount = active.retryCount + 1;
+            const bunnyStillProcessing = Boolean(current?.bunnyUpload?.uploaded)
+              && /processing did not finish in time/i.test(error.message);
+            if (bunnyStillProcessing) {
+              // Encoding latency is not another upload attempt. Keep the exact
+              // persisted Bunny video ID and continue status polling without
+              // consuming retries or uploading the file again.
+              await ClipQueueService.update(active.id, {
+                status: "waiting",
+                error: null,
+                progress: {
+                  ...(current?.progress ?? active.progress),
+                  stage: "processing",
+                  progress: Math.max(0.9, current?.progress.progress ?? 0.9),
+                },
+              });
+              await new Promise((resolve) => setTimeout(resolve, 30_000));
+            } else if (error.retryable && nextRetryCount < clipsConfig.retry.maximumAttempts) {
+              await ClipQueueService.update(active.id, {
+                status: "waiting",
+                error: null,
+                retryCount: nextRetryCount,
+                progress: { ...(current?.progress ?? active.progress), stage: "idle", progress: 0 },
+              });
+              const delay = Math.min(
+                clipsConfig.retry.maximumDelayMs,
+                clipsConfig.retry.initialDelayMs * (2 ** active.retryCount),
+              );
+              await new Promise((resolve) => setTimeout(resolve, delay));
+            } else {
+              Alert.alert("Clip upload failed", error.message);
+              await ClipQueueService.update(active.id, {
+                status: "failed",
+                error: `${error.message} Check your connection, then tap Retry.`,
+                retryCount: nextRetryCount,
+                progress: { ...(current?.progress ?? active.progress), stage: "failed" },
+              });
+            }
           }
           ClipLogger.error("upload", "Queue failed", {
             queueId: active.id,
@@ -114,7 +163,10 @@ export function useClipUploadQueue(vendorId?: string | null) {
     });
     await process();
   }, [process]);
-  const cancel = useCallback((id: string) => ClipQueueService.update(id, { status: "cancelled" }), []);
+  const cancel = useCallback(async (id: string) => {
+    ClipUploadOrchestrator.cancel(id);
+    await ClipQueueService.update(id, { status: "cancelled", error: "Upload cancelled." });
+  }, []);
   const remove = useCallback((id: string) => ClipQueueService.remove(id), []);
 
   return { items, enqueue, retry, cancel, remove, process };

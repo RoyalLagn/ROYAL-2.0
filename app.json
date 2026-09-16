@@ -2,7 +2,7 @@
   "expo": {
     "name": "RoyalLagn",
     "slug": "royallagn",
-    "version": "1.0.0",
+    "version": "1.0.5",
     "orientation": "default",
     "icon": "./assets/logos/appicon.png",
     "scheme": "royallagn",
@@ -14,7 +14,7 @@
       "buildNumber": "1"
     },
     "android": {
-      "versionCode": 4,
+      "versionCode": 12,
       "googleServicesFile": "./android/app/google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

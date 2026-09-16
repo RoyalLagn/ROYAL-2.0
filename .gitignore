@@ -64,3 +64,5 @@ dist-web/
 
 # Local production database safety snapshots
 /.local-backups/
+
+.0

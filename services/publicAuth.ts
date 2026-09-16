@@ -26,8 +26,8 @@ export type SignupDetails = {
   email: string;
   fullName: string;
   phone: string;
-  preferredCityId: string;
-  preferredAreaId: string | null;
+  preferredCityId?: string | null;
+  preferredAreaId?: string | null;
 };
 
 export type OtpPurpose = "signup" | "recovery";
@@ -56,7 +56,7 @@ export async function resolvePublicLoginProfile(user: User) {
       email: normalizeEmail(user.email || ""),
       fullName: String(metadata.full_name || "").trim(),
       phone: String(metadata.phone || ""),
-      preferredCityId: metadata.preferred_city_id || "",
+      preferredCityId: metadata.preferred_city_id || null,
       preferredAreaId: metadata.preferred_area_id || null,
     });
   }
@@ -89,13 +89,18 @@ export async function sendSignupOtp(details: SignupDetails) {
   if (!validateFullName(details.fullName) || !validatePhone(details.phone) || !validateEmail(email)) {
     throw new Error("Enter a valid full name, phone number, and email address.");
   }
-  const { data: city, error: cityError } = await supabase
-    .from("supported_cities")
-    .select("id")
-    .eq("id", details.preferredCityId)
-    .eq("is_active", true)
-    .maybeSingle();
-  if (cityError || !city) throw cityError ?? new Error("Choose an active RoyalLagn city.");
+  if (details.preferredAreaId && !details.preferredCityId) {
+    throw new Error("Choose a city for the selected area.");
+  }
+  if (details.preferredCityId) {
+    const { data: city, error: cityError } = await supabase
+      .from("supported_cities")
+      .select("id")
+      .eq("id", details.preferredCityId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (cityError || !city) throw cityError ?? new Error("Choose an active RoyalLagn city.");
+  }
   if (details.preferredAreaId) {
     const { data: area, error: areaError } = await supabase
       .from("supported_areas")
@@ -114,8 +119,8 @@ export async function sendSignupOtp(details: SignupDetails) {
         role: "public_user",
         full_name: details.fullName.trim(),
         phone: normalizePhone(details.phone),
-        preferred_city_id: details.preferredCityId,
-        preferred_area_id: details.preferredAreaId,
+        preferred_city_id: details.preferredCityId ?? null,
+        preferred_area_id: details.preferredAreaId ?? null,
         registration_pending: true,
       },
     },
@@ -182,8 +187,8 @@ export async function completePublicSignup(details: SignupDetails, password: str
       role: "public_user",
       full_name: details.fullName.trim(),
       phone: normalizePhone(details.phone),
-      preferred_city_id: details.preferredCityId,
-      preferred_area_id: details.preferredAreaId,
+      preferred_city_id: details.preferredCityId ?? null,
+      preferred_area_id: details.preferredAreaId ?? null,
       registration_pending: false,
     },
   });
@@ -201,7 +206,7 @@ async function createPublicProfile(details: SignupDetails): Promise<PublicProfil
     full_name: details.fullName.trim(),
     phone: normalizePhone(details.phone),
     preferred_city_id: details.preferredCityId || null,
-    preferred_area_id: details.preferredAreaId,
+    preferred_area_id: details.preferredAreaId ?? null,
   });
   if (error) throw error;
   if (!data) throw new Error("Your account could not be created. Please try again.");

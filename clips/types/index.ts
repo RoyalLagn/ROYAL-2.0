@@ -14,6 +14,7 @@ export type ClipUploadStage =
   | "compressing"
   | "thumbnail"
   | "uploading"
+  | "processing"
   | "saving"
   | "complete"
   | "failed";
@@ -134,8 +135,20 @@ export type ClipQueueStatus =
   | "failed"
   | "cancelled";
 
+export interface ClipBunnyUploadState {
+  videoId: string;
+  videoUrl: string;
+  thumbnailUrl: string;
+  uploaded: boolean;
+}
+
 export interface ClipQueueItem {
   id: string;
+  /** Stable database identity retained across app restarts and manual retries. */
+  clipId?: string;
+  /** Persisted immediately after Bunny authorization so retries resume the
+   * same remote object instead of creating mismatched duplicates. */
+  bunnyUpload?: ClipBunnyUploadState;
   draft: ClipUploadDraft;
   status: ClipQueueStatus;
   progress: UploadProgress;
@@ -152,6 +165,8 @@ export interface ClipDraftRecord {
   title: string;
   caption: string;
   source: ClipUpload | null;
+  /** All selected videos. `source` remains for backwards-compatible drafts. */
+  sources?: ClipUpload[];
   customThumbnailUri: string | null;
   updatedAt: string;
 }
