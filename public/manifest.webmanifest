@@ -1,0 +1,32 @@
+{
+  "id": "/",
+  "name": "RoyalLagn Wedding Planner",
+  "short_name": "RoyalLagn",
+  "description": "Discover trusted wedding vendors, compare services and send enquiries directly.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFF8FC",
+  "theme_color": "#E91E63",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

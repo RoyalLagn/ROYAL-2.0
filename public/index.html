@@ -15,22 +15,40 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="RoyalLagn | Discover Trusted Wedding Vendors" />
     <meta name="twitter:description" content="Discover trusted wedding photographers, venues, decorators, makeup artists and more with RoyalLagn. Explore verified wedding vendors and send enquiries directly." />
+    <meta name="theme-color" content="#E91E63" />
+    <link id="royallagn-pwa-manifest" rel="manifest" href="/manifest.webmanifest" />
+    <link id="royallagn-apple-touch-icon" rel="apple-touch-icon" href="/icon-180.png" />
     <script>
-      if (/admin/i.test(window.location.pathname) || window.location.pathname === "/VendorApplications") {
-        const manifest = document.createElement("link");
-        manifest.rel = "manifest";
-        manifest.href = "/admin-manifest.webmanifest";
-        manifest.dataset.royallagnAdminManifest = "true";
-        document.head.appendChild(manifest);
+      (() => {
+        const manifest = document.getElementById("royallagn-pwa-manifest");
+        const appleTouchIcon = document.getElementById("royallagn-apple-touch-icon");
+        const themeColor = document.querySelector('meta[name="theme-color"]');
+        const isAdminRoute = () =>
+          /admin/i.test(window.location.pathname) ||
+          window.location.pathname === "/VendorApplications";
 
-        const icon = document.createElement("link");
-        icon.rel = "apple-touch-icon";
-        icon.href = "/admin-icon-192.png";
-        icon.dataset.royallagnAdminIcon = "true";
-        document.head.appendChild(icon);
+        const syncPwaMetadata = () => {
+          const admin = isAdminRoute();
+          manifest.href = admin ? "/admin-manifest.webmanifest" : "/manifest.webmanifest";
+          appleTouchIcon.href = admin ? "/admin-icon-192.png" : "/icon-180.png";
+          themeColor.content = admin ? "#06234D" : "#E91E63";
+        };
+
+        syncPwaMetadata();
+
+        for (const method of ["pushState", "replaceState"]) {
+          const original = history[method];
+          history[method] = function (...args) {
+            const result = original.apply(this, args);
+            queueMicrotask(syncPwaMetadata);
+            return result;
+          };
+        }
+        window.addEventListener("popstate", syncPwaMetadata);
 
         window.__royalLagnAdminInstallPrompt = null;
         window.addEventListener("beforeinstallprompt", (event) => {
+          if (!isAdminRoute()) return;
           event.preventDefault();
           window.__royalLagnAdminInstallPrompt = event;
           window.dispatchEvent(new Event("royallagn-admin-install-ready"));
@@ -38,17 +56,38 @@
         window.addEventListener("appinstalled", () => {
           window.__royalLagnAdminInstallPrompt = null;
         });
+
         if ("serviceWorker" in navigator) {
           const localDevelopment = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-          if (localDevelopment) {
-            navigator.serviceWorker.getRegistrations()
-              .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
-              .catch(() => undefined);
-          } else {
-            navigator.serviceWorker.register("/admin-service-worker.js", { scope: "/" }).catch(() => undefined);
-          }
+          navigator.serviceWorker.getRegistrations()
+            .then((registrations) => Promise.all(
+              registrations
+                .filter((registration) =>
+                  localDevelopment ||
+                  [registration.installing, registration.waiting, registration.active]
+                    .some((worker) => worker && worker.scriptURL.endsWith("/admin-service-worker.js")),
+                )
+                .map((registration) => registration.unregister()),
+            ))
+            .then(() => {
+              if (!localDevelopment) {
+                return navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
+              }
+              return undefined;
+            })
+            .catch(() => undefined);
         }
-      }
+
+        if ("caches" in window) {
+          caches.keys()
+            .then((keys) => Promise.all(
+              keys
+                .filter((key) => key.startsWith("royallagn-admin-"))
+                .map((key) => caches.delete(key)),
+            ))
+            .catch(() => undefined);
+        }
+      })();
     </script>
     <script type="application/ld+json">
       {
