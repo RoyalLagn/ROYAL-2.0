@@ -62,6 +62,32 @@ async function deleteReviewImages(urls: string[], userId: string) {
   }
 }
 
+type OwnedStorageObject = {
+  storage_bucket_id: string;
+  storage_object_name: string;
+};
+
+async function deleteOwnedSupabaseStorageObjects(
+  service: ReturnType<typeof createClient>,
+  objects: OwnedStorageObject[],
+) {
+  const objectsByBucket = new Map<string, string[]>();
+  for (const object of objects) {
+    const names = objectsByBucket.get(object.storage_bucket_id) ?? [];
+    names.push(object.storage_object_name);
+    objectsByBucket.set(object.storage_bucket_id, names);
+  }
+
+  for (const [bucketId, names] of objectsByBucket) {
+    // The Storage API accepts a bounded array of object names. Chunking keeps
+    // deletion reliable for customers with a large upload history.
+    for (let offset = 0; offset < names.length; offset += 1000) {
+      const { error } = await service.storage.from(bucketId).remove(names.slice(offset, offset + 1000));
+      if (error) throw error;
+    }
+  }
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -119,11 +145,26 @@ Deno.serve(async (request) => {
       });
     }
 
+    // GoTrue refuses to hard-delete an Auth user while that user still owns
+    // Supabase Storage objects. Discover only the authenticated caller's
+    // objects through a SECURITY DEFINER RPC, then remove the underlying files
+    // through the Storage API so its metadata remains consistent.
+    stage = "list_supabase_storage";
+    const { data: ownedStorageObjects, error: ownedStorageError } = await userClient
+      .rpc("list_own_storage_objects_for_account_deletion");
+    if (ownedStorageError) throw ownedStorageError;
+
+    stage = "delete_supabase_storage";
+    await deleteOwnedSupabaseStorageObjects(
+      service,
+      (ownedStorageObjects ?? []) as OwnedStorageObject[],
+    );
+
     stage = "anonymize_customer_data";
     const { error: prepareError } = await userClient.rpc("prepare_customer_account_deletion");
     if (prepareError) throw prepareError;
     stage = "delete_auth_user";
-    const { error: deleteError } = await service.auth.admin.deleteUser(user.id);
+    const { error: deleteError } = await service.auth.admin.deleteUser(user.id, false);
     if (deleteError) throw deleteError;
     return json({ ok: true, reference: `CDEL-${requestId.slice(0, 8).toUpperCase()}` });
   } catch (error) {
@@ -131,6 +172,8 @@ Deno.serve(async (request) => {
     const errorByStage: Record<string, string> = {
       authenticate: "Your session could not be verified. Please sign in and verify a fresh OTP.",
       validate_account: "Your customer account could not be validated for deletion.",
+      list_supabase_storage: "Your uploaded files could not be checked for deletion.",
+      delete_supabase_storage: "Your uploaded files could not be deleted.",
       anonymize_customer_data: "Your retained customer records could not be anonymized.",
       delete_auth_user: "Your login account could not be deleted.",
     };
