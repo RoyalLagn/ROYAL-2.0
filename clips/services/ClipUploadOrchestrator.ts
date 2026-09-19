@@ -14,6 +14,7 @@ export type UploadProgressHandler = (progress: UploadProgress) => void;
 const OPERATION_TIMEOUT_MS = 30_000;
 const MEDIA_PREPARATION_TIMEOUT_MS = 8 * 60_000;
 const activeUploadAborters = new Map<string, () => void>();
+const cancelledUploadIds = new Set<string>();
 
 async function withTimeout<T>(
   label: string,
@@ -55,6 +56,11 @@ function createClipId() {
 
 export const ClipUploadOrchestrator = {
   cancel(queueId: string) {
+    // Cancellation must survive queue-row removal/replacement. Previously the
+    // worker only inspected the row status, so immediately starting the same
+    // clip again could change/remove that row before the old async pipeline
+    // noticed the cancellation and the old upload would continue in parallel.
+    cancelledUploadIds.add(queueId);
     activeUploadAborters.get(queueId)?.();
   },
   async execute(
@@ -72,8 +78,9 @@ export const ClipUploadOrchestrator = {
       attempt: item.retryCount + 1,
     });
     ClipLogger.info("upload", "Preparing upload", { queueId: item.id, vendorId: draft.vendorId });
+    const isCancelled = () => cancelledUploadIds.has(uploadId) || shouldCancel();
     const ensureActive = () => {
-      if (shouldCancel()) throw new ClipModuleError("UPLOAD_ERROR", "Upload cancelled.");
+      if (isCancelled()) throw new ClipModuleError("UPLOAD_ERROR", "Upload cancelled.");
     };
     // Tracked so the catch block below can release the reservation (a
     // no-op once finalize_clip_upload() has already completed it) if any
@@ -252,7 +259,7 @@ export const ClipUploadOrchestrator = {
           bytesUploaded: Math.round(prepared.fileSizeBytes * value),
           totalBytes: prepared.fileSizeBytes, attempt: item.retryCount + 1,
         });
-      }, (abort) => activeUploadAborters.set(uploadId, abort));
+      }, (abort) => activeUploadAborters.set(uploadId, abort), isCancelled);
       ClipLogger.info("upload", "Bunny upload complete", { queueId: item.id, clipId });
       ClipLogger.uploadDebug(uploadId, "BUNNY", "DONE", {
         clipId, elapsedMs: Date.now() - stageStartedAt, uploaded,
@@ -361,10 +368,16 @@ export const ClipUploadOrchestrator = {
       // no-op if finalize_clip_upload() already completed it) so a failed
       // upload frees its slot immediately instead of holding it until the
       // 15 minute expiry.
-      await releaseReservation(reservationId);
+      const uploadedAwaitingProcessing = Boolean(item.bunnyUpload?.uploaded)
+        && /processing did not finish in time/i.test(error instanceof Error ? error.message : String(error));
+      // Uploaded bytes are recoverable via the persisted Bunny video id. Keep
+      // their reservation alive for the bounded status retry; releasing it here
+      // made the retry reserve/upload lifecycle inconsistent.
+      if (!uploadedAwaitingProcessing) await releaseReservation(reservationId);
       throw error;
     } finally {
       activeUploadAborters.delete(uploadId);
+      cancelledUploadIds.delete(uploadId);
       if (temporaryPreparedUri) {
         await FileSystem.deleteAsync(temporaryPreparedUri, { idempotent: true }).catch(() => undefined);
       }

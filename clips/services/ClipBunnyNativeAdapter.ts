@@ -38,6 +38,7 @@ type BunnyUploadResult = {
 };
 
 const OPERATION_TIMEOUT_MS = 30_000;
+const CLIP_PROCESSING_TIMEOUT_MS = 2 * 60_000;
 const MIN_UPLOAD_TIMEOUT_MS = 8 * 60_000;
 const MAX_UPLOAD_TIMEOUT_MS = 15 * 60_000;
 const ASSUMED_SLOW_UPLOAD_BYTES_PER_SECOND = 128 * 1024;
@@ -145,7 +146,7 @@ async function verifyBunnyStreamUpload(
 ) {
   try {
     return await waitForBunnyStreamReady(
-      data.videoId!, input.vendorId, "clip", undefined,
+      data.videoId!, input.vendorId, "clip", CLIP_PROCESSING_TIMEOUT_MS,
       (encodeProgress) => onProgress?.(0.9 + (encodeProgress / 100) * 0.09),
       shouldCancel,
     );
@@ -405,7 +406,7 @@ export async function uploadClipThumbnail(
 }
 
 ClipBunnyService.configure({
-  async upload(input: ClipBunnyUploadInput, onProgress, registerAbort): Promise<ClipBunnyAsset> {
+  async upload(input: ClipBunnyUploadInput, onProgress, registerAbort, shouldCancel = () => false): Promise<ClipBunnyAsset> {
     ClipLogger.info("upload", "Starting Bunny uploads", { clipId: input.clipId });
     const aborters: Array<() => void> = [];
     let cancelled = false;
@@ -419,9 +420,9 @@ ClipBunnyService.configure({
         input.resume.videoId,
         input.vendorId,
         "clip",
-        undefined,
+        CLIP_PROCESSING_TIMEOUT_MS,
         (encodeProgress) => onProgress?.(0.9 + (encodeProgress / 100) * 0.09),
-        () => cancelled,
+        () => cancelled || shouldCancel(),
       );
       onProgress?.(1);
       return {
@@ -456,7 +457,7 @@ ClipBunnyService.configure({
     }, (value) => {
       videoProgress = Math.max(videoProgress, value);
       reportCombinedProgress();
-    }, (abort) => aborters.push(abort), () => cancelled, input.onUploadState);
+    }, (abort) => aborters.push(abort), () => cancelled || shouldCancel(), input.onUploadState);
     const thumbnailUpload = input.thumbnailUri
       ? (async () => {
         const size = await assetSize(input.thumbnailUri!);

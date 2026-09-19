@@ -155,6 +155,12 @@ export default function VendorClipUpload() {
     try {
       await queue.enqueue(drafts);
       await ClipDraftService.remove(localDraftId);
+      // The queue owns these local media references now. Resetting the form
+      // prevents a later tap from submitting the same selection a second time.
+      setSources([]);
+      setThumbnailUri(null);
+      setTitle("");
+      setCaption("");
     } catch (error) {
       Alert.alert("Upload not queued", error instanceof Error ? error.message : "Try again.");
     } finally {

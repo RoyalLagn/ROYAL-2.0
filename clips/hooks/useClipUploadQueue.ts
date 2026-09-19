@@ -6,6 +6,12 @@ import { ClipLogger } from "../utils/logger";
 import { ClipQueueService, ClipUploadOrchestrator } from "../services";
 import { clipsConfig } from "../config";
 
+// The upload screen can unmount/remount while an upload is still running.
+// Keep the worker lock at module scope so there is exactly one queue consumer
+// for the whole app, rather than one consumer per hook instance.
+let queueProcessor: Promise<void> | null = null;
+const deferredProcessingIds = new Set<string>();
+
 /**
  * @param vendorId The currently authenticated vendor's id (or null/undefined
  * while signed out / still resolving). The Upload Queue is scoped to this
@@ -15,13 +21,21 @@ import { clipsConfig } from "../config";
  */
 export function useClipUploadQueue(vendorId?: string | null) {
   const [items, setItems] = useState<ClipQueueItem[]>([]);
-  const processing = useRef(false);
+  const processRef = useRef<() => Promise<void>>(async () => undefined);
 
   const process = useCallback(async () => {
-    if (processing.current) return;
-    processing.current = true;
-    try {
-      let next = ClipQueueService.getItems().find((item) => item.status === "waiting");
+    if (queueProcessor) {
+      await queueProcessor;
+      const workArrivedWhileFinishing = ClipQueueService.getItems().some(
+        (item) => item.status === "waiting" && !deferredProcessingIds.has(item.id),
+      );
+      if (workArrivedWhileFinishing) return processRef.current();
+      return;
+    }
+    const run = async () => {
+      let next = ClipQueueService.getItems().find(
+        (item) => item.status === "waiting" && !deferredProcessingIds.has(item.id),
+      );
       while (next) {
         let active = next;
         if (!active.clipId) {
@@ -75,28 +89,34 @@ export function useClipUploadQueue(vendorId?: string | null) {
           });
         } catch (caught) {
           const error = asClipError(caught);
-          const cancelled = ClipQueueService.getItems().some(
-            (candidate) => candidate.id === active.id && candidate.status === "cancelled",
-          );
+          const cancelled = /upload cancelled/i.test(error.message)
+            || ClipQueueService.getItems().some(
+              (candidate) => candidate.id === active.id && candidate.status === "cancelled",
+            );
           if (!cancelled) {
             const current = ClipQueueService.getItems().find((item) => item.id === active.id);
             const nextRetryCount = active.retryCount + 1;
             const bunnyStillProcessing = Boolean(current?.bunnyUpload?.uploaded)
               && /processing did not finish in time/i.test(error.message);
-            if (bunnyStillProcessing) {
+            if (bunnyStillProcessing && nextRetryCount < clipsConfig.retry.maximumAttempts) {
               // Encoding latency is not another upload attempt. Keep the exact
-              // persisted Bunny video ID and continue status polling without
-              // consuming retries or uploading the file again.
+              // persisted Bunny video ID and defer status polling so later
+              // queued clips are not blocked behind this one forever.
               await ClipQueueService.update(active.id, {
                 status: "waiting",
                 error: null,
+                retryCount: nextRetryCount,
                 progress: {
                   ...(current?.progress ?? active.progress),
                   stage: "processing",
                   progress: Math.max(0.9, current?.progress.progress ?? 0.9),
                 },
               });
-              await new Promise((resolve) => setTimeout(resolve, 30_000));
+              deferredProcessingIds.add(active.id);
+              setTimeout(() => {
+                deferredProcessingIds.delete(active.id);
+                void processRef.current();
+              }, 30_000);
             } else if (error.retryable && nextRetryCount < clipsConfig.retry.maximumAttempts) {
               await ClipQueueService.update(active.id, {
                 status: "waiting",
@@ -134,12 +154,15 @@ export function useClipUploadQueue(vendorId?: string | null) {
             elapsedMs: Date.now() - queueStartedAt,
           });
         }
-        next = ClipQueueService.getItems().find((item) => item.status === "waiting");
+        next = ClipQueueService.getItems().find(
+          (item) => item.status === "waiting" && !deferredProcessingIds.has(item.id),
+        );
       }
-    } finally {
-      processing.current = false;
-    }
+    };
+    queueProcessor = run().finally(() => { queueProcessor = null; });
+    return queueProcessor;
   }, []);
+  processRef.current = process;
 
   useEffect(() => {
     const unsubscribe = ClipQueueService.subscribe(setItems);

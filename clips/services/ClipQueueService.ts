@@ -128,13 +128,31 @@ class Queue {
       );
     }
     const now = new Date().toISOString();
-    this.items.push(...drafts.map((draft) => {
+    const mediaKey = (draft: ClipUploadDraft) => [
+      draft.vendorId,
+      draft.source.uri,
+      draft.source.fileName,
+      draft.source.fileSizeBytes,
+    ].join("|");
+    const incomingKeys = new Set<string>();
+    const additions: ClipQueueItem[] = [];
+    let queuedCount = 0;
+    for (const draft of drafts) {
+      const key = mediaKey(draft);
+      if (incomingKeys.has(key)) continue;
+      incomingKeys.add(key);
+      const existing = this.items.find((item) =>
+        mediaKey(item.draft) === key && item.status !== "completed",
+      );
+      if (existing && existing.status !== "cancelled") {
+        continue;
+      }
       const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       ClipLogger.uploadDebug(id, "QUEUE_ITEM_CREATED", "DONE", {
         vendorId: draft.vendorId, categoryId: draft.categoryId,
         fileName: draft.source.fileName, bytes: draft.source.fileSizeBytes,
       });
-      return {
+      const next: ClipQueueItem = {
       id,
       draft,
       status: "waiting" as const,
@@ -144,7 +162,17 @@ class Queue {
       updatedAt: now,
       retryCount: 0,
       };
-    }));
+      if (existing?.status === "cancelled") {
+        this.items = this.items.map((item) => item.id === existing.id ? next : item);
+      } else {
+        additions.push(next);
+      }
+      queuedCount += 1;
+    }
+    if (queuedCount === 0) {
+      throw new ClipModuleError("VALIDATION_ERROR", "This clip is already in the upload queue.");
+    }
+    this.items.push(...additions);
     await this.persist();
     return this.items;
   }
