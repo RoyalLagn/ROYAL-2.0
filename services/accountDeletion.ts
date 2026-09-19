@@ -5,7 +5,10 @@ async function functionErrorMessage(error: unknown, fallback: string) {
   if (error instanceof FunctionsHttpError) {
     try {
       const payload = await error.context.json();
-      if (payload?.error) return String(payload.error);
+      if (payload?.error) {
+        const reference = payload.reference ? ` Support reference: ${String(payload.reference)}.` : "";
+        return `${String(payload.error)}${reference}`;
+      }
     } catch { /* Response body was not JSON. */ }
   }
   return error instanceof Error && error.message ? error.message : fallback;

@@ -66,6 +66,7 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
   const requestId = crypto.randomUUID();
+  let stage = "authenticate";
   try {
     const authHeader = request.headers.get("Authorization") ?? "";
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
@@ -82,6 +83,7 @@ Deno.serve(async (request) => {
     if (!(await checkRateLimit(service, `customer-account-delete:${user.id}`, 3, 86400))) {
       return json({ error: "Too many deletion attempts. Please try again tomorrow." }, 429);
     }
+    stage = "validate_account";
     const { data: profile, error: profileError } = await service
       .from("profiles").select("role,profile_image").eq("id", user.id).maybeSingle();
     if (profileError) throw profileError;
@@ -92,20 +94,49 @@ Deno.serve(async (request) => {
     // Read review media through the caller's JWT. Existing reviews RLS limits
     // this query to the authenticated customer's own rows and avoids granting
     // the service role broad access to all marketplace reviews.
+    stage = "read_review_media";
     const { data: reviews, error: reviewsError } = await userClient
       .from("reviews")
       .select("image_urls")
       .eq("profile_id", user.id);
-    if (reviewsError) throw reviewsError;
-    await deleteProfileImage(profile.profile_image, user.id);
-    await deleteReviewImages((reviews ?? []).flatMap((row) => row.image_urls ?? []), user.id);
+    if (reviewsError) {
+      console.error("[delete-customer-account] review media lookup skipped", {
+        requestId,
+        message: reviewsError.message,
+      });
+    }
+
+    // Media cleanup is best-effort. A temporary Bunny failure must not block
+    // the user's account-deletion right; database rows still cascade below.
+    stage = "delete_media";
+    try {
+      await deleteProfileImage(profile.profile_image, user.id);
+      await deleteReviewImages((reviews ?? []).flatMap((row) => row.image_urls ?? []), user.id);
+    } catch (mediaError) {
+      console.error("[delete-customer-account] media cleanup skipped", {
+        requestId,
+        message: mediaError instanceof Error ? mediaError.message : String(mediaError),
+      });
+    }
+
+    stage = "anonymize_customer_data";
     const { error: prepareError } = await userClient.rpc("prepare_customer_account_deletion");
     if (prepareError) throw prepareError;
+    stage = "delete_auth_user";
     const { error: deleteError } = await service.auth.admin.deleteUser(user.id);
     if (deleteError) throw deleteError;
     return json({ ok: true, reference: `CDEL-${requestId.slice(0, 8).toUpperCase()}` });
   } catch (error) {
-    console.error("[delete-customer-account] deletion failed", { requestId, message: error instanceof Error ? error.message : String(error) });
-    return json({ error: "Your account could not be deleted completely. Please try again or contact support.", reference: requestId }, 500);
+    console.error("[delete-customer-account] deletion failed", { requestId, stage, message: error instanceof Error ? error.message : String(error) });
+    const errorByStage: Record<string, string> = {
+      authenticate: "Your session could not be verified. Please sign in and verify a fresh OTP.",
+      validate_account: "Your customer account could not be validated for deletion.",
+      anonymize_customer_data: "Your retained customer records could not be anonymized.",
+      delete_auth_user: "Your login account could not be deleted.",
+    };
+    return json({
+      error: errorByStage[stage] ?? "Your account could not be deleted completely. Please try again or contact support.",
+      reference: requestId,
+    }, 500);
   }
 });

@@ -633,11 +633,12 @@ assert.match(downloadAppPopupSource, /localStorage\?\.setItem\(DISMISSED_AT_KEY,
 assert.match(downloadAppPopupSource, /setTimeout\(\(\) => setVisible\(true\), 1500\)/, "The existing app-download popup timing must remain unchanged.");
 
 // --- OTP-verified customer self-service account deletion --
-const [accountDeletionScreenSource, accountDeletionServiceSource, customerDeletionFunctionSource, customerDeletionMigrationSource] = await Promise.all([
+const [accountDeletionScreenSource, accountDeletionServiceSource, customerDeletionFunctionSource, customerDeletionMigrationSource, customerDeletionFixSource] = await Promise.all([
   read("app/account-deletion.tsx"),
   read("services/accountDeletion.ts"),
   read("supabase/functions/delete-customer-account/index.ts"),
   read("supabase/migrations/20260905190000_customer_self_service_deletion.sql"),
+  read("supabase/migrations/20260919103000_fix_customer_deletion_enquiry_anonymization.sql"),
 ]);
 assert.match(accountDeletionScreenSource, /sendCustomerDeletionOtp/, "Customer deletion must require a fresh email OTP.");
 assert.match(accountDeletionScreenSource, /Delete my account permanently/, "Customer deletion must retain an explicit irreversible confirmation.");
@@ -648,6 +649,10 @@ assert.match(customerDeletionFunctionSource, /auth\.admin\.deleteUser\(user\.id\
 assert.doesNotMatch(customerDeletionFunctionSource, /body\.(?:user|profile|customer)_?id/i, "The deletion backend must never trust a client-supplied account identifier.");
 assert.match(customerDeletionMigrationSource, /customer_name = 'Deleted customer'[\s\S]*customer_email = null[\s\S]*customer_phone = null/, "Retained enquiries must be anonymized before customer deletion.");
 assert.match(customerDeletionMigrationSource, /role = 'public_user'/, "The deletion transaction must enforce the customer role in PostgreSQL too.");
+assert.match(customerDeletionFixSource, /guest_session_id = coalesce\(guest_session_id, gen_random_uuid\(\)\)/, "Customer enquiries must retain an anonymous actor before customer_id is cleared.");
+assert.match(customerDeletionFunctionSource, /media cleanup skipped/, "Remote media cleanup must not block customer account deletion.");
+assert.match(customerDeletionFunctionSource, /stage, message:/, "Customer deletion failures must record the failing stage.");
+assert.match(accountDeletionServiceSource, /Support reference:/, "Customer deletion errors must expose their support reference.");
 
 // --- OTP-verified vendor deletion with explicit Admin approval ---------
 const [vendorDeletionScreenSource, vendorDeletionServiceSource, vendorDeletionAdminSource, vendorDeletionFunctionSource, vendorDeletionRequestFunctionSource, vendorDeletionMigrationSource, vendorDeletionConstraintSource, vendorNavigationSource, adminNavigationSourceForDeletion] = await Promise.all([
