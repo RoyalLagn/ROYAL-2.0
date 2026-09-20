@@ -140,6 +140,9 @@ export interface ClipBunnyUploadState {
   videoUrl: string;
   thumbnailUrl: string;
   uploaded: boolean;
+  /** Legacy field retained only so existing persisted queue rows can be read. */
+  uploadedBytes?: number;
+  protocol?: "binary" | "tus";
 }
 
 export interface ClipQueueItem {

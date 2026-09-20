@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { presignBunnyObject } from "../_shared/bunnyS3.ts";
+import { extensionForMime, presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -20,11 +20,6 @@ async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit) {
   } finally {
     clearTimeout(timer);
   }
-}
-
-async function sha256(value: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 Deno.serve(async (request) => {
@@ -76,33 +71,12 @@ Deno.serve(async (request) => {
     if (accessError) throw accessError;
     console.log(`[CLIP-DEBUG][${uploadId}] EDGE_VENDOR_AUTH DONE`, { requestId, vendorId, clipId, kind });
 
-    const bunnyLibraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
-    const bunnyApiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
-    const bunnyCdnHostname = Deno.env.get("BUNNY_STREAM_CDN_HOSTNAME")?.trim()
-      .replace(/^https?:\/\//, "").replace(/\/$/, "");
     if (kind === "video") {
-      if (!bunnyLibraryId || !bunnyApiKey || !bunnyCdnHostname) {
-        throw new Error("Bunny Stream is not configured");
-      }
-      const createResponse = await fetchWithTimeout(
-        `https://video.bunnycdn.com/library/${encodeURIComponent(bunnyLibraryId)}/videos`,
-        {
-          method: "POST",
-          headers: { AccessKey: bunnyApiKey, Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({ title: `clip-${clipId}` }),
-        },
+      const extension = extensionForMime(String(mimeType));
+      return Response.json(
+        await presignBunnyObject("PUT", `clips/${vendorId}/${clipId}/source.${extension}`),
+        { headers: cors },
       );
-      const created = await createResponse.json().catch(() => ({})) as { guid?: string; message?: string };
-      if (!createResponse.ok || !created.guid) throw new Error(created.message || "Unable to create Bunny Stream video");
-      const expires = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
-      const signature = await sha256(`${bunnyLibraryId}${bunnyApiKey}${expires}${created.guid}`);
-      return Response.json({
-        provider: "bunny", uploadMode: "tus", endpoint: "https://video.bunnycdn.com/tusupload",
-        authorizationSignature: signature, authorizationExpire: expires,
-        videoId: created.guid, libraryId: bunnyLibraryId,
-        videoUrl: `https://${bunnyCdnHostname}/${created.guid}/playlist.m3u8`,
-        thumbnailUrl: `https://${bunnyCdnHostname}/${created.guid}/thumbnail.jpg`,
-      }, { headers: cors });
     }
     if (kind === "thumbnail") {
       const extension = String(mimeType).toLowerCase() === "image/png" ? "png" : "jpg";

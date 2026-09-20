@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
+import { supabase } from "@/services/supabase";
 import type { ClipQueueItem, ClipUploadDraft } from "../types";
 import { asClipError } from "../utils/errors";
 import { ClipLogger } from "../utils/logger";
@@ -11,6 +12,7 @@ import { clipsConfig } from "../config";
 // for the whole app, rather than one consumer per hook instance.
 let queueProcessor: Promise<void> | null = null;
 const deferredProcessingIds = new Set<string>();
+const AUTOMATIC_UPLOAD_RETRY_ENABLED = false;
 
 /**
  * @param vendorId The currently authenticated vendor's id (or null/undefined
@@ -98,7 +100,7 @@ export function useClipUploadQueue(vendorId?: string | null) {
             const nextRetryCount = active.retryCount + 1;
             const bunnyStillProcessing = Boolean(current?.bunnyUpload?.uploaded)
               && /processing did not finish in time/i.test(error.message);
-            if (bunnyStillProcessing && nextRetryCount < clipsConfig.retry.maximumAttempts) {
+            if (AUTOMATIC_UPLOAD_RETRY_ENABLED && bunnyStillProcessing && nextRetryCount < clipsConfig.retry.maximumAttempts) {
               // Encoding latency is not another upload attempt. Keep the exact
               // persisted Bunny video ID and defer status polling so later
               // queued clips are not blocked behind this one forever.
@@ -117,7 +119,7 @@ export function useClipUploadQueue(vendorId?: string | null) {
                 deferredProcessingIds.delete(active.id);
                 void processRef.current();
               }, 30_000);
-            } else if (error.retryable && nextRetryCount < clipsConfig.retry.maximumAttempts) {
+            } else if (AUTOMATIC_UPLOAD_RETRY_ENABLED && error.retryable && nextRetryCount < clipsConfig.retry.maximumAttempts) {
               await ClipQueueService.update(active.id, {
                 status: "waiting",
                 error: null,
@@ -130,12 +132,21 @@ export function useClipUploadQueue(vendorId?: string | null) {
               );
               await new Promise((resolve) => setTimeout(resolve, delay));
             } else {
+              if (current?.bunnyUpload && !current.bunnyUpload.uploaded) {
+                await supabase.functions.invoke("clip-media-delete", {
+                  body: {
+                    vendorId: current.draft.vendorId,
+                    publicId: `bunny:${current.bunnyUpload.videoId}:${current.clipId}`,
+                  },
+                }).catch(() => undefined);
+              }
               Alert.alert("Clip upload failed", error.message);
               await ClipQueueService.update(active.id, {
                 status: "failed",
                 error: `${error.message} Check your connection, then tap Retry.`,
                 retryCount: nextRetryCount,
                 progress: { ...(current?.progress ?? active.progress), stage: "failed" },
+                ...(current?.bunnyUpload && !current.bunnyUpload.uploaded ? { bunnyUpload: undefined } : {}),
               });
             }
           }
@@ -177,14 +188,22 @@ export function useClipUploadQueue(vendorId?: string | null) {
 
   const enqueue = useCallback(async (drafts: ClipUploadDraft[]) => {
     await ClipQueueService.enqueue(drafts);
-    await process();
+    // Enqueueing is complete once the durable queue row is saved. Do not keep
+    // the form's submit button in "Queuing…" for the whole media pipeline.
+    void process();
   }, [process]);
   const retry = useCallback(async (id: string) => {
     const item = ClipQueueService.getItems().find((candidate) => candidate.id === id);
+    const remoteAssetMissing = /status failed \(404\)|not found/i.test(item?.error || "");
     await ClipQueueService.update(id, {
-      status: "waiting", error: null, retryCount: (item?.retryCount ?? 0) + 1,
+      status: "waiting",
+      error: null,
+      retryCount: remoteAssetMissing ? 0 : (item?.retryCount ?? 0) + 1,
+      // A deleted/missing Bunny object cannot be resumed. Clearing its state
+      // forces the retry to request a fresh video object and upload the bytes.
+      ...(remoteAssetMissing ? { bunnyUpload: undefined } : {}),
     });
-    await process();
+    void process();
   }, [process]);
   const cancel = useCallback(async (id: string) => {
     ClipUploadOrchestrator.cancel(id);

@@ -42,7 +42,7 @@ export function bunnyStorageConfig() {
   };
 }
 
-export async function presignBunnyObject(method: "PUT" | "DELETE", objectKey: string, expiresSeconds = 900) {
+export async function presignBunnyObject(method: "GET" | "PUT" | "DELETE", objectKey: string, expiresSeconds = 900) {
   const config = bunnyStorageConfig();
   const now = new Date();
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");

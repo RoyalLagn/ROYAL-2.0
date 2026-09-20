@@ -54,6 +54,20 @@ function createClipId() {
   });
 }
 
+function canonicalClipResolution(width: number, height: number) {
+  const safeWidth = Math.max(1, Number(width) || 1);
+  const safeHeight = Math.max(1, Number(height) || 1);
+  const scale = Math.min(
+    1,
+    clipsConfig.media.maximumWidth / safeWidth,
+    clipsConfig.media.maximumHeight / safeHeight,
+  );
+  return {
+    width: Math.max(1, Math.round(safeWidth * scale)),
+    height: Math.max(1, Math.round(safeHeight * scale)),
+  };
+}
+
 export const ClipUploadOrchestrator = {
   cancel(queueId: string) {
     // Cancellation must survive queue-row removal/replacement. Previously the
@@ -179,6 +193,11 @@ export const ClipUploadOrchestrator = {
       ClipLogger.uploadDebug(uploadId, "VIDEO_PREPARE", "DONE", {
         elapsedMs: Date.now() - stageStartedAt, bytes: prepared.fileSizeBytes,
       });
+      ClipLogger.info("upload", "[CLIP-UPLOAD] FILE", {
+        name: prepared.fileName,
+        size: prepared.fileSizeBytes,
+        mimeType: prepared.mimeType,
+      });
       ensureActive();
       if (prepared.fileSizeBytes > clipsConfig.media.maximumFinalFileSizeBytes) {
         throw new ClipModuleError("COMPRESSION_ERROR", "This video could not be compressed to 20 MB. Please choose a shorter video or a lower-resolution clip.");
@@ -231,6 +250,10 @@ export const ClipUploadOrchestrator = {
         elapsedMs: Date.now() - stageStartedAt,
         reservationId,
       });
+      ClipLogger.info("upload", "[CLIP-UPLOAD] RESERVATION", {
+        reservationId,
+        queueId: item.id,
+      });
 
       const clipId = item.clipId || createClipId();
       stageStartedAt = Date.now();
@@ -281,6 +304,13 @@ export const ClipUploadOrchestrator = {
       ClipLogger.info("database", "Supabase operation started", {
         table: "clips", operation: "rpc/finalize_clip_upload", queueId: item.id, clipId,
       });
+      // Bunny may retain a higher-resolution source (for example 1440x2560)
+      // while serving adaptive renditions. Store the canonical, aspect-ratio-
+      // preserving delivery dimensions required by clips_resolution_valid.
+      const storedResolution = canonicalClipResolution(
+        uploaded.resolution.width,
+        uploaded.resolution.height,
+      );
       const insertPayload = {
       id: clipId,
       category_id: authoritativeCategoryId,
@@ -289,8 +319,8 @@ export const ClipUploadOrchestrator = {
       video_url: uploaded.videoUrl,
       thumbnail_url: uploaded.thumbnailUrl,
       duration_seconds: uploaded.durationSeconds,
-      width: uploaded.resolution.width,
-      height: uploaded.resolution.height,
+      width: storedResolution.width,
+      height: storedResolution.height,
       file_size_bytes: uploaded.fileSizeBytes,
       bunny_asset_id: uploaded.publicId,
       };
@@ -325,6 +355,12 @@ export const ClipUploadOrchestrator = {
         } : null,
         elapsedMs: Date.now() - insertStartedAt,
       });
+      ClipLogger.info("upload", "[CLIP-UPLOAD] FINALIZE", {
+        clipId,
+        reservationId,
+        success: !error,
+        error: error?.message ?? null,
+      });
       if (error) {
         await withTimeout("Cleaning up failed upload", supabase.functions.invoke("clip-media-delete", {
           body: { vendorId: draft.vendorId, publicId: uploaded.publicId },
@@ -332,7 +368,13 @@ export const ClipUploadOrchestrator = {
         if (error.hint === "RESERVATION_EXPIRED" || error.code === "P0003") {
           throw new ClipModuleError("UPLOAD_ERROR", "This upload took too long and the reserved slot expired. Please try again.", true, error);
         }
-        throw new ClipModuleError("DATABASE_ERROR", error.message, true, error);
+        const permanentConstraintFailure = error.code === "23514";
+        throw new ClipModuleError(
+          permanentConstraintFailure ? "VALIDATION_ERROR" : "DATABASE_ERROR",
+          error.message,
+          !permanentConstraintFailure,
+          error,
+        );
       }
       ClipLogger.info("database", "Database insert finished", {
         queueId: item.id, clipId, elapsedMs: Date.now() - insertStartedAt,
@@ -368,12 +410,7 @@ export const ClipUploadOrchestrator = {
       // no-op if finalize_clip_upload() already completed it) so a failed
       // upload frees its slot immediately instead of holding it until the
       // 15 minute expiry.
-      const uploadedAwaitingProcessing = Boolean(item.bunnyUpload?.uploaded)
-        && /processing did not finish in time/i.test(error instanceof Error ? error.message : String(error));
-      // Uploaded bytes are recoverable via the persisted Bunny video id. Keep
-      // their reservation alive for the bounded status retry; releasing it here
-      // made the retry reserve/upload lifecycle inconsistent.
-      if (!uploadedAwaitingProcessing) await releaseReservation(reservationId);
+      await releaseReservation(reservationId);
       throw error;
     } finally {
       activeUploadAborters.delete(uploadId);
