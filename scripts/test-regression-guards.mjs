@@ -633,13 +633,14 @@ assert.match(downloadAppPopupSource, /localStorage\?\.setItem\(DISMISSED_AT_KEY,
 assert.match(downloadAppPopupSource, /setTimeout\(\(\) => setVisible\(true\), 1500\)/, "The existing app-download popup timing must remain unchanged.");
 
 // --- OTP-verified customer self-service account deletion --
-const [accountDeletionScreenSource, accountDeletionServiceSource, customerDeletionFunctionSource, customerDeletionMigrationSource, customerDeletionFixSource, customerDeletionStorageSource] = await Promise.all([
+const [accountDeletionScreenSource, accountDeletionServiceSource, customerDeletionFunctionSource, customerDeletionMigrationSource, customerDeletionFixSource, customerDeletionStorageSource, customerDeletionClipViewFixSource] = await Promise.all([
   read("app/account-deletion.tsx"),
   read("services/accountDeletion.ts"),
   read("supabase/functions/delete-customer-account/index.ts"),
   read("supabase/migrations/20260905190000_customer_self_service_deletion.sql"),
   read("supabase/migrations/20260919103000_fix_customer_deletion_enquiry_anonymization.sql"),
   read("supabase/migrations/20260919120000_list_owned_storage_for_customer_deletion.sql"),
+  read("supabase/migrations/20260919123000_fix_customer_deletion_clip_view_identity.sql"),
 ]);
 assert.match(accountDeletionScreenSource, /sendCustomerDeletionOtp/, "Customer deletion must require a fresh email OTP.");
 assert.match(accountDeletionScreenSource, /Delete my account permanently/, "Customer deletion must retain an explicit irreversible confirmation.");
@@ -653,6 +654,7 @@ assert.match(customerDeletionMigrationSource, /role = 'public_user'/, "The delet
 assert.match(customerDeletionFixSource, /guest_session_id = coalesce\(guest_session_id, gen_random_uuid\(\)\)/, "Customer enquiries must retain an anonymous actor before customer_id is cleared.");
 assert.match(customerDeletionStorageSource, /objects\.owner_id = auth\.uid\(\)::text/, "Storage cleanup discovery must be limited to objects owned by the authenticated caller.");
 assert.match(customerDeletionFunctionSource, /service\.storage\.from\(bucketId\)\.remove/, "Owned Supabase Storage files must be removed through the Storage API before Auth deletion.");
+assert.match(customerDeletionClipViewFixSource, /update public\.clip_views[\s\S]*session_hash = coalesce[\s\S]*where viewer_id = current_user_id/, "Retained clip views must receive an anonymous identity before the profile foreign key is cleared.");
 assert.match(customerDeletionFunctionSource, /media cleanup skipped/, "Remote media cleanup must not block customer account deletion.");
 assert.match(customerDeletionFunctionSource, /stage, message:/, "Customer deletion failures must record the failing stage.");
 assert.match(accountDeletionServiceSource, /Support reference:/, "Customer deletion errors must expose their support reference.");
