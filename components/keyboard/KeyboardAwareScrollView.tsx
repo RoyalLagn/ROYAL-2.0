@@ -17,6 +17,8 @@ import {
 type KeyboardAwareScrollViewProps = ScrollViewProps & {
   containerStyle?: StyleProp<ViewStyle>;
   keyboardGap?: number;
+  /** Lets a screen compact its non-form content as soon as an input is focused. */
+  onKeyboardVisibilityChange?: (visible: boolean) => void;
   /** Opt in where an Android surface does not reliably inherit the activity's adjustResize behavior. */
   avoidKeyboardOnAndroid?: boolean;
 };
@@ -87,6 +89,7 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
       containerStyle,
       keyboardGap = DEFAULT_KEYBOARD_GAP,
       avoidKeyboardOnAndroid = false,
+      onKeyboardVisibilityChange,
       keyboardShouldPersistTaps = "handled",
       keyboardDismissMode = "none",
       automaticallyAdjustKeyboardInsets = false,
@@ -114,6 +117,11 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
 
     const revealInput = React.useCallback((requestedInput?: TextInput | null) => {
       if (Platform.OS === "web") return;
+      // On Android, keyboardDidShow fires after the IME animation has completed.
+      // Tell the host immediately so its title/logo moves out of the way while
+      // the keyboard is opening, rather than leaving the first focused field
+      // temporarily covered.
+      onKeyboardVisibilityChange?.(true);
       const scrollView = scrollRef.current;
       const focused = (requestedInput ?? TextInput.State.currentlyFocusedInput()) as unknown as MeasurableInput | null;
       if (!scrollView || !focused) return;
@@ -125,7 +133,7 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
           scrollView.scrollTo({ y: scrollYRef.current + delta, animated: true });
         }
       });
-    }, [keyboardGap]);
+    }, [keyboardGap, onKeyboardVisibilityChange]);
 
     const scheduleReveal = React.useCallback((input?: TextInput | null) => {
       if (Platform.OS === "web") return;
@@ -166,6 +174,7 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
       if (Platform.OS === "web") return;
       const show = Keyboard.addListener("keyboardDidShow", (event) => {
         keyboardVisibleRef.current = true;
+        onKeyboardVisibilityChange?.(true);
         const screenHeight = Dimensions.get("screen").height;
         const keyboardTop = Math.min(
           event.endCoordinates.screenY,
@@ -188,6 +197,7 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
       });
       const hide = Keyboard.addListener("keyboardDidHide", () => {
         keyboardVisibleRef.current = false;
+        onKeyboardVisibilityChange?.(false);
         keyboardTopRef.current = Number.POSITIVE_INFINITY;
         setAndroidKeyboardTail(0);
         if (settleTimerRef.current) {
@@ -201,7 +211,7 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
         if (pendingFrameRef.current !== null) cancelAnimationFrame(pendingFrameRef.current);
         if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
       };
-    }, [scheduleReveal]);
+    }, [onKeyboardVisibilityChange, scheduleReveal]);
 
     return (
       <KeyboardAwareFormContext.Provider value={contextValue}>

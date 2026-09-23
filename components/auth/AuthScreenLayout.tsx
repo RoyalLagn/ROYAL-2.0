@@ -61,7 +61,13 @@ export function AuthScreenLayout({
       <AuthBackButton fallbackRoute={backRoute} />
       <KeyboardAwareScrollView
           containerStyle={{ flex: 1 }}
-          keyboardGap={28}
+          keyboardGap={44}
+          onKeyboardVisibilityChange={setKeyboardVisible}
+          // Some Android keyboard/edge-to-edge combinations overlay the
+          // activity even when the manifest requests adjustResize. Use the
+          // scroll host's height fallback so the visible viewport always
+          // ends above the IME and the lower signup fields can be reached.
+          avoidKeyboardOnAndroid
           contentContainerStyle={{
             flexGrow: 1,
             justifyContent: keyboardVisible ? "flex-start" : "center",
