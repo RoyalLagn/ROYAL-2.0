@@ -90,16 +90,29 @@ export default function OtpVerificationScreen() {
           throw new Error("This account type is not supported in the RoyalLagn mobile app.");
         }
       } else {
-        const role = await getCurrentMobileAccountRole();
-        if (isAdminRole(role)) {
+        // Only a profiles row means a completed account. Signup OTP stamps
+        // role into auth metadata before the profile exists, so metadata alone
+        // must not block fresh signup or re-registration after deletion.
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !userData.user) {
+          throw userError ?? new Error("Your verification session expired.");
+        }
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", userData.user.id)
+          .maybeSingle();
+        if (profileError) throw profileError;
+
+        if (isAdminRole(profile?.role)) {
           await supabase.auth.signOut({ scope: "local" });
           throw new Error("This email is already registered for a RoyalLagn Admin account.");
         }
-        if (role === "vendor") {
+        if (profile?.role === "vendor") {
           await supabase.auth.signOut({ scope: "local" });
           throw new Error("This email is already registered for a RoyalLagn Vendor account. Use a different email to create a Public account.");
         }
-        if (role === "public_user") {
+        if (profile?.role === "public_user") {
           await supabase.auth.signOut({ scope: "local" });
           throw new Error("A Public account already exists for this email. Please log in instead.");
         }
