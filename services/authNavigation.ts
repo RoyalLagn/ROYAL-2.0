@@ -56,5 +56,14 @@ export async function getCurrentMobileAccountRole() {
     .eq("id", userData.user.id)
     .maybeSingle();
   if (error) throw error;
-  return profile?.role ?? userData.user.user_metadata?.role ?? null;
+  if (profile?.role) return profile.role;
+
+  // Signup OTP stamps role into auth metadata before a profiles row exists.
+  // That pending registration is not a completed account — treating it as one
+  // blocks fresh signup and re-registration after customer account deletion.
+  if (userData.user.user_metadata?.registration_pending === true) {
+    return null;
+  }
+
+  return userData.user.user_metadata?.role ?? null;
 }
