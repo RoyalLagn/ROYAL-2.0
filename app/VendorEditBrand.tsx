@@ -14,7 +14,9 @@ import {
 } from "@/services/media";
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
-import { kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { kitStyles, ReadinessBadge, SaveBar, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import VendorSectionHeading, { useVendorSectionPageStyle } from "@/components/vendor/VendorSectionHeading";
+import { VendorSectionGroup, VendorSectionPanel } from "@/components/vendor/VendorSectionPanel";
 import { typeScale } from "@/constants/typography";
 import SquareImageEditor from "@/components/vendor/SquareImageEditor";
 import { brandPalette } from "@/constants/brandPalette";
@@ -29,6 +31,7 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 export default function VendorEditBrand() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const pageStyle = useVendorSectionPageStyle();
   const { data, loading, error, refresh } = useVendorWorkspace();
   const [logoUrl, setLogoUrl] = useState("");
   const [persistedLogoUrl, setPersistedLogoUrl] = useState("");
@@ -120,45 +123,41 @@ export default function VendorEditBrand() {
   return (
     <View style={[kitStyles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={kitStyles.content}>
-        <View style={kitStyles.heading}>
-          <View style={kitStyles.headingRow}>
-            <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · LOGO AND BRAND</Text>
-            {data.vendor ? <ReadinessBadge colors={colors} state={VendorReadinessRules.brand(data.vendor)} /> : null}
-          </View>
-          <Text style={[kitStyles.title, { color: colors.text }]}>Logo and brand</Text>
-          <Text style={[kitStyles.subtitle, { color: colors.muted }]}>
-            Your business logo. Portfolio photos and albums have their own dedicated sections.
-          </Text>
-        </View>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={pageStyle}>
+        <VendorSectionHeading
+          title="Logo and brand"
+          subtitle="Your business logo. Portfolio photos and albums have their own dedicated sections."
+          badge={data.vendor ? <ReadinessBadge colors={colors} state={VendorReadinessRules.brand(data.vendor)} /> : null}
+        />
 
         <VendorWorkspaceGate colors={colors} loading={loading} vendor={data.vendor} error={error} onRetry={() => void refresh()}>
-          <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <SectionTitle icon={Palette} title="Business logo" detail="Square 1024 × 1024 logo shown on your public profile, search results and shared links." colors={colors} />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Upload business logo"
+          <VendorSectionPanel backgroundColor="#FFF8E7" borderColor="rgba(191, 71, 119, 0.18)">
+            <VendorSectionGroup icon={Palette} iconColor="#BF4777" title="Business logo" detail="Square 1024 × 1024 logo shown on your public profile, search results and shared links.">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Upload business logo"
+                disabled={uploadingLogo}
+                onPress={uploadLogo}
+                style={[styles.logoPicker, { backgroundColor: brandPalette.light.background, borderColor: colors.border }]}
+              >
+                {logoUrl ? <Image source={{ uri: logoUrl }} resizeMode="contain" style={styles.logoImage} /> : null}
+                <View style={[styles.logoOverlay, Boolean(logoUrl) && styles.logoOverlayFloating]}>
+                  {uploadingLogo ? <ActivityIndicator color={colors.pink} /> : <ImagePlus size={21} color={logoUrl ? "#FFF" : colors.pink} />}
+                  {!logoUrl ? <Text style={[styles.logoText, { color: colors.text }]}>Add logo</Text> : null}
+                </View>
+              </Pressable>
+            </VendorSectionGroup>
+            <SaveBar
+              embedded
+              colors={colors}
+              saving={saving}
               disabled={uploadingLogo}
-              onPress={uploadLogo}
-              style={[styles.logoPicker, { backgroundColor: brandPalette.light.background, borderColor: colors.border }]}
-            >
-              {logoUrl ? <Image source={{ uri: logoUrl }} resizeMode="contain" style={styles.logoImage} /> : null}
-              <View style={[styles.logoOverlay, Boolean(logoUrl) && styles.logoOverlayFloating]}>
-                {uploadingLogo ? <ActivityIndicator color={colors.pink} /> : <ImagePlus size={21} color={logoUrl ? "#FFF" : colors.pink} />}
-                {!logoUrl ? <Text style={[styles.logoText, { color: colors.text }]}>Add logo</Text> : null}
-              </View>
-            </Pressable>
-          </View>
-
-          <SaveBar
-            colors={colors}
-            saving={saving}
-            disabled={uploadingLogo}
-            saved={saved}
-            saveError={saveError}
-            savedLabel="Logo updated"
-            onPress={() => void save()}
-          />
+              saved={saved}
+              saveError={saveError}
+              savedLabel="Logo updated"
+              onPress={() => void save()}
+            />
+          </VendorSectionPanel>
         </VendorWorkspaceGate>
       </ScrollView>
       <SquareImageEditor

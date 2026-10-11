@@ -6,7 +6,8 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
+import { isVendorSectionActive } from "@/vendor/navigation";
 import {
   AlertCircle,
   Building2,
@@ -58,10 +59,15 @@ const STATUS_ICONS: Record<CompletionState, React.ComponentType<{ size?: number;
 
 type Props = {
   style?: ViewStyle;
+  onOpenCurrent?: () => void;
+  /** Section whose editor is open on this page. Its card holds `activePanel`. */
+  activeSectionId?: string;
+  activePanel?: React.ReactNode;
 };
 
-export default function VendorProfileReadinessCard({ style }: Props) {
+export default function VendorProfileReadinessCard({ style, onOpenCurrent, activeSectionId, activePanel }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const isDark = colorScheme === "dark";
@@ -186,7 +192,6 @@ export default function VendorProfileReadinessCard({ style }: Props) {
         </Text>
       </View>
 
-      {/* 9 Interactive Section Cards */}
       <ReadinessChecklistGrid>
         {(itemWidth) =>
           items.map((item: CompletionItem) => {
@@ -196,18 +201,31 @@ export default function VendorProfileReadinessCard({ style }: Props) {
               label: VendorReadinessLabels[item.state],
               icon: StatusIcon,
             };
+            const isOpen = Boolean(activePanel) && item.id === activeSectionId;
 
             return (
-              <ChecklistItem
-                key={item.id}
-                item={item}
-                meta={meta}
-                sectionIcon={SectionIcon}
-                colors={colors}
-                itemWidth={itemWidth}
-                highlighted={false}
-                onPress={() => router.push(item.route as any)}
-              />
+              <React.Fragment key={item.id}>
+                <ChecklistItem
+                  item={item}
+                  meta={meta}
+                  sectionIcon={SectionIcon}
+                  colors={colors}
+                  itemWidth={itemWidth}
+                  highlighted={isOpen}
+                  onPress={() => {
+                    if (isVendorSectionActive(pathname, item.route)) {
+                      onOpenCurrent?.();
+                      return;
+                    }
+                    router.push(item.route as any);
+                  }}
+                />
+                {isOpen ? (
+                  <View style={[styles.editorPop, { backgroundColor: isDark ? "rgba(255,255,255,0.04)" : colors.background, borderColor: colors.border }]}>
+                    {activePanel}
+                  </View>
+                ) : null}
+              </React.Fragment>
             );
           })
         }
@@ -341,6 +359,12 @@ const styles = StyleSheet.create({
   },
   checklistSectionSubtitle: {
     fontSize: typeScale.caption,
-    marginTop: 3,
+    marginTop: 4,
+  },
+  editorPop: {
+    width: "100%",
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 16,
   },
 });

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Check, CheckCircle2, ChevronLeft, ChevronRight, Crosshair, Eye, FolderOpen, ImagePlus, Images, LockKeyhole, MoreHorizontal, Move, Pencil, Play, Plus, RotateCcw, Star, Trash2, Upload, X } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import VendorHeader from "@/components/vendor/VendorHeader";
+import VendorSectionHeading, { useVendorSectionPageStyle } from "@/components/vendor/VendorSectionHeading";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
@@ -23,6 +24,7 @@ import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScro
 export default function VendorGallery() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const pageStyle = useVendorSectionPageStyle();
   const wideWebLayout = Platform.OS === "web" && width >= 1180;
   const compactUploadSheet = Platform.OS !== "web" && width < 600;
   const insets = useSafeAreaInsets();
@@ -525,35 +527,34 @@ export default function VendorGallery() {
   return <View style={[styles.page, { backgroundColor: canvas }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
     <ScrollView
-      contentContainerStyle={[styles.content, width >= 900 && styles.desktop, wideWebLayout && styles.wideWeb]}
+      contentContainerStyle={[pageStyle, { position: "relative" }]}
       showsVerticalScrollIndicator={false}
       decelerationRate="fast"
       bounces={false}
       overScrollMode="never"
     >
       <View pointerEvents="none" style={styles.ambientGlow} />
-      <View style={[styles.headingRow, width < 520 && styles.headingStack]}>
-        <View style={styles.flex}>
-          <Text style={[styles.eyebrow, { color: colors.pink }]}>YOUR BEST WORK</Text>
-          <Text style={[styles.title, { color: colors.text }]}>Portfolio & Albums</Text>
-          <Text style={[styles.subtitle, styles.headingSubtitle, { color: colors.muted }]}>Curate beautiful collections for your public profile.</Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Create album"
-          onPress={() => openAlbum()}
-          style={({ pressed }) => [
-            styles.primary,
-            styles.createAlbumButton,
-            { backgroundColor: colors.pink, shadowColor: colors.shadow },
-            pressed && styles.pressLift,
-            data.albums.length >= tierLimits.albums && { opacity: .58 },
-          ]}
-        >
-          <Plus size={19} color="#FFF" strokeWidth={2.4} />
-          <Text style={styles.primaryText}>Create album</Text>
-        </Pressable>
-      </View>
+      <VendorSectionHeading
+        title="Portfolio & Albums"
+        subtitle="Curate beautiful collections for your public profile."
+        trailing={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Create album"
+            onPress={() => openAlbum()}
+            style={({ pressed }) => [
+              styles.primary,
+              styles.createAlbumButton,
+              { backgroundColor: colors.pink, shadowColor: colors.shadow },
+              pressed && styles.pressLift,
+              data.albums.length >= tierLimits.albums && { opacity: .58 },
+            ]}
+          >
+            <Plus size={19} color="#FFF" strokeWidth={2.4} />
+            <Text style={styles.primaryText}>Create album</Text>
+          </Pressable>
+        }
+      />
       <View style={[styles.summaryGrid, width >= 900 && styles.summaryGridDesktop]}>
         {[
           {

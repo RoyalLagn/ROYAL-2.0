@@ -19,6 +19,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import type { CompletionItem } from "@/hooks/useVendorWorkspace";
+import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { MotionDuration } from "@/utils/motion";
@@ -30,7 +31,7 @@ type ChecklistIcon = React.ComponentType<{ size?: number; color?: string; stroke
 type ChecklistMeta = { label: string; icon: ChecklistIcon };
 
 const CHECKLIST_PRESENTATION: Record<string, { description: string; light: readonly [string, string]; dark: readonly [string, string]; icon: string }> = {
-  business: { description: "Tell us about your business", light: ["#FFF1F6", "#FFE4EE"], dark: ["#38242D", "#302027"], icon: "#E73C78" },
+  business: { description: "Name, owner, and category shown on your public profile.", light: ["#FFF1F6", "#FFE4EE"], dark: ["#38242D", "#302027"], icon: "#E73C78" },
   about: { description: "Share your story", light: ["#FFF8E8", "#FFF0D2"], dark: ["#382F20", "#30281C"], icon: "#EF795B" },
   location: { description: "Add your service locations", light: ["#EAF7FF", "#DDF1FC"], dark: ["#20313A", "#1B2B33"], icon: "#EE4E83" },
   contact: { description: "Let clients reach you easily", light: ["#FFF0F6", "#FFE4EE"], dark: ["#38242D", "#302027"], icon: "#E83D78" },
@@ -75,6 +76,8 @@ type ChecklistItemProps = {
    *  revisit of the screen. */
   highlighted: boolean;
   onPress: () => void;
+  /** Extra fields rendered inside this card, under the title. */
+  children?: React.ReactNode;
 };
 
 type ChecklistGridProps = {
@@ -125,7 +128,10 @@ export default function ChecklistItem({
   itemWidth,
   highlighted,
   onPress,
+  children,
 }: ChecklistItemProps) {
+  const { colorScheme } = useAppTheme();
+  const isDark = colorScheme === "dark";
   const reducedMotion = useReducedMotion();
   const tint =
     item.state === "complete"
@@ -137,6 +143,7 @@ export default function ChecklistItem({
   const highlightGlow = useSharedValue(0);
   const StatusIcon = meta.icon;
   const presentation = CHECKLIST_PRESENTATION[item.id] ?? CHECKLIST_PRESENTATION.business;
+  const wash = isDark ? presentation.dark : presentation.light;
   const compact = itemWidth == null || itemWidth < 320;
 
   useEffect(() => {
@@ -168,9 +175,54 @@ export default function ChecklistItem({
 
   const rowStyle: ViewStyle[] = [
     styles.completionItem,
+    { backgroundColor: wash[0], borderColor: isDark ? "rgba(255,255,255,0.08)" : "rgba(231, 60, 120, 0.14)" },
     ...(compact ? [styles.completionItemCompact] : []),
     itemWidth ? { width: itemWidth } : styles.completionItemFallback,
   ];
+
+  const face = (
+    <>
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.highlightGlow, { backgroundColor: `${tint}12` }, glowStyle]}
+      />
+      <LinearGradient
+        pointerEvents="none"
+        colors={[wash[0], wash[1]]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.cardWash}
+      />
+      <Animated.View style={[styles.stateRow, compact && styles.stateRowCompact, children ? styles.stateRowInCard : null, { backgroundColor: isDark ? `${tint}24` : item.state === "complete" ? "rgba(235,255,246,0.9)" : "rgba(255,238,246,0.92)" }, stateStyle]}>
+          <View style={[styles.statusIcon, { backgroundColor: tint }]}>
+            <StatusIcon size={10} color="#FFFFFF" strokeWidth={2.5} />
+          </View>
+          <Text style={[styles.stateLabel, { color: tint }, webTextStyle]} numberOfLines={1}>
+            {meta.label}
+          </Text>
+      </Animated.View>
+      <View style={[styles.sectionIcon, compact && styles.sectionIconCompact, children ? styles.sectionIconInCard : null, { backgroundColor: isDark ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.76)", shadowColor: presentation.icon }]}>
+        <SectionIcon size={compact ? 24 : 34} color={presentation.icon} strokeWidth={2.1} />
+      </View>
+      <View style={[styles.copy, compact && styles.copyCompact, children ? styles.copyInCard : null]}>
+        <Text style={[styles.completionLabel, compact && styles.completionLabelCompact, { color: colors.text }, webTextStyle]} numberOfLines={2}>
+          {item.label}
+        </Text>
+        <Text style={[styles.description, compact && styles.descriptionCompact, { color: colors.muted }, webTextStyle]} numberOfLines={children ? 3 : 2}>
+          {presentation.description}
+        </Text>
+      </View>
+      {children ? <View style={styles.cardFields}>{children}</View> : null}
+    </>
+  );
+
+  if (children) {
+    return (
+      <View style={rowStyle} {...(Platform.OS === "web" ? { className: "readiness-checklist-card" } : null)}>
+        {face}
+      </View>
+    );
+  }
 
   return (
     <AnimatedPressable
@@ -184,34 +236,7 @@ export default function ChecklistItem({
       accessibilityLabel={`${item.label}, ${meta.label}`}
       {...(Platform.OS === "web" ? { className: "readiness-checklist-card" } : null)}
     >
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.highlightGlow, { backgroundColor: `${tint}12` }, glowStyle]}
-      />
-      <LinearGradient
-        pointerEvents="none"
-        colors={colors === vendorTheme.dark ? presentation.dark : presentation.light}
-        style={styles.cardWash}
-      />
-      <Animated.View style={[styles.stateRow, compact && styles.stateRowCompact, { backgroundColor: colors === vendorTheme.dark ? `${tint}24` : item.state === "complete" ? "rgba(235,255,246,0.9)" : "rgba(255,238,246,0.92)" }, stateStyle]}>
-          <View style={[styles.statusIcon, { backgroundColor: tint }]}>
-            <StatusIcon size={10} color="#FFFFFF" strokeWidth={2.5} />
-          </View>
-          <Text style={[styles.stateLabel, { color: tint }, webTextStyle]} numberOfLines={1}>
-            {meta.label}
-          </Text>
-      </Animated.View>
-      <View style={[styles.sectionIcon, compact && styles.sectionIconCompact, { backgroundColor: colors === vendorTheme.dark ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.76)", shadowColor: presentation.icon }]}>
-        <SectionIcon size={compact ? 24 : 34} color={presentation.icon} strokeWidth={2.1} />
-      </View>
-      <View style={[styles.copy, compact && styles.copyCompact]}>
-        <Text style={[styles.completionLabel, compact && styles.completionLabelCompact, { color: colors.text }, webTextStyle]} numberOfLines={2}>
-          {item.label}
-        </Text>
-        <Text style={[styles.description, compact && styles.descriptionCompact, { color: colors.muted }, webTextStyle]} numberOfLines={2}>
-          {presentation.description}
-        </Text>
-      </View>
+      {face}
     </AnimatedPressable>
   );
 }
@@ -237,6 +262,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     overflow: "hidden",
+    borderWidth: 1,
     flexGrow: 0,
     flexShrink: 0,
     shadowColor: "#7D3D58",
@@ -310,4 +336,8 @@ const styles = StyleSheet.create({
   statusIcon: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   description: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 4 },
   descriptionCompact: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },
+  stateRowInCard: { position: "relative", left: 0, top: 0, alignSelf: "flex-start" },
+  sectionIconInCard: { position: "absolute", top: 18, right: 18 },
+  copyInCard: { position: "relative", left: 0, right: 0, bottom: 0, marginTop: 18, paddingRight: 76 },
+  cardFields: { marginTop: 16, width: "100%" },
 });

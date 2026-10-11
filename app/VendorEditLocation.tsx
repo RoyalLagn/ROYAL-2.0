@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, View } from "react-native";
 import { MapPin } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -18,7 +18,9 @@ import {
   ensureIndianLocalityCoordinates,
 } from "@/services/locations";
 import { getVendorGeoStatus } from "@/services/geoLocations";
-import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { Field, kitStyles, ReadinessBadge, SaveBar, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import VendorSectionHeading, { useVendorSectionPageStyle } from "@/components/vendor/VendorSectionHeading";
+import { VendorSectionGroup, VendorSectionPanel } from "@/components/vendor/VendorSectionPanel";
 import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
@@ -37,6 +39,7 @@ const emptyLocation: VendorLocationValue = {
 export default function VendorEditLocation() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const pageStyle = useVendorSectionPageStyle();
   const { data, loading, error, refresh } = useVendorWorkspace();
   const [address, setAddress] = useState("");
   const [vendorLocation, setVendorLocation] = useState<VendorLocationValue>(emptyLocation);
@@ -204,53 +207,43 @@ export default function VendorEditLocation() {
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
       <KeyboardAwareScrollView
         avoidKeyboardOnAndroid
-        contentContainerStyle={kitStyles.content}
+        contentContainerStyle={pageStyle}
       >
-        <View style={kitStyles.heading}>
-          <View style={kitStyles.headingRow}>
-            <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · LOCATION</Text>
-            {data.vendor ? <ReadinessBadge colors={colors} state={VendorReadinessRules.location(data.vendor)} /> : null}
-          </View>
-          <Text style={[kitStyles.title, { color: colors.text }]}>Location</Text>
-          <Text style={[kitStyles.subtitle, { color: colors.muted }]}>
-            Enter your PIN code and choose the locality matching your business address. District and Taluka are assigned automatically.
-          </Text>
-        </View>
+        <VendorSectionHeading
+          title="Location"
+          subtitle="Enter your PIN code and choose the locality matching your business address. District and Taluka are assigned automatically."
+          badge={data.vendor ? <ReadinessBadge colors={colors} state={VendorReadinessRules.location(data.vendor)} /> : null}
+        />
 
         <VendorWorkspaceGate colors={colors} loading={loading} vendor={data.vendor} error={error} onRetry={() => void refresh()}>
-          <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <SectionTitle icon={MapPin} title="Business location" detail="Your verified locality becomes the source for District and Taluka discovery." colors={colors} />
-            <View style={kitStyles.grid}>
-              <View style={{ width: "100%" }}>
-                <VendorServiceLocationEditor
-                  value={vendorLocation}
-                  onChange={(next) => { clearFeedback(); setLocationDirty(true); setVendorLocation(next); }}
-                  requireLookup={false}
-                  onValidationChange={setLocationValid}
-                />
-              </View>
-              <View style={{ width: "100%" }}>
-                <Field
-                  label="Business address"
-                  value={address}
-                  onChangeText={(value) => { clearFeedback(); setAddress(value); }}
-                  placeholder="Street, area or landmark (optional)"
-                  colors={colors}
-                  editable={!locationsLoading}
-                />
-              </View>
-            </View>
-          </View>
-
-          <SaveBar
-            colors={colors}
-            saving={saving}
-            disabled={locationsLoading || (locationDirty && !locationValid)}
-            saved={saved}
-            saveError={saveError}
-            savedLabel="Location updated"
-            onPress={() => void save()}
-          />
+          <VendorSectionPanel backgroundColor="#EAF7FF" borderColor="rgba(238, 78, 131, 0.18)">
+            <VendorSectionGroup icon={MapPin} iconColor="#EE4E83" title="Business location" detail="Your verified locality becomes the source for District and Taluka discovery.">
+              <VendorServiceLocationEditor
+                value={vendorLocation}
+                onChange={(next) => { clearFeedback(); setLocationDirty(true); setVendorLocation(next); }}
+                requireLookup={false}
+                onValidationChange={setLocationValid}
+              />
+              <Field
+                label="Business address"
+                value={address}
+                onChangeText={(value) => { clearFeedback(); setAddress(value); }}
+                placeholder="Street, area or landmark (optional)"
+                colors={colors}
+                editable={!locationsLoading}
+              />
+            </VendorSectionGroup>
+            <SaveBar
+              embedded
+              colors={colors}
+              saving={saving}
+              disabled={locationsLoading || (locationDirty && !locationValid)}
+              saved={saved}
+              saveError={saveError}
+              savedLabel="Location updated"
+              onPress={() => void save()}
+            />
+          </VendorSectionPanel>
         </VendorWorkspaceGate>
       </KeyboardAwareScrollView>
     </View>

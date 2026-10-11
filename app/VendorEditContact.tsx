@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Alert, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Globe2, Mail } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -7,7 +7,9 @@ import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorkspace";
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
-import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { Field, kitStyles, ReadinessBadge, SaveBar, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import VendorSectionHeading, { useVendorSectionPageStyle } from "@/components/vendor/VendorSectionHeading";
+import { VendorSectionGroup, VendorSectionPanel, VendorSectionRule } from "@/components/vendor/VendorSectionPanel";
 import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { sanitizePhoneInput, validatePhone } from "@/utils/authValidation";
@@ -22,6 +24,7 @@ export default function VendorEditContact() {
   const useTwoColumns = width >= 700;
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const pageStyle = useVendorSectionPageStyle();
   const { data, loading, error, refresh } = useVendorWorkspace();
   const [contactPhone, setContactPhone] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -100,54 +103,49 @@ export default function VendorEditContact() {
   return (
     <View style={[kitStyles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <KeyboardAwareScrollView avoidKeyboardOnAndroid contentContainerStyle={kitStyles.content}>
-        <View style={kitStyles.heading}>
-          <View style={kitStyles.headingRow}>
-            <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · CONTACT INFORMATION</Text>
-            {data.vendor ? <ReadinessBadge colors={colors} state={VendorReadinessRules.contact(data.vendor)} /> : null}
-          </View>
-          <Text style={[kitStyles.title, { color: colors.text }]}>Contact information</Text>
-          <Text style={[kitStyles.subtitle, { color: colors.muted }]}>
-            How customers reach you: phone, email, website and social links. This does not affect any other section of your profile.
-          </Text>
-        </View>
+      <KeyboardAwareScrollView avoidKeyboardOnAndroid contentContainerStyle={pageStyle}>
+        <VendorSectionHeading
+          title="Contact information"
+          subtitle="How customers reach you: phone, email, website and social links. This does not affect any other section of your profile."
+          badge={data.vendor ? <ReadinessBadge colors={colors} state={VendorReadinessRules.contact(data.vendor)} /> : null}
+        />
 
         <VendorWorkspaceGate colors={colors} loading={loading} vendor={data.vendor} error={error} onRetry={() => void refresh()}>
-          <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <SectionTitle icon={Mail} title="Customer contact" detail="Add at least one reliable way for customers to reach your business." colors={colors} />
-            <View style={kitStyles.grid}>
-              <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
-                <Field label="Contact phone / WhatsApp" value={contactPhone} onChangeText={(value) => { clearFeedback(); setContactPhone(sanitizePhoneInput(value)); }} placeholder="10-digit mobile number" colors={colors} keyboardType="phone-pad" maxLength={20} />
+          <VendorSectionPanel backgroundColor="#FFF0F6" borderColor="rgba(232, 61, 120, 0.18)">
+            <VendorSectionGroup icon={Mail} iconColor="#E83D78" title="Customer contact" detail="Add at least one reliable way for customers to reach your business.">
+              <View style={kitStyles.grid}>
+                <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
+                  <Field label="Contact phone / WhatsApp" value={contactPhone} onChangeText={(value) => { clearFeedback(); setContactPhone(sanitizePhoneInput(value)); }} placeholder="10-digit mobile number" colors={colors} keyboardType="phone-pad" maxLength={20} />
+                </View>
+                <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
+                  <Field label="Contact email" value={contactEmail} onChangeText={(value) => { clearFeedback(); setContactEmail(value); }} placeholder="hello@business.com" colors={colors} keyboardType="email-address" autoCapitalize="none" />
+                </View>
               </View>
-              <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
-                <Field label="Contact email" value={contactEmail} onChangeText={(value) => { clearFeedback(); setContactEmail(value); }} placeholder="hello@business.com" colors={colors} keyboardType="email-address" autoCapitalize="none" />
+            </VendorSectionGroup>
+            <VendorSectionRule color="rgba(232, 61, 120, 0.16)" />
+            <VendorSectionGroup icon={Globe2} iconColor="#E83D78" title="Online presence" detail="Optional links displayed together on your public profile.">
+              <View style={kitStyles.grid}>
+                <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
+                  <Field label="Website" value={website} onChangeText={(value) => { clearFeedback(); setWebsite(value); }} placeholder="yourbusiness.com" colors={colors} keyboardType="url" autoCapitalize="none" />
+                </View>
+                <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
+                  <Field label="Instagram" value={instagram} onChangeText={(value) => { clearFeedback(); setInstagram(value); }} placeholder="instagram.com/yourbusiness" colors={colors} keyboardType="url" autoCapitalize="none" />
+                </View>
+                <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
+                  <Field label="Facebook" value={facebook} onChangeText={(value) => { clearFeedback(); setFacebook(value); }} placeholder="facebook.com/yourbusiness" colors={colors} keyboardType="url" autoCapitalize="none" />
+                </View>
               </View>
-            </View>
-          </View>
-
-          <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <SectionTitle icon={Globe2} title="Online presence" detail="Optional links displayed together on your public profile." colors={colors} />
-            <View style={kitStyles.grid}>
-              <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
-                <Field label="Website" value={website} onChangeText={(value) => { clearFeedback(); setWebsite(value); }} placeholder="yourbusiness.com" colors={colors} keyboardType="url" autoCapitalize="none" />
-              </View>
-              <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
-                <Field label="Instagram" value={instagram} onChangeText={(value) => { clearFeedback(); setInstagram(value); }} placeholder="instagram.com/yourbusiness" colors={colors} keyboardType="url" autoCapitalize="none" />
-              </View>
-              <View style={[styles.contactField, useTwoColumns && styles.contactFieldWide]}>
-                <Field label="Facebook" value={facebook} onChangeText={(value) => { clearFeedback(); setFacebook(value); }} placeholder="facebook.com/yourbusiness" colors={colors} keyboardType="url" autoCapitalize="none" />
-              </View>
-            </View>
-          </View>
-
-          <SaveBar
-            colors={colors}
-            saving={saving}
-            saved={saved}
-            saveError={saveError}
-            savedLabel="Contact information updated"
-            onPress={() => void save()}
-          />
+            </VendorSectionGroup>
+            <SaveBar
+              embedded
+              colors={colors}
+              saving={saving}
+              saved={saved}
+              saveError={saveError}
+              savedLabel="Contact information updated"
+              onPress={() => void save()}
+            />
+          </VendorSectionPanel>
         </VendorWorkspaceGate>
       </KeyboardAwareScrollView>
     </View>

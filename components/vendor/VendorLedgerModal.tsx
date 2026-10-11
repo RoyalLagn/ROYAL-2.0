@@ -40,6 +40,7 @@ import {
   type VendorBooking,
 } from "@/services/vendorBookings";
 import type { AvailabilityStatus } from "@/services/vendorAvailability";
+import AddOfflineBookingModal from "@/components/vendor/AddOfflineBookingModal";
 
 const PINK = brandPalette.light.primary;
 const GREEN = "#16A34A";
@@ -79,6 +80,7 @@ export default function VendorLedgerModal({
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<VendorBooking[]>([]);
   const [showAddOffline, setShowAddOffline] = useState(false);
+  const [showAddOfflineModal, setShowAddOfflineModal] = useState(false);
   const [busyActionId, setBusyActionId] = useState<string | null>(null);
   const [statusToggling, setStatusToggling] = useState(false);
 
@@ -251,6 +253,7 @@ export default function VendorLedgerModal({
   };
 
   return (
+    <>
     <AnimatedBottomSheet
       visible={visible}
       onRequestClose={onClose}
@@ -503,7 +506,7 @@ export default function VendorLedgerModal({
           <View style={styles.offlineSection}>
             {!showAddOffline ? (
               <Pressable
-                onPress={() => setShowAddOffline(true)}
+                onPress={() => setShowAddOfflineModal(true)}
                 style={[styles.addOfflineToggle, { backgroundColor: palette.surface, borderColor: palette.border }]}
               >
                 <Plus size={18} color={PINK} />
@@ -601,6 +604,21 @@ export default function VendorLedgerModal({
         ) : null}
       </ScrollView>
     </AnimatedBottomSheet>
+
+    {showAddOfflineModal ? (
+      <AddOfflineBookingModal
+        visible={showAddOfflineModal}
+        vendorId={vendorId}
+        initialDate={date}
+        onClose={() => setShowAddOfflineModal(false)}
+        onSuccess={() => {
+          setShowAddOfflineModal(false);
+          void loadEntries();
+          onBookingUpdated();
+        }}
+      />
+    ) : null}
+    </>
   );
 }
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/services/supabase";
 import { useVendorSession } from "@/context/VendorSessionContext";
 import { VendorReadinessRules, type CompletionState } from "@/services/vendorReadiness";
+import { vendorProfileSections, type VendorProfileSectionId } from "@/vendor/navigation";
 
 export { VendorReadinessRules } from "@/services/vendorReadiness";
 export type { CompletionState } from "@/services/vendorReadiness";
@@ -54,17 +55,23 @@ const emptyWorkspace: VendorWorkspace = {
 export function calculateVendorCompletion(data: VendorWorkspace) {
   const v = data.vendor ?? {};
 
-  const items: CompletionItem[] = [
-    { id: "business", label: "Business information", state: VendorReadinessRules.businessInfo(v), route: "/VendorEditBusinessInfo" },
-    { id: "about", label: "About the business", state: VendorReadinessRules.about(v), route: "/VendorEditAbout" },
-    { id: "location", label: "Location", state: VendorReadinessRules.location(v), route: "/VendorEditLocation" },
-    { id: "contact", label: "Contact information", state: VendorReadinessRules.contact(v), route: "/VendorEditContact" },
-    { id: "identity", label: "Logo and brand", state: VendorReadinessRules.brand(v), route: "/VendorEditBrand" },
-    { id: "services", label: "Services & packages", state: VendorReadinessRules.servicesAndPackages(data.services), route: "/VendorServices" },
-    { id: "portfolio", label: "Portfolio albums", state: VendorReadinessRules.portfolio(data.albums, data.media), route: "/VendorGallery" },
-    { id: "availability", label: "Availability", state: VendorReadinessRules.availability(v, data.availability), route: "/VendorCalendar" },
-    { id: "tags", label: "Search tags", state: VendorReadinessRules.tags(v), route: "/VendorEditTags" },
-  ];
+  const stateBySection: Record<VendorProfileSectionId, CompletionState> = {
+    business: VendorReadinessRules.businessInfo(v),
+    about: VendorReadinessRules.about(v),
+    location: VendorReadinessRules.location(v),
+    contact: VendorReadinessRules.contact(v),
+    identity: VendorReadinessRules.brand(v),
+    services: VendorReadinessRules.servicesAndPackages(data.services),
+    portfolio: VendorReadinessRules.portfolio(data.albums, data.media),
+    availability: VendorReadinessRules.availability(v, data.availability),
+    tags: VendorReadinessRules.tags(v),
+  };
+  const items: CompletionItem[] = vendorProfileSections.map((section) => ({
+    id: section.id,
+    label: section.label,
+    state: stateBySection[section.id],
+    route: section.route,
+  }));
   const weights: Record<CompletionState, number> = { complete: 1, partial: 0.5, missing: 0, attention: 0.25 };
   const percent = Math.round(items.reduce((sum, item) => sum + weights[item.state], 0) / items.length * 100);
   return { items, percent };
@@ -166,16 +173,22 @@ export function useVendorWorkspace() {
         reviews: reviews.data ?? [],
         services: services.data ?? [],
         subscription: subscription.data ?? null,
-        stats: {
-          totalEnquiries: 0,
-          whatsappEnquiries: 0,
-          callEnquiries: 0,
-          openEnquiries: 0,
-          unreadNotifications: unreadNotifications.count ?? 0,
-          portfolioMedia: portfolioMedia.count ?? 0,
-          averageRating: Number(reviewSummary.data?.average_rating ?? 0),
-          reviewCount: Number(reviewSummary.data?.review_count ?? 0),
-        },
+        stats: (() => {
+          const revList = reviews.data ?? [];
+          const computedAvg = revList.length > 0
+            ? Math.round((revList.reduce((acc: number, r: any) => acc + (Number(r.rating) || 0), 0) / revList.length) * 100) / 100
+            : 0;
+          return {
+            totalEnquiries: 0,
+            whatsappEnquiries: 0,
+            callEnquiries: 0,
+            openEnquiries: 0,
+            unreadNotifications: unreadNotifications.count ?? 0,
+            portfolioMedia: portfolioMedia.count ?? 0,
+            averageRating: Number(reviewSummary.data?.average_rating ?? computedAvg),
+            reviewCount: Number(reviewSummary.data?.review_count ?? revList.length),
+          };
+        })(),
       });
     } catch (caught) {
       if (isCurrent()) setError(caught instanceof Error ? caught.message : "Unable to load your vendor workspace.");
@@ -212,6 +225,7 @@ export function useVendorWorkspace() {
       );
 
     const vendorTables = [
+      "vendor_bookings",
       "vendor_enquiries",
       "vendor_notifications",
       "vendor_portfolio_albums",
@@ -219,6 +233,8 @@ export function useVendorWorkspace() {
       "vendor_services",
       "vendor_availability",
       "subscriptions",
+      "reviews",
+      "featured_vendor_placements",
     ];
     vendorTables.forEach((table) => {
       channel = channel.on(
@@ -227,6 +243,11 @@ export function useVendorWorkspace() {
         scheduleRefresh,
       );
     });
+    channel = channel.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "reviews", filter: `vendor_key=eq.${vendorId}` },
+      scheduleRefresh,
+    );
     channel = channel.on(
       "postgres_changes",
       { event: "*", schema: "public", table: "review_aggregates", filter: `vendor_key=eq.${vendorId}` },

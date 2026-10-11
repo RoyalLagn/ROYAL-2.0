@@ -1,22 +1,25 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { Building2, Check, X } from "lucide-react-native";
+import Pressable from "@/components/InteropSafePressable";
+import { Check, X } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
+import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useCategories } from "@/context/CategoryContext";
-import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorkspace";
+import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
-import { DropdownArrow, Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { DropdownArrow, Field, kitStyles, SaveBar, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
 import VendorProfileReadinessCard from "@/components/vendor/VendorProfileReadinessCard";
+import VendorSectionHeading from "@/components/vendor/VendorSectionHeading";
 import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 import { typeScale } from "@/constants/typography";
@@ -29,6 +32,9 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 // three fields via a partial update_vendor_public_profile() call, so
 // saving here can never touch unrelated profile data.
 export default function VendorEditBusinessInfo() {
+  const { width } = useWindowDimensions();
+  const roomy = width >= 760;
+  const showBottomNav = width < 900;
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { registrationCategories: categories } = useCategories();
@@ -37,6 +43,7 @@ export default function VendorEditBusinessInfo() {
   const [ownerName, setOwnerName] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -105,54 +112,77 @@ export default function VendorEditBusinessInfo() {
   return (
     <View style={[kitStyles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <KeyboardAwareScrollView avoidKeyboardOnAndroid contentContainerStyle={kitStyles.content}>
-        <View style={kitStyles.heading}>
-          <View style={kitStyles.headingRow}>
-            <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · BUSINESS INFORMATION</Text>
-            {data.vendor ? <ReadinessBadge colors={colors} state={VendorReadinessRules.businessInfo(data.vendor)} /> : null}
-          </View>
-          <Text style={[kitStyles.title, { color: colors.text }]}>Business information</Text>
-          <Text style={[kitStyles.subtitle, { color: colors.muted }]}>
-            Your core business identity: name, owner and category. This does not affect any other section of your profile.
-          </Text>
-        </View>
+      <KeyboardAwareScrollView
+        avoidKeyboardOnAndroid
+        contentContainerStyle={[
+          styles.page,
+          roomy && styles.pageRoomy,
+          showBottomNav && { paddingBottom: 28 + VENDOR_TAB_BASE_HEIGHT + 20 },
+        ]}
+      >
+        <VendorSectionHeading
+          title="Business Details"
+          subtitle="Your core business identity: name, owner and category. This does not affect any other section of your profile."
+          backTo="/vendor-dashboard"
+        />
 
         <VendorWorkspaceGate colors={colors} loading={loading} vendor={data.vendor} error={error} onRetry={() => void refresh()}>
-          <VendorProfileReadinessCard />
-          <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <SectionTitle icon={Building2} title="Business identity" detail="Shown across your public profile and listings." colors={colors} />
-            <Field
-              label="Business name"
-              required
-              value={businessName}
-              onChangeText={(value) => { clearFeedback(); setBusinessName(value); }}
-              placeholder="The name customers will see"
-              colors={colors}
-            />
-            <Field
-              label="Owner name"
-              required
-              value={ownerName}
-              onChangeText={(value) => { clearFeedback(); setOwnerName(value); }}
-              placeholder="Account owner's full name"
-              colors={colors}
-            />
-            <Text style={[kitStyles.label, { color: colors.text }]}>Business category<Text style={{ color: colors.pink }}> *</Text></Text>
-            <Pressable onPress={() => setCategoryOpen(true)} style={[kitStyles.input, kitStyles.select, inputStyle]}>
-              <Text style={{ color: selectedCategory ? colors.text : colors.muted, fontSize: typeScale.body }}>
-                {selectedCategory?.name ?? "Choose a category"}
-              </Text>
-              <DropdownArrow open={categoryOpen} color={colors.muted} />
-            </Pressable>
-          </View>
-
-          <SaveBar
-            colors={colors}
-            saving={saving}
-            saved={saved}
-            saveError={saveError}
-            savedLabel="Business information updated"
-            onPress={() => void save()}
+          <VendorProfileReadinessCard
+            style={styles.readiness}
+            activeSectionId="business"
+            onOpenCurrent={() => setEditorOpen((open) => !open)}
+            activePanel={editorOpen ? (
+              <View style={styles.identity}>
+                <View style={roomy ? styles.identityPair : undefined}>
+                  <View style={roomy ? styles.identityField : undefined}>
+                    <Field
+                      label="Business name"
+                      required
+                      value={businessName}
+                      onChangeText={(value) => { clearFeedback(); setBusinessName(value); }}
+                      placeholder="The name customers will see"
+                      colors={colors}
+                    />
+                  </View>
+                  <View style={roomy ? styles.identityField : undefined}>
+                    <Field
+                      label="Owner name"
+                      required
+                      value={ownerName}
+                      onChangeText={(value) => { clearFeedback(); setOwnerName(value); }}
+                      placeholder="Account owner's full name"
+                      colors={colors}
+                    />
+                  </View>
+                </View>
+                <Text style={[kitStyles.label, { color: colors.text }]}>Business category<Text style={{ color: colors.pink }}> *</Text></Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Choose business category"
+                  onPress={() => setCategoryOpen(true)}
+                  style={({ pressed }) => [
+                    kitStyles.input,
+                    kitStyles.select,
+                    inputStyle,
+                    pressed && styles.categoryPressed,
+                  ]}
+                >
+                  <Text style={{ color: selectedCategory ? colors.text : colors.muted, fontSize: typeScale.body }}>
+                    {selectedCategory?.name ?? "Choose a category"}
+                  </Text>
+                  <DropdownArrow open={categoryOpen} color={colors.muted} />
+                </Pressable>
+                <SaveBar
+                  embedded
+                  colors={colors}
+                  saving={saving}
+                  saved={saved}
+                  saveError={saveError}
+                  savedLabel="Business information updated"
+                  onPress={() => void save()}
+                />
+              </View>
+            ) : null}
           />
         </VendorWorkspaceGate>
       </KeyboardAwareScrollView>
@@ -188,6 +218,39 @@ export default function VendorEditBusinessInfo() {
 }
 
 const styles = StyleSheet.create({
+  page: {
+    width: "100%",
+    maxWidth: 1080,
+    alignSelf: "center",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 48,
+    gap: 20,
+  },
+  pageRoomy: {
+    paddingHorizontal: 28,
+    paddingTop: 20,
+    gap: 28,
+  },
+  readiness: {
+    marginBottom: 0,
+  },
+  identity: {
+    gap: 0,
+  },
+  identityPair: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 16,
+  },
+  identityField: {
+    flex: 1,
+    minWidth: 0,
+  },
+  categoryPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.985 }],
+  },
   categorySheet: { width: "100%", maxWidth: 560, maxHeight: "78%", alignSelf: "center", borderWidth: 1, borderRadius: 27, padding: 18, paddingBottom: 28 },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 },
   sheetTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },

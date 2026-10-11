@@ -35,6 +35,7 @@ import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { useVendorNotifications } from "@/context/VendorNotificationContext";
 import { useVendorAuth } from "@/context/VendorAuthContext";
+import { isBusinessDetailsPath } from "@/vendor/navigation";
 
 export interface NavItem {
   id: string;
@@ -73,9 +74,9 @@ export default function VendorCrmSidebar({
     { id: "portfolio", label: "Portfolio", route: "/VendorGallery", icon: ImageIcon },
     { id: "bookings", label: "Bookings", route: "/VendorBookings", icon: CalendarCheck },
     { id: "calendar", label: "Calendar", route: "/VendorCalendar", icon: Calendar },
-    { id: "reviews", label: "Reviews", route: "/Vendors_dash_profile", icon: Star },
+    { id: "reviews", label: "Reviews", route: "/VendorReviews", icon: Star },
     { id: "marketing", label: "Marketing Tools", route: "/vendor-marketing-center", icon: Megaphone },
-    { id: "wallet", label: "Wallet & Earnings", route: "/VendorPaymentHistory", icon: Wallet },
+    { id: "wallet", label: "Transactions", route: "/VendorPaymentHistory", icon: Wallet },
     { id: "notifications", label: "Notifications", route: "/VendorNotifications", icon: Bell, badgeCount: unreadCount },
     { id: "settings", label: "Settings", route: "/VendorSettings", icon: Settings },
   ];
@@ -162,7 +163,7 @@ export default function VendorCrmSidebar({
             } else if (item.id === "profile") {
               isActive = p.startsWith("/vendors_dash_profile") || p.startsWith("/vendorsprofile") || p.startsWith("/vendoreditprofile");
             } else if (item.id === "business") {
-              isActive = p.startsWith("/vendoreditbusinessinfo") || p.startsWith("/vendoreditabout") || p.startsWith("/vendoreditcontact") || p.startsWith("/vendoreditlocation") || p.startsWith("/vendoredittags") || p.startsWith("/vendoreditbrand") || p.startsWith("/vendorservices");
+              isActive = isBusinessDetailsPath(pathname);
             } else if (item.id === "portfolio") {
               isActive = p.startsWith("/vendorgallery") || p.startsWith("/vendoralbum") || p.startsWith("/vendorportfolio");
             } else if (item.id === "bookings") {
@@ -176,7 +177,7 @@ export default function VendorCrmSidebar({
             } else if (item.id === "marketing") {
               isActive = p.startsWith("/vendor-marketing-center") || p.startsWith("/vendor-marketing-card") || p.startsWith("/vendorfeaturedplacement");
             } else if (item.id === "wallet") {
-              isActive = p.startsWith("/vendorpaymenthistory") || p.startsWith("/vendorsubscription");
+              isActive = p.startsWith("/vendorpaymenthistory") || p.startsWith("/vendortransactions") || p.startsWith("/vendorsubscription");
             } else if (item.id === "notifications") {
               isActive = p.startsWith("/vendornotifications");
             } else if (item.id === "settings") {

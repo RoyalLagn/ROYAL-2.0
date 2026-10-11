@@ -30,6 +30,8 @@
     "test:auth-validation": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-auth-validation.mjs",
     "test:marketing-card-pdf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-marketing-card-pdf.mjs",
     "test:vendor-readiness": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-vendor-readiness.mjs",
+    "test:reviews": "node scripts/test-vendor-reviews-domain.mjs",
+    "test:transactions": "node scripts/test-vendor-transactions-domain.mjs",
     "test:smoke": "node scripts/run-smoke-tests.mjs",
     "test:referral-e2e": "node scripts/test-referral-system-e2e.mjs",
     "test:referral-withdrawals": "node scripts/test-referral-withdrawals-phase1.mjs",

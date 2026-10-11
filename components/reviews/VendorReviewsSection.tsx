@@ -47,7 +47,7 @@ export default function VendorReviewsSection(props: VendorReviewsSectionProps) {
         <Text style={[styles.writeButtonText, { color: c.onPink }]}>Write a Review</Text>
       </Pressable> : null}
     </View>
-    <ReviewSummary average={props.average} total={props.total} counts={props.counts} dark={dark} />
+    <ReviewSummary average={props.average} total={props.total} counts={props.counts} dark={dark} onSelectStar={props.onStarFilterChange} selectedStar={props.starFilter} />
     <Modal
       visible={Boolean(props.showForm && props.onSubmitReview)}
       transparent

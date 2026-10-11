@@ -5,8 +5,9 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Check, Sparkles } from "lucide-react-native";
+import { Check, Sparkles, Star } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 
 /**
@@ -53,6 +54,9 @@ export interface VendorCrmHeroCardProps {
   isVerified?: boolean;
   pincode?: string | null;
   featuredPincode?: string | null;
+  averageRating?: number;
+  reviewCount?: number;
+  onPressReviews?: () => void;
 }
 
 export default function VendorCrmHeroCard({
@@ -60,6 +64,9 @@ export default function VendorCrmHeroCard({
   isVerified = true,
   pincode,
   featuredPincode,
+  averageRating,
+  reviewCount,
+  onPressReviews,
 }: VendorCrmHeroCardProps) {
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
@@ -96,6 +103,25 @@ export default function VendorCrmHeroCard({
                 <Check size={12} color="#059669" strokeWidth={3} />
                 <Text style={styles.verifiedText}>Verified Vendor</Text>
               </View>
+            ) : null}
+
+            {averageRating !== undefined ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Customer rating ${averageRating > 0 ? averageRating.toFixed(1) : "New"}`}
+                onPress={onPressReviews}
+                style={({ pressed }: any) => [
+                  styles.ratingPill,
+                  isDark && styles.ratingPillDark,
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Star size={11} color="#E8A52F" fill="#E8A52F" />
+                <Text style={[styles.ratingText, isDark && styles.textDark]}>
+                  {averageRating > 0 ? averageRating.toFixed(1) : "New"}
+                  {reviewCount !== undefined && reviewCount > 0 ? ` (${reviewCount})` : ""}
+                </Text>
+              </Pressable>
             ) : null}
 
             <View style={[styles.featuredPill, isDark && styles.featuredPillDark]}>
@@ -189,6 +215,26 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: "800",
     color: "#059669",
+  },
+  ratingPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FEF3C7",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+  ratingPillDark: {
+    backgroundColor: "#3B2F1F",
+    borderColor: "#78350F",
+  },
+  ratingText: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    color: "#92400E",
   },
   featuredPill: {
     backgroundColor: "#F3F4F6",

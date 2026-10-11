@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,7 @@ import {
 import { ChevronDown } from "lucide-react-native";
 import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
+import type { VendorBooking } from "@/services/vendorBookings";
 
 export interface MonthData {
   month: string;
@@ -14,22 +15,71 @@ export interface MonthData {
   isPeak?: boolean;
 }
 
-export default function VendorCrmBookingsChart() {
+export interface VendorCrmBookingsChartProps {
+  bookings?: VendorBooking[];
+  data?: MonthData[];
+}
+
+export default function VendorCrmBookingsChart({
+  bookings,
+  data: propData,
+}: VendorCrmBookingsChartProps = {}) {
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
   const [filterPeriod, setFilterPeriod] = useState("Last 6 Months");
 
-  const data: MonthData[] = [
-    { month: "Apr", value: 7 },
-    { month: "May", value: 7 },
-    { month: "Jun", value: 10 },
-    { month: "Jul", value: 15, isPeak: true },
-    { month: "Aug", value: 10 },
-    { month: "Sep", value: 13 },
-  ];
+  const data: MonthData[] = useMemo(() => {
+    if (propData && propData.length > 0) return propData;
 
-  const maxValue = 20;
-  const yTicks = [20, 15, 10, 5, 0];
+    const months: MonthData[] = [];
+    const now = new Date();
+
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthLabel = d.toLocaleString("en-US", { month: "short" });
+      const year = d.getFullYear();
+      const monthIndex = d.getMonth();
+
+      let count = 0;
+      if (Array.isArray(bookings)) {
+        count = bookings.filter((b) => {
+          if (!b.event_date && !b.created_at) return false;
+          const bDate = new Date(b.event_date || b.created_at);
+          return (
+            !isNaN(bDate.getTime()) &&
+            bDate.getFullYear() === year &&
+            bDate.getMonth() === monthIndex &&
+            b.booking_status !== "cancelled" &&
+            b.booking_status !== "cancelled_by_vendor" &&
+            b.booking_status !== "cancelled_by_customer"
+          );
+        }).length;
+      }
+
+      months.push({
+        month: monthLabel,
+        value: count,
+      });
+    }
+
+    const maxVal = Math.max(...months.map((m) => m.value), 0);
+    if (maxVal > 0) {
+      const peakIdx = months.findIndex((m) => m.value === maxVal);
+      if (peakIdx >= 0) months[peakIdx].isPeak = true;
+    }
+
+    return months;
+  }, [bookings, propData]);
+
+  const peakValue = Math.max(...data.map((d) => d.value), 0);
+  const maxValue = peakValue <= 5 ? 5 : peakValue <= 10 ? 10 : peakValue <= 20 ? 20 : Math.ceil(peakValue / 5) * 5;
+  const yTicks = [
+    maxValue,
+    Math.round(maxValue * 0.75),
+    Math.round(maxValue * 0.5),
+    Math.round(maxValue * 0.25),
+    0,
+  ];
 
   return (
     <View style={[styles.card, isDark && styles.cardDark]}>
@@ -89,10 +139,10 @@ export default function VendorCrmBookingsChart() {
               return (
                 <View key={item.month} style={styles.barCol}>
                   {/* Tooltip on peak bar */}
-                  {item.isPeak ? (
+                  {item.isPeak && item.value > 0 ? (
                     <View style={styles.tooltipWrap}>
                       <View style={styles.tooltipBox}>
-                        <Text style={styles.tooltipText}>{item.value} Bookings</Text>
+                        <Text style={styles.tooltipText}>{item.value} {item.value === 1 ? "Booking" : "Bookings"}</Text>
                       </View>
                       <View style={styles.tooltipPin} />
                     </View>

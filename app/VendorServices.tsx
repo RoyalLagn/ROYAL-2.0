@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
+import VendorSectionHeading, { useVendorSectionPageStyle } from "@/components/vendor/VendorSectionHeading";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
@@ -44,6 +45,7 @@ type VendorColors = (typeof vendorTheme)[keyof typeof vendorTheme];
 export default function VendorServices() {
   const { width } = useWindowDimensions();
   const compact = width < 620;
+  const pageStyle = useVendorSectionPageStyle();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { showSuccess } = useAppFeedback();
@@ -180,33 +182,31 @@ export default function VendorServices() {
   return (
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.heading, compact && styles.headingCompact]}>
-          <View style={styles.flex}>
-            <Text style={[styles.title, { color: colors.text }]}>Packages & pricing</Text>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>
-              Create clear packages, publish the ones customers can book and keep drafts private.
-            </Text>
-          </View>
-          <Pressable
-            disabled={!vendorId || interactionsDisabled}
-            accessibilityRole="button"
-            accessibilityLabel="Create new package"
-            accessibilityState={{ disabled: !vendorId || interactionsDisabled }}
-            onPress={() => openEditor()}
-            style={({ pressed, focused }) => [
-              styles.primary,
-              compact && styles.primaryCompact,
-              { backgroundColor: colors.pink },
-              (!vendorId || interactionsDisabled) && styles.disabled,
-              pressed && styles.pressed,
-              focusStyle(focused, colors.pink),
-            ]}
-          >
-            <PackagePlus size={18} color="#FFF" />
-            <Text style={styles.primaryText}>New package</Text>
-          </Pressable>
-        </View>
+      <ScrollView contentContainerStyle={pageStyle} showsVerticalScrollIndicator={false}>
+        <VendorSectionHeading
+          title="Packages & pricing"
+          subtitle="Create clear packages, publish the ones customers can book and keep drafts private."
+          trailing={
+            <Pressable
+              disabled={!vendorId || interactionsDisabled}
+              accessibilityRole="button"
+              accessibilityLabel="Create new package"
+              accessibilityState={{ disabled: !vendorId || interactionsDisabled }}
+              onPress={() => openEditor()}
+              style={({ pressed, focused }) => [
+                styles.primary,
+                compact && styles.primaryCompact,
+                { backgroundColor: colors.pink },
+                (!vendorId || interactionsDisabled) && styles.disabled,
+                pressed && styles.pressed,
+                focusStyle(focused, colors.pink),
+              ]}
+            >
+              <PackagePlus size={18} color="#FFF" />
+              <Text style={styles.primaryText}>New package</Text>
+            </Pressable>
+          }
+        />
 
         <View style={[styles.overview, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.overviewHeader}>

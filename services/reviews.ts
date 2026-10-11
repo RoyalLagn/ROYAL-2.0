@@ -128,28 +128,93 @@ export async function resolveReviewVendor(
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       reference
     );
-  let query = supabase
-    .from("review_vendor_catalog")
-    .select("vendor_key,vendor_id,display_name,is_active")
-    .eq("is_active", true);
-  query = uuidLike
-    ? query.or(`vendor_key.eq.${reference},vendor_id.eq.${reference}`)
-    : query.eq("vendor_key", reference);
-  const { data, error } = await query.maybeSingle();
-  if (error) throw error;
-  return (data as ReviewVendorCatalog | null) ?? null;
+  try {
+    let query = supabase
+      .from("review_vendor_catalog")
+      .select("vendor_key,vendor_id,display_name,is_active")
+      .eq("is_active", true);
+    query = uuidLike
+      ? query.or(`vendor_key.eq.${reference},vendor_id.eq.${reference}`)
+      : query.eq("vendor_key", reference);
+    const { data, error } = await query.maybeSingle();
+    if (!error && data) return data as ReviewVendorCatalog;
+  } catch {}
+
+  // Fallback: check vendors table directly by id or slug
+  try {
+    let vQuery = supabase.from("vendors").select("id, business_name, slug");
+    vQuery = uuidLike ? vQuery.eq("id", reference) : vQuery.eq("slug", reference);
+    const { data: v } = await vQuery.maybeSingle();
+    if (v) {
+      return {
+        vendor_key: v.id,
+        vendor_id: v.id,
+        display_name: v.business_name || "Vendor",
+        is_active: true,
+      };
+    }
+  } catch {}
+
+  return null;
 }
 
 export async function getReviewSummary(
   vendorKey: string
 ): Promise<ReviewSummary> {
-  const { data, error } = await supabase.rpc("get_vendor_review_summary", {
-    target_vendor_key: vendorKey,
-  });
-  if (error) throw error;
-  const row = (Array.isArray(data) ? data[0] : data) as
-    | Partial<ReviewSummary>
-    | null;
+  let row: Partial<ReviewSummary> | null = null;
+  try {
+    const { data, error } = await supabase.rpc("get_vendor_review_summary", {
+      target_vendor_key: vendorKey,
+    });
+    if (!error && data) {
+      row = (Array.isArray(data) ? data[0] : data) as Partial<ReviewSummary> | null;
+    }
+  } catch {}
+
+  if (row && Number(row.review_count ?? 0) > 0) {
+    return {
+      vendor_key: vendorKey,
+      average_rating: Number(row.average_rating ?? 0),
+      review_count: Number(row.review_count ?? 0),
+      rating_1_count: Number(row.rating_1_count ?? 0),
+      rating_2_count: Number(row.rating_2_count ?? 0),
+      rating_3_count: Number(row.rating_3_count ?? 0),
+      rating_4_count: Number(row.rating_4_count ?? 0),
+      rating_5_count: Number(row.rating_5_count ?? 0),
+    };
+  }
+
+  // Fallback: Compute directly from live reviews table
+  try {
+    const { data: revs } = await supabase
+      .from("reviews")
+      .select("rating")
+      .or(`vendor_key.eq.${vendorKey},vendor_id.eq.${vendorKey}`)
+      .eq("status", "published");
+
+    if (revs && revs.length > 0) {
+      const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+      let sum = 0;
+      for (const r of revs) {
+        const rating = Number(r.rating);
+        if (rating >= 1 && rating <= 5) {
+          counts[rating] = (counts[rating] || 0) + 1;
+          sum += rating;
+        }
+      }
+      return {
+        vendor_key: vendorKey,
+        average_rating: Math.round((sum / revs.length) * 100) / 100,
+        review_count: revs.length,
+        rating_1_count: counts[1],
+        rating_2_count: counts[2],
+        rating_3_count: counts[3],
+        rating_4_count: counts[4],
+        rating_5_count: counts[5],
+      };
+    }
+  } catch {}
+
   return {
     vendor_key: vendorKey,
     average_rating: Number(row?.average_rating ?? 0),
@@ -192,21 +257,62 @@ export async function listReviews(
 ): Promise<ReviewPage> {
   const pageSize = Math.min(50, Math.max(1, options.pageSize ?? 10));
   const page = Math.max(0, options.page ?? 0);
-  const { data, error } = await supabase.rpc("list_vendor_reviews", {
-    target_vendor_key: vendorKey,
-    sort_by: options.sort ?? "most_recent",
-    star_filter: options.star ?? null,
-    page_size: pageSize,
-    page_offset: page * pageSize,
-  });
-  if (error) throw error;
-  const rows = (Array.isArray(data) ? data : []) as Record<string, unknown>[];
-  const total = Number(rows[0]?.total_count ?? rows.length);
-  return {
-    reviews: rows.map(normalizeReview),
-    total,
-    hasMore: (page + 1) * pageSize < total,
-  };
+
+  try {
+    const { data, error } = await supabase.rpc("list_vendor_reviews", {
+      target_vendor_key: vendorKey,
+      sort_by: options.sort ?? "most_recent",
+      star_filter: options.star ?? null,
+      page_size: pageSize,
+      page_offset: page * pageSize,
+    });
+    if (!error && Array.isArray(data)) {
+      const rows = data as Record<string, unknown>[];
+      const total = Number(rows[0]?.total_count ?? rows.length);
+      return {
+        reviews: rows.map(normalizeReview),
+        total,
+        hasMore: (page + 1) * pageSize < total,
+      };
+    }
+  } catch {}
+
+  // Fallback: direct table query
+  try {
+    let query = supabase
+      .from("reviews")
+      .select("*, profile:profiles(id, full_name, profile_image)", { count: "exact" })
+      .or(`vendor_key.eq.${vendorKey},vendor_id.eq.${vendorKey}`)
+      .eq("status", "published");
+
+    if (options.star) {
+      query = query.eq("rating", options.star);
+    }
+
+    if (options.sort === "highest_rated") {
+      query = query.order("rating", { ascending: false }).order("created_at", { ascending: false });
+    } else if (options.sort === "lowest_rated") {
+      query = query.order("rating", { ascending: true }).order("created_at", { ascending: false });
+    } else if (options.sort === "most_helpful") {
+      query = query.order("helpful_count", { ascending: false }).order("created_at", { ascending: false });
+    } else {
+      query = query.order("created_at", { ascending: false });
+    }
+
+    query = query.range(page * pageSize, (page + 1) * pageSize - 1);
+    const { data: rows, count, error } = await query;
+    if (error) throw error;
+
+    const mapped = (rows ?? []).map(normalizeReview);
+    const total = count ?? mapped.length;
+    return {
+      reviews: mapped,
+      total,
+      hasMore: (page + 1) * pageSize < total,
+    };
+  } catch (fallbackErr) {
+    throw fallbackErr;
+  }
 }
 
 export async function getMyReview(
@@ -284,7 +390,12 @@ export function subscribeToVendorReviews(
     });
   };
   reviewChannelSequence += 1;
-  const channel: RealtimeChannel = supabase
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      vendorKey.trim()
+    );
+
+  let channel: RealtimeChannel = supabase
     .channel(`vendor-reviews:${vendorKey}:${reviewChannelSequence}`)
     .on(
       "postgres_changes",
@@ -305,8 +416,22 @@ export function subscribeToVendorReviews(
         filter: `vendor_key=eq.${vendorKey}`,
       },
       notify
-    )
-    .subscribe();
+    );
+
+  if (isUuid) {
+    channel = channel.on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "reviews",
+        filter: `vendor_id=eq.${vendorKey}`,
+      },
+      notify
+    );
+  }
+
+  channel.subscribe();
   return () => {
     void supabase.removeChannel(channel);
   };

@@ -279,6 +279,7 @@ export function SaveBar({
   hint = "Changes update your public vendor profile.",
   onPress,
   buttonLabel = "Save",
+  embedded = false,
 }: {
   colors: Colors;
   saving: boolean;
@@ -289,6 +290,8 @@ export function SaveBar({
   hint?: string;
   onPress: () => void;
   buttonLabel?: string;
+  /** Sits inside a parent panel instead of drawing a second card. */
+  embedded?: boolean;
 }) {
   const reducedMotion = useReducedMotion();
   const state: SaveButtonState = saveError ? "error" : saving ? "saving" : saved ? "saved" : "idle";
@@ -326,7 +329,7 @@ export function SaveBar({
   const buttonAnimatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: buttonScale.value }] }));
 
   return (
-    <View style={[kitStyles.saveBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[kitStyles.saveBar, embedded ? kitStyles.saveBarEmbedded : { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Animated.View style={[kitStyles.saveMessage, messageStyle]}>
         {displayState === "error" ? (
           <Text style={kitStyles.saveErrorText}>{saveError}</Text>
@@ -396,6 +399,7 @@ export const kitStyles = StyleSheet.create({
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: -3 },
   tag: { overflow: "hidden", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 6, fontSize: typeScale.caption, fontWeight: "700" },
   saveBar: { borderWidth: 1, borderRadius: 20, padding: 12, flexDirection: "row", alignItems: "center", gap: 12, marginTop: 3 },
+  saveBarEmbedded: { borderWidth: 0, borderRadius: 0, backgroundColor: "transparent", padding: 0, paddingTop: 8, marginTop: 8 },
   saveMessage: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },
   saveHint: { fontSize: typeScale.caption },
   savedText: { fontSize: typeScale.caption, fontWeight: "700" },

@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 import { Award, Languages, NotebookPen } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
+import VendorSectionHeading, { useVendorSectionPageStyle } from "@/components/vendor/VendorSectionHeading";
+import { VendorSectionChips, VendorSectionGroup, VendorSectionPanel, VendorSectionRule } from "@/components/vendor/VendorSectionPanel";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorkspace";
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
-import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { Field, kitStyles, ReadinessBadge, SaveBar, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
 import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
@@ -20,6 +22,7 @@ const textToList = (value: string, limit: number) =>
 // pricing, portfolio and availability each have their own dedicated
 // section and are not touched here.
 export default function VendorEditAbout() {
+  const pageStyle = useVendorSectionPageStyle();
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { data, loading, error, refresh } = useVendorWorkspace();
@@ -97,88 +100,90 @@ export default function VendorEditAbout() {
   return (
     <View style={[kitStyles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <KeyboardAwareScrollView avoidKeyboardOnAndroid contentContainerStyle={kitStyles.content}>
-        <View style={kitStyles.heading}>
-          <View style={kitStyles.headingRow}>
-            <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · ABOUT THE BUSINESS</Text>
-            {data.vendor ? <ReadinessBadge colors={colors} state={VendorReadinessRules.about(data.vendor)} /> : null}
-          </View>
-          <Text style={[kitStyles.title, { color: colors.text }]}>About the business</Text>
-          <Text style={[kitStyles.subtitle, { color: colors.muted }]}>
-            Introduce your business, experience and specialities. This does not affect any other section of your profile.
-          </Text>
-        </View>
+      <KeyboardAwareScrollView
+        avoidKeyboardOnAndroid
+        contentContainerStyle={pageStyle}
+      >
+        <VendorSectionHeading
+          title="About the business"
+          subtitle="The story couples read before they enquire. Services, photos and availability stay in their own sections."
+          badge={data.vendor ? <ReadinessBadge colors={colors} state={VendorReadinessRules.about(data.vendor)} /> : null}
+        />
 
         <VendorWorkspaceGate colors={colors} loading={loading} vendor={data.vendor} error={error} onRetry={() => void refresh()}>
-          <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <SectionTitle icon={NotebookPen} title="Introduction" detail="Describe your experience, style and what customers can expect." colors={colors} />
-            <Field
-              label="About the business"
-              required
-              value={description}
-              onChangeText={(value) => { clearFeedback(); setDescription(value); }}
-              placeholder="Describe your experience, style and what customers can expect."
-              colors={colors}
-              multiline
-              advanceOnSubmit
-              maxLength={1200}
-              helper={`${description.length}/1200 · Aim for at least 80 useful characters.`}
-            />
-            <Field
-              label="Years of experience"
-              value={experience}
-              onChangeText={(value) => { clearFeedback(); setExperience(value.replace(/[^0-9]/g, "")); }}
-              placeholder="e.g. 8"
-              colors={colors}
-              keyboardType="number-pad"
-              helper="Optional. Shown to customers as your years in business."
-            />
-          </View>
-
-          <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <SectionTitle icon={Award} title="Awards & recognition" detail="Optional highlights shown on your public profile." colors={colors} />
-            <Field
-              label="Awards"
-              value={awards}
-              onChangeText={(value) => { clearFeedback(); setAwards(value); }}
-              placeholder="Best Wedding Photographer 2024, WeddingSutra Awards"
-              colors={colors}
-              helper="Separate with commas. Up to 15 will be saved."
-            />
-            {awardList.length ? (
-              <View style={kitStyles.tags}>
-                {awardList.map((item) => <Text key={item} style={[kitStyles.tag, { color: colors.pink, backgroundColor: colors.surfaceSoft }]}>{item}</Text>)}
+          <VendorSectionPanel backgroundColor="#FFF8E8" borderColor="rgba(239, 121, 91, 0.18)">
+            <VendorSectionGroup icon={NotebookPen} iconColor="#EF795B" title="Introduction" detail="Describe your experience, style and what customers can expect.">
+              <Field
+                label="About the business"
+                required
+                value={description}
+                onChangeText={(value) => { clearFeedback(); setDescription(value); }}
+                placeholder="Describe your experience, style and what customers can expect."
+                colors={colors}
+                multiline
+                advanceOnSubmit
+                maxLength={1200}
+                helper={`${description.length}/1200 · Aim for at least 80 useful characters.`}
+              />
+              <View style={styles.experience}>
+                <Field
+                  label="Years of experience"
+                  value={experience}
+                  onChangeText={(value) => { clearFeedback(); setExperience(value.replace(/[^0-9]/g, "")); }}
+                  placeholder="e.g. 8"
+                  colors={colors}
+                  keyboardType="number-pad"
+                  helper="Optional. Shown to customers as your years in business."
+                />
               </View>
-            ) : null}
-          </View>
+            </VendorSectionGroup>
 
-          <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <SectionTitle icon={Languages} title="Languages spoken" detail="Optional. Helps customers know if you can communicate in their language." colors={colors} />
-            <Field
-              label="Languages"
-              value={languages}
-              onChangeText={(value) => { clearFeedback(); setLanguages(value); }}
-              placeholder="English, Hindi, Marathi"
+            <VendorSectionRule color="rgba(239, 121, 91, 0.16)" />
+
+            <VendorSectionGroup icon={Award} iconColor="#EF795B" title="Awards and recognition" detail="Optional highlights shown on your public profile.">
+              <Field
+                label="Awards"
+                value={awards}
+                onChangeText={(value) => { clearFeedback(); setAwards(value); }}
+                placeholder="Best Wedding Photographer 2024, WeddingSutra Awards"
+                colors={colors}
+                helper="Separate with commas. Up to 15 will be saved."
+              />
+              <VendorSectionChips items={awardList} color="#9A4E38" />
+            </VendorSectionGroup>
+
+            <VendorSectionRule color="rgba(239, 121, 91, 0.16)" />
+
+            <VendorSectionGroup icon={Languages} iconColor="#EF795B" title="Languages spoken" detail="Optional. Helps customers know if you can communicate in their language.">
+              <Field
+                label="Languages"
+                value={languages}
+                onChangeText={(value) => { clearFeedback(); setLanguages(value); }}
+                placeholder="English, Hindi, Marathi"
+                colors={colors}
+                helper="Separate with commas. Up to 15 will be saved."
+              />
+              <VendorSectionChips items={languageList} color="#9A4E38" />
+            </VendorSectionGroup>
+
+            <SaveBar
+              embedded
               colors={colors}
-              helper="Separate with commas. Up to 15 will be saved."
+              saving={saving}
+              saved={saved}
+              saveError={saveError}
+              savedLabel="About the business updated"
+              onPress={() => void save()}
             />
-            {languageList.length ? (
-              <View style={kitStyles.tags}>
-                {languageList.map((item) => <Text key={item} style={[kitStyles.tag, { color: colors.pink, backgroundColor: colors.surfaceSoft }]}>{item}</Text>)}
-              </View>
-            ) : null}
-          </View>
-
-          <SaveBar
-            colors={colors}
-            saving={saving}
-            saved={saved}
-            saveError={saveError}
-            savedLabel="About the business updated"
-            onPress={() => void save()}
-          />
+          </VendorSectionPanel>
         </VendorWorkspaceGate>
       </KeyboardAwareScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  experience: {
+    maxWidth: 220,
+  },
+});

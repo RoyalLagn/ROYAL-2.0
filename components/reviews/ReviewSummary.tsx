@@ -4,22 +4,28 @@ import { Platform, StyleSheet, Text, View } from "react-native";
 // [...]}` props on Android; InteropSafePressable resolves it first.
 import Pressable from "@/components/InteropSafePressable";
 import StarDistribution from "./StarDistribution";
-import type { StarCounts } from "./types";
+import type { StarCounts, StarFilter } from "./types";
 import { reviewPalette } from "./types";
 import { typeStyles, typeScale } from "@/constants/typography";
 
 export type ReviewSummaryProps = {
   average: number; total: number; counts: StarCounts; dark?: boolean;
   onWriteReview?: () => void; canWriteReview?: boolean;
+  onSelectStar?: (star: 1 | 2 | 3 | 4 | 5) => void;
+  selectedStar?: StarFilter;
 };
 
-export default function ReviewSummary({ average, total, counts, dark = false, onWriteReview, canWriteReview = true }: ReviewSummaryProps) {
+export default function ReviewSummary({ average, total, counts, dark = false, onWriteReview, canWriteReview = true, onSelectStar, selectedStar }: ReviewSummaryProps) {
   const c = reviewPalette(dark);
+  const roundedRating = Math.max(0, Math.min(5, Math.round(average)));
   return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={styles.score}>
         <Text style={[styles.average, { color: c.text }]}>{average.toFixed(1)}</Text>
-        <Text accessibilityLabel={`${average.toFixed(1)} out of 5 stars`} style={[styles.stars, { color: c.gold }]}>★★★★★</Text>
+        <Text accessibilityLabel={`${average.toFixed(1)} out of 5 stars`} style={[styles.stars, { color: c.gold }]}>
+          {"★".repeat(roundedRating)}
+          <Text style={{ color: c.inactiveStar }}>{"★".repeat(5 - roundedRating)}</Text>
+        </Text>
         <Text style={[styles.count, { color: c.muted }]}>{total.toLocaleString()} {total === 1 ? "review" : "reviews"}</Text>
         {onWriteReview ? (
           <Pressable accessibilityRole="button" accessibilityLabel="Write a Review" accessibilityState={{ disabled: !canWriteReview }} disabled={!canWriteReview} onPress={onWriteReview} style={({ pressed, hovered }) => [
@@ -30,7 +36,7 @@ export default function ReviewSummary({ average, total, counts, dark = false, on
           </Pressable>
         ) : null}
       </View>
-      <StarDistribution counts={counts} total={total} dark={dark} />
+      <StarDistribution counts={counts} total={total} dark={dark} onSelectStar={onSelectStar} selectedStar={selectedStar} />
     </View>
   );
 }

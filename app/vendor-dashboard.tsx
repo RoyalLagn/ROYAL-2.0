@@ -140,14 +140,55 @@ export default function VendorDashboard() {
       .reduce((sum, b) => sum + (Number(b.advance_amount) || Number(b.total_amount) || 0), 0);
   }, [vendorBookings]);
 
-  // If vendor has live bookings, use real stats; else show demo/starter values
-  const hasLiveBookings = vendorBookings.length > 0;
-  const pendingBookings = hasLiveBookings ? pendingBookingsCount : 3;
-  const confirmedBookings = hasLiveBookings ? confirmedBookingsCount : 7;
-  const cancelledBookings = hasLiveBookings ? cancelledBookingsCount : 2;
-  const recentBookings = hasLiveBookings ? recentBookingsCount : 5;
-  const totalBookings = hasLiveBookings ? totalBookingsCount : 12;
-  const totalEarnings = hasLiveBookings && calculatedEarnings > 0 ? calculatedEarnings : "8,800";
+  // Real-time booking & financial metrics directly from live Supabase data
+  const pendingBookings = pendingBookingsCount;
+  const confirmedBookings = confirmedBookingsCount;
+  const cancelledBookings = cancelledBookingsCount;
+  const recentBookings = recentBookingsCount;
+  const totalBookings = totalBookingsCount;
+  const totalEarnings = calculatedEarnings;
+
+  // Real-time booking status breakdown for Status Donut
+  const statusSegments = useMemo(() => {
+    const confirmed = confirmedBookingsCount;
+    const pending = pendingBookingsCount;
+    const completed = vendorBookings.filter((b) => b.booking_status === "completed").length;
+    const cancelled = cancelledBookingsCount;
+    const total = totalBookingsCount;
+
+    return [
+      {
+        label: "Confirmed",
+        count: confirmed,
+        percentage: total > 0 ? Math.round((confirmed / total) * 100) : 0,
+        color: "#E91E63",
+      },
+      {
+        label: "Pending",
+        count: pending,
+        percentage: total > 0 ? Math.round((pending / total) * 100) : 0,
+        color: "#FBCFE8",
+      },
+      {
+        label: "Completed",
+        count: completed,
+        percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+        color: "#10B981",
+      },
+      {
+        label: "Cancelled",
+        count: cancelled,
+        percentage: total > 0 ? Math.round((cancelled / total) * 100) : 0,
+        color: "#9CA3AF",
+      },
+    ];
+  }, [
+    confirmedBookingsCount,
+    pendingBookingsCount,
+    cancelledBookingsCount,
+    totalBookingsCount,
+    vendorBookings,
+  ]);
 
   // Subscription Expiry Warning Modal
   const expiryWarning =
@@ -232,6 +273,9 @@ export default function VendorDashboard() {
                 isVerified={isVerified}
                 pincode={pincode}
                 featuredPincode={featuredPincode}
+                averageRating={data.stats?.averageRating}
+                reviewCount={data.stats?.reviewCount}
+                onPressReviews={() => router.push("/VendorReviews" as any)}
               />
             </View>
 
@@ -258,11 +302,14 @@ export default function VendorDashboard() {
               {/* Row 3 Desktop: Bookings Overview Chart + Donut Status Chart */}
               <View style={[styles.row, styles.row3ColDesktop]}>
                 <View style={[styles.col, { flex: 1.35 }]}>
-                  <VendorCrmBookingsChart />
+                  <VendorCrmBookingsChart bookings={vendorBookings} />
                 </View>
 
                 <View style={[styles.col, { flex: 1 }]}>
-                  <VendorCrmStatusDonut totalCount={42} />
+                  <VendorCrmStatusDonut
+                    totalCount={totalBookings}
+                    segments={statusSegments}
+                  />
                 </View>
               </View>
 
@@ -283,8 +330,11 @@ export default function VendorDashboard() {
           ) : (
             <>
               {/* Mobile Stack: Charts, Public Profile, Quick Actions */}
-              <VendorCrmBookingsChart />
-              <VendorCrmStatusDonut totalCount={42} />
+              <VendorCrmBookingsChart bookings={vendorBookings} />
+              <VendorCrmStatusDonut
+                totalCount={totalBookings}
+                segments={statusSegments}
+              />
               <VendorCrmPublicProfile slug={slug} businessName={vendorName} />
               <VendorCrmQuickActions />
             </>

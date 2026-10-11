@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, View } from "react-native";
 import { Search } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -7,7 +7,9 @@ import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorkspace";
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
-import { Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import { Field, kitStyles, ReadinessBadge, SaveBar, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import VendorSectionHeading, { useVendorSectionPageStyle } from "@/components/vendor/VendorSectionHeading";
+import { VendorSectionChips, VendorSectionGroup, VendorSectionPanel } from "@/components/vendor/VendorSectionPanel";
 import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
@@ -16,6 +18,7 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 export default function VendorEditTags() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
+  const pageStyle = useVendorSectionPageStyle();
   const { data, loading, error, refresh } = useVendorWorkspace();
   const [tags, setTags] = useState("");
   const [saving, setSaving] = useState(false);
@@ -62,44 +65,36 @@ export default function VendorEditTags() {
   return (
     <View style={[kitStyles.page, { backgroundColor: colors.background }]}>
       <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
-      <KeyboardAwareScrollView avoidKeyboardOnAndroid contentContainerStyle={kitStyles.content}>
-        <View style={kitStyles.heading}>
-          <View style={kitStyles.headingRow}>
-            <Text style={[kitStyles.eyebrow, { color: colors.pink }]}>SECTION · SEARCH TAGS</Text>
-            {data.vendor ? <ReadinessBadge colors={colors} state={VendorReadinessRules.tags(data.vendor)} /> : null}
-          </View>
-          <Text style={[kitStyles.title, { color: colors.text }]}>Search tags</Text>
-          <Text style={[kitStyles.subtitle, { color: colors.muted }]}>
-            Keywords customers may search for. This does not affect any other section of your profile.
-          </Text>
-        </View>
+      <KeyboardAwareScrollView avoidKeyboardOnAndroid contentContainerStyle={pageStyle}>
+        <VendorSectionHeading
+          title="Search tags"
+          subtitle="Keywords customers may search for. This does not affect any other section of your profile."
+          badge={data.vendor ? <ReadinessBadge colors={colors} state={VendorReadinessRules.tags(data.vendor)} /> : null}
+        />
 
         <VendorWorkspaceGate colors={colors} loading={loading} vendor={data.vendor} error={error} onRetry={() => void refresh()}>
-          <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <SectionTitle icon={Search} title="Search discovery" detail="Use a small set of relevant phrases customers may search for." colors={colors} />
-            <Field
-              label="Search tags"
-              value={tags}
-              onChangeText={(value) => { setSaved(false); setSaveError(""); setTags(value); }}
-              placeholder="candid wedding, luxury decor, pune"
+          <VendorSectionPanel backgroundColor="#EAF7FF" borderColor="rgba(235, 74, 124, 0.18)">
+            <VendorSectionGroup icon={Search} iconColor="#EB4A7C" title="Search discovery" detail="Use a small set of relevant phrases customers may search for.">
+              <Field
+                label="Search tags"
+                value={tags}
+                onChangeText={(value) => { setSaved(false); setSaveError(""); setTags(value); }}
+                placeholder="candid wedding, luxury decor, pune"
+                colors={colors}
+                helper="Separate tags with commas. Up to 12 tags will be saved."
+              />
+              <VendorSectionChips items={tagList} color="#9A3E5C" />
+            </VendorSectionGroup>
+            <SaveBar
+              embedded
               colors={colors}
-              helper="Separate tags with commas. Up to 12 tags will be saved."
+              saving={saving}
+              saved={saved}
+              saveError={saveError}
+              savedLabel="Search tags updated"
+              onPress={() => void save()}
             />
-            {tagList.length ? (
-              <View style={kitStyles.tags}>
-                {tagList.map((tag) => <Text key={tag} style={[kitStyles.tag, { color: colors.pink, backgroundColor: colors.surfaceSoft }]}>{tag}</Text>)}
-              </View>
-            ) : null}
-          </View>
-
-          <SaveBar
-            colors={colors}
-            saving={saving}
-            saved={saved}
-            saveError={saveError}
-            savedLabel="Search tags updated"
-            onPress={() => void save()}
-          />
+          </VendorSectionPanel>
         </VendorWorkspaceGate>
       </KeyboardAwareScrollView>
     </View>

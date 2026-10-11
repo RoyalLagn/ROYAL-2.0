@@ -49,6 +49,7 @@ export function isVendorWorkspaceRoute(pathname: string): boolean {
     path.startsWith("/vendor-marketing-center") ||
     path.startsWith("/vendor-marketing-card") ||
     path.startsWith("/vendorpaymenthistory") ||
+    path.startsWith("/vendortransactions") ||
     path.startsWith("/vendornotifications") ||
     path.startsWith("/vendorsettings") ||
     path.startsWith("/vendoraccountdeletion") ||

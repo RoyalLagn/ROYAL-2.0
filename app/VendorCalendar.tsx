@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Platform, StyleSheet, Switch, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronLeft, ChevronRight, Save } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, Plus, Save } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
+import AddOfflineBookingModal from "@/components/vendor/AddOfflineBookingModal";
+import VendorSectionHeading, { useVendorSectionPageStyle } from "@/components/vendor/VendorSectionHeading";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
 import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
 import Pressable from "@/components/InteropSafePressable";
@@ -46,6 +48,7 @@ const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1)
 
 export default function VendorCalendar() {
   const { width } = useWindowDimensions();
+  const pageStyle = useVendorSectionPageStyle();
   const wideWebLayout = Platform.OS === "web" && width >= 1180;
   const compactHours = width < 560;
   const { colorScheme } = useAppTheme();
@@ -71,6 +74,7 @@ export default function VendorCalendar() {
   const [savingStatus, setSavingStatus] = useState<AvailabilityStatus | null>(null);
   const [selectedLedgerDate, setSelectedLedgerDate] = useState<string | null>(null);
   const [vendorBookings, setVendorBookings] = useState<VendorBooking[]>([]);
+  const [showAddOfflineModal, setShowAddOfflineModal] = useState(false);
 
   const refreshBookings = useCallback(async () => {
     if (!data.vendor?.id) return;
@@ -237,14 +241,31 @@ export default function VendorCalendar() {
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
     <KeyboardAwareScrollView
-      contentContainerStyle={[styles.content, wideWebLayout && styles.wideWebContent, { paddingBottom: 24 + Math.max(insets.bottom, 8) + VENDOR_TAB_BASE_HEIGHT + 16 }]}
+      contentContainerStyle={pageStyle}
       showsVerticalScrollIndicator={false}
       decelerationRate="fast"
     >
       <VendorDashboardReveal>
-      <Text style={[styles.eyebrow, { color: colors.pink }]}>PLAN WITH CLARITY</Text>
-      <Text style={[styles.title, { color: colors.text }]}>Availability</Text>
-      <Text style={[styles.subtitle, { color: colors.muted }]}>Tap a future date to mark it booked. Tap it again to make it available.</Text>
+      <VendorSectionHeading
+        title="Availability & Calendar"
+        subtitle="Tap a future date to view bookings or mark it booked. Tap it again to make it available."
+        trailing={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add Offline Booking"
+            onPress={() => setShowAddOfflineModal(true)}
+            style={({ pressed, hovered, focused }) => [
+              styles.addOfflineBtn,
+              { backgroundColor: colors.pink },
+              (hovered || focused) && styles.hoverLift,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Plus size={16} color="#FFFFFF" strokeWidth={2.5} />
+            <Text style={styles.addOfflineBtnText}>Record Offline Booking</Text>
+          </Pressable>
+        }
+      />
       <View style={wideWebLayout && styles.workspaceWide}>
       <View style={[styles.calendar, wideWebLayout && styles.wideWebPanel, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
         <View style={styles.monthRow}>
@@ -399,6 +420,18 @@ export default function VendorCalendar() {
         }}
       />
     ) : null}
+    {data.vendor?.id ? (
+      <AddOfflineBookingModal
+        visible={showAddOfflineModal}
+        vendorId={data.vendor.id}
+        initialDate={today}
+        onClose={() => setShowAddOfflineModal(false)}
+        onSuccess={() => {
+          void refreshBookings();
+          void refresh();
+        }}
+      />
+    ) : null}
   </View>;
 }
 
@@ -427,6 +460,32 @@ function AvailabilityToggle({ entry, colors, onChange }: {
 const styles = StyleSheet.create({
   page: { flex: 1 }, content: { padding: 16, paddingTop: 20, paddingBottom: 24, width: "100%", maxWidth: 780, alignSelf: "center" },
   wideWebContent: { maxWidth: 1120, paddingHorizontal: 28, paddingTop: 28 },
+  calendarHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+    marginBottom: 4,
+  },
+  calendarHeaderLeft: {
+    flex: 1,
+    minWidth: 260,
+  },
+  addOfflineBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  addOfflineBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
   eyebrow: { ...typeStyles.caption, letterSpacing: 1.1, marginBottom: 5 }, title: { ...typeStyles.pageTitle },
   subtitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 4 }, calendar: { borderWidth: 1, borderRadius: 16, padding: 15, marginTop: 20, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .05, shadowRadius: 18, elevation: 2 },
   workspaceWide: { flexDirection: "row", alignItems: "flex-start", gap: 18, marginTop: 20 }, wideWebPanel: { flex: 1, minWidth: 0, marginTop: 0 },

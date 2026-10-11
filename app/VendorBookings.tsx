@@ -25,6 +25,7 @@ import {
   MessageCircle,
   Package,
   Phone,
+  Plus,
   ReceiptText,
   RefreshCw,
   Search,
@@ -35,6 +36,7 @@ import {
   X,
   XCircle,
 } from "lucide-react-native";
+import AddOfflineBookingModal from "@/components/vendor/AddOfflineBookingModal";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -121,6 +123,7 @@ export default function VendorBookings() {
   const [rejectingBooking, setRejectingBooking] = useState<VendorBooking | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectSubmitting, setRejectSubmitting] = useState(false);
+  const [showAddOfflineModal, setShowAddOfflineModal] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!workspaceData.vendor?.id) return;
@@ -244,13 +247,29 @@ export default function VendorBookings() {
                   Review pending 30% advance bookings and manage confirmed client tickets.
                 </Text>
               </View>
-              <Pressable
-                accessibilityLabel="Refresh bookings"
-                onPress={() => void loadData()}
-                style={[styles.refreshIconBtn, { backgroundColor: colors.surfaceSoft }]}
-              >
-                <RefreshCw size={17} color={colors.pink} />
-              </Pressable>
+              <View style={styles.headerRightActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Record Offline Booking"
+                  onPress={() => setShowAddOfflineModal(true)}
+                  style={({ pressed }) => [
+                    styles.addOfflineBtn,
+                    { backgroundColor: colors.pink },
+                    pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                  ]}
+                >
+                  <Plus size={15} color="#FFFFFF" strokeWidth={2.5} />
+                  <Text style={styles.addOfflineBtnText}>Record Offline Booking</Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityLabel="Refresh bookings"
+                  onPress={() => void loadData()}
+                  style={[styles.refreshIconBtn, { backgroundColor: colors.surfaceSoft }]}
+                >
+                  <RefreshCw size={17} color={colors.pink} />
+                </Pressable>
+              </View>
             </View>
 
             {/* Search Input */}
@@ -680,6 +699,19 @@ export default function VendorBookings() {
           </View>
         </View>
       </Modal>
+
+      {workspaceData.vendor?.id ? (
+        <AddOfflineBookingModal
+          visible={showAddOfflineModal}
+          vendorId={workspaceData.vendor.id}
+          initialDate={new Date().toISOString().split("T")[0]}
+          onClose={() => setShowAddOfflineModal(false)}
+          onSuccess={() => {
+            void loadData();
+            void refreshWorkspace();
+          }}
+        />
+      ) : null}
     </View>
   );
 }
@@ -690,7 +722,26 @@ const styles = StyleSheet.create({
   desktopContent: { maxWidth: 840, alignSelf: "center", width: "100%", paddingHorizontal: 24 },
   flex: { flex: 1, minWidth: 0 },
 
-  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
+  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" },
+  headerRightActions: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" },
+  addOfflineBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 15,
+    paddingVertical: 9,
+    borderRadius: 12,
+    shadowColor: PINK,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  addOfflineBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
   eyebrow: { fontSize: 11, fontWeight: "800", letterSpacing: 0.8 },
   title: { fontSize: typeScale.sectionTitle, fontWeight: "800", marginTop: 2, letterSpacing: -0.3 },
   subtitle: { fontSize: typeScale.caption, marginTop: 4, lineHeight: typeLeading.caption },
