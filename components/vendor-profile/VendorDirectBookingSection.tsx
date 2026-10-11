@@ -314,53 +314,36 @@ export default function VendorDirectBookingSection({
           </Pressable>
         </View>
       ) : (
-        /* Mobile 2-Tier Balanced Hierarchy */
-        <View style={styles.mobileActionButtonsWrap}>
-          {/* Row 1: Secondary Sister Actions (Equal 50/50, Single-Line Readable) */}
-          <View style={styles.mobileActionSecondaryRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Check availability calendar"
-              onPress={() => setDateModalVisible(true)}
-              style={[
-                styles.mobileSecondaryBtn,
-                { borderColor: palette.border, backgroundColor: palette.surfaceSoft },
-              ]}
-            >
-              <CalendarDays size={14} color={palette.text} style={styles.mobileBtnIcon} />
-              <Text style={[styles.mobileSecondaryBtnText, { color: palette.text }]} numberOfLines={1}>
-                Check Availability
-              </Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Send enquiry to admin"
-              onPress={onSendEnquiry}
-              style={[
-                styles.mobileSecondaryBtn,
-                { borderColor: palette.border, backgroundColor: palette.surfaceSoft },
-              ]}
-            >
-              <Send size={13} color={palette.text} style={styles.mobileBtnIcon} />
-              <Text style={[styles.mobileSecondaryBtnText, { color: palette.text }]} numberOfLines={1}>
-                Send Enquiry
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Row 2: Primary Book Now CTA (Full-Width, High-Emphasis Pink) */}
+        /* Mobile: Secondary Sister Actions (Equal 50/50, Single-Line Readable) */
+        <View style={styles.mobileActionSecondaryRow}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Book now"
-            onPress={handleBookNowClick}
-            style={[styles.mobilePrimaryBtn, { backgroundColor: PINK }]}
+            accessibilityLabel="Check availability calendar"
+            onPress={() => setDateModalVisible(true)}
+            style={[
+              styles.mobileSecondaryBtn,
+              { borderColor: palette.border, backgroundColor: palette.surfaceSoft },
+            ]}
           >
-            <PackageCheck size={16} color="#FFFFFF" style={styles.mobileBtnIcon} />
-            <Text style={styles.mobilePrimaryBtnText}>Book Now</Text>
-            <View style={styles.mobilePrimaryAdvanceBadge}>
-              <Text style={styles.mobilePrimaryAdvanceBadgeText}>30% Advance</Text>
-            </View>
+            <CalendarDays size={14} color={palette.text} style={styles.mobileBtnIcon} />
+            <Text style={[styles.mobileSecondaryBtnText, { color: palette.text }]} numberOfLines={1}>
+              Check Availability
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Send enquiry to admin"
+            onPress={onSendEnquiry}
+            style={[
+              styles.mobileSecondaryBtn,
+              { borderColor: palette.border, backgroundColor: palette.surfaceSoft },
+            ]}
+          >
+            <Send size={13} color={palette.text} style={styles.mobileBtnIcon} />
+            <Text style={[styles.mobileSecondaryBtnText, { color: palette.text }]} numberOfLines={1}>
+              Send Enquiry
+            </Text>
           </Pressable>
         </View>
       )}
@@ -782,6 +765,28 @@ export default function VendorDirectBookingSection({
         </View>
       )}
 
+      {/* MOBILE ONLY: PRIMARY BOOK NOW BUTTON (PLACED DIRECTLY BELOW SERVICE SELECTOR CARDS) */}
+      {!desktop ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Book now"
+          onPress={handleBookNowClick}
+          style={[styles.mobilePrimaryBtn, { backgroundColor: PINK, marginTop: 14 }]}
+        >
+          <PackageCheck size={16} color="#FFFFFF" style={styles.mobileBtnIcon} />
+          <Text style={styles.mobilePrimaryBtnText}>
+            {selectedPackagesList.length > 0 ? "Book Selected Package" : "Book Now"}
+          </Text>
+          <View style={styles.mobilePrimaryAdvanceBadge}>
+            <Text style={styles.mobilePrimaryAdvanceBadgeText}>
+              {selectedPackagesList.length > 0
+                ? `Pay 30% Adv: ${money(financials.advanceAmount)}`
+                : "30% Advance"}
+            </Text>
+          </View>
+        </Pressable>
+      ) : null}
+
       {/* 4. LIVE PRICES SUMMARY BOX OR EMPTY SELECTION PROMPT */}
       {selectedPackagesList.length > 0 ? (
         <View
@@ -1043,15 +1048,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
   },
-  mobileActionButtonsWrap: {
-    flexDirection: "column",
-    gap: 8,
-    marginBottom: 16,
-  },
   mobileActionSecondaryRow: {
     flexDirection: "row",
     gap: 8,
     width: "100%",
+    marginBottom: 16,
   },
   mobileSecondaryBtn: {
     flex: 1,
@@ -1077,6 +1078,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 16,
     gap: 8,
+    marginBottom: 16,
     ...Platform.select({
       web: { boxShadow: "0 4px 12px rgba(225, 29, 72, 0.25)" },
       default: { elevation: 3 },
