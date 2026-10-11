@@ -229,13 +229,23 @@ export default function VendorDirectBookingSection({
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+    <View
+      style={[
+        styles.container,
+        !desktop && styles.containerMobile,
+        { backgroundColor: palette.surface, borderColor: palette.border },
+      ]}
+    >
       {/* 1. DATE SELECTOR / DISPLAYER (AT TOP) */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Change event dates on calendar"
         onPress={() => setDateModalVisible(true)}
-        style={[styles.dateSelectorBox, { backgroundColor: palette.surfaceSoft, borderColor: palette.border }]}
+        style={[
+          styles.dateSelectorBox,
+          !desktop && styles.dateSelectorBoxMobile,
+          { backgroundColor: palette.surfaceSoft, borderColor: palette.border },
+        ]}
       >
         <View style={styles.dateInfoLeft}>
           <View style={[styles.dateIconBubble, { backgroundColor: palette.surfaceHighlight }]}>
@@ -268,47 +278,99 @@ export default function VendorDirectBookingSection({
       </Pressable>
 
       {/* 2. THREE ACTION BUTTONS (MIDDLE) */}
-      <View style={styles.actionButtonsRow}>
-        {/* Button 1: Check Availability */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Check availability calendar"
-          onPress={() => setDateModalVisible(true)}
-          style={[styles.actionBtn, styles.actionBtnSecondary, { borderColor: palette.border, backgroundColor: palette.surfaceSoft }]}
-        >
-          <CalendarDays size={16} color={palette.text} style={styles.actionBtnIcon} />
-          <Text style={[styles.actionBtnText, { color: palette.text }]}>Check Availability</Text>
-        </Pressable>
+      {desktop ? (
+        <View style={styles.actionButtonsRow}>
+          {/* Button 1: Check Availability */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Check availability calendar"
+            onPress={() => setDateModalVisible(true)}
+            style={[styles.actionBtn, styles.actionBtnSecondary, { borderColor: palette.border, backgroundColor: palette.surfaceSoft }]}
+          >
+            <CalendarDays size={16} color={palette.text} style={styles.actionBtnIcon} />
+            <Text style={[styles.actionBtnText, { color: palette.text }]}>Check Availability</Text>
+          </Pressable>
 
-        {/* Button 2: Send Enquiry (Routed to Admin Only) */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Send enquiry to admin"
-          onPress={onSendEnquiry}
-          style={[styles.actionBtn, styles.actionBtnSecondary, { borderColor: palette.border, backgroundColor: palette.surfaceSoft }]}
-        >
-          <Send size={15} color={palette.text} style={styles.actionBtnIcon} />
-          <Text style={[styles.actionBtnText, { color: palette.text }]}>Send Enquiry</Text>
-        </Pressable>
+          {/* Button 2: Send Enquiry (Routed to Admin Only) */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Send enquiry to admin"
+            onPress={onSendEnquiry}
+            style={[styles.actionBtn, styles.actionBtnSecondary, { borderColor: palette.border, backgroundColor: palette.surfaceSoft }]}
+          >
+            <Send size={15} color={palette.text} style={styles.actionBtnIcon} />
+            <Text style={[styles.actionBtnText, { color: palette.text }]}>Send Enquiry</Text>
+          </Pressable>
 
-        {/* Button 3: Book Now */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Book now"
-          onPress={handleBookNowClick}
-          style={[styles.actionBtn, styles.actionBtnPrimary, { backgroundColor: PINK }]}
-        >
-          <PackageCheck size={16} color="#FFFFFF" style={styles.actionBtnIcon} />
-          <Text style={styles.actionBtnPrimaryText}>Book Now</Text>
-        </Pressable>
-      </View>
+          {/* Button 3: Book Now */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Book now"
+            onPress={handleBookNowClick}
+            style={[styles.actionBtn, styles.actionBtnPrimary, { backgroundColor: PINK }]}
+          >
+            <PackageCheck size={16} color="#FFFFFF" style={styles.actionBtnIcon} />
+            <Text style={styles.actionBtnPrimaryText}>Book Now</Text>
+          </Pressable>
+        </View>
+      ) : (
+        /* Mobile 2-Tier Balanced Hierarchy */
+        <View style={styles.mobileActionButtonsWrap}>
+          {/* Row 1: Secondary Sister Actions (Equal 50/50, Single-Line Readable) */}
+          <View style={styles.mobileActionSecondaryRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Check availability calendar"
+              onPress={() => setDateModalVisible(true)}
+              style={[
+                styles.mobileSecondaryBtn,
+                { borderColor: palette.border, backgroundColor: palette.surfaceSoft },
+              ]}
+            >
+              <CalendarDays size={14} color={palette.text} style={styles.mobileBtnIcon} />
+              <Text style={[styles.mobileSecondaryBtnText, { color: palette.text }]} numberOfLines={1}>
+                Check Availability
+              </Text>
+            </Pressable>
 
-      {/* 3. HORIZONTAL PACKAGE SELECTOR */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Send enquiry to admin"
+              onPress={onSendEnquiry}
+              style={[
+                styles.mobileSecondaryBtn,
+                { borderColor: palette.border, backgroundColor: palette.surfaceSoft },
+              ]}
+            >
+              <Send size={13} color={palette.text} style={styles.mobileBtnIcon} />
+              <Text style={[styles.mobileSecondaryBtnText, { color: palette.text }]} numberOfLines={1}>
+                Send Enquiry
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Row 2: Primary Book Now CTA (Full-Width, High-Emphasis Pink) */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Book now"
+            onPress={handleBookNowClick}
+            style={[styles.mobilePrimaryBtn, { backgroundColor: PINK }]}
+          >
+            <PackageCheck size={16} color="#FFFFFF" style={styles.mobileBtnIcon} />
+            <Text style={styles.mobilePrimaryBtnText}>Book Now</Text>
+            <View style={styles.mobilePrimaryAdvanceBadge}>
+              <Text style={styles.mobilePrimaryAdvanceBadgeText}>30% Advance</Text>
+            </View>
+          </Pressable>
+        </View>
+      )}
+
+      {/* 3. PACKAGE SELECTOR HEADER */}
       <View style={styles.packageSelectorHeader}>
-        <View>
+        <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Select Service Packages</Text>
-          <Text style={[styles.sectionSubtitle, { color: palette.muted }]}>
-            Select one or more packages for this booking (30% advance)
+          <Text style={[styles.sectionSubtitle, { color: palette.muted }]} numberOfLines={1}>
+            Choose one or more packages (30% advance payable)
           </Text>
         </View>
         {selectedPackageIds.length > 0 ? (
@@ -330,7 +392,8 @@ export default function VendorDirectBookingSection({
         <View style={styles.emptyCard}>
           <Text style={[styles.emptyCardText, { color: palette.muted }]}>Loading vendor packages...</Text>
         </View>
-      ) : (
+      ) : desktop ? (
+        /* Desktop: Horizontal Carousel */
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -355,14 +418,12 @@ export default function VendorDirectBookingSection({
                   },
                 ]}
               >
-                {/* Main Card Area - Tap anywhere to toggle selection */}
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`${isSelected ? "Deselect" : "Select"} package ${item.title}`}
                   onPress={() => togglePackageSelection(item.id)}
                   style={styles.packageCardBodyPressable}
                 >
-                  {/* Top Row: Custom Check Indicator + Selected Badge + Category + 30% Pill */}
                   <View style={styles.packageCardTop}>
                     <View style={styles.selectorRowLeft}>
                       <View
@@ -403,12 +464,10 @@ export default function VendorDirectBookingSection({
                     </View>
                   </View>
 
-                  {/* Package Title */}
                   <Text style={[styles.packageTitle, { color: palette.text }]} numberOfLines={2}>
                     {item.title}
                   </Text>
 
-                  {/* Price Display */}
                   <View style={styles.priceRow}>
                     <Text style={[styles.packagePrice, { color: palette.text }]}>
                       {money(effectivePrice)}
@@ -433,7 +492,6 @@ export default function VendorDirectBookingSection({
                   ) : null}
                 </Pressable>
 
-                {/* Dropdown Accordion Toggle */}
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Toggle package details"
@@ -450,7 +508,6 @@ export default function VendorDirectBookingSection({
                   )}
                 </Pressable>
 
-                {/* Expandable Accordion Content */}
                 {isExpanded ? (
                   <View style={[styles.dropdownContent, { borderTopColor: palette.border }]}>
                     {item.description ? (
@@ -488,9 +545,9 @@ export default function VendorDirectBookingSection({
                               key={addon.id}
                               onPress={() =>
                                 toggleAddOn(addonKey, {
-                                   id: addon.id,
-                                   title: addon.title,
-                                   price: Number(addon.price || 0),
+                                  id: addon.id,
+                                  title: addon.title,
+                                  price: Number(addon.price || 0),
                                 })
                               }
                               style={styles.addOnRow}
@@ -531,6 +588,198 @@ export default function VendorDirectBookingSection({
             );
           })}
         </ScrollView>
+      ) : (
+        /* Mobile: Compact Vertical Stacked Card List with Accordion */
+        <View style={styles.mobilePackageList}>
+          {activePackages.map((item) => {
+            const isSelected = selectedPackageIds.includes(item.id);
+            const isExpanded = expandedPackageId === item.id;
+            const effectivePrice = Number(item.discounted_price ?? item.price ?? 0);
+            const includedItems = (item.items || []).filter((i) => i.item_type === "included");
+            const addOnItems = (item.items || []).filter((i) => i.item_type === "add_on");
+
+            return (
+              <View
+                key={item.id}
+                style={[
+                  styles.compactPackageCard,
+                  {
+                    backgroundColor: isSelected ? palette.surfaceHighlight : palette.surfaceSoft,
+                    borderColor: isSelected ? PINK : palette.border,
+                    borderWidth: isSelected ? 1.5 : 1,
+                  },
+                ]}
+              >
+                {/* Main Card Area - Tap anywhere to toggle selection */}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${isSelected ? "Deselect" : "Select"} package ${item.title}`}
+                  onPress={() => togglePackageSelection(item.id)}
+                  style={styles.compactCardMainPressable}
+                >
+                  {/* Top Row: Custom Check Indicator + Package Title + Category + 30% Pill */}
+                  <View style={styles.compactCardTopRow}>
+                    <View style={styles.compactCardTitleGroup}>
+                      <View
+                        style={[
+                          styles.compactSelectorDot,
+                          {
+                            borderColor: isSelected ? PINK : palette.muted,
+                            backgroundColor: isSelected ? PINK : "transparent",
+                          },
+                        ]}
+                      >
+                        {isSelected ? <Check size={11} color="#FFFFFF" strokeWidth={3} /> : null}
+                      </View>
+                      <Text style={[styles.compactPackageTitle, { color: palette.text }]} numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                    </View>
+
+                    <View style={styles.compactCardBadges}>
+                      {item.service_category ? (
+                        <View style={[styles.compactCategoryBadge, { backgroundColor: palette.surface }]}>
+                          <Text style={[styles.compactCategoryBadgeText, { color: palette.muted }]} numberOfLines={1}>
+                            {item.service_category.toUpperCase()}
+                          </Text>
+                        </View>
+                      ) : null}
+                      <View style={[styles.compactAdvancePill, { backgroundColor: palette.emeraldBg }]}>
+                        <Text style={[styles.compactAdvancePillText, { color: palette.emeraldText }]}>
+                          30% ADV
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Middle Row: Price Display + Duration & Events Info */}
+                  <View style={styles.compactCardMetaRow}>
+                    <View style={styles.compactPriceRow}>
+                      <Text style={[styles.compactPackagePrice, { color: palette.text }]}>
+                        {money(effectivePrice)}
+                      </Text>
+                      <Text style={[styles.compactPricePerDay, { color: palette.muted }]}> / day</Text>
+                      {item.discounted_price != null && item.price != null && item.price > effectivePrice ? (
+                        <Text style={[styles.compactStrikethroughPrice, { color: palette.muted }]}>
+                          {money(item.price)}
+                        </Text>
+                      ) : null}
+                    </View>
+
+                    {item.duration_label || item.events_covered ? (
+                      <View style={styles.compactDurationPill}>
+                        <Clock size={11} color={palette.muted} />
+                        <Text style={[styles.compactDurationText, { color: palette.muted }]} numberOfLines={1}>
+                          {[item.duration_label, item.events_covered ? `${item.events_covered} Events` : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </Pressable>
+
+                {/* Bottom Accordion Bar: Toggles Details Expansion */}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Toggle package details"
+                  onPress={() => setExpandedPackageId(isExpanded ? null : item.id)}
+                  style={[
+                    styles.compactAccordionBar,
+                    { borderTopColor: isSelected ? "rgba(225, 29, 72, 0.15)" : palette.border },
+                  ]}
+                >
+                  <Text style={[styles.compactAccordionText, { color: PINK }]}>
+                    {isExpanded ? "Hide Details & Add-ons" : "View Details & Add-ons"}
+                  </Text>
+                  {isExpanded ? (
+                    <ChevronUp size={14} color={PINK} />
+                  ) : (
+                    <ChevronDown size={14} color={PINK} />
+                  )}
+                </Pressable>
+
+                {/* Expandable Accordion Drawer */}
+                {isExpanded ? (
+                  <View style={[styles.compactExpandedDrawer, { borderTopColor: palette.border }]}>
+                    {item.description ? (
+                      <Text style={[styles.packageDesc, { color: palette.muted }]}>
+                        {item.description}
+                      </Text>
+                    ) : null}
+
+                    {includedItems.length > 0 ? (
+                      <View style={styles.servicesSection}>
+                        <Text style={[styles.subSectionTitle, { color: palette.text }]}>
+                          Included Services:
+                        </Text>
+                        {includedItems.map((inc) => (
+                          <View key={inc.id || inc.title} style={styles.serviceItemRow}>
+                            <CheckCircle2 size={13} color="#168A5B" />
+                            <Text style={[styles.serviceItemText, { color: palette.text }]}>
+                              {inc.title}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
+
+                    {addOnItems.length > 0 ? (
+                      <View style={styles.servicesSection}>
+                        <Text style={[styles.subSectionTitle, { color: PINK }]}>
+                          Optional Add-ons:
+                        </Text>
+                        {addOnItems.map((addon) => {
+                          const addonKey = `${item.id}_${addon.id}`;
+                          const isAddOnChecked = Boolean(selectedAddOns[addonKey]);
+                          return (
+                            <Pressable
+                              key={addon.id}
+                              onPress={() =>
+                                toggleAddOn(addonKey, {
+                                  id: addon.id,
+                                  title: addon.title,
+                                  price: Number(addon.price || 0),
+                                })
+                              }
+                              style={styles.addOnRow}
+                            >
+                              <View
+                                style={[
+                                  styles.addOnCheckbox,
+                                  {
+                                    borderColor: isAddOnChecked ? PINK : palette.muted,
+                                    backgroundColor: isAddOnChecked ? PINK : "transparent",
+                                  },
+                                ]}
+                              >
+                                {isAddOnChecked ? <Check size={10} color="#FFFFFF" /> : null}
+                              </View>
+                              <View style={styles.addOnDetails}>
+                                <Text style={[styles.addOnTitle, { color: palette.text }]}>
+                                  {addon.title}
+                                </Text>
+                                <Text style={[styles.addOnPrice, { color: PINK }]}>
+                                  +{money(Number(addon.price || 0))}
+                                </Text>
+                              </View>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ) : null}
+
+                    {item.delivery_details ? (
+                      <Text style={[styles.deliveryNote, { color: palette.muted }]}>
+                        Delivery: {item.delivery_details}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
       )}
 
       {/* 4. LIVE PRICES SUMMARY BOX OR EMPTY SELECTION PROMPT */}
@@ -688,6 +937,11 @@ const styles = StyleSheet.create({
       default: { elevation: 2 },
     }),
   },
+  containerMobile: {
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
   dateSelectorBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -696,6 +950,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     marginBottom: 16,
+  },
+  dateSelectorBoxMobile: {
+    padding: 11,
+    borderRadius: 12,
+    marginBottom: 12,
   },
   dateInfoLeft: {
     flexDirection: "row",
@@ -783,6 +1042,66 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "800",
+  },
+  mobileActionButtonsWrap: {
+    flexDirection: "column",
+    gap: 8,
+    marginBottom: 16,
+  },
+  mobileActionSecondaryRow: {
+    flexDirection: "row",
+    gap: 8,
+    width: "100%",
+  },
+  mobileSecondaryBtn: {
+    flex: 1,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+    gap: 6,
+  },
+  mobileSecondaryBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  mobilePrimaryBtn: {
+    width: "100%",
+    height: 44,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    gap: 8,
+    ...Platform.select({
+      web: { boxShadow: "0 4px 12px rgba(225, 29, 72, 0.25)" },
+      default: { elevation: 3 },
+    }),
+  },
+  mobilePrimaryBtnText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  mobilePrimaryAdvanceBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 6,
+    marginLeft: "auto",
+  },
+  mobilePrimaryAdvanceBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  mobileBtnIcon: {
+    flexShrink: 0,
   },
   packageSelectorHeader: {
     flexDirection: "row",
@@ -979,6 +1298,123 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontStyle: "italic",
     marginTop: 4,
+  },
+  // Mobile Compact Package Card List
+  mobilePackageList: {
+    flexDirection: "column",
+    gap: 10,
+  },
+  compactPackageCard: {
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  compactCardMainPressable: {
+    padding: 12,
+  },
+  compactCardTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 8,
+  },
+  compactCardTitleGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+  },
+  compactSelectorDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  compactPackageTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    flex: 1,
+  },
+  compactCardBadges: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    flexShrink: 0,
+  },
+  compactCategoryBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  compactCategoryBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+  compactAdvancePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  compactAdvancePillText: {
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  compactCardMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingLeft: 28,
+  },
+  compactPriceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    flexShrink: 0,
+  },
+  compactPackagePrice: {
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  compactPricePerDay: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  compactStrikethroughPrice: {
+    fontSize: 11,
+    textDecorationLine: "line-through",
+    marginLeft: 6,
+  },
+  compactDurationPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 1,
+  },
+  compactDurationText: {
+    fontSize: 11,
+  },
+  compactAccordionBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderTopWidth: 1,
+  },
+  compactAccordionText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  compactExpandedDrawer: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   summaryBox: {
     marginTop: 18,
