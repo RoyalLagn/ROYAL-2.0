@@ -34,7 +34,6 @@ import {
   UserRound,
 } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import { useSupportSettings } from "@/hooks/useSupportSettings";
@@ -213,7 +212,6 @@ export default function FrontendScreen({
               Royal<Text className="text-primary">Lagn</Text>
             </Text>
           </View>
-          <ThemeToggle />
         </View>
       </View>}
 

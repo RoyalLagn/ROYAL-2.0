@@ -27,10 +27,9 @@ type SafeImageProps = Omit<ImageProps, "source" | "defaultSource"> & {
   fallbackSource: number | ImageURISource;
   debugLabel?: string;
   retryCount?: number;
-  /** Set false to skip the fade-in (e.g. an image that must appear
-   *  instantly, like a live camera preview thumbnail). Defaults to true. */
+  /** Set false to skip the fade-in. Defaults to true. */
   fadeIn?: boolean;
-  /** Preferred delivery width (CSS px), retained for layout callers. */
+  /** Preferred delivery width (CSS px). */
   deliveryWidth?: number;
   deliveryHeight?: number;
   /** Fit mode used by the rendered image container. */
@@ -66,19 +65,21 @@ function SafeImage({
       quality: "auto",
     });
   }, [deliveryCrop, deliveryHeight, deliveryWidth, rawRemoteUri]);
+
   const [attempt, setAttempt] = useState(0);
   const [failed, setFailed] = useState(false);
   const reducedMotion = useReducedMotion();
-  // Remote images fade in on load (prevents the white-flash/pop-in of a
-  // remote Bunny asset arriving over the network); bundled local assets
-  // resolve synchronously so there is nothing to fade.
+
+  // Remote images fade in on load; bundled local assets resolve synchronously
   const opacity = useSharedValue(remoteUri && fadeIn ? 0 : 1);
 
   useEffect(() => {
     setAttempt(0);
     setFailed(false);
-    if (remoteUri && fadeIn) {
-      opacity.value = reducedMotion ? 1 : 0;
+    if (remoteUri && fadeIn && !reducedMotion) {
+      opacity.value = 0;
+    } else {
+      opacity.value = 1;
     }
   }, [fadeIn, opacity, reducedMotion, remoteUri]);
 
@@ -100,21 +101,24 @@ function SafeImage({
         setAttempt((current) => current + 1);
       } else {
         setFailed(true);
-        // A fallback image should still appear, not stay invisible because
-        // the network image never finished loading.
-        opacity.value = reducedMotion ? 1 : withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) });
+        // Ensure fallback is immediately visible — NEVER leave opacity at 0
+        opacity.value = 1;
       }
       onError?.(event);
     },
-    [attempt, debugLabel, onError, opacity, reducedMotion, remoteUri, retryCount],
+    [attempt, debugLabel, onError, opacity, remoteUri, retryCount],
   );
 
   const handleLoad = useCallback(
     (event: Parameters<NonNullable<ImageProps["onLoad"]>>[0]) => {
-      opacity.value = reducedMotion ? 1 : withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) });
+      if (fadeIn && !reducedMotion) {
+        opacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) });
+      } else {
+        opacity.value = 1;
+      }
       onLoad?.(event);
     },
-    [onLoad, opacity, reducedMotion],
+    [fadeIn, onLoad, opacity, reducedMotion],
   );
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));

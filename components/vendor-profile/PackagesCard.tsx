@@ -24,9 +24,9 @@ function PackagesCard({
   onPress,
   dark = false,
   eyebrow = "Packages Start From",
-  subtitle = "Customize packages available",
-  buttonLabel = "View Packages",
-  accessibilityLabel = "View vendor packages",
+  subtitle = "Instant In-App Booking · 30% Advance",
+  buttonLabel = "View & Book",
+  accessibilityLabel = "View and book vendor packages",
 }: PackagesCardProps) {
   const { width } = useWindowDimensions();
   const [focused, setFocused] = useState(false);

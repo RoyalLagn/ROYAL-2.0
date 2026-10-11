@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Platform, StyleSheet, Switch, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight, Save } from "lucide-react-native";
@@ -20,6 +20,8 @@ import {
   type AvailabilityStatus,
 } from "@/services/vendorAvailability";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
+import VendorLedgerModal from "@/components/vendor/VendorLedgerModal";
+import { VendorBookingService, type VendorBooking } from "@/services/vendorBookings";
 
 const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const defaultHours = (): VendorBusinessHourEntry[] =>
@@ -67,6 +69,22 @@ export default function VendorCalendar() {
   const [savedStatuses, setSavedStatuses] = useState<Record<string, AvailabilityStatus>>({});
   const [bookingBlockedDates, setBookingBlockedDates] = useState<Set<string>>(new Set());
   const [savingStatus, setSavingStatus] = useState<AvailabilityStatus | null>(null);
+  const [selectedLedgerDate, setSelectedLedgerDate] = useState<string | null>(null);
+  const [vendorBookings, setVendorBookings] = useState<VendorBooking[]>([]);
+
+  const refreshBookings = useCallback(async () => {
+    if (!data.vendor?.id) return;
+    try {
+      const list = await VendorBookingService.getVendorBookings(data.vendor.id);
+      setVendorBookings(list);
+    } catch (err) {
+      console.warn("Could not load bookings in calendar", err);
+    }
+  }, [data.vendor?.id]);
+
+  useEffect(() => {
+    void refreshBookings();
+  }, [refreshBookings]);
   const [hours, setHours] = useState<VendorBusinessHourEntry[]>(defaultHours());
   const [hoursSaving, setHoursSaving] = useState(false);
   const [hoursSaved, setHoursSaved] = useState(false);
@@ -258,9 +276,12 @@ export default function VendorCalendar() {
           {days.map((date, index) => {
             if (!date) return <View key={`blank${index}`} style={[styles.day, cellSize ? { width: cellSize, height: cellSize } : null]} />;
             const value = iso(date);
-            const status = dateStatus(value);
+            const dateBookings = vendorBookings.filter((b) => b.event_date === value);
+            const hasPending = dateBookings.some((b) => b.booking_status === "pending");
+            const hasConfirmed = dateBookings.some((b) => b.booking_status === "confirmed");
+            const effectiveStatus = hasConfirmed ? "blocked" : dateStatus(value);
             const past = value < today;
-            const palette = status ? statusColors[status] : null;
+            const palette = effectiveStatus ? statusColors[effectiveStatus] : null;
             const backgroundColor = past
               ? colorScheme === "dark" ? "#292C33" : "#E8E8EC"
               : palette?.background ?? "transparent";
@@ -269,26 +290,32 @@ export default function VendorCalendar() {
               : palette?.text ?? colors.text;
             return <Pressable
               key={value}
-              accessibilityLabel={`${date.toLocaleDateString()}${past ? ", past date, locked" : status === "blocked" ? ", booked, tap to make available" : ", available, tap to mark booked"}`}
-              accessibilityState={{ disabled: past || savingStatus !== null, selected: status === "blocked", busy: savingStatus !== null }}
-              disabled={past || savingStatus !== null}
-              onPress={() => toggleBookedDate(value)}
+              accessibilityLabel={`${date.toLocaleDateString()}${past ? ", past date" : effectiveStatus === "blocked" ? ", booked, tap to open ledger" : ", available, tap to open ledger"}`}
+              accessibilityState={{ selected: effectiveStatus === "blocked" }}
+              onPress={() => setSelectedLedgerDate(value)}
               style={({ pressed, hovered, focused }) => [
                 styles.day,
                 cellSize ? { width: cellSize, height: cellSize } : null,
                 { backgroundColor },
                 past && styles.pastDay,
+                hasPending && { borderColor: "#F59E0B", borderWidth: 2 },
                 !past && (hovered || focused) && styles.dayHover,
                 !past && pressed && styles.dayPressed,
               ]}
             >
               <Text style={[styles.dayText, { color: dateColor }]}>{date.getDate()}</Text>
+              {hasPending ? (
+                <View style={{ position: "absolute", bottom: 3, width: 6, height: 6, borderRadius: 3, backgroundColor: "#F59E0B" }} />
+              ) : dateBookings.length > 0 ? (
+                <View style={{ position: "absolute", bottom: 3, width: 5, height: 5, borderRadius: 2.5, backgroundColor: "#FFFFFF" }} />
+              ) : null}
             </Pressable>;
           })}
         </View>
         <View style={styles.legend}>
           <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: colors.surfaceSoft, borderColor: colors.border, borderWidth: StyleSheet.hairlineWidth }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Available</Text></View>
           <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: statusColors.blocked.background }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Booked</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1 }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Pending</Text></View>
           <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: colorScheme === "dark" ? "#292C33" : "#E8E8EC" }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Past · locked</Text></View>
         </View>
       </View>
@@ -353,6 +380,25 @@ export default function VendorCalendar() {
       </View>
       </VendorDashboardReveal>
     </KeyboardAwareScrollView>
+  {selectedLedgerDate ? (
+      <VendorLedgerModal
+        visible
+        date={selectedLedgerDate}
+        vendorId={data.vendor?.id || ""}
+        vendorName={data.vendor?.business_name || "Vendor"}
+        currentStatus={dateStatus(selectedLedgerDate) || "available"}
+        isPast={selectedLedgerDate < today}
+        dark={colorScheme === "dark"}
+        onClose={() => setSelectedLedgerDate(null)}
+        onStatusChange={async (d, nextStatus) => {
+          await update(nextStatus, d);
+        }}
+        onBookingUpdated={() => {
+          void refreshBookings();
+          void refresh();
+        }}
+      />
+    ) : null}
   </View>;
 }
 

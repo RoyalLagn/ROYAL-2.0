@@ -1,14 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { extensionForMime, presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function sha256(value: string) {
+async function sha1(value: string) {
   const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const digest = await crypto.subtle.digest("SHA-1", bytes);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
@@ -68,15 +67,6 @@ Deno.serve(async (request) => {
     const currentCount = Math.max(album.media_count ?? 0, count ?? 0);
     if (currentCount + batchSize > 15) throw new Error("Album media limit reached");
 
-    // Reserve capacity before spending time/bandwidth on the Bunny
-    // upload, and before finalize_photo_upload (the only way to insert a
-    // vendor_portfolio_media row -- see the migration that drops the direct
-    // insert policy) so a slot always exists to finalize into. The vendor's
-    // plan quota only counts images (reserve_photo_upload_slot / the RPC's
-    // active_count query filter on resource_type = 'image'), so a video
-    // reservation is effectively always granted unless the vendor's image
-    // count alone is already at their limit -- a narrow edge case, not a
-    // separate video quota.
     const idempotencyKey = `${albumId}:${crypto.randomUUID()}`;
     const { data: reservation, error: reservationError } = await supabase.rpc("reserve_photo_upload_slot", {
       target_vendor_id: vendorId,
@@ -89,42 +79,50 @@ Deno.serve(async (request) => {
 
     const folder = `royallagn/vendors/${vendorId}/albums/${albumId}`;
     const assetId = crypto.randomUUID();
-    if (kind === "video") {
-      const libraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
-      const apiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
-      const cdnHostname = Deno.env.get("BUNNY_STREAM_CDN_HOSTNAME")?.trim()
-        .replace(/^https?:\/\//, "").replace(/\/$/, "");
-      if (!libraryId || !apiKey || !cdnHostname) throw new Error("Bunny Stream is not configured");
-      const createResponse = await fetch(
-        `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos`,
-        {
-          method: "POST",
-          headers: { AccessKey: apiKey, Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({ title: `portfolio-${albumId}-${assetId}` }),
-        },
-      );
-      const created = await createResponse.json().catch(() => ({})) as { guid?: string; message?: string };
-      if (!createResponse.ok || !created.guid) throw new Error(created.message || "Unable to create Bunny Stream video");
-      const expires = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
+    const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
+    const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "hp6vu8o9";
+    const uploadPreset = Deno.env.get("CLOUDINARY_UPLOAD_PRESET") || Deno.env.get("EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET");
+
+    if (apiSecret && apiKey) {
+      const eager = kind === "video"
+        ? "c_limit,w_1280,h_720,q_auto:good,vc_h264,ac_aac,f_mp4|so_0,c_fit,w_960,h_720,q_auto,f_jpg"
+        : "c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile|c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile|c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile|c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile";
+      const params = {
+        eager,
+        folder,
+        overwrite: "false",
+        public_id: assetId,
+        timestamp,
+        unique_filename: "false",
+      };
+      const canonical = Object.entries(params).sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}=${v}`).join("&");
+      const signature = await sha1(`${canonical}${apiSecret}`);
+
       return Response.json({
-        provider: "bunny",
-        uploadMode: "tus",
-        endpoint: "https://video.bunnycdn.com/tusupload",
-        authorizationSignature: await sha256(`${libraryId}${apiKey}${expires}${created.guid}`),
-        authorizationExpire: expires,
-        videoId: created.guid,
-        libraryId,
-        videoUrl: `https://${cdnHostname}/${created.guid}/playlist.m3u8`,
-        thumbnailUrl: `https://${cdnHostname}/${created.guid}/thumbnail.jpg`,
-        objectKey: `bunny-stream:${created.guid}`,
+        ...params,
+        provider: "cloudinary",
+        uploadMode: "signed",
+        signature,
+        apiKey,
+        cloudName,
         resourceType: kind,
         remainingCapacity: 15 - currentCount,
         reservationId,
       }, { headers: cors });
     }
-    const objectKey = `${folder}/${assetId}.${extensionForMime(String(mimeType))}`;
+
+    // Unsigned preset mode
     return Response.json({
-      ...await presignBunnyObject("PUT", objectKey),
+      provider: "cloudinary",
+      uploadMode: "unsigned",
+      uploadPreset,
+      cloudName,
+      folder,
+      public_id: assetId,
       resourceType: kind,
       remainingCapacity: 15 - currentCount,
       reservationId,

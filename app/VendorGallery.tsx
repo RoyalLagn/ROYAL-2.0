@@ -11,7 +11,7 @@ import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { deletePortfolioMedia, deleteUnstoredPortfolioAsset, pickPortfolioMedia, type PortfolioAsset, uploadPortfolioAsset } from "@/services/media";
 import { supabase } from "@/services/supabase";
 import PortfolioVideoPlayer from "@/components/vendor/PortfolioVideoPlayer";
-import { portfolioAssetFingerprint, portfolioMediaUrl, PORTFOLIO_LIMITS, updateMediaFocalPoint } from "@/services/vendorPortfolio";
+import { portfolioAssetFingerprint, portfolioMediaUrl, PORTFOLIO_LIMITS, getPortfolioTierLimits, updateMediaFocalPoint } from "@/services/vendorPortfolio";
 import { useSubscriptionAccess } from "@/hooks/useSubscriptionAccess";
 import ImageFadeIn from "@/components/loading/ImageFadeIn";
 import { typeScale } from "@/constants/typography";
@@ -99,7 +99,9 @@ export default function VendorGallery() {
     [data.media, preview?.album_id],
   );
   const previewIndex = previewMedia.findIndex((item) => item.id === preview?.id);
-  const remainingCapacity = Math.max(0, PORTFOLIO_LIMITS.mediaPerAlbum - media.length);
+  const isPremium = Boolean(access?.has_access && /premium/i.test(access?.plan_name ?? ""));
+  const tierLimits = useMemo(() => getPortfolioTierLimits(isPremium), [isPremium]);
+  const remainingCapacity = Math.max(0, tierLimits.mediaPerAlbum - media.length);
   const uploading = Object.values(uploadProgress).some((task) =>
     task.status === "optimizing" || task.status === "signing" || task.status === "uploading" || task.status === "processing");
   const uploadsCompleted = pendingAssets.length > 0
@@ -142,8 +144,8 @@ export default function VendorGallery() {
   useFocusEffect(React.useCallback(() => { refresh(); }, [refresh]));
   const openAlbum = (album?: any) => {
     if (!requireFeature("manage_albums")) return;
-    if (!album && data.albums.length >= PORTFOLIO_LIMITS.albums) {
-      Alert.alert("Album limit reached", "You can create up to 5 portfolio albums. Edit an existing album or delete one before creating another.");
+    if (!album && data.albums.length >= tierLimits.albums) {
+      Alert.alert("Album limit reached", `You can create up to ${tierLimits.albums} portfolio albums on the ${isPremium ? "Premium" : "Free"} plan.${!isPremium ? " Upgrade to Premium for 5 albums." : " Edit an existing album or delete one before creating another."}`);
       return;
     }
     setEditingAlbum(album ?? null);
@@ -156,8 +158,8 @@ export default function VendorGallery() {
     if (!requireFeature("manage_albums")) return;
     if (!data.vendor?.id) return Alert.alert("Vendor profile required", "Connect your Vendor profile before creating albums.");
     if (!title.trim()) return Alert.alert("Album title required");
-    if (!editingAlbum && data.albums.length >= PORTFOLIO_LIMITS.albums) {
-      return Alert.alert("Album limit reached", "You can create up to 5 portfolio albums.");
+    if (!editingAlbum && data.albums.length >= tierLimits.albums) {
+      return Alert.alert("Album limit reached", `You can create up to ${tierLimits.albums} portfolio albums on the ${isPremium ? "Premium" : "Free"} plan.${!isPremium ? " Upgrade to Premium for 5 albums." : ""}`);
     }
     const duplicate = data.albums.some((album) =>
       album.id !== editingAlbum?.id && album.title.trim().toLowerCase() === title.trim().toLowerCase());
@@ -235,7 +237,7 @@ export default function VendorGallery() {
   const moveMediaToAlbum = async (item: any, target: any) => {
     if (!requireFeature("manage_albums")) return;
     const targetCount = data.media.filter((entry) => entry.album_id === target.id).length;
-    if (targetCount >= PORTFOLIO_LIMITS.mediaPerAlbum) return Alert.alert("Album is full", "Choose an album with available space.");
+    if (targetCount >= tierLimits.mediaPerAlbum) return Alert.alert("Album is full", "Choose an album with available space.");
     const { error: moveError } = await supabase.from("vendor_portfolio_media")
       .update({ album_id: target.id, display_order: targetCount, is_cover: targetCount === 0 })
       .eq("id", item.id).eq("vendor_id", data.vendor?.id);
@@ -251,8 +253,8 @@ export default function VendorGallery() {
     if (!moveAlbumSource) return;
     const sourceItems = data.media.filter((item) => item.album_id === moveAlbumSource.id);
     const targetCount = data.media.filter((item) => item.album_id === target.id).length;
-    if (targetCount + sourceItems.length > PORTFOLIO_LIMITS.mediaPerAlbum) {
-      return Alert.alert("Not enough room", `${target.title} has room for ${PORTFOLIO_LIMITS.mediaPerAlbum - targetCount} more items. Choose another album.`);
+    if (targetCount + sourceItems.length > tierLimits.mediaPerAlbum) {
+      return Alert.alert("Not enough room", `${target.title} has room for ${tierLimits.mediaPerAlbum - targetCount} more items. Choose another album.`);
     }
     setDeletingAlbumId(moveAlbumSource.id);
     const moved: typeof sourceItems = [];
@@ -296,8 +298,8 @@ export default function VendorGallery() {
   ) => {
     if (!requireFeature("upload_gallery")) return;
     if (!data.vendor?.id || !targetAlbumId) return Alert.alert("Create an album first", "Portfolio media must belong to an album.");
-    const targetRemaining = Math.max(0, PORTFOLIO_LIMITS.mediaPerAlbum - currentMediaCount);
-    if (!targetRemaining) return Alert.alert("Album is full", "Each album can hold 15 photos or videos. Create another album to upload more.");
+    const targetRemaining = Math.max(0, tierLimits.mediaPerAlbum - currentMediaCount);
+    if (!targetRemaining) return Alert.alert("Album is full", `Each album on the ${isPremium ? "Premium" : "Free"} plan can hold up to ${tierLimits.mediaPerAlbum} photos. Create another album or upgrade to upload more.`);
     try {
       const selected = await pickPortfolioMedia(Math.min(12, targetRemaining));
       const unique = selected.filter((asset, index, all) =>
@@ -545,7 +547,7 @@ export default function VendorGallery() {
             styles.createAlbumButton,
             { backgroundColor: colors.pink, shadowColor: colors.shadow },
             pressed && styles.pressLift,
-            data.albums.length >= PORTFOLIO_LIMITS.albums && { opacity: .58 },
+            data.albums.length >= tierLimits.albums && { opacity: .58 },
           ]}
         >
           <Plus size={19} color="#FFF" strokeWidth={2.4} />
@@ -557,10 +559,10 @@ export default function VendorGallery() {
           {
             key: "albums",
             icon: <FolderOpen size={19} color={colors.pink} />,
-            value: `${data.albums.length}/${PORTFOLIO_LIMITS.albums}`,
+            value: `${data.albums.length}/${tierLimits.albums}`,
             label: "Albums used",
-            detail: `${Math.max(0, PORTFOLIO_LIMITS.albums - data.albums.length)} remaining`,
-            progress: data.albums.length / PORTFOLIO_LIMITS.albums,
+            detail: `${Math.max(0, tierLimits.albums - data.albums.length)} remaining`,
+            progress: data.albums.length / tierLimits.albums,
           },
           {
             key: "media",
@@ -657,9 +659,9 @@ export default function VendorGallery() {
                     <Text style={[styles.publishText, { color: album.is_visible ? "#448A58" : colors.muted }]}>{album.is_visible ? "Published" : "Draft"}</Text>
                   </View>
                 </View>
-                <Text style={[styles.albumCount, { color: colors.muted }]}>{albumMedia.length} of {PORTFOLIO_LIMITS.mediaPerAlbum} media</Text>
+                <Text style={[styles.albumCount, { color: colors.muted }]}>{albumMedia.length} of {tierLimits.mediaPerAlbum} media</Text>
                 <View style={[styles.albumCapacity, { backgroundColor: colors.border }]}>
-                  <View style={{ width: `${albumMedia.length / PORTFOLIO_LIMITS.mediaPerAlbum * 100}%`, height: "100%", borderRadius: 999, backgroundColor: colors.pink }} />
+                  <View style={{ width: `${albumMedia.length / tierLimits.mediaPerAlbum * 100}%`, height: "100%", borderRadius: 999, backgroundColor: colors.pink }} />
                 </View>
               </View>
             </Pressable>
@@ -692,7 +694,7 @@ export default function VendorGallery() {
           </Pressable>
         </View>
         <View style={styles.orderRow}>
-          <Text style={[styles.orderLabel, { color: colors.muted }]}>{media.length}/{PORTFOLIO_LIMITS.mediaPerAlbum} media · {remainingCapacity} remaining</Text>
+          <Text style={[styles.orderLabel, { color: colors.muted }]}>{media.length}/{tierLimits.mediaPerAlbum} media · {remainingCapacity} remaining</Text>
           <Pressable accessibilityLabel="Move album earlier" onPress={() => reorderAlbum(-1)} style={[styles.orderButton, { borderColor: colors.border }]}><ChevronLeft size={15} color={colors.text} /><Text style={[styles.orderText, { color: colors.text }]}>Earlier</Text></Pressable>
           <Pressable accessibilityLabel="Move album later" onPress={() => reorderAlbum(1)} style={[styles.orderButton, { borderColor: colors.border }]}><Text style={[styles.orderText, { color: colors.text }]}>Later</Text><ChevronRight size={15} color={colors.text} /></Pressable>
         </View>
@@ -700,7 +702,7 @@ export default function VendorGallery() {
           {uploading ? <ActivityIndicator color={colors.pink} /> : <Upload size={19} color={colors.pink} />}
           <Text style={{ color: colors.pink, fontWeight: "700", fontSize: typeScale.body }}>{uploading ? "Uploading securely…" : remainingCapacity === 0 ? "Album limit reached" : "Add images or videos"}</Text>
         </Pressable>
-        {remainingCapacity === 0 && <View style={[styles.capacityNotice, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.capacityText, { color: colors.muted }]}>This album contains 15 media items. Create another album to continue uploading.</Text><Pressable onPress={() => openAlbum()}><Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>Create album</Text></Pressable></View>}
+        {remainingCapacity === 0 && <View style={[styles.capacityNotice, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.capacityText, { color: colors.muted }]}>This album has reached its limit of items for your plan. Create another album to continue uploading.</Text><Pressable onPress={() => openAlbum()}><Text style={{ color: colors.pink, fontSize: typeScale.caption, fontWeight: "700" }}>Create album</Text></Pressable></View>}
         <View onLayout={(event) => setGalleryWidth(event.nativeEvent.layout.width)} style={[styles.mediaGrid, { gap }]}>
           {media.map((item) => <View key={item.id} style={[styles.mediaTileWrap, { width: tileWidth }]}>
             <Pressable accessibilityRole="button" accessibilityLabel={`Preview ${item.resource_type}`} onPress={() => setPreview(item)}>
@@ -989,7 +991,7 @@ export default function VendorGallery() {
           {data.albums.filter((album) => album.id !== (moveAlbumSource?.id || moveMediaItem?.album_id)).map((album) => {
             const count = data.media.filter((item) => item.album_id === album.id).length;
             const needed = moveAlbumSource ? data.media.filter((item) => item.album_id === moveAlbumSource.id).length : 1;
-            const disabled = count + needed > PORTFOLIO_LIMITS.mediaPerAlbum;
+            const disabled = count + needed > tierLimits.mediaPerAlbum;
             return <Pressable
               key={album.id}
               disabled={disabled || Boolean(deletingAlbumId)}
@@ -997,7 +999,7 @@ export default function VendorGallery() {
               style={[styles.destination, { backgroundColor: colors.background, borderColor: colors.border }, disabled && { opacity: .45 }]}
             >
               <View style={[styles.destinationIcon, { backgroundColor: colors.surfaceSoft }]}><FolderOpen size={18} color={colors.pink} /></View>
-              <View style={styles.flex}><Text style={[styles.albumTitle, { color: colors.text }]}>{album.title}</Text><Text style={[styles.albumCount, { color: colors.muted }]}>{count}/{PORTFOLIO_LIMITS.mediaPerAlbum} items · {PORTFOLIO_LIMITS.mediaPerAlbum - count} spaces</Text></View>
+              <View style={styles.flex}><Text style={[styles.albumTitle, { color: colors.text }]}>{album.title}</Text><Text style={[styles.albumCount, { color: colors.muted }]}>{count}/{tierLimits.mediaPerAlbum} items · {tierLimits.mediaPerAlbum - count} spaces</Text></View>
               {deletingAlbumId ? <ActivityIndicator color={colors.pink} /> : <ChevronRight size={18} color={colors.muted} />}
             </Pressable>;
           })}

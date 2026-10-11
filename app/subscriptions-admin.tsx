@@ -71,40 +71,28 @@ type PlanEditorExtras = {
   monthlyPrice: string;
   monthlyOptionId: string | null;
   yearlyDiscountPercent: number;
-  maxClips: string;
-  maxClipsEnabled: boolean;
   maxImages: string;
   maxImagesEnabled: boolean;
   imageUploadMb: string;
   imageStoredMb: string;
-  clipUploadMb: string;
-  clipStoredMb: string;
-  clipDeliveryMb: string;
 };
 const newPlanExtras = (): PlanEditorExtras => ({
   monthlyPrice: "", monthlyOptionId: null, yearlyDiscountPercent: 0,
-  maxClips: String(DEFAULT_MEDIA_LIMIT), maxClipsEnabled: true,
   maxImages: String(DEFAULT_MEDIA_LIMIT), maxImagesEnabled: true,
-  imageUploadMb: "8", imageStoredMb: "4", clipUploadMb: "40", clipStoredMb: "20", clipDeliveryMb: "4",
+  imageUploadMb: "8", imageStoredMb: "4",
 });
 function planExtrasFrom(plan: any): PlanEditorExtras {
   const monthlyOption = (plan.subscription_plan_billing_options ?? []).find((option: any) => option.billing_interval === "month");
   const yearlyOption = (plan.subscription_plan_billing_options ?? []).find((option: any) => option.billing_interval === "year");
-  const clipsFeature = (plan.subscription_plan_features ?? []).find((entry: any) => entry.subscription_feature_definitions?.feature_key === MEDIA_FEATURE_KEYS.clips);
   const imagesFeature = (plan.subscription_plan_features ?? []).find((entry: any) => entry.subscription_feature_definitions?.feature_key === MEDIA_FEATURE_KEYS.images);
   return {
     monthlyPrice: String(monthlyOption ? (monthlyOption.discounted_price ?? monthlyOption.price) : plan.price ?? 0),
     monthlyOptionId: monthlyOption?.id ?? null,
     yearlyDiscountPercent: Number(yearlyOption?.discount_percentage ?? 0),
-    maxClips: String(clipsFeature?.limit_value ?? DEFAULT_MEDIA_LIMIT),
-    maxClipsEnabled: clipsFeature ? Boolean(clipsFeature.is_enabled) : true,
     maxImages: String(imagesFeature?.limit_value ?? DEFAULT_MEDIA_LIMIT),
     maxImagesEnabled: imagesFeature ? Boolean(imagesFeature.is_enabled) : true,
     imageUploadMb: String(plan.max_image_upload_mb ?? 8),
     imageStoredMb: String(plan.stored_image_target_mb ?? 4),
-    clipUploadMb: String(plan.max_clip_upload_mb ?? 40),
-    clipStoredMb: String(plan.stored_clip_target_mb ?? 20),
-    clipDeliveryMb: String(plan.clip_delivery_target_mb ?? 4),
   };
 }
 const emptyOffer = { name: "", code: "", description: "", discount_type: "percentage", discount_value: 0, start_date: "", end_date: "", is_global: true, is_active: true, applicable_plan_ids: [], applicable_vendor_ids: [], applicable_billing_intervals: [], uses_per_vendor: 1 };
@@ -186,21 +174,15 @@ export default function SubscriptionsAdmin() {
     if (!planEditor.name.trim() || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(planEditor.slug.trim())) return Alert.alert("Check plan", "Enter a name and a lowercase slug using letters, numbers and hyphens.");
     const interval = Number(planEditor.billing_interval_count), duration = Number(planEditor.duration_days), trial = Number(planEditor.trial_days), grace = Number(planEditor.grace_period_days);
     const monthlyPrice = Number(planEditorExtras.monthlyPrice);
-    const maxClips = Number(planEditorExtras.maxClips);
     const maxImages = Number(planEditorExtras.maxImages);
     const imageUploadMb = Number(planEditorExtras.imageUploadMb);
     const imageStoredMb = Number(planEditorExtras.imageStoredMb);
-    const clipUploadMb = Number(planEditorExtras.clipUploadMb);
-    const clipStoredMb = Number(planEditorExtras.clipStoredMb);
-    const clipDeliveryMb = Number(planEditorExtras.clipDeliveryMb);
     if (!Number.isFinite(monthlyPrice) || monthlyPrice < 0) return Alert.alert("Check monthly price", "Monthly price must be zero or greater.");
     if (!Number.isInteger(interval) || interval < 1) return Alert.alert("Check duration", "Billing interval count must be a positive whole number.");
     if (planEditor.billing_interval === "custom" && (!Number.isInteger(duration) || duration < 1)) return Alert.alert("Check duration", "Custom plans require a positive duration in days.");
     if ((planEditor.trial_enabled && (!Number.isInteger(trial) || trial < 1)) || !Number.isInteger(grace) || grace < 0) return Alert.alert("Check access days", "Trial and grace days must be valid whole numbers.");
-    if (!Number.isInteger(maxClips) || maxClips < 0) return Alert.alert("Check clip change count", "Clip change count must be a whole number of zero or more.");
     if (!Number.isInteger(maxImages) || maxImages < 0) return Alert.alert("Check album change count", "Album change count must be a whole number of zero or more.");
     if (![imageUploadMb, imageStoredMb].every((value) => Number.isFinite(value) && value > 0)) return Alert.alert("Check image limits", "Image upload and stored targets must be greater than zero.");
-    if (planEditorExtras.maxClipsEnabled && ![clipUploadMb, clipStoredMb, clipDeliveryMb].every((value) => Number.isFinite(value) && value > 0)) return Alert.alert("Check Clip limits", "Clip upload, stored and delivered targets must be greater than zero when Clips are enabled.");
     setSaving(true);
     try {
       const savedPlan = await SubscriptionAdminService.savePlan({
@@ -208,9 +190,6 @@ export default function SubscriptionsAdmin() {
         billing_interval_count: interval, duration_days: planEditor.duration_days ? duration : null,
         trial_days: Number(planEditor.trial_days), grace_period_days: grace,
         max_image_upload_mb: imageUploadMb, stored_image_target_mb: imageStoredMb,
-        max_clip_upload_mb: planEditorExtras.maxClipsEnabled ? clipUploadMb : null,
-        stored_clip_target_mb: planEditorExtras.maxClipsEnabled ? clipStoredMb : null,
-        clip_delivery_target_mb: planEditorExtras.maxClipsEnabled ? clipDeliveryMb : null,
       });
       // Monthly price is the same subscription_plan_billing_options row the
       // plan card and "Prices" modal already read/write — this fixes Edit
@@ -223,9 +202,7 @@ export default function SubscriptionsAdmin() {
       });
       // The Details form is the single owner of the allowance values and
       // permission toggles, so each save updates both together.
-      const clipsFeatureId = featureIdByKey[MEDIA_FEATURE_KEYS.clips];
       const imagesFeatureId = featureIdByKey[MEDIA_FEATURE_KEYS.images];
-      if (clipsFeatureId) await SubscriptionAdminService.setPlanFeature(savedPlan.id, clipsFeatureId, planEditorExtras.maxClipsEnabled, maxClips);
       if (imagesFeatureId) await SubscriptionAdminService.setPlanFeature(savedPlan.id, imagesFeatureId, planEditorExtras.maxImagesEnabled, maxImages);
       closePlanEditor();
       await load();
@@ -384,7 +361,7 @@ export default function SubscriptionsAdmin() {
 
     {!loading && tab === "plans" ? <><View style={styles.stats}>{activePlanStats.map(({ slug, label, value, icon: Icon, tint }) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={`View ${label}`} onPress={() => openActivePlan(slug)} style={({ pressed }) => [styles.stat, pressed && styles.pressed]}><View style={[styles.statIcon, { backgroundColor: `${tint}16` }]}><Icon size={20} color={tint} /></View><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></Pressable>)}</View><View style={styles.sectionRow}><View style={styles.flex}><Text style={styles.sectionTitle}>Plans</Text><Text style={styles.sectionHint}>Set availability here. Open details only when you need to change the plan.</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Add subscription plan" onPress={openNewPlan} style={({ pressed }) => [styles.add, pressed && styles.pressed]}><Plus size={17} color="#FFF" /><Text style={styles.addText}>Add plan</Text></Pressable></View><View style={styles.list}>{plans.map((plan, index) => <AdminReveal key={plan.id} index={index}><View style={styles.card}><View style={styles.cardTop}><MembershipBadge planName={plan.name} size={58} /><View style={styles.flex}><Text style={styles.cardTitle}>{plan.name}{plan.is_permanent ? " · Free forever" : ""}</Text><Text style={styles.cardSub}>{plan.description}</Text></View>{plan.status === "archived" ? <Text style={styles.statusBadge}>Archived</Text> : null}</View>
       {plan.status !== "archived" ? <PlanAvailability plan={plan} busy={changingPlanId === plan.id} onChange={(status) => changePlanAvailability(plan, status)} /> : <Text style={styles.availabilityHelp}>{availabilityHelp.archived}</Text>}
-      <View style={styles.planFacts}><Text style={styles.planFact}>{billingPrice(plan, "month") ?? "No monthly price"}<Text style={styles.period}> / month</Text></Text>{billingPrice(plan, "year") ? <Text style={styles.planFact}>{billingPrice(plan, "year")}<Text style={styles.period}> / year</Text></Text> : null}<Text style={styles.planFact}>{planQuota(plan, "upload_gallery")} images · up to {plan.max_image_upload_mb ?? 5} MB each</Text><Text style={styles.planFact}>{planQuota(plan, "upload_clips") > 0 ? `${planQuota(plan, "upload_clips")} clips · up to ${plan.max_clip_upload_mb ?? 40} MB each` : "Clips not included"}</Text></View>
+      <View style={styles.planFacts}><Text style={styles.planFact}>{billingPrice(plan, "month") ?? "No monthly price"}<Text style={styles.period}> / month</Text></Text>{billingPrice(plan, "year") ? <Text style={styles.planFact}>{billingPrice(plan, "year")}<Text style={styles.period}> / year</Text></Text> : null}<Text style={styles.planFact}>{planQuota(plan, "upload_gallery")} images · up to {plan.max_image_upload_mb ?? 5} MB each</Text></View>
       <View style={styles.cardActions}><Pressable accessibilityRole="button" onPress={() => { setPlanEditor({ ...plan }); setPlanEditorExtras(planExtrasFrom(plan)); }} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><Edit3 size={15} color={pink} /><Text style={styles.secondaryText}>Details</Text></Pressable><Pressable accessibilityRole="button" onPress={() => void openBilling(plan)} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><CalendarClock size={15} color={pink} /><Text style={styles.secondaryText}>Pricing</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Delete ${plan.name}`} disabled={deletingPlanId === plan.id} onPress={() => confirmDeletePlan(plan)} style={({ pressed }) => [styles.dangerSecondary, pressed && styles.pressed]}>{deletingPlanId === plan.id ? <ActivityIndicator size="small" color={adminPalette.error} /> : <><Trash2 size={15} color={adminPalette.error} /><Text style={styles.dangerSecondaryText}>Delete Plan</Text></>}</Pressable></View></View></AdminReveal>)}</View></> : null}
 
     {!loading && tab === "vendors" ? <>
@@ -405,7 +382,7 @@ export default function SubscriptionsAdmin() {
       <View style={styles.subscriberGrid}>{vendors.map((vendor) => <Pressable key={vendor.vendor_id} onPress={() => { setVendorEditor(vendor); setVendorPlanId(vendor.plan_id || plans[0]?.id || ""); setVendorNotes(""); }} style={[styles.vendorCard, { flexBasis: subscriberCardBasis, maxWidth: subscriberCardBasis }]}>
         <View style={styles.vendorHeader}><View style={[styles.avatar, { backgroundColor: vendor.status === "active" ? "#E9F8F1" : adminPalette.brandSubtle }]}><Text style={{ color: vendor.status === "active" ? adminPalette.success : pink, fontWeight: "700" }}>{vendor.business_name?.charAt(0)}</Text></View>
         <View style={styles.flex}><Text style={styles.cardTitle} numberOfLines={1}>{vendor.business_name}</Text><Text style={styles.cardSub} numberOfLines={2}>{vendor.plan_name || "No plan"} · {subscriptionStatusLabel(vendor.status as any)} · {vendor.category_name ?? "Uncategorized"}</Text></View><Text style={styles.manage}>Manage</Text></View>
-        <View style={styles.vendorDetails}><Text style={styles.vendorMeta}>{vendor.expiry_date ? `Expires ${new Date(vendor.expiry_date).toLocaleDateString("en-IN")}` : "No expiry date"}</Text><Text style={styles.vendorMeta}>Clips {vendor.clip_active}/{vendor.clip_total} active · {vendor.clip_locked} locked</Text><Text style={styles.vendorMeta}>Photos {vendor.photo_active}/{vendor.photo_total} active · {vendor.photo_locked} locked</Text></View>
+        <View style={styles.vendorDetails}><Text style={styles.vendorMeta}>{vendor.expiry_date ? `Expires ${new Date(vendor.expiry_date).toLocaleDateString("en-IN")}` : "No expiry date"}</Text><Text style={styles.vendorMeta}>Photos {vendor.photo_active}/{vendor.photo_total} active · {vendor.photo_locked} locked</Text></View>
       </Pressable>)}</View>
       {subscriberTotal > SUBSCRIBERS_PER_PAGE ? <PaginationBar page={subscriberPage} pages={subscriberPages} onPage={setSubscriberPage} total={subscriberTotal} pageSize={SUBSCRIBERS_PER_PAGE} /> : null}
     </> : null}
@@ -426,9 +403,7 @@ export default function SubscriptionsAdmin() {
       <Text style={styles.fieldLabel}>Images</Text>
       <Toggle label="Allow image uploads" value={planEditorExtras.maxImagesEnabled} onValueChange={(maxImagesEnabled: boolean) => setPlanEditorExtras({ ...planEditorExtras, maxImagesEnabled })} />
       {planEditorExtras.maxImagesEnabled ? <><View style={styles.twoCols}><Field label="Image count" numeric value={planEditorExtras.maxImages} onChangeText={(maxImages: string) => setPlanEditorExtras({ ...planEditorExtras, maxImages })} /><Field label="Upload limit (MB/image)" numeric value={planEditorExtras.imageUploadMb} onChangeText={(imageUploadMb: string) => setPlanEditorExtras({ ...planEditorExtras, imageUploadMb })} /></View><Field label="Stored target (MB/image)" numeric value={planEditorExtras.imageStoredMb} onChangeText={(imageStoredMb: string) => setPlanEditorExtras({ ...planEditorExtras, imageStoredMb })} /></> : null}
-      <Text style={styles.fieldLabel}>Clips</Text>
-      <Toggle label="Allow Clip uploads" value={planEditorExtras.maxClipsEnabled} onValueChange={(maxClipsEnabled: boolean) => setPlanEditorExtras({ ...planEditorExtras, maxClipsEnabled })} />
-      {planEditorExtras.maxClipsEnabled ? <><View style={styles.twoCols}><Field label="Clip count" numeric value={planEditorExtras.maxClips} onChangeText={(maxClips: string) => setPlanEditorExtras({ ...planEditorExtras, maxClips })} /><Field label="Upload limit (MB/clip)" numeric value={planEditorExtras.clipUploadMb} onChangeText={(clipUploadMb: string) => setPlanEditorExtras({ ...planEditorExtras, clipUploadMb })} /></View><View style={styles.twoCols}><Field label="Stored target (MB/clip)" numeric value={planEditorExtras.clipStoredMb} onChangeText={(clipStoredMb: string) => setPlanEditorExtras({ ...planEditorExtras, clipStoredMb })} /><Field label="Delivered target (MB/view)" numeric value={planEditorExtras.clipDeliveryMb} onChangeText={(clipDeliveryMb: string) => setPlanEditorExtras({ ...planEditorExtras, clipDeliveryMb })} /></View></> : null}
+
       {!planEditor.id ? <><Text style={styles.fieldLabel}>Billing duration</Text><View style={styles.filters}>{["day","month","year","custom"].map((item) => <Pressable key={item} onPress={() => setPlanEditor({ ...planEditor, billing_interval: item as any })} style={[styles.filter, planEditor.billing_interval === item && styles.filterActive]}><Text style={[styles.filterText, planEditor.billing_interval === item && styles.filterTextActive]}>{item}</Text></Pressable>)}</View>{planEditor.billing_interval === "custom" ? <Field label="Duration days" numeric value={planEditor.duration_days ?? ""} onChangeText={(duration_days: string) => setPlanEditor({ ...planEditor, duration_days: duration_days as any })} /> : null}</> : null}
       <Field label="Grace days" numeric value={planEditor.grace_period_days} onChangeText={(grace_period_days: string) => setPlanEditor({ ...planEditor, grace_period_days: grace_period_days as any })} /></ScrollView><Pressable disabled={saving} onPress={savePlan} style={styles.primary}>{saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryText}>Save plan</Text>}</Pressable></View></View> : null}</Modal>
 

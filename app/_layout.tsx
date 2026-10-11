@@ -25,7 +25,6 @@ import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display/700
 import { PlayfairDisplay_700Bold_Italic } from '@expo-google-fonts/playfair-display/700Bold_Italic';
 import * as SplashScreen from 'expo-splash-screen';
 import { FavoritesProvider } from '@/context/FavoritesContext';
-import VendorBottomNav from '@/components/vendor/VendorBottomNav';
 import { LocationProvider } from '@/context/LocationContext';
 import { ReviewRatingsProvider } from '@/context/ReviewRatingsContext';
 import { PublicAuthProvider } from '@/context/PublicAuthContext';
@@ -40,7 +39,9 @@ import { CategoryProvider } from '@/context/CategoryContext';
 import { SubscriptionProvider } from '@/context/SubscriptionContext';
 import { VendorNotificationProvider } from '@/context/VendorNotificationContext';
 import { AdminWorkspaceShell } from '@/components/admin/AdminWorkspaceShell';
+import { VendorWorkspaceShell } from '@/components/vendor/VendorWorkspaceShell';
 import PushTokenRegistrar from '@/components/notifications/PushTokenRegistrar';
+import ReferralAttributionTracker from '@/components/referral/ReferralAttributionTracker';
 import { SCREEN_TRANSITION } from '@/utils/motion';
 import { useWebNavigationFocusSafety } from '@/hooks/useWebNavigationFocusSafety';
 import { installAppAlert } from '@/utils/webAlert';
@@ -99,13 +100,10 @@ function WebNavigationFocusSafety() {
 }
 
 function ThemeAwareStatusBar() {
-  const { colorScheme } = useAppTheme();
-  const dark = colorScheme === 'dark';
-
   return (
     <StatusBar
-      style={dark ? 'light' : 'dark'}
-      backgroundColor={Platform.OS === 'android' ? 'transparent' : dark ? brandPalette.dark.background : brandPalette.light.background}
+      style="dark"
+      backgroundColor={Platform.OS === 'android' ? 'transparent' : brandPalette.light.background}
       translucent={Platform.OS === 'android'}
     />
   );
@@ -137,18 +135,13 @@ function VendorStartupRedirect({ onReady }: { onReady: () => void }) {
 }
 
 function AppNavigator() {
-  const { colorScheme } = useAppTheme();
-  const backgroundColor = colorScheme === 'dark'
-    ? brandPalette.dark.background
-    : brandPalette.light.background;
-
   return (
     <Stack
       screenOptions={{
         headerShown: false,
         animation: SCREEN_TRANSITION,
         gestureEnabled: true,
-        contentStyle: { backgroundColor },
+        contentStyle: { backgroundColor: brandPalette.light.background },
       }}
     />
   );
@@ -237,19 +230,21 @@ export default function RootLayout() {
                                     <AppFeedbackProvider>
                                       <ResponsiveLayoutProvider>
                                         <PushTokenRegistrar />
+                                        <ReferralAttributionTracker />
                                         <VendorStartupRedirect onReady={finishStartupRouting} />
                                         <ThemeAwareStatusBar />
                                         <View className="bg-background" style={styles.app}>
                                           <AdminWorkspaceShell>
-                                            <View style={styles.stack}>
-                                              <AdminRouteGuard>
-                                                <VendorRouteGuard>
-                                                <AppNavigator />
-                                                </VendorRouteGuard>
-                                              </AdminRouteGuard>
-                                            </View>
+                                            <VendorWorkspaceShell>
+                                              <View style={styles.stack}>
+                                                <AdminRouteGuard>
+                                                  <VendorRouteGuard>
+                                                  <AppNavigator />
+                                                  </VendorRouteGuard>
+                                                </AdminRouteGuard>
+                                              </View>
+                                            </VendorWorkspaceShell>
                                           </AdminWorkspaceShell>
-                                          <VendorBottomNav />
                                         </View>
                                       </ResponsiveLayoutProvider>
                                     </AppFeedbackProvider>

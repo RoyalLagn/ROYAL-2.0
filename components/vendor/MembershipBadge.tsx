@@ -11,6 +11,7 @@ export const MEMBERSHIP_BADGE_ASSETS: Record<string, MembershipBadgeAsset> = {
 
 export function membershipBadgeFor(planName?: string | null): MembershipBadgeAsset | null {
   const key = planName?.trim().toLowerCase().replace(/\s+plan$/, "") ?? "";
+  if (key === "elite") return MEMBERSHIP_BADGE_ASSETS.premium;
   return MEMBERSHIP_BADGE_ASSETS[key] ?? null;
 }
 

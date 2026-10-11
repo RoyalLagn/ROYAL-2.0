@@ -16,6 +16,7 @@ import { useVendorWorkspace, VendorReadinessRules } from "@/hooks/useVendorWorks
 import { updateVendorPublicProfile } from "@/services/vendorProfile";
 import { invalidatePublicVendorCache } from "@/services/publicVendorListings";
 import { DropdownArrow, Field, kitStyles, ReadinessBadge, SaveBar, SectionTitle, VendorWorkspaceGate } from "@/components/vendor/VendorProfileFormKit";
+import VendorProfileReadinessCard from "@/components/vendor/VendorProfileReadinessCard";
 import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 import { typeScale } from "@/constants/typography";
@@ -117,6 +118,7 @@ export default function VendorEditBusinessInfo() {
         </View>
 
         <VendorWorkspaceGate colors={colors} loading={loading} vendor={data.vendor} error={error} onRetry={() => void refresh()}>
+          <VendorProfileReadinessCard />
           <View style={[kitStyles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <SectionTitle icon={Building2} title="Business identity" detail="Shown across your public profile and listings." colors={colors} />
             <Field

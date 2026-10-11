@@ -1,8 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Image, Platform, StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
 
 import { HERO_IMAGE_ASPECT } from "@/types/hero";
 import { mediaDeliveryUrl } from "@/utils/mediaDelivery";
+
+const DEFAULT_HERO_FALLBACK = require("../../assets/images/optimized/cat-venue.webp");
 
 type HeroSlideMediaProps = {
   uri: string;
@@ -51,14 +53,29 @@ export default function HeroSlideMedia({
   displayWidth = 750,
   priority = false,
 }: HeroSlideMediaProps) {
+  const [hasError, setHasError] = useState(false);
+
   // uri may already include transforms (HeroCarousel maps them); re-apply as a safety net.
   const deliveryUri = useMemo(
     () => heroDeliveryUrl(uri, displayWidth),
     [displayWidth, uri],
   );
 
-  if (!uri.trim()) {
-    return <View style={[styles.wrapper, { borderRadius }, style]} />;
+  useEffect(() => {
+    setHasError(false);
+  }, [uri]);
+
+  if (!uri.trim() || hasError) {
+    return (
+      <View style={[styles.wrapper, { borderRadius }, style]}>
+        <Image
+          source={DEFAULT_HERO_FALLBACK}
+          accessibilityLabel={accessibilityLabel || "Hero banner"}
+          resizeMode="cover"
+          style={Platform.OS === "web" ? { ...webImageStyle, objectFit: "cover" } : styles.imageNative}
+        />
+      </View>
+    );
   }
 
   return (
@@ -67,6 +84,7 @@ export default function HeroSlideMedia({
         source={{ uri: deliveryUri }}
         accessibilityLabel={accessibilityLabel}
         resizeMode="contain"
+        onError={() => setHasError(true)}
         // @ts-expect-error — RN Web supports loading / fetchPriority
         loading={priority ? "eager" : "lazy"}
         fetchPriority={priority ? "high" : "auto"}

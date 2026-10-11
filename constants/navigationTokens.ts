@@ -53,6 +53,7 @@ export const floatingNavigationTokens = {
   },
 } as const;
 
-export function floatingNavigationColors(dark: boolean) {
-  return dark ? floatingNavigationTokens.dark : floatingNavigationTokens.light;
+export function floatingNavigationColors(_dark?: boolean) {
+  return floatingNavigationTokens.light;
 }
+

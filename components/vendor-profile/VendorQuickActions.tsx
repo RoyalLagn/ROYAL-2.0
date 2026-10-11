@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CalendarDays, MessageCircle, MessageSquareText, Phone } from "lucide-react-native";
+import { CalendarDays, MessageCircle, MessageSquareText, PackageCheck, Phone } from "lucide-react-native";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
 // NativeWind's native Pressable interop drops function `style={(state) =>
@@ -11,6 +11,7 @@ export type VendorQuickActionsProps = {
   onCall: () => void;
   onWhatsApp: () => void;
   onEnquire: () => void;
+  onBook?: () => void;
   onCalendar: () => void;
   callDisabled?: boolean;
   whatsAppDisabled?: boolean;
@@ -83,6 +84,7 @@ function VendorQuickActions({
   onCall,
   onWhatsApp,
   onEnquire,
+  onBook,
   onCalendar,
   callDisabled = false,
   whatsAppDisabled = false,
@@ -114,17 +116,30 @@ function VendorQuickActions({
         labelColor={labelColor}
         icon={<MessageCircle size={21} color="#D93D70" strokeWidth={1.9} />}
       />
-      <ActionItem
-        label="Enquire"
-        accessibilityLabel="Send vendor enquiry"
-        backgroundColor={dark ? "#38252C" : "#FFF5F8"}
-        activeBackgroundColor={dark ? "#4A2935" : "#FCE7EE"}
-        borderColor={dark ? "#5B3442" : "#F2DDE5"}
-        disabled={enquireDisabled}
-        onPress={onEnquire}
-        labelColor={labelColor}
-        icon={<MessageSquareText size={21} color="#D93D70" strokeWidth={1.9} />}
-      />
+      {onBook ? (
+        <ActionItem
+          label="Book (30%)"
+          accessibilityLabel="Book vendor package with 30 percent advance"
+          backgroundColor={dark ? "#3A1A28" : "#FFF0F5"}
+          activeBackgroundColor={dark ? "#5C1E39" : "#FCE7EE"}
+          borderColor={dark ? "#E91E63" : "#F49DBF"}
+          onPress={onBook}
+          labelColor={labelColor}
+          icon={<PackageCheck size={21} color="#E91E63" strokeWidth={2.2} />}
+        />
+      ) : (
+        <ActionItem
+          label="Enquire"
+          accessibilityLabel="Send vendor enquiry"
+          backgroundColor={dark ? "#38252C" : "#FFF5F8"}
+          activeBackgroundColor={dark ? "#4A2935" : "#FCE7EE"}
+          borderColor={dark ? "#5B3442" : "#F2DDE5"}
+          disabled={enquireDisabled}
+          onPress={onEnquire}
+          labelColor={labelColor}
+          icon={<MessageSquareText size={21} color="#D93D70" strokeWidth={1.9} />}
+        />
+      )}
       <ActionItem
         label="Calendar"
         accessibilityLabel="View vendor calendar"

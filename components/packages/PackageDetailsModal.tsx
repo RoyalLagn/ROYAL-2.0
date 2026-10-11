@@ -21,11 +21,12 @@ type Props = {
   dark?: boolean;
   onClose: () => void;
   onEnquire: (item: VendorPackage) => void;
+  onBook?: (item: VendorPackage) => void;
   onCall: (item?: VendorPackage) => void;
   onWhatsApp: (item: VendorPackage) => void;
 };
 
-export default function PackageDetailsModal({ visible, vendorId, vendorName, contactPhone, dark = false, onClose, onEnquire, onCall, onWhatsApp }: Props) {
+export default function PackageDetailsModal({ visible, vendorId, vendorName, contactPhone, dark = false, onClose, onEnquire, onBook, onCall, onWhatsApp }: Props) {
   const { width } = useWindowDimensions();
   const [closeFocused, setCloseFocused] = useState(false);
   const { packages, loading, error, refresh } = useVendorPackages(vendorId, true);
@@ -46,7 +47,7 @@ export default function PackageDetailsModal({ visible, vendorId, vendorName, con
           {loading ? <View style={styles.state}><ActivityIndicator color={PINK} /><Text style={[styles.stateText, { color: colors.muted }]}>Loading packages…</Text></View> : null}
           {!loading && error ? <View style={styles.state}><Text style={[styles.stateTitle, { color: colors.text }]}>Packages unavailable</Text><Text style={[styles.stateText, { color: colors.muted }]}>{error}</Text><Pressable onPress={() => void refresh()} style={styles.retry}><Text style={styles.retryText}>Try again</Text></Pressable></View> : null}
           {!loading && !error && !packages.length ? <View style={styles.state}><PackageOpen size={34} color={colors.muted} /><Text style={[styles.stateTitle, { color: colors.text }]}>No active packages yet</Text><Text style={[styles.stateText, { color: colors.muted }]}>Contact the vendor directly for a custom quote.</Text>{contactPhone ? <Pressable onPress={() => onCall()} style={styles.retry}><Text style={styles.retryText}>Call vendor</Text></Pressable> : null}</View> : null}
-          {!loading && !error ? packages.map((item) => <PackageDisplayCard key={item.id} item={item} dark={dark} onCall={() => onCall(item)} onWhatsApp={() => onWhatsApp(item)} onEnquire={() => onEnquire(item)} />) : null}
+          {!loading && !error ? packages.map((item) => <PackageDisplayCard key={item.id} item={item} dark={dark} onCall={() => onCall(item)} onWhatsApp={() => onWhatsApp(item)} onEnquire={() => onEnquire(item)} onBook={onBook ? () => onBook(item) : undefined} />) : null}
         </ScrollView>
   </AnimatedBottomSheet>;
 }

@@ -54,6 +54,10 @@ async function loadStatistics(): Promise<DashboardStatistics> {
     todayReviews,
     incompleteVendorProfiles,
     expiredSubscriptions,
+    pendingBookings,
+    totalBookings,
+    pendingReferralVerifications,
+    pendingReferralWithdrawals,
   ] = await Promise.all([
     count("profiles", (q) => q.eq("role", "public_user")),
     count("vendors"),
@@ -74,6 +78,14 @@ async function loadStatistics(): Promise<DashboardStatistics> {
     count("reviews", (q) => q.gte("created_at", today)),
     count("vendors", (q) => q.or("description.is.null,logo_url.is.null")),
     count("subscriptions", (q) => q.eq("status", "expired")),
+    count("vendor_bookings", (q) =>
+      q.in("booking_status", ["pending_vendor_confirmation", "pending", "pending_payment"]),
+    ).catch(() => 0),
+    count("vendor_bookings").catch(() => 0),
+    count("customer_payment_destinations", (q) => q.eq("status", "pending")).catch(() => 0),
+    count("referral_payout_requests", (q) =>
+      q.in("status", ["requested", "under_review", "approved", "processing", "payment_pending"]),
+    ).catch(() => 0),
   ]);
   if (ratings.error) throw ratings.error;
   const values = (ratings.data ?? []).map((item) => Number(item.rating));
@@ -98,6 +110,10 @@ async function loadStatistics(): Promise<DashboardStatistics> {
     todayReviews,
     incompleteVendorProfiles,
     expiredSubscriptions,
+    pendingBookings,
+    totalBookings,
+    pendingReferralVerifications,
+    pendingReferralWithdrawals,
   };
 }
 

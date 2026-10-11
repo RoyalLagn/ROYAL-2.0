@@ -15,6 +15,7 @@ type Props = {
   onCall?: () => void;
   onWhatsApp?: () => void;
   onEnquire?: () => void;
+  onBook?: () => void;
 };
 
 const money = (value: number) => `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -24,7 +25,7 @@ export function packagePriceLabel(item: Pick<VendorPackage, "price" | "discounte
   return `${item.price_type === "starting" ? "From " : ""}${money(item.discounted_price ?? item.price)}`;
 }
 
-export default function PackageDisplayCard({ item, dark = false, preview, onCall, onWhatsApp, onEnquire }: Props) {
+export default function PackageDisplayCard({ item, dark = false, preview, onCall, onWhatsApp, onEnquire, onBook }: Props) {
   const palette = {
     surface: dark ? "#171D28" : "#FFFFFF",
     soft: dark ? "#28202A" : "#FFF1F6",
@@ -50,6 +51,11 @@ export default function PackageDisplayCard({ item, dark = false, preview, onCall
       <View style={[styles.priceBox, { backgroundColor: palette.soft }]}>
         <Text style={[styles.price, { color: palette.text }]}>{packagePriceLabel(item)}</Text>
         {item.discounted_price != null && item.price != null ? <Text style={[styles.oldPrice, { color: palette.muted }]}>{money(item.price)}</Text> : null}
+        {item.price_type !== "contact" && (item.price != null || item.discounted_price != null) ? (
+          <View style={styles.advanceBadge}>
+            <Text style={styles.advanceBadgeText}>30% ADVANCE</Text>
+          </View>
+        ) : null}
       </View>
     </View>
 
@@ -65,10 +71,10 @@ export default function PackageDisplayCard({ item, dark = false, preview, onCall
     {item.delivery_details ? <Detail icon={Sparkles} title="Delivery" value={item.delivery_details} text={palette.text} muted={palette.muted} /> : null}
     {item.terms ? <Detail icon={Check} title="Terms" value={item.terms} text={palette.text} muted={palette.muted} /> : null}
 
-    {onCall || onWhatsApp || onEnquire ? <View style={[styles.actions, { borderTopColor: palette.border }]}>
+    {onCall || onWhatsApp || onEnquire || onBook ? <View style={[styles.actions, { borderTopColor: palette.border }]}>
       {onCall ? <Action label="Call" onPress={onCall} secondary dark={dark} /> : null}
       {onWhatsApp ? <Action label="WhatsApp" onPress={onWhatsApp} secondary dark={dark} /> : null}
-      {onEnquire ? <Action label="Send enquiry" onPress={onEnquire} dark={dark} /> : null}
+      {onBook ? <Action label="Book Now (30% Adv)" onPress={onBook} dark={dark} /> : onEnquire ? <Action label="Send enquiry" onPress={onEnquire} dark={dark} /> : null}
     </View> : null}
   </View>;
 }
@@ -91,6 +97,7 @@ const styles = StyleSheet.create({
   cover: { width: "100%", height: 180, borderRadius: 18, marginBottom: 16 },
   top: { flexDirection: "row", gap: 12, alignItems: "flex-start" }, flex: { flex: 1, minWidth: 0 }, eyebrowRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 5 }, eyebrow: { color: "#D93D70", fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.1 }, preview: { color: "#A36D14", fontSize: typeScale.caption, fontWeight: "700", letterSpacing: .8 }, name: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700", letterSpacing: -.4 }, description: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab, marginTop: 6 },
   priceBox: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10, alignItems: "flex-end", maxWidth: "42%" }, price: { fontSize: typeScale.body, fontWeight: "700" }, oldPrice: { fontSize: typeScale.caption, textDecorationLine: "line-through", marginTop: 2 },
+  advanceBadge: { marginTop: 4, backgroundColor: "#15803D", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 5 }, advanceBadgeText: { color: "#FFFFFF", fontSize: 9, fontWeight: "800", letterSpacing: 0.3 },
   facts: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 }, fact: { flexDirection: "row", alignItems: "center", gap: 5 }, factText: { fontSize: typeScale.caption, fontWeight: "700" },
   section: { marginTop: 17 }, sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 8 }, sectionTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700" }, itemRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, paddingVertical: 4 }, dot: { width: 5, height: 5, borderRadius: 3, marginTop: 6 }, itemText: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, fontWeight: "600" }, itemDescription: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 1 }, addOnPrice: { fontSize: typeScale.caption, fontWeight: "700", marginLeft: 8 },
   detail: { flexDirection: "row", gap: 9, marginTop: 16 }, detailTitle: { fontSize: typeScale.metadata, fontWeight: "700" }, detailText: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 2 },

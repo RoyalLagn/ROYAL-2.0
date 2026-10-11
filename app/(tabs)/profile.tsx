@@ -21,16 +21,16 @@ import Animated, {
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import {
   Bell,
-  Bookmark,
   ChevronRight,
   Edit,
+  Heart,
   HelpCircle,
   LogOut,
   Phone,
   Shield,
+  Ticket,
   Trash2,
   User,
   X,
@@ -217,10 +217,16 @@ export default function ProfileScreen() {
 
   const accountOptions = [
     {
-      icon: Bookmark,
-      title: "Saved Clips",
-      description: "Your saved wedding inspiration",
-      onPress: () => router.push("/SavedClips"),
+      icon: Ticket,
+      title: "My Bookings & Tickets",
+      description: "View confirmed bookings, status & luxury E-tickets",
+      onPress: () => router.push("/(tabs)/bookings"),
+    },
+    {
+      icon: Heart,
+      title: "Favorites",
+      description: "View your saved vendors and shortlisted services",
+      onPress: () => router.push("/(tabs)/favorites"),
     },
     {
       icon: User,
@@ -386,7 +392,6 @@ export default function ProfileScreen() {
             </Text>
             <Text className="text-2xl font-bold text-foreground">Profile</Text>
           </View>
-          <ThemeToggle />
         </View>
       ) : null}
 

@@ -15,7 +15,6 @@ import { ChevronRight, LogOut, ShieldCheck } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import { adminNavigationGroups } from "@/admin/navigation";
 import { AdminPwaInstallControl } from "@/components/admin/AdminPwaInstallControl";
@@ -122,16 +121,6 @@ export default function AdminProfile() {
             <Text className="text-primary text-metadata font-bold uppercase tracking-wider mt-2">
               {(identity?.profile.role || "admin").replace("_", " ")}
             </Text>
-          </View>
-
-          <View className="bg-card border border-border rounded-2xl p-4 mt-4 flex-row items-center">
-            <View className="flex-1">
-              <Text className="text-foreground font-semibold">Appearance</Text>
-              <Text className="text-muted-foreground text-xs mt-1">
-                Switch between light and dark themes
-              </Text>
-            </View>
-            <ThemeToggle />
           </View>
 
           {showMobileNav && Platform.OS === "web" ? (

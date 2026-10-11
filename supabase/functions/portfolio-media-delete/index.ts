@@ -6,6 +6,12 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function sha1(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-1", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -64,50 +70,26 @@ Deno.serve(async (request) => {
     });
     if (accessError) throw accessError;
 
-    const streamVideoId = media.resource_type === "video"
-      ? media.public_id.match(/^bunny-stream:([0-9a-f-]+)$/i)?.[1]
-      : undefined;
-    if (streamVideoId) {
-      const libraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
-      const apiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
-      if (!libraryId || !apiKey) throw new Error("Bunny Stream deletion is not configured");
-      const deletion = await fetch(
-        `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(streamVideoId)}`,
-        { method: "DELETE", headers: { AccessKey: apiKey } },
-      );
-      if (!deletion.ok && deletion.status !== 404) throw new Error(`Bunny Stream deletion failed (${deletion.status})`);
-      if (media.id) {
-        const { error: deleteError } = await admin.from("vendor_portfolio_media").delete().eq("id", media.id);
-        if (deleteError) throw deleteError;
-      }
-      return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
-    }
-
     const mediaUrl = media.secure_url ? new URL(media.secure_url) : null;
     const isBunnyUrl = mediaUrl?.hostname.endsWith(".b-cdn.net") === true;
-    const bunnyObjectKey = media.public_id.includes(".")
-      ? media.public_id
-      : isBunnyUrl ? decodeURIComponent(mediaUrl!.pathname.replace(/^\//, "")) : null;
-    if (isBunnyUrl && bunnyObjectKey?.endsWith("playlist.m3u8")) {
-      const videoId = bunnyObjectKey.split("/")[0];
-      const libraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
-      const apiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
-      if (!videoId || !libraryId || !apiKey) throw new Error("Bunny Stream deletion is not configured");
-      const deletion = await fetch(
-        `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(videoId)}`,
-        { method: "DELETE", headers: { AccessKey: apiKey } },
-      );
-      if (!deletion.ok && deletion.status !== 404) throw new Error(`Bunny Stream deletion failed (${deletion.status})`);
-      if (media.id) {
-        const { error: deleteError } = await admin.from("vendor_portfolio_media").delete().eq("id", media.id);
-        if (deleteError) throw deleteError;
+    const isBunnyStream = /^bunny-stream:/i.test(media.public_id);
+
+    // 1. Legacy Bunny Stream asset handling
+    if (isBunnyStream) {
+      const streamVideoId = media.public_id.match(/^bunny-stream:([0-9a-f-]+)$/i)?.[1];
+      if (streamVideoId) {
+        const libraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
+        const apiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
+        if (libraryId && apiKey) {
+          const deletion = await fetch(
+            `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(streamVideoId)}`,
+            { method: "DELETE", headers: { AccessKey: apiKey } },
+          );
+          if (!deletion.ok && deletion.status !== 404) {
+            console.warn(`Bunny Stream deletion warning (${deletion.status})`);
+          }
+        }
       }
-      return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
-    }
-    if (bunnyObjectKey && !bunnyObjectKey.includes("..") && !bunnyObjectKey.endsWith("playlist.m3u8")) {
-      const signedDelete = await presignBunnyObject("DELETE", bunnyObjectKey, 60);
-      const deletion = await fetch(signedDelete.uploadUrl, { method: "DELETE" });
-      if (!deletion.ok && deletion.status !== 404) throw new Error(`Bunny portfolio deletion failed (${deletion.status})`);
       if (media.id) {
         const { error: deleteError } = await admin.from("vendor_portfolio_media").delete().eq("id", media.id);
         if (deleteError) throw deleteError;
@@ -115,7 +97,63 @@ Deno.serve(async (request) => {
       return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
     }
 
-    throw new Error("Portfolio media is not a managed Bunny asset");
+    // 2. Legacy Bunny Storage asset handling
+    if (isBunnyUrl) {
+      const bunnyObjectKey = media.public_id.includes(".")
+        ? media.public_id
+        : decodeURIComponent(mediaUrl!.pathname.replace(/^\//, ""));
+      if (bunnyObjectKey && !bunnyObjectKey.includes("..")) {
+        try {
+          const signedDelete = await presignBunnyObject("DELETE", bunnyObjectKey, 60);
+          const deletion = await fetch(signedDelete.uploadUrl, { method: "DELETE" });
+          if (!deletion.ok && deletion.status !== 404) {
+            console.warn(`Bunny portfolio deletion warning (${deletion.status})`);
+          }
+        } catch (e) {
+          console.warn("Bunny S3 delete error:", e);
+        }
+      }
+      if (media.id) {
+        const { error: deleteError } = await admin.from("vendor_portfolio_media").delete().eq("id", media.id);
+        if (deleteError) throw deleteError;
+      }
+      return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
+    }
+
+    // 3. Cloudinary Asset Destruction
+    const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "hp6vu8o9";
+    const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
+    const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
+    const targetResourceType = media.resource_type === "video" ? "video" : "image";
+
+    if (apiSecret && apiKey && cloudName) {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signature = await sha1(`invalidate=true&public_id=${media.public_id}&timestamp=${timestamp}${apiSecret}`);
+      const body = new URLSearchParams({
+        public_id: media.public_id,
+        timestamp: String(timestamp),
+        invalidate: "true",
+        api_key: apiKey,
+        signature,
+      });
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/${targetResourceType}/destroy`,
+        { method: "POST", body },
+      );
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !["ok", "not found"].includes(result.result)) {
+        throw new Error(result?.error?.message || "Cloudinary deletion failed");
+      }
+    } else {
+      console.warn("Cloudinary API credentials missing in Edge Functions; proceeding with database deletion.");
+    }
+
+    if (media.id) {
+      const { error: deleteError } = await admin.from("vendor_portfolio_media").delete().eq("id", media.id);
+      if (deleteError) throw deleteError;
+    }
+
+    return Response.json({ ok: true, provider: "cloudinary" }, { headers: cors });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Unable to delete media" },
       { status: 400, headers: cors });

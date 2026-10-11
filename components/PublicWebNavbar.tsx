@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Bell, Clapperboard, Grid3X3, Heart, Home, MapPin, MessageSquareText, Share2, User } from "lucide-react-native";
+import { Bell, Grid3X3, Heart, Home, MapPin, MessageSquareText, Share2, Ticket, User } from "lucide-react-native";
 import { cssInterop, useColorScheme } from "nativewind";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
@@ -13,7 +13,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import HomeReveal from "@/components/home/HomeReveal";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
@@ -45,12 +44,12 @@ import Pressable from "@/components/InteropSafePressable";
 cssInterop(Home, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Heart, { className: { target: "style", nativeStyleToProp: { color: true } } });
-cssInterop(Clapperboard, { className: { target: "style", nativeStyleToProp: { color: true } } });
+cssInterop(Ticket, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(MessageSquareText, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(User, { className: { target: "style", nativeStyleToProp: { color: true } } });
 
 type PublicWebNavbarProps = {
-  activeRoute?: "Home" | "NearMe" | "Categories" | "Clips" | "Enquiry";
+  activeRoute?: "Home" | "NearMe" | "Categories" | "Enquiry" | "Referral" | "Bookings";
   showMobile?: boolean;
   includeSafeTop?: boolean;
   locationControl?: React.ReactNode;
@@ -285,7 +284,7 @@ export default function PublicWebNavbar({
               hitSlop={4}
               style={({ pressed }) => [mobileStyles.action, pressed && mobileStyles.pressed]}
             >
-              <MessageSquareText size={20} color={colors.foreground} />
+              <MessageSquareText size={19} color={colors.foreground} />
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -344,8 +343,7 @@ export default function PublicWebNavbar({
         <View className="flex-row items-center mr-4">
           <NavItem label="Home" active={activeRoute === "Home"} onPress={() => router.push("/(tabs)")} />
           <NavItem label="Categories" active={activeRoute === "Categories"} onPress={() => router.push("/(tabs)/Categories")} />
-          <NavItem label="Clips" active={activeRoute === "Clips"} onPress={() => router.push("/(tabs)/clips")} />
-          <DesktopFavoritesButton onPress={() => router.push("/(tabs)/favorites")} />
+          <NavItem label="Referral" active={activeRoute === "Referral"} onPress={() => router.push("/(tabs)/referral")} />
         </View>
 
         <CompactSearchBar
@@ -411,8 +409,6 @@ export default function PublicWebNavbar({
               </Text>
             ) : null}
           </Pressable>
-
-          <ThemeToggle size={20} />
         </View>
       </View>
     </HomeReveal>

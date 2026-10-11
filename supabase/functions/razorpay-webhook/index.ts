@@ -82,6 +82,43 @@ Deno.serve(async (request) => {
           ? await featuredLookup.eq("razorpay_payment_id", refundEntity.payment_id).maybeSingle()
           : { data: null };
       if (!featured) {
+        // Check if event belongs to a direct booking
+        const bookingLookup = admin.from("vendor_bookings").select("id, booking_id, ticket_id, booking_status, payment_status, vendor_id, customer_id, customer_name, event_type, event_date, advance_amount, razorpay_order_id, razorpay_payment_id");
+        const { data: booking } = orderId
+          ? await bookingLookup.eq("razorpay_order_id", orderId).maybeSingle()
+          : paymentEntity?.id
+            ? await bookingLookup.eq("razorpay_payment_id", paymentEntity.id).maybeSingle()
+            : { data: null };
+
+        if (booking) {
+          if (["payment.captured", "order.paid"].includes(eventType) && paymentEntity?.id) {
+            if (booking.booking_status === "pending_payment") {
+              await admin.from("vendor_bookings").update({
+                booking_status: "pending_vendor_confirmation",
+                payment_status: "paid_advance",
+                razorpay_payment_id: paymentEntity.id,
+                soft_lock_expires_at: null,
+                updated_at: new Date().toISOString(),
+              }).eq("id", booking.id);
+
+              try {
+                await admin.from("vendor_notifications").insert({
+                  vendor_id: booking.vendor_id,
+                  title: "New Wedding Booking Request Received!",
+                  body: `New booking request from ${booking.customer_name} for ${booking.event_type} on ${booking.event_date}. Advance paid. Please confirm within 24 hours.`,
+                  kind: "booking_request",
+                  is_read: false,
+                });
+              } catch (_) {}
+              try {
+                await admin.rpc("record_booking_referral_commission", { p_booking_id: booking.id });
+              } catch (_) {}
+            }
+          }
+          await admin.from("subscription_webhook_events").update({ processing_status: "processed", processed_at: new Date().toISOString() }).eq("id", eventRowId);
+          return json({ received: true, reconciled_booking: booking.booking_id });
+        }
+
         await admin.from("subscription_webhook_events").update({ processing_status: "ignored", processed_at: new Date().toISOString() }).eq("id", eventRowId);
         return json({ received: true, ignored: true });
       }

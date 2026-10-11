@@ -11,8 +11,11 @@ export function PendingTasks({ statistics, royal = false }: { statistics: Dashbo
   const router = useRouter();
   const { isPhone } = useResponsiveLayout();
   const tasks = [
+    ["Pending Direct Bookings", statistics.pendingBookings ?? 0, "High", "/AdminBookings"],
     ["Pending Vendor Applications", statistics.pendingApplications, "High", "/VendorApplications"],
     ["Vendor Account Deletion Requests", statistics.pendingVendorDeletionRequests, "High", "/AdminVendorDeletionRequests"],
+    ["Referral Payment Verifications", statistics.pendingReferralVerifications ?? 0, (statistics.pendingReferralVerifications ?? 0) > 0 ? "High" : "Healthy", "/AdminReferrals"],
+    ["Referral Withdrawal Payouts", statistics.pendingReferralWithdrawals ?? 0, (statistics.pendingReferralWithdrawals ?? 0) > 0 ? "High" : "Healthy", "/AdminReferrals"],
   ] as const;
   return (
     <View className={royal ? undefined : "rounded-xl border border-border bg-background overflow-hidden"} style={royal ? { borderRadius: 13, borderWidth: 1, borderColor: royalAdmin.border, backgroundColor: "#F8FBFF", overflow: "hidden" } : undefined}>

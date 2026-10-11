@@ -17,8 +17,7 @@ const PLAN_SELECT = `
   id,name,slug,description,price,discounted_price,currency,billing_interval,
   billing_interval_count,duration_days,trial_enabled,trial_days,grace_period_days,
   is_active,is_featured,display_order,status,is_permanent,
-  max_image_upload_mb,stored_image_target_mb,max_clip_upload_mb,
-  stored_clip_target_mb,clip_delivery_target_mb,
+  max_image_upload_mb,stored_image_target_mb,
   subscription_plan_features(
     is_enabled,limit_value,
     subscription_feature_definitions(feature_key,name,description)
@@ -36,11 +35,8 @@ function mapPlan(row: any): SubscriptionPlan {
     discounted_price: row.discounted_price == null ? null : Number(row.discounted_price),
     status: row.status ?? (row.is_active ? "active" : "hidden"),
     is_permanent: Boolean(row.is_permanent),
-    max_image_upload_mb: Number(row.max_image_upload_mb ?? 5),
+    max_image_upload_mb: Number(row.max_image_upload_mb ?? 8),
     stored_image_target_mb: Number(row.stored_image_target_mb ?? 4),
-    max_clip_upload_mb: row.max_clip_upload_mb == null ? null : Number(row.max_clip_upload_mb),
-    stored_clip_target_mb: row.stored_clip_target_mb == null ? null : Number(row.stored_clip_target_mb),
-    clip_delivery_target_mb: row.clip_delivery_target_mb == null ? null : Number(row.clip_delivery_target_mb),
     features: (row.subscription_plan_features ?? []).map((entry: any): SubscriptionPlanFeature => ({
       feature_key: entry.subscription_feature_definitions.feature_key,
       name: entry.subscription_feature_definitions.name,
@@ -95,20 +91,13 @@ export class SubscriptionAccessService {
   }
 
   static async getCurrentAccess(): Promise<SubscriptionAccess | null> {
-    // Guard against calling the RPC without a session: it's revoked from
-    // `anon` and always 401s for a signed-out/not-yet-restored caller. Avoid
-    // the round trip entirely rather than surface a spurious auth error.
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return null;
 
-    // Public/customer accounts also have authenticated sessions, but the
-    // refresh RPC is intentionally vendor-only and returns 403 for them.
-    // The read RPC safely returns no rows for non-vendors, so use it as the
-    // role-neutral guard before invoking any vendor-only operation.
     const { data: initialData, error: initialError } = await supabase.rpc("get_my_subscription_access");
     if (initialError) {
       if (/does not exist|schema cache|PGRST202/i.test(initialError.message)) return null;
-      if (/PGRST301|JWT|401/i.test(initialError.message ?? "") || (initialError as { status?: number }).status === 401) {
+      if (/PGRST301|JWT|401|403|forbidden|permission denied/i.test(initialError.message ?? "") || (initialError as { status?: number }).status === 401 || (initialError as { status?: number }).status === 403) {
         return null;
       }
       throw initialError;
@@ -117,17 +106,14 @@ export class SubscriptionAccessService {
     if (!initialAccess) return null;
 
     const { data: mediaUsage, error: refreshError } = await supabase.rpc("refresh_my_subscription_access");
-    if (refreshError && !/does not exist|schema cache|PGRST202/i.test(refreshError.message)) throw refreshError;
+    if (refreshError && !/does not exist|schema cache|PGRST202|403|forbidden|permission denied/i.test(refreshError.message)) throw refreshError;
     const [{ data, error }, { data: entitlementData, error: entitlementError }] = await Promise.all([
       supabase.rpc("get_my_subscription_access"),
       supabase.rpc("get_my_subscription_entitlements"),
     ]);
     if (error) {
       if (/does not exist|schema cache|PGRST202/i.test(error.message)) return null;
-      // A 401/expired-JWT here means the session lapsed between the check
-      // above and the request landing; treat it as "no access" rather than
-      // throwing, since retrying is handled by the caller's own refresh.
-      if (/PGRST301|JWT|401/i.test(error.message ?? "") || (error as { status?: number }).status === 401) {
+      if (/PGRST301|JWT|401|403|forbidden|permission denied/i.test(error.message ?? "") || (error as { status?: number }).status === 401 || (error as { status?: number }).status === 403) {
         return null;
       }
       throw error;
@@ -139,8 +125,6 @@ export class SubscriptionAccessService {
     return access ? {
       ...access,
       renewal_date: access.expiry_date,
-      clip_active: Number((mediaUsage as any)?.clip_active ?? access.clip_usage ?? 0),
-      clip_locked: Number((mediaUsage as any)?.clip_locked ?? 0),
       photo_active: Number((mediaUsage as any)?.photo_active ?? access.photo_usage ?? 0),
       photo_locked: Number((mediaUsage as any)?.photo_locked ?? 0),
       features: (entitlementData ?? {}) as SubscriptionAccess["features"],
@@ -163,7 +147,9 @@ export class SubscriptionAccessService {
       throw error;
     }
     schemaState = "available";
-    return (data ?? []).map(mapPlan);
+    return (data ?? [])
+      .map(mapPlan)
+      .filter((plan) => ["free", "premium"].includes(plan.slug.toLowerCase()));
   }
 
   static isPlatformSchemaAvailable() {
@@ -238,10 +224,6 @@ export class SubscriptionAccessService {
     if (access.features?.[feature]) return access.features[feature]?.enabled === true;
     const plan = plans.find((candidate) => candidate.id === access.plan_id);
     return Boolean(plan?.features.find((candidate) => candidate.feature_key === feature)?.is_enabled);
-  }
-
-  static canUploadClip(access: SubscriptionAccess | null) {
-    return Boolean(access?.has_access && access.features?.upload_clips?.enabled && (access.clip_remaining ?? 0) > 0);
   }
 
   static canUploadPhoto(access: SubscriptionAccess | null) {

@@ -66,6 +66,7 @@ export const brandPalette = {
 
 export type BrandScheme = keyof typeof brandPalette;
 
-export function brandColors(dark: boolean) {
-  return dark ? brandPalette.dark : brandPalette.light;
+export function brandColors(_dark?: boolean) {
+  return brandPalette.light;
 }
+

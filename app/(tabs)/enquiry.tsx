@@ -27,10 +27,14 @@ export default function EnquiryScreen() {
   const [saving, setSaving] = useState(false);
   const dark = colorScheme === "dark";
   const colors = useMemo(() => ({
-    background: dark ? "#070B14" : "#FFFFFF", surface: dark ? "#0E141F" : "#FFF9FB",
-    text: dark ? "#F7F2F4" : "#171118", muted: dark ? "#AAA0A5" : "#6B6368", border: dark ? "#232C3D" : "#F1E1E7",
+    background: dark ? "#070B14" : "#FFFFFF",
+    surface: dark ? "#0E141F" : "#FFF9FB",
+    text: dark ? "#F7F2F4" : "#171118",
+    muted: dark ? "#AAA0A5" : "#6B6368",
+    border: dark ? "#232C3D" : "#F1E1E7",
     cardBorder: dark ? "#A94369" : "#F3A4C0",
-    success: dark ? "#65D99A" : "#137A45", error: dark ? "#FF8A8A" : "#C62828",
+    success: dark ? "#65D99A" : "#137A45",
+    error: dark ? "#FF8A8A" : "#C62828",
   }), [dark]);
   const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const pagedItems = useMemo(() => items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [items, page]);
@@ -46,59 +50,264 @@ export default function EnquiryScreen() {
     if (openingContact) return;
     setOpeningContact(true);
     try {
-      await EnquiryService.trackContactAndOpen({ vendorId: item.vendor_id, vendorName: item.vendor_name || "Vendor", contactPhone: item.vendor_phone, channel, source: item.source_type, sourceRecordId: item.source_record_id ?? item.id, packageId: item.package_id, packageName: item.package_name });
+      await EnquiryService.trackContactAndOpen({
+        vendorId: item.vendor_id,
+        vendorName: item.vendor_name || "Vendor",
+        contactPhone: item.vendor_phone,
+        channel,
+        source: item.source_type,
+        sourceRecordId: item.source_record_id ?? item.id,
+        packageId: item.package_id,
+        packageName: item.package_name,
+      });
       setRepeatContact(null);
       setPage(1);
       await refresh(true);
     } catch (cause) {
-      if (cause instanceof EnquiryExternalOpenError) Alert.alert("Contact app not opened", `${cause.message} The click is saved as ${cause.referenceCode}.`);
-      else Alert.alert("Contact unavailable", cause instanceof Error ? cause.message : "Please try again.");
+      if (cause instanceof EnquiryExternalOpenError) {
+        Alert.alert("Contact app not opened", `${cause.message} The click is saved as ${cause.referenceCode}.`);
+      } else {
+        Alert.alert("Contact unavailable", cause instanceof Error ? cause.message : "Please try again.");
+      }
+    } finally {
+      setOpeningContact(false);
     }
-    finally { setOpeningContact(false); }
   };
+
   const updateConfirmation = async (value: Exclude<CustomerConfirmation, "pending">) => {
     if (!selected || saving) return;
     setSaving(true);
-    try { await EnquiryService.updateCustomerConfirmation(selected.id, value); setSelected(null); await refresh(true); }
-    catch (cause) { Alert.alert("Enquiry not updated", cause instanceof Error ? cause.message : "Please try again."); }
-    finally { setSaving(false); }
+    try {
+      await EnquiryService.updateCustomerConfirmation(selected.id, value);
+      setSelected(null);
+      await refresh(true);
+    } catch (cause) {
+      Alert.alert("Enquiry not updated", cause instanceof Error ? cause.message : "Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  return <SafeAreaView style={[styles.page, { backgroundColor: colors.background }]}>
-  {authLoading || loading ? <PageLoader /> : null}
-  <ScrollView ref={scrollRef} contentContainerStyle={[styles.content, { paddingBottom: 72 }]} showsVerticalScrollIndicator={false}>
-    <View style={styles.heading}><View style={styles.flex}><Text style={[styles.title, { color: colors.text }]}>My Enquiries</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Tracked contact attempts and vendor progress</Text></View>{isPublicAuthenticated ? <Pressable accessibilityLabel="Refresh enquiries" onPress={() => void refresh()} style={[styles.refresh, { backgroundColor: colors.surface, borderColor: colors.border }]}><RefreshCw size={17} color="#E91E63" /></Pressable> : null}</View>
-    <View style={styles.truthNote}><MessageSquareHeart size={17} color="#C52D60" /><Text style={styles.truthText}>Call Click means the dialler opened. WhatsApp Click means WhatsApp opened. Neither confirms a connected call or sent message.</Text></View>
-    {authLoading || loading ? <SkeletonList count={4} height={128} /> : null}
-    {!authLoading && !isPublicAuthenticated ? <Empty title="Sign in to view enquiries" message="Guest contact attempts will be linked to your account after you sign in." colors={colors} action="Sign in" onAction={() => router.push("/DashboardCenter")} /> : null}
-    {!loading && isPublicAuthenticated && error ? <Empty title="Enquiries unavailable" message={error} colors={colors} action="Try again" onAction={() => void refresh()} /> : null}
-    {!loading && isPublicAuthenticated && !error && !items.length ? <Empty title="No enquiries yet" message="Call, WhatsApp or send a package enquiry from any vendor profile. It will appear here." colors={colors} /> : null}
-    {!loading && !error ? pagedItems.map((item) => <Pressable key={item.id} onPress={() => setSelected(item)} style={({ pressed }) => [styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, pressed && styles.pressed]}>
-      <View style={styles.cardTop}><View style={styles.channelIcon}>{item.enquiry_channel === "call" ? <Phone size={18} color="#E91E63" /> : <MessageCircle size={18} color="#E91E63" />}</View><View style={styles.flex}><Text style={[styles.vendor, { color: colors.text }]}>{item.vendor_name}</Text><Text style={[styles.reference, { color: colors.muted }]}>{item.reference_code} · {item.enquiry_channel === "call" ? "Call Click" : item.enquiry_channel === "whatsapp" ? "WhatsApp Click" : "Form enquiry"}</Text></View><Status value={item.status} /></View>
-      <View style={styles.metaRow}><Text style={[styles.meta, { color: colors.muted }]}>{enquirySourceLabel(item.source_type)}</Text><Text style={[styles.dot, { color: colors.muted }]}>•</Text><Text style={[styles.meta, { color: colors.muted }]}>{new Date(item.created_at).toLocaleDateString("en-IN", { dateStyle: "medium" })}</Text>{item.package_name ? <><Text style={[styles.dot, { color: colors.muted }]}>•</Text><Text numberOfLines={1} style={[styles.meta, styles.flex, { color: colors.muted }]}>{item.package_name}</Text></> : null}</View>
-      {item.customer_confirmation !== "pending" ? <Text style={[styles.customerState, { color: item.customer_confirmation === "contacted" ? colors.success : item.customer_confirmation === "cancelled" ? colors.error : colors.muted }]}>You marked this enquiry: {item.customer_confirmation}</Text> : null}
-      <View style={[styles.quick, { borderTopColor: colors.border }]}><Pressable accessibilityRole="button" accessibilityLabel={`Call ${item.vendor_name || "vendor"} again`} onPress={(event) => { event.stopPropagation(); setRepeatContact({ item, channel: "call" }); }} style={styles.quickButton}><Phone size={14} color="#C52D60" /><Text style={styles.quickText}>Call again</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Contact ${item.vendor_name || "vendor"} on WhatsApp again`} onPress={(event) => { event.stopPropagation(); setRepeatContact({ item, channel: "whatsapp" }); }} style={styles.quickButton}><MessageCircle size={14} color="#C52D60" /><Text style={styles.quickText}>WhatsApp</Text></Pressable></View>
-    </Pressable>) : null}
-    {!loading && !error && items.length > PAGE_SIZE ? <View style={styles.pagination}><Pressable accessibilityRole="button" accessibilityLabel="Previous enquiry page" accessibilityState={{ disabled: page === 1 }} disabled={page === 1} onPress={() => changePage(page - 1)} style={({ pressed }) => [styles.pageButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, page === 1 && styles.disabled, pressed && page > 1 && styles.pressed]}><ChevronLeft size={19} color={colors.text} /></Pressable><View style={styles.pageDetails}><Text accessibilityLiveRegion="polite" style={[styles.pageText, { color: colors.text }]}>Page {page} of {pageCount}</Text><Text style={[styles.pageRange, { color: colors.muted }]}>{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, items.length)} of {items.length}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Next enquiry page" accessibilityState={{ disabled: page === pageCount }} disabled={page === pageCount} onPress={() => changePage(page + 1)} style={({ pressed }) => [styles.pageButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, page === pageCount && styles.disabled, pressed && page < pageCount && styles.pressed]}><ChevronRight size={19} color={colors.text} /></Pressable></View> : null}
-  </ScrollView>
-  <Modal visible={Boolean(repeatContact)} transparent animationType="fade" onRequestClose={() => { if (!openingContact) setRepeatContact(null); }}><View style={styles.confirmBackdrop}><Pressable accessibilityRole="button" accessibilityLabel="Cancel repeat enquiry" disabled={openingContact} style={StyleSheet.absoluteFill} onPress={() => setRepeatContact(null)} /><View accessibilityRole="alert" style={[styles.confirmDialog, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}><View style={styles.confirmIcon}>{repeatContact?.channel === "call" ? <Phone size={23} color="#E91E63" /> : <MessageCircle size={23} color="#E91E63" />}</View><Text style={[styles.confirmTitle, { color: colors.text }]}>{repeatContact?.channel === "call" ? "Make another call enquiry?" : "Make another WhatsApp enquiry?"}</Text><Text style={[styles.confirmBody, { color: colors.muted }]}>This will create a new enquiry for {repeatContact?.item.vendor_name || "this vendor"} and open {repeatContact?.channel === "call" ? "your phone dialler" : "WhatsApp"}.</Text><View style={styles.confirmActions}><Pressable accessibilityRole="button" disabled={openingContact} onPress={() => setRepeatContact(null)} style={[styles.confirmButton, styles.cancelButton, { borderColor: colors.cardBorder }, openingContact && styles.disabled]}><Text style={[styles.cancelText, { color: colors.text }]}>Cancel</Text></Pressable><Pressable accessibilityRole="button" disabled={openingContact} onPress={() => repeatContact && void contactAgain(repeatContact.item, repeatContact.channel)} style={[styles.confirmButton, styles.confirmButtonPrimary, openingContact && styles.disabled]}><Text style={styles.confirmButtonText}>{openingContact ? "Opening…" : repeatContact?.channel === "call" ? "Yes, call again" : "Yes, open WhatsApp"}</Text></Pressable></View></View></View></Modal>
-  <Modal visible={Boolean(selected)} transparent animationType="slide" onRequestClose={() => setSelected(null)}><View style={styles.backdrop}><View style={[styles.sheet, { backgroundColor: colors.surface }]}>
-    <View style={styles.sheetTop}><View style={styles.flex}><Text style={[styles.sheetTitle, { color: colors.text }]}>{selected?.vendor_name}</Text><Text style={[styles.reference, { color: colors.muted }]}>{selected?.reference_code}</Text></View><Pressable onPress={() => setSelected(null)} style={styles.close}><X size={20} color={colors.text} /></Pressable></View>
-    <Text style={[styles.progressLabel, { color: colors.muted }]}>VENDOR PROGRESS</Text><Text style={[styles.progress, { color: colors.text }]}>{selected ? enquiryStatusLabel(selected.status) : ""}</Text>
-    {selected?.event_date ? <View style={styles.event}><CalendarDays size={15} color="#E91E63" /><Text style={[styles.meta, { color: colors.muted }]}>{new Date(`${selected.event_date}T00:00:00`).toLocaleDateString("en-IN", { dateStyle: "medium" })}</Text></View> : null}
-    <Text style={[styles.message, { color: colors.muted }]}>{selected?.message}</Text>
-    <Text style={[styles.actionLabel, { color: colors.text }]}>Update your side</Text><Text style={[styles.actionHelp, { color: colors.muted }]}>These actions never mark a booking. Only the vendor can confirm Booked.</Text>
-    <View style={styles.customerActions}><CustomerAction icon={CheckCircle2} label="I contacted them" disabled={saving} onPress={() => void updateConfirmation("contacted")} /><CustomerAction icon={XCircle} label="Cancel enquiry" disabled={saving} onPress={() => void updateConfirmation("cancelled")} /><CustomerAction icon={X} label="Close" disabled={saving} onPress={() => void updateConfirmation("closed")} /></View>
-  </View></View></Modal>
-  </SafeAreaView>;
+  return (
+    <SafeAreaView style={[styles.page, { backgroundColor: colors.background }]}>
+      {authLoading || loading ? <PageLoader /> : null}
+      <ScrollView ref={scrollRef} contentContainerStyle={[styles.content, { paddingBottom: 72 }]} showsVerticalScrollIndicator={false}>
+        <View style={styles.heading}>
+          <View style={styles.flex}>
+            <Text style={[styles.title, { color: colors.text }]}>My Enquiries</Text>
+            <Text style={[styles.subtitle, { color: colors.muted }]}>Track your enquiry submissions and RoyalLagn coordination</Text>
+          </View>
+          {isPublicAuthenticated ? (
+            <Pressable accessibilityLabel="Refresh enquiries" onPress={() => void refresh()} style={[styles.refresh, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <RefreshCw size={17} color="#E91E63" />
+            </Pressable>
+          ) : null}
+        </View>
+        <View style={styles.truthNote}>
+          <MessageSquareHeart size={17} color="#C52D60" />
+          <Text style={styles.truthText}>Our RoyalLagn team reviews your enquiry and coordinates directly with both you and the vendor regarding details, availability and quotes.</Text>
+        </View>
+        {authLoading || loading ? <SkeletonList count={4} height={128} /> : null}
+        {!authLoading && !isPublicAuthenticated ? (
+          <Empty title="Sign in to view enquiries" message="Guest contact attempts will be linked to your account after you sign in." colors={colors} action="Sign in" onAction={() => router.push("/DashboardCenter")} />
+        ) : null}
+        {!loading && isPublicAuthenticated && error ? (
+          <Empty title="Enquiries unavailable" message={error} colors={colors} action="Try again" onAction={() => void refresh()} />
+        ) : null}
+        {!loading && isPublicAuthenticated && !error && !items.length ? (
+          <Empty title="No enquiries yet" message="Submit an enquiry from any vendor profile. Our RoyalLagn team will coordinate your request." colors={colors} />
+        ) : null}
+        {!loading && !error ? pagedItems.map((item) => (
+          <Pressable key={item.id} onPress={() => setSelected(item)} style={({ pressed }) => [styles.card, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, pressed && styles.pressed]}>
+            <View style={styles.cardTop}>
+              <View style={styles.channelIcon}>
+                {item.enquiry_channel === "call" ? <Phone size={18} color="#E91E63" /> : item.enquiry_channel === "whatsapp" ? <MessageCircle size={18} color="#E91E63" /> : <MessageSquareHeart size={18} color="#E91E63" />}
+              </View>
+              <View style={styles.flex}>
+                <Text style={[styles.vendor, { color: colors.text }]}>{item.vendor_name}</Text>
+                <Text style={[styles.reference, { color: colors.muted }]}>{item.reference_code} · {item.enquiry_channel === "call" ? "Call Enquiry" : item.enquiry_channel === "whatsapp" ? "WhatsApp Enquiry" : "Form enquiry"}</Text>
+              </View>
+              <Status value={item.status} />
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={[styles.meta, { color: colors.muted }]}>{enquirySourceLabel(item.source_type)}</Text>
+              <Text style={[styles.dot, { color: colors.muted }]}>•</Text>
+              <Text style={[styles.meta, { color: colors.muted }]}>{new Date(item.created_at).toLocaleDateString("en-IN", { dateStyle: "medium" })}</Text>
+              {item.package_name ? (
+                <>
+                  <Text style={[styles.dot, { color: colors.muted }]}>•</Text>
+                  <Text numberOfLines={1} style={[styles.meta, styles.flex, { color: colors.muted }]}>{item.package_name}</Text>
+                </>
+              ) : null}
+            </View>
+            {item.customer_confirmation !== "pending" ? (
+              <Text style={[styles.customerState, { color: item.customer_confirmation === "contacted" ? colors.success : item.customer_confirmation === "cancelled" ? colors.error : colors.muted }]}>
+                You marked this enquiry: {item.customer_confirmation}
+              </Text>
+            ) : null}
+            <View style={[styles.quick, { borderTopColor: colors.border }]}>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Call ${item.vendor_name || "vendor"} again`} onPress={(event) => { event.stopPropagation(); setRepeatContact({ item, channel: "call" }); }} style={styles.quickButton}>
+                <Phone size={14} color="#C52D60" />
+                <Text style={styles.quickText}>Call team</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={`Contact RoyalLagn on WhatsApp for ${item.vendor_name || "vendor"}`} onPress={(event) => { event.stopPropagation(); setRepeatContact({ item, channel: "whatsapp" }); }} style={styles.quickButton}>
+                <MessageCircle size={14} color="#C52D60" />
+                <Text style={styles.quickText}>WhatsApp team</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        )) : null}
+        {!loading && !error && items.length > PAGE_SIZE ? (
+          <View style={styles.pagination}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Previous enquiry page" accessibilityState={{ disabled: page === 1 }} disabled={page === 1} onPress={() => changePage(page - 1)} style={({ pressed }) => [styles.pageButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, page === 1 && styles.disabled, pressed && page > 1 && styles.pressed]}>
+              <ChevronLeft size={19} color={colors.text} />
+            </Pressable>
+            <View style={styles.pageDetails}>
+              <Text accessibilityLiveRegion="polite" style={[styles.pageText, { color: colors.text }]}>Page {page} of {pageCount}</Text>
+              <Text style={[styles.pageRange, { color: colors.muted }]}>{(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, items.length)} of {items.length}</Text>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Next enquiry page" accessibilityState={{ disabled: page === pageCount }} disabled={page === pageCount} onPress={() => changePage(page + 1)} style={({ pressed }) => [styles.pageButton, { backgroundColor: colors.surface, borderColor: colors.cardBorder }, page === pageCount && styles.disabled, pressed && page < pageCount && styles.pressed]}>
+              <ChevronRight size={19} color={colors.text} />
+            </Pressable>
+          </View>
+        ) : null}
+      </ScrollView>
+      <Modal visible={Boolean(repeatContact)} transparent animationType="fade" onRequestClose={() => { if (!openingContact) setRepeatContact(null); }}>
+        <View style={styles.confirmBackdrop}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Cancel repeat enquiry" disabled={openingContact} style={StyleSheet.absoluteFill} onPress={() => setRepeatContact(null)} />
+          <View accessibilityRole="alert" style={[styles.confirmDialog, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
+            <View style={styles.confirmIcon}>
+              {repeatContact?.channel === "call" ? <Phone size={23} color="#E91E63" /> : <MessageCircle size={23} color="#E91E63" />}
+            </View>
+            <Text style={[styles.confirmTitle, { color: colors.text }]}>{repeatContact?.channel === "call" ? "Call enquiry coordination?" : "WhatsApp enquiry coordination?"}</Text>
+            <Text style={[styles.confirmBody, { color: colors.muted }]}>This will log an enquiry update for {repeatContact?.item.vendor_name || "this vendor"} and open {repeatContact?.channel === "call" ? "your phone dialler" : "WhatsApp"} to coordinate with RoyalLagn.</Text>
+            <View style={styles.confirmActions}>
+              <Pressable accessibilityRole="button" disabled={openingContact} onPress={() => setRepeatContact(null)} style={[styles.confirmButton, styles.cancelButton, { borderColor: colors.cardBorder }, openingContact && styles.disabled]}>
+                <Text style={[styles.cancelText, { color: colors.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" disabled={openingContact} onPress={() => repeatContact && void contactAgain(repeatContact.item, repeatContact.channel)} style={[styles.confirmButton, styles.confirmButtonPrimary, openingContact && styles.disabled]}>
+                <Text style={styles.confirmButtonText}>{openingContact ? "Opening…" : repeatContact?.channel === "call" ? "Yes, call now" : "Yes, open WhatsApp"}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <Modal visible={Boolean(selected)} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
+        <View style={styles.backdrop}>
+          <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
+            <View style={styles.sheetTop}>
+              <View style={styles.flex}>
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>{selected?.vendor_name}</Text>
+                <Text style={[styles.reference, { color: colors.muted }]}>{selected?.reference_code}</Text>
+              </View>
+              <Pressable onPress={() => setSelected(null)} style={styles.close}>
+                <X size={20} color={colors.text} />
+              </Pressable>
+            </View>
+            <Text style={[styles.progressLabel, { color: colors.muted }]}>COORDINATION STATUS</Text>
+            <Text style={[styles.progress, { color: colors.text }]}>{selected ? enquiryStatusLabel(selected.status) : ""}</Text>
+            {selected?.event_date ? (
+              <View style={styles.event}>
+                <CalendarDays size={15} color="#E91E63" />
+                <Text style={[styles.meta, { color: colors.muted }]}>{new Date(`${selected.event_date}T00:00:00`).toLocaleDateString("en-IN", { dateStyle: "medium" })}</Text>
+              </View>
+            ) : null}
+            <Text style={[styles.message, { color: colors.muted }]}>{selected?.message}</Text>
+            <Text style={[styles.actionLabel, { color: colors.text }]}>Update your side</Text>
+            <Text style={[styles.actionHelp, { color: colors.muted }]}>These actions help our RoyalLagn coordination team keep your enquiry status accurate.</Text>
+            <View style={styles.customerActions}>
+              <CustomerAction icon={CheckCircle2} label="Requirements sorted" disabled={saving} onPress={() => void updateConfirmation("contacted")} />
+              <CustomerAction icon={XCircle} label="Cancel enquiry" disabled={saving} onPress={() => void updateConfirmation("cancelled")} />
+              <CustomerAction icon={X} label="Close" disabled={saving} onPress={() => void updateConfirmation("closed")} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
 }
 
-function Status({ value }: { value: TrackedEnquiry["status"] }) { return <View style={styles.status}><Text style={styles.statusText}>{enquiryStatusLabel(value)}</Text></View>; }
-function CustomerAction({ icon: Icon, label, onPress, disabled }: any) { return <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.customerAction, pressed && styles.pressed, disabled && styles.disabled]}><Icon size={16} color="#C52D60" /><Text style={styles.customerActionText}>{label}</Text></Pressable>; }
-function Empty({ title, message, colors, action, onAction }: any) { return <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}><View style={styles.emptyIcon}><MessageSquareHeart size={28} color="#E91E63" /></View><Text style={[styles.emptyTitle, { color: colors.text }]}>{title}</Text><Text style={[styles.emptyBody, { color: colors.muted }]}>{message}</Text>{action ? <Pressable onPress={onAction} style={styles.primary}><Text style={styles.primaryText}>{action}</Text></Pressable> : null}</View>; }
+function Status({ value }: { value: TrackedEnquiry["status"] }) {
+  return (
+    <View style={styles.status}>
+      <Text style={styles.statusText}>{enquiryStatusLabel(value)}</Text>
+    </View>
+  );
+}
+
+function CustomerAction({ icon: Icon, label, onPress, disabled }: any) {
+  return (
+    <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.customerAction, pressed && styles.pressed, disabled && styles.disabled]}>
+      <Icon size={16} color="#C52D60" />
+      <Text style={styles.customerActionText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function Empty({ title, message, colors, action, onAction }: any) {
+  return (
+    <View style={[styles.empty, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={styles.emptyIcon}>
+        <MessageSquareHeart size={28} color="#E91E63" />
+      </View>
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.emptyBody, { color: colors.muted }]}>{message}</Text>
+      {action ? (
+        <Pressable onPress={onAction} style={styles.primary}>
+          <Text style={styles.primaryText}>{action}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
-  page: { flex: 1 }, content: { width: "100%", maxWidth: 900, alignSelf: "center", paddingHorizontal: 18, paddingTop: 24, paddingBottom: 110 }, heading: { flexDirection: "row", alignItems: "center", gap: 10 }, flex: { flex: 1, minWidth: 0 }, title: { ...typeStyles.editorialPageTitle }, subtitle: { ...typeStyles.caption, marginTop: 3 }, refresh: { width: Platform.OS === "android" ? 48 : 44, height: Platform.OS === "android" ? 48 : 44, borderWidth: 1, borderRadius: 14, alignItems: "center", justifyContent: "center" }, truthNote: { flexDirection: "row", alignItems: "flex-start", gap: 9, backgroundColor: "#FFF4F7", borderRadius: 15, padding: 12, marginTop: 17 }, truthText: { flex: 1, color: "#7B4256", fontSize: typeScale.caption, lineHeight: typeLeading.label }, loading: { marginTop: 60 }, card: { borderWidth: 1, borderRadius: 20, padding: 15, marginTop: 11 }, pressed: { transform: [{ scale: .985 }], opacity: .88 }, cardTop: { flexDirection: "row", alignItems: "center", gap: 10 }, channelIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#FFF0F5", alignItems: "center", justifyContent: "center" }, vendor: { fontSize: typeScale.body, fontWeight: "700" }, reference: { fontSize: typeScale.caption, marginTop: 3 }, status: { maxWidth: 110, backgroundColor: "#FFF0F5", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 6 }, statusText: { color: "#C52D60", fontSize: typeScale.caption, fontWeight: "700", textAlign: "center" }, metaRow: { flexDirection: "row", alignItems: "center", marginTop: 12, gap: 6 }, meta: { fontSize: typeScale.caption }, dot: { fontSize: typeScale.caption }, customerState: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 10, textTransform: "capitalize" }, quick: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", gap: 8, marginTop: 13, paddingTop: 11 }, quickButton: { minHeight: Platform.OS === "android" ? 48 : 36, flex: 1, borderRadius: 12, backgroundColor: "#FFF0F5", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 }, quickText: { color: "#C52D60", fontSize: typeScale.caption, fontWeight: "700" }, empty: { marginTop: 24, minHeight: 250, borderWidth: 1, borderRadius: 24, padding: 28, alignItems: "center", justifyContent: "center" }, emptyIcon: { width: 58, height: 58, borderRadius: 20, backgroundColor: "#FFF0F6", alignItems: "center", justifyContent: "center" }, emptyTitle: { marginTop: 16, fontSize: typeScale.cardTitle, fontWeight: "700" }, emptyBody: { maxWidth: 370, marginTop: 7, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, textAlign: "center" }, primary: { minHeight: Platform.OS === "android" ? 48 : 42, paddingHorizontal: 18, borderRadius: 13, backgroundColor: "#E91E63", alignItems: "center", justifyContent: "center", marginTop: 14 }, primaryText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" }, backdrop: { flex: 1, backgroundColor: "rgba(15,8,12,.55)", justifyContent: "flex-end" }, sheet: { width: "100%", maxWidth: 560, alignSelf: "center", borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 32 }, sheetTop: { flexDirection: "row", alignItems: "center", gap: 12 }, sheetTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" }, close: { width: Platform.OS === "android" ? 48 : 40, height: Platform.OS === "android" ? 48 : 40, borderRadius: 14, backgroundColor: "#FFF0F5", alignItems: "center", justifyContent: "center" }, progressLabel: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.2, marginTop: 19 }, progress: { fontSize: typeScale.cardTitle, fontWeight: "700", marginTop: 4 }, event: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12 }, message: { fontSize: typeScale.metadata, lineHeight: typeLeading.bodyCompact, marginTop: 14 }, actionLabel: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginTop: 21 }, actionHelp: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 4 }, customerActions: { gap: 8, marginTop: 11 }, customerAction: { minHeight: Platform.OS === "android" ? 48 : 44, borderRadius: 14, backgroundColor: "#FFF0F5", flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" }, customerActionText: { color: "#C52D60", fontSize: typeScale.caption, fontWeight: "700" }, disabled: { opacity: .5 },
+  page: { flex: 1 },
+  content: { width: "100%", maxWidth: 900, alignSelf: "center", paddingHorizontal: 18, paddingTop: 24, paddingBottom: 110 },
+  heading: { flexDirection: "row", alignItems: "center", gap: 10 },
+  flex: { flex: 1, minWidth: 0 },
+  title: { ...typeStyles.editorialPageTitle },
+  subtitle: { ...typeStyles.caption, marginTop: 3 },
+  refresh: { width: Platform.OS === "android" ? 48 : 44, height: Platform.OS === "android" ? 48 : 44, borderWidth: 1, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  truthNote: { flexDirection: "row", alignItems: "flex-start", gap: 9, backgroundColor: "#FFF4F7", borderRadius: 15, padding: 12, marginTop: 17 },
+  truthText: { flex: 1, color: "#7B4256", fontSize: typeScale.caption, lineHeight: typeLeading.label },
+  loading: { marginTop: 60 },
+  card: { borderWidth: 1, borderRadius: 20, padding: 15, marginTop: 11 },
+  pressed: { transform: [{ scale: .985 }], opacity: .88 },
+  cardTop: { flexDirection: "row", alignItems: "center", gap: 10 },
+  channelIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#FFF0F5", alignItems: "center", justifyContent: "center" },
+  vendor: { fontSize: typeScale.body, fontWeight: "700" },
+  reference: { fontSize: typeScale.caption, marginTop: 3 },
+  status: { maxWidth: 110, backgroundColor: "#FFF0F5", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 6 },
+  statusText: { color: "#C52D60", fontSize: typeScale.caption, fontWeight: "700", textAlign: "center" },
+  metaRow: { flexDirection: "row", alignItems: "center", marginTop: 12, gap: 6 },
+  meta: { fontSize: typeScale.caption },
+  dot: { fontSize: typeScale.caption },
+  customerState: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 10, textTransform: "capitalize" },
+  quick: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: "row", gap: 8, marginTop: 13, paddingTop: 11 },
+  quickButton: { minHeight: Platform.OS === "android" ? 48 : 36, flex: 1, borderRadius: 12, backgroundColor: "#FFF0F5", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  quickText: { color: "#C52D60", fontSize: typeScale.caption, fontWeight: "700" },
+  empty: { marginTop: 24, minHeight: 250, borderWidth: 1, borderRadius: 24, padding: 28, alignItems: "center", justifyContent: "center" },
+  emptyIcon: { width: 58, height: 58, borderRadius: 20, backgroundColor: "#FFF0F6", alignItems: "center", justifyContent: "center" },
+  emptyTitle: { marginTop: 16, fontSize: typeScale.cardTitle, fontWeight: "700" },
+  emptyBody: { maxWidth: 370, marginTop: 7, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, textAlign: "center" },
+  primary: { minHeight: Platform.OS === "android" ? 48 : 42, paddingHorizontal: 18, borderRadius: 13, backgroundColor: "#E91E63", alignItems: "center", justifyContent: "center", marginTop: 14 },
+  primaryText: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700" },
+  backdrop: { flex: 1, backgroundColor: "rgba(15,8,12,.55)", justifyContent: "flex-end" },
+  sheet: { width: "100%", maxWidth: 560, alignSelf: "center", borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 32 },
+  sheetTop: { flexDirection: "row", alignItems: "center", gap: 12 },
+  sheetTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
+  close: { width: Platform.OS === "android" ? 48 : 40, height: Platform.OS === "android" ? 48 : 40, borderRadius: 14, backgroundColor: "#FFF0F5", alignItems: "center", justifyContent: "center" },
+  progressLabel: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.2, marginTop: 19 },
+  progress: { fontSize: typeScale.cardTitle, fontWeight: "700", marginTop: 4 },
+  event: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 12 },
+  message: { fontSize: typeScale.metadata, lineHeight: typeLeading.bodyCompact, marginTop: 14 },
+  actionLabel: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginTop: 21 },
+  actionHelp: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 4 },
+  customerActions: { gap: 8, marginTop: 11 },
+  customerAction: { minHeight: Platform.OS === "android" ? 48 : 44, borderRadius: 14, backgroundColor: "#FFF0F5", flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
+  customerActionText: { color: "#C52D60", fontSize: typeScale.caption, fontWeight: "700" },
+  disabled: { opacity: .5 },
   confirmBackdrop: { flex: 1, backgroundColor: "rgba(15,8,12,.58)", paddingHorizontal: 22, alignItems: "center", justifyContent: "center" },
   confirmDialog: { width: "100%", maxWidth: 430, borderWidth: 1, borderRadius: 20, padding: 20, alignItems: "center", shadowColor: "#2A0D18", shadowOffset: { width: 0, height: 10 }, shadowOpacity: .18, shadowRadius: 28, elevation: 8 },
   confirmIcon: { width: 52, height: 52, borderRadius: 16, backgroundColor: "#FFF0F5", alignItems: "center", justifyContent: "center" },

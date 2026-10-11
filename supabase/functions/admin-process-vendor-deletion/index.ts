@@ -6,6 +6,57 @@ const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: cors });
 function hasAal2(token: string) { try { const part = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"); return JSON.parse(atob(part.padEnd(Math.ceil(part.length / 4) * 4, "="))).aal === "aal2"; } catch { return false; } }
 
+async function sha1(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-1", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function extractCloudinaryPublicId(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (!/res\.cloudinary\.com/i.test(parsed.hostname)) return null;
+    const pathname = parsed.pathname;
+    const uploadIndex = pathname.indexOf("/upload/");
+    if (uploadIndex === -1) return null;
+    const pathAfterUpload = pathname.slice(uploadIndex + "/upload/".length);
+    const segments = pathAfterUpload.split("/");
+    const versionIndex = segments.findIndex((seg) => /^v\d+$/.test(seg));
+    const assetSegments = versionIndex !== -1 ? segments.slice(versionIndex + 1) : segments.filter((s) => !s.includes(",") && !/^[cwghqfevdprst]_/.test(s));
+    if (!assetSegments.length) return null;
+    return decodeURIComponent(assetSegments.join("/")).replace(/\.[^/.]+$/, "");
+  } catch {
+    return null;
+  }
+}
+
+async function destroyCloudinaryAsset(publicId: string, resourceType = "image") {
+  const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "hp6vu8o9";
+  const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
+  const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
+  if (!apiSecret || !apiKey || !cloudName) return;
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signature = await sha1(`invalidate=true&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`);
+  const body = new URLSearchParams({
+    public_id: publicId,
+    timestamp: String(timestamp),
+    invalidate: "true",
+    api_key: apiKey,
+    signature,
+  });
+  await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`, {
+    method: "POST",
+    body,
+  }).catch(() => undefined);
+}
+
+async function deleteCloudinaryUrl(value: string | null | undefined, allowedPrefixes: string[]) {
+  if (!value) return;
+  const publicId = extractCloudinaryPublicId(value);
+  if (!publicId || !allowedPrefixes.some((prefix) => publicId.startsWith(prefix))) return;
+  await destroyCloudinaryAsset(publicId);
+}
+
 async function deleteBunnyUrl(value: string | null | undefined, allowedPrefixes: string[]) {
   if (!value) return;
   let parsed: URL;
@@ -14,18 +65,33 @@ async function deleteBunnyUrl(value: string | null | undefined, allowedPrefixes:
   if (parsed.hostname !== bunny.cdnHostname) return;
   const objectKey = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
   if (objectKey.includes("..") || !allowedPrefixes.some((prefix) => objectKey.startsWith(prefix))) return;
-  const signed = await presignBunnyObject("DELETE", objectKey, 60);
-  const deletion = await fetch(signed.uploadUrl, { method: "DELETE" });
-  if (!deletion.ok && deletion.status !== 404) throw new Error(`Bunny storage deletion failed (${deletion.status})`);
+  try {
+    const signed = await presignBunnyObject("DELETE", objectKey, 60);
+    const deletion = await fetch(signed.uploadUrl, { method: "DELETE" });
+    if (!deletion.ok && deletion.status !== 404) console.warn(`Bunny storage deletion status (${deletion.status})`);
+  } catch (e) {
+    console.warn("Bunny storage deletion error:", e);
+  }
 }
 
-async function deleteBunnyPortfolioAsset(
-  media: { public_id?: string | null; secure_url?: string | null },
+async function deleteMediaAsset(
+  media: { public_id?: string | null; secure_url?: string | null; resource_type?: string | null },
   vendorPrefix: string,
 ) {
   if (!media.secure_url) return;
   let parsed: URL;
   try { parsed = new URL(media.secure_url); } catch { return; }
+
+  // Cloudinary
+  if (/res\.cloudinary\.com/i.test(parsed.hostname)) {
+    const publicId = media.public_id || extractCloudinaryPublicId(media.secure_url);
+    if (publicId && publicId.startsWith(vendorPrefix)) {
+      await destroyCloudinaryAsset(publicId, media.resource_type === "video" ? "video" : "image");
+    }
+    return;
+  }
+
+  // Bunny Stream / Storage
   const objectKey = media.public_id?.includes(".")
     ? media.public_id
     : decodeURIComponent(parsed.pathname.replace(/^\//, ""));
@@ -33,12 +99,12 @@ async function deleteBunnyPortfolioAsset(
     const videoId = objectKey.split("/")[0];
     const libraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
     const apiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
-    if (!videoId || !libraryId || !apiKey) throw new Error("Bunny Stream deletion is not configured");
-    const deletion = await fetch(
-      `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(videoId)}`,
-      { method: "DELETE", headers: { AccessKey: apiKey } },
-    );
-    if (!deletion.ok && deletion.status !== 404) throw new Error(`Bunny Stream deletion failed (${deletion.status})`);
+    if (videoId && libraryId && apiKey) {
+      await fetch(
+        `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(videoId)}`,
+        { method: "DELETE", headers: { AccessKey: apiKey } },
+      ).catch(() => undefined);
+    }
     return;
   }
   await deleteBunnyUrl(media.secure_url, [vendorPrefix]);
@@ -94,7 +160,7 @@ Deno.serve(async (request) => {
     try {
       const [{ data: vendorMedia }, { data: portfolioMedia }, { data: clips }, { data: applications }] = await Promise.all([
         service.from("vendors").select("logo_url").eq("id", target.vendor_id).maybeSingle(),
-        service.from("vendor_portfolio_media").select("public_id,secure_url").eq("vendor_id", target.vendor_id),
+        service.from("vendor_portfolio_media").select("public_id,secure_url,resource_type").eq("vendor_id", target.vendor_id),
         service.from("clips").select("id,bunny_asset_id").eq("vendor_id", target.vendor_id),
         service.from("vendor_applications").select("logo_url,cover_image_url,business_documents").eq("profile_id", target.profile_id),
       ]);
@@ -103,12 +169,17 @@ Deno.serve(async (request) => {
       const documentPrefix = `royallagn/document/${target.profile_id}/`;
       await Promise.all([
         deleteBunnyUrl(vendorMedia?.logo_url, [vendorPrefix, generalPrefix]),
-        ...(portfolioMedia ?? []).map((media) => deleteBunnyPortfolioAsset(media, vendorPrefix)),
+        deleteCloudinaryUrl(vendorMedia?.logo_url, [vendorPrefix, generalPrefix]),
+        ...(portfolioMedia ?? []).map((media) => deleteMediaAsset(media, vendorPrefix)),
         ...(applications ?? []).flatMap((application) => [
           deleteBunnyUrl(application.logo_url, [generalPrefix, vendorPrefix]),
+          deleteCloudinaryUrl(application.logo_url, [generalPrefix, vendorPrefix]),
           deleteBunnyUrl(application.cover_image_url, [generalPrefix, vendorPrefix]),
-          ...((application.business_documents ?? []) as { url?: string }[]).map((document) =>
-            deleteBunnyUrl(document.url, [documentPrefix, vendorPrefix])),
+          deleteCloudinaryUrl(application.cover_image_url, [generalPrefix, vendorPrefix]),
+          ...((application.business_documents ?? []) as { url?: string }[]).flatMap((document) => [
+            deleteBunnyUrl(document.url, [documentPrefix, vendorPrefix]),
+            deleteCloudinaryUrl(document.url, [documentPrefix, vendorPrefix]),
+          ]),
         ]),
       ]);
       for (const clip of clips ?? []) {

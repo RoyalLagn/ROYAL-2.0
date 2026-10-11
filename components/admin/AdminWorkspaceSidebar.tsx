@@ -3,8 +3,6 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { usePathname, useRouter } from "expo-router";
 import { CircleUserRound, ShieldCheck } from "lucide-react-native";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { useAppTheme } from "@/components/ThemeProvider";
 import { useAdminAuth } from "@/context/AdminAuthContext";
 import {
   adminNavigationGroups,
@@ -12,7 +10,7 @@ import {
 } from "@/admin/navigation";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
 import { adminPalette } from "@/theme";
-import { brandColors } from "@/constants/brandPalette";
+import { brandPalette } from "@/constants/brandPalette";
 import { countUnreadAdminNotifications, subscribeToAdminNotifications } from "@/services/adminNotifications";
 import { AdminPwaInstallControl } from "@/components/admin/AdminPwaInstallControl";
 import { royalAdmin } from "@/components/admin/dashboard/adminDashboardTheme";
@@ -21,14 +19,12 @@ export function AdminWorkspaceSidebar({ compact, dashboard = false }: { compact:
   const pathname = usePathname();
   const router = useRouter();
   const { identity } = useAdminAuth();
-  const { colorScheme } = useAppTheme();
-  const dark = colorScheme === "dark";
-  const colors = brandColors(dark);
+  const colors = brandPalette.light;
   const activeKey = adminNavigationKeyForPath(pathname);
-  const surface = dashboard && !dark ? "#FFFCF7" : colors.card;
-  const border = dashboard && !dark ? royalAdmin.border : colors.border;
-  const text = dashboard && !dark ? royalAdmin.navyDeep : colors.foreground;
-  const muted = dashboard && !dark ? royalAdmin.navyMuted : colors.mutedForeground;
+  const surface = dashboard ? "#FFFCF7" : colors.card;
+  const border = dashboard ? royalAdmin.border : colors.border;
+  const text = dashboard ? royalAdmin.navyDeep : colors.foreground;
+  const muted = dashboard ? royalAdmin.navyMuted : colors.mutedForeground;
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const refreshUnread = useCallback(() => { void countUnreadAdminNotifications().then(setUnreadNotifications).catch(() => undefined); }, []);
   useEffect(() => { refreshUnread(); return subscribeToAdminNotifications(refreshUnread); }, [refreshUnread]);
@@ -74,7 +70,6 @@ export function AdminWorkspaceSidebar({ compact, dashboard = false }: { compact:
     <AdminPwaInstallControl compact={compact} variant={dashboard ? "royalSidebar" : "sidebar"} />
     <View style={[styles.account, compact && styles.accountCompact, { borderTopColor: border }]}>
       {!compact ? <View style={styles.accountCopy}><Text numberOfLines={1} style={[styles.accountName, { color: text }]}>{identity?.profile.full_name || "Administrator"}</Text><Text style={[styles.accountRole, { color: muted }]}>{identity?.profile.role === "super_admin" ? "Super admin" : "Admin"}</Text></View> : null}
-      <ThemeToggle size={18} />
       <Pressable accessibilityRole="button" accessibilityLabel="Open admin account" onPress={() => router.push("/AdminProfile")} style={styles.accountButton}><CircleUserRound size={18} color={muted} /></Pressable>
     </View>
   </View>;

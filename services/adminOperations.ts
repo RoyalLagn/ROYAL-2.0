@@ -22,7 +22,24 @@ export type AdminClip = {
   category_name: string;
 };
 
-export type AdminEnquiryStatus = "new" | "contacted" | "in_discussion" | "quotation_sent" | "follow_up" | "booked" | "not_interested" | "invalid_lead" | "no_response" | "closed";
+export type AdminEnquiryStatus =
+  | "new"
+  | "in_progress"
+  | "customer_contacted"
+  | "vendor_contacted"
+  | "awaiting_confirmation"
+  | "confirmed"
+  | "closed"
+  | "cancelled"
+  | "booked"
+  | "contacted"
+  | "in_discussion"
+  | "quotation_sent"
+  | "follow_up"
+  | "not_interested"
+  | "invalid_lead"
+  | "no_response";
+
 export type AdminEnquiry = {
   id: string;
   vendor_id: string;
@@ -53,6 +70,10 @@ export type AdminEnquiry = {
   total_count: number;
   call_count: number;
   whatsapp_count: number;
+  form_count: number;
+  new_count: number;
+  in_progress_count: number;
+  confirmed_count: number;
 };
 
 export type AdminReview = {
@@ -178,57 +199,257 @@ export const AdminOperationsService = {
     }
   },
 
-  async enquiries({ page, pageSize, query, categoryId, date, period }: { page: number; pageSize: number; query: string; categoryId: string | null; date: string | null; period: "all" | "day" | "month" | "year" }): Promise<{ rows: AdminEnquiry[]; total: number; calls: number; whatsapp: number }> {
-    const { data, error } = await supabase.rpc("admin_list_contact_enquiries_v4", {
-      search_text: query.trim() || null,
-      category_filter: categoryId,
-      date_filter: date,
-      period_filter: period,
-      page_size: pageSize,
-      page_offset: (page - 1) * pageSize,
-    });
-    if (error) throw error;
-    const rows = ((data ?? []) as Record<string, unknown>[]).map((row) => ({
-      id: String(row.id), vendor_id: String(row.vendor_id),
-      customer_id: row.customer_id ? String(row.customer_id) : null,
-      customer_name: String(row.customer_name),
-      customer_email: row.customer_email ? String(row.customer_email) : null,
-      customer_phone: row.customer_phone ? String(row.customer_phone) : null,
-      event_date: row.event_date ? String(row.event_date) : null,
-      event_type: row.event_type ? String(row.event_type) : null,
-      package_id: row.package_id ? String(row.package_id) : null,
-      package_name: row.package_name ? String(row.package_name) : null,
-      reference_code: String(row.reference_code),
-      enquiry_channel: String(row.enquiry_channel) as AdminEnquiry["enquiry_channel"],
-      source_type: String(row.source_type),
-      customer_confirmation: String(row.customer_confirmation),
-      vendor_notes: row.vendor_notes ? String(row.vendor_notes) : null,
-      follow_up_date: row.follow_up_date ? String(row.follow_up_date) : null,
-      message: String(row.message), status: String(row.status) as AdminEnquiryStatus,
-      created_at: String(row.created_at), updated_at: String(row.updated_at),
-      vendor_name: String(row.vendor_name || "Unknown vendor"),
-      vendor_logo: row.vendor_logo ? String(row.vendor_logo) : null,
-      vendor_phone: row.vendor_phone ? String(row.vendor_phone) : null,
-      category_id: row.category_id ? String(row.category_id) : null,
-      category_name: String(row.category_name || "Uncategorized"),
-      customer_profile_image: row.customer_profile_image ? String(row.customer_profile_image) : null,
-      total_count: Number(row.total_count ?? 0),
-      call_count: Number(row.call_count ?? 0),
-      whatsapp_count: Number(row.whatsapp_count ?? 0),
-    }));
-    return {
-      rows,
-      total: rows[0]?.total_count ?? 0,
-      calls: rows[0]?.call_count ?? 0,
-      whatsapp: rows[0]?.whatsapp_count ?? 0,
-    };
+  async enquiries({
+    page,
+    pageSize,
+    query,
+    categoryId,
+    date,
+    period,
+    statusFilter,
+  }: {
+    page: number;
+    pageSize: number;
+    query: string;
+    categoryId: string | null;
+    date: string | null;
+    period: "all" | "day" | "month" | "year";
+    statusFilter?: string | null;
+  }): Promise<{
+    rows: AdminEnquiry[];
+    total: number;
+    calls: number;
+    whatsapp: number;
+    form: number;
+    newCount: number;
+    inProgressCount: number;
+    confirmedCount: number;
+  }> {
+    try {
+      let baseQuery = supabase
+        .from("vendor_enquiries")
+        .select(
+          `
+          id,
+          vendor_id,
+          customer_id,
+          customer_name,
+          customer_email,
+          customer_phone,
+          event_date,
+          event_type,
+          package_id,
+          package_name,
+          reference_code,
+          enquiry_channel,
+          source_type,
+          customer_confirmation,
+          vendor_notes,
+          follow_up_date,
+          message,
+          status,
+          created_at,
+          updated_at,
+          vendors (
+            id,
+            business_name,
+            logo_url,
+            contact_phone,
+            category_id,
+            categories (
+              id,
+              name
+            )
+          ),
+          profiles:customer_id (
+            id,
+            full_name,
+            email,
+            phone,
+            profile_image
+          )
+        `,
+          { count: "exact" }
+        );
+
+      if (categoryId) {
+        baseQuery = baseQuery.eq("vendors.category_id", categoryId);
+      }
+
+      if (statusFilter && statusFilter !== "all") {
+        baseQuery = baseQuery.eq("status", statusFilter);
+      }
+
+      const q = query.trim();
+      if (q) {
+        baseQuery = baseQuery.or(
+          `reference_code.ilike.%${q}%,customer_name.ilike.%${q}%,customer_email.ilike.%${q}%,customer_phone.ilike.%${q}%,message.ilike.%${q}%`
+        );
+      }
+
+      if (date && period !== "all") {
+        const d = new Date(date);
+        if (!isNaN(d.getTime())) {
+          if (period === "day") {
+            const start = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
+            const end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).toISOString();
+            baseQuery = baseQuery.gte("created_at", start).lt("created_at", end);
+          } else if (period === "month") {
+            const start = new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+            const end = new Date(d.getFullYear(), d.getMonth() + 1, 1).toISOString();
+            baseQuery = baseQuery.gte("created_at", start).lt("created_at", end);
+          } else if (period === "year") {
+            const start = new Date(d.getFullYear(), 0, 1).toISOString();
+            const end = new Date(d.getFullYear() + 1, 0, 1).toISOString();
+            baseQuery = baseQuery.gte("created_at", start).lt("created_at", end);
+          }
+        }
+      }
+
+      const [pageResult, allResult] = await Promise.all([
+        baseQuery
+          .order("created_at", { ascending: false })
+          .range((page - 1) * pageSize, page * pageSize - 1),
+        supabase.from("vendor_enquiries").select("id, enquiry_channel, status"),
+      ]);
+
+      if (pageResult.error) {
+        throw pageResult.error;
+      }
+
+      const allRows = allResult.data ?? [];
+      const calls = allRows.filter((r) => r.enquiry_channel === "call").length;
+      const whatsapp = allRows.filter((r) => r.enquiry_channel === "whatsapp").length;
+      const form = allRows.filter((r) => r.enquiry_channel === "form").length;
+      const newCount = allRows.filter((r) => r.status === "new").length;
+      const inProgressCount = allRows.filter((r) => r.status === "in_progress" || r.status === "customer_contacted" || r.status === "vendor_contacted").length;
+      const confirmedCount = allRows.filter((r) => r.status === "confirmed" || r.status === "booked").length;
+
+      const rows: AdminEnquiry[] = (pageResult.data ?? []).map((row: any) => {
+        const v = Array.isArray(row.vendors) ? row.vendors[0] : row.vendors;
+        const p = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+        const cat = v?.categories ? (Array.isArray(v.categories) ? v.categories[0] : v.categories) : null;
+        return {
+          id: String(row.id),
+          vendor_id: String(row.vendor_id),
+          customer_id: row.customer_id ? String(row.customer_id) : null,
+          customer_name: String(row.customer_name || p?.full_name || "Guest customer"),
+          customer_email: row.customer_email || p?.email || null,
+          customer_phone: row.customer_phone || p?.phone || null,
+          event_date: row.event_date ? String(row.event_date) : null,
+          event_type: row.event_type ? String(row.event_type) : null,
+          package_id: row.package_id ? String(row.package_id) : null,
+          package_name: row.package_name ? String(row.package_name) : null,
+          reference_code: String(row.reference_code || ""),
+          enquiry_channel: String(row.enquiry_channel || "form") as AdminEnquiry["enquiry_channel"],
+          source_type: String(row.source_type || "vendor_profile"),
+          customer_confirmation: String(row.customer_confirmation || "pending"),
+          vendor_notes: row.vendor_notes ? String(row.vendor_notes) : null,
+          follow_up_date: row.follow_up_date ? String(row.follow_up_date) : null,
+          message: String(row.message || ""),
+          status: String(row.status || "new") as AdminEnquiryStatus,
+          created_at: String(row.created_at),
+          updated_at: String(row.updated_at),
+          vendor_name: String(v?.business_name || "Unknown vendor"),
+          vendor_logo: v?.logo_url || null,
+          vendor_phone: v?.contact_phone || null,
+          category_id: v?.category_id || null,
+          category_name: String(cat?.name || "Uncategorized"),
+          customer_profile_image: p?.profile_image || null,
+          total_count: pageResult.count ?? allRows.length,
+          call_count: calls,
+          whatsapp_count: whatsapp,
+          form_count: form,
+          new_count: newCount,
+          in_progress_count: inProgressCount,
+          confirmed_count: confirmedCount,
+        };
+      });
+
+      return {
+        rows,
+        total: pageResult.count ?? allRows.length,
+        calls,
+        whatsapp,
+        form,
+        newCount,
+        inProgressCount,
+        confirmedCount,
+      };
+    } catch {
+      const { data, error } = await supabase.rpc("admin_list_contact_enquiries_v4", {
+        search_text: query.trim() || null,
+        category_filter: categoryId,
+        date_filter: date,
+        period_filter: period,
+        page_size: pageSize,
+        page_offset: (page - 1) * pageSize,
+      });
+      if (error) throw error;
+      const rows = ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+        id: String(row.id),
+        vendor_id: String(row.vendor_id),
+        customer_id: row.customer_id ? String(row.customer_id) : null,
+        customer_name: String(row.customer_name),
+        customer_email: row.customer_email ? String(row.customer_email) : null,
+        customer_phone: row.customer_phone ? String(row.customer_phone) : null,
+        event_date: row.event_date ? String(row.event_date) : null,
+        event_type: row.event_type ? String(row.event_type) : null,
+        package_id: row.package_id ? String(row.package_id) : null,
+        package_name: row.package_name ? String(row.package_name) : null,
+        reference_code: String(row.reference_code),
+        enquiry_channel: String(row.enquiry_channel) as AdminEnquiry["enquiry_channel"],
+        source_type: String(row.source_type),
+        customer_confirmation: String(row.customer_confirmation),
+        vendor_notes: row.vendor_notes ? String(row.vendor_notes) : null,
+        follow_up_date: row.follow_up_date ? String(row.follow_up_date) : null,
+        message: String(row.message),
+        status: String(row.status) as AdminEnquiryStatus,
+        created_at: String(row.created_at),
+        updated_at: String(row.updated_at),
+        vendor_name: String(row.vendor_name || "Unknown vendor"),
+        vendor_logo: row.vendor_logo ? String(row.vendor_logo) : null,
+        vendor_phone: row.vendor_phone ? String(row.vendor_phone) : null,
+        category_id: row.category_id ? String(row.category_id) : null,
+        category_name: String(row.category_name || "Uncategorized"),
+        customer_profile_image: row.customer_profile_image ? String(row.customer_profile_image) : null,
+        total_count: Number(row.total_count ?? 0),
+        call_count: Number(row.call_count ?? 0),
+        whatsapp_count: Number(row.whatsapp_count ?? 0),
+        form_count: Number(row.form_count ?? 0),
+        new_count: Number(row.new_count ?? 0),
+        in_progress_count: Number(row.in_progress_count ?? 0),
+        confirmed_count: Number(row.confirmed_count ?? 0),
+      }));
+      return {
+        rows,
+        total: rows[0]?.total_count ?? 0,
+        calls: rows[0]?.call_count ?? 0,
+        whatsapp: rows[0]?.whatsapp_count ?? 0,
+        form: rows[0]?.form_count ?? 0,
+        newCount: rows[0]?.new_count ?? 0,
+        inProgressCount: rows[0]?.in_progress_count ?? 0,
+        confirmedCount: rows[0]?.confirmed_count ?? 0,
+      };
+    }
   },
 
-  async updateEnquiryStatus(id: string, status: AdminEnquiryStatus) {
-    const { data: existing, error: readError } = await supabase.from("vendor_enquiries").select("vendor_notes,follow_up_date").eq("id", id).single();
-    if (readError) throw readError;
-    const { error } = await supabase.rpc("update_vendor_enquiry", { target_enquiry_id: id, next_status: status, notes: existing.vendor_notes, follow_up_on: existing.follow_up_date });
-    if (error) throw error;
+  async updateEnquiryStatus(id: string, status: AdminEnquiryStatus, notes?: string | null, followUpOn?: string | null) {
+    const { error } = await supabase.rpc("admin_update_enquiry_status", {
+      target_enquiry_id: id,
+      next_status: status,
+      notes: notes !== undefined ? notes : null,
+      follow_up_on: followUpOn !== undefined ? followUpOn : null,
+    });
+    if (error) {
+      const { error: fallbackError } = await supabase.rpc("update_vendor_enquiry", {
+        target_enquiry_id: id,
+        next_status: status,
+        notes: notes !== undefined ? notes : null,
+        follow_up_on: followUpOn !== undefined ? followUpOn : null,
+      });
+      if (fallbackError) throw error;
+    }
   },
 
   async reviews(): Promise<AdminReview[]> {

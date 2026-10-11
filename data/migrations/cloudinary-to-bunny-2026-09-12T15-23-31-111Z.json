@@ -1,0 +1,318 @@
+{
+  "createdAt": "2026-09-12T15:23:10.659Z",
+  "databaseAppliedAt": "2026-09-12T15:25:00.000Z",
+  "bunnyCdnVerified": true,
+  "cloudinaryDeleted": false,
+  "entries": [
+    {
+      "table": "vendor_portfolio_media",
+      "id": "26973ade-0fa7-45da-b5aa-88d8ca1fee62",
+      "before": {
+        "secure_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513202/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/3af1b381-4b39-46f5-95cd-f869afa3e237.jpg",
+        "thumbnail_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile/v1788513202/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/3af1b381-4b39-46f5-95cd-f869afa3e237.jpg",
+        "optimized_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile/v1788513202/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/3af1b381-4b39-46f5-95cd-f869afa3e237.jpg",
+        "hero_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile/v1788513202/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/3af1b381-4b39-46f5-95cd-f869afa3e237.jpg",
+        "fullscreen_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile/v1788513202/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/3af1b381-4b39-46f5-95cd-f869afa3e237.jpg"
+      },
+      "after": {
+        "secure_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/1fc40c2b-0c7f-40f1-a88d-50932ec5def4.jpg",
+        "thumbnail_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/1fc40c2b-0c7f-40f1-a88d-50932ec5def4.jpg",
+        "optimized_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/1fc40c2b-0c7f-40f1-a88d-50932ec5def4.jpg",
+        "hero_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/1fc40c2b-0c7f-40f1-a88d-50932ec5def4.jpg",
+        "fullscreen_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/1fc40c2b-0c7f-40f1-a88d-50932ec5def4.jpg",
+        "public_id": "royallagn/general/service-role-migrations/1fc40c2b-0c7f-40f1-a88d-50932ec5def4.jpg",
+        "updated_at": "2026-09-12T15:23:12.500Z"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513202/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/3af1b381-4b39-46f5-95cd-f869afa3e237.jpg",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/1fc40c2b-0c7f-40f1-a88d-50932ec5def4.jpg",
+      "objectKey": "royallagn/general/service-role-migrations/1fc40c2b-0c7f-40f1-a88d-50932ec5def4.jpg",
+      "mimeType": "image/jpeg",
+      "bytes": 520385
+    },
+    {
+      "table": "vendor_portfolio_media",
+      "id": "18194ed5-3917-4142-a512-fd062e8c5663",
+      "before": {
+        "secure_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513197/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/a53b9aed-ff4d-480a-aaef-5ec4c90e5da5.jpg",
+        "thumbnail_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile/v1788513197/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/a53b9aed-ff4d-480a-aaef-5ec4c90e5da5.jpg",
+        "optimized_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile/v1788513197/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/a53b9aed-ff4d-480a-aaef-5ec4c90e5da5.jpg",
+        "hero_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile/v1788513197/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/a53b9aed-ff4d-480a-aaef-5ec4c90e5da5.jpg",
+        "fullscreen_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile/v1788513197/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/a53b9aed-ff4d-480a-aaef-5ec4c90e5da5.jpg"
+      },
+      "after": {
+        "secure_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/3e88504f-a798-44d2-b655-0606fc0b8021.jpg",
+        "thumbnail_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/3e88504f-a798-44d2-b655-0606fc0b8021.jpg",
+        "optimized_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/3e88504f-a798-44d2-b655-0606fc0b8021.jpg",
+        "hero_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/3e88504f-a798-44d2-b655-0606fc0b8021.jpg",
+        "fullscreen_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/3e88504f-a798-44d2-b655-0606fc0b8021.jpg",
+        "public_id": "royallagn/general/service-role-migrations/3e88504f-a798-44d2-b655-0606fc0b8021.jpg",
+        "updated_at": "2026-09-12T15:23:13.881Z"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513197/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/a53b9aed-ff4d-480a-aaef-5ec4c90e5da5.jpg",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/3e88504f-a798-44d2-b655-0606fc0b8021.jpg",
+      "objectKey": "royallagn/general/service-role-migrations/3e88504f-a798-44d2-b655-0606fc0b8021.jpg",
+      "mimeType": "image/jpeg",
+      "bytes": 552067
+    },
+    {
+      "table": "vendor_portfolio_media",
+      "id": "3177cc6e-46ac-4c0a-81bc-4d11ba0e2b55",
+      "before": {
+        "secure_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513209/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/16a47eb5-3fba-4668-9a80-16319e83ac5d.jpg",
+        "thumbnail_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile/v1788513209/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/16a47eb5-3fba-4668-9a80-16319e83ac5d.jpg",
+        "optimized_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile/v1788513209/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/16a47eb5-3fba-4668-9a80-16319e83ac5d.jpg",
+        "hero_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile/v1788513209/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/16a47eb5-3fba-4668-9a80-16319e83ac5d.jpg",
+        "fullscreen_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile/v1788513209/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/16a47eb5-3fba-4668-9a80-16319e83ac5d.jpg"
+      },
+      "after": {
+        "secure_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/53d91ce4-a63d-4179-be42-89e950c15f88.jpg",
+        "thumbnail_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/53d91ce4-a63d-4179-be42-89e950c15f88.jpg",
+        "optimized_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/53d91ce4-a63d-4179-be42-89e950c15f88.jpg",
+        "hero_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/53d91ce4-a63d-4179-be42-89e950c15f88.jpg",
+        "fullscreen_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/53d91ce4-a63d-4179-be42-89e950c15f88.jpg",
+        "public_id": "royallagn/general/service-role-migrations/53d91ce4-a63d-4179-be42-89e950c15f88.jpg",
+        "updated_at": "2026-09-12T15:23:15.312Z"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513209/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/16a47eb5-3fba-4668-9a80-16319e83ac5d.jpg",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/53d91ce4-a63d-4179-be42-89e950c15f88.jpg",
+      "objectKey": "royallagn/general/service-role-migrations/53d91ce4-a63d-4179-be42-89e950c15f88.jpg",
+      "mimeType": "image/jpeg",
+      "bytes": 532363
+    },
+    {
+      "table": "vendor_portfolio_media",
+      "id": "c90d7218-d00a-46c4-b897-e2ffda82bd92",
+      "before": {
+        "secure_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513228/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/349c9168-fb96-4d1d-99c2-89097c45887b.jpg",
+        "thumbnail_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile/v1788513228/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/349c9168-fb96-4d1d-99c2-89097c45887b.jpg",
+        "optimized_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile/v1788513228/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/349c9168-fb96-4d1d-99c2-89097c45887b.jpg",
+        "hero_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile/v1788513228/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/349c9168-fb96-4d1d-99c2-89097c45887b.jpg",
+        "fullscreen_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile/v1788513228/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/349c9168-fb96-4d1d-99c2-89097c45887b.jpg"
+      },
+      "after": {
+        "secure_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/42ce5d5b-ea7b-49d1-9fb2-f65f0233de16.jpg",
+        "thumbnail_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/42ce5d5b-ea7b-49d1-9fb2-f65f0233de16.jpg",
+        "optimized_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/42ce5d5b-ea7b-49d1-9fb2-f65f0233de16.jpg",
+        "hero_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/42ce5d5b-ea7b-49d1-9fb2-f65f0233de16.jpg",
+        "fullscreen_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/42ce5d5b-ea7b-49d1-9fb2-f65f0233de16.jpg",
+        "public_id": "royallagn/general/service-role-migrations/42ce5d5b-ea7b-49d1-9fb2-f65f0233de16.jpg",
+        "updated_at": "2026-09-12T15:23:17.038Z"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513228/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/349c9168-fb96-4d1d-99c2-89097c45887b.jpg",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/42ce5d5b-ea7b-49d1-9fb2-f65f0233de16.jpg",
+      "objectKey": "royallagn/general/service-role-migrations/42ce5d5b-ea7b-49d1-9fb2-f65f0233de16.jpg",
+      "mimeType": "image/jpeg",
+      "bytes": 754017
+    },
+    {
+      "table": "vendor_portfolio_media",
+      "id": "16b626c0-32be-4569-b8d9-651d9f96243b",
+      "before": {
+        "secure_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513184/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/b3835e35-b58e-4e38-af50-f73e2d00177f.jpg",
+        "thumbnail_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile/v1788513184/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/b3835e35-b58e-4e38-af50-f73e2d00177f.jpg",
+        "optimized_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile/v1788513184/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/b3835e35-b58e-4e38-af50-f73e2d00177f.jpg",
+        "hero_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile/v1788513184/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/b3835e35-b58e-4e38-af50-f73e2d00177f.jpg",
+        "fullscreen_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile/v1788513184/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/b3835e35-b58e-4e38-af50-f73e2d00177f.jpg"
+      },
+      "after": {
+        "secure_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/7cf2c17f-f2fa-476f-8e27-23d9bd03b3da.jpg",
+        "thumbnail_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/7cf2c17f-f2fa-476f-8e27-23d9bd03b3da.jpg",
+        "optimized_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/7cf2c17f-f2fa-476f-8e27-23d9bd03b3da.jpg",
+        "hero_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/7cf2c17f-f2fa-476f-8e27-23d9bd03b3da.jpg",
+        "fullscreen_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/7cf2c17f-f2fa-476f-8e27-23d9bd03b3da.jpg",
+        "public_id": "royallagn/general/service-role-migrations/7cf2c17f-f2fa-476f-8e27-23d9bd03b3da.jpg",
+        "updated_at": "2026-09-12T15:23:18.453Z"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513184/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/b3835e35-b58e-4e38-af50-f73e2d00177f.jpg",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/7cf2c17f-f2fa-476f-8e27-23d9bd03b3da.jpg",
+      "objectKey": "royallagn/general/service-role-migrations/7cf2c17f-f2fa-476f-8e27-23d9bd03b3da.jpg",
+      "mimeType": "image/jpeg",
+      "bytes": 548332
+    },
+    {
+      "table": "vendor_portfolio_media",
+      "id": "18a1b0f8-ce56-412d-ac06-0c53f39523a7",
+      "before": {
+        "secure_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513189/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/bbb0b305-6632-43a0-b9ee-9d3dd39d3e58.jpg",
+        "thumbnail_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile/v1788513189/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/bbb0b305-6632-43a0-b9ee-9d3dd39d3e58.jpg",
+        "optimized_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile/v1788513189/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/bbb0b305-6632-43a0-b9ee-9d3dd39d3e58.jpg",
+        "hero_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile/v1788513189/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/bbb0b305-6632-43a0-b9ee-9d3dd39d3e58.jpg",
+        "fullscreen_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile/v1788513189/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/bbb0b305-6632-43a0-b9ee-9d3dd39d3e58.jpg"
+      },
+      "after": {
+        "secure_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/cc6b78c3-d453-457b-be6c-4f1ff79094a2.jpg",
+        "thumbnail_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/cc6b78c3-d453-457b-be6c-4f1ff79094a2.jpg",
+        "optimized_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/cc6b78c3-d453-457b-be6c-4f1ff79094a2.jpg",
+        "hero_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/cc6b78c3-d453-457b-be6c-4f1ff79094a2.jpg",
+        "fullscreen_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/cc6b78c3-d453-457b-be6c-4f1ff79094a2.jpg",
+        "public_id": "royallagn/general/service-role-migrations/cc6b78c3-d453-457b-be6c-4f1ff79094a2.jpg",
+        "updated_at": "2026-09-12T15:23:20.106Z"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788513189/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/6fc7f1c8-c084-41f4-9ebe-d250de90fe07/bbb0b305-6632-43a0-b9ee-9d3dd39d3e58.jpg",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/cc6b78c3-d453-457b-be6c-4f1ff79094a2.jpg",
+      "objectKey": "royallagn/general/service-role-migrations/cc6b78c3-d453-457b-be6c-4f1ff79094a2.jpg",
+      "mimeType": "image/jpeg",
+      "bytes": 696647
+    },
+    {
+      "table": "vendor_portfolio_media",
+      "id": "71c7e5d5-abb8-4dc2-94fa-0c22a313860f",
+      "before": {
+        "secure_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788587211/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/94a0e6a5-96b6-478d-ade0-99becc1d09ff/5a26197e-7368-4605-9355-b5da7584e822.jpg",
+        "thumbnail_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile/v1788587211/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/94a0e6a5-96b6-478d-ade0-99becc1d09ff/5a26197e-7368-4605-9355-b5da7584e822.jpg",
+        "optimized_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile/v1788587211/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/94a0e6a5-96b6-478d-ade0-99becc1d09ff/5a26197e-7368-4605-9355-b5da7584e822.jpg",
+        "hero_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile/v1788587211/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/94a0e6a5-96b6-478d-ade0-99becc1d09ff/5a26197e-7368-4605-9355-b5da7584e822.jpg",
+        "fullscreen_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile/v1788587211/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/94a0e6a5-96b6-478d-ade0-99becc1d09ff/5a26197e-7368-4605-9355-b5da7584e822.jpg"
+      },
+      "after": {
+        "secure_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/e02a794d-31f4-45da-98e2-653846a6e484.jpg",
+        "thumbnail_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/e02a794d-31f4-45da-98e2-653846a6e484.jpg",
+        "optimized_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/e02a794d-31f4-45da-98e2-653846a6e484.jpg",
+        "hero_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/e02a794d-31f4-45da-98e2-653846a6e484.jpg",
+        "fullscreen_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/e02a794d-31f4-45da-98e2-653846a6e484.jpg",
+        "public_id": "royallagn/general/service-role-migrations/e02a794d-31f4-45da-98e2-653846a6e484.jpg",
+        "updated_at": "2026-09-12T15:23:20.868Z"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788587211/royallagn/vendors/fcd040b3-8caa-4d1a-9c5c-bb287db4e015/albums/94a0e6a5-96b6-478d-ade0-99becc1d09ff/5a26197e-7368-4605-9355-b5da7584e822.jpg",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/e02a794d-31f4-45da-98e2-653846a6e484.jpg",
+      "objectKey": "royallagn/general/service-role-migrations/e02a794d-31f4-45da-98e2-653846a6e484.jpg",
+      "mimeType": "image/jpeg",
+      "bytes": 320178
+    },
+    {
+      "table": "vendors",
+      "id": "80709127-ea52-4896-aa72-83f3e8d24a68",
+      "before": {
+        "logo_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1787815283/royallagn/vendors/80709127-ea52-4896-aa72-83f3e8d24a68/profile/84c2728d-a41f-4d87-a0b8-e6295944d0d0.png"
+      },
+      "after": {
+        "logo_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/f9bfaaaa-f8fc-40bb-b726-9a36051b3e21.png"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1787815283/royallagn/vendors/80709127-ea52-4896-aa72-83f3e8d24a68/profile/84c2728d-a41f-4d87-a0b8-e6295944d0d0.png",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/f9bfaaaa-f8fc-40bb-b726-9a36051b3e21.png",
+      "objectKey": "royallagn/general/service-role-migrations/f9bfaaaa-f8fc-40bb-b726-9a36051b3e21.png",
+      "mimeType": "image/png",
+      "bytes": 1286736
+    },
+    {
+      "table": "vendors",
+      "id": "fcd040b3-8caa-4d1a-9c5c-bb287db4e015",
+      "before": {
+        "logo_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788511521/e31kiwccqn9qi0my1ohi.png"
+      },
+      "after": {
+        "logo_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/c726febe-0f26-496f-bfae-327ba462de86.png"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788511521/e31kiwccqn9qi0my1ohi.png",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/c726febe-0f26-496f-bfae-327ba462de86.png",
+      "objectKey": "royallagn/general/service-role-migrations/c726febe-0f26-496f-bfae-327ba462de86.png",
+      "mimeType": "image/png",
+      "bytes": 967698
+    },
+    {
+      "table": "vendors",
+      "id": "fdbdf617-5ee8-43ba-b713-a587e5378c82",
+      "before": {
+        "logo_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1787810718/royallagn/vendors/fdbdf617-5ee8-43ba-b713-a587e5378c82/profile/a68e7fab-adcc-46b0-bf37-a9f17b6d97b3.png"
+      },
+      "after": {
+        "logo_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/49f34aca-8b4f-4310-a66a-dcc3671bd2e7.png"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1787810718/royallagn/vendors/fdbdf617-5ee8-43ba-b713-a587e5378c82/profile/a68e7fab-adcc-46b0-bf37-a9f17b6d97b3.png",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/49f34aca-8b4f-4310-a66a-dcc3671bd2e7.png",
+      "objectKey": "royallagn/general/service-role-migrations/49f34aca-8b4f-4310-a66a-dcc3671bd2e7.png",
+      "mimeType": "image/png",
+      "bytes": 1910392
+    },
+    {
+      "table": "categories",
+      "id": "3eb5dd6e-ce48-47e0-a501-6ae4feaf76d1",
+      "before": {
+        "icon_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1784904987/royallagn/categories/groom-wear.png"
+      },
+      "after": {
+        "icon_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/6fbfc005-d6a0-40fe-825c-f9201eaa6260.png"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1784904987/royallagn/categories/groom-wear.png",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/6fbfc005-d6a0-40fe-825c-f9201eaa6260.png",
+      "objectKey": "royallagn/general/service-role-migrations/6fbfc005-d6a0-40fe-825c-f9201eaa6260.png",
+      "mimeType": "image/png",
+      "bytes": 2310497
+    },
+    {
+      "table": "categories",
+      "id": "1df71632-ad8a-4348-825b-d6bcf10933b4",
+      "before": {
+        "icon_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1784905002/royallagn/categories/pre-wedding-shoot.png"
+      },
+      "after": {
+        "icon_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/d7bc069f-a9b5-43e3-b2a6-19b90e877f6f.png"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1784905002/royallagn/categories/pre-wedding-shoot.png",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/d7bc069f-a9b5-43e3-b2a6-19b90e877f6f.png",
+      "objectKey": "royallagn/general/service-role-migrations/d7bc069f-a9b5-43e3-b2a6-19b90e877f6f.png",
+      "mimeType": "image/png",
+      "bytes": 2082945
+    },
+    {
+      "table": "categories",
+      "id": "8b47d6d8-6fb9-4a87-a6a3-5d7a7cbad501",
+      "before": {
+        "icon_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1785138360/royallagn/category-icons-v3/wedding-bands.png"
+      },
+      "after": {
+        "icon_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/3e99f250-b8a6-48f8-96cc-3fdf501213fc.png"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1785138360/royallagn/category-icons-v3/wedding-bands.png",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/3e99f250-b8a6-48f8-96cc-3fdf501213fc.png",
+      "objectKey": "royallagn/general/service-role-migrations/3e99f250-b8a6-48f8-96cc-3fdf501213fc.png",
+      "mimeType": "image/png",
+      "bytes": 361631
+    },
+    {
+      "table": "profiles",
+      "id": "7697f772-11c0-4aa1-8a7c-f35698f32701",
+      "before": {
+        "profile_image": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788202359/royallagn/profiles/7697f772-11c0-4aa1-8a7c-f35698f32701/2ca368b5-6b79-491c-9395-1fd7e0e7ca79.png"
+      },
+      "after": {
+        "profile_image": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/28e22b2c-1a8a-4b6c-a6ba-614dd01d7c11.png"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788202359/royallagn/profiles/7697f772-11c0-4aa1-8a7c-f35698f32701/2ca368b5-6b79-491c-9395-1fd7e0e7ca79.png",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/28e22b2c-1a8a-4b6c-a6ba-614dd01d7c11.png",
+      "objectKey": "royallagn/general/service-role-migrations/28e22b2c-1a8a-4b6c-a6ba-614dd01d7c11.png",
+      "mimeType": "image/png",
+      "bytes": 724321
+    },
+    {
+      "table": "vendor_applications",
+      "id": "f74dcf81-3d7f-42f8-8051-0d8542c90460",
+      "before": {
+        "logo_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788511521/e31kiwccqn9qi0my1ohi.png"
+      },
+      "after": {
+        "logo_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/c726febe-0f26-496f-bfae-327ba462de86.png"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788511521/e31kiwccqn9qi0my1ohi.png",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/c726febe-0f26-496f-bfae-327ba462de86.png",
+      "objectKey": "royallagn/general/service-role-migrations/c726febe-0f26-496f-bfae-327ba462de86.png",
+      "mimeType": "image/png",
+      "bytes": 967698
+    },
+    {
+      "table": "vendor_applications",
+      "id": "f74dcf81-3d7f-42f8-8051-0d8542c90460",
+      "before": {
+        "cover_image_url": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788511570/inoejqqg7d4axll4omqd.jpg"
+      },
+      "after": {
+        "cover_image_url": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/14a4867a-186e-4e5e-ad6b-f5724bacc5a5.jpg"
+      },
+      "sourceUrl": "https://res.cloudinary.com/hp6vu8o9/image/upload/v1788511570/inoejqqg7d4axll4omqd.jpg",
+      "publicUrl": "https://royallagnmedia.b-cdn.net/royallagn/general/service-role-migrations/14a4867a-186e-4e5e-ad6b-f5724bacc5a5.jpg",
+      "objectKey": "royallagn/general/service-role-migrations/14a4867a-186e-4e5e-ad6b-f5724bacc5a5.jpg",
+      "mimeType": "image/jpeg",
+      "bytes": 199221
+    }
+  ]
+}

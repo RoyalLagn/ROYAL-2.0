@@ -9,7 +9,6 @@ import {
   Images,
   LogOut,
   MapPin,
-  Palette,
   Pencil,
   Settings,
   Sparkles,
@@ -19,7 +18,6 @@ import {
 } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
@@ -146,18 +144,6 @@ export default function VendorProfile() {
       </View>)}
       </View>
       <View style={wideWebLayout && styles.utilityWide}>
-      <View style={[styles.group, wideWebLayout && styles.utilityItemWide, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={styles.row}>
-          <View style={[styles.rowIcon, { backgroundColor: colors.surfaceSoft }]}>
-            <Palette size={19} color={colors.pink} />
-          </View>
-          <View style={styles.flex}>
-            <Text style={[styles.rowLabel, { color: colors.text }]}>Appearance</Text>
-            <Text style={[styles.rowDetail, { color: colors.muted }]}>Switch between light and dark mode</Text>
-          </View>
-          <ThemeToggle size={20} />
-        </View>
-      </View>
       <Pressable
         accessibilityRole="button"
         onPress={logout}

@@ -31,6 +31,9 @@
     "test:marketing-card-pdf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-marketing-card-pdf.mjs",
     "test:vendor-readiness": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-vendor-readiness.mjs",
     "test:smoke": "node scripts/run-smoke-tests.mjs",
+    "test:referral-e2e": "node scripts/test-referral-system-e2e.mjs",
+    "test:referral-withdrawals": "node scripts/test-referral-withdrawals-phase1.mjs",
+    "test:team-portal": "node scripts/test-team-portal-phase2.mjs",
     "sitemap:generate": "node scripts/generate-sitemap.mjs"
   },
   "engines": {
@@ -74,6 +77,7 @@
     "gsap": "^3.15.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
+    "jsqr": "^1.4.0",
     "lucide-react-native": "0.510.0",
     "nativewind": "4.2.1",
     "qrcode": "^1.5.4",

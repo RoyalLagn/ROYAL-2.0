@@ -24,7 +24,6 @@ export type SubscriptionBillingInterval = "month" | "year";
 
 export type SubscriptionFeatureKey =
   | "vendor_dashboard_actions"
-  | "upload_clips"
   | "edit_vendor_profile"
   | "upload_gallery"
   | "manage_albums"
@@ -32,7 +31,8 @@ export type SubscriptionFeatureKey =
   | "receive_enquiries"
   | "manage_reviews"
   | "featured_listing"
-  | "priority_support";
+  | "priority_support"
+  | "upload_clips";
 
 export type SubscriptionAccess = {
   vendor_id: string;
@@ -52,11 +52,11 @@ export type SubscriptionAccess = {
   days_remaining: number | null;
   has_access: boolean;
   access_reason: string;
-  clip_limit: number | null;
-  clip_usage: number | null;
-  clip_remaining: number | null;
-  clip_active: number;
-  clip_locked: number;
+  clip_limit?: number | null;
+  clip_usage?: number | null;
+  clip_remaining?: number | null;
+  clip_active?: number;
+  clip_locked?: number;
   photo_limit: number | null;
   photo_usage: number | null;
   photo_remaining: number | null;
@@ -114,9 +114,9 @@ export type SubscriptionPlan = {
   is_permanent: boolean;
   max_image_upload_mb: number;
   stored_image_target_mb: number;
-  max_clip_upload_mb: number | null;
-  stored_clip_target_mb: number | null;
-  clip_delivery_target_mb: number | null;
+  max_clip_upload_mb?: number | null;
+  stored_clip_target_mb?: number | null;
+  clip_delivery_target_mb?: number | null;
   billing_options: SubscriptionPlanBillingOption[];
   features: SubscriptionPlanFeature[];
 };

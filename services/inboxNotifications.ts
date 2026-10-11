@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from "@/services/supabase";
 
 export type CustomerInboxRow = {
@@ -25,6 +26,53 @@ export type VendorInboxRow = {
 };
 
 export const CustomerInboxService = {
+  async send(params: {
+    customerId: string;
+    type?: string;
+    title: string;
+    message: string;
+    targetPath?: string | null;
+    metadata?: Record<string, unknown>;
+  }) {
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.customerId);
+    const now = new Date().toISOString();
+    const id = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : ("notif_" + Date.now());
+
+    if (isUuid) {
+      try {
+        await supabase.from("customer_notifications").insert({
+          customer_id: params.customerId,
+          type: params.type || "booking_update",
+          title: params.title,
+          message: params.message,
+          target_path: params.targetPath || null,
+          metadata: params.metadata || {},
+        });
+      } catch (err) {
+        console.warn("Could not insert customer notification to Supabase", err);
+      }
+    }
+
+    try {
+      const storageKey = "@royal_customer_notifs_" + params.customerId;
+      const raw = await AsyncStorage.getItem(storageKey);
+      const existing: CustomerInboxRow[] = raw ? JSON.parse(raw) : [];
+      const newRow: CustomerInboxRow = {
+        id,
+        type: params.type || "booking_update",
+        title: params.title,
+        message: params.message,
+        target_path: params.targetPath || null,
+        is_read: false,
+        read_at: null,
+        created_at: now,
+      };
+      await AsyncStorage.setItem(storageKey, JSON.stringify([newRow, ...existing]));
+    } catch {
+      // ignore
+    }
+  },
+
   async list(customerId: string, limit = 100) {
     const { data, error } = await supabase
       .from("customer_notifications")

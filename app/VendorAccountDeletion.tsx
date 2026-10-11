@@ -75,7 +75,7 @@ export default function VendorAccountDeletion() {
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
       <Pressable onPress={() => router.back()} style={styles.back}><ArrowLeft size={18} color={colors.text} /><Text style={{ color: colors.text, fontWeight: "700" }}>Settings</Text></Pressable>
       <Text style={[styles.eyebrow, { color: colors.warning }]}>ACCOUNT CONTROL</Text><Text style={[styles.title, { color: colors.text }]}>Delete vendor account</Text>
-      <View style={[styles.warning, { backgroundColor: `${colors.warning}10`, borderColor: `${colors.warning}45` }]}><AlertTriangle size={22} color={colors.warning} /><Text style={[styles.warningText, { color: colors.text }]}>After Admin approval, the public profile, portfolio, clips, services and vendor workspace are permanently removed. This cannot be undone.</Text></View>
+      <View style={[styles.warning, { backgroundColor: `${colors.warning}10`, borderColor: `${colors.warning}45` }]}><AlertTriangle size={22} color={colors.warning} /><Text style={[styles.warningText, { color: colors.text }]}>After Admin approval, the public profile, portfolio, services and vendor workspace are permanently removed. This cannot be undone.</Text></View>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.section, { color: colors.text }]}>Vendor details</Text>
         {loading ? <ActivityIndicator color={colors.pink} /> : <>

@@ -1,9 +1,9 @@
 // ThemeProvider.tsx
 import { useColorScheme } from 'nativewind';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import { Platform, View } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { lightTheme, darkTheme } from '../theme';
+import { lightTheme } from '../theme';
 import { brandPalette } from '@/constants/brandPalette';
 
 interface ThemeProviderProps {
@@ -32,31 +32,30 @@ export function useAppTheme() {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { setColorScheme: setNativeWindColorScheme } = useColorScheme();
-  const [colorScheme, setColorScheme] = useState<AppColorScheme>('light');
+  const colorScheme: AppColorScheme = 'light';
 
   useEffect(() => {
-    const restoreTheme = async () => {
-      const saved = Platform.OS === 'web'
-        ? globalThis.localStorage?.getItem(THEME_KEY)
-        : await SecureStore.getItemAsync(THEME_KEY);
-      if (saved === 'light' || saved === 'dark') {
-        setColorScheme(saved);
+    // Purge obsolete theme preference if present to prevent any stale dark mode state
+    const cleanupStoredTheme = async () => {
+      try {
+        if (Platform.OS === 'web') {
+          globalThis.localStorage?.removeItem(THEME_KEY);
+        } else {
+          await SecureStore.deleteItemAsync(THEME_KEY);
+        }
+      } catch {
+        // Silently ignore if not found or restricted
       }
     };
-    restoreTheme().catch(() => undefined);
+    cleanupStoredTheme().catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    setNativeWindColorScheme(colorScheme);
-  }, [colorScheme, setNativeWindColorScheme]);
+    setNativeWindColorScheme('light');
+  }, [setNativeWindColorScheme]);
 
   const toggleColorScheme = useCallback(() => {
-    setColorScheme((current) => {
-      const next = current === 'dark' ? 'light' : 'dark';
-      if (Platform.OS === 'web') globalThis.localStorage?.setItem(THEME_KEY, next);
-      else SecureStore.setItemAsync(THEME_KEY, next).catch(() => undefined);
-      return next;
-    });
+    // No-op: Light mode is the permanent theme
   }, []);
 
   const contextValue = useMemo(
@@ -64,7 +63,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     [colorScheme, toggleColorScheme]
   );
 
-  const themeVars = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const themeVars = lightTheme;
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -76,15 +75,15 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       prev[key] = root.style.getPropertyValue(key);
       root.style.setProperty(key, String(value));
     }
-    root.classList.remove('light', 'dark');
-    if (colorScheme) root.classList.add(colorScheme);
+    root.classList.remove('dark');
+    root.classList.add('light');
     return () => {
       for (const key of Object.keys(vars)) {
         if (prev[key]) root.style.setProperty(key, prev[key]);
         else root.style.removeProperty(key);
       }
     };
-  }, [themeVars, colorScheme]);
+  }, [themeVars]);
 
   return (
     <AppThemeContext.Provider value={contextValue}>
@@ -93,12 +92,10 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
           themeVars,
           {
             flex: 1,
-            backgroundColor: colorScheme === 'dark'
-              ? brandPalette.dark.background
-              : brandPalette.light.background,
+            backgroundColor: brandPalette.light.background,
           },
         ]}
-        className={`${colorScheme} flex-1 bg-background`}
+        className="light flex-1 bg-background"
       >
         {children}
       </View>

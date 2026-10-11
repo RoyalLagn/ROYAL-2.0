@@ -5,7 +5,6 @@ import {
   Building2,
   CircleHelp,
   ClipboardCheck,
-  Clapperboard,
   CreditCard,
   FileBarChart,
   FileText,
@@ -15,8 +14,10 @@ import {
   MapPinned,
   PanelsTopLeft,
   Settings,
+  ShieldCheck,
   Star,
   Target,
+  Ticket,
   Users,
   WalletCards,
 } from "lucide-react-native";
@@ -24,15 +25,17 @@ import {
 export type AdminNavigationKey =
   | "dashboard"
   | "notifications"
+  | "team"
   | "approvals"
   | "vendors"
+  | "bookings"
   | "users"
-  | "clips"
   | "enquiries"
   | "reviews"
   | "subscriptions"
   | "payments"
   | "finance"
+  | "referrals"
   | "crm"
   | "hero"
   | "push"
@@ -62,10 +65,11 @@ export const adminNavigationGroups: { label: string; items: AdminNavigationItem[
   {
     label: "Operations",
     items: [
+      { key: "team", label: "Team Portal", route: "/team", icon: ShieldCheck },
+      { key: "bookings", label: "Direct Bookings", route: "/AdminBookings", icon: Ticket },
       { key: "approvals", label: "Approvals", route: "/VendorApplications", icon: ClipboardCheck },
       { key: "vendors", label: "Vendors", route: "/vendors-admin-listing", icon: Building2 },
       { key: "users", label: "Users", route: "/AdminUsers", icon: Users },
-      { key: "clips", label: "Clips", route: "/AdminClips", icon: Clapperboard },
       { key: "enquiries", label: "Enquiries", route: "/AdminEnquiries", icon: MessageSquareText },
       { key: "reviews", label: "Reviews", route: "/AdminReviews", icon: Star },
     ],
@@ -76,6 +80,7 @@ export const adminNavigationGroups: { label: string; items: AdminNavigationItem[
       { key: "subscriptions", label: "Subscriptions", route: "/subscriptions-admin", icon: WalletCards },
       { key: "payments", label: "Payments", route: "/payments-admin", icon: CreditCard },
       { key: "finance", label: "Finance", route: "/AdminFinance", icon: HandCoins },
+      { key: "referrals", label: "Referrals & Payouts", route: "/AdminReferrals", icon: WalletCards },
     ],
   },
   {

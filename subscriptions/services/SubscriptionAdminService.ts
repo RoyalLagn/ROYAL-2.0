@@ -98,7 +98,7 @@ export class SubscriptionAdminService {
       .order("display_order")
       .order("created_at");
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []).filter((plan: any) => ["free", "premium"].includes(plan.slug?.toLowerCase()));
   }
 
   static async savePlan(input: AdminPlanInput) {

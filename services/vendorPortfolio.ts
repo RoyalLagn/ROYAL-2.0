@@ -2,14 +2,41 @@ import { supabase } from "@/services/supabase";
 
 export const PORTFOLIO_LIMITS = {
   albums: 5,
-  mediaPerAlbum: 15,
+  mediaPerAlbum: 10,
   heroMin: 5,
   heroMax: 8,
-  imageBytes: 5 * 1024 * 1024,
+  imageBytes: 15 * 1024 * 1024,
   videoBytes: 25 * 1024 * 1024,
   videoWarningSeconds: 3 * 60,
   videoMaxSeconds: 4 * 60,
 } as const;
+
+export type PortfolioTierLimits = {
+  albums: number;
+  mediaPerAlbum: number;
+  totalMedia: number;
+};
+
+export function getPortfolioTierLimits(isPremiumOrPlanName?: boolean | string | null): PortfolioTierLimits {
+  const isPremium = typeof isPremiumOrPlanName === "boolean"
+    ? isPremiumOrPlanName
+    : Boolean(isPremiumOrPlanName && /premium/i.test(isPremiumOrPlanName));
+
+  if (isPremium) {
+    return {
+      albums: 5,
+      mediaPerAlbum: 10,
+      totalMedia: 50,
+    };
+  }
+
+  // Free Tier: 15 images total across 3 albums (5 images per album)
+  return {
+    albums: 3,
+    mediaPerAlbum: 5,
+    totalMedia: 15,
+  };
+}
 
 export type PortfolioProcessingStatus =
   | "uploading"

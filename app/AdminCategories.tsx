@@ -142,7 +142,7 @@ export default function AdminCategories() {
       setDeleteTarget(null);
       setDeleteUsage(null);
       await refresh();
-      Alert.alert("Category deleted", `"${name}" was permanently deleted. Any vendors, applications, clips or hero slides that referenced it keep all their data — only the category tag was removed.`);
+      Alert.alert("Category deleted", `"${name}" was permanently deleted. Any vendors, applications or hero slides that referenced it keep all their data — only the category tag was removed.`);
     } catch (caught) {
       // Keep the modal open on failure — never a false success.
       setDeleteError(describeCategoryError(caught, "Unable to delete this category. Try again."));
@@ -153,7 +153,6 @@ export default function AdminCategories() {
   const usageParts = deleteUsage ? [
     deleteUsage.vendors ? `${deleteUsage.vendors} vendor${deleteUsage.vendors === 1 ? "" : "s"}` : null,
     deleteUsage.vendorApplications ? `${deleteUsage.vendorApplications} pending application${deleteUsage.vendorApplications === 1 ? "" : "s"}` : null,
-    deleteUsage.clips ? `${deleteUsage.clips} clip${deleteUsage.clips === 1 ? "" : "s"}` : null,
     deleteUsage.heroSlides ? `${deleteUsage.heroSlides} hero slide${deleteUsage.heroSlides === 1 ? "" : "s"}` : null,
   ].filter(Boolean) as string[] : [];
   const availableWidth = gridWidth || width;

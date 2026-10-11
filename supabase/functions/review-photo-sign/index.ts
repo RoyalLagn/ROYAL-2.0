@@ -1,10 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { extensionForMime, presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+async function sha1(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-1", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -41,8 +46,42 @@ Deno.serve(async (request) => {
       throw new Error("Review photo optimization did not produce a valid upload file");
     }
 
-    const objectKey = `royallagn/reviews/${user.id}/${crypto.randomUUID()}.${extensionForMime(mimeType)}`;
-    return Response.json(await presignBunnyObject("PUT", objectKey), { headers: cors });
+    const folder = `royallagn/reviews/${user.id}`;
+    const assetId = crypto.randomUUID();
+    const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "hp6vu8o9";
+    const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
+    const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
+    const uploadPreset = Deno.env.get("CLOUDINARY_UPLOAD_PRESET") || Deno.env.get("EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET");
+
+    if (apiSecret && apiKey) {
+      const timestamp = Math.floor(Date.now() / 1000);
+      const params = {
+        folder,
+        overwrite: "false",
+        public_id: assetId,
+        timestamp,
+        unique_filename: "false",
+      };
+      const canonical = Object.entries(params).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join("&");
+      const signature = await sha1(`${canonical}${apiSecret}`);
+      return Response.json({
+        ...params,
+        provider: "cloudinary",
+        uploadMode: "signed",
+        signature,
+        apiKey,
+        cloudName,
+      }, { headers: cors });
+    }
+
+    return Response.json({
+      provider: "cloudinary",
+      uploadMode: "unsigned",
+      uploadPreset: uploadPreset || "royallagn_portfolio",
+      cloudName,
+      folder,
+      public_id: assetId,
+    }, { headers: cors });
 
   } catch (error) {
     return Response.json(

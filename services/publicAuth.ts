@@ -7,7 +7,9 @@ import {
   validatePassword,
   validatePhone,
 } from "@/utils/authValidation";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { clearRecoverySession } from "@/services/authRecoverySession";
+import { ReferralCommissionService, REFERRAL_STORAGE_KEY_CODE } from "@/services/referralCommission";
 
 export type PublicProfile = {
   id: string;
@@ -77,6 +79,10 @@ export async function resolvePublicLoginProfile(user: User) {
   if (!profile || profile.role !== "public_user") {
     throw new Error("This account is not a Public User account.");
   }
+
+  // Ensure customer has their unique referral profile provisioned
+  void ReferralCommissionService.ensureCustomerReferralProfile(profile.id).catch(() => undefined);
+
   return profile;
 }
 
@@ -206,6 +212,17 @@ export async function completePublicSignup(details: SignupDetails, password: str
     },
   });
   if (error) throw error;
+
+  // Check and attach stored pre-signup referral attribution
+  try {
+    const storedRefCode = await AsyncStorage.getItem(REFERRAL_STORAGE_KEY_CODE);
+    if (storedRefCode && storedRefCode.trim()) {
+      await ReferralCommissionService.attributeCustomer(profile.id, storedRefCode.trim(), "link");
+    }
+  } catch (refErr) {
+    console.warn("Could not attribute customer referral on signup:", refErr);
+  }
+
   return profile;
 }
 

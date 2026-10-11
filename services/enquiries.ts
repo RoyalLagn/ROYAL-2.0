@@ -6,12 +6,26 @@ import { requirePublicUser } from "@/services/requirePublicAuth";
 export { normalizeWhatsAppPhone } from "@/services/contactActions";
 
 export const ENQUIRY_STATUSES = [
-  "new", "contacted", "in_discussion", "quotation_sent", "follow_up",
-  "booked", "not_interested", "invalid_lead", "no_response", "closed",
+  "new",
+  "in_progress",
+  "customer_contacted",
+  "vendor_contacted",
+  "awaiting_confirmation",
+  "confirmed",
+  "closed",
+  "cancelled",
+  "contacted",
+  "in_discussion",
+  "quotation_sent",
+  "follow_up",
+  "booked",
+  "not_interested",
+  "invalid_lead",
+  "no_response",
 ] as const;
 export type EnquiryStatus = typeof ENQUIRY_STATUSES[number];
 export type EnquiryChannel = "call" | "whatsapp" | "form";
-export type EnquirySource = "vendor_profile" | "clip" | "portfolio" | "favorite" | "search" | "listing" | "package" | "other";
+export type EnquirySource = "vendor_profile" | "clip" | "portfolio" | "favorite" | "search" | "listing" | "package" | "admin_public" | "other";
 export type CustomerConfirmation = "pending" | "contacted" | "cancelled" | "closed";
 
 export type TrackedEnquiry = {
@@ -212,7 +226,7 @@ export const EnquiryService = {
     return create({
       vendorId: input.vendorId,
       channel: "form",
-      source: input.source ?? (input.packageId ? "package" : "vendor_profile"),
+      source: input.source || (input.packageId ? "package" : "vendor_profile"),
       sourceRecordId: input.sourceRecordId,
       packageId: input.packageId,
       eventDate: input.eventDate,
@@ -241,7 +255,7 @@ export const EnquiryService = {
   },
 
   async listVendor(vendorId: string): Promise<TrackedEnquiry[]> {
-    const { data, error } = await supabase.from("vendor_enquiries").select("*").eq("vendor_id", vendorId).order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("vendor_enquiries").select("*").eq("vendor_id", vendorId).eq("is_admin_only", false).neq("source_type", "admin_public").order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map(mapEnquiry);
   },
@@ -302,7 +316,25 @@ export const EnquiryService = {
 };
 
 export function enquiryStatusLabel(status: EnquiryStatus) {
-  return ({ new: "New", contacted: "Contacted", in_discussion: "In discussion", quotation_sent: "Quotation sent", follow_up: "Follow-up", booked: "Booked", not_interested: "Not interested", invalid_lead: "Invalid lead", no_response: "No response", closed: "Closed" } as Record<EnquiryStatus, string>)[status];
+  const map: Record<EnquiryStatus, string> = {
+    new: "New",
+    in_progress: "In Progress",
+    customer_contacted: "Customer Contacted",
+    vendor_contacted: "Vendor Contacted",
+    awaiting_confirmation: "Awaiting Confirmation",
+    confirmed: "Confirmed",
+    closed: "Closed",
+    cancelled: "Cancelled",
+    contacted: "Contacted",
+    in_discussion: "In Discussion",
+    quotation_sent: "Quotation Sent",
+    follow_up: "Follow-up",
+    booked: "Booked",
+    not_interested: "Not Interested",
+    invalid_lead: "Invalid Lead",
+    no_response: "No Response",
+  };
+  return map[status] || status;
 }
 
 export function enquirySourceLabel(source: EnquirySource) {

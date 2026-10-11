@@ -127,32 +127,24 @@ export function useVendorWorkspace() {
       if (isCurrent()) setData({ ...emptyWorkspace, vendor });
       const today = new Date().toISOString().slice(0, 10);
       const [
-        albums, media, heroMedia, availability, enquiries, notifications, reviews, services, subscription,
-        totalEnquiries, whatsappEnquiries, callEnquiries, openEnquiries, unreadNotifications, portfolioMedia, reviewSummary,
+        albums, media, heroMedia, availability, notifications, reviews, services, subscription,
+        unreadNotifications, portfolioMedia, reviewSummary,
       ] = await Promise.all([
         supabase.from("vendor_portfolio_albums").select("*").eq("vendor_id", vendor.id).order("display_order"),
         supabase.from("vendor_portfolio_media").select("*").eq("vendor_id", vendor.id).order("display_order"),
         supabase.from("vendor_portfolio_hero_media").select("*").eq("vendor_id", vendor.id).order("display_order"),
         supabase.from("vendor_availability").select("*").eq("vendor_id", vendor.id).gte("date", today).order("date").limit(12),
-        supabase.from("vendor_enquiries").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("vendor_notifications").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("reviews").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(20),
         supabase.from("vendor_services").select("*").eq("vendor_id", vendor.id).order("display_order").order("created_at"),
         supabase.from("subscriptions").select("*").eq("vendor_id", vendor.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("vendor_enquiries").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id),
-        supabase.from("vendor_enquiries").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id).eq("enquiry_channel", "whatsapp"),
-        supabase.from("vendor_enquiries").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id).eq("enquiry_channel", "call"),
-        supabase.from("vendor_enquiries").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id).neq("status", "closed").neq("status", "booked"),
         supabase.from("vendor_notifications").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id).eq("is_read", false),
         supabase.from("vendor_portfolio_media").select("id", { count: "exact", head: true }).eq("vendor_id", vendor.id),
         supabase.from("review_aggregates").select("average_rating,review_count").eq("vendor_key", vendor.id).maybeSingle(),
       ]);
       if (!isCurrent()) return;
-      // Album, availability, enquiry and notification tables are additive. Keep
-      // the existing Vendor UI usable while a deployment is still applying the
-      // new migration instead of failing the whole workspace.
       const failed = [
-        reviews, services, subscription, totalEnquiries, whatsappEnquiries, callEnquiries, openEnquiries, unreadNotifications, portfolioMedia, reviewSummary,
+        reviews, services, subscription, unreadNotifications, portfolioMedia, reviewSummary,
       ].find((result) => result.error);
       if (failed?.error) throw failed.error;
       const portfolioFailure = albums.error ?? media.error ?? heroMedia.error;
@@ -169,16 +161,16 @@ export function useVendorWorkspace() {
         media: media.data ?? [],
         heroMedia: heroMedia.data ?? [],
         availability: availability.data ?? [],
-        enquiries: enquiries.data ?? [],
+        enquiries: [],
         notifications: notifications.data ?? [],
         reviews: reviews.data ?? [],
         services: services.data ?? [],
         subscription: subscription.data ?? null,
         stats: {
-          totalEnquiries: totalEnquiries.count ?? 0,
-          whatsappEnquiries: whatsappEnquiries.count ?? 0,
-          callEnquiries: callEnquiries.count ?? 0,
-          openEnquiries: openEnquiries.count ?? 0,
+          totalEnquiries: 0,
+          whatsappEnquiries: 0,
+          callEnquiries: 0,
+          openEnquiries: 0,
           unreadNotifications: unreadNotifications.count ?? 0,
           portfolioMedia: portfolioMedia.count ?? 0,
           averageRating: Number(reviewSummary.data?.average_rating ?? 0),

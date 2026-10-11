@@ -16,6 +16,10 @@ export type DashboardStatistics = {
   todayReviews: number;
   incompleteVendorProfiles: number;
   expiredSubscriptions: number;
+  pendingBookings?: number;
+  totalBookings?: number;
+  pendingReferralVerifications?: number;
+  pendingReferralWithdrawals?: number;
 };
 
 export type RecentVendorApplication = {

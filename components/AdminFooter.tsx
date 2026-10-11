@@ -14,7 +14,7 @@ import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import { brandPalette } from "@/constants/brandPalette";
 import { floatingNavigationTokens } from "@/constants/navigationTokens";
 
-type TabKey = "dashboard" | "vendors" | "subscriptions" | "payments" | "finance" | "profile";
+type TabKey = "dashboard" | "vendors" | "subscriptions" | "payments" | "finance" | "profile" | "referrals";
 
 type TabItem = {
   key: TabKey;

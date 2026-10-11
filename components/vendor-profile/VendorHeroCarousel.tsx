@@ -202,7 +202,14 @@ function VendorHeroCarousel({
                   source={shownSource}
                   resizeMode={containMedia ? "contain" : "cover"}
                   accessibilityLabel={`${vendorName} gallery image ${sourceIndex + 1}`}
-                  onError={() => setFailed((current) => new Set(current).add(sourceIndex))}
+                  onError={() => {
+                    setFailed((current) => {
+                      if (current.has(sourceIndex)) return current;
+                      const next = new Set(current);
+                      next.add(sourceIndex);
+                      return next;
+                    });
+                  }}
                   style={[styles.image, focalStyle]}
                 />
               ) : null}

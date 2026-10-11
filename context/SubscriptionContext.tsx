@@ -2,8 +2,6 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { restoreSupabaseSession, supabase } from "@/services/supabase";
 import { SubscriptionAccessService } from "@/subscriptions/services/SubscriptionAccessService";
 import type { SubscriptionAccess, SubscriptionFeatureKey, SubscriptionOffer, SubscriptionPlan } from "@/subscriptions/types";
-import { ClipUploadService } from "@/clips/services";
-import { DEFAULT_CLIP_PLAN_LIMITS } from "@/clips/constants";
 import { subscriptionErrorMessage } from "@/subscriptions/error";
 
 type SubscriptionContextValue = {
@@ -66,7 +64,7 @@ export function SubscriptionProvider({ children }: React.PropsWithChildren) {
       // signed out between the readiness check above and the request
       // landing (e.g. a concurrent logout). Treat it like "no access"
       // instead of surfacing a scary error to a signed-out visitor.
-      if (!/does not exist|schema cache|PGRST20|PGRST301|JWT|401/i.test(message)) setError(message);
+      if (!/does not exist|schema cache|PGRST20|PGRST301|JWT|401|403|forbidden|permission denied/i.test(message)) setError(message);
     } finally {
       if (mounted.current && request === refreshRequest.current) setLoading(false);
     }
@@ -111,19 +109,6 @@ export function SubscriptionProvider({ children }: React.PropsWithChildren) {
   }, [refresh]);
 
   useEffect(() => SubscriptionAccessService.subscribeToPlanConfiguration(() => void refresh()), [refresh]);
-
-  useEffect(() => {
-    ClipUploadService.configureLimitResolver({
-      resolve: async () => {
-        const nextAccess = await SubscriptionAccessService.getCurrentAccess();
-        const nextPlans = await SubscriptionAccessService.listPlans();
-        const plan = nextPlans.find((candidate) => candidate.id === nextAccess?.plan_id);
-        const configured = plan?.features.find((feature) => feature.feature_key === "upload_clips")?.limit_value;
-        return { maximumClips: configured ?? DEFAULT_CLIP_PLAN_LIMITS.maximumClips };
-      },
-    });
-    return () => ClipUploadService.configureLimitResolver(null);
-  }, []);
 
   const hasFeature = useCallback(
     (feature: SubscriptionFeatureKey) => SubscriptionAccessService.hasFeature(access, plans, feature),

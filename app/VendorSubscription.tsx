@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Crown, Gift, Images, LockKeyhole, ReceiptText, Sparkles, Video } from "lucide-react-native";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Crown, Gift, Images, LockKeyhole, ReceiptText, Sparkles } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
@@ -198,7 +198,7 @@ export default function VendorSubscription() {
   const cancelSubscription = () => {
     Alert.alert(
       "Cancel subscription?",
-      "You'll keep full access until your current billing period ends, then move to the Free plan. Your Clips and photos are never deleted.",
+      "You'll keep full access until your current billing period ends, then move to the Free plan. Your photos are never deleted.",
       [{ text: "Keep plan", style: "cancel" }, {
         text: "Cancel subscription", style: "destructive", onPress: () => void (async () => {
           setCancelling(true);
@@ -225,7 +225,7 @@ export default function VendorSubscription() {
   const renewalWindow = isSubscriptionRenewalWindow(access, settings);
   const state = subscriptionStateCopy(access, settings);
   const scheduledChangeMessage = subscriptionScheduledChangeCopy(access);
-  const displayedPlans = plans.filter((plan) => plan.status === "active" || plan.status === "coming_soon");
+  const displayedPlans = plans.filter((plan) => (plan.status === "active" || plan.status === "coming_soon") && ["free", "premium"].includes(plan.slug?.toLowerCase()));
   const availableIntervals = (["month", "year"] as const).filter((interval) =>
     displayedPlans.some((plan) => plan.billing_options.some((option) => option.billing_interval === interval)),
   );
@@ -261,9 +261,8 @@ export default function VendorSubscription() {
           {showAccountNotice ? <View style={[styles.stateNotice, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.stateMessage, { color: colors.text }]}>{state.message}</Text></View> : null}
           {scheduledChangeMessage ? <View style={[styles.stateNotice, { backgroundColor: colors.surfaceSoft }]}><Text style={[styles.stateMessage, { color: colors.text }]}>{scheduledChangeMessage}</Text></View> : null}
           <View style={[styles.usagePanel, { borderTopColor: premiumCurrent ? "rgba(242,204,120,0.2)" : colors.border }]}>
-            <View style={styles.usageRow}><Video size={16} color={premiumCurrent ? currentGold : colors.pink} /><Text style={[styles.usageLabel, { color: currentText }]}>Clips</Text><Text style={[styles.usageValue, { color: currentMuted }]}>{access?.clip_active ?? 0} active · {access?.clip_usage ?? 0} total / {access?.clip_limit ?? "—"}</Text></View>
             <View style={styles.usageRow}><Images size={16} color={premiumCurrent ? currentGold : colors.pink} /><Text style={[styles.usageLabel, { color: currentText }]}>Photos</Text><Text style={[styles.usageValue, { color: currentMuted }]}>{access?.photo_active ?? 0} active · {access?.photo_usage ?? 0} total / {access?.photo_limit ?? "—"}</Text></View>
-            {(access?.clip_locked || access?.photo_locked) ? <View style={[styles.lockNotice, { backgroundColor: colors.surfaceSoft }]}><LockKeyhole size={15} color={colors.warning} /><Text style={[styles.lockText, { color: colors.text }]}>{access.clip_locked || 0} Clips and {access.photo_locked || 0} photos are locked by your current plan. Upgrade to unlock more; nothing has been deleted.</Text></View> : null}
+            {access?.photo_locked ? <View style={[styles.lockNotice, { backgroundColor: colors.surfaceSoft }]}><LockKeyhole size={15} color={colors.warning} /><Text style={[styles.lockText, { color: colors.text }]}>{access.photo_locked} photos are locked by your current plan. Upgrade to unlock more; nothing has been deleted.</Text></View> : null}
           </View>
           <View style={styles.accountActions}><Pressable onPress={() => router.push("/VendorPaymentHistory")} style={[styles.historyLink, { backgroundColor: premiumCurrent ? "rgba(255,255,255,0.08)" : colors.surfaceSoft }]}><ReceiptText size={17} color={premiumCurrent ? currentGold : colors.pink} /><Text style={[styles.historyText, { color: currentText }]}>Payment history</Text><ChevronRight size={17} color={currentMuted} /></Pressable>
           {canCancel ? <Pressable disabled={cancelling} onPress={cancelSubscription} style={[styles.historyLink, { backgroundColor: premiumCurrent ? "rgba(255,255,255,0.08)" : colors.surfaceSoft }]}>{cancelling ? <ActivityIndicator color={colors.pink} /> : <><Text style={[styles.historyText, { color: premiumCurrent ? currentMuted : colors.warning }]}>Cancel subscription</Text><View style={{ flex: 1 }} /></>}</Pressable> : null}</View>
@@ -361,7 +360,6 @@ export default function VendorSubscription() {
               {/* Description */}
               <Text style={[styles.planDescription, { color: colors.muted }]}>{plan.description}</Text>
               <Text style={[styles.mediaPolicy, { color: colors.muted }]}>Images: {plan.features.find((feature) => feature.feature_key === "upload_gallery" && feature.is_enabled)?.limit_value ?? 0} · up to {plan.max_image_upload_mb} MB each · stored target ≤ {plan.stored_image_target_mb} MB</Text>
-              <Text style={[styles.mediaPolicy, { color: colors.muted }]}>{plan.max_clip_upload_mb ? `Clips: ${plan.features.find((feature) => feature.feature_key === "upload_clips" && feature.is_enabled)?.limit_value ?? 0} · up to ${plan.max_clip_upload_mb} MB each · stored target ≤ ${plan.stored_clip_target_mb} MB · ~${plan.clip_delivery_target_mb} MB/view` : "Clips: Not included"}</Text>
 
               <View style={[styles.divider, { borderTopColor: colors.border }]} />
 

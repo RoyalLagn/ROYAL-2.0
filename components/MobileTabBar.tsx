@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useRouter } from "expo-router";
-import { Clapperboard, Grid3X3, Heart, Home, User } from "lucide-react-native";
+import { Gift, Grid3X3, Heart, Home, Ticket, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   interpolate,
@@ -30,35 +30,37 @@ import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
 import { brandPalette } from "@/constants/brandPalette";
 import { floatingNavigationColors, floatingNavigationTokens } from "@/constants/navigationTokens";
 
-const CENTER_ROUTE = "clips";
+const CENTER_ROUTE = "referral";
 const TAB_COUNT = 5;
 const PUBLIC_TAB_BASE_HEIGHT = 54;
 const CUSTOMER_TAB_ROUTES = new Set([
   "index",
   "Categories",
-  "clips",
-  "favorites",
+  "referral",
+  "bookings",
   "profile",
 ]);
 const STANDALONE_TABS = [
   { routeName: "index", label: "Home", href: "/(tabs)" },
   { routeName: "Categories", label: "Category", href: "/Categories" },
-  { routeName: "clips", label: "Clips", href: "/(tabs)/clips" },
-  { routeName: "favorites", label: "Favorites", href: "/(tabs)/favorites" },
+  { routeName: "referral", label: "Referral", href: "/(tabs)/referral" },
+  { routeName: "bookings", label: "Bookings", href: "/(tabs)/bookings" },
   { routeName: "profile", label: "Profile", href: "/(tabs)/profile" },
 ] as const;
 
 const AnimatedGrid = Animated.createAnimatedComponent(Grid3X3);
 const AnimatedHeart = Animated.createAnimatedComponent(Heart);
 const AnimatedHome = Animated.createAnimatedComponent(Home);
-const AnimatedClapperboard = Animated.createAnimatedComponent(Clapperboard);
+const AnimatedGift = Animated.createAnimatedComponent(Gift);
 const AnimatedUser = Animated.createAnimatedComponent(User);
+const AnimatedTicket = Animated.createAnimatedComponent(Ticket);
 
 const ICONS: Record<string, React.ComponentType<any>> = {
   Categories: AnimatedGrid,
+  bookings: AnimatedTicket,
   favorites: AnimatedHeart,
   index: AnimatedHome,
-  clips: AnimatedClapperboard,
+  referral: AnimatedGift,
   profile: AnimatedUser,
 };
 
@@ -143,26 +145,32 @@ function AnimatedTab({
   }));
 
   const labelStyle = useAnimatedStyle<TextStyle>(() => ({
-    color: interpolateColor(active.value, [0, 1], [inactiveColor, activeColor]),
+    color: isCenter
+      ? "#E91E63"
+      : interpolateColor(active.value, [0, 1], [inactiveColor, activeColor]),
   }));
 
   const circleStyle = useAnimatedStyle<ViewStyle>(() => ({
-    backgroundColor: interpolateColor(
-      active.value,
-      [0, 1],
-      [
-        isDark
-          ? floatingNavigationTokens.centerInactiveDark
-          : floatingNavigationTokens.centerInactiveLight,
-        activeColor,
-      ],
-    ),
-    shadowOpacity: interpolate(active.value, [0, 1], [0.2, 0.32]),
+    backgroundColor: isCenter
+      ? "#E91E63"
+      : interpolateColor(
+          active.value,
+          [0, 1],
+          [
+            isDark
+              ? floatingNavigationTokens.centerInactiveDark
+              : floatingNavigationTokens.centerInactiveLight,
+            activeColor,
+          ],
+        ),
+    shadowOpacity: isCenter
+      ? interpolate(active.value, [0, 1], [0.35, 0.5])
+      : interpolate(active.value, [0, 1], [0.2, 0.32]),
   }));
 
   const iconProps = useAnimatedProps(() => ({
     color: isCenter
-      ? brandPalette.light.primaryForeground
+      ? "#FFFFFF"
       : isFavorites && arrival.value > 0.01
         ? activeColor
         : interpolateColor(active.value, [0, 1], [inactiveColor, activeColor]),
@@ -198,7 +206,7 @@ function AnimatedTab({
       {isCenter ? (
         <Animated.View style={[styles.homeVisual, visualStyle]}>
           <Animated.View style={[styles.homeCircle, circleStyle]}>
-            <Icon animatedProps={iconProps} size={19} strokeWidth={2.35} />
+            <Icon animatedProps={iconProps} size={21} strokeWidth={2.4} color="#FFFFFF" />
           </Animated.View>
         </Animated.View>
       ) : (
@@ -279,13 +287,13 @@ export function MobileTabBar({
   }, [activeIndex, reducedMotion, selectedIndex]);
 
   const indicatorStyle = useAnimatedStyle<ViewStyle>(() => {
-    const itemWidth = itemsWidth / TAB_COUNT;
+    const tabCount = orderedRoutes.length || TAB_COUNT;
+    const itemWidth = itemsWidth / tabCount;
+    const isCenterActive = selectedIndex === centerIndex;
     return {
-      width: Math.max(0, itemWidth - 10),
-      opacity: selectedIndex < 0
-        ? 0
-        : Math.min(1, Math.abs(activeIndex.value - centerIndex) * 2.5),
-      transform: [{ translateX: activeIndex.value * itemWidth + 5 }],
+      width: Math.max(0, itemWidth - 8),
+      opacity: selectedIndex < 0 || isCenterActive ? 0 : 1,
+      transform: [{ translateX: activeIndex.value * itemWidth + 4 }],
     };
   }, [centerIndex, itemsWidth, selectedIndex]);
 
@@ -406,11 +414,13 @@ export function StandaloneMobileTabBar({
   }, [activeIndex, reducedMotion, selectedIndex]);
 
   const indicatorStyle = useAnimatedStyle<ViewStyle>(() => {
-    const itemWidth = itemsWidth / TAB_COUNT;
+    const tabCount = STANDALONE_TABS.length || TAB_COUNT;
+    const itemWidth = itemsWidth / tabCount;
+    const isCenterActive = STANDALONE_TABS[selectedIndex]?.routeName === CENTER_ROUTE;
     return {
-      width: Math.max(0, itemWidth - 10),
-      opacity: selectedIndex < 0 ? 0 : Math.min(1, Math.abs(activeIndex.value - 2) * 2.5),
-      transform: [{ translateX: Math.max(0, activeIndex.value) * itemWidth + 5 }],
+      width: Math.max(0, itemWidth - 8),
+      opacity: selectedIndex < 0 || isCenterActive ? 0 : 1,
+      transform: [{ translateX: Math.max(0, activeIndex.value) * itemWidth + 4 }],
     };
   }, [itemsWidth, selectedIndex]);
 
@@ -545,24 +555,26 @@ const styles = StyleSheet.create({
     backgroundColor: floatingNavigationTokens.customerTabs.light.active,
   },
   homeVisual: {
-    width: 40,
-    height: 37,
-    marginTop: 2,
+    width: 44,
+    height: 40,
+    marginTop: -14,
     alignItems: "center",
     justifyContent: "center",
   },
   homeCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: brandPalette.light.primaryForeground,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2.5,
+    borderColor: "#FFFFFF",
+    backgroundColor: "#E91E63",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: floatingNavigationTokens.customerTabs.light.active,
-    shadowRadius: 11,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 9,
+    shadowColor: "#E91E63",
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.38,
+    elevation: 10,
   },
   label: {
     width: "100%",
@@ -575,7 +587,9 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   homeLabel: {
-    marginTop: 0,
+    marginTop: 2,
+    color: "#E91E63",
+    fontWeight: "700",
   },
   activeLabel: {
     fontWeight: "700",

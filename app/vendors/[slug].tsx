@@ -3,44 +3,38 @@ import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TextI
 // NativeWind's native Pressable interop doesn't resolve a function
 // `style={(state) => [...]}` prop on Android (whole style silently drops).
 // InteropSafePressable resolves it first. See VendorCalendar.tsx /
-// AppDialogProvider.tsx / VendorProfileTabs.tsx for the same fix.
+// AppDialogProvider.tsx for the same fix.
 import Pressable from "@/components/InteropSafePressable";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useColorScheme } from "nativewind";
 import { Briefcase, ChevronRight, Send, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { PublicClip } from "@/clips/types";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
-import { PublicClipService } from "@/clips/services";
 import { useFavorites } from "@/context/FavoritesContext";
 import PageLoader from "@/components/loading/PageLoader";
 import PublicWebNavbar from "@/components/PublicWebNavbar";
 import { StandaloneMobileTabBar, useMobileTabBarHeight } from "@/components/MobileTabBar";
 import type { FavoriteSourceRef } from "@/context/FavoritesContext";
 import PackagesCard from "@/components/vendor-profile/PackagesCard";
+import VendorDirectBookingSection from "@/components/vendor-profile/VendorDirectBookingSection";
+import { useVendorPackages } from "@/hooks/useVendorPackages";
+import type { BookingAddOn } from "@/services/vendorBookings";
 import PackageDetailsModal from "@/components/packages/PackageDetailsModal";
+import BookingCheckoutModal from "@/components/booking/BookingCheckoutModal";
 import FullscreenMediaViewer from "@/components/vendor-profile/FullscreenMediaViewer";
 import PortfolioAlbums from "@/components/vendor-profile/PortfolioAlbums";
 import ServiceChips from "@/components/vendor-profile/ServiceChips";
 import VendorHeroCarousel from "@/components/vendor-profile/VendorHeroCarousel";
 import PinnedHeroProfileLayout from "@/components/vendor-profile/PinnedHeroProfileLayout";
 import VendorInfoPanel from "@/components/vendor-profile/VendorInfoPanel";
-import VendorQuickActions from "@/components/vendor-profile/VendorQuickActions";
 import VendorAvailabilityModal from "@/components/vendor-profile/VendorAvailabilityModal";
-import VendorClipsGrid from "@/components/vendor-profile/VendorClipsGrid";
-import VendorClipsComingSoon from "@/components/vendor-profile/VendorClipsComingSoon";
-import VendorClipsReelViewer from "@/components/vendor-profile/VendorClipsReelViewer";
-import VendorProfileTabs, {
-  type VendorProfileTab,
-} from "@/components/vendor-profile/VendorProfileTabs";
 import ConnectedVendorReviews from "@/components/reviews/ConnectedVendorReviews";
 import AwardsSection from "@/components/vendor-profile/AwardsSection";
 import LanguagesSection from "@/components/vendor-profile/LanguagesSection";
 import BusinessHoursSection from "@/components/vendor-profile/BusinessHoursSection";
 import FaqSection from "@/components/vendor-profile/FaqSection";
 import DownloadAppPopup from "@/components/vendor-profile/DownloadAppPopup";
-import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
+import CustomerEnquiryModal from "@/components/vendor-profile/CustomerEnquiryModal";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { recordPublicVendorProfileView } from "@/services/publicVendorListings";
@@ -59,7 +53,6 @@ import { resolveTrafficSource } from "@/services/trafficSource";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { brandPalette } from "@/constants/brandPalette";
 import { buildVendorProfilePathBySlug, vendorWebBase } from "@/services/contactActions";
-import { usePublicClipsAvailability } from "@/hooks/usePublicClipsAvailability";
 import { isNativeTabletDevice, isNativeTabletWindow, isPublicWideLayout } from "@/utils/responsiveLayout";
 
 const PINK = brandPalette.light.primary;
@@ -108,18 +101,23 @@ export default function VendorPublicProfileScreen() {
   const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [packagesVisible, setPackagesVisible] = useState(false);
+  const [bookingPackage, setBookingPackage] = useState<VendorPackage | null>(null);
+  const { packages: vendorPackages, loading: loadingPackages } = useVendorPackages(vendor?.id, true);
+  const [bookingCheckoutOpen, setBookingCheckoutOpen] = useState(false);
+  const [bookingData, setBookingData] = useState<{
+    selectedPackages: VendorPackage[];
+    selectedAddOns: Record<string, BookingAddOn>;
+    startDate: string;
+    endDate: string;
+    totalDays: number;
+    financials: {
+      totalAmount: number;
+      advanceAmount: number;
+      dueAmount: number;
+    };
+  } | null>(null);
   const [enquiryPackage, setEnquiryPackage] = useState<VendorPackage | null>(null);
-  const [selectedTab, setSelectedTab] = useState<VendorProfileTab>("portfolio");
-  const [vendorClips, setVendorClips] = useState<PublicClip[]>([]);
-  const [clipsLoading, setClipsLoading] = useState(false);
-  const [clipsError, setClipsError] = useState("");
-  const [clipsReloadKey, setClipsReloadKey] = useState(0);
-  const [reelViewerIndex, setReelViewerIndex] = useState<number | null>(null);
-  const publicClipsEnabled = usePublicClipsAvailability();
   const [enquiryOpen, setEnquiryOpen] = useState(false);
-  const [enquiryMessage, setEnquiryMessage] = useState("");
-  const [enquiryStatus, setEnquiryStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [enquiryError, setEnquiryError] = useState("");
   const contactPromptVisible = useRef(false);
   const contactOpening = useRef(false);
 
@@ -158,49 +156,9 @@ export default function VendorPublicProfileScreen() {
     });
   }, [explicitSource, vendor?.id]);
 
-  useEffect(() => {
-    if (!vendor?.id) return;
-    let active = true;
-    setSelectedTab("portfolio");
-    void AsyncStorage.getItem(`royallagn:vendor-profile-tab:${vendor.id}`)
-      .then((saved) => {
-        if (active && (saved === "portfolio" || saved === "clips")) setSelectedTab(saved);
-      })
-      .catch(() => {
-        // The in-memory selection still works when local persistence is unavailable.
-      });
-    return () => {
-      active = false;
-    };
-  }, [vendor?.id]);
 
-  useEffect(() => {
-    if (!vendor?.id || publicClipsEnabled !== true) {
-      setVendorClips([]);
-      setClipsLoading(false);
-      setClipsError("");
-      setReelViewerIndex(null);
-      return;
-    }
-    let active = true;
-    setClipsLoading(true);
-    setClipsError("");
-    void PublicClipService.listVendor(vendor.id)
-      .then((clips) => {
-        if (active) setVendorClips(clips);
-      })
-      .catch((error) => {
-        if (!active) return;
-        setVendorClips([]);
-        setClipsError(error instanceof Error ? error.message : "Unable to load this vendor's Clips.");
-      })
-      .finally(() => {
-        if (active) setClipsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [clipsReloadKey, publicClipsEnabled, vendor?.id]);
+
+
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined" || !vendor) return;
@@ -331,12 +289,6 @@ export default function VendorPublicProfileScreen() {
     ? vendorDescription
     : `${vendor.name} is a verified ${category.toLowerCase()} professional serving ${vendor.location}. Explore their services, portfolio and customer reviews to find the right fit for your celebration.`;
   const aboutCopy = expanded || about.length <= 180 ? about : `${about.slice(0, 177).trim()}…`;
-  const selectProfileTab = (tab: VendorProfileTab) => {
-    setSelectedTab(tab);
-    void AsyncStorage.setItem(`royallagn:vendor-profile-tab:${vendor.id}`, tab).catch(() => {
-      // Persisting the selected tab is an enhancement, not a navigation dependency.
-    });
-  };
   const favorite = isFavorite(vendor.id);
   const toggleVendorFavorite = (source: FavoriteSourceRef) => toggleFavorite({
     id: vendor.id,
@@ -430,32 +382,11 @@ export default function VendorPublicProfileScreen() {
   };
 
   const openEnquiry = (item?: VendorPackage) => {
-    if (!isPublicAuthenticated) {
-      setEnquiryOpen(false);
-      setEnquiryPackage(null);
-      router.push("/Login");
-      return;
-    }
-    if (!profile?.email || !profile?.phone) {
-      setEnquiryOpen(false);
-      setEnquiryPackage(null);
-      Alert.alert("Complete your contact details", "Add your email and mobile number to your RoyalLagn profile before sending an enquiry.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Update profile", onPress: () => router.push("/EditProfile") },
-      ]);
-      return;
-    }
     setEnquiryPackage(item ?? null);
-    setEnquiryMessage(item
-      ? `Hi ${vendor.name}, I would like more details and availability for the ${item.title} package.`
-      : "");
-    setEnquiryError("");
-    setEnquiryStatus("idle");
     setEnquiryOpen(true);
   };
 
   const closeEnquiry = () => {
-    if (enquiryStatus === "sending") return;
     setEnquiryOpen(false);
     setEnquiryPackage(null);
   };
@@ -469,16 +400,8 @@ export default function VendorPublicProfileScreen() {
     />
   );
 
-  const profileTabs = (
-    <VendorProfileTabs
-      selected={selectedTab}
-      dark={dark}
-      onChange={selectProfileTab}
-    />
-  );
-
-  const portfolioOrClips = selectedTab === "portfolio" ? (
-    vendor.portfolioAlbums.length ? <View style={styles.portfolioSection}>
+  const portfolioSection = vendor.portfolioAlbums.length ? (
+    <View style={styles.portfolioSection}>
       <SectionErrorBoundary label="Portfolio" key={`portfolio-${vendor.id}`}>
         <PortfolioAlbums
           albums={vendor.portfolioAlbums}
@@ -490,21 +413,8 @@ export default function VendorPublicProfileScreen() {
           })}
         />
       </SectionErrorBoundary>
-    </View> : null
-  ) : (
-    <SectionErrorBoundary label="Clips" key={`clips-${vendor.id}`}>
-      {publicClipsEnabled === true ? (
-        <VendorClipsGrid
-          clips={vendorClips}
-          loading={clipsLoading}
-          error={clipsError}
-          dark={dark}
-          onOpen={setReelViewerIndex}
-          onRetry={() => setClipsReloadKey((current) => current + 1)}
-        />
-      ) : <VendorClipsComingSoon dark={dark} loading={publicClipsEnabled === null} />}
-    </SectionErrorBoundary>
-  );
+    </View>
+  ) : null;
 
   const aboutSection = (
     <View style={[styles.sectionCard, sectionCardStyle]}>
@@ -546,47 +456,6 @@ export default function VendorPublicProfileScreen() {
 
   const reviewsSection = <View style={[styles.sectionCard, styles.reviewsSection, sectionCardStyle]}><ConnectedVendorReviews vendorKey={vendor.id} vendorSlug={vendor.slug} dark={dark} /></View>;
 
-  const handleSendEnquiry = async () => {
-    if (!isPublicAuthenticated) {
-      setEnquiryOpen(false);
-      setEnquiryPackage(null);
-      router.push("/Login");
-      return;
-    }
-    if (!profile?.email || !profile?.phone) {
-      setEnquiryOpen(false);
-      setEnquiryPackage(null);
-      Alert.alert("Complete your contact details", "Add your email and mobile number to your RoyalLagn profile before sending an enquiry.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Update profile", onPress: () => router.push("/EditProfile") },
-      ]);
-      return;
-    }
-    if (enquiryMessage.trim().length < 10) {
-      setEnquiryError("Please add a short message of at least 10 characters.");
-      return;
-    }
-    setEnquiryStatus("sending");
-    setEnquiryError("");
-    try {
-      const tracked = await EnquiryService.createFormEnquiry({
-        vendorId: vendor.id,
-        message: enquiryMessage,
-        packageId: enquiryPackage?.id,
-        source: enquiryPackage ? "package" : "vendor_profile",
-        sourceRecordId: enquiryPackage?.id,
-      });
-      void recordVendorProfileEvent(vendor.id, "enquiry").catch(() => {});
-      setEnquiryStatus("idle");
-      setEnquiryMessage("");
-      setEnquiryOpen(false);
-      setEnquiryPackage(null);
-      Alert.alert("Enquiry sent", `${vendor.name} received your enquiry. Reference: ${tracked.referenceCode}`);
-    } catch (cause) {
-      setEnquiryStatus("error");
-      setEnquiryError(cause instanceof Error ? cause.message : "The enquiry could not be sent.");
-    }
-  };
 
   // Wide web and tablet windows share the editorial split composition. Phone
   // windows keep the original touch-first, single-column path below.
@@ -637,17 +506,24 @@ export default function VendorPublicProfileScreen() {
               onShare={() => void shareProfile()}
               membershipPlan={vendor.membershipPlan}
               overlap={false}
-            >
-              <VendorQuickActions
+            />
+            <View style={styles.desktopDetailSection}>
+              <VendorDirectBookingSection
+                vendorId={vendor.id}
+                vendorName={vendor.name}
+                vendorCategory={category}
+                packages={vendorPackages}
+                loadingPackages={loadingPackages}
                 dark={dark}
-                onCall={() => requestVendorContact("call")}
-                onWhatsApp={() => requestVendorContact("whatsapp")}
-                onEnquire={() => openEnquiry()}
-                onCalendar={() => setCalendarVisible(true)}
+                onCheckAvailability={() => setCalendarVisible(true)}
+                onSendEnquiry={() => openEnquiry()}
+                onProceedToBook={(data) => {
+                  setBookingData(data);
+                  setBookingCheckoutOpen(true);
+                }}
               />
-            </VendorInfoPanel>
-            <View style={styles.desktopDetailSection}>{packagesCard}</View>
-            <View style={styles.desktopProfileMedia}>{profileTabs}{portfolioOrClips}</View>
+            </View>
+            <View style={styles.desktopProfileMedia}>{portfolioSection}</View>
             <View style={[styles.desktopDetailSection, styles.desktopEditorialSection]}>{aboutSection}</View>
             <View style={[styles.desktopDetailSection, styles.desktopEditorialSection]}>{businessDetails}</View>
             <View style={[styles.desktopDetailSection, styles.desktopEditorialSection]}>{reviewsSection}</View>
@@ -671,9 +547,49 @@ export default function VendorPublicProfileScreen() {
           onCall={(item) => { setPackagesVisible(false); setTimeout(() => requestVendorContact("call", item), 0); }}
           onWhatsApp={(item) => { setPackagesVisible(false); setTimeout(() => requestVendorContact("whatsapp", item), 0); }}
           onEnquire={(item) => { setPackagesVisible(false); setTimeout(() => openEnquiry(item), 0); }}
+          onBook={(item) => { setPackagesVisible(false); setTimeout(() => setBookingPackage(item), 0); }}
         /> : null}
+        {bookingCheckoutOpen && bookingData ? (
+          <BookingCheckoutModal
+            visible
+            vendorId={vendor.id}
+            vendorName={vendor.name}
+            vendorPhone={vendor.contactPhone}
+            vendorImage={vendor.heroMedia[0]?.secure_url || vendor.image || null}
+            vendorCategory={category}
+            selectedPackages={bookingData.selectedPackages}
+            initialAddOns={bookingData.selectedAddOns}
+            initialStartDate={bookingData.startDate}
+            initialEndDate={bookingData.endDate}
+            initialTotalDays={bookingData.totalDays}
+            dark={dark}
+            onClose={() => {
+              setBookingCheckoutOpen(false);
+              setBookingData(null);
+            }}
+          />
+        ) : null}
+        {bookingPackage ? <BookingCheckoutModal
+          visible
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          vendorPhone={vendor.contactPhone}
+          vendorImage={vendor.heroMedia[0]?.secure_url || vendor.image || null}
+          vendorCategory={category}
+          selectedPackage={bookingPackage}
+          dark={dark}
+          onClose={() => setBookingPackage(null)}
+        /> : null}
+        <CustomerEnquiryModal
+          visible={enquiryOpen}
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          vendorCategory={category}
+          selectedPackage={enquiryPackage}
+          dark={dark}
+          onClose={closeEnquiry}
+        />
         <VendorAvailabilityModal visible={calendarVisible} vendorId={vendor.id} vendorName={vendor.name} availability={vendor.availability} dark={dark} onClose={() => setCalendarVisible(false)} />
-        {publicClipsEnabled === true ? <VendorClipsReelViewer visible={reelViewerIndex !== null} clips={vendorClips} initialIndex={reelViewerIndex ?? 0} vendorName={vendor.name} verified onClose={() => setReelViewerIndex(null)} /> : null}
         <DownloadAppPopup dark={dark} />
         {tabletProfile ? <StandaloneMobileTabBar activeRoute={null} /> : null}
       </View>
@@ -719,20 +635,24 @@ export default function VendorPublicProfileScreen() {
             onShare={() => void shareProfile()}
             membershipPlan={vendor.membershipPlan}
             overlap={false}
-        >
-          <VendorQuickActions
-            dark={dark}
-            onCall={() => requestVendorContact("call")}
-            onWhatsApp={() => requestVendorContact("whatsapp")}
-            onEnquire={() => openEnquiry()}
-            onCalendar={() => setCalendarVisible(true)}
           />
-        </VendorInfoPanel>
 
         <View style={[styles.content, width < 600 && styles.contentCompact]}>
-          {packagesCard}
-          {profileTabs}
-          {portfolioOrClips}
+          <VendorDirectBookingSection
+            vendorId={vendor.id}
+            vendorName={vendor.name}
+            vendorCategory={category}
+            packages={vendorPackages}
+            loadingPackages={loadingPackages}
+            dark={dark}
+            onCheckAvailability={() => setCalendarVisible(true)}
+            onSendEnquiry={() => openEnquiry()}
+            onProceedToBook={(data) => {
+              setBookingData(data);
+              setBookingCheckoutOpen(true);
+            }}
+          />
+          {portfolioSection}
           {aboutSection}
           {businessDetails}
           {reviewsSection}
@@ -766,35 +686,54 @@ export default function VendorPublicProfileScreen() {
             setPackagesVisible(false);
             setTimeout(() => openEnquiry(item), 0);
           }}
+          onBook={(item) => {
+            setPackagesVisible(false);
+            setTimeout(() => setBookingPackage(item), 0);
+          }}
         />
       ) : null}
-      <AnimatedBottomSheet
-        visible={enquiryOpen}
-        onRequestClose={closeEnquiry}
-        variant={width >= 700 ? "center" : "sheet"}
-        keyboardAware
-        sheetStyle={[styles.enquirySheet, width >= 700 && styles.enquirySheetDesktop, { backgroundColor: surface, borderColor: sectionDivider }]}
-      >
-        <View style={styles.enquiryHeader}>
-          <View style={styles.enquiryIcon}><Send size={20} color={PINK} /></View>
-          <View style={styles.enquiryHeaderCopy}><Text style={[styles.enquiryTitle, { color: text }]}>Send Enquiry</Text><Text numberOfLines={1} style={[styles.enquirySubtitle, { color: muted }]}>Tell {vendor.name} what you need</Text></View>
-          <Pressable disabled={enquiryStatus === "sending"} onPress={closeEnquiry} accessibilityLabel="Close enquiry" style={[styles.enquiryClose, { backgroundColor: background }]}><X size={20} color={text} /></Pressable>
-        </View>
-        <Text style={[styles.enquiryProfileNote, { color: muted }]}>Your profile email and mobile number will be shared with this vendor.</Text>
-        <TextInput
-          autoFocus={Platform.OS === "web"}
-          value={enquiryMessage}
-          onChangeText={(value) => { setEnquiryMessage(value); setEnquiryError(""); }}
-          placeholder="Tell us about your event..."
-          placeholderTextColor={muted}
-          multiline
-          style={[styles.enquiryInput, { color: text, borderColor: sectionDivider, backgroundColor: background }]}
+      {bookingCheckoutOpen && bookingData ? (
+        <BookingCheckoutModal
+          visible
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          vendorPhone={vendor.contactPhone}
+          vendorImage={vendor.heroMedia[0]?.secure_url || vendor.image || null}
+          vendorCategory={category}
+          selectedPackages={bookingData.selectedPackages}
+          initialAddOns={bookingData.selectedAddOns}
+          initialStartDate={bookingData.startDate}
+          initialEndDate={bookingData.endDate}
+          initialTotalDays={bookingData.totalDays}
+          dark={dark}
+          onClose={() => {
+            setBookingCheckoutOpen(false);
+            setBookingData(null);
+          }}
         />
-        {enquiryError ? <Text accessibilityRole="alert" style={styles.enquiryErrorText}>{enquiryError}</Text> : null}
-        <Pressable style={[styles.enquirySubmit, { backgroundColor: PINK }]} disabled={enquiryStatus === "sending"} onPress={() => void handleSendEnquiry()}>
-          {enquiryStatus === "sending" ? <ActivityIndicator color="#FFFFFF" /> : <><Send size={16} color="#FFFFFF" /><Text style={styles.enquirySubmitText}>Send enquiry</Text></>}
-        </Pressable>
-      </AnimatedBottomSheet>
+      ) : null}
+      {bookingPackage ? (
+        <BookingCheckoutModal
+          visible
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+          vendorPhone={vendor.contactPhone}
+          vendorImage={vendor.heroMedia[0]?.secure_url || vendor.image || null}
+          vendorCategory={category}
+          selectedPackage={bookingPackage}
+          dark={dark}
+          onClose={() => setBookingPackage(null)}
+        />
+      ) : null}
+      <CustomerEnquiryModal
+        visible={enquiryOpen}
+        vendorId={vendor.id}
+        vendorName={vendor.name}
+        vendorCategory={category}
+        selectedPackage={enquiryPackage}
+        dark={dark}
+        onClose={closeEnquiry}
+      />
       <VendorAvailabilityModal
         visible={calendarVisible}
         vendorId={vendor.id}
@@ -803,14 +742,6 @@ export default function VendorPublicProfileScreen() {
         dark={dark}
         onClose={() => setCalendarVisible(false)}
       />
-      {publicClipsEnabled === true ? <VendorClipsReelViewer
-        visible={reelViewerIndex !== null}
-        clips={vendorClips}
-        initialIndex={reelViewerIndex ?? 0}
-        vendorName={vendor.name}
-        verified
-        onClose={() => setReelViewerIndex(null)}
-      /> : null}
       <DownloadAppPopup dark={dark} />
       {!desktop ? <StandaloneMobileTabBar activeRoute={null} /> : null}
     </View>
@@ -894,17 +825,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   goBackText: { color: "#FFFFFF", fontSize: typeScale.body, fontWeight: "700" },
-  enquirySheet: { width: "100%", maxHeight: "92%", borderWidth: 1, padding: 18 },
-  enquirySheetDesktop: { maxWidth: 560, borderRadius: 28, paddingBottom: 24 },
-  enquiryHeader: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 14 },
-  enquiryIcon: { width: 42, height: 42, borderRadius: 14, backgroundColor: `${PINK}12`, alignItems: "center", justifyContent: "center" },
-  enquiryHeaderCopy: { flex: 1, minWidth: 0 },
-  enquiryTitle: { ...typeStyles.editorialCardTitle },
-  enquirySubtitle: { fontSize: typeScale.caption, marginTop: 2 },
-  enquiryClose: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  enquiryInput: { minHeight: 120, borderWidth: 1, borderRadius: 14, padding: 13, fontSize: typeScale.body, textAlignVertical: "top" },
-  enquiryProfileNote: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginBottom: 10 },
-  enquiryErrorText: { color: "#DC2626", fontSize: typeScale.bodyCompact, marginTop: 6 },
-  enquirySubmit: { marginTop: 12, minHeight: 50, borderRadius: 15, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
-  enquirySubmitText: { color: "#FFFFFF", fontWeight: "700", fontSize: typeScale.body },
 });

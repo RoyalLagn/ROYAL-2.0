@@ -29,10 +29,61 @@ function hasRecentEmailOtp(token: string) {
   });
 }
 
+async function sha1(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-1", bytes);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function extractCloudinaryPublicId(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (!/res\.cloudinary\.com/i.test(parsed.hostname)) return null;
+    const pathname = parsed.pathname;
+    const uploadIndex = pathname.indexOf("/upload/");
+    if (uploadIndex === -1) return null;
+    const pathAfterUpload = pathname.slice(uploadIndex + "/upload/".length);
+    const segments = pathAfterUpload.split("/");
+    const versionIndex = segments.findIndex((seg) => /^v\d+$/.test(seg));
+    const assetSegments = versionIndex !== -1 ? segments.slice(versionIndex + 1) : segments.filter((s) => !s.includes(",") && !/^[cwghqfevdprst]_/.test(s));
+    if (!assetSegments.length) return null;
+    return decodeURIComponent(assetSegments.join("/")).replace(/\.[^/.]+$/, "");
+  } catch {
+    return null;
+  }
+}
+
+async function destroyCloudinaryAsset(publicId: string) {
+  const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "hp6vu8o9";
+  const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
+  const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
+  if (!apiSecret || !apiKey || !cloudName) return;
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signature = await sha1(`invalidate=true&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`);
+  const body = new URLSearchParams({
+    public_id: publicId,
+    timestamp: String(timestamp),
+    invalidate: "true",
+    api_key: apiKey,
+    signature,
+  });
+  await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, {
+    method: "POST",
+    body,
+  }).catch(() => undefined);
+}
+
 async function deleteProfileImage(profileImage: string | null, userId: string) {
   if (!profileImage) return;
   try {
     const parsed = new URL(profileImage);
+    if (/res\.cloudinary\.com/i.test(parsed.hostname)) {
+      const publicId = extractCloudinaryPublicId(profileImage);
+      if (publicId && publicId.startsWith(`royallagn/profiles/${userId}/`)) {
+        await destroyCloudinaryAsset(publicId);
+      }
+      return;
+    }
     const bunny = bunnyStorageConfig();
     if (parsed.hostname === bunny.cdnHostname) {
       const objectKey = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
@@ -53,12 +104,23 @@ async function deleteReviewImages(urls: string[], userId: string) {
   for (const value of urls) {
     let parsed: URL;
     try { parsed = new URL(value); } catch { continue; }
+    if (/res\.cloudinary\.com/i.test(parsed.hostname)) {
+      const publicId = extractCloudinaryPublicId(value);
+      if (publicId && publicId.startsWith(`royallagn/reviews/${userId}/`)) {
+        await destroyCloudinaryAsset(publicId);
+      }
+      continue;
+    }
     if (parsed.hostname !== bunny.cdnHostname) continue;
     const objectKey = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
     if (!objectKey.startsWith(`royallagn/reviews/${userId}/`) || objectKey.includes("..")) continue;
-    const signed = await presignBunnyObject("DELETE", objectKey, 60);
-    const deletion = await fetch(signed.uploadUrl, { method: "DELETE" });
-    if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny review image deletion failed");
+    try {
+      const signed = await presignBunnyObject("DELETE", objectKey, 60);
+      const deletion = await fetch(signed.uploadUrl, { method: "DELETE" });
+      if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny review image deletion failed");
+    } catch {
+      // Best-effort cleanup
+    }
   }
 }
 
@@ -79,8 +141,6 @@ async function deleteOwnedSupabaseStorageObjects(
   }
 
   for (const [bucketId, names] of objectsByBucket) {
-    // The Storage API accepts a bounded array of object names. Chunking keeps
-    // deletion reliable for customers with a large upload history.
     for (let offset = 0; offset < names.length; offset += 1000) {
       const { error } = await service.storage.from(bucketId).remove(names.slice(offset, offset + 1000));
       if (error) throw error;
@@ -117,9 +177,6 @@ Deno.serve(async (request) => {
     const { data: vendor } = await service.from("vendors").select("id").eq("profile_id", user.id).maybeSingle();
     if (vendor) return json({ error: "Vendor accounts require an administrator-reviewed deletion request." }, 403);
 
-    // Read review media through the caller's JWT. Existing reviews RLS limits
-    // this query to the authenticated customer's own rows and avoids granting
-    // the service role broad access to all marketplace reviews.
     stage = "read_review_media";
     const { data: reviews, error: reviewsError } = await userClient
       .from("reviews")
@@ -132,8 +189,6 @@ Deno.serve(async (request) => {
       });
     }
 
-    // Media cleanup is best-effort. A temporary Bunny failure must not block
-    // the user's account-deletion right; database rows still cascade below.
     stage = "delete_media";
     try {
       await deleteProfileImage(profile.profile_image, user.id);
@@ -145,10 +200,6 @@ Deno.serve(async (request) => {
       });
     }
 
-    // GoTrue refuses to hard-delete an Auth user while that user still owns
-    // Supabase Storage objects. Discover only the authenticated caller's
-    // objects through a SECURITY DEFINER RPC, then remove the underlying files
-    // through the Storage API so its metadata remains consistent.
     stage = "list_supabase_storage";
     const { data: ownedStorageObjects, error: ownedStorageError } = await userClient
       .rpc("list_own_storage_objects_for_account_deletion");

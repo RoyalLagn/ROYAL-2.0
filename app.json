@@ -6,7 +6,7 @@
     "orientation": "default",
     "icon": "./assets/logos/appicon.png",
     "scheme": "royallagn",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,

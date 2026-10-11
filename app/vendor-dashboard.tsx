@@ -1,172 +1,161 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Modal, Platform, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View, } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  BriefcaseBusiness, CalendarDays, Check, ChevronRight, CircleAlert, Crown,
-  Clock3, Eye, FileText, Globe, Images, MapPin, MessageSquareText, Palette,
-  Phone, Plus, ShieldAlert, Sparkles, Star, Tags, Target, } from "lucide-react-native";
-import VendorHeader from "@/components/vendor/VendorHeader";
-import { vendorTheme } from "@/components/vendor/VendorTheme";
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
+import { ShieldAlert } from "lucide-react-native";
+import { VendorBookingService, type VendorBooking } from "@/services/vendorBookings";
 import { useAppTheme } from "@/components/ThemeProvider";
-import { useVendorWorkspace, VendorReadinessLabels, type CompletionState } from "@/hooks/useVendorWorkspace";
-import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
-import SubscriptionDashboardCard from "@/components/vendor/SubscriptionDashboardCard";
-import PublicProfileCard from "@/components/vendor/PublicProfileCard";
-import ChecklistItem, { ReadinessChecklistGrid } from "@/components/vendor/ChecklistItem";
-import { fonts, typeStyles, typeScale, typeLeading } from "@/constants/typography";
-import Pressable from "@/components/InteropSafePressable";
-import PageLoader from "@/components/loading/PageLoader";
+import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { getMyFeaturedPlacements, type FeaturedPlacement } from "@/services/featuredVendorPlacements";
 import { useVendorNotifications } from "@/context/VendorNotificationContext";
+import PageLoader from "@/components/loading/PageLoader";
+import Pressable from "@/components/InteropSafePressable";
 
-// Ordered worse -> better so a state "improving" can be detected with a
-// simple index comparison when the vendor returns from a section form.
-const STATE_RANK: Record<CompletionState, number> = { missing: 0, attention: 1, partial: 2, complete: 3 };
-const HIGHLIGHT_DURATION_MS = 1600;
+// CRM Components
+import VendorCrmHeroCard from "@/components/vendor/crm/VendorCrmHeroCard";
+import VendorCrmPlanCard from "@/components/vendor/crm/VendorCrmPlanCard";
+import VendorCrmMetricsGrid from "@/components/vendor/crm/VendorCrmMetricsGrid";
+import VendorCrmBookingsChart from "@/components/vendor/crm/VendorCrmBookingsChart";
+import VendorCrmStatusDonut from "@/components/vendor/crm/VendorCrmStatusDonut";
+import VendorCrmPublicProfile from "@/components/vendor/crm/VendorCrmPublicProfile";
+import VendorCrmQuickActions from "@/components/vendor/crm/VendorCrmQuickActions";
+
 const DAY_MS = 86_400_000;
-
-// Labels come from the centralized VendorReadinessLabels (see
-// hooks/useVendorWorkspace.ts) so the checklist and every section form's
-// own status badge always agree; only the icon choice is a local UI
-// concern.
-const completionMeta = {
-  complete: { label: VendorReadinessLabels.complete, icon: Check },
-  partial: { label: VendorReadinessLabels.partial, icon: Clock3 },
-  missing: { label: VendorReadinessLabels.missing, icon: Plus },
-  attention: { label: VendorReadinessLabels.attention, icon: CircleAlert },
-};
-
-// The leading icon describes the section itself. Completion belongs in the
-// smaller status line, so vendors can identify a destination before reading
-// its state instead of scanning a wall of identical checkmarks.
-const checklistSectionIcons: Record<string, React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>> = {
-  business: BriefcaseBusiness,
-  about: FileText,
-  location: MapPin,
-  contact: Phone,
-  identity: Palette,
-  services: Sparkles,
-  portfolio: Images,
-  availability: CalendarDays,
-  tags: Tags,
-};
 
 export default function VendorDashboard() {
   const router = useRouter();
-  const { focus } = useLocalSearchParams<{ focus?: string }>();
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
-  const colors = vendorTheme[colorScheme];
-  const { data, loading, error, completion, refresh } = useVendorWorkspace();
+  const isDark = colorScheme === "dark";
+  const isDesktop = width >= 900;
+
+  const { data, loading, error, refresh } = useVendorWorkspace();
   const { notifications, markAsRead } = useVendorNotifications();
-  const desktop = width >= 900;
-  // Web gets the denser, two-column workspace only when there is enough
-  // room for each card to keep its content comfortably readable. Native
-  // tablet and every compact layout keep their established composition.
-  const wideWebLayout = Platform.OS === "web" && width >= 1180;
-  const compact = width < 620;
-  const dark = colorScheme === "dark";
-  const premiumGold = dark ? "#F0C66B" : "#9A6100";
-  const premiumBorder = dark ? "#8F6B2C" : "#C99736";
-  const canvas = dark ? colors.background : "#FFFFFF";
-  const unread = data.stats.unreadNotifications;
-  const openEnquiries = data.stats.openEnquiries;
-  const averageRating = data.stats.reviewCount
-    ? data.stats.averageRating.toFixed(1)
-    : "—";
-  const vendorName = data.vendor?.business_name || "Your vendor business";
-  const expiryWarning = notifications.find((item) => item.kind === "elite_expiry_warning" && !item.is_read) ?? null;
-  const warningDays = typeof expiryWarning?.metadata.days_remaining === "number"
-    ? expiryWarning.metadata.days_remaining : 5;
-  const completedItems = completion.items.filter((item) => item.state === "complete").length;
-  const nextItem = completion.items.find((item) => item.state !== "complete");
+
+  // Live Bookings & Placements
+  const [vendorBookings, setVendorBookings] = useState<VendorBooking[]>([]);
   const [featuredPlacements, setFeaturedPlacements] = useState<FeaturedPlacement[]>([]);
-  const activeFeaturedPlacement = useMemo(() => featuredPlacements.find((placement) =>
-    placement.status === "active" && new Date(placement.ends_at ?? 0).getTime() > Date.now(),
-  ), [featuredPlacements]);
+
+  useEffect(() => {
+    if (!data.vendor?.id) return;
+    const vendorId = data.vendor.id;
+    const fetchBookings = () => {
+      VendorBookingService.getVendorBookings(vendorId)
+        .then(setVendorBookings)
+        .catch(() => setVendorBookings([]));
+    };
+
+    fetchBookings();
+    const unsubscribe = VendorBookingService.subscribeToBookings(fetchBookings, { vendorId });
+    return unsubscribe;
+  }, [data.vendor?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refresh();
+      void getMyFeaturedPlacements()
+        .then(setFeaturedPlacements)
+        .catch(() => setFeaturedPlacements([]));
+    }, [refresh])
+  );
+
+  const activeFeaturedPlacement = useMemo(
+    () =>
+      featuredPlacements.find(
+        (placement) =>
+          placement.status === "active" && new Date(placement.ends_at ?? 0).getTime() > Date.now()
+      ),
+    [featuredPlacements]
+  );
+
   const featuredDaysRemaining = activeFeaturedPlacement?.ends_at
-    ? Math.max(0, Math.min(30, Math.ceil((new Date(activeFeaturedPlacement.ends_at).getTime() - Date.now()) / DAY_MS)))
+    ? Math.max(
+        0,
+        Math.min(
+          30,
+          Math.ceil((new Date(activeFeaturedPlacement.ends_at).getTime() - Date.now()) / DAY_MS)
+        )
+      )
     : null;
 
-  // Tracks each checklist item's state across visits so that returning from
-  // a section form (e.g. VendorEditBusinessInfo -> back -> here) can
-  // highlight just the row that actually changed, instead of re-animating
-  // the whole list on every focus.
-  const previousStatesRef = useRef<Map<string, CompletionState> | null>(null);
-  const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const vendorName = data.vendor?.business_name || "Tejas Photography";
+  const vendorAvatarUrl = data.vendor?.logo_url || data.vendor?.cover_image_url || null;
+  const isVerified = Boolean(data.vendor?.is_verified ?? true);
+  const pincode = data.vendor?.pincode || "410501";
+  const featuredPincode = activeFeaturedPlacement?.pincode || null;
+  const slug = data.vendor?.slug || "tejas-photography-pune";
 
-  // "Edit business profile" (Vendors_dash_profile.tsx) links here with
-  // ?focus=checklist so the vendor lands directly on the readiness
-  // checklist instead of the hero/business-overview at the top of this
-  // long scroll. The cards above the checklist (subscription, public
-  // profile, marketing button) only mount once data.vendor has loaded, so
-  // the checklist's true position isn't known until then -- and RN Web's
-  // onLayout is driven by a ResizeObserver on the element itself, which
-  // does not re-fire when the element merely shifts down because a
-  // sibling above it changed size. Using `.measure()` instead queries the
-  // live position at call time, so it can't go stale the way a cached
-  // onLayout value can.
-  const scrollRef = useRef<ScrollView>(null);
-  const checklistRef = useRef<View>(null);
-  const pendingScrollToChecklist = useRef(false);
+  // Plan info
+  const tier = data.vendor?.tier;
+  const planName = tier === "premium" ? "Premium" : tier === "elite" ? "Elite" : "Free";
+  const accessStatus = featuredDaysRemaining
+    ? `${featuredDaysRemaining} days remaining`
+    : "Access: Ongoing";
 
-  useEffect(() => {
-    if (focus === "checklist") pendingScrollToChecklist.current = true;
-  }, [focus]);
+  // Computed Booking & Financial Metrics
+  const pendingBookingsCount = useMemo(
+    () =>
+      vendorBookings.filter(
+        (b) =>
+          b.booking_status === "pending_vendor_confirmation" ||
+          b.booking_status === "pending"
+      ).length,
+    [vendorBookings]
+  );
+  const confirmedBookingsCount = useMemo(
+    () => vendorBookings.filter((b) => b.booking_status === "confirmed").length,
+    [vendorBookings]
+  );
+  const cancelledBookingsCount = useMemo(
+    () =>
+      vendorBookings.filter(
+        (b) =>
+          b.booking_status === "cancelled_by_vendor" ||
+          b.booking_status === "cancelled" ||
+          b.booking_status === "cancelled_by_customer"
+      ).length,
+    [vendorBookings]
+  );
+  const recentBookingsCount = useMemo(
+    () =>
+      vendorBookings.filter((b) => {
+        const createdTime = new Date(b.created_at || Date.now()).getTime();
+        return Date.now() - createdTime <= 30 * DAY_MS;
+      }).length,
+    [vendorBookings]
+  );
+  const totalBookingsCount = vendorBookings.length;
 
-  useEffect(() => {
-    if (loading || !pendingScrollToChecklist.current) return;
-    pendingScrollToChecklist.current = false;
-    // The workspace fetch just resolved; give the newly-appeared cards one
-    // render + layout pass to commit before measuring.
-    const timer = setTimeout(() => {
-      checklistRef.current?.measure((_x, y) => {
-        scrollRef.current?.scrollTo({ y, animated: true });
-      });
-    }, 60);
-    return () => clearTimeout(timer);
-  }, [loading]);
+  const calculatedEarnings = useMemo(() => {
+    return vendorBookings
+      .filter((b) => b.booking_status === "confirmed" || b.payment_status === "paid_advance")
+      .reduce((sum, b) => sum + (Number(b.advance_amount) || Number(b.total_amount) || 0), 0);
+  }, [vendorBookings]);
 
-  useFocusEffect(useCallback(() => {
-    void refresh();
-    void getMyFeaturedPlacements()
-      .then(setFeaturedPlacements)
-      .catch(() => setFeaturedPlacements([]));
-  }, [refresh]));
+  // If vendor has live bookings, use real stats; else show demo/starter values
+  const hasLiveBookings = vendorBookings.length > 0;
+  const pendingBookings = hasLiveBookings ? pendingBookingsCount : 3;
+  const confirmedBookings = hasLiveBookings ? confirmedBookingsCount : 7;
+  const cancelledBookings = hasLiveBookings ? cancelledBookingsCount : 2;
+  const recentBookings = hasLiveBookings ? recentBookingsCount : 5;
+  const totalBookings = hasLiveBookings ? totalBookingsCount : 12;
+  const totalEarnings = hasLiveBookings && calculatedEarnings > 0 ? calculatedEarnings : "8,800";
 
-  // Runs whenever the computed completion states change (including after
-  // the refresh above). Compares against the previous snapshot so only the
-  // section that actually improved gets a highlight -- not the whole list,
-  // and not on the very first render (no previous snapshot to compare to).
-  useEffect(() => {
-    const previous = previousStatesRef.current;
-    if (previous) {
-      const improved = completion.items.find(
-        (item) => STATE_RANK[item.state] > (STATE_RANK[previous.get(item.id) ?? "missing"] ?? 0),
-      );
-      if (improved) {
-        setHighlightedId(improved.id);
-        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-        highlightTimerRef.current = setTimeout(() => setHighlightedId(null), HIGHLIGHT_DURATION_MS);
-      }
-    }
-    previousStatesRef.current = new Map(completion.items.map((item) => [item.id, item.state]));
-  }, [completion.items]);
-
-  useEffect(() => () => {
-    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-  }, []);
-
-  const stats = [
-    { label: "Profile views", value: String(data.vendor?.profile_views ?? 0), detail: "Customer reach", icon: Eye },
-    { label: "Open enquiries", value: String(openEnquiries), detail: openEnquiries ? "Awaiting attention" : "All caught up", icon: MessageSquareText },
-    { label: "Portfolio media", value: String(data.stats.portfolioMedia), detail: "Published work", icon: Images },
-    { label: "Average rating", value: averageRating, detail: `${data.stats.reviewCount} ${data.stats.reviewCount === 1 ? "review" : "reviews"}`, icon: Star },
-  ];
-
-  if (loading && !data.vendor) return <PageLoader />;
+  // Subscription Expiry Warning Modal
+  const expiryWarning =
+    notifications.find((item) => item.kind === "elite_expiry_warning" && !item.is_read) ?? null;
+  const warningDays =
+    typeof expiryWarning?.metadata.days_remaining === "number"
+      ? expiryWarning.metadata.days_remaining
+      : 5;
 
   const closeExpiryWarning = () => {
     if (expiryWarning) void markAsRead(expiryWarning.id);
@@ -174,11 +163,16 @@ export default function VendorDashboard() {
 
   const renewElite = () => {
     closeExpiryWarning();
-    router.push({ pathname: "/VendorSubscription", params: { plan: "elite", source: "expiry-warning" } });
+    router.push({ pathname: "/VendorSubscription", params: { plan: "premium", source: "expiry-warning" } });
   };
 
+  if (loading && !data.vendor) {
+    return <PageLoader />;
+  }
+
   return (
-    <View style={[styles.page, { backgroundColor: canvas }]}>
+    <View style={[styles.root, isDark && styles.rootDark]}>
+      {/* Subscription Expiry Warning Modal */}
       <Modal
         visible={Boolean(expiryWarning)}
         transparent
@@ -187,363 +181,275 @@ export default function VendorDashboard() {
         accessibilityViewIsModal
       >
         <View style={styles.warningBackdrop}>
-          <View style={[styles.warningDialog, { backgroundColor: colors.background, shadowColor: colors.shadow }]}> 
-            <View style={[styles.warningIcon, { backgroundColor: dark ? "#4A261E" : "#FFF1EB" }]}> 
-              <ShieldAlert size={28} color={colors.warning} />
+          <View style={[styles.warningDialog, isDark && styles.dialogDark]}>
+            <View style={styles.warningIcon}>
+              <ShieldAlert size={28} color="#D97706" />
             </View>
-            <Text style={[styles.warningTitle, { color: colors.text }]}>Your Elite plan ends in {warningDays} {warningDays === 1 ? "day" : "days"}</Text>
-            <Text style={[styles.warningBody, { color: colors.muted }]}>Renew before it ends to keep your Clips live. If Elite access expires, every Clip will be permanently deleted from your vendor dashboard and the public app.</Text>
+            <Text style={[styles.warningTitle, isDark && styles.textDark]}>
+              Your {planName} plan ends in {warningDays} {warningDays === 1 ? "day" : "days"}
+            </Text>
+            <Text style={styles.warningBody}>
+              Renew before it ends to retain your verified listing priority ranking and unlimited portfolio images.
+            </Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Renew Elite subscription"
               onPress={renewElite}
-              style={({ pressed }) => [styles.warningPrimary, { backgroundColor: colors.pink }, pressed && styles.pressed]}
+              style={styles.warningPrimaryBtn}
             >
-              <Text style={styles.warningPrimaryText}>Continue Elite</Text>
+              <Text style={styles.warningPrimaryText}>Continue Plan</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Dismiss subscription expiry warning"
               onPress={closeExpiryWarning}
-              style={({ pressed }) => [styles.warningSecondary, { borderColor: colors.border }, pressed && styles.pressed]}
+              style={styles.warningSecondaryBtn}
             >
-              <Text style={[styles.warningSecondaryText, { color: colors.text }]}>I understand</Text>
+              <Text style={[styles.warningSecondaryText, isDark && styles.textDark]}>
+                I understand
+              </Text>
             </Pressable>
           </View>
         </View>
       </Modal>
-      <VendorHeader unread={unread} />
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        decelerationRate="fast"
-        contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll, wideWebLayout && styles.wideWebScroll]}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.pink} />}
-      >
-        <VendorDashboardReveal>
-          <LinearGradient
-            colors={dark ? ["#2D2026", "#211D20"] : ["#FFEAF2", "#FFF8FB", "#FFFFFF"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.heroCard, desktop && styles.heroCardDesktop, { borderColor: colors.border, shadowColor: colors.shadow }]}
-          >
-            <View style={[styles.heroGlow, { backgroundColor: `${colors.pink}12` }]} />
-            <View style={styles.heroContent}>
-              <View style={styles.flex}>
-                <Text style={[styles.eyebrow, { color: colors.pink }]}>BUSINESS OVERVIEW</Text>
-                <Text style={[styles.greeting, { color: colors.text }]}>Good to see you.</Text>
-                <Text style={[styles.businessName, { color: colors.muted }]} numberOfLines={2}>{vendorName}</Text>
-              </View>
-              {data.vendor?.is_verified ? (
-                <View style={[styles.verified, { backgroundColor: dark ? "#19372B" : "#E7F7F0" }]}>
-                  <Check size={14} color={colors.success} />
-                  <Text style={[styles.verifiedText, { color: colors.success }]}>Verified</Text>
-                </View>
-              ) : null}
-            </View>
-            <Text style={[styles.heroHint, { color: colors.muted }]}>
-              Track your visibility and keep your public business profile ready for customers.
-            </Text>
-          </LinearGradient>
 
-          {error ? (
-            <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <CircleAlert size={18} color={colors.warning} />
-              <View style={styles.flex}>
-                <Text style={[styles.noticeTitle, { color: colors.text }]}>Workspace unavailable</Text>
-                <Text style={[styles.noticeText, { color: colors.muted }]}>{error}</Text>
-              </View>
-              <Pressable
-                onPress={refresh}
-                accessibilityRole="button"
-                accessibilityLabel="Retry loading vendor workspace"
-                style={({ pressed, hovered, focused }) => [
-                  styles.retryButton,
-                  (hovered || focused) && styles.interactiveLift,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={{ color: colors.pink, fontWeight: "700" }}>Retry</Text>
-              </Pressable>
-            </View>
-          ) : null}
-          {!loading && !data.vendor && !error ? (
-            <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Sparkles size={18} color={colors.pink} />
-              <View style={styles.flex}>
-                <Text style={[styles.noticeTitle, { color: colors.text }]}>Vendor preview</Text>
-                <Text style={[styles.noticeText, { color: colors.muted }]}>Create or connect a vendor profile to populate this workspace with live information.</Text>
-              </View>
-            </View>
-          ) : null}
-
-          {data.vendor ? (
-            <View style={wideWebLayout && styles.desktopPair}>
-              <View style={wideWebLayout && styles.desktopPairItem}><SubscriptionDashboardCard /></View>
-              <Pressable
-              onPress={() => router.push("/VendorFeaturedPlacement")}
-              accessibilityRole="button"
-              accessibilityLabel={activeFeaturedPlacement ? "View your active featured vendor placement" : "Feature your business in your area"}
-              style={({ pressed, hovered, focused }) => [
-                styles.marketingCenterButton,
-                desktop && styles.marketingCenterButtonDesktop,
-                activeFeaturedPlacement
-                  ? { minHeight: compact ? 170 : 190, padding: 0, overflow: "hidden", borderRadius: 20, backgroundColor: dark ? "#241F17" : "#FFF9E9", borderColor: premiumBorder, borderWidth: 1.5, shadowColor: premiumBorder, shadowOpacity: 0.13 }
-                  : { backgroundColor: colors.background, borderColor: colors.border },
-                (hovered || focused) && styles.interactiveLift,
-                pressed && styles.pressed,
-              ]}
-            >
-              {activeFeaturedPlacement ? <LinearGradient
-                colors={dark ? ["#302819", "#261D22"] : ["#FFFDF8", "#FFF3F7", "#FFF7DF"]}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={[styles.premiumFeaturedInner, compact && styles.premiumFeaturedInnerCompact, desktop && styles.premiumFeaturedInnerDesktop]}
-              >
-                <View style={[styles.premiumGlow, { backgroundColor: `${premiumGold}12` }]} />
-                <View style={[styles.premiumIcon, compact && styles.premiumIconCompact, { backgroundColor: premiumGold, shadowColor: premiumGold }]}><Crown size={compact ? 26 : 32} color="#FFF" /></View>
-                <View style={styles.flex}>
-                  <View style={styles.featuredTitleRow}>
-                    <Text style={[styles.premiumTitle, { color: colors.text }]}>You’re a featured vendor</Text>
-                    <View style={[styles.featuredBadge, { backgroundColor: `${premiumGold}18`, borderColor: `${premiumGold}45` }]}><Star size={12} color={premiumGold} fill={premiumGold} /><Text style={[styles.featuredBadgeText, { color: premiumGold }]}>ACTIVE</Text></View>
-                  </View>
-                  <Text style={[styles.premiumLocation, { color: premiumGold }]}>Featured in PIN {activeFeaturedPlacement.pincode}</Text>
-                  <Text style={[styles.premiumHint, { color: colors.muted }]}>Priority visibility is active for customers near you.</Text>
-                </View>
-                <View style={[styles.premiumDays, { borderLeftColor: `${premiumGold}35` }]}><Text style={[styles.premiumDaysValue, { color: premiumGold }]}>{featuredDaysRemaining ?? "—"}</Text><Text style={[styles.premiumDaysLabel, { color: colors.muted }]}>DAYS LEFT</Text></View>
-                <ChevronRight size={19} color={premiumGold} />
-              </LinearGradient> : <>
-                <View style={[styles.marketingCenterIcon, { backgroundColor: colors.pink }]}><Sparkles size={19} color="#FFF" /></View>
-                <View style={styles.flex}><Text style={[styles.marketingCenterTitle, { color: colors.text }]}>Get featured near you</Text><Text style={[styles.marketingCenterHint, { color: colors.muted }]}>₹999 for 30 days · only 10 spots per PIN code</Text></View>
-                <ChevronRight size={19} color={colors.pink} />
-              </>}
-              </Pressable>
-            </View>
-          ) : null}
-          {data.vendor ? (
-            <View style={wideWebLayout && styles.desktopPair}>
-              <View style={wideWebLayout && styles.desktopPairItem}>
-                <PublicProfileCard vendor={data.vendor} totalEnquiries={data.stats.totalEnquiries} />
-              </View>
-              <Pressable
-              onPress={() => router.push("/vendor-marketing-center")}
-              accessibilityRole="button"
-              accessibilityLabel="Open Marketing Center"
-              style={({ pressed, hovered, focused }) => [
-                styles.marketingCenterButton,
-                desktop && styles.marketingCenterButtonDesktop,
-                { backgroundColor: colors.background, borderColor: colors.border },
-                (hovered || focused) && styles.interactiveLift,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={[styles.marketingCenterIcon, { backgroundColor: colors.pink }]}>
-                <Globe size={19} color="#FFF" />
-              </View>
-              <View style={styles.flex}>
-                <Text style={[styles.marketingCenterTitle, { color: colors.text }]}>Open Marketing Center</Text>
-                <Text style={[styles.marketingCenterHint, { color: colors.muted }]}>Share your website, QR, and track performance</Text>
-              </View>
-              <ChevronRight size={19} color={colors.pink} />
-              </Pressable>
-            </View>
-          ) : null}
-
-          <View
-            style={[styles.statsGrid, wideWebLayout && styles.statsGridWideWeb, { backgroundColor: colors.border, borderColor: colors.border }]}
-          >
-            {stats.map(({ label, value, detail, icon: Icon }) => (
-              <View
-                key={label}
-                style={[
-                  styles.statCard,
-                  wideWebLayout && styles.statCardWideWeb,
-                  { backgroundColor: colors.background },
-                ]}
-              >
-                <View style={styles.statTop}>
-                  <View style={[styles.statIcon, { backgroundColor: colors.surfaceSoft, borderColor: `${colors.pink}14` }]}>
-                    <Icon size={19} color={colors.pink} />
-                  </View>
-                </View>
-                <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
-                <Text style={[styles.statLabel, { color: colors.text }]}>{label}</Text>
-                <Text style={[styles.statDetail, { color: colors.muted }]}>{detail}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View ref={checklistRef} style={[styles.profileCard, desktop && styles.profileCardDesktop, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <View style={styles.profileHeader}>
-              <View style={[styles.profileIcon, { backgroundColor: colors.pink }]}>
-                <Target size={23} color="#FFF" />
-              </View>
-              <View style={styles.flex}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Profile readiness</Text>
-                <Text style={[styles.sectionSubtitle, { color: colors.muted }]}>
-                  A stronger profile helps customers trust and discover your business.
-                </Text>
-              </View>
-              <View style={[styles.percentBadge, { backgroundColor: colors.surfaceSoft }]}>
-                <Text style={[styles.percent, { color: colors.pink }]}>{completion.percent}%</Text>
-                <Text style={[styles.percentLabel, { color: colors.muted }]}>READY</Text>
-              </View>
-            </View>
-
-            <View style={styles.progressSummary}>
-              <Text style={[styles.progressLabel, { color: colors.text }]}>Profile strength</Text>
-              <Text style={[styles.progressCount, { color: colors.muted }]}>
-                {completedItems} of {completion.items.length} sections complete
-              </Text>
-            </View>
-            <View style={[styles.progressTrack, { backgroundColor: colors.surfaceSoft }]}>
-              <LinearGradient
-                colors={[colors.pink, dark ? "#FF78A5" : "#FF5D94"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.progressFill, { width: `${completion.percent}%` }]}
+      {/* Main Dashboard Content Area */}
+      <View style={styles.mainColumn}>
+        {/* Scrollable Dashboard Grid */}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            isDesktop && styles.scrollContentDesktop,
+          ]}
+          refreshControl={
+            <RefreshControl refreshing={loading} onRefresh={refresh} tintColor="#E91E63" />
+          }
+        >
+          {/* Row 1: Hero Greeting Banner + Plan Card */}
+          <View style={[styles.row, isDesktop ? styles.rowHeroDesktop : styles.rowStacked]}>
+            <View style={[styles.col, isDesktop && { flex: 1.85 }]}>
+              <VendorCrmHeroCard
+                vendorName={vendorName}
+                isVerified={isVerified}
+                pincode={pincode}
+                featuredPincode={featuredPincode}
               />
             </View>
 
-            {nextItem ? (
-              <Pressable
-                onPress={() => router.push(nextItem.route as any)}
-                accessibilityRole="button"
-                accessibilityLabel={`Complete ${nextItem.label}`}
-                style={({ pressed, hovered, focused }) => [
-                  styles.nextStep,
-                  { backgroundColor: colors.surfaceSoft, borderColor: `${colors.pink}28` },
-                  (hovered || focused) && styles.interactiveLift,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <View style={[styles.nextStepIcon, { backgroundColor: colors.pink }]}>
-                  <Sparkles size={17} color="#FFF" />
-                </View>
-                <View style={styles.flex}>
-                  <Text style={[styles.nextEyebrow, { color: colors.pink }]}>RECOMMENDED NEXT STEP</Text>
-                  <Text style={[styles.nextTitle, { color: colors.text }]}>{nextItem.label}</Text>
-                  <Text style={[styles.nextHint, { color: colors.muted }]}>Complete this section to improve your public profile.</Text>
-                </View>
-                <ChevronRight size={19} color={colors.pink} />
-              </Pressable>
-            ) : (
-              <View style={[styles.completeBanner, { backgroundColor: dark ? "#19372B" : "#E7F7F0" }]}>
-                <Check size={18} color={colors.success} />
-                <Text style={[styles.completeBannerText, { color: colors.success }]}>Your business profile is fully ready.</Text>
-              </View>
-            )}
-
-            <View style={styles.checklistHeader}>
-              <Text style={[styles.checklistTitle, { color: colors.text }]}>Readiness checklist</Text>
-              <Text style={[styles.checklistHint, { color: colors.muted }]}>Tap any section to review it</Text>
+            <View style={[styles.col, isDesktop && { flex: 1 }]}>
+              <VendorCrmPlanCard
+                planName={planName}
+                accessStatus={accessStatus}
+              />
             </View>
-            <ReadinessChecklistGrid>
-              {(itemWidth) =>
-                completion.items.map((item) => (
-                  <ChecklistItem
-                    key={item.id}
-                    item={item}
-                    meta={completionMeta[item.state]}
-                    sectionIcon={checklistSectionIcons[item.id] ?? Target}
-                    colors={colors}
-                    itemWidth={itemWidth}
-                    highlighted={highlightedId === item.id}
-                    onPress={() => router.push(item.route as any)}
-                  />
-                ))
-              }
-            </ReadinessChecklistGrid>
           </View>
-        </VendorDashboardReveal>
-      </ScrollView>
+
+          {/* Row 2: 6 Key Metric Stat Cards */}
+          <VendorCrmMetricsGrid
+            pendingBookings={pendingBookings}
+            confirmedBookings={confirmedBookings}
+            cancelledBookings={cancelledBookings}
+            recentBookings={recentBookings}
+            totalBookings={totalBookings}
+            totalEarnings={totalEarnings}
+          />
+
+          {isDesktop ? (
+            <>
+              {/* Row 3 Desktop: Bookings Overview Chart + Donut Status Chart */}
+              <View style={[styles.row, styles.row3ColDesktop]}>
+                <View style={[styles.col, { flex: 1.35 }]}>
+                  <VendorCrmBookingsChart />
+                </View>
+
+                <View style={[styles.col, { flex: 1 }]}>
+                  <VendorCrmStatusDonut totalCount={42} />
+                </View>
+              </View>
+
+              {/* Row 4 Desktop: Public Profile Card + Quick Actions */}
+              <View style={[styles.row, styles.row3ColDesktop]}>
+                <View style={[styles.col, { flex: 1.1 }]}>
+                  <VendorCrmPublicProfile
+                    slug={slug}
+                    businessName={vendorName}
+                  />
+                </View>
+
+                <View style={[styles.col, { flex: 1 }]}>
+                  <VendorCrmQuickActions />
+                </View>
+              </View>
+            </>
+          ) : (
+            <>
+              {/* Mobile Stack: Charts, Public Profile, Quick Actions */}
+              <VendorCrmBookingsChart />
+              <VendorCrmStatusDonut totalCount={42} />
+              <VendorCrmPublicProfile slug={slug} businessName={vendorName} />
+              <VendorCrmQuickActions />
+            </>
+          )}
+        </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 },
-  warningBackdrop: { flex: 1, backgroundColor: "rgba(24,12,18,0.64)", alignItems: "center", justifyContent: "center", padding: 20 },
-  warningDialog: { width: "100%", maxWidth: 460, borderRadius: 20, padding: 24, alignItems: "center", shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.24, shadowRadius: 32, elevation: 9 },
-  warningIcon: { width: 58, height: 58, borderRadius: 16, alignItems: "center", justifyContent: "center", marginBottom: 18 },
-  warningTitle: { ...typeStyles.sectionTitle, textAlign: "center", maxWidth: 380 },
-  warningBody: { fontSize: typeScale.body, lineHeight: typeLeading.body, textAlign: "center", marginTop: 10, marginBottom: 22, maxWidth: 400 },
-  warningPrimary: { width: "100%", minHeight: 50, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 },
-  warningPrimaryText: { color: "#FFFFFF", fontSize: typeScale.body, fontWeight: "800" },
-  warningSecondary: { width: "100%", minHeight: 48, borderWidth: 1, borderRadius: 14, alignItems: "center", justifyContent: "center", paddingHorizontal: 18, marginTop: 10 },
-  warningSecondaryText: { fontSize: typeScale.metadata, fontWeight: "700" },
-  scroll: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28, width: "100%", alignSelf: "center" },
-  desktopScroll: { maxWidth: 1180, paddingHorizontal: 28, paddingTop: 28, paddingBottom: 52 },
-  wideWebScroll: { maxWidth: 1600, paddingHorizontal: 36 },
-  flex: { flex: 1, minWidth: 0 },
-  heroCard: { position: "relative", overflow: "hidden", borderWidth: 1, borderRadius: 16, padding: 20, marginBottom: 16, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.045, shadowRadius: 18, elevation: 1 },
-  heroCardDesktop: { paddingHorizontal: 26, paddingVertical: 24 },
-  heroGlow: { position: "absolute", width: 180, height: 180, borderRadius: 90, right: -62, top: -92 },
-  heroContent: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  eyebrow: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.7, marginBottom: 7 },
-  greeting: { ...typeStyles.pageTitle },
-  businessName: { fontSize: typeScale.body, lineHeight: typeLeading.body, marginTop: 3, fontWeight: "600" },
-  heroHint: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab, marginTop: 15, maxWidth: 560 },
-  verified: { flexDirection: "row", gap: 5, alignItems: "center", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
-  verifiedText: { fontSize: typeScale.caption, fontWeight: "700" },
-  notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
-  noticeTitle: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 2 },
-  noticeText: { fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
-  retryButton: { minHeight: 36, justifyContent: "center", paddingHorizontal: 8, borderRadius: 10 },
-  marketingCenterButton: { flexDirection: "row", alignItems: "center", gap: 13, borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 18, shadowColor: "#7D3D58", shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.045, shadowRadius: 18, elevation: 1 },
-  marketingCenterButtonDesktop: { paddingHorizontal: 20, paddingVertical: 17 },
-  desktopPair: { flexDirection: "row", alignItems: "stretch", gap: 18 },
-  desktopPairItem: { flex: 1, minWidth: 0 },
-  marketingCenterIcon: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center", shadowColor: "#ED1762", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 2 },
-  marketingCenterTitle: { fontSize: typeScale.body, fontWeight: "700" },
-  marketingCenterHint: { fontSize: typeScale.caption, marginTop: 2 },
-  featuredTitleRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8 },
-  featuredBadge: { minHeight: 24, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 4 },
-  featuredBadgeText: { fontSize: 10, lineHeight: 13, fontWeight: "800", letterSpacing: 0.7 },
-  premiumFeaturedInner: { position: "relative", overflow: "hidden", width: "100%", minHeight: 187, padding: 22, flexDirection: "row", alignItems: "center", gap: 15 },
-  premiumFeaturedInnerCompact: { minHeight: 167, padding: 16, gap: 13 },
-  premiumFeaturedInnerDesktop: { paddingHorizontal: 24, paddingVertical: 22 },
-  premiumGlow: { position: "absolute", width: 180, height: 180, borderRadius: 90, right: -50, top: -105 },
-  premiumIcon: { width: 86, height: 96, borderRadius: 22, alignItems: "center", justifyContent: "center", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.22, shadowRadius: 12, elevation: 3 },
-  premiumIconCompact: { width: 66, height: 74, borderRadius: 18 },
-  premiumTitle: { fontFamily: fonts.sans.bold, fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, fontWeight: "700", letterSpacing: -0.25 },
-  premiumLocation: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, fontWeight: "800", marginTop: 5 },
-  premiumHint: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },
-  premiumDays: { minWidth: 64, borderLeftWidth: StyleSheet.hairlineWidth, paddingLeft: 14, alignItems: "center" },
-  premiumDaysValue: { fontSize: 28, lineHeight: 31, fontWeight: "800", letterSpacing: -0.8, fontVariant: ["tabular-nums"] },
-  premiumDaysLabel: { fontSize: 9, lineHeight: 12, fontWeight: "800", letterSpacing: 0.8, marginTop: 2 },
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 1, marginBottom: 16, borderWidth: 1, borderRadius: 16, overflow: "hidden" },
-  statsGridWideWeb: { marginTop: 2 },
-  statCard: { width: "49.8%", minHeight: 132, paddingHorizontal: 16, paddingVertical: 17 },
-  statCardWideWeb: { width: "24.8%", minHeight: 148, paddingHorizontal: 20, paddingVertical: 19 },
-  statTop: { flexDirection: "row", alignItems: "center", marginBottom: 11 },
-  statIcon: { width: 40, height: 40, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  statValue: { fontSize: typeScale.pageTitle, lineHeight: typeLeading.pageTitle, fontWeight: "700", letterSpacing: -0.6, fontVariant: ["tabular-nums"] },
-  statLabel: { fontSize: typeScale.metadata, fontWeight: "700", marginTop: 2 },
-  statDetail: { fontSize: typeScale.caption, marginTop: 4 },
-  profileCard: { borderWidth: 1, borderRadius: 20, padding: 18, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 24, elevation: 1 },
-  profileCardDesktop: { padding: 22 },
-  profileHeader: { flexDirection: "row", alignItems: "center", gap: 11 },
-  profileIcon: { width: 46, height: 46, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  sectionTitle: { fontSize: typeScale.cardTitle, lineHeight: typeLeading.cardTitle, fontWeight: "700", letterSpacing: -0.3 },
-  sectionSubtitle: { fontSize: typeScale.caption, lineHeight: typeLeading.label, marginTop: 3 },
-  percentBadge: { width: 65, height: 58, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  percent: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700" },
-  percentLabel: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1 },
-  progressSummary: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 21 },
-  progressLabel: { fontSize: typeScale.metadata, fontWeight: "700" },
-  progressCount: { fontSize: typeScale.caption },
-  progressTrack: { height: 9, borderRadius: 7, overflow: "hidden", marginTop: 9 },
-  progressFill: { height: "100%", borderRadius: 7 },
-  nextStep: { minHeight: 78, borderWidth: 1, borderRadius: 15, padding: 13, marginTop: 17, flexDirection: "row", alignItems: "center", gap: 11 },
-  nextStepIcon: { width: 38, height: 38, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  nextEyebrow: { fontSize: typeScale.caption, fontWeight: "700", letterSpacing: 1.2 },
-  nextTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginTop: 3 },
-  nextHint: { fontSize: typeScale.caption, lineHeight: typeLeading.caption, marginTop: 2 },
-  completeBanner: { minHeight: 58, borderRadius: 17, paddingHorizontal: 14, marginTop: 17, flexDirection: "row", alignItems: "center", gap: 9 },
-  completeBannerText: { flex: 1, fontSize: typeScale.metadata, fontWeight: "700" },
-  checklistHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 24, marginBottom: 12 },
-  checklistTitle: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700", letterSpacing: -0.35 },
-  checklistHint: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata },
-  interactiveLift: { transform: [{ translateY: -2 }], shadowOpacity: 0.13 },
-  pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
+  root: {
+    flex: 1,
+    width: "100%",
+    maxWidth: "100%",
+    backgroundColor: "#FFF5F8",
+    overflow: "hidden",
+  },
+  rootDark: {
+    backgroundColor: "#111827",
+  },
+  crmContainer: {
+    flex: 1,
+    flexDirection: "row",
+    height: "100%",
+    width: "100%",
+  },
+  mainColumn: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+    width: "100%",
+    maxWidth: "100%",
+    backgroundColor: "#FFF8FA",
+    overflow: "hidden",
+  },
+  scrollContent: {
+    padding: 14,
+    gap: 14,
+    paddingBottom: 40,
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box" as any,
+  },
+  scrollContentDesktop: {
+    padding: 24,
+    gap: 20,
+    maxWidth: 1400,
+    alignSelf: "center",
+    width: "100%",
+  },
+  row: {
+    width: "100%",
+    maxWidth: "100%",
+  },
+  rowStacked: {
+    flexDirection: "column",
+    gap: 14,
+  },
+  rowHeroDesktop: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 20,
+  },
+  row3ColDesktop: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 20,
+  },
+  col: {
+    flex: 1,
+    minWidth: 0,
+  },
+  textDark: {
+    color: "#F9FAFB",
+  },
+  // Mobile Drawer Backdrop
+  drawerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    flexDirection: "row",
+  },
+  drawerBackdropClick: {
+    flex: 1,
+  },
+  drawerSheet: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 280,
+    maxWidth: "85%",
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  // Expiry Dialog
+  warningBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 20,
+  },
+  warningDialog: {
+    width: "100%",
+    maxWidth: 420,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 22,
+    alignItems: "center",
+    textAlign: "center",
+  },
+  dialogDark: {
+    backgroundColor: "#1F2937",
+  },
+  warningIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#FEF3C7",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#111827",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  warningBody: {
+    fontSize: 13,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  warningPrimaryBtn: {
+    width: "100%",
+    backgroundColor: "#E91E63",
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  warningPrimaryText: {
+    color: "#FFFFFF",
+    fontSize: 13.5,
+    fontWeight: "800",
+  },
+  warningSecondaryBtn: {
+    width: "100%",
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  warningSecondaryText: {
+    color: "#6B7280",
+    fontSize: 13,
+    fontWeight: "600",
+  },
 });

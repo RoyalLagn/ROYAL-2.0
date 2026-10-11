@@ -8,44 +8,32 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Tabs, useLocalSearchParams, usePathname, useRouter } from "expo-router";
+import { Tabs, usePathname, useRouter } from "expo-router";
 import {
   Bell,
-  Clapperboard,
+  Ticket,
+  Gift,
   Grid3X3,
-  Heart,
   Home,
   MessageSquareText,
   Share2,
   User,
 } from "lucide-react-native";
 import { cssInterop, useColorScheme } from "nativewind";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileTabBar } from "@/components/MobileTabBar";
 import HomeReveal from "@/components/home/HomeReveal";
 import CompactSearchBar from "@/components/listing/CompactSearchBar";
 import RoyalLagnLogo from "@/components/RoyalLagnLogo";
 import DesktopLocationControl from "@/components/home/DesktopLocationControl";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
-import FavoriteNotificationDot from "@/components/favorites/FavoriteNotificationDot";
-import { useFavorites } from "@/context/FavoritesContext";
 import { useNotifications } from "@/context/NotificationContext";
 import { usePublicAuth } from "@/context/PublicAuthContext";
-import Animated, {
-  interpolate,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSequence,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated";
 import { shareRoyalLagnApp } from "@/services/AppShareService";
 
 cssInterop(Home, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(Grid3X3, { className: { target: "style", nativeStyleToProp: { color: true } } });
-cssInterop(Heart, { className: { target: "style", nativeStyleToProp: { color: true } } });
-cssInterop(Clapperboard, { className: { target: "style", nativeStyleToProp: { color: true } } });
+cssInterop(Gift, { className: { target: "style", nativeStyleToProp: { color: true } } });
+cssInterop(Ticket, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(MessageSquareText, { className: { target: "style", nativeStyleToProp: { color: true } } });
 cssInterop(User, { className: { target: "style", nativeStyleToProp: { color: true } } });
 
@@ -77,105 +65,21 @@ function NavItem({ label, active, onPress }: NavItemProps) {
   );
 }
 
-function DesktopFavoritesButton({
-  active,
-  onPress,
-}: {
-  active: boolean;
-  onPress: () => void;
-}) {
-  const {
-    favoriteArrivalToken,
-    favoriteIndicatorToken,
-    hasUnviewedFavorites,
-    registerFavoritesDestination,
-  } = useFavorites();
-  const reducedMotion = useReducedMotion();
-  const arrival = useSharedValue(0);
-  const previousArrivalToken = useRef(favoriteArrivalToken);
-  const [arriving, setArriving] = useState(false);
-
-  useEffect(() => {
-    if (favoriteArrivalToken === previousArrivalToken.current) return;
-    previousArrivalToken.current = favoriteArrivalToken;
-    setArriving(true);
-    if (reducedMotion) {
-      arrival.value = 1;
-      arrival.value = withTiming(0, { duration: 220 });
-    } else {
-      arrival.value = withSequence(
-        withTiming(1, { duration: 130 }),
-        withSpring(0, { damping: 11, stiffness: 220, mass: 0.65 }),
-      );
-    }
-    const timer = setTimeout(() => setArriving(false), reducedMotion ? 240 : 520);
-    return () => clearTimeout(timer);
-  }, [arrival, favoriteArrivalToken, reducedMotion]);
-
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(arrival.value, [0, 1], [1, 1.18]) }],
-  }));
-  const pulseStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(arrival.value, [0, 0.45, 1], [0, 0.18, 0]),
-    transform: [{ scale: interpolate(arrival.value, [0, 1], [0.72, 1.55]) }],
-  }));
-
-  return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={hasUnviewedFavorites ? "Favorites, new favorites available" : "Favorites"}
-      onPress={onPress}
-      className="relative w-11 h-11 rounded-xl items-center justify-center hover:bg-muted active:opacity-80 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-    >
-      <Animated.View
-        ref={registerFavoritesDestination as React.Ref<any>}
-        className="relative w-9 h-9 items-center justify-center"
-        style={iconStyle}
-      >
-        <Animated.View
-          pointerEvents="none"
-          className="absolute w-7 h-7 rounded-full bg-primary"
-          style={pulseStyle}
-        />
-        <Heart
-          size={20}
-          className={active || arriving ? "text-primary" : "text-foreground/75"}
-          fill="none"
-        />
-        <FavoriteNotificationDot
-          visible={hasUnviewedFavorites}
-          animationToken={favoriteIndicatorToken}
-        />
-      </Animated.View>
-    </Pressable>
-  );
-}
-
 export default function TabsWebLayout() {
   const router = useRouter();
   const pathname = usePathname();
-  const { clipSearch } = useLocalSearchParams<{ clipSearch?: string }>();
   const { width } = useWindowDimensions();
   const { colorScheme } = useColorScheme();
   const isDark = colorScheme === "dark";
   const isDesktop = width >= 1100;
   const isHome = pathname === "/" || pathname === "/(tabs)";
-  const isClips = pathname.toLowerCase().includes("/clips");
   const [searchQuery, setSearchQuery] = useState("");
   const openAuthenticationGateway = useAuthenticationGateway();
   const { unreadCount } = useNotifications();
   const { profile, isPublicAuthenticated } = usePublicAuth();
 
-  useEffect(() => {
-    if (isClips) setSearchQuery(typeof clipSearch === "string" ? clipSearch : "");
-  }, [clipSearch, isClips]);
-
   const submitSearch = () => {
     const query = searchQuery.trim();
-    if (isClips) {
-      router.setParams({ clipSearch: query || undefined });
-      return;
-    }
     router.push({ pathname: "/Search", params: { query } });
   };
   const shareApp = async () => {
@@ -233,13 +137,9 @@ export default function TabsWebLayout() {
                 onPress={() => router.push("/(tabs)/Categories")}
               />
               <NavItem
-                label="Clips"
-                active={isActive("/(tabs)/clips")}
-                onPress={() => router.push("/(tabs)/clips")}
-              />
-              <DesktopFavoritesButton
-                active={isActive("/(tabs)/favorites")}
-                onPress={() => router.push("/(tabs)/favorites")}
+                label="Referral"
+                active={isActive("/(tabs)/referral")}
+                onPress={() => router.push("/(tabs)/referral")}
               />
             </View>
 
@@ -248,9 +148,9 @@ export default function TabsWebLayout() {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 onSubmit={submitSearch}
-                placeholder={isClips ? "Search vendors and clips..." : "Search vendors, categories, services..."}
+                placeholder="Search vendors, categories, services..."
                 dark={isDark}
-                accessibilityLabel={isClips ? "Search vendors and clips" : "Search vendors, categories and services"}
+                accessibilityLabel="Search vendors, categories and services"
                 style={{ flex: 1, maxWidth: 330, marginRight: "auto" }}
               />
             ) : <View className="flex-1" />}
@@ -310,8 +210,6 @@ export default function TabsWebLayout() {
                   </Text>
                 ) : null}
               </Pressable>
-
-              <ThemeToggle size={20} />
             </View>
           </View>
         </HomeReveal>
@@ -354,11 +252,24 @@ export default function TabsWebLayout() {
           }}
         />
         <Tabs.Screen
-          name="clips"
+          name="referral"
           options={{
-            title: "Clips",
+            title: "Referral",
             tabBarIcon: ({ focused }) => (
-              <Clapperboard
+              <Gift
+                className={focused ? "text-primary" : "text-muted-foreground"}
+                size={22}
+                strokeWidth={focused ? 2.5 : 2}
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="bookings"
+          options={{
+            title: "Bookings",
+            tabBarIcon: ({ focused }) => (
+              <Ticket
                 className={focused ? "text-primary" : "text-muted-foreground"}
                 size={22}
                 strokeWidth={focused ? 2.5 : 2}
@@ -368,16 +279,7 @@ export default function TabsWebLayout() {
         />
         <Tabs.Screen
           name="favorites"
-          options={{
-            title: "Favorites",
-            tabBarIcon: ({ focused }) => (
-              <Heart
-                className={focused ? "text-primary" : "text-muted-foreground"}
-                size={22}
-                strokeWidth={focused ? 2.5 : 2}
-              />
-            ),
-          }}
+          options={{ href: null }}
         />
         <Tabs.Screen
           name="enquiry"

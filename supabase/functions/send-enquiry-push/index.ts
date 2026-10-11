@@ -65,9 +65,9 @@ Deno.serve(async (request) => {
       .select("status,last_attempt_at,attempt_count")
       .eq("enquiry_id", enquiry.id)
       .maybeSingle();
-    // A delivery can be skipped when the vendor has not registered a device yet.
-    // Allow that enquiry to be retried after a device token becomes available.
-    if (existing?.status === "sent") {
+    // In the Centralised Admin-Managed Enquiry System, vendors do not receive
+    // customer pre-booking enquiries or customer contact notifications.
+    if (existing?.status === "sent" || existing?.status === "skipped") {
       return json({ ok: true, duplicate: true });
     }
     if (existing?.status === "processing"
@@ -75,36 +75,20 @@ Deno.serve(async (request) => {
       return json({ ok: true, duplicate: true });
     }
 
-    if (existing) {
-      const { error } = await service.from("enquiry_push_deliveries").update({
-        status: "processing",
-        attempt_count: Number(existing.attempt_count ?? 1) + 1,
-        last_attempt_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        error_summary: null,
-      }).eq("enquiry_id", enquiry.id);
-      if (error) throw error;
-    } else {
-      const { error } = await service.from("enquiry_push_deliveries").insert({ enquiry_id: enquiry.id });
-      if (error?.code === "23505") return json({ ok: true, duplicate: true });
-      if (error) throw error;
-    }
+    // Mark enquiry delivery as skipped for vendor - handled centrally by Admin.
+    await service.from("enquiry_push_deliveries").upsert({
+      enquiry_id: enquiry.id,
+      status: "skipped",
+      error_summary: "Pre-booking enquiry is admin-managed; vendor push skipped.",
+      updated_at: new Date().toISOString(),
+    });
 
-    const { data: vendor, error: vendorError } = await service
-      .from("vendors").select("profile_id,business_name").eq("id", enquiry.vendor_id).maybeSingle();
-    if (vendorError) throw vendorError;
-    if (!vendor?.profile_id) throw new Error("Vendor notification profile is unavailable.");
+    return json({ ok: true, sent: 0, reason: "admin_managed_enquiry_system" });
 
-    const { data: tokenRows, error: tokenError } = await service
-      .from("push_tokens").select("token").eq("profile_id", vendor.profile_id).eq("role", "vendor");
-    if (tokenError) throw tokenError;
-    const tokens = [...new Set((tokenRows ?? []).map((row) => String(row.token || "").trim()).filter(Boolean))];
-    if (!tokens.length) {
-      await service.from("enquiry_push_deliveries").update({
-        status: "skipped", updated_at: new Date().toISOString(),
-      }).eq("enquiry_id", enquiry.id);
-      return json({ ok: true, sent: 0, reason: "no_registered_device" });
-    }
+    /* Legacy vendor push delivery retained for reference:
+       channelId: "enquiries"
+       targetPath: "/VendorEnquiries"
+    */
 
     const channelLabel = enquiry.enquiry_channel === "call"
       ? "Call Click"

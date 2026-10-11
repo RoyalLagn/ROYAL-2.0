@@ -128,7 +128,7 @@ export default function VendorEditBrand() {
           </View>
           <Text style={[kitStyles.title, { color: colors.text }]}>Logo and brand</Text>
           <Text style={[kitStyles.subtitle, { color: colors.muted }]}>
-            Your business logo. Portfolio photos, videos and Clips have their own dedicated sections.
+            Your business logo. Portfolio photos and albums have their own dedicated sections.
           </Text>
         </View>
 

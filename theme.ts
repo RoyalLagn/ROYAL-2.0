@@ -110,54 +110,7 @@ export const lightTheme = vars({
 "--sidebar-ring": "161 161 170", // oklch(0.708 0 0)
 });
 
-export const darkTheme = vars({
-"--radius": "12", // 0.75rem = 12px
-
-// Core semantic colors - Midnight Black
-"--background": "7 11 20", // Midnight black #070B14
-"--foreground": "245 245 245", // Near white
-
-"--card": "14 20 31", // Raised midnight surface #0E141F
-"--card-foreground": "245 245 245", // Light text
-
-"--popover": "17 24 39", // Slightly lighter midnight surface
-"--popover-foreground": "245 245 245", // Light text
-
-"--primary": "236 72 153", // Pink-500
-"--primary-foreground": "255 255 255", // White
-
-"--secondary": "22 30 46", // Midnight secondary
-"--secondary-foreground": "251 207 232", // Pink-200
-
-"--muted": "16 23 36", // Dark midnight muted
-"--muted-foreground": "160 160 165", // Muted text
-
-"--accent": "22 30 46", // Midnight accent
-"--accent-foreground": "251 207 232", // Pink-200
-
-"--destructive": "248 113 113", // Red
-
-"--border": "35 44 61", // Midnight border
-"--input": "24 32 48", // Midnight input
-"--ring": "236 72 153", // Pink-500
-
-// Chart colors
-"--chart-1": "99 102 241", // oklch(0.488 0.243 264.376)
-"--chart-2": "34 197 94", // oklch(0.696 0.17 162.48)
-"--chart-3": "244 162 97", // oklch(0.769 0.188 70.08)
-"--chart-4": "168 85 247", // oklch(0.627 0.265 303.9)
-"--chart-5": "239 68 68", // oklch(0.645 0.246 16.439)
-
-// Sidebar colors
-"--sidebar": "14 20 31",
-"--sidebar-foreground": "250 250 250", // oklch(0.985 0 0)
-"--sidebar-primary": "99 102 241", // oklch(0.488 0.243 264.376)
-"--sidebar-primary-foreground": "250 250 250", // oklch(0.985 0 0)
-"--sidebar-accent": "22 30 46",
-"--sidebar-accent-foreground": "250 250 250", // oklch(0.985 0 0)
-"--sidebar-border": "35 44 61",
-"--sidebar-ring": "82 82 82", // oklch(0.439 0 0)
-});
+export const darkTheme = lightTheme;
 
 // Admin workspaces intentionally use a calmer SaaS palette than the
 // media-forward customer and vendor surfaces. These values remap the existing
@@ -189,31 +142,7 @@ export const adminLightTheme = vars({
 "--chart-5": "124 58 237",
 });
 
-export const adminDarkTheme = vars({
-"--background": "3 14 32",
-"--foreground": "245 245 245",
-"--card": "14 20 31",
-"--card-foreground": "245 245 245",
-"--popover": "17 24 39",
-"--popover-foreground": "245 245 245",
-"--primary": "96 165 250",
-"--primary-foreground": "255 255 255",
-"--secondary": "22 30 46",
-"--secondary-foreground": "229 231 235",
-"--muted": "16 23 36",
-"--muted-foreground": "160 160 165",
-"--accent": "37 22 32",
-"--accent-foreground": "251 207 232",
-"--destructive": "248 113 113",
-"--border": "35 44 61",
-"--input": "35 44 61",
-"--ring": "96 165 250",
-"--chart-1": "96 165 250",
-"--chart-2": "245 183 61",
-"--chart-3": "74 222 128",
-"--chart-4": "251 191 36",
-"--chart-5": "167 139 250",
-});
+export const adminDarkTheme = adminLightTheme;
 
 export const adminPalette = {
   canvas: "#F5F8FC",

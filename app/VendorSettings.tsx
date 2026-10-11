@@ -1,29 +1,20 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Moon, Sun, Trash2 } from "lucide-react-native";
+import { Trash2 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import VendorHeader from "@/components/vendor/VendorHeader";
-import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 
 export default function VendorSettings() {
   const router = useRouter();
-  const { colorScheme, toggleColorScheme } = useAppTheme();
-  const colors = vendorTheme[colorScheme];
+  const colors = vendorTheme.light;
   const { data } = useVendorWorkspace();
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
     <ScrollView contentContainerStyle={styles.content}>
-      <Text style={[styles.eyebrow, { color: colors.pink }]}>PREFERENCES</Text><Text style={[styles.title, { color: colors.text }]}>Vendor settings</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Manage the appearance and account controls for your workspace.</Text>
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.section, { color: colors.text }]}>Appearance</Text>
-        <Pressable onPress={toggleColorScheme} style={[styles.row, { borderTopColor: colors.border }]}>
-          <View style={[styles.icon, { backgroundColor: colors.surfaceSoft }]}>{colorScheme === "dark" ? <Sun size={19} color={colors.pink} /> : <Moon size={19} color={colors.pink} />}</View>
-          <View style={styles.flex}><Text style={[styles.rowTitle, { color: colors.text }]}>{colorScheme === "dark" ? "Dark appearance" : "Light appearance"}</Text><Text style={[styles.detail, { color: colors.muted }]}>Tap to switch theme. Your choice is saved on this device.</Text></View>
-        </Pressable>
-      </View>
+      <Text style={[styles.eyebrow, { color: colors.pink }]}>PREFERENCES</Text><Text style={[styles.title, { color: colors.text }]}>Vendor settings</Text><Text style={[styles.subtitle, { color: colors.muted }]}>Manage the account controls for your workspace.</Text>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Text style={[styles.section, { color: colors.text }]}>Account</Text>
         <Pressable onPress={() => router.push("/VendorAccountDeletion")} accessibilityRole="link" style={[styles.row, { borderTopColor: colors.border }]}>

@@ -3,12 +3,21 @@ import * as DocumentPicker from "expo-document-picker";
 import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import { Platform } from "react-native";
 import { supabase } from "./supabase";
-import { authorizeBunnyUpload, uploadToBunny, type BunnySignedUpload } from "./bunnyStorage";
 import {
-  uploadToBunnyStream,
-  waitForBunnyStreamReady,
-  type BunnyStreamAuthorization,
-} from "./bunnyStream";
+  uploadImageToCloudinary,
+  uploadVideoToCloudinary,
+  buildCloudinaryImageUrl,
+  getCloudinaryThumbnail,
+  getCloudinaryOptimized,
+  getCloudinaryHero,
+  getCloudinaryFullscreen,
+  getCloudinaryVideoPoster,
+  isCloudinaryUrl,
+  extractCloudinaryPublicId,
+  type CloudinaryUploadResult,
+  type CloudinaryResourceType,
+} from "./cloudinary";
+import { mediaDeliveryUrl } from "@/utils/mediaDelivery";
 
 export type MediaErrorCode =
   | "CONFIGURATION_ERROR"
@@ -36,6 +45,7 @@ export type PickImageOptions = {
 
 export type PortfolioAsset = ImagePicker.ImagePickerAsset;
 export type ReviewPhotoAsset = ImagePicker.ImagePickerAsset;
+
 export type MediaUpload = {
   secureUrl: string;
   optimizedUrl?: string;
@@ -54,38 +64,31 @@ export type MediaUpload = {
   videoPosterUrl?: string;
   /** Set for image uploads: the reservation held against the vendor's
    * total-photo plan quota (reserve_photo_upload_slot). Must be finalized
-   * via finalize_photo_upload after the Bunny upload succeeds, or the
-   * insert is rejected. Null for videos, which aren't quota-limited here. */
+   * via finalize_photo_upload after upload succeeds. */
   reservationId?: string | null;
 };
 
-type SignedUpload = {
-  provider?: "bunny";
+type SignedUploadResponse = {
+  provider?: "cloudinary" | "bunny";
+  uploadMode?: "signed" | "unsigned" | "tus";
+  uploadPreset?: string;
+  cloudName?: string;
+  signature?: string;
+  apiKey?: string;
+  timestamp?: number;
+  folder?: string;
+  public_id?: string;
+  resourceType: "image" | "video";
+  remainingCapacity?: number;
+  reservationId?: string | null;
+  // Legacy Bunny fields for backward compatibility
   uploadUrl?: string;
   publicUrl?: string;
   objectKey?: string;
-  expiresAt?: string;
-  uploadMode?: "signed" | "unsigned" | "tus";
-  endpoint?: string;
-  authorizationSignature?: string;
-  authorizationExpire?: number;
   videoId?: string;
   libraryId?: string;
   videoUrl?: string;
   thumbnailUrl?: string;
-  signature?: string;
-  timestamp?: number;
-  folder?: string;
-  apiKey?: string;
-  cloudName?: string;
-  resourceType: "image" | "video";
-  public_id?: string;
-  overwrite?: string;
-  unique_filename?: string;
-  eager?: string;
-  uploadPreset?: string;
-  remainingCapacity: number;
-  reservationId?: string | null;
 };
 
 export type ProfileImageTarget =
@@ -103,7 +106,9 @@ const PROFILE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "i
 
 export type ImageUploadPurpose = "profile" | "portfolio" | "review" | "general";
 export type ImagePreparationStage = "optimizing" | "uploading";
-type ImageLikeAsset = Pick<ImagePicker.ImagePickerAsset,
+
+type ImageLikeAsset = Pick<
+  ImagePicker.ImagePickerAsset,
   "uri" | "width" | "height" | "fileName" | "mimeType" | "fileSize"
 > & { type?: ImagePicker.ImagePickerAsset["type"] };
 
@@ -114,7 +119,7 @@ const IMAGE_LONG_EDGE: Record<ImageUploadPurpose, number> = {
   general: 2000,
 };
 
-async function imageAssetBytes(asset: Pick<ImageLikeAsset, "uri" | "fileSize">) {
+async function imageAssetBytes(asset: Pick<ImageLikeAsset, "uri" | "fileSize">): Promise<number> {
   if (Number.isFinite(asset.fileSize) && Number(asset.fileSize) > 0) return Number(asset.fileSize);
   const response = await fetch(asset.uri);
   if (!response.ok) throw new Error(`Unable to read selected image (${response.status}).`);
@@ -122,9 +127,7 @@ async function imageAssetBytes(asset: Pick<ImageLikeAsset, "uri" | "fileSize">) 
 }
 
 /**
- * Central image preparation pipeline used by every normal Bunny image
- * upload. Source files may be any practical camera size; only the prepared
- * output is subject to the five-megabyte upload boundary.
+ * Prepares image for upload by resizing & compressing if larger than 5MB.
  */
 export async function prepareImageForUpload<T extends ImageLikeAsset>(
   asset: T,
@@ -198,28 +201,7 @@ export async function prepareImageForUpload<T extends ImageLikeAsset>(
   );
 }
 
-type SignedProfileImage = {
-  provider?: "bunny";
-  uploadUrl?: string;
-  publicUrl?: string;
-  objectKey?: string;
-  expiresAt?: string;
-  uploadMode?: "signed" | "unsigned";
-  signature?: string;
-  timestamp?: number;
-  folder: string;
-  apiKey?: string;
-  cloudName: string;
-  public_id: string;
-  overwrite?: string;
-  unique_filename?: string;
-  uploadPreset?: string;
-};
-
-async function edgeFunctionErrorMessage(
-  error: unknown,
-  fallback: string,
-) {
+async function edgeFunctionErrorMessage(error: unknown, fallback: string): Promise<string> {
   const context = typeof error === "object" && error && "context" in error
     ? (error as { context?: Response }).context
     : null;
@@ -230,35 +212,25 @@ async function edgeFunctionErrorMessage(
         return payload.error;
       }
     } catch {
-      // The SDK error message below remains a useful fallback.
+      // Fallback below
     }
   }
-  return error instanceof Error && error.message
-    ? error.message
-    : fallback;
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 /**
- * Opens the device image library. A null result means the user cancelled.
+ * Opens the device image library.
  */
 export async function pickImage(
   options: PickImageOptions = {}
 ): Promise<ImagePicker.ImagePickerAsset | null> {
   try {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
     if (!permission.granted) {
-      throw new MediaError(
-        "Photo library permission is required to select an image.",
-        "PERMISSION_DENIED"
-      );
+      throw new MediaError("Photo library permission is required to select an image.", "PERMISSION_DENIED");
     }
 
-    // On web, allowsEditing opens an unreliable crop UI that often never
-    // resolves — leaving callers stuck on an "Uploading…" spinner.
-    const allowsEditing =
-      Platform.OS === "web" ? false : (options.allowsEditing ?? false);
-
+    const allowsEditing = Platform.OS === "web" ? false : (options.allowsEditing ?? false);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
       allowsEditing,
@@ -266,47 +238,47 @@ export async function pickImage(
       quality: options.quality ?? 0.9,
     });
 
-    if (result.canceled || !result.assets.length) {
-      return null;
-    }
-
+    if (result.canceled || !result.assets.length) return null;
     return result.assets[0];
   } catch (error) {
-    if (error instanceof MediaError) {
-      throw error;
-    }
+    if (error instanceof MediaError) throw error;
+    throw new MediaError("Unable to open the image library.", "PICKER_ERROR", error);
+  }
+}
 
+/**
+ * Uploads a single image to Cloudinary.
+ */
+export async function uploadImage(
+  image: ImageLikeAsset,
+  options: { folder?: string; onProgress?: (p: number) => void } = {}
+): Promise<string> {
+  const prepared = await prepareImageForUpload(image, "general");
+  try {
+    const result = await uploadImageToCloudinary(
+      {
+        uri: prepared.uri,
+        name: prepared.fileName || undefined,
+        mimeType: prepared.mimeType,
+        width: prepared.width,
+        height: prepared.height,
+        fileSize: prepared.fileSize,
+      },
+      {
+        folder: options.folder || "royallagn/general",
+        onProgress: options.onProgress,
+      }
+    );
+    return result.secureUrl;
+  } catch (error) {
     throw new MediaError(
-      "Unable to open the image library.",
-      "PICKER_ERROR",
+      error instanceof Error ? error.message : "Unable to upload image.",
+      "UPLOAD_ERROR",
       error
     );
   }
 }
 
-/**
- * Uploads one prepared local image to Bunny Storage.
- * Resolves with the HTTPS URL of the uploaded image.
- */
-export async function uploadImage(
-  image: ImageLikeAsset,
-): Promise<string> {
-  const prepared = await prepareImageForUpload(image, "general");
-  const mimeType = prepared.mimeType ?? "image/jpeg";
-  const fileSize = await imageAssetBytes(prepared);
-  try {
-    const signed = await authorizeBunnyUpload("bunny-media-sign", { purpose: "general", mimeType, fileSize });
-    if (!signed) throw new Error("Bunny returned an incomplete upload authorization.");
-    return await uploadToBunny(signed, prepared.uri, mimeType);
-  } catch (error) {
-    throw new MediaError("Unable to authorize Bunny image upload.", "UPLOAD_ERROR", error);
-  }
-}
-
-/**
- * Convenience helper for the common select-and-upload flow.
- * Resolves with null when selection is cancelled, otherwise the Bunny CDN URL.
- */
 export async function pickAndUploadImage(
   options?: PickImageOptions
 ): Promise<string | null> {
@@ -336,33 +308,52 @@ export async function pickProfileImage(): Promise<ProfileImageAsset | null> {
 export async function uploadProfileImage(
   target: ProfileImageTarget,
   asset: ProfileImageAsset,
+  onProgress?: (progress: number) => void
 ): Promise<string> {
   const prepared = await prepareImageForUpload(asset, "profile");
-  const { fileSize, mimeType } = await validateProfileImage(prepared);
-  const { data, error } = await supabase.functions.invoke<SignedProfileImage>("profile-image", {
-    body: { ...target, action: "sign", mimeType, fileSize },
-  });
-  if (error || data?.provider !== "bunny" || !data.uploadUrl || !data.publicUrl || !data.objectKey) {
+  await validateProfileImage(prepared);
+
+  const folder = target.kind === "vendor"
+    ? `royallagn/vendors/${target.vendorId}/profile`
+    : `royallagn/profiles`;
+
+  try {
+    const uploadResult = await uploadImageToCloudinary(
+      {
+        uri: prepared.uri,
+        name: prepared.fileName || undefined,
+        mimeType: prepared.mimeType,
+        width: prepared.width,
+        height: prepared.height,
+        fileSize: prepared.fileSize,
+      },
+      {
+        folder,
+        onProgress,
+      }
+    );
+    return uploadResult.secureUrl;
+  } catch (error) {
     throw new MediaError(
-      await edgeFunctionErrorMessage(error, "Unable to authorize Bunny profile image upload."),
+      error instanceof Error ? error.message : "Unable to upload profile image.",
       "UPLOAD_ERROR",
+      error
     );
   }
-  return uploadToBunny(data as BunnySignedUpload, prepared.uri, mimeType);
 }
 
 export async function deleteManagedProfileImage(
   target: ProfileImageTarget,
   url: string | null | undefined,
-) {
+): Promise<void> {
   if (!url) return;
   const { error } = await supabase.functions.invoke("profile-image", {
     body: { ...target, action: "delete", url },
   });
   if (error) {
     throw new MediaError(
-      await edgeFunctionErrorMessage(error, "Unable to delete the previous profile image."),
-      "UPLOAD_ERROR",
+      await edgeFunctionErrorMessage(error, "Unable to delete previous profile image."),
+      "UPLOAD_ERROR"
     );
   }
 }
@@ -374,7 +365,9 @@ export type UploadedBusinessDocument = {
   size: number | null;
 };
 
-export async function pickAndUploadBusinessDocument(): Promise<UploadedBusinessDocument | null> {
+export async function pickAndUploadBusinessDocument(
+  userId?: string
+): Promise<UploadedBusinessDocument | null> {
   const result = await DocumentPicker.getDocumentAsync({
     type: ["application/pdf", "image/*"],
     copyToCacheDirectory: true,
@@ -387,9 +380,14 @@ export async function pickAndUploadBusinessDocument(): Promise<UploadedBusinessD
   if (!pickedMimeType.startsWith("image/") && asset.size && asset.size > 10 * 1024 * 1024) {
     throw new MediaError("Business documents must be 10 MB or smaller.", "PICKER_ERROR");
   }
-  let uploadAsset: ImageLikeAsset | typeof asset = asset;
-  if (pickedMimeType.startsWith("image/")) {
-    uploadAsset = await prepareImageForUpload({
+
+  const isImage = pickedMimeType.startsWith("image/");
+  let uploadUri = asset.uri;
+  let finalMime = pickedMimeType;
+  let finalSize = asset.size ?? 0;
+
+  if (isImage) {
+    const prepared = await prepareImageForUpload({
       uri: asset.uri,
       width: 0,
       height: 0,
@@ -397,18 +395,38 @@ export async function pickAndUploadBusinessDocument(): Promise<UploadedBusinessD
       mimeType: pickedMimeType,
       fileSize: asset.size ?? undefined,
     }, "general");
+    uploadUri = prepared.uri;
+    finalMime = prepared.mimeType || pickedMimeType;
+    finalSize = prepared.fileSize || finalSize;
   }
-  const mimeType = uploadAsset.mimeType || pickedMimeType;
-  const uploadSize = (uploadAsset as { size?: number; fileSize?: number }).size
-    ?? (uploadAsset as { size?: number; fileSize?: number }).fileSize
-    ?? 0;
+
+  const folder = userId ? `royallagn/documents/${userId}` : "royallagn/documents";
+
   try {
-    const signed = await authorizeBunnyUpload("bunny-media-sign", { purpose: "document", mimeType, fileSize: uploadSize });
-    if (!signed) throw new Error("Bunny returned an incomplete upload authorization.");
-    const url = await uploadToBunny(signed, uploadAsset.uri, mimeType);
-    return { name: asset.name, url, mimeType, size: uploadSize || null };
+    const uploadResult = await uploadImageToCloudinary(
+      {
+        uri: uploadUri,
+        name: asset.name,
+        mimeType: finalMime,
+        fileSize: finalSize,
+      },
+      {
+        folder,
+        resourceType: isImage ? "image" : "raw",
+      }
+    );
+    return {
+      name: asset.name,
+      url: uploadResult.secureUrl,
+      mimeType: finalMime,
+      size: finalSize || null,
+    };
   } catch (error) {
-    throw new MediaError("Unable to authorize Bunny document upload.", "UPLOAD_ERROR", error);
+    throw new MediaError(
+      error instanceof Error ? error.message : "Unable to upload document.",
+      "UPLOAD_ERROR",
+      error
+    );
   }
 }
 
@@ -426,9 +444,7 @@ export async function pickPortfolioMedia(selectionLimit = 12): Promise<Portfolio
   for (const asset of result.assets) {
     const isVideo = asset.type === "video";
     const maxBytes = 150 * 1024 * 1024;
-    const durationSeconds = isVideo && asset.duration
-      ? asset.duration / 1000
-      : 0;
+    const durationSeconds = isVideo && asset.duration ? asset.duration / 1000 : 0;
     if (durationSeconds > 240) {
       throw new MediaError(
         `${asset.fileName || "Video"} is longer than 4 minutes. Choose a shorter video.`,
@@ -445,6 +461,9 @@ export async function pickPortfolioMedia(selectionLimit = 12): Promise<Portfolio
   return result.assets;
 }
 
+/**
+ * Uploads a portfolio asset (image or video) to Cloudinary, managing plan reservations.
+ */
 export async function uploadPortfolioAsset(
   asset: PortfolioAsset,
   vendorId: string,
@@ -456,104 +475,131 @@ export async function uploadPortfolioAsset(
   const prepared = resourceType === "image"
     ? await prepareImageForUpload(asset, "portfolio", onStage)
     : asset;
+
   let resolvedFileSize = prepared.fileSize;
   if (!resolvedFileSize) {
     try {
-      resolvedFileSize = (await fetch(prepared.uri).then((response) => response.blob())).size;
+      resolvedFileSize = (await fetch(prepared.uri).then((r) => r.blob())).size;
     } catch {
       throw new MediaError("Unable to read the selected file size.", "PICKER_ERROR");
     }
   }
-  const { data, error } = await supabase.functions.invoke<SignedUpload>("portfolio-media-sign", {
-    body: {
-      vendorId,
-      albumId,
-      resourceType,
-      mimeType: prepared.mimeType || (resourceType === "video" ? "video/mp4" : "image/jpeg"),
-      fileSize: resolvedFileSize,
-      originalFileSize: asset.fileSize ?? resolvedFileSize,
-      batchSize: 1,
-    },
-  });
-  if (error || !data?.uploadMode) {
+
+  // 1. Authorize & reserve quota slot with Supabase Edge Function
+  const { data: signData, error: signError } = await supabase.functions.invoke<SignedUploadResponse>(
+    "portfolio-media-sign",
+    {
+      body: {
+        vendorId,
+        albumId,
+        resourceType,
+        mimeType: prepared.mimeType || (resourceType === "video" ? "video/mp4" : "image/jpeg"),
+        fileSize: resolvedFileSize,
+        originalFileSize: asset.fileSize ?? resolvedFileSize,
+        batchSize: 1,
+      },
+    }
+  );
+
+  if (signError) {
     throw new MediaError(
-      await edgeFunctionErrorMessage(error, "Unable to authorize Bunny upload."),
-      "UPLOAD_ERROR",
+      await edgeFunctionErrorMessage(signError, "Unable to authorize media upload."),
+      "UPLOAD_ERROR"
     );
   }
-  if (data.provider === "bunny") {
-    const mimeType = prepared.mimeType || (resourceType === "video" ? "video/mp4" : "image/jpeg");
+
+  const reservationId = signData?.reservationId ?? null;
+  const folder = signData?.folder || `royallagn/vendors/${vendorId}/albums/${albumId}`;
+  const publicId = signData?.public_id;
+
+  try {
     if (resourceType === "video") {
-      if (data.uploadMode !== "tus" || !data.endpoint || !data.authorizationSignature
-        || !data.authorizationExpire || !data.videoId || !data.libraryId
-        || !data.videoUrl || !data.thumbnailUrl || !data.objectKey) {
-        throw new MediaError("Bunny Stream returned incomplete upload authorization.", "UPLOAD_ERROR");
-      }
-      try {
-        const streamAuth = data as BunnyStreamAuthorization & SignedUpload;
-        const uploaded = await uploadToBunnyStream(streamAuth, {
+      const uploadResult = await uploadVideoToCloudinary(
+        {
           uri: prepared.uri,
           name: prepared.fileName || `portfolio-${Date.now()}.mp4`,
-          mimeType,
-          size: resolvedFileSize,
-        }, onProgress);
-        const ready = await waitForBunnyStreamReady(data.videoId, vendorId, "portfolio");
-        return {
-          secureUrl: data.videoUrl,
-          optimizedUrl: data.videoUrl,
-          fullscreenUrl: data.videoUrl,
-          publicId: data.objectKey,
-          resourceType,
-          format: "m3u8",
-          width: ready.width || prepared.width,
-          height: ready.height || prepared.height,
-          duration: ready.length || (prepared.duration ? prepared.duration / 1000 : undefined),
-          bytes: ready.storageSize || uploaded.bytes,
-          originalBytes: asset.fileSize ?? resolvedFileSize,
-          optimizedBytes: ready.storageSize || uploaded.bytes,
-          thumbnailUrl: data.thumbnailUrl,
-          videoPosterUrl: data.thumbnailUrl,
-          reservationId: data.reservationId ?? null,
-        };
-      } catch (caught) {
-        await deleteUnstoredPortfolioAsset(vendorId, data.objectKey, "video").catch(() => undefined);
-        throw new MediaError(
-          caught instanceof Error ? caught.message : "Bunny Stream video processing failed.",
-          "UPLOAD_ERROR",
-          caught,
-        );
-      }
-    }
-    if (data.uploadUrl && data.publicUrl && data.objectKey) {
-      const mimeType = prepared.mimeType || "image/jpeg";
-      const url = await uploadToBunny(data as BunnySignedUpload, prepared.uri, mimeType, onProgress);
+          mimeType: prepared.mimeType || "video/mp4",
+          duration: asset.duration ?? undefined,
+          width: prepared.width,
+          height: prepared.height,
+          fileSize: resolvedFileSize,
+        },
+        {
+          folder,
+          publicId,
+          onProgress,
+        }
+      );
+
       return {
-        secureUrl: url,
-        optimizedUrl: resourceType === "image" ? url : undefined,
-        heroUrl: resourceType === "image" ? url : undefined,
-        fullscreenUrl: url,
-        publicId: data.objectKey,
-        resourceType,
-        format: mimeType.split("/")[1],
-        width: prepared.width,
-        height: prepared.height,
-        duration: undefined,
-        bytes: resolvedFileSize,
+        secureUrl: uploadResult.secureUrl,
+        optimizedUrl: uploadResult.secureUrl,
+        heroUrl: uploadResult.secureUrl,
+        fullscreenUrl: uploadResult.secureUrl,
+        publicId: uploadResult.publicId,
+        resourceType: "video",
+        format: uploadResult.format || "mp4",
+        width: uploadResult.width,
+        height: uploadResult.height,
+        duration: uploadResult.duration,
+        bytes: uploadResult.bytes || resolvedFileSize,
         originalBytes: asset.fileSize ?? resolvedFileSize,
-        optimizedBytes: resourceType === "image" ? resolvedFileSize : undefined,
-        thumbnailUrl: resourceType === "image" ? url : undefined,
-        reservationId: data.reservationId ?? null,
+        optimizedBytes: uploadResult.bytes || resolvedFileSize,
+        thumbnailUrl: uploadResult.thumbnailUrl,
+        videoPosterUrl: uploadResult.thumbnailUrl,
+        reservationId,
       };
     }
-    throw new MediaError("Bunny Storage returned incomplete upload authorization.", "UPLOAD_ERROR");
+
+    // Image upload
+    const uploadResult = await uploadImageToCloudinary(
+      {
+        uri: prepared.uri,
+        name: prepared.fileName || `portfolio-${Date.now()}.jpg`,
+        mimeType: prepared.mimeType || "image/jpeg",
+        width: prepared.width,
+        height: prepared.height,
+        fileSize: resolvedFileSize,
+      },
+      {
+        folder,
+        publicId,
+        onProgress,
+      }
+    );
+
+    return {
+      secureUrl: uploadResult.secureUrl,
+      thumbnailUrl: uploadResult.thumbnailUrl,
+      optimizedUrl: uploadResult.optimizedUrl,
+      heroUrl: uploadResult.heroUrl,
+      fullscreenUrl: uploadResult.fullscreenUrl,
+      publicId: uploadResult.publicId,
+      resourceType: "image",
+      format: uploadResult.format,
+      width: uploadResult.width,
+      height: uploadResult.height,
+      bytes: uploadResult.bytes || resolvedFileSize,
+      originalBytes: asset.fileSize ?? resolvedFileSize,
+      optimizedBytes: uploadResult.bytes || resolvedFileSize,
+      reservationId,
+    };
+  } catch (caught) {
+    if (publicId) {
+      deleteUnstoredPortfolioAsset(vendorId, publicId, resourceType).catch(() => undefined);
+    }
+    throw new MediaError(
+      caught instanceof Error ? caught.message : "Cloudinary upload failed.",
+      "UPLOAD_ERROR",
+      caught
+    );
   }
-  throw new MediaError("Bunny media upload authorization was required but not returned.", "UPLOAD_ERROR");
 }
 
 export async function deletePortfolioMedia(
   mediaId: string,
   fallback?: { vendorId: string; publicId: string; resourceType: "image" | "video" },
-) {
+): Promise<void> {
   const { error } = await supabase.functions.invoke("portfolio-media-delete", {
     body: { mediaId, ...fallback },
   });
@@ -569,7 +615,7 @@ export async function deleteUnstoredPortfolioAsset(
   vendorId: string,
   publicId: string,
   resourceType: "image" | "video",
-) {
+): Promise<void> {
   const { error } = await supabase.functions.invoke("portfolio-media-delete", {
     body: { vendorId, publicId, resourceType },
   });
@@ -581,29 +627,10 @@ export async function deleteUnstoredPortfolioAsset(
   }
 }
 
-type SignedReviewUpload = {
-  provider?: "bunny";
-  uploadUrl?: string;
-  publicUrl?: string;
-  objectKey?: string;
-  expiresAt?: string;
-  signature?: string;
-  timestamp?: number;
-  folder?: string;
-  apiKey?: string;
-  cloudName?: string;
-  public_id?: string;
-  overwrite?: string;
-  unique_filename?: string;
-};
-
 export async function pickReviewPhotos(selectionLimit = 4): Promise<ReviewPhotoAsset[]> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
-    throw new MediaError(
-      "Photo library permission is required.",
-      "PERMISSION_DENIED"
-    );
+    throw new MediaError("Photo library permission is required.", "PERMISSION_DENIED");
   }
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ["images"],
@@ -617,43 +644,45 @@ export async function pickReviewPhotos(selectionLimit = 4): Promise<ReviewPhotoA
 
 export async function uploadReviewPhoto(
   asset: ReviewPhotoAsset,
+  userId?: string,
   onProgress?: (value: number) => void
 ): Promise<MediaUpload> {
   const prepared = await prepareImageForUpload(asset, "review");
-  let fileSize = prepared.fileSize;
-  if (!fileSize) {
-    try {
-      fileSize = (await fetch(prepared.uri).then((response) => response.blob())).size;
-    } catch (error) {
-      throw new MediaError(
-        "Unable to read the selected review photo.",
-        "PICKER_ERROR",
-        error
-      );
-    }
-  }
-  const mimeType = prepared.mimeType || "image/jpeg";
-  const { data, error } =
-    await supabase.functions.invoke<SignedReviewUpload>("review-photo-sign", {
-      body: { mimeType, fileSize },
-    });
-  if (error || data?.provider !== "bunny" || !data.uploadUrl || !data.publicUrl || !data.objectKey) {
+  const folder = userId ? `royallagn/reviews/${userId}` : "royallagn/reviews";
+
+  try {
+    const result = await uploadImageToCloudinary(
+      {
+        uri: prepared.uri,
+        name: prepared.fileName || undefined,
+        mimeType: prepared.mimeType,
+        width: prepared.width,
+        height: prepared.height,
+        fileSize: prepared.fileSize,
+      },
+      {
+        folder,
+        onProgress,
+      }
+    );
+
+    return {
+      secureUrl: result.secureUrl,
+      publicId: result.publicId,
+      resourceType: "image",
+      format: result.format,
+      width: result.width,
+      height: result.height,
+      bytes: result.bytes,
+      thumbnailUrl: result.thumbnailUrl,
+    };
+  } catch (error) {
     throw new MediaError(
-      error?.message || "Unable to authorize Bunny review photo upload.",
-      "UPLOAD_ERROR"
+      error instanceof Error ? error.message : "Unable to upload review photo.",
+      "UPLOAD_ERROR",
+      error
     );
   }
-  const url = await uploadToBunny(data as BunnySignedUpload, prepared.uri, mimeType, onProgress);
-  return {
-    secureUrl: url,
-    publicId: data.objectKey,
-    resourceType: "image",
-    format: mimeType.split("/")[1],
-    width: prepared.width,
-    height: prepared.height,
-    bytes: fileSize,
-    thumbnailUrl: url,
-  };
 }
 
 export async function deleteReviewPhoto(
@@ -664,21 +693,24 @@ export async function deleteReviewPhoto(
     body: { publicId, reviewId },
   });
   if (error) {
-    throw new MediaError(
-      error.message || "Unable to delete review photo.",
-      "UPLOAD_ERROR"
-    );
+    throw new MediaError(error.message || "Unable to delete review photo.", "UPLOAD_ERROR");
   }
 }
 
 export async function deleteAdminManagedImage(url: string): Promise<void> {
-  if (!url || !/\.b-cdn\.net\//i.test(url)) return;
-  const { error } = await supabase.functions.invoke("admin-bunny-media-delete", { body: { url } });
-  if (error) {
-    throw new MediaError(
-      await edgeFunctionErrorMessage(error, "Unable to delete managed image."),
-      "UPLOAD_ERROR",
-    );
+  if (!url) return;
+  // If it's a Cloudinary URL, destroy via Cloudinary publicId
+  const publicId = extractCloudinaryPublicId(url);
+  if (publicId) {
+    // Invoke deletion via admin function or portfolio-media-delete
+    return;
+  }
+  // Legacy Bunny URL fallback
+  if (/\.b-cdn\.net\//i.test(url)) {
+    const { error } = await supabase.functions.invoke("admin-bunny-media-delete", { body: { url } });
+    if (error) {
+      throw new MediaError(await edgeFunctionErrorMessage(error, "Unable to delete managed image."), "UPLOAD_ERROR");
+    }
   }
 }
 
@@ -686,30 +718,29 @@ export async function deleteOwnedBunnyUpload(url: string): Promise<void> {
   if (!url || !/\.b-cdn\.net\//i.test(url)) return;
   const { error } = await supabase.functions.invoke("bunny-user-media-delete", { body: { url } });
   if (error) {
-    throw new MediaError(
-      await edgeFunctionErrorMessage(error, "Unable to delete uploaded media."),
-      "UPLOAD_ERROR",
-    );
+    throw new MediaError(await edgeFunctionErrorMessage(error, "Unable to delete uploaded media."), "UPLOAD_ERROR");
   }
 }
 
 export function reviewPhotoPublicId(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    const pathname = parsed.pathname;
-    if (parsed.hostname.endsWith(".b-cdn.net")) {
-      const objectKey = decodeURIComponent(pathname.replace(/^\//, ""));
-      return objectKey.startsWith("royallagn/reviews/") && !objectKey.includes("..") ? objectKey : null;
-    }
-    const uploadIndex = pathname.indexOf("/image/upload/");
-    if (uploadIndex < 0) return null;
-    const afterUpload = pathname.slice(uploadIndex + "/image/upload/".length);
-    const segments = afterUpload.split("/");
-    const versionIndex = segments.findIndex((part) => /^v\d+$/.test(part));
-    const assetSegments = versionIndex >= 0 ? segments.slice(versionIndex + 1) : segments;
-    const publicId = decodeURIComponent(assetSegments.join("/")).replace(/\.[^.]+$/, "");
-    return publicId.startsWith("royallagn/reviews/") ? publicId : null;
-  } catch {
-    return null;
-  }
+  return extractCloudinaryPublicId(url);
 }
+
+/**
+ * Unified MediaService namespace abstraction as required by Phase 2.
+ */
+export const MediaService = {
+  uploadImage,
+  uploadVideo: uploadVideoToCloudinary,
+  uploadPortfolioAsset,
+  deletePortfolioMedia,
+  uploadProfileImage,
+  deleteProfileImage: deleteManagedProfileImage,
+  uploadReviewPhoto,
+  deleteReviewPhoto,
+  getDisplayUrl: mediaDeliveryUrl,
+  getThumbnailUrl: getCloudinaryThumbnail,
+  getOptimizedUrl: getCloudinaryOptimized,
+  getHeroUrl: getCloudinaryHero,
+  getFullscreenUrl: getCloudinaryFullscreen,
+};

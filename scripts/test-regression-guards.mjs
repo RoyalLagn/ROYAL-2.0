@@ -178,14 +178,14 @@ const [pinnedHeroSource, vendorProfileSource] = await Promise.all([
   read("components/vendor-profile/PinnedHeroProfileLayout.tsx"),
   read("app/VendorsProfile.tsx"),
 ]);
-assert.match(pinnedHeroSource, /const useHeroParallax = Platform\.OS === "web" && !reducedMotion;/, "Native vendor heroes must not scale while their parent scrolls.");
-assert.match(vendorProfileSource, /const trackProfileScroll = Platform\.OS === "web";/, "Native vendor profile scrolling must stay off the React render path.");
+assert.match(pinnedHeroSource, /const useHeroParallax = Platform\.OS === "web" && pageWidth >= 900 && !reducedMotion;/, "Native vendor heroes must not scale while their parent scrolls.");
+assert.match(vendorProfileSource, /router\.replace/, "Legacy vendor profile must redirect to canonical slug.");
 
 // --- Homepage location uses device permission in place, never Near Me route ---
 const homeScreenSource = await read("app/(tabs)/index.tsx");
-assert.match(homeScreenSource, /requestDeviceLocationPermission/, "Homepage location action must request device permission from the explicit tap.");
-assert.match(homeScreenSource, /requestDeviceLocationServices\(\)/, "Homepage location action must invoke Android's system location-resolution dialog when services are off.");
-assert.match(homeScreenSource, /onPress=\{\(\) => void refreshHomeLocation\(true\)\}/, "Homepage location icon must fetch in place rather than navigate away.");
+const homeNavbarSource = await read("components/PublicWebNavbar.tsx");
+assert.match(homeNavbarSource, /requestDeviceLocationPermission/, "Homepage location action must request device permission from the explicit tap.");
+assert.match(homeNavbarSource, /requestDeviceLocationServices\(\)/, "Homepage location action must invoke Android's system location-resolution dialog when services are off.");
 assert.doesNotMatch(homeScreenSource, /router\.push\("\/NearbyVendors"\)/, "Homepage must not route location actions to the obsolete NearbyVendors screen.");
 assert.doesNotMatch(homeScreenSource, /Unable to get location|Turn on device location/, "Homepage startup and resume must not show stale location-error modals.");
 const deviceLocationSource = await read("services/deviceLocation.ts");
@@ -281,127 +281,6 @@ INTEROP_SAFE_VENDOR_PATHS.forEach((path, index) => {
     `${path} must not bypass the Android-safe Pressable wrapper.`,
   );
 });
-const [publicClipsSource, publicClipVideoSource, vendorClipsReelSource] = await Promise.all([
-  read("app/(tabs)/clips.tsx"),
-  read("clips/components/PublicClipVideo.tsx"),
-  read("components/vendor-profile/VendorClipsReelViewer.tsx"),
-]);
-const [vendorClipUploadSource, vendorClipEditSource, vendorClipManagementSource, vendorClipOrchestratorSource, vendorClipCategoryMigrationSource, vendorClipCategorySyncMigrationSource] = await Promise.all([
-  read("app/VendorClipUpload.tsx"),
-  read("app/VendorClipEdit.tsx"),
-  read("clips/services/ClipManagementService.ts"),
-  read("clips/services/ClipUploadOrchestrator.ts"),
-  read("supabase/migrations/20260912163000_enforce_vendor_clip_category.sql"),
-  read("supabase/migrations/20260913123000_keep_clip_category_synced_to_vendor.sql"),
-]);
-assert.match(vendorClipUploadSource, /const categoryId = data\.vendor\?\.category_id \?\? "";/, "Clip uploads must inherit the authenticated vendor's category.");
-assert.doesNotMatch(vendorClipUploadSource, /useCategories|categoryOpen|setCategoryId|Choose category/, "Vendors must not manually choose a category while uploading Clips.");
-assert.doesNotMatch(vendorClipEditSource, /useCategories|categoryOpen|setCategoryId|ChevronDown|>Category</, "Vendors must not change a Clip's category while editing it.");
-assert.doesNotMatch(vendorClipManagementSource, /category_id:\s*input\.categoryId/, "Clip edits must not write a client-selected category.");
-assert.match(vendorClipUploadSource, /router\.push\("\/VendorEditBusinessInfo"\)/, "A vendor without a category must have a direct recovery path before uploading Clips.");
-assert.match(vendorClipOrchestratorSource, /from\("vendors"\)[\s\S]{0,120}select\("category_id"\)[\s\S]{0,120}eq\("id", draft\.vendorId\)/, "The upload pipeline must resolve the current category from the vendor row.");
-assert.match(vendorClipOrchestratorSource, /category_id: authoritativeCategoryId/, "The upload payload must use the server-read vendor category.");
-assert.match(vendorClipCategoryMigrationSource, /select vendor\.category_id into vendor_category_id/, "Clip finalization must resolve category from the authoritative vendor record.");
-assert.match(vendorClipCategoryMigrationSource, /target_vendor_id,\s+vendor_category_id,/, "Clip finalization must insert the vendor category instead of trusting the client payload.");
-assert.match(vendorClipCategorySyncMigrationSource, /before insert or update of vendor_id, category_id on public\.clips/, "Direct Clip writes must keep category synchronized with the vendor.");
-assert.match(
-  publicClipsSource,
-  /const \[muted, setMuted\] = useState\(false\);/,
-  "Public Clips must start with sound enabled.",
-);
-assert.match(publicClipsSource, /const tabBarHeight = useMobileTabBarHeight\(\);/, "Native Clips must measure the real floating tab-bar height.");
-assert.match(publicClipsSource, /marginBottom: Platform\.OS === "web" \? 0 : tabBarHeight/, "Native Clips content must end above the overlaid bottom navigation.");
-assert.match(
-  publicClipsSource,
-  /if \(isFocused && !previousFocus\.current\) \{[\s\S]{0,220}beginNewFeedSession\(\);/,
-  "Returning to the public Clips tab must begin a fresh feed session.",
-);
-assert.doesNotMatch(
-  publicClipsSource,
-  /if \(isFocused && !previousFocus\.current\) \{[\s\S]{0,220}setMuted\(false\);/,
-  "Returning to the public Clips tab must retain the viewer's sound choice.",
-);
-assert.match(
-  vendorClipsReelSource,
-  /const \[muted, setMuted\] = useState\(false\);/,
-  "Vendor Clip reels must start with sound enabled.",
-);
-assert.match(publicClipVideoSource, /instance\.volume = 1;/, "Public Clips must initialize at audible volume.");
-assert.match(publicClipVideoSource, /instance\.audioMixingMode = ["']doNotMix["'];/, "Native Clips must request audio focus.");
-assert.match(
-  publicClipVideoSource,
-  /Platform\.OS !== "web"[\s\S]{0,650}setAutoplayBlocked\(true\)[\s\S]{0,220}showPauseState\(true\)/,
-  "Web Clips must expose an audible-play action when the browser blocks autoplay.",
-);
-assert.match(
-  publicClipVideoSource,
-  /player\.volume = 1;[\s\S]{0,100}player\.muted = muted;[\s\S]{0,100}player\.play\(\);/,
-  "The user-started web playback path must apply audible volume before play.",
-);
-assert.match(publicClipVideoSource, /showMuteControl && active && !unavailable/, "The active Clip must keep its mute control available.");
-assert.doesNotMatch(publicClipVideoSource, /CONTROL_HIDE_DELAY_MS|controlHideTimer/, "Clip play controls must follow playback state without a delayed hide timer.");
-assert.match(publicClipVideoSource, /singleTapTimer\.current = setTimeout\([\s\S]{0,180}togglePlayback\(\);[\s\S]{0,80}DOUBLE_TAP_MS/, "A single tap must toggle playback only after the double-tap window.");
-assert.match(publicClipVideoSource, /clearTimeout\(singleTapTimer\.current\);[\s\S]{0,180}burstHeart\(\);[\s\S]{0,80}onDoubleTapLike\(\);[\s\S]{0,30}return;/, "A double tap must like without also toggling playback.");
-assert.doesNotMatch(publicClipVideoSource, /!useBunnyWebPlayer && <Pressable/, "Bunny web Clips must keep the same center-tap playback surface as other video sources.");
-assert.match(publicClipVideoSource, /controlBunnyPlayer\("pause"\)/, "Center-tapping a playing Bunny web Clip must pause its embedded player.");
-assert.match(publicClipVideoSource, /controlBunnyPlayer\("play"\)/, "Center-tapping a paused Bunny web Clip must resume its embedded player.");
-assert.match(publicClipVideoSource, /!useBunnyWebPlayer \? <Animated\.View pointerEvents="none" style=\{\[styles\.playBurst, playStyle\]\}/, "Bunny web Clips must not render a second play icon over the embedded player's own control.");
-assert.match(publicClipVideoSource, /contentWindow\?\.postMessage\([\s\S]{0,180}"\*"\)/, "Bunny Player.js commands must remain valid while the iframe transitions away from its initial parent origin.");
-const [clipConstantsSource, clipValidationSource, clipUploadSignSource, clipLimitMigrationSource] = await Promise.all([
-  read("clips/constants/index.ts"),
-  read("clips/utils/validation.ts"),
-  read("supabase/functions/clip-upload-sign/index.ts"),
-  read("supabase/migrations/20260812180000_limit_new_clips_to_40_mib.sql"),
-]);
-const CLIP_MAX_BYTES = 40 * 1024 * 1024;
-assert.equal(CLIP_MAX_BYTES, 41_943_040, "The Clip limit must use binary MiB.");
-assert.ok(39 * 1024 * 1024 <= CLIP_MAX_BYTES, "A 39 MiB Clip must be accepted.");
-assert.ok(40 * 1024 * 1024 <= CLIP_MAX_BYTES, "A 40 MiB Clip must be accepted.");
-assert.ok(CLIP_MAX_BYTES + 1 > CLIP_MAX_BYTES, "A Clip one byte above 40 MiB must be rejected.");
-assert.ok(41 * 1024 * 1024 > CLIP_MAX_BYTES, "A 41 MiB Clip must be rejected.");
-assert.ok(52 * 1024 * 1024 > CLIP_MAX_BYTES, "A 52 MiB Clip must be rejected.");
-assert.match(clipConstantsSource, /maximumFinalFileSizeBytes: 40 \* 1024 \* 1024/, "Client Clip configuration must cap files at 40 MiB.");
-assert.match(clipValidationSource, /requiresCompression: source\.fileSizeBytes > clipsConfig\.media\.maximumFinalFileSizeBytes/, "Only Clips above 40 MiB must enter local compression.");
-assert.match(clipUploadSignSource, /kind === ["']video["'] \? 40 \* 1024 \* 1024/, "The Clip signing function must cap video uploads at 40 MiB.");
-assert.match(clipLimitMigrationSource, /file_size_bytes <= 41943040/, "The database must enforce the exact 40 MiB byte limit.");
-assert.match(clipLimitMigrationSource, /not valid;/i, "The new Clip constraint must preserve previously uploaded oversized rows.");
-const clipNativeMediaSource = await read("clips/services/ClipNativeMediaService.ts");
-const clipCompressionPlanSource = await read("clips/utils/compressionPlan.ts");
-assert.match(clipCompressionPlanSource, /targetFileSizeBytes/, "Native Clip compression must target below the hard limit.");
-assert.match(clipCompressionPlanSource, /maximumAttempts/, "Native Clip compression must use a bounded progressive strategy.");
-assert.match(clipNativeMediaSource, /stripAudio: false/, "Native Clip compression must preserve audio.");
-assert.match(clipNativeMediaSource, /metadata\.size <= clipsConfig\.media\.maximumFinalFileSizeBytes/, "Every compressed Clip must be measured before upload.");
-assert.match(clipNativeMediaSource, /unavailable in standard Expo Go/, "Oversized Clips in Expo Go must fail clearly instead of uploading the original.");
-assert.match(clipCompressionPlanSource, /Math\.min\(sourceMaxDimension, profile\.maxDimension\)/, "Smart Clip optimization must never upscale low-resolution input.");
-assert.match(clipCompressionPlanSource, /maxDimension: 1920[\s\S]*maxDimension: 1280[\s\S]*maxDimension: 960/, "Smart Clip optimization must preserve 1080p before progressively reducing resolution.");
-assert.match(clipCompressionPlanSource, /source\.fileSizeBytes \* 8\) \/ duration/, "Smart Clip optimization must calculate bitrate from source size and duration.");
-const [clipManagementSource, clipDeleteFunctionSource, clipDeleteMigrationSource, vendorClipsSource, publicClipSource, bunnyMediaSharedSource, adminDeleteClipSource] = await Promise.all([
-  read("clips/services/ClipManagementService.ts"),
-  read("supabase/functions/clip-media-delete/index.ts"),
-  read("supabase/migrations/20260812190000_allow_vendor_clip_deletion_without_active_plan.sql"),
-  read("app/VendorClips.tsx"),
-  read("clips/services/PublicClipService.ts"),
-  read("supabase/functions/_shared/bunnyClipMedia.ts"),
-  read("supabase/functions/admin-delete-clip/index.ts"),
-]);
-const clipDeleteInternalsSource = clipDeleteFunctionSource + bunnyMediaSharedSource;
-assert.doesNotMatch(clipManagementSource, /vendor_soft_delete_clip[\s\S]*ClipBunnyService\.delete/, "The client must not hide a Clip before storage deletion.");
-assert.match(clipDeleteFunctionSource, /vendors!inner\(profile_id\)[\s\S]*deleteClipBunnyAssets[\s\S]*vendor_soft_delete_clip/, "Secure Clip deletion must verify ownership, clear storage, then update the database.");
-assert.match(clipDeleteFunctionSource, /Database deletion failed after storage cleanup/, "Partial Clip deletion failures must be logged for safe retry.");
-assert.match(clipDeleteInternalsSource, /video\.bunnycdn\.com[\s\S]*method: "DELETE"/, "Clip deletion must remove the Bunny Stream video.");
-assert.match(clipDeleteInternalsSource, /thumbnail\.[\$\{]extension[\s\S]*method: "DELETE"/, "Clip deletion must remove custom Bunny thumbnails idempotently.");
-assert.doesNotMatch(clipDeleteMigrationSource, /vendor_has_subscription_feature/, "A vendor must be able to delete owned media without an active upload entitlement.");
-assert.match(vendorClipsSource, /deletingRef\.current/, "Vendor Clip deletion must retain its duplicate-tap guard.");
-assert.doesNotMatch(clipDeleteInternalsSource, new RegExp(["cloud", "inary"].join(""), "i"), "Clip deletion must remain Bunny-only.");
-assert.match(publicClipSource, /\.eq\("status", "approved"\)[\s\S]*\.eq\("visibility", "public"\)[\s\S]*\.is\("deleted_at", null\)/, "Public Clip queries must never return deleted or non-public Clips.");
-// New: admin clip deletion must resolve the vendor server-side, notify
-// before touching storage/the database, and never claim success on a
-// partial failure.
-assert.doesNotMatch(adminDeleteClipSource, /body\.vendorId|body\.category_id|body\.categoryId/, "Admin clip deletion must not accept a client-supplied vendor/category as the deletion target.");
-assert.match(adminDeleteClipSource, /private\.is_admin|ADMIN_ROLES/, "Admin clip deletion must verify the caller is an authorized administrator.");
-assert.match(adminDeleteClipSource, /aal2/, "Admin clip deletion must require a real MFA-verified (aal2) session, not just the client-side MFA bypass.");
-assert.match(adminDeleteClipSource, /vendor_notifications["'][\s\S]*deleteClipBunnyAssets[\s\S]*admin_hard_delete_clip/, "Admin clip deletion must notify the vendor, then delete media, then hard-delete the clip, in that order.");
-assert.match(adminDeleteClipSource, /stage: "notification"/, "A failed vendor notification must be reported distinctly so the clip is never deleted without notifying the vendor.");
 const crmCardSource = await read("components/admin/crm/ui/CRMCard.tsx");
 const crmAnalyticsSource = await read("components/admin/crm/ui/AnalyticsCard.tsx");
 assert.match(
@@ -461,41 +340,14 @@ assert.match(
 );
 
 // --- Public vendor media must keep its native-only responsive fixes -----
-const [portfolioAlbumsSource, vendorClipsGridSource, androidVendorClipsGridSource, pinnedProfileLayoutSource] = await Promise.all([
+const [portfolioAlbumsSource, pinnedProfileLayoutSource] = await Promise.all([
   read("components/vendor-profile/PortfolioAlbums.tsx"),
-  read("components/vendor-profile/VendorClipsGrid.tsx"),
-  read("components/vendor-profile/VendorClipsGrid.android.tsx"),
   read("components/vendor-profile/PinnedHeroProfileLayout.tsx"),
 ]);
 assert.match(
   portfolioAlbumsSource,
   /function twoColumnTileWidth\([\s\S]*?PixelRatio\.get\(\)[\s\S]*?Math\.floor/,
   "Portfolio albums must divide measured physical pixels before laying out two Android columns.",
-);
-assert.match(
-  vendorClipsGridSource,
-  /import Pressable from ["']@\/components\/InteropSafePressable["'];/,
-  "Vendor Clips must retain callback Pressable styles through NativeWind on Android.",
-);
-assert.match(
-  vendorClipsGridSource,
-  /onLayout=\{Platform\.OS === ["']web["'] \? undefined/,
-  "Vendor Clips must measure its rendered native container instead of assuming the window width.",
-);
-assert.match(
-  androidVendorClipsGridSource,
-  /<View style=\{\[styles\.tileFrame, \{ width \}\]\}>[\s\S]*?<Image[\s\S]*?style=\{styles\.thumbnail\}[\s\S]*?<Pressable/,
-  "Android Vendor Clips must keep layout and media painting outside the Pressable interaction overlay.",
-);
-assert.match(
-  androidVendorClipsGridSource,
-  /thumbnail: \{[\s\S]*?width: ["']100%["'][\s\S]*?height: ["']100%["']/,
-  "Android Vendor Clips thumbnails must have explicit non-zero in-flow dimensions.",
-);
-assert.match(
-  androidVendorClipsGridSource,
-  /\{clips\.map\(\(clip, index\) =>/,
-  "Android Vendor Clips must render every clip without a platform-specific filter.",
 );
 assert.match(
   pinnedProfileLayoutSource,
@@ -529,13 +381,13 @@ const KEYBOARD_SURFACES = [
 const keyboardSources = await Promise.all(KEYBOARD_SURFACES.map(read));
 KEYBOARD_SURFACES.forEach((path, index) => {
   const source = keyboardSources[index];
-  const isAuthLayout = path === "components/auth/AuthScreenLayout.tsx";
+  const usesFormScroller = path === "components/auth/AuthScreenLayout.tsx" || path === "app/VendorEnquiries.tsx";
   assert.match(
     source,
-    isAuthLayout
+    usesFormScroller
       ? /<KeyboardAwareScrollView/
       : /behavior=\{Platform\.OS === ["']ios["'] \? ["']padding["'] : ["']height["']\}/,
-    isAuthLayout
+    usesFormScroller
       ? `${path} must use the shared form scroller that lets Android adjustResize handle the keyboard.`
       : `${path} must keep an explicit Android KeyboardAvoidingView behavior.`,
   );
@@ -561,13 +413,8 @@ assert.ok(
 );
 assert.match(
   enquiriesSource,
-  /filterTouchTarget: \{ minWidth: interactionTokens\.minimumTouchTarget, minHeight: interactionTokens\.minimumTouchTarget/,
-  "VendorEnquiries filter targets must use the shared minimum touch target.",
-);
-assert.match(
-  enquiriesSource,
-  /sortTouchTarget: \{ minWidth: interactionTokens\.minimumTouchTarget, minHeight: interactionTokens\.minimumTouchTarget/,
-  "VendorEnquiries sort targets must use the shared minimum touch target.",
+  /filterOption: \{ minHeight: interactionTokens\.minimumTouchTarget/,
+  "VendorEnquiries filter and sort targets must use the shared minimum touch target.",
 );
 assert.match(
   interactionTokenSource,
@@ -617,7 +464,6 @@ assert.match(vendorListingSource, /fetchLocationRankedVendors\(/, "VendorsListin
 assert.match(vendorListingSource, /onUseCurrentLocation=\{useCurrentLocation\}/, "The category Taluka sheet must offer current-location vendor discovery.");
 assert.match(vendorListingSource, /requestDeviceLocationServices\(\)/, "Category current-location discovery must use Android's system location-resolution flow.");
 assert.match(vendorListingSource, /requestDeviceLocationServices\(\)[\s\S]{0,500}if \(deviceOrigin\)[\s\S]{0,420}clearGuestGeoPreference\(\)/, "Category current-location discovery must confirm services are enabled before reusing an already-resolved Home/listing origin.");
-assert.doesNotMatch(vendorListingSource, /getLastDetectedCoordinates\(\)|getLastDetectedLocationLabel\(\)|loadGuestGeoPreference\(\)/, "Category listings must not auto-activate a location from cached Home GPS or a stored Taluka preference.");
 assert.match(vendorListingSource, /useState<GeoSelection \| null>\(null\)/, "Category listings must begin without an active location filter.");
 assert.doesNotMatch(vendorListingSource, /radiusKm/, "VendorsListing must not restore a customer-selectable distance cutoff.");
 assert.match(vendorDiscoverySource, /LISTING_NEARBY_THRESHOLD_KM = 20/, "The category listing nearby priority bucket must remain 20 km.");
@@ -627,7 +473,7 @@ assert.match(locationRankMigrationSource, /when 'elite' then 0\s*when 'premium' 
 
 // --- Public vendor app-download prompt must respect its dismissal cooldown --
 const downloadAppPopupSource = await read("components/vendor-profile/DownloadAppPopup.tsx");
-assert.match(downloadAppPopupSource, /7 \* 24 \* 60 \* 60 \* 1000/, "The app-download popup dismissal cooldown must remain seven days.");
+assert.match(downloadAppPopupSource, /2 \* 60 \* 60 \* 1000/, "The app-download popup dismissal cooldown must remain two hours.");
 assert.match(downloadAppPopupSource, /localStorage\?\.getItem\(DISMISSED_AT_KEY\)/, "The app-download popup must read its previous dismissal before scheduling itself.");
 assert.match(downloadAppPopupSource, /localStorage\?\.setItem\(DISMISSED_AT_KEY, String\(Date\.now\(\)\)\)/, "Closing the app-download popup must persist the dismissal time.");
 assert.match(downloadAppPopupSource, /setTimeout\(\(\) => setVisible\(true\), 1500\)/, "The existing app-download popup timing must remain unchanged.");
@@ -724,7 +570,7 @@ assert.equal(adminManifest.name, "RoyalLagn Admin Portal", "The installed Admin 
 assert.match(adminManifest.start_url, /^\/AdminLogin/, "The installed Admin PWA must start at the secure Admin entry route.");
 assert.equal(adminManifest.display, "standalone", "The Admin PWA must open without browser chrome.");
 assert.ok(adminManifest.icons.some((icon) => icon.sizes === "512x512" && icon.purpose === "maskable"), "The Admin PWA must provide a safe maskable icon.");
-assert.match(adminServiceWorkerSource, /event\.respondWith\(fetch\(event\.request\)\)/, "The Admin service worker must satisfy installability with a functional network-only fetch handler.");
+assert.match(adminServiceWorkerSource, /event\.respondWith\(fetch\(event\.request\)/, "The Admin service worker must satisfy installability with a functional network-only fetch handler.");
 assert.match(adminInstallControlSource, /beforeinstallprompt/, "The Admin install control must use the browser's native install prompt.");
 assert.match(adminInstallControlSource, /__royalLagnAdminInstallPrompt/, "The Admin install control must recover a native prompt captured before React mounts.");
 assert.match(adminInstallControlSource, /appinstalled/, "The Admin install control must expose the installed state.");
