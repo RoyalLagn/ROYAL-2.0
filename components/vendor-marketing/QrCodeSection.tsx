@@ -30,9 +30,9 @@ export default function QrCodeSection({
         </View>
       </View>
       <View style={styles.actionsRow}>
-        <QrButton label="Download" icon={<Download size={15} color={colors.pink} />} colors={colors} onPress={onDownload} />
-        <QrButton label="Share" icon={<Share2 size={15} color={colors.pink} />} colors={colors} onPress={onShare} />
-        <QrButton label="Full Screen" icon={<Maximize2 size={15} color={colors.pink} />} colors={colors} onPress={() => setFullScreen(true)} />
+        <QrButton label="Download" icon={<Download size={15} color="#FFFFFF" />} colors={colors} onPress={onDownload} />
+        <QrButton label="Share" icon={<Share2 size={15} color="#FFFFFF" />} colors={colors} onPress={onShare} />
+        <QrButton label="Full Screen" icon={<Maximize2 size={15} color="#FFFFFF" />} colors={colors} onPress={() => setFullScreen(true)} />
       </View>
 
       <Modal visible={fullScreen} animationType="fade" transparent onRequestClose={() => setFullScreen(false)}>
@@ -62,11 +62,11 @@ function QrButton({ label, icon, colors, onPress }: { label: string; icon: React
       onHoverOut={() => setHovered(false)}
       style={[
         styles.qrButton,
-        { backgroundColor: colors.surfaceSoft, borderColor: hovered ? colors.pink : "transparent", cursor: "pointer" } as object,
+        { backgroundColor: hovered ? "#C2185B" : colors.pink, cursor: "pointer" } as object,
       ]}
     >
       {icon}
-      <Text style={[styles.qrButtonLabel, { color: hovered ? colors.pink : colors.text }]}>{label}</Text>
+      <Text style={styles.qrButtonLabel}>{label}</Text>
     </AnimatedPressable>
   );
 }
@@ -77,8 +77,8 @@ const styles = StyleSheet.create({
   qrWrap: { alignItems: "center", marginBottom: 12 },
   qrBox: { padding: 10, borderRadius: 14, borderWidth: 1, backgroundColor: "#FFFFFF" },
   actionsRow: { gap: 8 },
-  qrButton: { height: 36, overflow: "hidden", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, paddingHorizontal: 10, borderWidth: 1 },
-  qrButtonLabel: { fontSize: typeScale.caption, fontWeight: "700" },
+  qrButton: { height: 40, overflow: "hidden", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, paddingHorizontal: 10 },
+  qrButtonLabel: { color: "#FFFFFF", fontSize: typeScale.caption, fontWeight: "700" },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.92)", alignItems: "center", justifyContent: "center" },
   modalClose: { position: "absolute", top: 50, right: 24, width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.12)" },
   modalQrBox: { padding: 24, borderRadius: 24, backgroundColor: "#FFFFFF" },

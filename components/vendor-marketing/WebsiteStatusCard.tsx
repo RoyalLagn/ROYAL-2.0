@@ -47,10 +47,10 @@ export default function WebsiteStatusCard({
         pressScale={0.98}
         onHoverIn={() => setLinkHovered(true)}
         onHoverOut={() => setLinkHovered(false)}
-        style={styles.urlHit}
+        style={[styles.urlHit, { backgroundColor: linkHovered ? "#C2185B" : colors.pink }]}
       >
         <Text
-          style={[styles.url, { color: colors.pink }, linkHovered && styles.urlHovered]}
+          style={styles.url}
           numberOfLines={2}
         >
           {url}
@@ -84,9 +84,8 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  urlHit: { alignSelf: "flex-start", marginTop: 10, maxWidth: "100%", cursor: "pointer" } as object,
-  url: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  urlHovered: { textDecorationLine: "underline" },
+  urlHit: { alignSelf: "stretch", marginTop: 10, maxWidth: "100%", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, cursor: "pointer" } as object,
+  url: { color: "#FFFFFF", fontSize: typeScale.bodyCompact, fontWeight: "700" },
   metaRow: { flexDirection: "row", marginTop: 12, paddingTop: 12, borderTopWidth: 1, minWidth: 0 },
   metaItem: { flex: 1, alignItems: "center" },
   metaValue: { fontSize: typeScale.body, fontWeight: "700" },

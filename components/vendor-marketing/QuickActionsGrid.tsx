@@ -64,13 +64,11 @@ function ActionTile({ action, colors }: { action: Action; colors: typeof vendorT
       onHoverOut={() => setHovered(false)}
       style={[
         styles.tile,
-        { backgroundColor: hovered ? colors.surface : colors.surfaceSoft, borderColor: hovered ? colors.pink : "transparent", cursor: "pointer" } as object,
+        { backgroundColor: hovered ? "#C2185B" : colors.pink, cursor: "pointer" } as object,
       ]}
     >
-      <View style={[styles.iconBox, { backgroundColor: colors.surface }]}>
-        <Icon size={15} color={colors.pink} strokeWidth={2.2} />
-      </View>
-      <Text numberOfLines={1} style={[styles.tileLabel, { color: colors.text }]}>{action.label}</Text>
+      <Icon size={15} color="#FFFFFF" strokeWidth={2.2} />
+      <Text numberOfLines={1} style={styles.tileLabel}>{action.label}</Text>
     </AnimatedPressable>
   );
 }
@@ -79,7 +77,6 @@ const styles = StyleSheet.create({
   card: { flex: 1, borderWidth: 1, borderRadius: 18, padding: 16, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
   title: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 12 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, minWidth: 0 },
-  tile: { width: "48%", flexGrow: 1, minWidth: 0, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: "transparent" },
-  iconBox: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  tileLabel: { flex: 1, minWidth: 0, fontSize: typeScale.metadata, fontWeight: "700" },
+  tile: { width: "48%", flexGrow: 1, minWidth: 0, minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 10, borderRadius: 12 },
+  tileLabel: { flexShrink: 1, minWidth: 0, color: "#FFFFFF", fontSize: typeScale.metadata, fontWeight: "700" },
 });
