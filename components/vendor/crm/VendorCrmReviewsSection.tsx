@@ -247,7 +247,7 @@ export default function VendorCrmReviewsSection({
               isDark && styles.pageNumberBtnDark,
               isDark && isActive && styles.pageNumberBtnActiveDark,
               hovered && !isActive && styles.pageNumberBtnHovered,
-              pressed && { opacity: 0.75 },
+              pressed && styles.pressed,
             ]}
           >
             <Text
@@ -305,7 +305,7 @@ export default function VendorCrmReviewsSection({
             isDark && styles.pageNumberBtnDark,
             isDark && isActive && styles.pageNumberBtnActiveDark,
             hovered && !isActive && styles.pageNumberBtnHovered,
-            pressed && { opacity: 0.75 },
+            pressed && styles.pressed,
           ]}
         >
           <Text
@@ -332,7 +332,7 @@ export default function VendorCrmReviewsSection({
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.titleLine}>
-              <Text style={[styles.cardTitle, isDark && styles.textDark]}>
+              <Text numberOfLines={2} style={[styles.cardTitle, isDark && styles.textDark]}>
                 Customer Reviews & Ratings
               </Text>
               <View style={[styles.liveBadge, { backgroundColor: isDark ? "#064E3B" : "#ECFDF5", borderColor: isDark ? "#047857" : "#A7F3D0" }]}>
@@ -340,7 +340,7 @@ export default function VendorCrmReviewsSection({
                 <Text style={[styles.liveText, { color: isDark ? "#34D399" : "#059669" }]}>Live Realtime</Text>
               </View>
             </View>
-            <Text style={[styles.cardSubtitle, isDark && styles.textMutedDark]}>
+            <Text numberOfLines={2} style={[styles.cardSubtitle, isDark && styles.textMutedDark]}>
               Reviews and star ratings submitted by verified customers on RoyalLagn
             </Text>
           </View>
@@ -355,7 +355,7 @@ export default function VendorCrmReviewsSection({
               styles.iconBtn,
               isDark && styles.iconBtnDark,
               hovered && styles.iconBtnHovered,
-              pressed && { opacity: 0.7 },
+              pressed && styles.pressed,
             ]}
           >
             <RefreshCw
@@ -373,7 +373,7 @@ export default function VendorCrmReviewsSection({
               style={({ pressed, hovered }: any) => [
                 styles.shareBtn,
                 hovered && styles.shareBtnHovered,
-                pressed && { opacity: 0.8 },
+                pressed && styles.pressed,
               ]}
             >
               <Copy size={14} color="#E11D48" />
@@ -429,7 +429,7 @@ export default function VendorCrmReviewsSection({
                   isSelected && styles.distRowSelected,
                   isDark && isSelected && styles.distRowSelectedDark,
                   hovered && styles.distRowHovered,
-                  pressed && { opacity: 0.8 },
+                  pressed && styles.pressed,
                 ]}
               >
                 <Text style={[styles.distLabel, isDark && styles.textMutedDark, isSelected && { color: "#E11D48", fontWeight: "700" }]}>
@@ -458,6 +458,7 @@ export default function VendorCrmReviewsSection({
         {/* Star Rating Pills */}
         <ScrollView
           horizontal
+          style={styles.chipScroller}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterScroll}
         >
@@ -470,7 +471,7 @@ export default function VendorCrmReviewsSection({
               starFilter === null && styles.filterPillActive,
               isDark && styles.filterPillDark,
               isDark && starFilter === null && styles.filterPillActiveDark,
-              pressed && { opacity: 0.8 },
+                  pressed && styles.pressed,
             ]}
           >
             <Text
@@ -498,7 +499,7 @@ export default function VendorCrmReviewsSection({
                   active && styles.filterPillActive,
                   isDark && styles.filterPillDark,
                   isDark && active && styles.filterPillActiveDark,
-                  pressed && { opacity: 0.8 },
+                  pressed && styles.pressed,
                 ]}
               >
                 <Text
@@ -518,6 +519,7 @@ export default function VendorCrmReviewsSection({
         {/* Sort Options */}
         <ScrollView
           horizontal
+          style={styles.chipScroller}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.sortScroll}
         >
@@ -534,7 +536,7 @@ export default function VendorCrmReviewsSection({
                   active && styles.sortPillActive,
                   isDark && styles.sortPillDark,
                   isDark && active && styles.sortPillActiveDark,
-                  pressed && { opacity: 0.8 },
+                  pressed && styles.pressed,
                 ]}
               >
                 <Text
@@ -677,7 +679,7 @@ export default function VendorCrmReviewsSection({
                         onPress={() => setSelectedPhoto(String(photoUri))}
                         style={({ pressed }: any) => [
                           styles.photoThumbWrap,
-                          pressed && { opacity: 0.8 },
+                          pressed && styles.pressed,
                         ]}
                       >
                         <Image source={{ uri: String(photoUri) }} style={styles.photoThumb} />
@@ -728,7 +730,7 @@ export default function VendorCrmReviewsSection({
                     isDark && styles.pageNavBtnDark,
                     (page === 0 || loading) && styles.pageNavBtnDisabled,
                     hovered && page !== 0 && !loading && styles.pageNavBtnHovered,
-                    pressed && { opacity: 0.75 },
+                    pressed && styles.pressed,
                   ]}
                 >
                   <ChevronLeft
@@ -772,7 +774,7 @@ export default function VendorCrmReviewsSection({
                     isDark && styles.pageNavBtnDark,
                     (page >= totalPages - 1 || loading) && styles.pageNavBtnDisabled,
                     hovered && page < totalPages - 1 && !loading && styles.pageNavBtnHovered,
-                    pressed && { opacity: 0.75 },
+                    pressed && styles.pressed,
                   ]}
                 >
                   {!isSmall && (
@@ -841,10 +843,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#F3F4F6",
     padding: 20,
-    marginTop: 16,
     width: "100%",
+    minWidth: 0,
     boxSizing: "border-box" as any,
   },
+  pressed: { transform: [{ scale: 0.97 }], opacity: 0.92 },
   cardDark: {
     backgroundColor: "#1F2937",
     borderColor: "#374151",
@@ -855,14 +858,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     flexWrap: "wrap",
     gap: 12,
-    marginBottom: 18,
+    marginBottom: 20,
+    minWidth: 0,
   },
   titleWrap: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
     flex: 1,
-    minWidth: 260,
+    minWidth: 0,
   },
   iconBox: {
     width: 38,
@@ -878,6 +882,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cardTitle: {
+    flexShrink: 1,
     fontSize: 17,
     fontWeight: "700",
     color: "#111827",
@@ -1053,8 +1058,15 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   controlsRow: {
-    gap: 10,
-    marginBottom: 16,
+    width: "100%",
+    minWidth: 0,
+    gap: 12,
+    marginBottom: 20,
+  },
+  chipScroller: {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
   },
   filterScroll: {
     gap: 8,
@@ -1284,6 +1296,7 @@ const styles = StyleSheet.create({
     color: "#059669",
   },
   reviewDate: {
+    flexShrink: 0,
     fontSize: 11,
     color: "#9CA3AF",
   },
@@ -1355,7 +1368,8 @@ const styles = StyleSheet.create({
     borderTopColor: "#374151",
   },
   paginationInfoWrap: {
-    minWidth: 150,
+    flex: 1,
+    minWidth: 0,
   },
   paginationInfoText: {
     fontSize: 13,

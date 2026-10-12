@@ -20,9 +20,12 @@ import {
 import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
+import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
+import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import VendorCrmReviewsSection from "@/components/vendor/crm/VendorCrmReviewsSection";
 import PageLoader from "@/components/loading/PageLoader";
+import { MotionStagger } from "@/utils/motion";
 
 export default function VendorReviews() {
   const router = useRouter();
@@ -66,9 +69,11 @@ export default function VendorReviews() {
   return (
     <View style={[styles.page, { backgroundColor: isDark ? "#111827" : "#FFF8FA" }]}>
       <ScrollView
+        style={styles.scroller}
         contentContainerStyle={[
           styles.content,
           isDesktop && styles.contentDesktop,
+          !isDesktop && { paddingBottom: 28 + VENDOR_TAB_BASE_HEIGHT },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -79,6 +84,7 @@ export default function VendorReviews() {
           />
         }
       >
+        <VendorDashboardReveal style={styles.block}>
         {/* Navigation Breadcrumb Row */}
         <View style={styles.breadcrumbRow}>
           <Pressable
@@ -89,7 +95,7 @@ export default function VendorReviews() {
               styles.backPill,
               hovered && styles.backPillHovered,
               isDark && styles.backPillDark,
-              pressed && { opacity: 0.7 },
+              pressed && styles.pressed,
             ]}
           >
             <ArrowLeft size={16} color={isDark ? "#D1D5DB" : "#4B5563"} />
@@ -100,7 +106,7 @@ export default function VendorReviews() {
 
           <ChevronRight size={14} color={isDark ? "#4B5563" : "#9CA3AF"} />
 
-          <Text style={[styles.currentBreadcrumb, isDark && styles.textMutedDark]}>
+          <Text numberOfLines={1} style={[styles.currentBreadcrumb, isDark && styles.textMutedDark]}>
             Reviews & Ratings
           </Text>
         </View>
@@ -114,86 +120,91 @@ export default function VendorReviews() {
                 <Text style={styles.verifiedPillText}>VERIFIED REPUTATION</Text>
               </View>
             </View>
-            <Text style={[styles.heroTitle, isDark && styles.textDark]}>
+            <Text numberOfLines={2} style={[styles.heroTitle, isDark && styles.textDark]}>
               Customer Reviews & Ratings
             </Text>
-            <Text style={[styles.heroSubtitle, isDark && styles.textMutedDark]}>
+            <Text numberOfLines={3} style={[styles.heroSubtitle, isDark && styles.textMutedDark]}>
               Monitor client feedback, star distributions, and verified ratings for {vendorName}.
             </Text>
           </View>
         </View>
+        </VendorDashboardReveal>
 
+        <VendorDashboardReveal delay={MotionStagger.item} style={styles.block}>
         {/* 4 Stat Metric Cards */}
         <View style={[styles.metricsGrid, isDesktop ? styles.metricsDesktop : styles.metricsMobile]}>
           {/* Card 1: Average Rating */}
-          <View style={[styles.metricCard, isDark && styles.metricCardDark]}>
+          <View style={[styles.metricCard, !isDesktop && styles.metricCardMobile, isDark && styles.metricCardDark]}>
             <View style={styles.metricTop}>
               <View style={[styles.metricIconWrap, { backgroundColor: isDark ? "#3B2F1F" : "#FEF3C7" }]}>
                 <Star size={16} color="#E8A52F" fill="#E8A52F" />
               </View>
               <Text style={styles.metricBadge}>Score</Text>
             </View>
-            <Text style={[styles.metricValue, isDark && styles.textDark]}>
+            <Text numberOfLines={1} style={[styles.metricValue, isDark && styles.textDark]}>
               {averageRating > 0 ? `${averageRating.toFixed(1)} ★` : "New"}
             </Text>
-            <Text style={[styles.metricLabel, isDark && styles.textMutedDark]}>Average Rating</Text>
-            <Text style={[styles.metricSub, { color: "#E8A52F" }]}>Verified client score</Text>
+            <Text numberOfLines={1} style={[styles.metricLabel, isDark && styles.textMutedDark]}>Average Rating</Text>
+            <Text numberOfLines={1} style={[styles.metricSub, { color: "#E8A52F" }]}>Verified client score</Text>
           </View>
 
           {/* Card 2: Total Reviews */}
-          <View style={[styles.metricCard, isDark && styles.metricCardDark]}>
+          <View style={[styles.metricCard, !isDesktop && styles.metricCardMobile, isDark && styles.metricCardDark]}>
             <View style={styles.metricTop}>
               <View style={[styles.metricIconWrap, { backgroundColor: isDark ? "#4C0519" : "#FFE4E6" }]}>
                 <MessageSquare size={16} color="#E11D48" />
               </View>
               <Text style={styles.metricBadge}>Total</Text>
             </View>
-            <Text style={[styles.metricValue, isDark && styles.textDark]}>
+            <Text numberOfLines={1} style={[styles.metricValue, isDark && styles.textDark]}>
               {reviewCount}
             </Text>
-            <Text style={[styles.metricLabel, isDark && styles.textMutedDark]}>Total Reviews</Text>
-            <Text style={[styles.metricSub, { color: "#E11D48" }]}>All customer entries</Text>
+            <Text numberOfLines={1} style={[styles.metricLabel, isDark && styles.textMutedDark]}>Total Reviews</Text>
+            <Text numberOfLines={1} style={[styles.metricSub, { color: "#E11D48" }]}>All customer entries</Text>
           </View>
 
           {/* Card 3: 5-Star Reviews */}
-          <View style={[styles.metricCard, isDark && styles.metricCardDark]}>
+          <View style={[styles.metricCard, !isDesktop && styles.metricCardMobile, isDark && styles.metricCardDark]}>
             <View style={styles.metricTop}>
               <View style={[styles.metricIconWrap, { backgroundColor: isDark ? "#064E3B" : "#D1FAE5" }]}>
                 <Sparkles size={16} color="#059669" />
               </View>
               <Text style={styles.metricBadge}>Top Rated</Text>
             </View>
-            <Text style={[styles.metricValue, isDark && styles.textDark]}>
+            <Text numberOfLines={1} style={[styles.metricValue, isDark && styles.textDark]}>
               {fiveStarCount}
             </Text>
-            <Text style={[styles.metricLabel, isDark && styles.textMutedDark]}>5-Star Ratings</Text>
-            <Text style={[styles.metricSub, { color: "#059669" }]}>
+            <Text numberOfLines={1} style={[styles.metricLabel, isDark && styles.textMutedDark]}>5-Star Ratings</Text>
+            <Text numberOfLines={1} style={[styles.metricSub, { color: "#059669" }]}>
               {reviewCount > 0 ? `${Math.round((fiveStarCount / reviewCount) * 100)}% 5-star` : "Top tier score"}
             </Text>
           </View>
 
           {/* Card 4: Satisfaction */}
-          <View style={[styles.metricCard, isDark && styles.metricCardDark]}>
+          <View style={[styles.metricCard, !isDesktop && styles.metricCardMobile, isDark && styles.metricCardDark]}>
             <View style={styles.metricTop}>
               <View style={[styles.metricIconWrap, { backgroundColor: isDark ? "#1E1B4B" : "#EDE9FE" }]}>
                 <CheckCircle2 size={16} color="#7C3AED" />
               </View>
               <Text style={styles.metricBadge}>Satisfaction</Text>
             </View>
-            <Text style={[styles.metricValue, isDark && styles.textDark]}>
+            <Text numberOfLines={1} style={[styles.metricValue, isDark && styles.textDark]}>
               {satisfactionPct}%
             </Text>
-            <Text style={[styles.metricLabel, isDark && styles.textMutedDark]}>Client Satisfaction</Text>
-            <Text style={[styles.metricSub, { color: "#7C3AED" }]}>4★ or 5★ feedback</Text>
+            <Text numberOfLines={1} style={[styles.metricLabel, isDark && styles.textMutedDark]}>Client Satisfaction</Text>
+            <Text numberOfLines={1} style={[styles.metricSub, { color: "#7C3AED" }]}>4★ or 5★ feedback</Text>
           </View>
         </View>
+        </VendorDashboardReveal>
 
+        <VendorDashboardReveal delay={MotionStagger.item * 2} style={styles.block}>
         {/* Live Reviews & Ratings Section with 10-item pagination */}
         <VendorCrmReviewsSection
           vendorId={vendorId}
           vendorSlug={slug}
           businessName={vendorName}
         />
+        </VendorDashboardReveal>
       </ScrollView>
     </View>
   );
@@ -205,12 +216,16 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "#FFF8FA",
   },
+  scroller: { flex: 1, minWidth: 0 },
+  block: { width: "100%", minWidth: 0 },
+  pressed: { transform: [{ scale: 0.97 }], opacity: 0.92 },
   content: {
     padding: 16,
     paddingBottom: 50,
     width: "100%",
     maxWidth: 1300,
     alignSelf: "center",
+    gap: 20,
   },
   contentDesktop: {
     padding: 24,
@@ -221,6 +236,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     marginBottom: 16,
+    minWidth: 0,
   },
   backPill: {
     flexDirection: "row",
@@ -247,12 +263,14 @@ const styles = StyleSheet.create({
     color: "#374151",
   },
   currentBreadcrumb: {
+    flexShrink: 1,
     fontSize: 13,
     fontWeight: "500",
     color: "#6B7280",
   },
   heroHeader: {
-    marginBottom: 18,
+    marginBottom: 4,
+    minWidth: 0,
   },
   heroTextWrap: {
     gap: 6,
@@ -295,20 +313,25 @@ const styles = StyleSheet.create({
   },
   metricsGrid: {
     width: "100%",
-    marginBottom: 16,
+    minWidth: 0,
   },
   metricsDesktop: {
     flexDirection: "row",
-    gap: 14,
+    gap: 16,
   },
   metricsMobile: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 12,
+  },
+  metricCardMobile: {
+    width: "48%",
+    flexGrow: 0,
+    flexBasis: "48%",
   },
   metricCard: {
     flex: 1,
-    minWidth: 140,
+    minWidth: 0,
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
     borderWidth: 1,
