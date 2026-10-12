@@ -45,12 +45,29 @@ const statusColors: Record<AvailabilityStatus, { background: string; text: strin
   blocked: { background: "#DC2626", text: "#FFFFFF" },
 };
 const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const CALENDAR_COLUMNS = 7;
+const CALENDAR_GRID_GAP = 6;
+
+function calendarColumnWidths(totalWidth: number) {
+  const total = Math.floor(totalWidth);
+  if (total <= 0) return null;
+  const inner = total - CALENDAR_GRID_GAP * (CALENDAR_COLUMNS - 1);
+  if (inner <= 0) return null;
+  const base = Math.floor(inner / CALENDAR_COLUMNS);
+  let extra = inner - base * CALENDAR_COLUMNS;
+  return Array.from({ length: CALENDAR_COLUMNS }, () => {
+    const width = base + (extra > 0 ? 1 : 0);
+    if (extra > 0) extra -= 1;
+    return width;
+  });
+}
 
 export default function VendorCalendar() {
   const { width } = useWindowDimensions();
   const pageStyle = useVendorSectionPageStyle();
   const wideWebLayout = Platform.OS === "web" && width >= 1180;
-  const compactHours = width < 560;
+  const [hoursPanelWidth, setHoursPanelWidth] = useState(0);
+  const compactHours = (hoursPanelWidth > 0 ? hoursPanelWidth : width) < 620;
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const { showSuccess } = useAppFeedback();
@@ -67,7 +84,8 @@ export default function VendorCalendar() {
   // it is always the true available space, regardless of window timing or
   // Yoga's aspectRatio resolution order.
   const [calendarGridWidth, setCalendarGridWidth] = useState(0);
-  const cellSize = calendarGridWidth ? Math.floor(calendarGridWidth / 7) : 0;
+  const columnWidths = useMemo(() => calendarColumnWidths(calendarGridWidth), [calendarGridWidth]);
+  const cellHeight = columnWidths ? Math.min(...columnWidths) : 0;
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [savedStatuses, setSavedStatuses] = useState<Record<string, AvailabilityStatus>>({});
   const [bookingBlockedDates, setBookingBlockedDates] = useState<Set<string>>(new Set());
@@ -241,15 +259,19 @@ export default function VendorCalendar() {
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />
     <KeyboardAwareScrollView
+      style={styles.scroller}
       contentContainerStyle={pageStyle}
       showsVerticalScrollIndicator={false}
       decelerationRate="fast"
     >
-      <VendorDashboardReveal>
+      <VendorDashboardReveal style={styles.reveal}>
       <VendorSectionHeading
         title="Availability & Calendar"
         subtitle="Tap a future date to view bookings or mark it booked. Tap it again to make it available."
-        trailing={
+      />
+      <View style={wideWebLayout && styles.workspaceWide}>
+      <View style={[styles.calendar, wideWebLayout && styles.wideCalendar, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+        <View style={styles.calendarToolbar}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Add Offline Booking"
@@ -262,12 +284,9 @@ export default function VendorCalendar() {
             ]}
           >
             <Plus size={16} color="#FFFFFF" strokeWidth={2.5} />
-            <Text style={styles.addOfflineBtnText}>Record Offline Booking</Text>
+            <Text numberOfLines={1} style={styles.addOfflineBtnText}>Record Offline Booking</Text>
           </Pressable>
-        }
-      />
-      <View style={wideWebLayout && styles.workspaceWide}>
-      <View style={[styles.calendar, wideWebLayout && styles.wideWebPanel, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+        </View>
         <View style={styles.monthRow}>
           <Pressable
             accessibilityRole="button"
@@ -280,7 +299,7 @@ export default function VendorCalendar() {
               pressed && styles.pressed,
             ]}
           ><ChevronLeft size={20} color={colors.text} /></Pressable>
-          <Text style={[styles.month, { color: colors.text }]}>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</Text>
+          <Text numberOfLines={1} style={[styles.month, { color: colors.text }]}>{month.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Next month"
@@ -293,9 +312,10 @@ export default function VendorCalendar() {
             ]}
           ><ChevronRight size={20} color={colors.text} /></Pressable>
         </View>
-        <View onLayout={(event) => setCalendarGridWidth(event.nativeEvent.layout.width)} style={styles.grid}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <Text key={`${day}${index}`} style={[styles.weekday, cellSize ? { width: cellSize } : null, { color: colors.muted }]}>{day}</Text>)}
+        <View onLayout={(event) => setCalendarGridWidth(event.nativeEvent.layout.width)} style={[styles.grid, columnWidths ? { gap: CALENDAR_GRID_GAP } : null]}>{["S", "M", "T", "W", "T", "F", "S"].map((day, index) => <Text key={`${day}${index}`} style={[styles.weekday, columnWidths ? { width: columnWidths[index] } : null, { color: colors.muted }]}>{day}</Text>)}
           {days.map((date, index) => {
-            if (!date) return <View key={`blank${index}`} style={[styles.day, cellSize ? { width: cellSize, height: cellSize } : null]} />;
+            const columnWidth = columnWidths ? columnWidths[index % CALENDAR_COLUMNS] : undefined;
+            if (!date) return <View key={`blank${index}`} style={[styles.day, columnWidth ? { width: columnWidth, height: cellHeight } : null]} />;
             const value = iso(date);
             const dateBookings = vendorBookings.filter((b) => b.event_date === value);
             const hasPending = dateBookings.some((b) => b.booking_status === "pending");
@@ -316,7 +336,7 @@ export default function VendorCalendar() {
               onPress={() => setSelectedLedgerDate(value)}
               style={({ pressed, hovered, focused }) => [
                 styles.day,
-                cellSize ? { width: cellSize, height: cellSize } : null,
+                columnWidth ? { width: columnWidth, height: cellHeight } : null,
                 { backgroundColor },
                 past && styles.pastDay,
                 hasPending && { borderColor: "#F59E0B", borderWidth: 2 },
@@ -340,14 +360,17 @@ export default function VendorCalendar() {
           <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: colorScheme === "dark" ? "#292C33" : "#E8E8EC" }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Past · locked</Text></View>
         </View>
       </View>
-      <View style={[styles.editor, wideWebLayout && styles.wideWebPanel, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+      <View onLayout={(event) => {
+        const next = Math.round(event.nativeEvent.layout.width);
+        setHoursPanelWidth((current) => (current === next ? current : next));
+      }} style={[styles.editor, wideWebLayout && styles.wideHours, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
         <Text style={[styles.editorTitle, { color: colors.text }]}>Weekly working hours</Text>
         <Text style={[styles.subtitle, { color: colors.muted }]}>All days are available by default. Turn off only the days your business is regularly closed.</Text>
         <View style={styles.hoursList}>
           {hours.map((entry) => (
             <View key={entry.day} style={[styles.hourRow, compactHours && styles.hourRowCompact, { borderColor: colors.border }]}>
               <View style={[styles.hourDayRow, compactHours && styles.hourDayRowCompact]}>
-                <Text style={[styles.hourDay, { color: colors.text }]}>{DAY_LABELS[entry.day]}</Text>
+                <Text numberOfLines={1} style={[styles.hourDay, { color: colors.text }]}>{DAY_LABELS[entry.day]}</Text>
                 {compactHours ? <AvailabilityToggle entry={entry} colors={colors} onChange={(open) => updateHourEntry(entry.day, {
                   closed: !open,
                   opens: open && validTime(entry.opens) === null ? "09:00" : entry.opens,
@@ -443,7 +466,7 @@ function AvailabilityToggle({ entry, colors, onChange }: {
   const open = !entry.closed;
   return (
     <View style={styles.availabilityControl}>
-      <Text style={[styles.availabilityLabel, { color: open ? colors.success : colors.muted }]}>{open ? "Available" : "Closed"}</Text>
+      <Text numberOfLines={1} style={[styles.availabilityLabel, { color: open ? colors.success : colors.muted }]}>{open ? "Available" : "Closed"}</Text>
       <Switch
         value={open}
         onValueChange={onChange}
@@ -458,7 +481,7 @@ function AvailabilityToggle({ entry, colors, onChange }: {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1 }, content: { padding: 16, paddingTop: 20, paddingBottom: 24, width: "100%", maxWidth: 780, alignSelf: "center" },
+  page: { flex: 1 }, scroller: { flex: 1, minWidth: 0 }, reveal: { width: "100%", minWidth: 0, gap: 28 }, content: { padding: 16, paddingTop: 20, paddingBottom: 24, width: "100%", maxWidth: 780, alignSelf: "center" },
   wideWebContent: { maxWidth: 1120, paddingHorizontal: 28, paddingTop: 28 },
   calendarHeaderRow: {
     flexDirection: "row",
@@ -475,43 +498,49 @@ const styles = StyleSheet.create({
   addOfflineBtn: {
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "flex-end",
+    maxWidth: "100%",
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
-    marginTop: 4,
+    flexShrink: 1,
   },
   addOfflineBtnText: {
     color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "700",
+    flexShrink: 1,
   },
   eyebrow: { ...typeStyles.caption, letterSpacing: 1.1, marginBottom: 5 }, title: { ...typeStyles.pageTitle },
-  subtitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 4 }, calendar: { borderWidth: 1, borderRadius: 16, padding: 15, marginTop: 20, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .05, shadowRadius: 18, elevation: 2 },
-  workspaceWide: { flexDirection: "row", alignItems: "flex-start", gap: 18, marginTop: 20 }, wideWebPanel: { flex: 1, minWidth: 0, marginTop: 0 },
-  monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }, month: { fontSize: typeScale.cardTitle, fontWeight: "700" }, arrow: { width: interactionTokens.minimumTouchTarget, height: interactionTokens.minimumTouchTarget, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  grid: { flexDirection: "row", flexWrap: "wrap" }, weekday: { width: "14.285%", textAlign: "center", fontSize: typeScale.caption, fontWeight: "700", paddingVertical: 8 },
-  day: { width: "14.285%", borderRadius: 12, alignItems: "center", justifyContent: "center", transform: [{ scale: .92 }] }, dayText: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" }, pastDay: { opacity: .6 }, dayHover: { transform: [{ scale: .95 }] }, dayPressed: { transform: [{ scale: .89 }], opacity: .9 },
+  subtitle: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact, marginTop: 4 }, calendar: { alignSelf: "stretch", minWidth: 0, borderWidth: 1, borderRadius: 16, padding: 20, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .05, shadowRadius: 18, elevation: 2 },
+  calendarToolbar: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 16, minWidth: 0, width: "100%" },
+  workspaceWide: { width: "100%", maxWidth: "100%", minWidth: 0, flexDirection: "row", alignItems: "flex-start" },
+  wideCalendar: { flexGrow: 1.15, flexShrink: 1, flexBasis: 0, minWidth: 0, marginTop: 0, marginRight: 56 },
+  wideHours: { flexGrow: 0.85, flexShrink: 1, flexBasis: 0, minWidth: 280, marginTop: 0 },
+  monthRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 14, minWidth: 0 }, month: { flex: 1, minWidth: 0, textAlign: "center", fontSize: typeScale.cardTitle, fontWeight: "700" }, arrow: { width: interactionTokens.minimumTouchTarget, height: interactionTokens.minimumTouchTarget, borderRadius: 13, alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  grid: { width: "100%", minWidth: 0, flexDirection: "row", flexWrap: "wrap" }, weekday: { width: "14.285%", textAlign: "center", fontSize: typeScale.caption, fontWeight: "700", lineHeight: 32 },
+  day: { width: "14.285%", borderRadius: 12, alignItems: "center", justifyContent: "center" }, dayText: { fontSize: typeScale.bodyCompact, lineHeight: typeLeading.metadata, fontWeight: "700" }, pastDay: { opacity: .6 }, dayHover: { opacity: .88 }, dayPressed: { opacity: .75 },
   legend: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 13, paddingTop: 16 }, legendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, legendSwatch: { width: 10, height: 10, borderRadius: 3 }, legendText: { fontSize: typeScale.caption, fontWeight: "700" },
-  editor: { borderWidth: 1, borderRadius: 16, padding: 16, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .045, shadowRadius: 16, elevation: 1 }, editorTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
+  editor: { alignSelf: "stretch", minWidth: 0, borderWidth: 1, borderRadius: 16, padding: 20, marginTop: 14, shadowOffset: { width: 0, height: 8 }, shadowOpacity: .045, shadowRadius: 16, elevation: 1 }, editorTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
   hoverLift: { transform: [{ translateY: -1 }] }, pressed: { transform: [{ scale: .98 }], opacity: .9 },
   hoursList: { marginTop: 14, gap: 4 },
-  hourRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth },
+  hourRow: { flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, minWidth: 0 },
   hourRowCompact: { alignItems: "stretch", flexDirection: "column", gap: 9 },
-  hourDayRow: { width: 90, flexShrink: 0 },
+  hourDayRow: { width: 108, flexShrink: 0 },
   hourDayRowCompact: { width: "100%", minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   hourDay: { fontSize: typeScale.metadata, fontWeight: "700" },
   hourClosedText: { flex: 1, fontSize: typeScale.metadata, fontWeight: "600" },
   hourInputs: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 7 },
   hourInput: { flex: 1, flexBasis: 0, minWidth: 0, minHeight: interactionTokens.minimumTouchTarget, borderWidth: 1, borderRadius: 11, paddingHorizontal: 10, fontSize: typeScale.metadata, textAlign: "center" },
   hourSeparator: { fontSize: typeScale.metadata, fontWeight: "700" },
-  availabilityControl: { width: 116, minHeight: interactionTokens.minimumTouchTarget, flexShrink: 0, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 7 },
-  availabilityLabel: { fontSize: typeScale.caption, fontWeight: "700" },
-  hoursSaveRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 16 },
-  hoursHint: { flex: 1, fontSize: typeScale.caption },
-  hoursSaved: { flex: 1, fontSize: typeScale.caption, fontWeight: "700" },
-  hoursError: { flex: 1, fontSize: typeScale.caption, lineHeight: typeLeading.label, fontWeight: "700" },
-  hoursSave: { minHeight: interactionTokens.minimumTouchTarget, minWidth: 118, borderRadius: 13, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  availabilityControl: { width: 124, minHeight: interactionTokens.minimumTouchTarget, flexShrink: 0, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 7 },
+  availabilityLabel: { flexShrink: 1, fontSize: typeScale.caption, fontWeight: "700" },
+  hoursSaveRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 16, minWidth: 0 },
+  hoursHint: { flex: 1, minWidth: 0, fontSize: typeScale.caption },
+  hoursSaved: { flex: 1, minWidth: 0, fontSize: typeScale.caption, fontWeight: "700" },
+  hoursError: { flex: 1, minWidth: 0, fontSize: typeScale.caption, lineHeight: typeLeading.label, fontWeight: "700" },
+  hoursSave: { minHeight: interactionTokens.minimumTouchTarget, minWidth: 118, flexShrink: 0, borderRadius: 13, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   hoursSaveText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "700" },
   disabled: { opacity: .6 },
 });
