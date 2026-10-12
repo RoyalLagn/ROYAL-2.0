@@ -54,6 +54,7 @@ function ActionTile({ action, colors }: { action: Action; colors: typeof vendorT
   const [hovered, setHovered] = useState(false);
   const Icon = action.icon;
   return (
+    <View style={styles.cell}>
     <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={action.label}
@@ -70,13 +71,15 @@ function ActionTile({ action, colors }: { action: Action; colors: typeof vendorT
       <Icon size={15} color="#FFFFFF" strokeWidth={2.2} />
       <Text numberOfLines={1} style={styles.tileLabel}>{action.label}</Text>
     </AnimatedPressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, borderWidth: 1, borderRadius: 18, padding: 16, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
-  title: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 12 },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, minWidth: 0 },
-  tile: { width: "48%", flexGrow: 1, minWidth: 0, minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 10, borderRadius: 12 },
+  card: { flex: 1, width: "100%", maxWidth: "100%", overflow: "hidden", borderWidth: 1, borderRadius: 18, padding: 16, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
+  title: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 8 },
+  grid: { flexDirection: "row", flexWrap: "wrap", width: "100%", minWidth: 0, margin: -4 },
+  cell: { width: "50%", minWidth: 0, padding: 4 },
+  tile: { minHeight: 40, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 8, borderRadius: 12 },
   tileLabel: { flexShrink: 1, minWidth: 0, color: "#FFFFFF", fontSize: typeScale.metadata, fontWeight: "700" },
 });

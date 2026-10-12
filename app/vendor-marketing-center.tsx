@@ -161,7 +161,7 @@ export default function VendorMarketingCenter() {
             <Text style={[styles.pageTitle, { color: colors.text }]}>Marketing Tools</Text>
             <VendorDashboardReveal style={styles.block}>
               <View style={desktop ? styles.row : styles.stack}>
-                <View style={styles.col}>
+                <View style={desktop ? styles.col : styles.stackCol}>
                   <WebsiteStatusCard
                     colors={colors}
                     url={url}
@@ -171,7 +171,7 @@ export default function VendorMarketingCenter() {
                     qrScans={analytics?.view?.bySource?.qr ?? 0}
                   />
                 </View>
-                <View style={styles.col}>
+                <View style={desktop ? styles.col : styles.stackCol}>
                   <QuickActionsGrid
                     colors={colors}
                     onOpenWebsite={handleOpenWebsite}
@@ -195,7 +195,7 @@ export default function VendorMarketingCenter() {
                     onShare={handleShareQr}
                   />
                 </View>
-                <View style={styles.col}>
+                <View style={desktop ? styles.col : styles.stackCol}>
                   <AnalyticsSummaryCard
                     colors={colors}
                     analytics={analytics}
@@ -227,8 +227,9 @@ const styles = StyleSheet.create({
   pageTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
   block: { width: "100%", minWidth: 0 },
   row: { flexDirection: "row", alignItems: "stretch", gap: 20, width: "100%", minWidth: 0 },
-  stack: { width: "100%", minWidth: 0, gap: 16 },
+  stack: { width: "100%", maxWidth: "100%", minWidth: 0, gap: 16 },
   col: { flex: 1, minWidth: 0 },
+  stackCol: { width: "100%", maxWidth: "100%", minWidth: 0 },
   qrCol: { width: 280, maxWidth: "100%", minWidth: 0 },
   desktopScroll: { maxWidth: 1400, width: "100%" },
   notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },

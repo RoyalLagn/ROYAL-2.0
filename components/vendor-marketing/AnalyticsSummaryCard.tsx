@@ -39,18 +39,18 @@ export default function AnalyticsSummaryCard({
   callEnquiries: number;
 }) {
   const { width } = useWindowDimensions();
-  const wideTiles = width >= 900;
+  const columns = width >= 900 ? 4 : 2;
   const sources = analytics?.view?.bySource ?? {};
   const sourceEntries = Object.entries(sources).sort((a, b) => b[1] - a[1]);
   const sourceMax = Math.max(1, ...sourceEntries.map(([, count]) => count));
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
+    <View style={[styles.card, columns === 2 && styles.cardNarrow, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
       <View style={styles.headerRow}>
         <View style={[styles.icon, { backgroundColor: colors.pink }]}>
           <BarChart3 size={19} color="#FFF" />
         </View>
-        <Text style={[styles.title, { color: colors.text }]}>Business Website Analytics</Text>
+        <Text numberOfLines={2} style={[styles.title, { color: colors.text }]}>Business Website Analytics</Text>
       </View>
 
       <View style={styles.grid}>
@@ -69,10 +69,21 @@ export default function AnalyticsSummaryCard({
                     : stat
                       ? stat[tile.field]
                       : 0;
+          const column = index % columns;
           return (
-            <View key={`${tile.key}-${index}`} style={[styles.tile, wideTiles ? styles.tileWide : styles.tileNarrow, { backgroundColor: colors.surfaceSoft }]}>
-              <Text numberOfLines={1} style={[styles.tileValue, { color: colors.text }]}>{value}</Text>
-              <Text numberOfLines={2} style={[styles.tileLabel, { color: colors.muted }]}>{tile.label}</Text>
+            <View
+              key={`${tile.key}-${index}`}
+              style={[
+                styles.cell,
+                { width: `${100 / columns}%` },
+                column > 0 && styles.cellInset,
+                column < columns - 1 && styles.cellGutter,
+              ]}
+            >
+              <View style={[styles.tile, { backgroundColor: colors.surfaceSoft }]}>
+                <Text numberOfLines={1} style={[styles.tileValue, { color: colors.text }]}>{value}</Text>
+                <Text numberOfLines={2} style={[styles.tileLabel, { color: colors.muted }]}>{tile.label}</Text>
+              </View>
             </View>
           );
         })}
@@ -84,13 +95,11 @@ export default function AnalyticsSummaryCard({
           <View style={styles.sourcesGrid}>
             {sourceEntries.map(([source, count]) => (
               <View key={source} style={styles.sourceRow}>
-                <View style={styles.sourceTop}>
-                  <Text numberOfLines={1} style={[styles.sourceLabel, { color: colors.text }]}>{SOURCE_LABELS[source] ?? source}</Text>
-                  <Text style={[styles.sourceValue, { color: colors.text }]}>{count}</Text>
-                </View>
+                <Text numberOfLines={1} style={[styles.sourceLabel, { color: colors.text }]}>{SOURCE_LABELS[source] ?? source}</Text>
                 <View style={[styles.barTrack, { backgroundColor: colors.border }]}>
                   <View style={[styles.bar, { width: `${Math.max(8, Math.round((count / sourceMax) * 100))}%`, backgroundColor: colors.pink }]} />
                 </View>
+                <Text style={[styles.sourceValue, { color: colors.text }]}>{count}</Text>
               </View>
             ))}
           </View>
@@ -101,23 +110,24 @@ export default function AnalyticsSummaryCard({
 }
 
 const styles = StyleSheet.create({
-  card: { flex: 1, borderWidth: 1, borderRadius: 18, padding: 16, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
+  card: { flex: 1, width: "100%", maxWidth: "100%", alignSelf: "stretch", overflow: "hidden", borderWidth: 1, borderRadius: 18, padding: 16, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
+  cardNarrow: { padding: 12 },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12, minWidth: 0 },
   icon: { width: 32, height: 32, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   title: { flex: 1, minWidth: 0, fontSize: typeScale.body, fontWeight: "700" },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, minWidth: 0 },
-  tile: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 10, minWidth: 0 },
-  tileWide: { width: "23.5%", flexGrow: 1 },
-  tileNarrow: { width: "48%", flexGrow: 1 },
+  grid: { flexDirection: "row", flexWrap: "wrap", width: "100%", minWidth: 0 },
+  cell: { minWidth: 0, marginBottom: 8 },
+  cellGutter: { paddingRight: 4 },
+  cellInset: { paddingLeft: 4 },
+  tile: { borderRadius: 12, paddingVertical: 8, paddingHorizontal: 8, minWidth: 0 },
   tileValue: { fontSize: typeScale.body, fontWeight: "700" },
   tileLabel: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 2 },
-  sourcesWrap: { marginTop: 14, paddingTop: 14, borderTopWidth: 1 },
+  sourcesWrap: { marginTop: 6, paddingTop: 12, borderTopWidth: 1, minWidth: 0 },
   sourcesTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginBottom: 8 },
-  sourcesGrid: { gap: 10 },
-  sourceRow: { width: "100%", minWidth: 0, gap: 6 },
-  sourceTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  sourceLabel: { flex: 1, minWidth: 0, fontSize: typeScale.metadata, fontWeight: "600" },
-  barTrack: { width: "100%", height: 4, borderRadius: 2, overflow: "hidden" },
+  sourcesGrid: { gap: 8, minWidth: 0 },
+  sourceRow: { width: "100%", minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 },
+  sourceLabel: { width: 92, flexShrink: 1, minWidth: 0, fontSize: typeScale.metadata, fontWeight: "600" },
+  barTrack: { flex: 1, minWidth: 24, height: 4, borderRadius: 2, overflow: "hidden" },
   bar: { height: 4, borderRadius: 2 },
-  sourceValue: { fontSize: typeScale.metadata, fontWeight: "700" },
+  sourceValue: { width: 36, flexShrink: 0, textAlign: "right", fontSize: typeScale.metadata, fontWeight: "700" },
 });
