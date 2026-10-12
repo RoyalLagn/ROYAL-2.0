@@ -91,7 +91,6 @@ export default function VendorGallery() {
   const albumWidth = Math.floor(
     (albumGridAvailableWidth - albumStripHorizontalPadding - gap * (albumColumns - 1)) / albumColumns,
   );
-  const albumHeight = Math.round(albumWidth * (wideWebLayout ? 0.92 : width >= 900 ? 1.06 : 1.13));
   const albumCoverHeight = Math.round(albumWidth * (wideWebLayout ? 0.54 : 0.58));
   const activeAlbum = data.albums.find((album) => album.id === selectedAlbumId) ?? data.albums[0];
   const media = useMemo(() => data.media.filter((item) => item.album_id === activeAlbum?.id), [data.media, activeAlbum?.id]);
@@ -537,23 +536,6 @@ export default function VendorGallery() {
       <VendorSectionHeading
         title="Portfolio & Albums"
         subtitle="Curate beautiful collections for your public profile."
-        trailing={
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Create album"
-            onPress={() => openAlbum()}
-            style={({ pressed }) => [
-              styles.primary,
-              styles.createAlbumButton,
-              { backgroundColor: colors.pink, shadowColor: colors.shadow },
-              pressed && styles.pressLift,
-              data.albums.length >= tierLimits.albums && { opacity: .58 },
-            ]}
-          >
-            <Plus size={19} color="#FFF" strokeWidth={2.4} />
-            <Text style={styles.primaryText}>Create album</Text>
-          </Pressable>
-        }
       />
       <View style={[styles.summaryGrid, width >= 900 && styles.summaryGridDesktop]}>
         {[
@@ -585,22 +567,22 @@ export default function VendorGallery() {
           },
         ].map((stat) => <View key={stat.key} style={[
           styles.summaryCard,
+          styles.summaryCardEqual,
           width >= 900 && styles.summaryCardDesktop,
           wideWebLayout && styles.summaryCardWideWeb,
           width < 520 && styles.summaryCardCompact,
-          { width: width >= 900 ? (contentWidth - 20) / 3 : "31%" },
           { backgroundColor: colors.background, borderColor: colors.border },
         ]}>
           <View style={[styles.summaryIcon, wideWebLayout && styles.summaryIconWideWeb, { backgroundColor: colors.surfaceSoft }]}>{stat.icon}</View>
           <View style={wideWebLayout && styles.summaryCopyWideWeb}>
-            <Text style={[styles.summaryValue, { color: colors.text }]}>{stat.value}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.muted }]}>{stat.label}</Text>
+            <Text numberOfLines={1} style={[styles.summaryValue, { color: colors.text }]}>{stat.value}</Text>
+            <Text numberOfLines={2} style={[styles.summaryLabel, { color: colors.muted }]}>{stat.label}</Text>
           </View>
           <View style={wideWebLayout && styles.summaryMetaWideWeb}>
             <View style={[styles.statProgress, wideWebLayout && styles.statProgressWideWeb, { backgroundColor: colors.border }]}>
               <View style={[styles.statProgressFill, { width: `${Math.max(4, stat.progress * 100)}%`, backgroundColor: colors.pink }]} />
             </View>
-            <Text style={[styles.summaryDetail, wideWebLayout && styles.summaryDetailWideWeb, { color: stat.key === "albums" ? colors.muted : colors.pink }]}>{stat.detail}</Text>
+            <Text numberOfLines={2} style={[styles.summaryDetail, wideWebLayout && styles.summaryDetailWideWeb, { color: stat.key === "albums" ? colors.muted : colors.pink }]}>{stat.detail}</Text>
           </View>
         </View>)}
       </View>
@@ -622,17 +604,32 @@ export default function VendorGallery() {
       </View> : null}
 
       <View style={styles.sectionHeadingRow}>
-        <View>
+        <View style={styles.flex}>
           <Text style={[styles.sectionTitle, styles.albumSectionTitle, { color: colors.text }]}>Your Albums</Text>
-          <Text style={[styles.sectionCaption, { color: colors.muted }]}>{data.albums.length} curated collection{data.albums.length === 1 ? "" : "s"}</Text>
+          <Text numberOfLines={1} style={[styles.sectionCaption, { color: colors.muted }]}>{data.albums.length} curated collection{data.albums.length === 1 ? "" : "s"}</Text>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Create album"
+          onPress={() => openAlbum()}
+          style={({ pressed }) => [
+            styles.primary,
+            styles.createAlbumButton,
+            { backgroundColor: colors.pink, shadowColor: colors.shadow },
+            pressed && styles.pressScale,
+            data.albums.length >= tierLimits.albums && { opacity: .58 },
+          ]}
+        >
+          <Plus size={18} color="#FFF" strokeWidth={2.4} />
+          <Text style={styles.primaryText}>Create album</Text>
+        </Pressable>
       </View>
       <View onLayout={(event) => setAlbumGridWidth(event.nativeEvent.layout.width)} style={styles.albumStrip}>
         {data.albums.map((album) => {
           const albumMedia = data.media.filter((item) => item.album_id === album.id);
           const cover = albumMedia.find((item) => item.is_cover) ?? albumMedia[0];
           const active = activeAlbum?.id === album.id;
-          return <View key={album.id} style={[styles.album, { width: albumWidth, height: albumHeight, backgroundColor: colors.background, borderColor: colors.border }]}>
+          return <View key={album.id} style={[styles.album, { width: albumWidth, backgroundColor: colors.background, borderColor: colors.border }]}>
             <Pressable
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
@@ -662,7 +659,7 @@ export default function VendorGallery() {
                 </View>
                 <Text style={[styles.albumCount, { color: colors.muted }]}>{albumMedia.length} of {tierLimits.mediaPerAlbum} media</Text>
                 <View style={[styles.albumCapacity, { backgroundColor: colors.border }]}>
-                  <View style={{ width: `${albumMedia.length / tierLimits.mediaPerAlbum * 100}%`, height: "100%", borderRadius: 999, backgroundColor: colors.pink }} />
+                  <View style={{ width: `${Math.min(100, (albumMedia.length / Math.max(1, tierLimits.mediaPerAlbum)) * 100)}%`, height: "100%", borderRadius: 999, backgroundColor: colors.pink }} />
                 </View>
               </View>
             </Pressable>
@@ -687,17 +684,24 @@ export default function VendorGallery() {
 
       {activeAlbum && <View style={[styles.albumDetails, width >= 900 && styles.albumDetailsDesktop, { backgroundColor: colors.background, borderColor: colors.border }]}>
         <View style={styles.albumHeading}>
-          <View style={styles.flex}><Text style={[styles.sectionTitle, styles.detailTitle, { color: colors.text }]}>{activeAlbum.title}</Text><Text style={[styles.subtitle, styles.detailSubtitle, { color: colors.muted }]}>{activeAlbum.description || "Add a short description to give this collection context."}</Text></View>
-          <Pressable accessibilityLabel="Preview album" onPress={() => setAlbumPreview(activeAlbum)} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressScale]}><Eye size={18} color={colors.text} /></Pressable>
-          <Pressable accessibilityLabel="Edit album" onPress={() => openAlbum(activeAlbum)} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressScale]}><Pencil size={18} color={colors.text} /></Pressable>
-          <Pressable disabled={deletingAlbumId === activeAlbum.id} accessibilityLabel="Delete album" onPress={() => removeAlbum(activeAlbum)} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressScale]}>
-            {deletingAlbumId === activeAlbum.id ? <ActivityIndicator size="small" color={colors.warning} /> : <Trash2 size={17} color={colors.warning} />}
-          </Pressable>
-        </View>
-        <View style={styles.orderRow}>
-          <Text style={[styles.orderLabel, { color: colors.muted }]}>{media.length}/{tierLimits.mediaPerAlbum} media · {remainingCapacity} remaining</Text>
-          <Pressable accessibilityLabel="Move album earlier" onPress={() => reorderAlbum(-1)} style={[styles.orderButton, { borderColor: colors.border }]}><ChevronLeft size={15} color={colors.text} /><Text style={[styles.orderText, { color: colors.text }]}>Earlier</Text></Pressable>
-          <Pressable accessibilityLabel="Move album later" onPress={() => reorderAlbum(1)} style={[styles.orderButton, { borderColor: colors.border }]}><Text style={[styles.orderText, { color: colors.text }]}>Later</Text><ChevronRight size={15} color={colors.text} /></Pressable>
+          <View style={styles.flex}>
+            <Text numberOfLines={2} style={[styles.sectionTitle, styles.detailTitle, { color: colors.text }]}>{activeAlbum.title}</Text>
+            <Text numberOfLines={3} style={[styles.subtitle, styles.detailSubtitle, { color: colors.muted }]}>{activeAlbum.description || "Add a short description to give this collection context."}</Text>
+            <Text numberOfLines={1} style={[styles.orderLabel, styles.detailCount, { color: colors.muted }]}>{media.length}/{tierLimits.mediaPerAlbum} media · {remainingCapacity} remaining</Text>
+          </View>
+          <View style={styles.detailActions}>
+            <View style={styles.detailIconRow}>
+              <Pressable accessibilityLabel="Preview album" onPress={() => setAlbumPreview(activeAlbum)} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressScale]}><Eye size={18} color={colors.text} /></Pressable>
+              <Pressable accessibilityLabel="Edit album" onPress={() => openAlbum(activeAlbum)} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressScale]}><Pencil size={18} color={colors.text} /></Pressable>
+              <Pressable disabled={deletingAlbumId === activeAlbum.id} accessibilityLabel="Delete album" onPress={() => removeAlbum(activeAlbum)} style={({ pressed }) => [styles.iconButton, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressScale]}>
+                {deletingAlbumId === activeAlbum.id ? <ActivityIndicator size="small" color={colors.warning} /> : <Trash2 size={17} color={colors.warning} />}
+              </Pressable>
+            </View>
+            <View style={styles.detailOrderRow}>
+              <Pressable accessibilityLabel="Move album earlier" onPress={() => reorderAlbum(-1)} style={({ pressed }) => [styles.orderButton, { borderColor: colors.border }, pressed && styles.pressScale]}><ChevronLeft size={15} color={colors.text} /><Text style={[styles.orderText, { color: colors.text }]}>Earlier</Text></Pressable>
+              <Pressable accessibilityLabel="Move album later" onPress={() => reorderAlbum(1)} style={({ pressed }) => [styles.orderButton, { borderColor: colors.border }, pressed && styles.pressScale]}><Text style={[styles.orderText, { color: colors.text }]}>Later</Text><ChevronRight size={15} color={colors.text} /></Pressable>
+            </View>
+          </View>
         </View>
         <Pressable onPress={() => prepareUpload()} disabled={uploading || remainingCapacity === 0} style={({ pressed }) => [styles.upload, { backgroundColor: colors.surfaceSoft }, remainingCapacity === 0 && { opacity: .55 }, pressed && styles.pressLift]}>
           {uploading ? <ActivityIndicator color={colors.pink} /> : <Upload size={19} color={colors.pink} />}
