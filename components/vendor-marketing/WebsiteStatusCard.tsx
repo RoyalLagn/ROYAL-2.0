@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Globe } from "lucide-react-native";
+import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { typeScale } from "@/constants/typography";
 
@@ -10,13 +11,16 @@ export default function WebsiteStatusCard({
   generatedAt,
   totalViews,
   qrScans,
+  onOpen,
 }: {
   colors: typeof vendorTheme.light;
   url: string;
   generatedAt: string | null;
   totalViews: number;
   qrScans: number;
+  onOpen: () => void;
 }) {
+  const [linkHovered, setLinkHovered] = useState(false);
   const formattedDate = generatedAt
     ? new Date(generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
     : "—";
@@ -36,7 +40,22 @@ export default function WebsiteStatusCard({
         </View>
       </View>
 
-      <Text style={[styles.url, { color: colors.pink }]} numberOfLines={1}>{url}</Text>
+      <AnimatedPressable
+        accessibilityRole="link"
+        accessibilityLabel="Open business website"
+        onPress={onOpen}
+        pressScale={0.98}
+        onHoverIn={() => setLinkHovered(true)}
+        onHoverOut={() => setLinkHovered(false)}
+        style={styles.urlHit}
+      >
+        <Text
+          style={[styles.url, { color: colors.pink }, linkHovered && styles.urlHovered]}
+          numberOfLines={2}
+        >
+          {url}
+        </Text>
+      </AnimatedPressable>
 
       <View style={[styles.metaRow, { borderColor: colors.border }]}>
         <View style={styles.metaItem}>
@@ -57,7 +76,7 @@ export default function WebsiteStatusCard({
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 12, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
+  card: { flex: 1, borderWidth: 1, borderRadius: 18, padding: 16, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
   headerRow: { flexDirection: "row", gap: 12, alignItems: "center", minWidth: 0 },
   icon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   flex: { flex: 1, minWidth: 0 },
@@ -65,7 +84,9 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  url: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginTop: 10 },
+  urlHit: { alignSelf: "flex-start", marginTop: 10, maxWidth: "100%", cursor: "pointer" } as object,
+  url: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
+  urlHovered: { textDecorationLine: "underline" },
   metaRow: { flexDirection: "row", marginTop: 12, paddingTop: 12, borderTopWidth: 1, minWidth: 0 },
   metaItem: { flex: 1, alignItems: "center" },
   metaValue: { fontSize: typeScale.body, fontWeight: "700" },

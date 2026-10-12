@@ -1,19 +1,22 @@
 import { Platform } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { recordVendorProfileEvent } from "@/services/vendorPublicProfile";
-import { shareVendorProfile } from "@/services/vendorShare";
+import { shareVendorProfile, type VendorShareResult } from "@/services/vendorShare";
 import { addTrafficSourceToUrl } from "@/services/trafficSource";
 
 export async function copyProfileLink(vendorId: string, url: string) {
   if (!url) return;
   await Clipboard.setStringAsync(addTrafficSourceToUrl(url, "share"));
-  void recordVendorProfileEvent(vendorId, "copy_link").catch(() => {});
+  await recordVendorProfileEvent(vendorId, "copy_link", "marketing_center").catch(() => {});
 }
 
-export async function shareProfileLink(vendorId: string, vendorName: string, slug: string, source?: string) {
-  if (!slug) return;
-  await shareVendorProfile({ vendorId, vendorName, slug });
-  void recordVendorProfileEvent(vendorId, "link_share", source ?? "dashboard").catch(() => {});
+export async function shareProfileLink(vendorId: string, vendorName: string, slug: string, source?: string): Promise<VendorShareResult | "skipped"> {
+  if (!slug) return "skipped";
+  const result = await shareVendorProfile({ vendorId, vendorName, slug });
+  if (result !== "dismissed") {
+    await recordVendorProfileEvent(vendorId, "link_share", source ?? "marketing_center").catch(() => {});
+  }
+  return result;
 }
 
 export async function downloadQrCode(slug: string, qrUrl: string, qrRef: React.RefObject<any>) {
@@ -38,8 +41,8 @@ export async function downloadQrCode(slug: string, qrUrl: string, qrRef: React.R
   if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri);
 }
 
-export async function shareQrCode(vendorId: string, vendorName: string, slug: string, qrUrl: string, qrRef: React.RefObject<any>) {
-  if (!slug || !qrUrl) return;
+export async function shareQrCode(vendorId: string, vendorName: string, slug: string, qrUrl: string, qrRef: React.RefObject<any>): Promise<VendorShareResult | "shared"> {
+  if (!slug || !qrUrl) return "dismissed";
   if (Platform.OS === "web") {
     const QRCodeLib = await import("qrcode");
     const dataUrl = await QRCodeLib.toDataURL(qrUrl, { width: 512, margin: 2 });
@@ -53,8 +56,8 @@ export async function shareQrCode(vendorId: string, vendorName: string, slug: st
         const file = new File([blob], `${slug}-qr.png`, { type: "image/png" });
         if (!browserNavigator.canShare || browserNavigator.canShare({ files: [file] })) {
           await browserNavigator.share({ title: `${slug} QR code`, files: [file] });
-          void recordVendorProfileEvent(vendorId, "link_share", "qr").catch(() => {});
-          return;
+          await recordVendorProfileEvent(vendorId, "link_share", "qr").catch(() => {});
+          return "shared";
         }
       } catch {
         // Fall through to link share below.
@@ -68,9 +71,10 @@ export async function shareQrCode(vendorId: string, vendorName: string, slug: st
     if (qrRef.current && (await Sharing.isAvailableAsync())) {
       const uri = await ViewShot.captureRef(qrRef, { format: "png", quality: 1 });
       await Sharing.shareAsync(uri);
-      void recordVendorProfileEvent(vendorId, "link_share", "qr").catch(() => {});
-      return;
+      await recordVendorProfileEvent(vendorId, "link_share", "qr").catch(() => {});
+      return "shared";
     }
   }
-  await shareProfileLink(vendorId, vendorName, slug, "qr");
+  const result = await shareProfileLink(vendorId, vendorName, slug, "qr");
+  return result === "skipped" ? "dismissed" : result;
 }

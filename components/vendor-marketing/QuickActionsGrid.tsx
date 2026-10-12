@@ -1,13 +1,14 @@
-import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 import { Download, ExternalLink, Link2, QrCode, Share2, Sparkles } from "lucide-react-native";
+import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { typeScale } from "@/constants/typography";
 
 type Action = {
   key: string;
   label: string;
-  icon: React.ReactNode;
+  icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
   onPress: () => void;
 };
 
@@ -29,12 +30,12 @@ export default function QuickActionsGrid({
   onMarketingCard: () => void;
 }) {
   const actions: Action[] = [
-    { key: "open", label: "Open Website", icon: <ExternalLink size={16} color="#FFF" />, onPress: onOpenWebsite },
-    { key: "copy", label: "Copy Link", icon: <Link2 size={16} color="#FFF" />, onPress: onCopyLink },
-    { key: "share", label: "Share Profile", icon: <Share2 size={16} color="#FFF" />, onPress: onShareProfile },
-    { key: "qrdl", label: "Download QR", icon: <Download size={16} color="#FFF" />, onPress: onDownloadQr },
-    { key: "qrshare", label: "Share QR", icon: <QrCode size={16} color="#FFF" />, onPress: onShareQr },
-    { key: "marketingcard", label: "Marketing Card", icon: <Sparkles size={16} color="#FFF" />, onPress: onMarketingCard },
+    { key: "open", label: "Open Website", icon: ExternalLink, onPress: onOpenWebsite },
+    { key: "copy", label: "Copy Link", icon: Link2, onPress: onCopyLink },
+    { key: "share", label: "Share Profile", icon: Share2, onPress: onShareProfile },
+    { key: "qrdl", label: "Download QR", icon: Download, onPress: onDownloadQr },
+    { key: "qrshare", label: "Share QR", icon: QrCode, onPress: onShareQr },
+    { key: "marketingcard", label: "Marketing Card", icon: Sparkles, onPress: onMarketingCard },
   ];
 
   return (
@@ -42,30 +43,43 @@ export default function QuickActionsGrid({
       <Text style={[styles.title, { color: colors.text }]}>Quick Actions</Text>
       <View style={styles.grid}>
         {actions.map((action) => (
-          <View key={action.key} style={[styles.buttonTile, { backgroundColor: colors.pink }]}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={action.label}
-              android_ripple={{ color: "rgba(255,255,255,0.18)" }}
-              onPress={action.onPress}
-              style={({ pressed }) => [styles.buttonHitArea, pressed && styles.pressed]}
-            >
-              {action.icon}
-              <Text numberOfLines={2} style={styles.buttonLabel}>{action.label}</Text>
-            </Pressable>
-          </View>
+          <ActionTile key={action.key} action={action} colors={colors} />
         ))}
       </View>
     </View>
   );
 }
 
+function ActionTile({ action, colors }: { action: Action; colors: typeof vendorTheme.light }) {
+  const [hovered, setHovered] = useState(false);
+  const Icon = action.icon;
+  return (
+    <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityLabel={action.label}
+      onPress={action.onPress}
+      pressScale={0.97}
+      hoverTranslateY={-2}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={[
+        styles.tile,
+        { backgroundColor: hovered ? colors.surface : colors.surfaceSoft, borderColor: hovered ? colors.pink : "transparent", cursor: "pointer" } as object,
+      ]}
+    >
+      <View style={[styles.iconBox, { backgroundColor: colors.surface }]}>
+        <Icon size={15} color={colors.pink} strokeWidth={2.2} />
+      </View>
+      <Text numberOfLines={1} style={[styles.tileLabel, { color: colors.text }]}>{action.label}</Text>
+    </AnimatedPressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 18, padding: 14, marginBottom: 12, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
-  title: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 10 },
+  card: { flex: 1, borderWidth: 1, borderRadius: 18, padding: 16, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
+  title: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 12 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, minWidth: 0 },
-  buttonTile: { flexBasis: "31%", flexGrow: 1, height: 52, overflow: "hidden", borderRadius: 12, minWidth: 0 },
-  buttonHitArea: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 8 },
-  pressed: { transform: [{ scale: 0.97 }], opacity: 0.92 },
-  buttonLabel: { color: "#FFF", fontSize: typeScale.metadata, fontWeight: "700", textAlign: "center" },
+  tile: { width: "48%", flexGrow: 1, minWidth: 0, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: "transparent" },
+  iconBox: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  tileLabel: { flex: 1, minWidth: 0, fontSize: typeScale.metadata, fontWeight: "700" },
 });

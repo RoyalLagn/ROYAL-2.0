@@ -158,3 +158,28 @@ export async function getVendorProfileAnalytics(vendorId: string): Promise<Vendo
   }
   return result;
 }
+
+export function subscribeVendorProfileAnalytics(vendorId: string, onChange: () => void) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const schedule = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(onChange, 250);
+  };
+  const channel = supabase
+    .channel(`vendor-profile-analytics-${vendorId}`)
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "vendor_profile_events", filter: `vendor_id=eq.${vendorId}` },
+      schedule,
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "vendors", filter: `id=eq.${vendorId}` },
+      schedule,
+    )
+    .subscribe();
+  return () => {
+    if (timer) clearTimeout(timer);
+    void supabase.removeChannel(channel);
+  };
+}

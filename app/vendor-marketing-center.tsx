@@ -19,6 +19,7 @@ import {
   getVendorProfileAnalytics,
   getVendorQrRecord,
   recordVendorProfileEvent,
+  subscribeVendorProfileAnalytics,
   type VendorProfileAnalytics,
 } from "@/services/vendorPublicProfile";
 import { copyProfileLink, downloadQrCode, shareProfileLink, shareQrCode } from "@/components/vendor-marketing/shareActions";
@@ -33,6 +34,7 @@ export default function VendorMarketingCenter() {
   const { showSuccess, showError } = useAppFeedback();
   const { data, loading, error, refresh } = useVendorWorkspace();
   const desktop = width >= 900;
+  const pageGap = desktop ? 20 : 16;
   const qrRef = useRef<any>(null);
   const [analytics, setAnalytics] = useState<VendorProfileAnalytics | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
@@ -43,15 +45,25 @@ export default function VendorMarketingCenter() {
   const url = slug ? buildVendorPublicProfileUrl(slug) : "";
   const qrUrl = slug ? buildVendorPublicProfileUrl(slug, "qr") : "";
 
+  const loadAnalytics = useCallback(() => {
+    if (!vendor?.id || !available) return;
+    getVendorProfileAnalytics(vendor.id)
+      .then(setAnalytics)
+      .catch(() => setAnalytics(null));
+  }, [available, vendor?.id]);
+
   useFocusEffect(useCallback(() => {
     refresh();
+    loadAnalytics();
+  }, [loadAnalytics, refresh]));
+
+  useEffect(() => {
     if (!vendor?.id || !available) return;
-    let active = true;
-    getVendorProfileAnalytics(vendor.id)
-      .then((result) => { if (active) setAnalytics(result); })
-      .catch(() => { if (active) setAnalytics(null); });
-    return () => { active = false; };
-  }, [available, refresh, vendor?.id]));
+    return subscribeVendorProfileAnalytics(vendor.id, () => {
+      loadAnalytics();
+      void refresh();
+    });
+  }, [available, loadAnalytics, refresh, vendor?.id]);
 
   useEffect(() => {
     if (!vendor?.id || !available) return;
@@ -71,24 +83,41 @@ export default function VendorMarketingCenter() {
   const handleCopyLink = useCallback(() => {
     if (!vendor?.id || !url) return;
     void copyProfileLink(vendor.id, url)
-      .then(() => showSuccess("Profile link copied"))
+      .then(() => {
+        showSuccess("Profile link copied");
+        loadAnalytics();
+      })
       .catch(() => showError("Profile link could not be copied"));
-  }, [showError, showSuccess, vendor?.id, url]);
+  }, [loadAnalytics, showError, showSuccess, vendor?.id, url]);
 
   const handleShareProfile = useCallback(() => {
     if (!vendor?.id || !slug) return;
-    void shareProfileLink(vendor.id, vendor.business_name, slug, "marketing_center");
-  }, [vendor?.id, vendor?.business_name, slug]);
+    void shareProfileLink(vendor.id, vendor.business_name, slug, "marketing_center")
+      .then((result) => {
+        if (result === "dismissed" || result === "skipped") return;
+        showSuccess(result === "copied" ? "Profile link copied" : "Profile shared");
+        loadAnalytics();
+      })
+      .catch(() => showError("Profile could not be shared"));
+  }, [loadAnalytics, showError, showSuccess, slug, vendor?.business_name, vendor?.id]);
 
   const handleDownloadQr = useCallback(() => {
     if (!slug || !qrUrl) return;
-    void downloadQrCode(slug, qrUrl, qrRef);
-  }, [slug, qrUrl]);
+    void downloadQrCode(slug, qrUrl, qrRef)
+      .then(() => showSuccess("QR code downloaded"))
+      .catch(() => showError("QR code could not be downloaded"));
+  }, [qrUrl, showError, showSuccess, slug]);
 
   const handleShareQr = useCallback(() => {
     if (!vendor?.id || !slug || !qrUrl) return;
-    void shareQrCode(vendor.id, vendor.business_name, slug, qrUrl, qrRef);
-  }, [vendor?.id, vendor?.business_name, slug, qrUrl]);
+    void shareQrCode(vendor.id, vendor.business_name, slug, qrUrl, qrRef)
+      .then((result) => {
+        if (result === "dismissed") return;
+        showSuccess(result === "copied" ? "Profile link copied" : "QR code ready to share");
+        loadAnalytics();
+      })
+      .catch(() => showError("QR code could not be shared"));
+  }, [loadAnalytics, qrUrl, showError, showSuccess, slug, vendor?.business_name, vendor?.id]);
 
   const handleOpenMarketingCard = useCallback(() => {
     router.push("/vendor-marketing-card");
@@ -100,7 +129,11 @@ export default function VendorMarketingCenter() {
       <ScrollView
         style={styles.scroller}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll, !desktop && { paddingBottom: 28 + VENDOR_TAB_BASE_HEIGHT }]}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingHorizontal: desktop ? 24 : 16, paddingTop: desktop ? 20 : 12, gap: pageGap, paddingBottom: desktop ? 32 : 28 + VENDOR_TAB_BASE_HEIGHT },
+          desktop && styles.desktopScroll,
+        ]}
       >
         {error ? (
           <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -125,46 +158,56 @@ export default function VendorMarketingCenter() {
 
         {available ? (
           <>
+            <Text style={[styles.pageTitle, { color: colors.text }]}>Marketing Tools</Text>
             <VendorDashboardReveal style={styles.block}>
-              <WebsiteStatusCard
-                colors={colors}
-                url={url}
-                generatedAt={generatedAt}
-                totalViews={Number(vendor.profile_views ?? 0)}
-                qrScans={analytics?.view?.bySource?.qr ?? 0}
-              />
+              <View style={desktop ? styles.row : styles.stack}>
+                <View style={styles.col}>
+                  <WebsiteStatusCard
+                    colors={colors}
+                    url={url}
+                    onOpen={handleOpenWebsite}
+                    generatedAt={generatedAt}
+                    totalViews={Number(vendor.profile_views ?? 0)}
+                    qrScans={analytics?.view?.bySource?.qr ?? 0}
+                  />
+                </View>
+                <View style={styles.col}>
+                  <QuickActionsGrid
+                    colors={colors}
+                    onOpenWebsite={handleOpenWebsite}
+                    onCopyLink={handleCopyLink}
+                    onShareProfile={handleShareProfile}
+                    onDownloadQr={handleDownloadQr}
+                    onShareQr={handleShareQr}
+                    onMarketingCard={handleOpenMarketingCard}
+                  />
+                </View>
+              </View>
             </VendorDashboardReveal>
             <VendorDashboardReveal delay={MotionStagger.item} style={styles.block}>
-              <QuickActionsGrid
-                colors={colors}
-                onOpenWebsite={handleOpenWebsite}
-                onCopyLink={handleCopyLink}
-                onShareProfile={handleShareProfile}
-                onDownloadQr={handleDownloadQr}
-                onShareQr={handleShareQr}
-                onMarketingCard={handleOpenMarketingCard}
-              />
+              <View style={desktop ? styles.row : styles.stack}>
+                <View style={desktop ? styles.qrCol : styles.col}>
+                  <QrCodeSection
+                    colors={colors}
+                    qrUrl={qrUrl}
+                    qrRef={qrRef}
+                    onDownload={handleDownloadQr}
+                    onShare={handleShareQr}
+                  />
+                </View>
+                <View style={styles.col}>
+                  <AnalyticsSummaryCard
+                    colors={colors}
+                    analytics={analytics}
+                    profileViews={Number(vendor.profile_views ?? 0)}
+                    totalEnquiries={data.stats.totalEnquiries}
+                    whatsappEnquiries={data.stats.whatsappEnquiries}
+                    callEnquiries={data.stats.callEnquiries}
+                  />
+                </View>
+              </View>
             </VendorDashboardReveal>
             <VendorDashboardReveal delay={MotionStagger.item * 2} style={styles.block}>
-              <QrCodeSection
-                colors={colors}
-                qrUrl={qrUrl}
-                qrRef={qrRef}
-                onDownload={handleDownloadQr}
-                onShare={handleShareQr}
-              />
-            </VendorDashboardReveal>
-            <VendorDashboardReveal delay={MotionStagger.item * 3} style={styles.block}>
-              <AnalyticsSummaryCard
-                colors={colors}
-                analytics={analytics}
-                profileViews={Number(vendor.profile_views ?? 0)}
-                totalEnquiries={data.stats.totalEnquiries}
-                whatsappEnquiries={data.stats.whatsappEnquiries}
-                callEnquiries={data.stats.callEnquiries}
-              />
-            </VendorDashboardReveal>
-            <VendorDashboardReveal delay={MotionStagger.item * 4} style={styles.block}>
               <MarketingTipsCard colors={colors} />
             </VendorDashboardReveal>
           </>
@@ -180,9 +223,14 @@ export default function VendorMarketingCenter() {
 const styles = StyleSheet.create({
   page: { flex: 1 },
   scroller: { flex: 1, minWidth: 0 },
-  scroll: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 28, width: "100%", alignSelf: "center", minWidth: 0 },
+  scroll: { width: "100%", alignSelf: "center", minWidth: 0 },
+  pageTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
   block: { width: "100%", minWidth: 0 },
-  desktopScroll: { maxWidth: 720, paddingHorizontal: 0, paddingTop: 24, paddingBottom: 48 },
+  row: { flexDirection: "row", alignItems: "stretch", gap: 20, width: "100%", minWidth: 0 },
+  stack: { width: "100%", minWidth: 0, gap: 16 },
+  col: { flex: 1, minWidth: 0 },
+  qrCol: { width: 280, maxWidth: "100%", minWidth: 0 },
+  desktopScroll: { maxWidth: 1400, width: "100%" },
   notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   noticeText: { flex: 1, fontSize: typeScale.metadata, lineHeight: typeLeading.tab },
   emptyCard: { borderWidth: 1, borderRadius: 26, padding: 32, alignItems: "center", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.06, shadowRadius: 22, elevation: 2 },
