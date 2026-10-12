@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Alert,
   Image,
@@ -17,7 +17,7 @@ import {
   QrCode,
   Share2,
 } from "lucide-react-native";
-import Pressable from "@/components/InteropSafePressable";
+import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 
 export interface VendorCrmPublicProfileProps {
@@ -90,76 +90,49 @@ export default function VendorCrmPublicProfile({
 
         {/* 2x2 Action Tiles */}
         <View style={styles.actionsGrid}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Copy Profile Link"
-            onPress={handleCopyLink}
-            style={({ pressed, hovered }: any) => [
-              styles.actionBtn,
-              isDark && styles.actionBtnDark,
-              hovered && styles.actionBtnHovered,
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <Copy size={13} color="#E91E63" strokeWidth={2.2} />
-            <Text numberOfLines={1} style={[styles.actionBtnText, isDark && styles.textDark]}>
-              Copy Link
-            </Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Open Public Profile"
-            onPress={handleOpenProfile}
-            style={({ pressed, hovered }: any) => [
-              styles.actionBtn,
-              isDark && styles.actionBtnDark,
-              hovered && styles.actionBtnHovered,
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <ExternalLink size={13} color="#E91E63" strokeWidth={2.2} />
-            <Text numberOfLines={1} style={[styles.actionBtnText, isDark && styles.textDark]}>
-              Open Profile
-            </Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Share Profile"
-            onPress={handleShare}
-            style={({ pressed, hovered }: any) => [
-              styles.actionBtn,
-              isDark && styles.actionBtnDark,
-              hovered && styles.actionBtnHovered,
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <Share2 size={13} color="#E91E63" strokeWidth={2.2} />
-            <Text numberOfLines={1} style={[styles.actionBtnText, isDark && styles.textDark]}>
-              Share
-            </Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Download QR Code"
-            onPress={handleDownloadQr}
-            style={({ pressed, hovered }: any) => [
-              styles.actionBtn,
-              isDark && styles.actionBtnDark,
-              hovered && styles.actionBtnHovered,
-              pressed && { opacity: 0.8 },
-            ]}
-          >
-            <QrCode size={13} color="#E91E63" strokeWidth={2.2} />
-            <Text numberOfLines={1} style={[styles.actionBtnText, isDark && styles.textDark]}>
-              Download QR
-            </Text>
-          </Pressable>
+          <ProfileAction label="Copy Link" accessibilityLabel="Copy Profile Link" icon={Copy} isDark={isDark} onPress={handleCopyLink} />
+          <ProfileAction label="Open Profile" accessibilityLabel="Open Public Profile" icon={ExternalLink} isDark={isDark} onPress={handleOpenProfile} />
+          <ProfileAction label="Share" accessibilityLabel="Share Profile" icon={Share2} isDark={isDark} onPress={handleShare} />
+          <ProfileAction label="Download QR" accessibilityLabel="Download QR Code" icon={QrCode} isDark={isDark} onPress={handleDownloadQr} />
         </View>
       </View>
     </View>
+  );
+}
+
+function ProfileAction({
+  label,
+  accessibilityLabel,
+  icon: Icon,
+  isDark,
+  onPress,
+}: {
+  label: string;
+  accessibilityLabel: string;
+  icon: typeof Copy;
+  isDark: boolean;
+  onPress: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      pressScale={0.97}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={[
+        styles.actionBtn,
+        isDark && styles.actionBtnDark,
+        hovered && styles.actionBtnHovered,
+      ]}
+    >
+      <Icon size={13} color="#E91E63" strokeWidth={2.2} />
+      <Text numberOfLines={1} style={[styles.actionBtnText, isDark && styles.textDark]}>
+        {label}
+      </Text>
+    </AnimatedPressable>
   );
 }
 
@@ -172,6 +145,7 @@ const styles = StyleSheet.create({
     padding: 16,
     width: "100%",
     maxWidth: "100%",
+    minWidth: 0,
     boxSizing: "border-box" as any,
   },
   cardDark: {
@@ -191,12 +165,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#E91E63",
     marginTop: 2,
+    minWidth: 0,
   },
   bodyRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     width: "100%",
+    minWidth: 0,
   },
   qrBox: {
     width: 74,
@@ -226,12 +202,14 @@ const styles = StyleSheet.create({
   },
   actionsGrid: {
     flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
   },
   actionBtn: {
     width: "48%",
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
@@ -254,6 +232,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#374151",
     flexShrink: 1,
+    minWidth: 0,
   },
   textDark: {
     color: "#F9FAFB",

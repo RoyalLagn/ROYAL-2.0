@@ -85,7 +85,7 @@ export default function VendorCrmBookingsChart({
     <View style={[styles.card, isDark && styles.cardDark]}>
       {/* Header Row */}
       <View style={styles.headerRow}>
-        <Text style={[styles.title, isDark && styles.textDark]}>
+        <Text numberOfLines={1} style={[styles.title, isDark && styles.textDark, styles.titleFlex]}>
           Bookings Overview
         </Text>
 
@@ -142,7 +142,7 @@ export default function VendorCrmBookingsChart({
                   {item.isPeak && item.value > 0 ? (
                     <View style={styles.tooltipWrap}>
                       <View style={styles.tooltipBox}>
-                        <Text style={styles.tooltipText}>{item.value} {item.value === 1 ? "Booking" : "Bookings"}</Text>
+                        <Text numberOfLines={1} style={styles.tooltipText}>{item.value} {item.value === 1 ? "Booking" : "Bookings"}</Text>
                       </View>
                       <View style={styles.tooltipPin} />
                     </View>
@@ -184,6 +184,8 @@ const styles = StyleSheet.create({
     minHeight: 250,
     width: "100%",
     maxWidth: "100%",
+    minWidth: 0,
+    overflow: "hidden",
     boxSizing: "border-box" as any,
   },
   cardDark: {
@@ -195,11 +197,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 16,
+    gap: 8,
+    minWidth: 0,
   },
   title: {
     fontSize: 14,
     fontWeight: "800",
     color: "#111827",
+  },
+  titleFlex: {
+    flex: 1,
+    minWidth: 0,
   },
   filterPill: {
     flexDirection: "row",
@@ -226,6 +234,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "stretch",
     paddingBottom: 4,
+    minWidth: 0,
   },
   yAxisCol: {
     justifyContent: "space-between",
@@ -240,6 +249,7 @@ const styles = StyleSheet.create({
   },
   plotArea: {
     flex: 1,
+    minWidth: 0,
     position: "relative",
     justifyContent: "flex-end",
   },
@@ -268,15 +278,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     height: 140,
     zIndex: 2,
+    minWidth: 0,
   },
   barCol: {
     alignItems: "center",
     flex: 1,
+    minWidth: 0,
     height: "100%",
     justifyContent: "flex-end",
   },
   barTrack: {
-    width: 28,
+    width: "62%",
+    maxWidth: 28,
     height: 110,
     justifyContent: "flex-end",
     alignItems: "center",
@@ -301,6 +314,7 @@ const styles = StyleSheet.create({
     top: 2,
     alignItems: "center",
     zIndex: 10,
+    maxWidth: "100%",
   },
   tooltipBox: {
     backgroundColor: "#E91E63",

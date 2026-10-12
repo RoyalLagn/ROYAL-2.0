@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -6,7 +6,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { ArrowRight, Calendar, ChevronRight, Crown } from "lucide-react-native";
-import Pressable from "@/components/InteropSafePressable";
+import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 
 export interface VendorCrmPlanCardProps {
@@ -23,6 +23,7 @@ export default function VendorCrmPlanCard({
   const router = useRouter();
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
+  const [hovered, setHovered] = useState(false);
 
   const handlePress = () => {
     if (onPress) {
@@ -33,12 +34,15 @@ export default function VendorCrmPlanCard({
   };
 
   return (
-    <View style={[styles.card, isDark && styles.cardDark]}>
-      <Pressable
+    <View style={[styles.card, isDark && styles.cardDark, hovered && styles.cardHovered]}>
+      <AnimatedPressable
         accessibilityRole="button"
         accessibilityLabel={`Your Plan: ${planName}`}
         onPress={handlePress}
-        style={({ pressed }) => [styles.topRow, pressed && { opacity: 0.8 }]}
+        pressScale={0.97}
+        onHoverIn={() => setHovered(true)}
+        onHoverOut={() => setHovered(false)}
+        style={styles.topRow}
       >
         {/* Crown Icon Box */}
         <View style={styles.crownBox}>
@@ -50,29 +54,31 @@ export default function VendorCrmPlanCard({
           <Text style={[styles.planLabel, isDark && styles.textMutedDark]}>
             Your Plan
           </Text>
-          <Text style={[styles.planName, isDark && styles.textDark]}>
+          <Text numberOfLines={1} style={[styles.planName, isDark && styles.textDark]}>
             {planName}
           </Text>
           <View style={styles.accessRow}>
             <Calendar size={12} color="#9CA3AF" />
-            <Text style={styles.accessText}>{accessStatus}</Text>
+            <Text numberOfLines={1} style={styles.accessText}>{accessStatus}</Text>
           </View>
         </View>
 
         {/* Right Chevron */}
         <ChevronRight size={18} color="#9CA3AF" />
-      </Pressable>
+      </AnimatedPressable>
 
-      {/* View Plan Details Link */}
-      <Pressable
+      <AnimatedPressable
         accessibilityRole="button"
         accessibilityLabel="View plan details"
         onPress={handlePress}
-        style={({ pressed }) => [styles.linkRow, pressed && { opacity: 0.7 }]}
+        pressScale={0.97}
+        onHoverIn={() => setHovered(true)}
+        onHoverOut={() => setHovered(false)}
+        style={styles.linkRow}
       >
         <Text style={styles.linkText}>View Plan Details</Text>
         <ArrowRight size={14} color="#E91E63" strokeWidth={2.5} />
-      </Pressable>
+      </AnimatedPressable>
     </View>
   );
 }
@@ -85,6 +91,14 @@ const styles = StyleSheet.create({
     borderColor: "#FCE7F3",
     padding: 20,
     justifyContent: "space-between",
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    flex: 1,
+    boxSizing: "border-box" as any,
+  },
+  cardHovered: {
+    borderColor: "#E91E63",
   },
   cardDark: {
     backgroundColor: "#1F2937",
@@ -110,6 +124,7 @@ const styles = StyleSheet.create({
   },
   planInfo: {
     flex: 1,
+    minWidth: 0,
   },
   planLabel: {
     fontSize: 11.5,
@@ -131,6 +146,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#6B7280",
     fontWeight: "500",
+    flexShrink: 1,
   },
   linkRow: {
     flexDirection: "row",

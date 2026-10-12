@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Modal,
-  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -17,7 +16,10 @@ import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import { getMyFeaturedPlacements, type FeaturedPlacement } from "@/services/featuredVendorPlacements";
 import { useVendorNotifications } from "@/context/VendorNotificationContext";
 import PageLoader from "@/components/loading/PageLoader";
-import Pressable from "@/components/InteropSafePressable";
+import AnimatedPressable from "@/components/animated/AnimatedPressable";
+import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
+import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
+import { MotionStagger } from "@/utils/motion";
 
 // CRM Components
 import VendorCrmHeroCard from "@/components/vendor/crm/VendorCrmHeroCard";
@@ -36,6 +38,9 @@ export default function VendorDashboard() {
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
   const isDesktop = width >= 900;
+  const pagePad = isDesktop ? 24 : 16;
+  const pageGap = isDesktop ? 20 : 16;
+  const blockStyle = { width: "100%" as const, maxWidth: "100%" as const, minWidth: 0 };
 
   const { data, loading, error, refresh } = useVendorWorkspace();
   const { notifications, markAsRead } = useVendorNotifications();
@@ -232,22 +237,24 @@ export default function VendorDashboard() {
             <Text style={styles.warningBody}>
               Renew before it ends to retain your verified listing priority ranking and unlimited portfolio images.
             </Text>
-            <Pressable
+            <AnimatedPressable
               accessibilityRole="button"
               onPress={renewElite}
+              pressScale={0.97}
               style={styles.warningPrimaryBtn}
             >
               <Text style={styles.warningPrimaryText}>Continue Plan</Text>
-            </Pressable>
-            <Pressable
+            </AnimatedPressable>
+            <AnimatedPressable
               accessibilityRole="button"
               onPress={closeExpiryWarning}
+              pressScale={0.97}
               style={styles.warningSecondaryBtn}
             >
               <Text style={[styles.warningSecondaryText, isDark && styles.textDark]}>
                 I understand
               </Text>
-            </Pressable>
+            </AnimatedPressable>
           </View>
         </View>
       </Modal>
@@ -257,54 +264,60 @@ export default function VendorDashboard() {
         {/* Scrollable Dashboard Grid */}
         <ScrollView
           showsVerticalScrollIndicator={false}
+          style={styles.scroller}
           contentContainerStyle={[
             styles.scrollContent,
+            {
+              padding: pagePad,
+              gap: pageGap,
+              paddingBottom: isDesktop ? 32 : 28 + VENDOR_TAB_BASE_HEIGHT,
+            },
             isDesktop && styles.scrollContentDesktop,
           ]}
           refreshControl={
             <RefreshControl refreshing={loading} onRefresh={refresh} tintColor="#E91E63" />
           }
         >
-          {/* Row 1: Hero Greeting Banner + Plan Card */}
-          <View style={[styles.row, isDesktop ? styles.rowHeroDesktop : styles.rowStacked]}>
-            <View style={[styles.col, isDesktop && { flex: 1.85 }]}>
-              <VendorCrmHeroCard
-                vendorName={vendorName}
-                isVerified={isVerified}
-                pincode={pincode}
-                featuredPincode={featuredPincode}
-                averageRating={data.stats?.averageRating}
-                reviewCount={data.stats?.reviewCount}
-                onPressReviews={() => router.push("/VendorReviews" as any)}
-              />
+          <VendorDashboardReveal delay={0} style={blockStyle}>
+            <View style={[styles.row, isDesktop ? styles.rowHeroDesktop : styles.rowStacked, { gap: pageGap }]}>
+              <View style={[styles.col, isDesktop && { flex: 1.85 }]}>
+                <VendorCrmHeroCard
+                  vendorName={vendorName}
+                  isVerified={isVerified}
+                  pincode={pincode}
+                  featuredPincode={featuredPincode}
+                  averageRating={data.stats?.averageRating}
+                  reviewCount={data.stats?.reviewCount}
+                  onPressReviews={() => router.push("/VendorReviews" as any)}
+                />
+              </View>
+
+              <View style={[styles.col, isDesktop && { flex: 1 }]}>
+                <VendorCrmPlanCard
+                  planName={planName}
+                  accessStatus={accessStatus}
+                />
+              </View>
             </View>
+          </VendorDashboardReveal>
 
-            <View style={[styles.col, isDesktop && { flex: 1 }]}>
-              <VendorCrmPlanCard
-                planName={planName}
-                accessStatus={accessStatus}
-              />
-            </View>
-          </View>
+          <VendorDashboardReveal delay={MotionStagger.item} style={blockStyle}>
+            <VendorCrmMetricsGrid
+              pendingBookings={pendingBookings}
+              confirmedBookings={confirmedBookings}
+              cancelledBookings={cancelledBookings}
+              recentBookings={recentBookings}
+              totalBookings={totalBookings}
+              totalEarnings={totalEarnings}
+            />
+          </VendorDashboardReveal>
 
-          {/* Row 2: 6 Key Metric Stat Cards */}
-          <VendorCrmMetricsGrid
-            pendingBookings={pendingBookings}
-            confirmedBookings={confirmedBookings}
-            cancelledBookings={cancelledBookings}
-            recentBookings={recentBookings}
-            totalBookings={totalBookings}
-            totalEarnings={totalEarnings}
-          />
-
-          {isDesktop ? (
-            <>
-              {/* Row 3 Desktop: Bookings Overview Chart + Donut Status Chart */}
+          <VendorDashboardReveal delay={MotionStagger.item * 2} style={blockStyle}>
+            {isDesktop ? (
               <View style={[styles.row, styles.row3ColDesktop]}>
                 <View style={[styles.col, { flex: 1.35 }]}>
                   <VendorCrmBookingsChart bookings={vendorBookings} />
                 </View>
-
                 <View style={[styles.col, { flex: 1 }]}>
                   <VendorCrmStatusDonut
                     totalCount={totalBookings}
@@ -312,8 +325,19 @@ export default function VendorDashboard() {
                   />
                 </View>
               </View>
+            ) : (
+              <View style={{ gap: pageGap, width: "100%", minWidth: 0 }}>
+                <VendorCrmBookingsChart bookings={vendorBookings} />
+                <VendorCrmStatusDonut
+                  totalCount={totalBookings}
+                  segments={statusSegments}
+                />
+              </View>
+            )}
+          </VendorDashboardReveal>
 
-              {/* Row 4 Desktop: Public Profile Card + Quick Actions */}
+          <VendorDashboardReveal delay={MotionStagger.item * 3} style={blockStyle}>
+            {isDesktop ? (
               <View style={[styles.row, styles.row3ColDesktop]}>
                 <View style={[styles.col, { flex: 1.1 }]}>
                   <VendorCrmPublicProfile
@@ -321,24 +345,17 @@ export default function VendorDashboard() {
                     businessName={vendorName}
                   />
                 </View>
-
                 <View style={[styles.col, { flex: 1 }]}>
                   <VendorCrmQuickActions />
                 </View>
               </View>
-            </>
-          ) : (
-            <>
-              {/* Mobile Stack: Charts, Public Profile, Quick Actions */}
-              <VendorCrmBookingsChart bookings={vendorBookings} />
-              <VendorCrmStatusDonut
-                totalCount={totalBookings}
-                segments={statusSegments}
-              />
-              <VendorCrmPublicProfile slug={slug} businessName={vendorName} />
-              <VendorCrmQuickActions />
-            </>
-          )}
+            ) : (
+              <View style={{ gap: pageGap, width: "100%", minWidth: 0 }}>
+                <VendorCrmPublicProfile slug={slug} businessName={vendorName} />
+                <VendorCrmQuickActions />
+              </View>
+            )}
+          </VendorDashboardReveal>
         </ScrollView>
       </View>
     </View>
@@ -372,17 +389,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF8FA",
     overflow: "hidden",
   },
+  scroller: {
+    flex: 1,
+    width: "100%",
+    minWidth: 0,
+    minHeight: 0,
+  },
   scrollContent: {
-    padding: 14,
-    gap: 14,
-    paddingBottom: 40,
     width: "100%",
     maxWidth: "100%",
+    minWidth: 0,
     boxSizing: "border-box" as any,
   },
   scrollContentDesktop: {
-    padding: 24,
-    gap: 20,
     maxWidth: 1400,
     alignSelf: "center",
     width: "100%",
@@ -390,6 +409,7 @@ const styles = StyleSheet.create({
   row: {
     width: "100%",
     maxWidth: "100%",
+    minWidth: 0,
   },
   rowStacked: {
     flexDirection: "column",

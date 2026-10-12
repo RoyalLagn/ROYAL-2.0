@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import { Check, Sparkles, Star } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import Pressable from "@/components/InteropSafePressable";
+import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 
 /**
@@ -88,11 +88,11 @@ export default function VendorCrmHeroCard({
           <Text style={[styles.heroGreeting, isDark && styles.textMutedDark]}>
             Good to see you,
           </Text>
-          <Text style={[styles.heroName, isDark && styles.textDark]}>
+          <Text numberOfLines={2} style={[styles.heroName, isDark && styles.textDark]}>
             {vendorName}{" "}
             <Text style={{ fontSize: isDesktop ? 22 : 18 }}>👏</Text>
           </Text>
-          <Text style={[styles.heroSub, isDark && styles.textMutedDark]}>
+          <Text numberOfLines={3} style={[styles.heroSub, isDark && styles.textMutedDark]}>
             Track your business, manage bookings and grow with RoyalLagn.
           </Text>
 
@@ -106,14 +106,14 @@ export default function VendorCrmHeroCard({
             ) : null}
 
             {averageRating !== undefined ? (
-              <Pressable
+              <AnimatedPressable
                 accessibilityRole="button"
                 accessibilityLabel={`Customer rating ${averageRating > 0 ? averageRating.toFixed(1) : "New"}`}
                 onPress={onPressReviews}
-                style={({ pressed }: any) => [
+                pressScale={0.97}
+                style={[
                   styles.ratingPill,
                   isDark && styles.ratingPillDark,
-                  pressed && { opacity: 0.8 },
                 ]}
               >
                 <Star size={11} color="#E8A52F" fill="#E8A52F" />
@@ -121,11 +121,11 @@ export default function VendorCrmHeroCard({
                   {averageRating > 0 ? averageRating.toFixed(1) : "New"}
                   {reviewCount !== undefined && reviewCount > 0 ? ` (${reviewCount})` : ""}
                 </Text>
-              </Pressable>
+              </AnimatedPressable>
             ) : null}
 
             <View style={[styles.featuredPill, isDark && styles.featuredPillDark]}>
-              <Text style={[styles.featuredText, isDark && styles.textDark]}>
+              <Text numberOfLines={1} style={[styles.featuredText, isDark && styles.textDark]}>
                 Featured in PIN {displayPincode}
               </Text>
             </View>
@@ -243,6 +243,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#E5E7EB",
+    flexShrink: 1,
+    maxWidth: "100%",
+    minWidth: 0,
   },
   featuredPillDark: {
     backgroundColor: "#1F2937",

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -15,7 +15,7 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react-native";
-import Pressable from "@/components/InteropSafePressable";
+import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 
 export interface MetricItem {
@@ -138,20 +138,46 @@ export default function VendorCrmMetricsGrid({
 
   return (
     <View style={[styles.grid, isDesktop ? styles.gridDesktop : styles.gridMobile]}>
-      {metrics.map((item) => {
-        const Icon = item.icon;
-        return (
-          <Pressable
-            key={item.id}
+      {metrics.map((item) => (
+        <MetricCard
+          key={item.id}
+          item={item}
+          isDesktop={isDesktop}
+          isDark={isDark}
+          onPress={() => router.push(item.route as any)}
+        />
+      ))}
+    </View>
+  );
+}
+
+function MetricCard({
+  item,
+  isDesktop,
+  isDark,
+  onPress,
+}: {
+  item: MetricItem;
+  isDesktop: boolean;
+  isDark: boolean;
+  onPress: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const Icon = item.icon;
+  return (
+          <AnimatedPressable
             accessibilityRole="button"
             accessibilityLabel={`${item.label}: ${item.value}`}
-            onPress={() => router.push(item.route as any)}
-            style={({ pressed, hovered }: any) => [
+            onPress={onPress}
+            pressScale={0.97}
+            hoverTranslateY={-2}
+            onHoverIn={() => setHovered(true)}
+            onHoverOut={() => setHovered(false)}
+            style={[
               styles.card,
               isDesktop ? styles.cardDesktop : styles.cardMobile,
               isDark && styles.cardDark,
               hovered && styles.cardHovered,
-              pressed && { opacity: 0.85 },
             ]}
           >
             {/* Top Row: Icon badge + Chevron */}
@@ -190,10 +216,7 @@ export default function VendorCrmMetricsGrid({
             >
               {item.growth}
             </Text>
-          </Pressable>
-        );
-      })}
-    </View>
+          </AnimatedPressable>
   );
 }
 
@@ -222,14 +245,12 @@ const styles = StyleSheet.create({
     boxSizing: "border-box" as any,
   },
   cardDesktop: {
-    flexGrow: 1,
-    flexBasis: "31%",
-    minWidth: 160,
+    width: "31.5%",
+    minWidth: 0,
   },
   cardMobile: {
     width: "48%",
-    minWidth: 135,
-    flexGrow: 1,
+    minWidth: 0,
   },
   cardDark: {
     backgroundColor: "#1F2937",

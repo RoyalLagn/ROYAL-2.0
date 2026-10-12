@@ -62,10 +62,10 @@ export default function VendorCrmStatusDonut({
           {segments.map((seg) => (
             <View key={seg.label} style={styles.legendRow}>
               <View style={[styles.legendDot, { backgroundColor: seg.color }]} />
-              <Text style={[styles.legendLabel, isDark && styles.textDark]}>
+              <Text numberOfLines={1} style={[styles.legendLabel, isDark && styles.textDark]}>
                 {seg.label}
               </Text>
-              <Text style={[styles.legendVal, isDark && styles.textMutedDark]}>
+              <Text numberOfLines={1} style={[styles.legendVal, isDark && styles.textMutedDark]}>
                 {seg.count} ({seg.percentage}%)
               </Text>
             </View>
@@ -88,6 +88,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     width: "100%",
     maxWidth: "100%",
+    minWidth: 0,
     boxSizing: "border-box" as any,
   },
   cardDark: {
@@ -103,10 +104,12 @@ const styles = StyleSheet.create({
   bodyRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
+    justifyContent: "flex-start",
+    flexWrap: "wrap",
     flex: 1,
-    gap: 10,
+    gap: 16,
     width: "100%",
+    minWidth: 0,
   },
   donutContainer: {
     width: 110,
@@ -175,12 +178,14 @@ const styles = StyleSheet.create({
   },
   legendCol: {
     gap: 10,
-    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   legendRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
+    minWidth: 0,
   },
   legendDot: {
     width: 8,
@@ -191,12 +196,13 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: "600",
     color: "#374151",
-    flex: 1,
+    flexShrink: 1,
   },
   legendVal: {
     fontSize: 11,
     color: "#6B7280",
     fontWeight: "500",
+    flexShrink: 0,
   },
   textDark: {
     color: "#F9FAFB",

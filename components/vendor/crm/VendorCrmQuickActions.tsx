@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -11,7 +11,7 @@ import {
   Image as ImageIcon,
   Megaphone,
 } from "lucide-react-native";
-import Pressable from "@/components/InteropSafePressable";
+import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 
 export interface QuickActionItem {
@@ -75,33 +75,48 @@ export default function VendorCrmQuickActions() {
       </Text>
 
       <View style={styles.grid}>
-        {actions.map((act) => {
-          const Icon = act.icon;
-          return (
-            <Pressable
-              key={act.id}
-              accessibilityRole="button"
-              accessibilityLabel={act.label}
-              onPress={() => router.push(act.route as any)}
-              style={({ pressed, hovered }: any) => [
-                styles.tile,
-                { backgroundColor: isDark ? "#111827" : act.tileBg },
-                isDark && styles.tileDark,
-                hovered && styles.tileHovered,
-                pressed && { opacity: 0.8 },
-              ]}
-            >
-              <View style={[styles.iconBox, { backgroundColor: act.iconBg }]}>
-                <Icon size={16} color={act.iconColor} strokeWidth={2.2} />
-              </View>
-              <Text numberOfLines={1} style={[styles.tileLabel, isDark && styles.textDark]}>
-                {act.label}
-              </Text>
-            </Pressable>
-          );
-        })}
+        {actions.map((act) => (
+          <ActionTile key={act.id} action={act} isDark={isDark} onPress={() => router.push(act.route as any)} />
+        ))}
       </View>
     </View>
+  );
+}
+
+function ActionTile({
+  action,
+  isDark,
+  onPress,
+}: {
+  action: QuickActionItem;
+  isDark: boolean;
+  onPress: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const Icon = action.icon;
+  return (
+    <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityLabel={action.label}
+      onPress={onPress}
+      pressScale={0.97}
+      hoverTranslateY={-2}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={[
+        styles.tile,
+        { backgroundColor: isDark ? "#111827" : action.tileBg },
+        isDark && styles.tileDark,
+        hovered && styles.tileHovered,
+      ]}
+    >
+      <View style={[styles.iconBox, { backgroundColor: action.iconBg }]}>
+        <Icon size={16} color={action.iconColor} strokeWidth={2.2} />
+      </View>
+      <Text numberOfLines={1} style={[styles.tileLabel, isDark && styles.textDark]}>
+        {action.label}
+      </Text>
+    </AnimatedPressable>
   );
 }
 
@@ -117,6 +132,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     width: "100%",
     maxWidth: "100%",
+    minWidth: 0,
     boxSizing: "border-box" as any,
   },
   cardDark: {
@@ -138,6 +154,7 @@ const styles = StyleSheet.create({
   },
   tile: {
     width: "48%",
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -165,6 +182,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1F2937",
     flex: 1,
+    minWidth: 0,
   },
   textDark: {
     color: "#F9FAFB",
