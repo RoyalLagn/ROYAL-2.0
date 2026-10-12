@@ -787,8 +787,8 @@ export default function VendorDirectBookingSection({
         </Pressable>
       ) : null}
 
-      {/* 4. LIVE PRICES SUMMARY BOX OR EMPTY SELECTION PROMPT */}
-      {selectedPackagesList.length > 0 ? (
+      {/* 4. LIVE PRICES SUMMARY BOX (DESKTOP ONLY - REMOVED DUPLICATE FROM MOBILE VIEW) */}
+      {desktop && selectedPackagesList.length > 0 ? (
         <View
           style={[
             styles.summaryBox,
@@ -891,26 +891,7 @@ export default function VendorDirectBookingSection({
             </Text>
           </Pressable>
         </View>
-      ) : (
-        <View
-          style={[
-            styles.emptySummaryBox,
-            { backgroundColor: palette.surfaceSoft, borderColor: palette.border },
-          ]}
-        >
-          <View style={[styles.emptySummaryIconBox, { backgroundColor: palette.surfaceHighlight }]}>
-            <Sparkles size={20} color={PINK} />
-          </View>
-          <View style={styles.emptySummaryTextWrap}>
-            <Text style={[styles.emptySummaryHeading, { color: palette.text }]}>
-              No Service Package Selected
-            </Text>
-            <Text style={[styles.emptySummarySubtext, { color: palette.muted }]}>
-              Tap on any service package above to calculate the 30% advance amount and proceed to book.
-            </Text>
-          </View>
-        </View>
-      )}
+      ) : null}
 
       {/* COMPLETE INTERACTIVE EVENT CALENDAR MODAL */}
       <BookingCalendarModal
@@ -1078,7 +1059,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 16,
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 2,
     ...Platform.select({
       web: { boxShadow: "0 4px 12px rgba(225, 29, 72, 0.25)" },
       default: { elevation: 3 },

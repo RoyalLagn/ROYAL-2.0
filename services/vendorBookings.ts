@@ -119,6 +119,9 @@ export type CreateBookingOrderResponse = {
 
 const STORAGE_KEY_BOOKINGS = "royallagn.bookings.v1";
 
+const isUuid = (val?: string | null): boolean =>
+  typeof val === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+
 export function generateTicketId(seed?: string): string {
   if (seed) {
     let hash = 2166136261;
@@ -337,13 +340,13 @@ export const VendorBookingService = {
           soft_lock_expires_at: null,
           updated_at: new Date().toISOString(),
         })
-        .or(`id.eq.${targetId},booking_id.eq.${targetId}`);
+        .or(isUuid(targetId) ? `id.eq.${targetId},booking_id.eq.${targetId}` : `booking_id.eq.${targetId}`);
 
       try {
         const { data: bRow } = await supabase
           .from("vendor_bookings")
           .select("id")
-          .or(`id.eq.${targetId},booking_id.eq.${targetId}`)
+          .or(isUuid(targetId) ? `id.eq.${targetId},booking_id.eq.${targetId}` : `booking_id.eq.${targetId}`)
           .single();
         if (bRow?.id) {
           await ReferralCommissionService.recordPendingBookingCommission(bRow.id);
@@ -553,7 +556,7 @@ export const VendorBookingService = {
         rejection_reason: rejectionReason || null,
         updated_at: new Date().toISOString(),
       })
-      .or(`id.eq.${bookingId},booking_id.eq.${bookingId}`)
+      .or(isUuid(bookingId) ? `id.eq.${bookingId},booking_id.eq.${bookingId}` : `booking_id.eq.${bookingId}`)
       .select("*")
       .single();
     if (error) throw error;
@@ -687,12 +690,27 @@ export const VendorBookingService = {
   /**
    * Fetches a single booking by booking_id or ticket_id
    */
-  async getBookingByIdOrTicket(reference: string): Promise<VendorBooking | null> {
+  async getBookingByIdOrTicket(reference: string, secondaryRef?: string): Promise<VendorBooking | null> {
+    const refs = [reference, secondaryRef]
+      .filter((r): r is string => Boolean(r && typeof r === "string" && r.trim()))
+      .map((r) => r.trim());
+
+    if (!refs.length) return null;
+
     try {
+      const orClauses: string[] = [];
+      for (const ref of refs) {
+        orClauses.push(`booking_id.eq.${ref}`);
+        orClauses.push(`ticket_id.eq.${ref}`);
+        if (isUuid(ref)) {
+          orClauses.push(`id.eq.${ref}`);
+        }
+      }
+
       const { data, error } = await supabase
         .from("vendor_bookings")
         .select("*, vendors(id, business_name, contact_phone, logo_url, city, slug)")
-        .or(`booking_id.eq.${reference},ticket_id.eq.${reference},id.eq.${reference}`)
+        .or(orClauses.join(","))
         .limit(1)
         .maybeSingle();
 
@@ -704,7 +722,7 @@ export const VendorBookingService = {
     }
 
     const local = await getLocalBookings();
-    return local.find((b) => b.booking_id === reference || b.ticket_id === reference || b.id === reference) || null;
+    return local.find((b) => refs.some((r) => b.booking_id === r || b.ticket_id === r || b.id === r)) || null;
   },
 
   /**

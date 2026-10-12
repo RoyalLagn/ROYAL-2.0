@@ -5,7 +5,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Film, Images, Play, Sparkles } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FullscreenMediaViewer from "@/components/vendor-profile/FullscreenMediaViewer";
-import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
 import { getApprovedPublicVendorById, type PublicVendorListing } from "@/services/publicVendorListings";
 import { portfolioMediaUrl, type VendorPortfolioMedia } from "@/services/vendorPortfolio";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
@@ -160,7 +159,6 @@ export default function VendorAlbum() {
           <Text style={styles.emptyTitle}>Album unavailable</Text>
           <Pressable onPress={goBack} style={styles.backHome}><Text style={styles.backHomeText}>Go back</Text></Pressable>
         </View>
-        <StandaloneMobileTabBar activeRoute={null} />
       </View>
     );
   }
@@ -246,7 +244,6 @@ export default function VendorAlbum() {
           </View>
         }
       />
-      <StandaloneMobileTabBar activeRoute={null} />
       <FullscreenMediaViewer
         visible={viewerIndex !== null}
         media={album.media}

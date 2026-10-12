@@ -3,9 +3,10 @@ import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } fr
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
+import PortfolioAlbumModal from "@/components/vendor-profile/PortfolioAlbumModal";
 import PortfolioAlbums from "@/components/vendor-profile/PortfolioAlbums";
 import { getApprovedPublicVendorById, type PublicVendorListing } from "@/services/publicVendorListings";
+import type { PublicPortfolioAlbum } from "@/services/vendorPortfolio";
 import { fonts, typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 
@@ -18,6 +19,7 @@ export default function VendorPortfolio() {
   const source = Array.isArray(params.src) ? params.src[0] : params.src;
   const [vendor, setVendor] = useState<PublicVendorListing | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedAlbum, setSelectedAlbum] = useState<PublicPortfolioAlbum | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -47,7 +49,7 @@ export default function VendorPortfolio() {
           width: Math.min(width, 1080),
           alignSelf: "center",
           paddingTop: Math.max(insets.top, 12) + 8,
-          paddingBottom: 98 + insets.bottom,
+          paddingBottom: 40 + insets.bottom,
         }}
       >
         <View style={styles.header}>
@@ -64,16 +66,18 @@ export default function VendorPortfolio() {
             albums={vendor.portfolioAlbums}
             mode="all"
             showHeading={false}
-            onOpenAlbum={(album) => router.push({
-              pathname: "/VendorAlbum",
-              params: { vendorId: vendor.id, albumId: album.id, src: source ?? "portfolio" },
-            })}
+            onOpenAlbum={(album) => setSelectedAlbum(album)}
           />
         ) : (
           <View style={styles.empty}><Text style={styles.emptyTitle}>Portfolio coming soon</Text><Text style={styles.emptyText}>This vendor has not published any albums yet.</Text></View>
         )}
       </ScrollView>
-      <StandaloneMobileTabBar activeRoute={null} />
+      <PortfolioAlbumModal
+        visible={selectedAlbum !== null}
+        album={selectedAlbum}
+        vendorName={vendor?.name ?? "Vendor"}
+        onClose={() => setSelectedAlbum(null)}
+      />
     </View>
   );
 }

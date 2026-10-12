@@ -22,6 +22,7 @@ import type { BookingAddOn } from "@/services/vendorBookings";
 import PackageDetailsModal from "@/components/packages/PackageDetailsModal";
 import BookingCheckoutModal from "@/components/booking/BookingCheckoutModal";
 import FullscreenMediaViewer from "@/components/vendor-profile/FullscreenMediaViewer";
+import PortfolioAlbumModal from "@/components/vendor-profile/PortfolioAlbumModal";
 import PortfolioAlbums from "@/components/vendor-profile/PortfolioAlbums";
 import ServiceChips from "@/components/vendor-profile/ServiceChips";
 import VendorHeroCarousel from "@/components/vendor-profile/VendorHeroCarousel";
@@ -38,7 +39,7 @@ import CustomerEnquiryModal from "@/components/vendor-profile/CustomerEnquiryMod
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { recordPublicVendorProfileView } from "@/services/publicVendorListings";
-import { portfolioMediaUrl } from "@/services/vendorPortfolio";
+import { portfolioMediaUrl, type PublicPortfolioAlbum } from "@/services/vendorPortfolio";
 import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 import type { VendorPackage } from "@/services/vendorPackages";
 import { EnquiryExternalOpenError, EnquiryService, type EnquiryChannel } from "@/services/enquiries";
@@ -99,6 +100,7 @@ export default function VendorPublicProfileScreen() {
   const { isPublicAuthenticated, loading: authLoading, profile } = usePublicAuth();
   const [expanded, setExpanded] = useState(false);
   const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<PublicPortfolioAlbum | null>(null);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [packagesVisible, setPackagesVisible] = useState(false);
   const [bookingPackage, setBookingPackage] = useState<VendorPackage | null>(null);
@@ -407,10 +409,7 @@ export default function VendorPublicProfileScreen() {
           albums={vendor.portfolioAlbums}
           dark={dark}
           onViewAll={() => router.push({ pathname: "/VendorPortfolio", params: { vendorId: vendor.id, src: explicitSource } })}
-          onOpenAlbum={(album) => router.push({
-            pathname: "/VendorAlbum",
-            params: { vendorId: vendor.id, albumId: album.id, src: explicitSource },
-          })}
+          onOpenAlbum={(album) => setSelectedAlbum(album)}
         />
       </SectionErrorBoundary>
     </View>
@@ -665,6 +664,13 @@ export default function VendorPublicProfileScreen() {
         initialIndex={heroViewerIndex ?? 0}
         title={`${vendor.name} · Hero gallery`}
         onClose={() => setHeroViewerIndex(null)}
+      />
+      <PortfolioAlbumModal
+        visible={selectedAlbum !== null}
+        album={selectedAlbum}
+        vendorName={vendor.name}
+        dark={dark}
+        onClose={() => setSelectedAlbum(null)}
       />
       {packagesVisible ? (
         <PackageDetailsModal

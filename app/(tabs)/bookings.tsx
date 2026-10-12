@@ -36,6 +36,7 @@ import {
   VendorBookingService,
   type VendorBooking,
 } from "@/services/vendorBookings";
+import LuxuryTicketModal from "@/components/booking/LuxuryTicketModal";
 
 const PINK = brandPalette.light.primary;
 const GREEN = "#16A34A";
@@ -74,6 +75,7 @@ export default function CustomerBookingsScreen() {
   const [bookings, setBookings] = useState<VendorBooking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [expandedCardIds, setExpandedCardIds] = useState<Record<string, boolean>>({});
+  const [selectedTicketBooking, setSelectedTicketBooking] = useState<VendorBooking | null>(null);
 
   const toggleCardExpand = (cardKey: string) => {
     setExpandedCardIds((prev) => ({
@@ -511,27 +513,22 @@ export default function CustomerBookingsScreen() {
                         </Text>
                       </Pressable>
 
-                      {isConfirmed || activeTab === "confirmed" ? (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityLabel={`View ticket for booking ${booking.ticket_id}`}
-                          onPress={(e) => {
-                            e?.stopPropagation?.();
-                            router.push({
-                              pathname: "/ticket",
-                              params: { booking_id: booking.booking_id, ticket_id: booking.ticket_id },
-                            });
-                          }}
-                          style={({ pressed }) => [
-                            styles.minimizedTicketBtn,
-                            pressed && styles.minimizedTicketBtnPressed,
-                          ]}
-                        >
-                          <Ticket size={12} color="#FFF" />
-                          <Text style={styles.minimizedTicketBtnText}>View Ticket</Text>
-                          <ChevronRight size={12} color="#FFF" strokeWidth={2.4} />
-                        </Pressable>
-                      ) : null}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`View ticket for booking ${booking.ticket_id}`}
+                        onPress={(e) => {
+                          e?.stopPropagation?.();
+                          setSelectedTicketBooking(booking);
+                        }}
+                        style={({ pressed }) => [
+                          styles.minimizedTicketBtn,
+                          pressed && styles.minimizedTicketBtnPressed,
+                        ]}
+                      >
+                        <Ticket size={12} color="#FFF" />
+                        <Text style={styles.minimizedTicketBtnText}>View Ticket</Text>
+                        <ChevronRight size={12} color="#FFF" strokeWidth={2.4} />
+                      </Pressable>
                     </View>
                   ) : null}
 
@@ -598,12 +595,7 @@ export default function CustomerBookingsScreen() {
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={`View ticket for booking ${booking.ticket_id}`}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/ticket",
-                            params: { booking_id: booking.booking_id, ticket_id: booking.ticket_id },
-                          })
-                        }
+                        onPress={() => setSelectedTicketBooking(booking)}
                         style={styles.cardFooter}
                       >
                         <Text style={[styles.viewTicketText, { color: PINK }]}>
@@ -623,6 +615,14 @@ export default function CustomerBookingsScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* 3D Popped-Up Luxury Ticket Modal */}
+      <LuxuryTicketModal
+        visible={Boolean(selectedTicketBooking)}
+        booking={selectedTicketBooking}
+        onClose={() => setSelectedTicketBooking(null)}
+        dark={dark}
+      />
     </SafeAreaView>
   );
 }

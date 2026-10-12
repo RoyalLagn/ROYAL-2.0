@@ -563,10 +563,34 @@ export default function BookingCheckoutModal({
         </ScrollView>
 
         {/* Footer with Pay 30% CTA */}
-        <View style={[styles.footer, { backgroundColor: palette.surface, borderTopColor: palette.border }]}>
-          <View style={styles.footerInfo}>
-            <Text style={[styles.footerSmall, { color: palette.muted }]}>30% Advance Due Now</Text>
-            <Text style={[styles.footerPrice, { color: PINK }]}>{money(financials.advanceAmount)}</Text>
+        <View
+          style={[
+            styles.footer,
+            !desktop && styles.footerMobile,
+            { backgroundColor: palette.surface, borderTopColor: palette.border },
+          ]}
+        >
+          <View style={[styles.footerInfo, !desktop && styles.footerInfoMobile]}>
+            <Text
+              style={[
+                styles.footerSmall,
+                !desktop && styles.footerSmallMobile,
+                { color: palette.muted },
+              ]}
+              numberOfLines={1}
+            >
+              {!desktop ? "30% Advance" : "30% Advance Due Now"}
+            </Text>
+            <Text
+              style={[
+                styles.footerPrice,
+                !desktop && styles.footerPriceMobile,
+                { color: PINK },
+              ]}
+              numberOfLines={1}
+            >
+              {money(financials.advanceAmount)}
+            </Text>
           </View>
 
           <Pressable
@@ -574,14 +598,26 @@ export default function BookingCheckoutModal({
             accessibilityLabel="Pay 30% advance"
             onPress={handleOpenSimulator}
             disabled={submitting}
-            style={[styles.payBtn, { backgroundColor: PINK, opacity: submitting ? 0.7 : 1 }]}
+            style={[
+              styles.payBtn,
+              !desktop && styles.payBtnMobile,
+              { backgroundColor: PINK, opacity: submitting ? 0.7 : 1 },
+            ]}
           >
             {submitting ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <>
-                <ShieldCheck size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.payBtnText}>Pay 30% Advance (Razorpay)</Text>
+                <ShieldCheck size={!desktop ? 15 : 18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text
+                  style={[
+                    styles.payBtnText,
+                    !desktop && styles.payBtnTextMobile,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {!desktop ? "Pay 30% Advance" : "Pay 30% Advance (Razorpay)"}
+                </Text>
               </>
             )}
           </Pressable>
@@ -939,15 +975,37 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderTopWidth: 1,
   },
+  footerMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 10,
+  },
   footerInfo: {
     flex: 1,
+  },
+  footerInfoMobile: {
+    flex: 0,
+    minWidth: 96,
+    flexShrink: 0,
+    justifyContent: "center",
   },
   footerSmall: {
     fontSize: 11,
     fontWeight: "600",
   },
+  footerSmallMobile: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+    marginBottom: 2,
+    textTransform: "uppercase",
+  },
   footerPrice: {
     fontSize: 20,
+    fontWeight: "900",
+  },
+  footerPriceMobile: {
+    fontSize: 18,
     fontWeight: "900",
   },
   payBtn: {
@@ -958,9 +1016,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
   },
+  payBtnMobile: {
+    flex: 1,
+    height: 44,
+    paddingHorizontal: 10,
+    paddingVertical: 0,
+    borderRadius: 12,
+  },
   payBtnText: {
     color: "#FFFFFF",
     fontSize: 14,
+    fontWeight: "800",
+  },
+  payBtnTextMobile: {
+    fontSize: 13,
     fontWeight: "800",
   },
   modalBackdrop: {
