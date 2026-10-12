@@ -8,6 +8,12 @@ import {
   type BookingFinancials,
 } from "@/lib/bookingCalculations";
 import { ReferralCommissionService } from "@/services/referralCommission";
+import {
+  buildEventStartTimestamp,
+  calculateCancellationCutoff,
+  isCancellationLocked,
+  isContactUnlocked,
+} from "@/lib/bookingCancellationPolicy";
 
 export { calculateEventDays };
 export type { BookingAddOn, SelectedPackageSummary, BookingFinancials };
@@ -67,8 +73,74 @@ export type VendorBooking = {
   refunded_at?: string | null;
   refund_notes?: string | null;
   referral_code?: string | null;
+  // 5-Day Cancellation Lock & Contact Unlock Fields
+  event_start_at?: string | null;
+  cancellation_cutoff_at?: string | null;
+  customer_contact_number?: string | null;
+  customer_whatsapp_number?: string | null;
+  service_map_url?: string | null;
+  booking_description?: string | null;
+  contact_unlocked_at?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by?: "customer" | "vendor" | "admin" | "system" | null;
+  cancellation_reason?: string | null;
+  emergency_status?: "none" | "reported" | "investigating" | "resolved";
+  emergency_reported_at?: string | null;
+  emergency_reason?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type SecureBookingDetails = {
+  id: string;
+  booking_id: string;
+  ticket_id: string;
+  booking_status: BookingStatus;
+  payment_status: PaymentStatus;
+  event_date: string;
+  start_date?: string;
+  end_date?: string;
+  total_days: number;
+  event_type: string;
+  event_start_at: string | null;
+  cancellation_cutoff_at: string | null;
+  is_cutoff_passed: boolean;
+  contacts_unlocked: boolean;
+  can_cancel: boolean;
+  total_amount: number;
+  advance_amount: number;
+  due_amount: number;
+  package_title: string;
+  selected_packages: SelectedPackageSummary[];
+  add_ons: BookingAddOn[];
+  special_notes?: string | null;
+  refund_status?: RefundStatus | null;
+  refund_amount?: number | null;
+  rejection_reason?: string | null;
+  cancellation_reason?: string | null;
+  cancelled_at?: string | null;
+  cancelled_by?: string | null;
+  emergency_status?: "none" | "reported" | "investigating" | "resolved";
+  emergency_reported_at?: string | null;
+  emergency_reason?: string | null;
+  created_at: string;
+  customer: {
+    name: string;
+    phone: string | null;
+    whatsapp: string | null;
+    email: string | null;
+    service_map_url: string | null;
+    booking_description: string | null;
+  };
+  vendor: {
+    id: string;
+    business_name: string;
+    contact_phone: string | null;
+    city: string | null;
+    logo_url: string | null;
+    slug?: string | null;
+  };
+  caller_role: "customer" | "vendor" | "admin";
 };
 
 export type CreateBookingInput = {
@@ -98,6 +170,12 @@ export type CreateBookingInput = {
   referralCode?: string | null;
   razorpayPaymentId?: string | null;
   razorpayOrderId?: string | null;
+  // 5-Day Cancellation Lock & Contact Details
+  eventStartAt?: string;
+  customerContactNumber?: string;
+  customerWhatsappNumber?: string;
+  serviceMapUrl?: string;
+  bookingDescription?: string;
 };
 
 export type CreateBookingOrderResponse = {
@@ -403,6 +481,9 @@ export const VendorBookingService = {
       }
     }
 
+    const eventStartAt = input.eventStartAt || buildEventStartTimestamp(input.startDate || input.eventDate, "10:00");
+    const cancellationCutoffAt = calculateCancellationCutoff(eventStartAt);
+
     // Table vendor_bookings only accepts its own columns
     const dbPayload = {
       booking_id: bookingId,
@@ -432,6 +513,12 @@ export const VendorBookingService = {
       razorpay_order_id: input.razorpayOrderId || null,
       referral_code: input.referralCode || null,
       source: "online",
+      event_start_at: eventStartAt,
+      cancellation_cutoff_at: cancellationCutoffAt,
+      customer_contact_number: input.customerContactNumber?.trim() || input.customerPhone.trim(),
+      customer_whatsapp_number: input.customerWhatsappNumber?.trim() || input.customerContactNumber?.trim() || input.customerPhone.trim(),
+      service_map_url: input.serviceMapUrl?.trim() || null,
+      booking_description: input.bookingDescription?.trim() || input.specialNotes?.trim() || null,
     };
 
     let createdBooking: VendorBooking | null = null;
@@ -587,6 +674,137 @@ export const VendorBookingService = {
     });
     if (error) throw error;
     return data;
+  },
+
+  /**
+   * Customer cancels booking before the 120-hour cutoff: executes cancel_customer_booking RPC.
+   * Cancels booking, queues refund in booking_refund_requests, and notifies vendor & admin.
+   */
+  async cancelCustomerBooking(bookingId: string, reason: string): Promise<any> {
+    const { data, error } = await supabase.rpc("cancel_customer_booking", {
+      target_booking_id: bookingId,
+      cancel_reason: reason,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Escalates emergency post-cutoff without auto-cancelling the booking.
+   * Creates emergency report in booking_emergency_reports and notifies Admin.
+   */
+  async reportBookingEmergency(bookingId: string, reason: string, description: string): Promise<any> {
+    const { data, error } = await supabase.rpc("report_booking_emergency", {
+      target_booking_id: bookingId,
+      p_reason: reason,
+      p_description: description,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Fetches server-authoritative secure booking details with automatic contact masking/unmasking.
+   */
+  async getSecureBookingDetails(
+    bookingRef: string,
+    roleHint?: "customer" | "vendor" | "admin"
+  ): Promise<SecureBookingDetails | null> {
+    if (!bookingRef || !bookingRef.trim()) return null;
+    const cleanRef = bookingRef.trim();
+
+    try {
+      const { data, error } = await supabase.rpc("get_secure_booking_details", {
+        p_booking_ref: cleanRef,
+      });
+      if (!error && data) {
+        return data as SecureBookingDetails;
+      }
+      if (error) {
+        console.warn("get_secure_booking_details RPC warning/error:", error.message);
+      }
+    } catch (rpcErr) {
+      console.warn("get_secure_booking_details RPC invocation failed, fallback to client-side masking:", rpcErr);
+    }
+
+    // Fallback: fetch standard booking row and compute authorization/masking client-side
+    const fallbackBooking = await this.getBookingByIdOrTicket(cleanRef);
+    if (!fallbackBooking) return null;
+
+    const eventStartAt = fallbackBooking.event_start_at || buildEventStartTimestamp(fallbackBooking.event_date, "10:00");
+    const cutoffAt = fallbackBooking.cancellation_cutoff_at || calculateCancellationCutoff(eventStartAt);
+    const isCutoffPassed = isCancellationLocked(cutoffAt, eventStartAt, fallbackBooking.event_date);
+    const isConfirmed = fallbackBooking.booking_status === "confirmed";
+    const contactsUnlocked = (isConfirmed && isCutoffPassed) || roleHint === "admin";
+    const canCancel = (isConfirmed && !isCutoffPassed) || roleHint === "admin";
+
+    const customerContacts = {
+      name: fallbackBooking.customer_name,
+      phone: (roleHint === "customer" || roleHint === "admin" || contactsUnlocked)
+        ? (fallbackBooking.customer_contact_number || fallbackBooking.customer_phone)
+        : null,
+      whatsapp: (roleHint === "customer" || roleHint === "admin" || contactsUnlocked)
+        ? (fallbackBooking.customer_whatsapp_number || fallbackBooking.customer_phone)
+        : null,
+      email: (roleHint === "customer" || roleHint === "admin" || contactsUnlocked)
+        ? fallbackBooking.customer_email || null
+        : null,
+      service_map_url: (roleHint === "customer" || roleHint === "admin" || contactsUnlocked)
+        ? fallbackBooking.service_map_url || null
+        : null,
+      booking_description: (roleHint === "customer" || roleHint === "admin" || contactsUnlocked)
+        ? fallbackBooking.booking_description || fallbackBooking.special_notes || null
+        : null,
+    };
+
+    const vendorContacts = {
+      id: fallbackBooking.vendor_id,
+      business_name: fallbackBooking.vendor_name || "Wedding Vendor",
+      contact_phone: (roleHint === "vendor" || roleHint === "admin" || contactsUnlocked)
+        ? fallbackBooking.vendor_phone || null
+        : null,
+      city: fallbackBooking.vendor_city || null,
+      logo_url: fallbackBooking.vendor_image || null,
+      slug: fallbackBooking.vendor_slug || null,
+    };
+
+    return {
+      id: fallbackBooking.id,
+      booking_id: fallbackBooking.booking_id,
+      ticket_id: fallbackBooking.ticket_id,
+      booking_status: fallbackBooking.booking_status,
+      payment_status: fallbackBooking.payment_status,
+      event_date: fallbackBooking.event_date,
+      start_date: fallbackBooking.start_date,
+      end_date: fallbackBooking.end_date,
+      total_days: fallbackBooking.total_days,
+      event_type: fallbackBooking.event_type,
+      event_start_at: eventStartAt,
+      cancellation_cutoff_at: cutoffAt,
+      is_cutoff_passed: isCutoffPassed,
+      contacts_unlocked: contactsUnlocked,
+      can_cancel: canCancel,
+      total_amount: fallbackBooking.total_amount,
+      advance_amount: fallbackBooking.advance_amount,
+      due_amount: fallbackBooking.due_amount,
+      package_title: fallbackBooking.package_title,
+      selected_packages: fallbackBooking.selected_packages,
+      add_ons: fallbackBooking.add_ons,
+      special_notes: fallbackBooking.special_notes,
+      refund_status: fallbackBooking.refund_status,
+      refund_amount: fallbackBooking.refund_amount,
+      rejection_reason: fallbackBooking.rejection_reason,
+      cancellation_reason: fallbackBooking.cancellation_reason,
+      cancelled_at: fallbackBooking.cancelled_at,
+      cancelled_by: fallbackBooking.cancelled_by,
+      emergency_status: fallbackBooking.emergency_status || "none",
+      emergency_reported_at: fallbackBooking.emergency_reported_at,
+      emergency_reason: fallbackBooking.emergency_reason,
+      created_at: fallbackBooking.created_at,
+      customer: customerContacts,
+      vendor: vendorContacts,
+      caller_role: roleHint || "customer",
+    };
   },
 
   /**
@@ -863,6 +1081,19 @@ function mapDbBooking(row: any): VendorBooking {
     refunded_at: row.refunded_at || null,
     refund_notes: row.refund_notes || null,
     referral_code: row.referral_code || null,
+    event_start_at: row.event_start_at || (row.event_date ? buildEventStartTimestamp(row.event_date, "10:00") : null),
+    cancellation_cutoff_at: row.cancellation_cutoff_at || (row.event_start_at ? calculateCancellationCutoff(row.event_start_at) : null),
+    customer_contact_number: row.customer_contact_number || row.customer_phone || null,
+    customer_whatsapp_number: row.customer_whatsapp_number || row.customer_contact_number || row.customer_phone || null,
+    service_map_url: row.service_map_url || null,
+    booking_description: row.booking_description || row.special_notes || null,
+    contact_unlocked_at: row.contact_unlocked_at || null,
+    cancelled_at: row.cancelled_at || null,
+    cancelled_by: row.cancelled_by || null,
+    cancellation_reason: row.cancellation_reason || row.rejection_reason || null,
+    emergency_status: (row.emergency_status || "none") as "none" | "reported" | "investigating" | "resolved",
+    emergency_reported_at: row.emergency_reported_at || null,
+    emergency_reason: row.emergency_reason || null,
     created_at: row.created_at || new Date().toISOString(),
     updated_at: row.updated_at || new Date().toISOString(),
   };

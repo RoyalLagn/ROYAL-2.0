@@ -18,6 +18,7 @@ import {
   ChevronRight,
   ChevronUp,
   Clock,
+  FileText,
   LogIn,
   Package,
   ReceiptText,
@@ -37,6 +38,7 @@ import {
   type VendorBooking,
 } from "@/services/vendorBookings";
 import LuxuryTicketModal from "@/components/booking/LuxuryTicketModal";
+import BookingDetailsModal from "@/components/booking/BookingDetailsModal";
 
 const PINK = brandPalette.light.primary;
 const GREEN = "#16A34A";
@@ -76,6 +78,7 @@ export default function CustomerBookingsScreen() {
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [expandedCardIds, setExpandedCardIds] = useState<Record<string, boolean>>({});
   const [selectedTicketBooking, setSelectedTicketBooking] = useState<VendorBooking | null>(null);
+  const [selectedDetailsBookingRef, setSelectedDetailsBookingRef] = useState<string | null>(null);
 
   const toggleCardExpand = (cardKey: string) => {
     setExpandedCardIds((prev) => ({
@@ -513,22 +516,37 @@ export default function CustomerBookingsScreen() {
                         </Text>
                       </Pressable>
 
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`View ticket for booking ${booking.ticket_id}`}
-                        onPress={(e) => {
-                          e?.stopPropagation?.();
-                          setSelectedTicketBooking(booking);
-                        }}
-                        style={({ pressed }) => [
-                          styles.minimizedTicketBtn,
-                          pressed && styles.minimizedTicketBtnPressed,
-                        ]}
-                      >
-                        <Ticket size={12} color="#FFF" />
-                        <Text style={styles.minimizedTicketBtnText}>View Ticket</Text>
-                        <ChevronRight size={12} color="#FFF" strokeWidth={2.4} />
-                      </Pressable>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`View details for booking ${booking.ticket_id}`}
+                          onPress={(e) => {
+                            e?.stopPropagation?.();
+                            setSelectedDetailsBookingRef(booking.id || booking.ticket_id);
+                          }}
+                          style={[styles.minimizedDetailsBtn, { borderColor: PINK }]}
+                        >
+                          <FileText size={12} color={PINK} />
+                          <Text style={[styles.minimizedDetailsBtnText, { color: PINK }]}>Details</Text>
+                        </Pressable>
+
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`View ticket for booking ${booking.ticket_id}`}
+                          onPress={(e) => {
+                            e?.stopPropagation?.();
+                            setSelectedTicketBooking(booking);
+                          }}
+                          style={({ pressed }) => [
+                            styles.minimizedTicketBtn,
+                            pressed && styles.minimizedTicketBtnPressed,
+                          ]}
+                        >
+                          <Ticket size={12} color="#FFF" />
+                          <Text style={styles.minimizedTicketBtnText}>Ticket</Text>
+                          <ChevronRight size={12} color="#FFF" strokeWidth={2.4} />
+                        </Pressable>
+                      </View>
                     </View>
                   ) : null}
 
@@ -591,22 +609,35 @@ export default function CustomerBookingsScreen() {
                         </View>
                       )}
 
-                      {/* Card Footer CTA */}
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`View ticket for booking ${booking.ticket_id}`}
-                        onPress={() => setSelectedTicketBooking(booking)}
-                        style={styles.cardFooter}
-                      >
-                        <Text style={[styles.viewTicketText, { color: PINK }]}>
-                          {isCancelled
-                            ? "View Cancellation & Refund Details"
-                            : isPending
-                            ? "View Booking Status"
-                            : "View Official Luxury E-Ticket"}
-                        </Text>
-                        <ChevronRight size={16} color={PINK} />
-                      </Pressable>
+                      {/* Card Footer CTAs: Booking Details & View E-Ticket */}
+                      <View style={styles.cardFooterRow}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`View booking details ${booking.ticket_id}`}
+                          onPress={() => setSelectedDetailsBookingRef(booking.id || booking.ticket_id)}
+                          style={[styles.detailsCtaBtn, { borderColor: PINK }]}
+                        >
+                          <FileText size={14} color={PINK} />
+                          <Text style={[styles.detailsCtaBtnText, { color: PINK }]}>Booking Details</Text>
+                        </Pressable>
+
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`View ticket for booking ${booking.ticket_id}`}
+                          onPress={() => setSelectedTicketBooking(booking)}
+                          style={[styles.ticketCtaBtn, { backgroundColor: PINK }]}
+                        >
+                          <Ticket size={14} color="#FFFFFF" />
+                          <Text style={styles.ticketCtaBtnText}>
+                            {isCancelled
+                              ? "Refund Details"
+                              : isPending
+                              ? "Status & Ticket"
+                              : "View E-Ticket"}
+                          </Text>
+                          <ChevronRight size={14} color="#FFFFFF" />
+                        </Pressable>
+                      </View>
                     </View>
                   ) : null}
                 </View>
@@ -622,6 +653,24 @@ export default function CustomerBookingsScreen() {
         booking={selectedTicketBooking}
         onClose={() => setSelectedTicketBooking(null)}
         dark={dark}
+      />
+
+      {/* Booking Details Modal with 5-Day Cancellation Lock & Contact Details */}
+      <BookingDetailsModal
+        visible={Boolean(selectedDetailsBookingRef)}
+        bookingRef={selectedDetailsBookingRef || ""}
+        role="customer"
+        dark={dark}
+        onClose={() => setSelectedDetailsBookingRef(null)}
+        onBookingUpdated={() => {
+          void loadBookings();
+        }}
+        onOpenTicket={(ticketId) => {
+          const b = bookings.find((item) => item.ticket_id === ticketId || item.id === ticketId);
+          if (b) {
+            setSelectedTicketBooking(b);
+          }
+        }}
       />
     </SafeAreaView>
   );
@@ -997,6 +1046,53 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
+  minimizedDetailsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  minimizedDetailsBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  cardFooterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 8,
+  },
+  detailsCtaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  detailsCtaBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  ticketCtaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  ticketCtaBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
   cardFooter: {
     flexDirection: "row",
     alignItems: "center",

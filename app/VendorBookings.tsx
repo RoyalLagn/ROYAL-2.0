@@ -22,6 +22,7 @@ import {
   Coins,
   FileText,
   Filter,
+  Lock,
   MessageCircle,
   Package,
   Phone,
@@ -52,6 +53,11 @@ import {
 import { setVendorAvailabilityException } from "@/services/vendorAvailability";
 import { ReferralCommissionService } from "@/services/referralCommission";
 import { CustomerInboxService } from "@/services/inboxNotifications";
+import {
+  isCancellationLocked,
+  isContactUnlocked,
+} from "@/lib/bookingCancellationPolicy";
+import BookingDetailsModal from "@/components/booking/BookingDetailsModal";
 
 const PINK = brandPalette.light.primary;
 const GREEN = "#16A34A";
@@ -124,6 +130,7 @@ export default function VendorBookings() {
   const [rejectReason, setRejectReason] = useState("");
   const [rejectSubmitting, setRejectSubmitting] = useState(false);
   const [showAddOfflineModal, setShowAddOfflineModal] = useState(false);
+  const [selectedDetailsBookingRef, setSelectedDetailsBookingRef] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!workspaceData.vendor?.id) return;
@@ -199,6 +206,23 @@ export default function VendorBookings() {
 
   const submitRejection = async () => {
     if (!rejectingBooking) return;
+
+    if (rejectingBooking.booking_status === "confirmed") {
+      const isLocked = isCancellationLocked(
+        rejectingBooking.cancellation_cutoff_at,
+        rejectingBooking.event_start_at,
+        rejectingBooking.event_date
+      );
+      if (isLocked) {
+        Alert.alert(
+          "Cancellation Window Closed",
+          "Cancellation is strictly unavailable within 5 days (120 hours) of the event start time. Please open Booking Details to report an emergency if needed."
+        );
+        setRejectingBooking(null);
+        return;
+      }
+    }
+
     setRejectSubmitting(true);
     try {
       // Atomically cancel booking via RPC: sets cancelled_by_vendor, creates booking_refund_requests row,
@@ -458,31 +482,47 @@ export default function VendorBookings() {
                   </Text>
                 </View>
 
-                {/* Call & WhatsApp buttons */}
-                {item.customer_phone ? (
-                  <View style={styles.clientContactButtons}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Call ${item.customer_name}`}
-                      onPress={() => void Linking.openURL(`tel:${item.customer_phone}`)}
-                      style={[styles.contactCircle, { backgroundColor: colors.surfaceSoft }]}
-                    >
-                      <Phone size={16} color={colors.pink} />
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`WhatsApp ${item.customer_name}`}
-                      onPress={() => {
-                        const clean = item.customer_phone.replace(/\D/g, "");
-                        const phone = clean.startsWith("91") ? clean : `91${clean}`;
-                        void Linking.openURL(`https://api.whatsapp.com/send?phone=${phone}&text=Hi%20${encodeURIComponent(item.customer_name)},%20regarding%20your%20RoyalLagn%20booking%20#${item.ticket_id}`);
-                      }}
-                      style={[styles.contactCircle, { backgroundColor: "#DCFCE7" }]}
-                    >
-                      <MessageCircle size={16} color="#15803D" />
-                    </Pressable>
-                  </View>
-                ) : null}
+                {/* Contact details / Phone button: Strictly locked until 5-day cutoff */}
+                {(() => {
+                  const contactsUnlocked = isContactUnlocked(
+                    item.booking_status,
+                    item.cancellation_cutoff_at,
+                    item.event_start_at,
+                    item.event_date
+                  );
+                  if (contactsUnlocked && item.customer_phone) {
+                    return (
+                      <View style={styles.clientContactButtons}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Call ${item.customer_name}`}
+                          onPress={() => void Linking.openURL(`tel:${item.customer_phone}`)}
+                          style={[styles.contactCircle, { backgroundColor: colors.surfaceSoft }]}
+                        >
+                          <Phone size={16} color={colors.pink} />
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`WhatsApp ${item.customer_name}`}
+                          onPress={() => {
+                            const clean = item.customer_phone.replace(/\D/g, "");
+                            const phone = clean.startsWith("91") ? clean : `91${clean}`;
+                            void Linking.openURL(`https://api.whatsapp.com/send?phone=${phone}&text=Hi%20${encodeURIComponent(item.customer_name)},%20regarding%20your%20RoyalLagn%20booking%20#${item.ticket_id}`);
+                          }}
+                          style={[styles.contactCircle, { backgroundColor: "#DCFCE7" }]}
+                        >
+                          <MessageCircle size={16} color="#15803D" />
+                        </Pressable>
+                      </View>
+                    );
+                  }
+                  return (
+                    <View style={[styles.lockedContactPill, { backgroundColor: isDark ? "#2D1D13" : "#FEF3C7" }]}>
+                      <Lock size={12} color="#D97706" />
+                      <Text style={[styles.lockedContactPillText, { color: "#D97706" }]}>Contact Locked</Text>
+                    </View>
+                  );
+                })()}
               </View>
 
               {/* Package & Addons breakdown */}
@@ -520,6 +560,13 @@ export default function VendorBookings() {
               {activeTab === "pending" ? (
                 <View style={styles.cardActionsRow}>
                   <Pressable
+                    onPress={() => setSelectedDetailsBookingRef(item.id || item.booking_id || item.ticket_id)}
+                    style={[styles.detailsBtn, { borderColor: colors.border }]}
+                  >
+                    <FileText size={14} color={colors.pink} />
+                    <Text style={[styles.detailsBtnText, { color: colors.pink }]}>Details</Text>
+                  </Pressable>
+                  <Pressable
                     disabled={isBusy}
                     onPress={() => setRejectingBooking(item)}
                     style={[styles.declineBtn, isBusy && styles.btnDisabled]}
@@ -537,7 +584,7 @@ export default function VendorBookings() {
                     ) : (
                       <>
                         <CheckCircle2 size={16} color="#FFF" />
-                        <Text style={styles.acceptBtnText}>Accept & Confirm</Text>
+                        <Text style={styles.acceptBtnText}>Accept</Text>
                       </>
                     )}
                   </Pressable>
@@ -545,18 +592,32 @@ export default function VendorBookings() {
               ) : activeTab === "confirmed" ? (
                 <View style={styles.cardActionsRow}>
                   <Pressable
+                    onPress={() => setSelectedDetailsBookingRef(item.id || item.booking_id || item.ticket_id)}
+                    style={[styles.detailsBtn, { borderColor: colors.border }]}
+                  >
+                    <FileText size={14} color={colors.pink} />
+                    <Text style={[styles.detailsBtnText, { color: colors.pink }]}>Details</Text>
+                  </Pressable>
+                  <Pressable
                     onPress={() => router.push({ pathname: "/ticket", params: { booking_id: item.booking_id, ticket_id: item.ticket_id } })}
                     style={styles.viewTicketBtn}
                   >
-                    <ReceiptText size={16} color="#FFF" />
-                    <Text style={styles.viewTicketBtnText}>View Luxury E-Ticket</Text>
+                    <ReceiptText size={15} color="#FFF" />
+                    <Text style={styles.viewTicketBtnText}>E-Ticket</Text>
                   </Pressable>
-                  <Pressable
-                    onPress={() => setRejectingBooking(item)}
-                    style={styles.cancelConfirmedBtn}
-                  >
-                    <Text style={styles.cancelConfirmedText}>Cancel Booking</Text>
-                  </Pressable>
+                  {!isCancellationLocked(item.cancellation_cutoff_at, item.event_start_at, item.event_date) ? (
+                    <Pressable
+                      onPress={() => setRejectingBooking(item)}
+                      style={styles.cancelConfirmedBtn}
+                    >
+                      <Text style={styles.cancelConfirmedText}>Cancel</Text>
+                    </Pressable>
+                  ) : (
+                    <View style={[styles.lockedNoticePill, { backgroundColor: colors.surfaceSoft }]}>
+                      <Lock size={12} color={colors.muted} />
+                      <Text style={[styles.lockedNoticePillText, { color: colors.muted }]}>Locked (≤5d)</Text>
+                    </View>
+                  )}
                 </View>
               ) : (
                 <View style={styles.cancelledContainer}>
@@ -576,6 +637,13 @@ export default function VendorBookings() {
                       Advance Refundable: {money(item.advance_amount)}
                     </Text>
                   </View>
+                  <Pressable
+                    onPress={() => setSelectedDetailsBookingRef(item.id || item.booking_id || item.ticket_id)}
+                    style={[styles.detailsBtn, { borderColor: colors.border, marginTop: 8 }]}
+                  >
+                    <FileText size={14} color={colors.pink} />
+                    <Text style={[styles.detailsBtnText, { color: colors.pink }]}>View Full Details</Text>
+                  </Pressable>
                 </View>
               )}
             </View>
@@ -712,6 +780,22 @@ export default function VendorBookings() {
           }}
         />
       ) : null}
+
+      {/* Booking Details Modal with 5-day Cancellation Lock & Contact Details */}
+      <BookingDetailsModal
+        visible={Boolean(selectedDetailsBookingRef)}
+        bookingRef={selectedDetailsBookingRef || ""}
+        role="vendor"
+        dark={isDark}
+        onClose={() => setSelectedDetailsBookingRef(null)}
+        onBookingUpdated={() => {
+          void loadData();
+          void refreshWorkspace();
+        }}
+        onOpenTicket={(ticketId) => {
+          router.push({ pathname: "/ticket", params: { ticket_id: ticketId } });
+        }}
+      />
     </View>
   );
 }
@@ -721,6 +805,44 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 110, gap: 14 },
   desktopContent: { maxWidth: 840, alignSelf: "center", width: "100%", paddingHorizontal: 24 },
   flex: { flex: 1, minWidth: 0 },
+
+  lockedContactPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  lockedContactPillText: {
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  detailsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  detailsBtnText: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  lockedNoticePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  lockedNoticePillText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
 
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" },
   headerRightActions: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" },

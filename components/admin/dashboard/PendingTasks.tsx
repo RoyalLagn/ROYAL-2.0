@@ -11,7 +11,7 @@ export function PendingTasks({ statistics, royal = false }: { statistics: Dashbo
   const router = useRouter();
   const { isPhone } = useResponsiveLayout();
   const tasks = [
-    ["Pending Direct Bookings", statistics.pendingBookings ?? 0, "High", "/AdminBookings"],
+    ["Pending Bookings", statistics.pendingBookings ?? 0, "High", "/AdminBookings"],
     ["Pending Vendor Applications", statistics.pendingApplications, "High", "/VendorApplications"],
     ["Vendor Account Deletion Requests", statistics.pendingVendorDeletionRequests, "High", "/AdminVendorDeletionRequests"],
     ["Referral Payment Verifications", statistics.pendingReferralVerifications ?? 0, (statistics.pendingReferralVerifications ?? 0) > 0 ? "High" : "Healthy", "/AdminReferrals"],

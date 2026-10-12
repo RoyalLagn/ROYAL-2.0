@@ -48,5 +48,9 @@ export function subscribeToAdminNotifications(onChange: () => void) {
 export function adminNotificationTarget(notification: AdminNotification): string | null {
   if (notification.kind === "vendor_deletion" && notification.deletion_request_id) return `/AdminVendorDeletionRequests?requestId=${notification.deletion_request_id}`;
   if (notification.application_id) return `/VendorApplicationDetails?id=${notification.application_id}`;
-  return null;
+  if (notification.kind === "booking_emergency" || notification.kind === "booking_cancelled" || notification.kind === "booking_request") {
+    return notification.target_path || "/AdminBookings";
+  }
+  return notification.target_path || null;
 }
+

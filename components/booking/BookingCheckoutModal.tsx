@@ -27,6 +27,13 @@ import {
   Smartphone,
   User,
   X,
+  MapPin,
+  Phone,
+  MessageSquare,
+  FileText,
+  CheckSquare,
+  Square,
+  Info,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
@@ -42,6 +49,15 @@ import {
   type BookingAddOn,
   type SelectedPackageSummary,
 } from "@/services/vendorBookings";
+import {
+  STANDARD_TIME_SLOTS,
+  buildEventStartTimestamp,
+  calculateCancellationCutoff,
+  formatCutoffDisplayIST,
+  validateIndianPhone,
+  validateGoogleMapsUrl,
+  validateBookingDescription,
+} from "@/lib/bookingCancellationPolicy";
 
 const PINK = brandPalette.light.primary;
 
@@ -110,6 +126,14 @@ export default function BookingCheckoutModal({
   const [customerEmail, setCustomerEmail] = useState("");
   const [eventType, setEventType] = useState("Wedding Ceremony");
   
+  // 5-Day Cancellation Lock & Booking Details State
+  const [eventStartTime, setEventStartTime] = useState<string>("10:00");
+  const [contactNumber, setContactNumber] = useState("");
+  const [sameAsContact, setSameAsContact] = useState(true);
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [serviceMapUrl, setServiceMapUrl] = useState("");
+  const [bookingDescription, setBookingDescription] = useState("");
+  
   const [startDate, setStartDate] = useState(() => {
     if (initialStartDate) return initialStartDate;
     if (initialDate) return initialDate;
@@ -138,6 +162,16 @@ export default function BookingCheckoutModal({
     return d.toISOString().slice(0, 10);
   }, [startDate, totalDays, initialEndDate]);
 
+  const estimatedCutoff = useMemo(() => {
+    try {
+      const startIso = buildEventStartTimestamp(startDate, eventStartTime);
+      const cutoffIso = calculateCancellationCutoff(startIso);
+      return formatCutoffDisplayIST(cutoffIso);
+    } catch {
+      return "—";
+    }
+  }, [startDate, eventStartTime]);
+
   const palette = useMemo(() => ({
     background: dark ? "#0F1623" : "#FFFFFF",
     surface: dark ? "#182234" : "#FFF9FB",
@@ -156,7 +190,10 @@ export default function BookingCheckoutModal({
       const email = profile?.email || user?.email;
       if (email && !customerEmail) setCustomerEmail(email);
       const phone = profile?.phone || user?.phone;
-      if (phone && !customerPhone) setCustomerPhone(phone);
+      if (phone) {
+        if (!customerPhone) setCustomerPhone(phone);
+        if (!contactNumber) setContactNumber(phone);
+      }
     }
   }, [user, profile]);
 
@@ -217,9 +254,25 @@ export default function BookingCheckoutModal({
       setErrorMessage("Please enter your name.");
       return false;
     }
-    const cleanPhone = customerPhone.replace(/\D/g, "");
-    if (cleanPhone.length < 10) {
-      setErrorMessage("Please enter a valid 10-digit mobile number.");
+    const phoneRes = validateIndianPhone(contactNumber || customerPhone);
+    if (!phoneRes.valid) {
+      setErrorMessage(phoneRes.error || "Please enter a valid 10-digit personal contact number.");
+      return false;
+    }
+    const waTarget = sameAsContact ? (contactNumber || customerPhone) : whatsappNumber;
+    const waRes = validateIndianPhone(waTarget);
+    if (!waRes.valid) {
+      setErrorMessage(waRes.error || "Please enter a valid 10-digit WhatsApp number.");
+      return false;
+    }
+    const mapRes = validateGoogleMapsUrl(serviceMapUrl);
+    if (!mapRes.valid) {
+      setErrorMessage(mapRes.error || "Please provide a valid Google Maps venue link.");
+      return false;
+    }
+    const descRes = validateBookingDescription(bookingDescription);
+    if (!descRes.valid) {
+      setErrorMessage(descRes.error || "Please provide a booking description (event arrangements & instructions).");
       return false;
     }
     if (!startDate) {
@@ -250,7 +303,13 @@ export default function BookingCheckoutModal({
     setSimulatingPayment(true);
     setSubmitting(true);
     try {
-      const cleanPhone = customerPhone.replace(/\D/g, "");
+      const phoneRes = validateIndianPhone(contactNumber || customerPhone);
+      const waTarget = sameAsContact ? (contactNumber || customerPhone) : whatsappNumber;
+      const waRes = validateIndianPhone(waTarget);
+      const cleanPhone = phoneRes.cleaned;
+      const cleanWa = waRes.cleaned;
+      const eventStartAt = buildEventStartTimestamp(startDate, eventStartTime);
+
       const selectedSummaries: SelectedPackageSummary[] = packagesList.map((p) => ({
         id: p.id,
         title: p.title,
@@ -268,12 +327,17 @@ export default function BookingCheckoutModal({
         customerId: user?.id || null,
         customerName: customerName.trim(),
         customerPhone: cleanPhone,
+        customerContactNumber: cleanPhone,
+        customerWhatsappNumber: cleanWa,
         customerEmail: customerEmail.trim() || null,
+        serviceMapUrl: serviceMapUrl.trim(),
+        bookingDescription: bookingDescription.trim(),
         eventDate: startDate,
         startDate,
         endDate,
         totalDays,
         eventType,
+        eventStartAt,
         packageId: packagesList[0]?.id,
         packageTitle: packagesList.map((p) => p.title).join(" + "),
         packagePrice: financials.packagesTotal,
@@ -396,14 +460,52 @@ export default function BookingCheckoutModal({
                 <Text style={[styles.miniChangeBtnText, { color: PINK }]}>Change Dates</Text>
               </View>
             </Pressable>
+
+            {/* Event Start Time Selector */}
+            <View style={{ marginTop: 12 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                <Clock3 size={15} color={PINK} />
+                <Text style={[styles.inputLabel, { color: palette.text, fontWeight: "700", marginBottom: 0 }]}>
+                  Event Start Time (IST) *
+                </Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.eventTypePills}>
+                {STANDARD_TIME_SLOTS.map((slot) => {
+                  const active = eventStartTime === slot.id;
+                  return (
+                    <Pressable
+                      key={slot.id}
+                      onPress={() => setEventStartTime(slot.id)}
+                      style={[
+                        styles.eventPill,
+                        {
+                          backgroundColor: active ? PINK : palette.surfaceSoft,
+                          borderColor: active ? PINK : palette.border,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.eventPillText, { color: active ? "#FFFFFF" : palette.text }]}>
+                        {slot.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <Text style={{ fontSize: 11, color: palette.muted, marginTop: 5 }}>
+                Exact start time in Asia/Kolkata timezone. Cancellation locks exactly 120 hours prior.
+              </Text>
+            </View>
           </View>
 
-          {/* 2. Client Details Form */}
+          {/* 2. Client Details & Booking Arrangements Form */}
           <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <View style={styles.cardHeaderRow}>
               <View style={styles.cardHeaderLeft}>
-                <User size={16} color={PINK} />
-                <Text style={[styles.cardTitle, { color: palette.text }]}>Your Contact Information</Text>
+                <Lock size={16} color={PINK} />
+                <Text style={[styles.cardTitle, { color: palette.text }]}>Booking Details & Confidential Info</Text>
+              </View>
+              <View style={[styles.pillGreen, { backgroundColor: "rgba(236, 72, 153, 0.1)" }]}>
+                <Text style={[styles.pillGreenText, { color: PINK }]}>SECURE ESCROW</Text>
               </View>
             </View>
 
@@ -420,15 +522,18 @@ export default function BookingCheckoutModal({
 
             <View style={styles.fieldRow}>
               <View style={[styles.fieldGroup, { flex: 1 }]}>
-                <Text style={[styles.inputLabel, { color: palette.muted }]}>Phone Number *</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <Phone size={13} color={PINK} />
+                  <Text style={[styles.inputLabel, { color: palette.muted, marginBottom: 0 }]}>Personal Contact Number *</Text>
+                </View>
                 <TextInput
-                  value={customerPhone}
-                  onChangeText={setCustomerPhone}
+                  value={contactNumber}
+                  onChangeText={setContactNumber}
                   placeholder="10-digit mobile"
                   placeholderTextColor={palette.muted}
                   keyboardType="phone-pad"
                   maxLength={10}
-                  style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.background }]}
+                  style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.background, marginTop: 4 }]}
                 />
               </View>
 
@@ -444,6 +549,88 @@ export default function BookingCheckoutModal({
                   style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.background }]}
                 />
               </View>
+            </View>
+
+            {/* WhatsApp Number & Checkbox */}
+            <View style={styles.fieldGroup}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <MessageSquare size={13} color="#25D366" />
+                <Text style={[styles.inputLabel, { color: palette.muted, marginBottom: 0 }]}>WhatsApp Number *</Text>
+              </View>
+              <Pressable
+                onPress={() => setSameAsContact(!sameAsContact)}
+                style={styles.checkboxRow}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: sameAsContact }}
+              >
+                {sameAsContact ? (
+                  <CheckSquare size={18} color={PINK} />
+                ) : (
+                  <Square size={18} color={palette.muted} />
+                )}
+                <Text style={[styles.checkboxText, { color: palette.text }]}>
+                  Same as personal contact number ({contactNumber || customerPhone || "Not set"})
+                </Text>
+              </Pressable>
+
+              {!sameAsContact && (
+                <TextInput
+                  value={whatsappNumber}
+                  onChangeText={setWhatsappNumber}
+                  placeholder="Enter 10-digit WhatsApp number"
+                  placeholderTextColor={palette.muted}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.background, marginTop: 4 }]}
+                />
+              )}
+            </View>
+
+            {/* Service Location — Google Maps */}
+            <View style={styles.fieldGroup}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <MapPin size={13} color={PINK} />
+                <Text style={[styles.inputLabel, { color: palette.muted, marginBottom: 0 }]}>
+                  Service Location — Google Maps *
+                </Text>
+              </View>
+              <TextInput
+                value={serviceMapUrl}
+                onChangeText={setServiceMapUrl}
+                placeholder="https://maps.app.goo.gl/... or https://maps.google.com/..."
+                placeholderTextColor={palette.muted}
+                autoCapitalize="none"
+                keyboardType="url"
+                style={[styles.input, { color: palette.text, borderColor: palette.border, backgroundColor: palette.background, marginTop: 4 }]}
+              />
+              <Text style={{ fontSize: 11, color: palette.muted, marginTop: 3 }}>
+                Paste the venue location link so the vendor can navigate accurately on event day.
+              </Text>
+            </View>
+
+            {/* Booking Description */}
+            <View style={styles.fieldGroup}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                  <FileText size={13} color={PINK} />
+                  <Text style={[styles.inputLabel, { color: palette.muted, marginBottom: 0 }]}>
+                    Booking Description *
+                  </Text>
+                </View>
+                <Text style={[styles.charCounter, { color: bookingDescription.length > 2000 ? "#EF4444" : palette.muted }]}>
+                  {bookingDescription.length}/2000
+                </Text>
+              </View>
+              <TextInput
+                value={bookingDescription}
+                onChangeText={setBookingDescription}
+                placeholder="Explain event arrangements, venue setup, ceremony schedule, and instructions for the vendor..."
+                placeholderTextColor={palette.muted}
+                multiline
+                numberOfLines={3}
+                maxLength={2000}
+                style={[styles.textArea, { color: palette.text, borderColor: palette.border, backgroundColor: palette.background, marginTop: 4, minHeight: 72 }]}
+              />
             </View>
 
             {/* Occasion / Event Type Selector */}
@@ -475,11 +662,11 @@ export default function BookingCheckoutModal({
 
             {/* Special Requests */}
             <View style={styles.fieldGroup}>
-              <Text style={[styles.inputLabel, { color: palette.muted }]}>Special Requests or Notes</Text>
+              <Text style={[styles.inputLabel, { color: palette.muted }]}>Special Requests or Preferences (Optional)</Text>
               <TextInput
                 value={specialNotes}
                 onChangeText={setSpecialNotes}
-                placeholder="Mention timings, venue location or specific preferences..."
+                placeholder="Any special requests or notes..."
                 placeholderTextColor={palette.muted}
                 multiline
                 numberOfLines={2}
@@ -513,6 +700,21 @@ export default function BookingCheckoutModal({
                   ✓ Persisted first-touch referral linked to your account.
                 </Text>
               ) : null}
+            </View>
+
+            {/* 5-Day Lock Notice Box */}
+            <View style={[styles.privacyBox, { backgroundColor: dark ? "#1E293B" : "#F8FAFC", borderColor: dark ? "#334155" : "#E2E8F0" }]}>
+              <ShieldCheck size={18} color={PINK} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.privacyTitle, { color: palette.text }]}>
+                  🔒 Contact Protection & 5-Day Policy
+                </Text>
+                <Text style={[styles.privacyDesc, { color: palette.muted }]}>
+                  Direct phone numbers and Google Maps location remain confidential to protect both parties and will automatically unlock on{" "}
+                  <Text style={{ fontWeight: "700", color: PINK }}>{estimatedCutoff}</Text> (120 hours before event start).
+                  Free cancellation is permitted anytime until this cutoff.
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -1175,4 +1377,37 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  checkboxText: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  privacyBox: {
+    flexDirection: "row",
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 14,
+    borderWidth: 1,
+  },
+  privacyTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  privacyDesc: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  charCounter: {
+    fontSize: 11,
+    textAlign: "right",
+  },
 });
+

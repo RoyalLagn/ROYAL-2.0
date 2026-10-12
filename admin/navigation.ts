@@ -66,7 +66,7 @@ export const adminNavigationGroups: { label: string; items: AdminNavigationItem[
     label: "Operations",
     items: [
       { key: "team", label: "Team Portal", route: "/team", icon: ShieldCheck },
-      { key: "bookings", label: "Direct Bookings", route: "/AdminBookings", icon: Ticket },
+      { key: "bookings", label: "Bookings", route: "/AdminBookings", icon: Ticket },
       { key: "approvals", label: "Approvals", route: "/VendorApplications", icon: ClipboardCheck },
       { key: "vendors", label: "Vendors", route: "/vendors-admin-listing", icon: Building2 },
       { key: "users", label: "Users", route: "/AdminUsers", icon: Users },

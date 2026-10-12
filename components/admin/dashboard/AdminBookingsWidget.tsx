@@ -119,7 +119,7 @@ export function AdminBookingsWidget({ royal = true }: { royal?: boolean }) {
           </View>
           <View style={styles.flex}>
             <View style={styles.titleWithBadge}>
-              <Text style={styles.title}>Direct Bookings</Text>
+              <Text style={styles.title}>Bookings</Text>
               {counts.pending > 0 ? (
                 <View style={styles.pendingAlertBadge}>
                   <Text style={styles.pendingAlertBadgeText}>
@@ -212,7 +212,7 @@ export function AdminBookingsWidget({ royal = true }: { royal?: boolean }) {
       ) : displayedList.length === 0 ? (
         <View style={styles.emptyBox}>
           <Ticket size={28} color={royalAdmin.navyMuted} />
-          <Text style={styles.emptyText}>No {activeTab} direct bookings at this time</Text>
+          <Text style={styles.emptyText}>No {activeTab} bookings at this time</Text>
         </View>
       ) : (
         <View style={styles.listContainer}>

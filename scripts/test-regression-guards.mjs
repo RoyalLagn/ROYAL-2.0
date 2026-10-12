@@ -142,11 +142,11 @@ const [vendorEditLocationSource, vendorEditAboutSource, vendorEditContactSource,
 ]);
 assert.match(
   vendorEditLocationSource,
-  /<KeyboardAwareScrollView\s+avoidKeyboardOnAndroid\s+contentContainerStyle=\{kitStyles\.content\}/,
+  /<KeyboardAwareScrollView\s+avoidKeyboardOnAndroid\s+contentContainerStyle=\{(kitStyles\.content|pageStyle)\}/,
   "Vendor location editing must keep the Business address field above the Android keyboard.",
 );
-assert.match(vendorEditAboutSource, /<KeyboardAwareScrollView avoidKeyboardOnAndroid/, "Vendor About editing must remain visible above the Android keyboard.");
-assert.match(vendorEditContactSource, /<KeyboardAwareScrollView avoidKeyboardOnAndroid/, "Vendor Contact editing must remain visible above the Android keyboard.");
+assert.match(vendorEditAboutSource, /<KeyboardAwareScrollView\s+avoidKeyboardOnAndroid/, "Vendor About editing must remain visible above the Android keyboard.");
+assert.match(vendorEditContactSource, /<KeyboardAwareScrollView\s+avoidKeyboardOnAndroid/, "Vendor Contact editing must remain visible above the Android keyboard.");
 assert.match(vendorEditAboutSource, /multiline\s+advanceOnSubmit/, "The About description keyboard action must advance to Years of experience.");
 assert.match(vendorFormKitSource, /submitBehavior=\{shouldAdvanceOnSubmit \? "submit" : "newline"\}/, "Vendor fields must submit deterministically before focusing the next input.");
 assert.match(vendorEditContactSource, /contactField: \{ width: "100%" \}/, "Vendor Contact inputs must use the full mobile card width.");

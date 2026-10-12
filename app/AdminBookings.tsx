@@ -51,6 +51,7 @@ import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { royalAdmin } from "@/components/admin/dashboard/adminDashboardTheme";
 import { fonts, typeScale, typeLeading } from "@/constants/typography";
+import { BookingDetailsModal } from "@/components/booking/BookingDetailsModal";
 import {
   VendorBookingService,
   type BookingStatus,
@@ -99,6 +100,9 @@ export default function AdminBookings() {
   const [refundNotes, setRefundNotes] = useState("");
   const [refundTxnRef, setRefundTxnRef] = useState("");
   const [processingRefund, setProcessingRefund] = useState(false);
+
+  // Booking details modal state
+  const [selectedDetailsBookingRef, setSelectedDetailsBookingRef] = useState<string | null>(null);
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -481,6 +485,34 @@ export default function AdminBookings() {
           </View>
         ) : null}
 
+        {/* Emergency Alert Banner if reported */}
+        {item.emergency_reason ? (
+          <View style={styles.emergencyAdminBanner}>
+            <AlertCircle size={15} color="#DC2626" />
+            <View style={styles.flex}>
+              <Text style={styles.emergencyAdminTitle}>
+                Emergency Reported ({item.emergency_status || "Pending"})
+              </Text>
+              <Text style={styles.emergencyAdminReason} numberOfLines={2}>
+                &quot;{item.emergency_reason}&quot;
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Action Row: View Booking & Contact Details */}
+        <View style={styles.cardActionsRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View booking and contact details"
+            onPress={() => setSelectedDetailsBookingRef(item.booking_id)}
+            style={styles.viewDetailsBtn}
+          >
+            <FileText size={14} color="#FFFFFF" />
+            <Text style={styles.viewDetailsBtnText}>Booking & Contact Details</Text>
+          </Pressable>
+        </View>
+
         {/* Footer Meta */}
         <View style={styles.cardFooter}>
           <Text style={styles.metaText}>
@@ -498,8 +530,8 @@ export default function AdminBookings() {
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <ResponsiveContainer style={styles.container}>
         <AdminPageHeader
-          title="Direct Bookings"
-          subtitle="Real-time monitoring of customer-to-vendor direct bookings and escrow advances"
+          title="Bookings"
+          subtitle="Real-time monitoring of customer-to-vendor bookings, contact unlock & cancellation cutoff, and escrow advances"
           action={
             <Pressable
               accessibilityLabel="Refresh bookings"
@@ -627,7 +659,7 @@ export default function AdminBookings() {
         {loading && !refreshing ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={royalAdmin.navy} />
-            <Text style={styles.loadingText}>Loading direct bookings...</Text>
+            <Text style={styles.loadingText}>Loading bookings...</Text>
           </View>
         ) : (
           <FlatList
@@ -740,6 +772,14 @@ export default function AdminBookings() {
           </View>
         </View>
       </Modal>
+
+      <BookingDetailsModal
+        visible={Boolean(selectedDetailsBookingRef)}
+        bookingRef={selectedDetailsBookingRef || ""}
+        role="admin"
+        onClose={() => setSelectedDetailsBookingRef(null)}
+        onBookingUpdated={() => void loadData(true)}
+      />
 
       <AdminFooter activeTab="dashboard" />
     </SafeAreaView>
@@ -1381,6 +1421,50 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontFamily: fonts.sans.bold,
     fontSize: 13,
+  },
+  emergencyAdminBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 12,
+  },
+  emergencyAdminTitle: {
+    fontFamily: fonts.sans.bold,
+    fontSize: 12,
+    color: "#B91C1C",
+  },
+  emergencyAdminReason: {
+    fontFamily: fonts.sans.regular,
+    fontSize: 11,
+    color: "#7F1D1D",
+    marginTop: 2,
+  },
+  cardActionsRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#EDF2F8",
+  },
+  viewDetailsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: royalAdmin.navy,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  viewDetailsBtnText: {
+    color: "#FFFFFF",
+    fontFamily: fonts.sans.bold,
+    fontSize: 12,
   },
   flex: {
     flex: 1,
