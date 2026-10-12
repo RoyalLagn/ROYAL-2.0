@@ -25,7 +25,7 @@ export default function WebsiteStatusCard({
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
       <View style={styles.headerRow}>
         <View style={[styles.icon, { backgroundColor: colors.pink }]}>
-          <Globe size={22} color="#FFF" />
+          <Globe size={18} color="#FFF" />
         </View>
         <View style={styles.flex}>
           <Text style={[styles.title, { color: colors.text }]}>My Business Website</Text>
@@ -57,16 +57,16 @@ export default function WebsiteStatusCard({
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 26, padding: 20, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.06, shadowRadius: 22, elevation: 2 },
-  headerRow: { flexDirection: "row", gap: 13, alignItems: "center" },
-  icon: { width: 48, height: 48, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  card: { borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 12, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
+  headerRow: { flexDirection: "row", gap: 12, alignItems: "center", minWidth: 0 },
+  icon: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   flex: { flex: 1, minWidth: 0 },
   title: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  url: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginTop: 14 },
-  metaRow: { flexDirection: "row", marginTop: 16, paddingTop: 16, borderTopWidth: 1 },
+  url: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginTop: 10 },
+  metaRow: { flexDirection: "row", marginTop: 12, paddingTop: 12, borderTopWidth: 1, minWidth: 0 },
   metaItem: { flex: 1, alignItems: "center" },
   metaValue: { fontSize: typeScale.body, fontWeight: "700" },
   metaLabel: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 3, textAlign: "center" },

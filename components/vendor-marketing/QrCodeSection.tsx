@@ -25,7 +25,7 @@ export default function QrCodeSection({
       <Text style={[styles.title, { color: colors.text }]}>QR Code</Text>
       <View style={styles.qrWrap}>
         <View ref={qrRef} collapsable={false} style={[styles.qrBox, { borderColor: colors.border }]}>
-          <QRCode value={qrUrl} size={180} backgroundColor="#FFFFFF" />
+          <QRCode value={qrUrl} size={136} backgroundColor="#FFFFFF" />
         </View>
       </View>
       <View style={styles.actionsRow}>
@@ -53,7 +53,7 @@ function QrButton({ label, icon, colors, onPress }: { label: string; icon: React
     <Pressable
       android_ripple={{ color: "rgba(233,30,99,0.08)" }}
       onPress={onPress}
-      style={[styles.qrButton, { backgroundColor: colors.surfaceSoft }]}
+      style={({ pressed }) => [styles.qrButton, { backgroundColor: colors.surfaceSoft }, pressed && styles.pressed]}
     >
       {icon}
       <Text style={[styles.qrButtonLabel, { color: colors.text }]}>{label}</Text>
@@ -62,10 +62,11 @@ function QrButton({ label, icon, colors, onPress }: { label: string; icon: React
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
-  title: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 14 },
-  qrWrap: { alignItems: "center", marginBottom: 16 },
-  qrBox: { padding: 14, borderRadius: 18, borderWidth: 1, backgroundColor: "#FFFFFF" },
+  card: { borderWidth: 1, borderRadius: 18, padding: 14, marginBottom: 12, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
+  title: { fontSize: typeScale.body, fontWeight: "700", marginBottom: 10 },
+  qrWrap: { alignItems: "center", marginBottom: 12 },
+  qrBox: { padding: 10, borderRadius: 14, borderWidth: 1, backgroundColor: "#FFFFFF" },
+  pressed: { transform: [{ scale: 0.97 }], opacity: 0.92 },
   actionsRow: { flexDirection: "row", gap: 8 },
   qrButton: { flex: 1, height: 38, overflow: "hidden", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 12, paddingHorizontal: 6 },
   qrButtonLabel: { fontSize: typeScale.caption, fontWeight: "700" },

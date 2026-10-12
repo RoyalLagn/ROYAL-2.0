@@ -7,6 +7,8 @@ import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
+import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
+import { MotionStagger } from "@/utils/motion";
 import WebsiteStatusCard from "@/components/vendor-marketing/WebsiteStatusCard";
 import QuickActionsGrid from "@/components/vendor-marketing/QuickActionsGrid";
 import QrCodeSection from "@/components/vendor-marketing/QrCodeSection";
@@ -96,18 +98,19 @@ export default function VendorMarketingCenter() {
     <View style={[styles.page, { backgroundColor: colors.background }]}>
       <VendorHeader />
       <ScrollView
+        style={styles.scroller}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll]}
+        contentContainerStyle={[styles.scroll, desktop && styles.desktopScroll, !desktop && { paddingBottom: 28 + VENDOR_TAB_BASE_HEIGHT }]}
       >
-        <VendorDashboardReveal>
-          {error ? (
-            <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <CircleAlert size={18} color={colors.warning} />
-              <Text style={[styles.noticeText, { color: colors.muted }]}>{error}</Text>
-            </View>
-          ) : null}
+        {error ? (
+          <View style={[styles.notice, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <CircleAlert size={18} color={colors.warning} />
+            <Text style={[styles.noticeText, { color: colors.muted }]}>{error}</Text>
+          </View>
+        ) : null}
 
-          {!loading && !available ? (
+        {!loading && !available ? (
+          <VendorDashboardReveal>
             <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border, shadowColor: colors.shadow }]}>
               <View style={[styles.emptyIcon, { backgroundColor: colors.pink }]}>
                 <Sparkles size={24} color="#FFF" />
@@ -117,10 +120,12 @@ export default function VendorMarketingCenter() {
                 Your Business Website is being prepared. Refresh in a moment.
               </Text>
             </View>
-          ) : null}
+          </VendorDashboardReveal>
+        ) : null}
 
-          {available ? (
-            <>
+        {available ? (
+          <>
+            <VendorDashboardReveal style={styles.block}>
               <WebsiteStatusCard
                 colors={colors}
                 url={url}
@@ -128,6 +133,8 @@ export default function VendorMarketingCenter() {
                 totalViews={Number(vendor.profile_views ?? 0)}
                 qrScans={analytics?.view?.bySource?.qr ?? 0}
               />
+            </VendorDashboardReveal>
+            <VendorDashboardReveal delay={MotionStagger.item} style={styles.block}>
               <QuickActionsGrid
                 colors={colors}
                 onOpenWebsite={handleOpenWebsite}
@@ -137,6 +144,8 @@ export default function VendorMarketingCenter() {
                 onShareQr={handleShareQr}
                 onMarketingCard={handleOpenMarketingCard}
               />
+            </VendorDashboardReveal>
+            <VendorDashboardReveal delay={MotionStagger.item * 2} style={styles.block}>
               <QrCodeSection
                 colors={colors}
                 qrUrl={qrUrl}
@@ -144,6 +153,8 @@ export default function VendorMarketingCenter() {
                 onDownload={handleDownloadQr}
                 onShare={handleShareQr}
               />
+            </VendorDashboardReveal>
+            <VendorDashboardReveal delay={MotionStagger.item * 3} style={styles.block}>
               <AnalyticsSummaryCard
                 colors={colors}
                 analytics={analytics}
@@ -152,10 +163,12 @@ export default function VendorMarketingCenter() {
                 whatsappEnquiries={data.stats.whatsappEnquiries}
                 callEnquiries={data.stats.callEnquiries}
               />
+            </VendorDashboardReveal>
+            <VendorDashboardReveal delay={MotionStagger.item * 4} style={styles.block}>
               <MarketingTipsCard colors={colors} />
-            </>
-          ) : null}
-        </VendorDashboardReveal>
+            </VendorDashboardReveal>
+          </>
+        ) : null}
       </ScrollView>
       {loading && !vendor ? (
         <View style={styles.loading}><ActivityIndicator color={colors.pink} /></View>
@@ -166,7 +179,9 @@ export default function VendorMarketingCenter() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  scroll: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 28, width: "100%", alignSelf: "center" },
+  scroller: { flex: 1, minWidth: 0 },
+  scroll: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 28, width: "100%", alignSelf: "center", minWidth: 0 },
+  block: { width: "100%", minWidth: 0 },
   desktopScroll: { maxWidth: 720, paddingHorizontal: 0, paddingTop: 24, paddingBottom: 48 },
   notice: { borderWidth: 1, borderRadius: 17, padding: 14, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   noticeText: { flex: 1, fontSize: typeScale.metadata, lineHeight: typeLeading.tab },

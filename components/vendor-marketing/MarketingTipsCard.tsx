@@ -35,7 +35,7 @@ export default function MarketingTipsCard({ colors }: { colors: typeof vendorThe
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
+  card: { borderWidth: 1, borderRadius: 18, padding: 14, marginBottom: 12, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 14 },
   icon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   title: { fontSize: typeScale.body, fontWeight: "700" },

@@ -91,13 +91,13 @@ export default function AnalyticsSummaryCard({
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 26, padding: 18, marginBottom: 14, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.055, shadowRadius: 22, elevation: 2 },
+  card: { borderWidth: 1, borderRadius: 18, padding: 14, marginBottom: 12, minWidth: 0, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 14 },
   icon: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   title: { fontSize: typeScale.body, fontWeight: "700" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  tile: { minWidth: "22%", flexGrow: 1, borderRadius: 16, paddingVertical: 14, alignItems: "center" },
-  tileValue: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
+  tile: { minWidth: "22%", flexGrow: 1, flexBasis: "22%", borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6, alignItems: "center", minHeight: 0 },
+  tileValue: { fontSize: typeScale.body, fontWeight: "700" },
   tileLabel: { fontSize: typeScale.caption, fontWeight: "700", marginTop: 4, textAlign: "center" },
   sourcesWrap: { marginTop: 16, paddingTop: 16, borderTopWidth: 1 },
   sourcesTitle: { fontSize: typeScale.bodyCompact, fontWeight: "700", marginBottom: 8 },
