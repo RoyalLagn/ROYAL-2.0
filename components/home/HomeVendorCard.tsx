@@ -73,6 +73,7 @@ export default function HomeVendorCard({
             deliveryWidth={Math.round(width)}
             deliveryHeight={Math.round(imageHeight)}
             deliveryCrop="fit"
+            fadeIn={false}
             style={styles.image}
             resizeMode="contain"
           />

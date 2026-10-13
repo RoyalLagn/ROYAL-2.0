@@ -214,6 +214,8 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
         ref={scrollRef}
         horizontal
         pagingEnabled
+        nestedScrollEnabled
+        directionalLockEnabled
         bounces={false}
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}

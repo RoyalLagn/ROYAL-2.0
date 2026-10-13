@@ -1,5 +1,5 @@
 import React from "react";
-import { type ViewProps } from "react-native";
+import { Platform, View, type ViewProps } from "react-native";
 import Animated, {
   type SharedValue,
   useAnimatedReaction,
@@ -10,16 +10,18 @@ import Animated, {
 } from "react-native-reanimated";
 import { MotionDistance, MotionTiming } from "@/utils/motion";
 
-export default function HomeSectionReveal({
+type HomeSectionRevealProps = ViewProps & {
+  scrollY: SharedValue<number>;
+  viewportHeight: number;
+};
+
+function WebHomeSectionReveal({
   children,
   scrollY,
   viewportHeight,
   style,
   ...props
-}: ViewProps & {
-  scrollY: SharedValue<number>;
-  viewportHeight: number;
-}) {
+}: HomeSectionRevealProps) {
   const reducedMotion = useReducedMotion();
   const sectionTop = useSharedValue(Number.MAX_SAFE_INTEGER);
   const progress = useSharedValue(0);
@@ -52,4 +54,19 @@ export default function HomeSectionReveal({
       {children}
     </Animated.View>
   );
+}
+
+export default function HomeSectionReveal(props: HomeSectionRevealProps) {
+  // Moving sections while the finger is down makes Android scroll feel like it
+  // slips. Keep the entrance on web, where it does not fight the scroll view.
+  if (Platform.OS !== "web") {
+    const { children, style, scrollY: _scrollY, viewportHeight: _viewportHeight, ...rest } = props;
+    return (
+      <View {...rest} style={style}>
+        {children}
+      </View>
+    );
+  }
+
+  return <WebHomeSectionReveal {...props} />;
 }

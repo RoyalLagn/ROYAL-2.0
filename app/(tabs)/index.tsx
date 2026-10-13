@@ -355,10 +355,13 @@ export default function HomeScreen() {
       ) : null}
 
       <Animated.ScrollView
-        style={{ backgroundColor: bg }}
+        style={{ flex: 1, backgroundColor: bg }}
+        nestedScrollEnabled
+        directionalLockEnabled
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        onScroll={handleHomeScroll}
-        scrollEventThrottle={16}
+        onScroll={Platform.OS === "web" ? handleHomeScroll : undefined}
+        scrollEventThrottle={Platform.OS === "web" ? 16 : undefined}
         contentContainerStyle={[
           s.scroll,
           { paddingBottom: Platform.OS === "web" ? (wideLayout ? 32 : 16) : 110, backgroundColor: bg },
@@ -672,7 +675,7 @@ export default function HomeScreen() {
             subtitle="Popular ways to start your search"
             dark={isDark}
           />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.trendingRow}>
+          <ScrollView horizontal nestedScrollEnabled directionalLockEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={s.trendingRow}>
             {TRENDING_SEARCHES.map((term) => (
               <TouchableOpacity
                 key={term}
@@ -703,7 +706,7 @@ export default function HomeScreen() {
               actionLabel="View All"
               onActionPress={() => router.push({ pathname: "/Search", params: { featured: "true", pincode: customerPincode ?? undefined } })}
             />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} decelerationRate="fast" snapToAlignment="start" snapToInterval={vendorCardWidth + vendorCardGap} contentContainerStyle={[s.vendorScroll, { gap: vendorCardGap }]}>
+            <ScrollView horizontal nestedScrollEnabled directionalLockEnabled showsHorizontalScrollIndicator={false} decelerationRate={Platform.OS === "android" ? "normal" : "fast"} snapToAlignment={Platform.OS === "android" ? undefined : "start"} snapToInterval={Platform.OS === "android" ? undefined : vendorCardWidth + vendorCardGap} contentContainerStyle={[s.vendorScroll, { gap: vendorCardGap }]}>
               {featuredVendors.map((vendor) => <HomeVendorCard key={vendor.id} vendor={vendor} width={vendorCardWidth} imageHeight={vendorImageHeight} dark={isDark} favorite={isFavorite(vendor.id)} fallbackSource={VENDOR_CARD_PLACEHOLDER} onOpen={() => router.push({ pathname: "/vendor/[slug]", params: { slug: vendor.slug, src: "featured" } })} onToggleFavorite={(source) => toggleFavorite(vendor, source)} />)}
             </ScrollView>
           </HomeSectionReveal>
@@ -740,10 +743,12 @@ export default function HomeScreen() {
           ) : (
           <ScrollView
             horizontal
+            nestedScrollEnabled
+            directionalLockEnabled
             showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            snapToAlignment="start"
-            snapToInterval={vendorCardWidth + vendorCardGap}
+            decelerationRate={Platform.OS === "android" ? "normal" : "fast"}
+            snapToAlignment={Platform.OS === "android" ? undefined : "start"}
+            snapToInterval={Platform.OS === "android" ? undefined : vendorCardWidth + vendorCardGap}
             contentContainerStyle={[s.vendorScroll, { gap: vendorCardGap }]}
           >
             {topRatedVendors.map((v) => {
@@ -798,10 +803,12 @@ export default function HomeScreen() {
           ) : (
           <ScrollView
             horizontal
+            nestedScrollEnabled
+            directionalLockEnabled
             showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            snapToAlignment="start"
-            snapToInterval={vendorCardWidth + vendorCardGap}
+            decelerationRate={Platform.OS === "android" ? "normal" : "fast"}
+            snapToAlignment={Platform.OS === "android" ? undefined : "start"}
+            snapToInterval={Platform.OS === "android" ? undefined : vendorCardWidth + vendorCardGap}
             contentContainerStyle={[s.vendorScroll, { gap: vendorCardGap }]}
           >
             {nearbyVendors.map((v) => {
