@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
+    "postinstall": "node scripts/patch-css-interop-safe-area.mjs",
     "start": "expo start",
     "start:go": "expo start --go --lan --clear",
     "start:phone": "expo start --go --tunnel --clear",
