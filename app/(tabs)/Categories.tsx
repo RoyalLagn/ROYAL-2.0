@@ -28,8 +28,14 @@ type ListEntry =
   | { kind: "category"; id: string; category: CategoryCardItem; entranceIndex: number }
   | { kind: "skeleton"; id: string };
 
-function thumbnailUrl(uri: string) {
-  return uri.replace("/image/upload/f_auto,q_auto,w_720/", "/image/upload/f_auto,q_auto,w_360/");
+function categoryCardImage(image: CategoryCardItem["image"]): CategoryCardItem["image"] {
+  if (image && typeof image === "object" && "uri" in image && typeof image.uri === "string") {
+    const uri = image.uri.includes("/image/upload/") && !image.uri.includes("/image/upload/f_auto")
+      ? image.uri.replace("/image/upload/", "/image/upload/f_auto,q_auto,w_360/")
+      : image.uri;
+    return { ...image, uri };
+  }
+  return image;
 }
 
 const CategoryListItem = memo(function CategoryListItem({
@@ -122,7 +128,7 @@ export default function CategoriesScreen() {
     icon: category.icon,
     iconColor: category.iconColor,
     iconBg: category.iconBg,
-    image: thumbnailUrl(category.imageUrl),
+    image: categoryCardImage(category.homeImage),
     fallbackImage: category.fallbackImage,
     vendorCount: category.vendorCount,
   })), [liveCategories]);
@@ -156,7 +162,12 @@ export default function CategoriesScreen() {
 
   useEffect(() => {
     categories.slice(0, INITIAL_ANIMATED_CARDS).forEach((category) => {
-      if (category.image) void Image.prefetch(category.image).catch(() => undefined);
+      const uri = typeof category.image === "string"
+        ? category.image
+        : category.image && typeof category.image === "object" && "uri" in category.image
+          ? category.image.uri
+          : null;
+      if (uri) void Image.prefetch(uri).catch(() => undefined);
     });
   }, [categories]);
 

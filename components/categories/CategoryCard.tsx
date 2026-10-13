@@ -11,7 +11,7 @@ export type CategoryCardItem = {
   icon: React.ElementType;
   iconColor: string;
   iconBg: string;
-  image: string;
+  image: number | ImageURISource | string;
   fallbackImage: number | ImageURISource;
   vendorCount?: number;
 };
