@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,17 +13,13 @@ import {
 import { useRouter } from "expo-router";
 import {
   CalendarDays,
-  Check,
-  CheckCircle2,
   Clock3,
-  CreditCard,
   Gift,
   Lock,
   PackageCheck,
   ReceiptText,
   ShieldCheck,
   Sparkles,
-  Smartphone,
   User,
   X,
   MapPin,
@@ -42,6 +37,7 @@ import Pressable from "@/components/InteropSafePressable";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { brandPalette } from "@/constants/brandPalette";
 import { supabase } from "@/services/supabase";
+import { openRazorpayCheckout } from "@/subscriptions/payments/RazorpayCheckout";
 import type { VendorPackage } from "@/services/vendorPackages";
 import {
   calculateBookingFinancials,
@@ -146,12 +142,6 @@ export default function BookingCheckoutModal({
   const [referralCode, setReferralCode] = useState("");
   const [selectedAddOns, setSelectedAddOns] = useState<Record<string, BookingAddOn>>(initialAddOns || {});
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
-  
-  // Razorpay simulator modal state
-  const [simulatorVisible, setSimulatorVisible] = useState(false);
-  const [simulatingPayment, setSimulatingPayment] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"upi" | "card" | "netbanking">("upi");
-
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -294,14 +284,33 @@ export default function BookingCheckoutModal({
     return true;
   };
 
-  const handleOpenSimulator = () => {
-    if (!validateInputs()) return;
-    setSimulatorVisible(true);
-  };
+  const handlePayAdvance = async () => {
+    if (submitting) return;
 
-  const handleCompletePayment = async (simulatedPaymentId: string) => {
-    setSimulatingPayment(true);
+    if (!user) {
+      Alert.alert(
+        "Sign In Required",
+        "Please sign in to your RoyalLagn account to book this vendor and secure your date with a 30% advance payment.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Sign In",
+            onPress: () => {
+              onClose();
+              router.push("/Login");
+            },
+          },
+        ]
+      );
+      setErrorMessage("Please sign in or create an account to book this vendor.");
+      return;
+    }
+
+    if (!validateInputs()) return;
+
     setSubmitting(true);
+    setErrorMessage("");
+
     try {
       const phoneRes = validateIndianPhone(contactNumber || customerPhone);
       const waTarget = sameAsContact ? (contactNumber || customerPhone) : whatsappNumber;
@@ -310,67 +319,71 @@ export default function BookingCheckoutModal({
       const cleanWa = waRes.cleaned;
       const eventStartAt = buildEventStartTimestamp(startDate, eventStartTime);
 
-      const selectedSummaries: SelectedPackageSummary[] = packagesList.map((p) => ({
-        id: p.id,
-        title: p.title,
-        price: Number(p.discounted_price ?? p.price ?? 0),
-        service_category: p.service_category || null,
-        duration_label: p.duration_label || null,
-      }));
-
-      const booking = await VendorBookingService.createBooking({
+      // 1. Create booking order and obtain Razorpay Order ID from server
+      const orderRes = await VendorBookingService.createBookingOrder({
         vendorId,
-        vendorName,
-        vendorPhone,
-        vendorImage,
-        vendorCategory,
-        customerId: user?.id || null,
-        customerName: customerName.trim(),
-        customerPhone: cleanPhone,
-        customerContactNumber: cleanPhone,
-        customerWhatsappNumber: cleanWa,
-        customerEmail: customerEmail.trim() || null,
-        serviceMapUrl: serviceMapUrl.trim(),
-        bookingDescription: bookingDescription.trim(),
-        eventDate: startDate,
         startDate,
         endDate,
-        totalDays,
+        customerName: customerName.trim(),
+        customerPhone: cleanPhone,
+        customerEmail: customerEmail.trim() || null,
+        customerId: user?.id || null,
         eventType,
-        eventStartAt,
-        packageId: packagesList[0]?.id,
-        packageTitle: packagesList.map((p) => p.title).join(" + "),
-        packagePrice: financials.packagesTotal,
-        totalAmount: financials.totalAmount,
-        advanceAmount: financials.advanceAmount,
-        dueAmount: financials.dueAmount,
-        selectedPackages: selectedSummaries,
-        addOns: addOnsList,
-        specialNotes,
+        specialNotes: specialNotes.trim() || null,
         referralCode: referralCode.trim() || null,
-        razorpayPaymentId: simulatedPaymentId,
-        razorpayOrderId: `order_${Date.now()}`,
+        selectedPackageIds: packagesList.map((p) => p.id),
+        addOns: addOnsList,
+        eventStartAt,
+        customerContactNumber: cleanPhone,
+        customerWhatsappNumber: cleanWa,
+        serviceMapUrl: serviceMapUrl.trim(),
+        bookingDescription: bookingDescription.trim(),
       });
 
-      setSimulatorVisible(false);
-      onClose();
+      // 2. Open Real Razorpay Test Checkout Gateway
+      const checkoutResult = await openRazorpayCheckout({
+        paymentRecordId: orderRes.bookingRecordId,
+        orderId: orderRes.orderId,
+        amount: orderRes.amountMinor,
+        currency: orderRes.currency || "INR",
+        keyId: orderRes.keyId,
+        planName: `30% Advance - ${vendorName}`,
+        vendorName: customerName.trim(),
+        email: customerEmail.trim() || undefined,
+        phone: cleanPhone,
+      });
 
-      Alert.alert(
-        "Booking Sent to Vendor",
-        `Your 30% advance of ₹${financials.advanceAmount.toLocaleString("en-IN")} has been received. Your booking request is now awaiting vendor confirmation.`,
-        [
-          {
-            text: "View My Bookings",
-            onPress: () => router.push("/(tabs)/bookings"),
-          },
-        ]
-      );
+      // 3. Cryptographically verify payment on server & transition to pending_vendor_confirmation
+      const verifyRes = await VendorBookingService.verifyBookingPayment({
+        bookingRecordId: orderRes.bookingRecordId,
+        bookingId: orderRes.bookingId,
+        razorpayOrderId: checkoutResult.razorpay_order_id,
+        razorpayPaymentId: checkoutResult.razorpay_payment_id,
+        razorpaySignature: checkoutResult.razorpay_signature,
+      });
+
+      // 4. Close modal and immediately navigate to My Bookings tab
+      onClose();
+      try {
+        router.replace("/(tabs)/bookings");
+      } catch {
+        router.push("/(tabs)/bookings");
+      }
+      if (Platform.OS !== "web") {
+        Alert.alert(
+          "Booking Confirmed & Sent to Vendor",
+          `Your 30% advance of ₹${financials.advanceAmount.toLocaleString("en-IN")} has been received. Your booking request (Ticket #${verifyRes.ticketId || orderRes.ticketId}) is now awaiting vendor confirmation.`
+        );
+      }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unable to place booking. Please try again.";
-      setErrorMessage(msg);
-      Alert.alert("Booking Failed", msg);
+      const msg = err instanceof Error ? err.message : "Unable to complete booking payment. Please try again.";
+      if (/cancel|dismiss|closed/i.test(msg)) {
+        setErrorMessage("Payment was cancelled. You can complete your 30% advance when ready.");
+      } else {
+        setErrorMessage(msg);
+        Alert.alert("Payment Failed", msg);
+      }
     } finally {
-      setSimulatingPayment(false);
       setSubmitting(false);
     }
   };
@@ -414,6 +427,28 @@ export default function BookingCheckoutModal({
           {errorMessage ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+
+          {!user ? (
+            <View style={[styles.authNoticeCard, { backgroundColor: palette.surfaceSoft, borderColor: palette.cardBorder }]}>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={[styles.authNoticeTitle, { color: palette.text }]}>Sign In Required</Text>
+                <Text style={[styles.authNoticeSubtitle, { color: palette.muted }]}>
+                  Please sign in to your RoyalLagn account to reserve your date and pay the 30% advance.
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sign in to book"
+                onPress={() => {
+                  onClose();
+                  router.push("/Login");
+                }}
+                style={styles.authNoticeBtn}
+              >
+                <Text style={styles.authNoticeBtnText}>Sign In</Text>
+              </Pressable>
             </View>
           ) : null}
 
@@ -798,7 +833,7 @@ export default function BookingCheckoutModal({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Pay 30% advance"
-            onPress={handleOpenSimulator}
+            onPress={() => void handlePayAdvance()}
             disabled={submitting}
             style={[
               styles.payBtn,
@@ -818,118 +853,15 @@ export default function BookingCheckoutModal({
                   ]}
                   numberOfLines={1}
                 >
-                  {!desktop ? "Pay 30% Advance" : "Pay 30% Advance (Razorpay)"}
+                  {!user
+                    ? (!desktop ? "Sign In & Pay" : "Sign In & Pay 30% Advance")
+                    : (!desktop ? "Pay 30% Advance" : "Pay 30% Advance (Razorpay)")}
                 </Text>
               </>
             )}
           </Pressable>
         </View>
       </AnimatedBottomSheet>
-
-      {/* RAZORPAY DEMO PAYMENT SIMULATOR MODAL */}
-      <Modal visible={simulatorVisible} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.simulatorBox, { backgroundColor: dark ? "#111827" : "#FFFFFF" }]}>
-            {/* Razorpay Brand Header */}
-            <View style={styles.razorpayHeader}>
-              <View style={styles.razorpayBrandGroup}>
-                <View style={styles.rzpIconPill}>
-                  <Text style={styles.rzpIconPillText}>R</Text>
-                </View>
-                <View>
-                  <Text style={styles.rzpBrandText}>Razorpay</Text>
-                  <Text style={styles.rzpModeText}>TEST MODE DEMO SIMULATOR</Text>
-                </View>
-              </View>
-              <Pressable
-                onPress={() => setSimulatorVisible(false)}
-                style={styles.simulatorClose}
-              >
-                <X size={18} color="#9CA3AF" />
-              </Pressable>
-            </View>
-
-            {/* Amount Banner */}
-            <View style={styles.amountBanner}>
-              <Text style={styles.amountBannerLabel}>30% Advance Payment for {vendorName}</Text>
-              <Text style={styles.amountBannerVal}>{money(financials.advanceAmount)}</Text>
-              <Text style={styles.amountBannerSub}>
-                Remaining 70% ({money(financials.dueAmount)}) due to vendor at event date
-              </Text>
-            </View>
-
-            {/* Test Payment Methods */}
-            <Text style={[styles.paymentMethodTitle, { color: dark ? "#D1D5DB" : "#374151" }]}>
-              Select Test Payment Simulator Method:
-            </Text>
-
-            <View style={styles.paymentMethodsList}>
-              <Pressable
-                onPress={() => setSelectedPaymentMethod("upi")}
-                style={[
-                  styles.paymentMethodOption,
-                  selectedPaymentMethod === "upi" && styles.paymentMethodOptionActive,
-                ]}
-              >
-                <Smartphone size={18} color={selectedPaymentMethod === "upi" ? "#3395FF" : "#6B7280"} />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={[styles.paymentOptionName, { color: dark ? "#FFFFFF" : "#111827" }]}>
-                    UPI (Google Pay / PhonePe / Paytm)
-                  </Text>
-                  <Text style={styles.paymentOptionSub}>instant_demo@razorpay</Text>
-                </View>
-                {selectedPaymentMethod === "upi" ? <Check size={16} color="#3395FF" /> : null}
-              </Pressable>
-
-              <Pressable
-                onPress={() => setSelectedPaymentMethod("card")}
-                style={[
-                  styles.paymentMethodOption,
-                  selectedPaymentMethod === "card" && styles.paymentMethodOptionActive,
-                ]}
-              >
-                <CreditCard size={18} color={selectedPaymentMethod === "card" ? "#3395FF" : "#6B7280"} />
-                <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={[styles.paymentOptionName, { color: dark ? "#FFFFFF" : "#111827" }]}>
-                    Credit / Debit Card (Visa / MC / RuPay)
-                  </Text>
-                  <Text style={styles.paymentOptionSub}>Test card: 4111 2222 3333 4444</Text>
-                </View>
-                {selectedPaymentMethod === "card" ? <Check size={16} color="#3395FF" /> : null}
-              </Pressable>
-            </View>
-
-            <View style={styles.simulatorSecurityNotice}>
-              <Lock size={12} color="#059669" />
-              <Text style={styles.simulatorSecurityText}>
-                Demo simulator connected with Razorpay test keys from .env
-              </Text>
-            </View>
-
-            {/* Simulation Action Buttons */}
-            <Pressable
-              onPress={() => handleCompletePayment(`rzp_pay_demo_${Date.now()}`)}
-              disabled={simulatingPayment}
-              style={[styles.simulateSuccessBtn, { opacity: simulatingPayment ? 0.7 : 1 }]}
-            >
-              {simulatingPayment ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={styles.simulateSuccessBtnText}>
-                  Simulate Successful Payment ({money(financials.advanceAmount)})
-                </Text>
-              )}
-            </Pressable>
-
-            <Pressable
-              onPress={() => setSimulatorVisible(false)}
-              style={styles.cancelPaymentBtn}
-            >
-              <Text style={styles.cancelPaymentBtnText}>Cancel Test Payment</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 }
@@ -1234,149 +1166,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.65)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 20,
-  },
-  simulatorBox: {
-    width: "100%",
-    maxWidth: 420,
-    borderRadius: 22,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  razorpayHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  razorpayBrandGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  rzpIconPill: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: "#0C2340",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rzpIconPillText: {
-    color: "#3395FF",
-    fontWeight: "900",
-    fontSize: 18,
-  },
-  rzpBrandText: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#0C2340",
-  },
-  rzpModeText: {
-    fontSize: 9,
-    fontWeight: "800",
-    color: "#3395FF",
-    letterSpacing: 0.6,
-  },
-  simulatorClose: {
-    padding: 4,
-  },
-  amountBanner: {
-    backgroundColor: "#F0F9FF",
-    borderRadius: 14,
-    padding: 14,
-    alignItems: "center",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#BAE6FD",
-  },
-  amountBannerLabel: {
-    fontSize: 12,
-    color: "#0369A1",
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  amountBannerVal: {
-    fontSize: 24,
-    fontWeight: "900",
-    color: "#0C4A6E",
-    marginBottom: 2,
-  },
-  amountBannerSub: {
-    fontSize: 10,
-    color: "#0284C7",
-    textAlign: "center",
-  },
-  paymentMethodTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 10,
-  },
-  paymentMethodsList: {
-    gap: 8,
-    marginBottom: 16,
-  },
-  paymentMethodOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  paymentMethodOptionActive: {
-    borderColor: "#3395FF",
-    backgroundColor: "rgba(51, 149, 255, 0.06)",
-  },
-  paymentOptionName: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  paymentOptionSub: {
-    fontSize: 11,
-    color: "#6B7280",
-  },
-  simulatorSecurityNotice: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginBottom: 16,
-  },
-  simulatorSecurityText: {
-    fontSize: 10,
-    color: "#059669",
-    fontWeight: "600",
-  },
-  simulateSuccessBtn: {
-    backgroundColor: "#059669",
-    paddingVertical: 14,
-    borderRadius: 14,
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  simulateSuccessBtnText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  cancelPaymentBtn: {
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  cancelPaymentBtnText: {
-    color: "#EF4444",
-    fontSize: 13,
-    fontWeight: "600",
-  },
   checkboxRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1408,6 +1197,35 @@ const styles = StyleSheet.create({
   charCounter: {
     fontSize: 11,
     textAlign: "right",
+  },
+  authNoticeCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 14,
+  },
+  authNoticeTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  authNoticeSubtitle: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  authNoticeBtn: {
+    backgroundColor: PINK,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  authNoticeBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });
 

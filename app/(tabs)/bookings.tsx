@@ -457,7 +457,13 @@ export default function CustomerBookingsScreen() {
                             isConfirmed ? { color: "#15803D" } : isPending ? { color: "#B45309" } : { color: "#B91C1C" },
                           ]}
                         >
-                          {isConfirmed ? "CONFIRMED" : isPending ? "WAITING FOR CONFIRMATION" : "CANCELLED"}
+                          {isConfirmed
+                            ? "CONFIRMED"
+                            : booking.booking_status === "pending_payment"
+                            ? "PAYMENT PENDING"
+                            : isPending
+                            ? "WAITING FOR CONFIRMATION"
+                            : "CANCELLED"}
                         </Text>
                       </View>
                     </View>
@@ -511,8 +517,8 @@ export default function CustomerBookingsScreen() {
                           <Text style={[styles.compactMetaText, { color: palette.muted }]}>{eventDateDisplay}</Text>
                         </View>
                         <Text style={[styles.dot, { color: palette.muted }]}>•</Text>
-                        <Text style={[styles.compactMetaText, { color: GREEN, fontWeight: "700" }]}>
-                          Paid: {money(booking.advance_amount)}
+                        <Text style={[styles.compactMetaText, { color: booking.payment_status === "paid_advance" ? GREEN : GOLD, fontWeight: "700" }]}>
+                          {booking.payment_status === "paid_advance" ? `Paid: ${money(booking.advance_amount)}` : `Adv Due: ${money(booking.advance_amount)}`}
                         </Text>
                       </Pressable>
 

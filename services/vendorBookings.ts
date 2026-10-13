@@ -282,9 +282,26 @@ async function saveLocalBookings(list: VendorBooking[]): Promise<void> {
   }
 }
 
+async function extractEdgeFunctionError(error: any, fallbackMessage: string): Promise<string> {
+  if (!error) return fallbackMessage;
+  if (error && typeof error.context?.json === "function") {
+    try {
+      const errBody = await error.context.json();
+      if (errBody?.error) return String(errBody.error);
+      if (errBody?.message) return String(errBody.message);
+    } catch {
+      try {
+        const textBody = await error.context.text();
+        if (textBody && textBody.trim().length > 0) return textBody.trim();
+      } catch {}
+    }
+  }
+  return error.message || fallbackMessage;
+}
+
 export const VendorBookingService = {
   /**
-   * Phase 4: Calls create-booking-order Edge Function to validate dates,
+   * Calls create-booking-order Edge Function to validate dates,
    * enforce 15-minute soft lock, calculate server-authoritative 30% advance,
    * and create Razorpay Order.
    */
@@ -301,85 +318,33 @@ export const VendorBookingService = {
     referralCode?: string | null;
     selectedPackageIds: string[];
     addOns?: BookingAddOn[];
+    eventStartAt?: string;
+    customerContactNumber?: string;
+    customerWhatsappNumber?: string;
+    serviceMapUrl?: string;
+    bookingDescription?: string;
   }): Promise<CreateBookingOrderResponse> {
-    try {
-      const { data, error } = await supabase.functions.invoke("create-booking-order", {
-        body: input,
-      });
+    const { data, error } = await supabase.functions.invoke("create-booking-order", {
+      body: input,
+    });
 
-      if (error) throw error;
-      if (data && data.success) {
-        return data as CreateBookingOrderResponse;
-      }
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-    } catch (edgeErr) {
-      console.warn("create-booking-order edge function error, using direct DB hold:", edgeErr);
+    if (error) {
+      const errorMsg = await extractEdgeFunctionError(error, "Failed to create booking order");
+      throw new Error(errorMsg);
     }
-
-    // Direct DB Fallback if Edge function is unreachable
-    const days = calculateEventDays(input.startDate, input.endDate);
-    const softLockExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-    const bookingId = `bkg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const ticketId = `RL-${Math.floor(10000 + Math.random() * 90000)}`;
-
-    const { data: newBooking, error: insertErr } = await supabase
-      .from("vendor_bookings")
-      .insert({
-        booking_id: bookingId,
-        ticket_id: ticketId,
-        vendor_id: input.vendorId,
-        customer_id: input.customerId || null,
-        customer_name: input.customerName.trim(),
-        customer_phone: input.customerPhone.trim(),
-        customer_email: input.customerEmail?.trim() || null,
-        event_date: input.startDate,
-        start_date: input.startDate,
-        end_date: input.endDate,
-        total_days: days,
-        event_type: input.eventType || "Wedding",
-        package_title: "Wedding Service",
-        package_price: 0,
-        selected_packages: [],
-        add_ons: input.addOns || [],
-        special_notes: input.specialNotes?.trim() || null,
-        total_amount: 0,
-        advance_amount: 0,
-        due_amount: 0,
-        booking_status: "pending_payment",
-        payment_status: "pending",
-        soft_lock_expires_at: softLockExpiresAt,
-        referral_code: input.referralCode || null,
-        source: "online",
-      })
-      .select("id")
-      .single();
-
-    if (insertErr) throw insertErr;
-
-    return {
-      success: true,
-      bookingRecordId: newBooking.id,
-      bookingId,
-      ticketId,
-      orderId: `order_${bookingId}`,
-      keyId: "rzp_test_1DP5mmOlF5G5ag",
-      currency: "INR",
-      amountMinor: 0,
-      advanceAmount: 0,
-      dueAmount: 0,
-      grandTotal: 0,
-      totalDays: days,
-      softLockExpiresAt,
-      isSimulator: true,
-    };
+    if (data && data.success) {
+      return data as CreateBookingOrderResponse;
+    }
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+    throw new Error("Failed to create booking order: unexpected response from server");
   },
 
   /**
-   * Phase 5: Calls verify-booking-payment Edge Function to cryptographically
-   * verify HMAC-SHA256 signature, transition booking to pending_vendor_confirmation,
-   * and notify vendor.
+   * Calls verify-booking-payment Edge Function to cryptographically
+   * verify HMAC-SHA256 signature, verify gateway payment status,
+   * transition booking to pending_vendor_confirmation, and notify vendor.
    */
   async verifyBookingPayment(input: {
     bookingRecordId?: string;
@@ -387,58 +352,22 @@ export const VendorBookingService = {
     razorpayOrderId: string;
     razorpayPaymentId: string;
     razorpaySignature: string;
-    isSimulator?: boolean;
   }): Promise<{ success: boolean; bookingId: string; ticketId: string }> {
-    try {
-      const { data, error } = await supabase.functions.invoke("verify-booking-payment", {
-        body: input,
-      });
+    const { data, error } = await supabase.functions.invoke("verify-booking-payment", {
+      body: input,
+    });
 
-      if (error) throw error;
-      if (data && data.success) {
-        return data;
-      }
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-    } catch (edgeErr) {
-      console.warn("verify-booking-payment edge function error, using direct DB update:", edgeErr);
+    if (error) {
+      const errorMsg = await extractEdgeFunctionError(error, "Failed to verify booking payment");
+      throw new Error(errorMsg);
     }
-
-    // Direct DB Fallback
-    const targetId = input.bookingRecordId || input.bookingId;
-    if (targetId) {
-      await supabase
-        .from("vendor_bookings")
-        .update({
-          booking_status: "pending_vendor_confirmation",
-          payment_status: "paid_advance",
-          razorpay_payment_id: input.razorpayPaymentId,
-          razorpay_order_id: input.razorpayOrderId,
-          soft_lock_expires_at: null,
-          updated_at: new Date().toISOString(),
-        })
-        .or(isUuid(targetId) ? `id.eq.${targetId},booking_id.eq.${targetId}` : `booking_id.eq.${targetId}`);
-
-      try {
-        const { data: bRow } = await supabase
-          .from("vendor_bookings")
-          .select("id")
-          .or(isUuid(targetId) ? `id.eq.${targetId},booking_id.eq.${targetId}` : `booking_id.eq.${targetId}`)
-          .single();
-        if (bRow?.id) {
-          await ReferralCommissionService.recordPendingBookingCommission(bRow.id);
-        }
-      } catch (refErr) {
-        console.warn("Could not record referral commission in verifyBookingPayment:", refErr);
-      }
+    if (data && data.success) {
+      return data;
     }
-
-    return {
-      success: true,
-      bookingId: input.bookingId || targetId || "",
-      ticketId: "",
-    };
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+    throw new Error("Payment verification failed: unexpected response from server");
   },
 
   /**

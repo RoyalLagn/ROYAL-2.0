@@ -16,6 +16,7 @@ export const vendorWorkspaceRoutes = new Set([
   "/vendor-marketing-card",
   "/Vendors_dash_profile",
   "/VendorCalendar",
+  "/VendorBookings",
   "/VendorEditAbout",
   "/VendorEditBrand",
   "/VendorEditBusinessInfo",

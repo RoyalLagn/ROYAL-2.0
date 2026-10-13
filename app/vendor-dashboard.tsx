@@ -49,27 +49,28 @@ export default function VendorDashboard() {
   const [vendorBookings, setVendorBookings] = useState<VendorBooking[]>([]);
   const [featuredPlacements, setFeaturedPlacements] = useState<FeaturedPlacement[]>([]);
 
+  const fetchBookings = useCallback(() => {
+    if (!data.vendor?.id) return;
+    VendorBookingService.getVendorBookings(data.vendor.id)
+      .then(setVendorBookings)
+      .catch(() => setVendorBookings([]));
+  }, [data.vendor?.id]);
+
   useEffect(() => {
     if (!data.vendor?.id) return;
-    const vendorId = data.vendor.id;
-    const fetchBookings = () => {
-      VendorBookingService.getVendorBookings(vendorId)
-        .then(setVendorBookings)
-        .catch(() => setVendorBookings([]));
-    };
-
     fetchBookings();
-    const unsubscribe = VendorBookingService.subscribeToBookings(fetchBookings, { vendorId });
+    const unsubscribe = VendorBookingService.subscribeToBookings(fetchBookings, { vendorId: data.vendor.id });
     return unsubscribe;
-  }, [data.vendor?.id]);
+  }, [data.vendor?.id, fetchBookings]);
 
   useFocusEffect(
     useCallback(() => {
       void refresh();
+      fetchBookings();
       void getMyFeaturedPlacements()
         .then(setFeaturedPlacements)
         .catch(() => setFeaturedPlacements([]));
-    }, [refresh])
+    }, [refresh, fetchBookings])
   );
 
   const activeFeaturedPlacement = useMemo(

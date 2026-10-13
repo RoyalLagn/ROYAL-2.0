@@ -64,4 +64,5 @@ dist-web/
 
 # Local production database safety snapshots
 /.local-backups/
-/data/backups/
+/data/backups/
+/scripts/backups/

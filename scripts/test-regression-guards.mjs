@@ -272,7 +272,7 @@ const interopSafeVendorSources = await Promise.all(INTEROP_SAFE_VENDOR_PATHS.map
 INTEROP_SAFE_VENDOR_PATHS.forEach((path, index) => {
   assert.match(
     interopSafeVendorSources[index],
-    /import Pressable from ["']@\/components\/InteropSafePressable["'];/,
+    /import (Pressable from ["']@\/components\/InteropSafePressable["']|AnimatedPressable from ["']@\/components\/animated\/AnimatedPressable["']);/,
     `${path} must resolve callback-valued Pressable styles before NativeWind native interop.`,
   );
   assert.doesNotMatch(

@@ -368,9 +368,15 @@ export default function AdminBookings() {
           <View style={styles.financialCol}>
             <View style={styles.advanceLabelRow}>
               <Text style={styles.finLabel}>30% Advance</Text>
-              <View style={styles.paidBadge}>
-                <Text style={styles.paidBadgeText}>PAID</Text>
-              </View>
+              {item.payment_status === "paid_advance" ? (
+                <View style={styles.paidBadge}>
+                  <Text style={styles.paidBadgeText}>PAID</Text>
+                </View>
+              ) : (
+                <View style={styles.pendingBadge}>
+                  <Text style={styles.pendingBadgeText}>PENDING</Text>
+                </View>
+              )}
             </View>
             <Text style={styles.finAdvance}>{money(item.advance_amount)}</Text>
           </View>
@@ -1125,6 +1131,17 @@ const styles = StyleSheet.create({
   },
   paidBadgeText: {
     color: "#166534",
+    fontFamily: fonts.sans.bold,
+    fontSize: 9,
+  },
+  pendingBadge: {
+    backgroundColor: "#FEF3C7",
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  pendingBadgeText: {
+    color: "#B45309",
     fontFamily: fonts.sans.bold,
     fontSize: 9,
   },

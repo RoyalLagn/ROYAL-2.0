@@ -4,8 +4,10 @@ import {
   json,
   requireEnv,
   serviceClient,
+  razorpayAuthorization,
   hmacHex,
   constantTimeEqual,
+  resolveCallerUser,
 } from "../_shared/subscriptions.ts";
 
 Deno.serve(async (request) => {
@@ -24,10 +26,9 @@ Deno.serve(async (request) => {
     const razorpayOrderId = String(body.razorpayOrderId ?? body.razorpay_order_id ?? "").trim();
     const razorpayPaymentId = String(body.razorpayPaymentId ?? body.razorpay_payment_id ?? "").trim();
     const razorpaySignature = String(body.razorpaySignature ?? body.razorpay_signature ?? "").trim();
-    const isSimulator = body.isSimulator === true;
 
-    if (!bookingId || !razorpayOrderId || !razorpayPaymentId) {
-      return json({ error: "Booking ID, Order ID, and Payment ID are required" }, 400);
+    if (!bookingId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return json({ error: "Booking ID, Order ID, Payment ID, and Cryptographic Signature are required." }, 400);
     }
 
     // 1. Fetch booking record
@@ -41,8 +42,29 @@ Deno.serve(async (request) => {
       return json({ error: "Booking record not found" }, 404);
     }
 
-    // Idempotency: if already verified or confirmed, return safe success immediately
-    if (["pending_vendor_confirmation", "confirmed"].includes(booking.booking_status)) {
+    // 2. Caller Authorization & Ownership Verification:
+    // If booking is associated with a registered customer account, enforce caller ownership
+    let callerUser: any = null;
+    let isServiceRole = false;
+    try {
+      const caller = await resolveCallerUser(request);
+      callerUser = caller.user;
+      isServiceRole = caller.isServiceRole;
+    } catch (authErr) {
+      return json({ error: errorMessage(authErr, "Invalid authentication session token") }, 401);
+    }
+
+    if (!isServiceRole) {
+      if (!callerUser) {
+        return json({ error: "Authentication required: Please sign in to verify booking payment." }, 401);
+      }
+      if (booking.customer_id && callerUser.id !== booking.customer_id) {
+        return json({ error: "Security violation: You do not own this booking reservation." }, 403);
+      }
+    }
+
+    // 3. Idempotency: if already verified or confirmed, return safe success immediately
+    if (["pending_vendor_confirmation", "confirmed"].includes(booking.booking_status) && booking.payment_status === "paid_advance") {
       return json({
         success: true,
         alreadyProcessed: true,
@@ -52,85 +74,121 @@ Deno.serve(async (request) => {
       });
     }
 
-    // 2. Cryptographic signature verification (unless running in explicit dev simulator mode)
-    if (!isSimulator) {
-      const keySecret = Deno.env.get("RAZORPAY_TEST_KEY_SECRET");
-      if (keySecret && razorpaySignature) {
-        const expected = await hmacHex(keySecret, `${razorpayOrderId}|${razorpayPaymentId}`);
-        if (!constantTimeEqual(expected, razorpaySignature)) {
-          return json({ error: "Invalid payment signature. Verification failed." }, 400);
-        }
-      }
+    // 3. Cryptographic HMAC-SHA256 signature verification (Mandatory)
+    const razorpay = razorpayAuthorization();
+    const expectedSignature = await hmacHex(razorpay.keySecret, `${razorpayOrderId}|${razorpayPaymentId}`);
+    if (!constantTimeEqual(expectedSignature, razorpaySignature)) {
+      return json({ error: "Cryptographic signature mismatch. Payment verification rejected." }, 400);
     }
 
-    // 3. Update booking status to pending_vendor_confirmation
-    const { data: updatedBooking, error: updateErr } = await admin
-      .from("vendor_bookings")
-      .update({
-        booking_status: "pending_vendor_confirmation",
-        payment_status: "paid_advance",
-        razorpay_payment_id: razorpayPaymentId,
-        razorpay_order_id: razorpayOrderId,
-        soft_lock_expires_at: null, // Clear soft lock, date is now reserved by pending_vendor_confirmation
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", booking.id)
-      .select("*")
-      .single();
+    // 4. Server-Side Gateway API Verification:
+    // Fetch payment entity directly from Razorpay to guarantee payment exists, is captured, and matches server amount
+    const rzpRes = await fetch(`https://api.razorpay.com/v1/payments/${razorpayPaymentId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": razorpay.header,
+      },
+    });
 
-    if (updateErr) {
-      throw updateErr;
+    if (!rzpRes.ok) {
+      const errText = await rzpRes.text();
+      console.error("Razorpay payment lookup failed:", errText);
+      return json({ error: "Payment verification failed: Transaction not found on Razorpay gateway." }, 400);
     }
 
-    // 4. Create Vendor Notification
-    try {
-      await admin.from("vendor_notifications").insert({
-        vendor_id: booking.vendor_id,
-        title: "New Wedding Booking Request Received!",
-        body: `New booking request from ${booking.customer_name} for ${booking.event_type} on ${booking.event_date}. Advance of ₹${booking.advance_amount.toLocaleString("en-IN")} paid. Please confirm within 24 hours.`,
-        kind: "booking_request",
-        is_read: false,
-      });
-    } catch (notifErr) {
-      console.warn("Could not insert vendor notification:", notifErr);
+    const paymentEntity = await rzpRes.json();
+
+    // Verify Payment Entity belongs to the expected order
+    if (paymentEntity.order_id !== razorpayOrderId) {
+      return json({ error: "Security violation: Payment order does not match booking order." }, 400);
     }
 
-    // 5. Create Customer Notification
-    if (booking.customer_id) {
+    if (booking.razorpay_order_id && booking.razorpay_order_id !== razorpayOrderId) {
+      return json({ error: "Security violation: Order ID mismatch with booked reservation." }, 400);
+    }
+
+    // Verify Currency
+    if (String(paymentEntity.currency).toUpperCase() !== "INR") {
+      return json({ error: `Unsupported payment currency: ${paymentEntity.currency}` }, 400);
+    }
+
+    // Verify Payment Amount matches server-calculated 30% advance in paise
+    const expectedPaise = Math.round(Number(booking.advance_amount) * 100);
+    if (expectedPaise <= 0) {
+      return json({ error: "Invalid booking advance amount in database record." }, 400);
+    }
+
+    if (Number(paymentEntity.amount) !== expectedPaise) {
+      return json({
+        error: `Security violation: Gateway payment amount (${paymentEntity.amount} paise) does not match expected booking advance (${expectedPaise} paise).`,
+      }, 400);
+    }
+
+    // 5. Verify Payment Status & Reconcile Capture:
+    // Only 'captured' payments can be treated as successfully paid advances.
+    // If the payment is only 'authorized', attempt to reconcile capture with Razorpay.
+    if (paymentEntity.status === "authorized") {
       try {
-        await admin.from("customer_notifications").insert({
-          customer_id: booking.customer_id,
-          type: "booking_pending_confirmation",
-          title: "Booking Request Sent to Vendor",
-          message: `Your 30% advance of ₹${booking.advance_amount.toLocaleString("en-IN")} has been received. Your booking is awaiting vendor confirmation.`,
-          target_path: `/ticket?ticket_id=${booking.ticket_id}&booking_id=${booking.booking_id}`,
-          metadata: {
-            booking_id: booking.booking_id,
-            ticket_id: booking.ticket_id,
-            booking_status: "pending_vendor_confirmation",
+        const captureRes = await fetch(`https://api.razorpay.com/v1/payments/${razorpayPaymentId}/capture`, {
+          method: "POST",
+          headers: {
+            "Authorization": razorpay.header,
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            amount: expectedPaise,
+            currency: "INR",
+          }),
         });
-      } catch (custNotifErr) {
-        console.warn("Could not insert customer notification:", custNotifErr);
+
+        if (captureRes.ok) {
+          const captureData = await captureRes.json();
+          if (captureData?.status) {
+            paymentEntity.status = captureData.status;
+          }
+        } else {
+          const captureErr = await captureRes.text();
+          console.warn("Razorpay server-side capture response:", captureErr);
+        }
+      } catch (capErr) {
+        console.warn("Error reconciling payment capture with Razorpay:", capErr);
       }
     }
 
-    // 6. Record Referral Commission (strictly after 30% advance payment is verified)
-    try {
-      await admin.rpc("record_booking_referral_commission", {
-        p_booking_id: updatedBooking.id,
-      });
-    } catch (refErr) {
-      console.warn("Could not record referral commission in verify-booking-payment:", refErr);
+    if (paymentEntity.status !== "captured") {
+      return json({
+        error: `Payment cannot be finalized. Gateway payment status is '${paymentEntity.status}'. Payment must be captured by Razorpay before advance is confirmed.`,
+        gatewayStatus: paymentEntity.status,
+      }, 400);
+    }
+
+    // 5. Authoritative Atomic Database Payment Finalization
+    // finalize_verified_booking_payment is the single authoritative database path.
+    // It enforces row-locking, ownership, status, idempotency, notifications, and referral commission.
+    // No direct service-role update fallback is permitted.
+    const { data: finalizeData, error: finalizeError } = await admin.rpc("finalize_verified_booking_payment", {
+      p_booking_id: booking.id,
+      p_payment_id: razorpayPaymentId,
+      p_order_id: razorpayOrderId,
+      p_method: paymentEntity.method ?? null,
+    });
+
+    if (finalizeError) {
+      console.error("Payment finalization RPC error:", finalizeError);
+      return json({ error: `Payment finalization failed: ${finalizeError.message}` }, 500);
+    }
+
+    if (!finalizeData || !finalizeData.success) {
+      return json({ error: "Payment finalization failed: unexpected database result" }, 500);
     }
 
     return json({
       success: true,
-      bookingId: updatedBooking.booking_id,
-      ticketId: updatedBooking.ticket_id,
-      bookingStatus: "pending_vendor_confirmation",
-      advanceAmount: updatedBooking.advance_amount,
-      dueAmount: updatedBooking.due_amount,
+      bookingId: finalizeData.booking_id || booking.booking_id,
+      ticketId: finalizeData.ticket_id || booking.ticket_id,
+      bookingStatus: finalizeData.booking_status || "pending_vendor_confirmation",
+      advanceAmount: booking.advance_amount,
+      dueAmount: booking.due_amount,
     });
   } catch (err) {
     console.error("Error verifying payment:", err);

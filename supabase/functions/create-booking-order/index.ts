@@ -5,6 +5,7 @@ import {
   requireEnv,
   serviceClient,
   razorpayAuthorization,
+  resolveCallerUser,
 } from "../_shared/subscriptions.ts";
 
 function calculateEventDays(startDateStr: string, endDateStr: string): number {
@@ -43,12 +44,46 @@ Deno.serve(async (request) => {
     const customerName = String(body.customerName ?? "").trim();
     const customerPhone = String(body.customerPhone ?? "").replace(/\D/g, "");
     const customerEmail = body.customerEmail ? String(body.customerEmail).trim() : null;
-    const customerId = body.customerId ? String(body.customerId).trim() : null;
+    // Authenticate caller: require a valid authenticated customer session
+    let authenticatedUser: any = null;
+    let isServiceRole = false;
+    try {
+      const caller = await resolveCallerUser(request);
+      authenticatedUser = caller.user;
+      isServiceRole = caller.isServiceRole;
+    } catch (authErr) {
+      return json({ error: errorMessage(authErr, "Invalid authentication session token") }, 401);
+    }
+
+    if (!isServiceRole && !authenticatedUser) {
+      return json({ error: "Authentication required: Please sign in to book a service." }, 401);
+    }
+
+    let customerId: string | null = null;
+    if (authenticatedUser) {
+      customerId = authenticatedUser.id;
+      // If client provided a customerId, it MUST match authenticated user session
+      if (body.customerId && String(body.customerId).trim() !== authenticatedUser.id) {
+        return json({ error: "Security violation: customerId does not match authenticated user session." }, 403);
+      }
+    } else if (isServiceRole) {
+      customerId = body.customerId ? String(body.customerId).trim() : null;
+    }
+
     const eventType = String(body.eventType ?? "Wedding").trim();
     const specialNotes = body.specialNotes ? String(body.specialNotes).trim() : null;
     const referralCode = body.referralCode ? String(body.referralCode).trim() : null;
     const selectedPackageIds = Array.isArray(body.selectedPackageIds) ? body.selectedPackageIds : [];
     const addOns = Array.isArray(body.addOns) ? body.addOns : [];
+
+    // 5-Day Cancellation Lock & Contact Details
+    const rawStartAt = body.eventStartAt ? String(body.eventStartAt).trim() : `${startDate}T10:00:00+05:30`;
+    const eventStartAt = rawStartAt.includes("T") ? rawStartAt : `${rawStartAt}T10:00:00+05:30`;
+    const cancellationCutoffAt = new Date(new Date(eventStartAt).getTime() - 120 * 60 * 60 * 1000).toISOString();
+    const customerContactNumber = body.customerContactNumber ? String(body.customerContactNumber).trim() : customerPhone;
+    const customerWhatsappNumber = body.customerWhatsappNumber ? String(body.customerWhatsappNumber).trim() : customerContactNumber;
+    const serviceMapUrl = body.serviceMapUrl ? String(body.serviceMapUrl).trim() : null;
+    const bookingDescription = body.bookingDescription ? String(body.bookingDescription).trim() : specialNotes;
 
     // 1. Validation
     if (!vendorId) {
@@ -67,15 +102,55 @@ Deno.serve(async (request) => {
     // 2. Validate Vendor exists and is active
     const { data: vendor, error: vendorErr } = await admin
       .from("vendors")
-      .select("id, business_name, phone, is_verified, is_active")
+      .select("id, business_name, contact_phone, is_verified, management_status")
       .eq("id", vendorId)
       .maybeSingle();
 
     if (vendorErr || !vendor) {
       return json({ error: "Vendor not found" }, 404);
     }
+    if (vendor.management_status && vendor.management_status !== "active") {
+      return json({ error: "Vendor is not active" }, 400);
+    }
 
-    // 3. ATOMIC AVAILABILITY CHECK:
+    // 3. Deduplication / Double-click guard:
+    // If THIS exact customer already has an active, unexpired soft lock with a Razorpay order, return it immediately
+    const razorpay = razorpayAuthorization();
+    const nowIso = new Date().toISOString();
+
+    const { data: existingActive } = await admin
+      .from("vendor_bookings")
+      .select("id, booking_id, ticket_id, razorpay_order_id, advance_amount, due_amount, total_amount, total_days, soft_lock_expires_at")
+      .eq("vendor_id", vendorId)
+      .eq("customer_phone", customerPhone)
+      .eq("start_date", startDate)
+      .eq("end_date", endDate)
+      .eq("booking_status", "pending_payment")
+      .gt("soft_lock_expires_at", nowIso)
+      .not("razorpay_order_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingActive && existingActive.razorpay_order_id && !existingActive.razorpay_order_id.startsWith("order_bkg_")) {
+      return json({
+        success: true,
+        bookingRecordId: existingActive.id,
+        bookingId: existingActive.booking_id,
+        ticketId: existingActive.ticket_id,
+        orderId: existingActive.razorpay_order_id,
+        keyId: razorpay.keyId,
+        currency: "INR",
+        amountMinor: Math.round(Number(existingActive.advance_amount) * 100),
+        advanceAmount: Number(existingActive.advance_amount),
+        dueAmount: Number(existingActive.due_amount),
+        grandTotal: Number(existingActive.total_amount),
+        totalDays: existingActive.total_days,
+        softLockExpiresAt: existingActive.soft_lock_expires_at,
+      });
+    }
+
+    // 4. ATOMIC AVAILABILITY CHECK:
     // Check if any date in [startDate, endDate] is manually blocked OR has an active booking OR an active soft lock
     const { data: calCheck, error: calErr } = await admin.rpc("get_vendor_availability_calendar", {
       target_vendor_id: vendorId,
@@ -87,7 +162,12 @@ Deno.serve(async (request) => {
       throw calErr;
     }
 
-    const conflictingDays = (calCheck ?? []).filter((day: any) => day.booking_blocked || day.status === "blocked");
+    // Filter out conflicts
+    const conflictingDays = (calCheck ?? []).filter((day: any) => {
+      if (day.booking_blocked || day.status === "blocked") return true;
+      return false;
+    });
+
     if (conflictingDays.length > 0) {
       const datesStr = conflictingDays.map((d: any) => d.date).join(", ");
       return json({
@@ -151,21 +231,22 @@ Deno.serve(async (request) => {
     const addOnsTotal = addOns.reduce((sum: number, item: any) => sum + (Number(item.price) || 0), 0);
     const grandTotal = Math.max(0, Math.round(packagesTotal + addOnsTotal));
 
-    // Integer paise calculations
-    const grandTotalPaise = grandTotal * 100;
-    const advancePaise = Math.round(grandTotalPaise * 0.30);
-    const duePaise = grandTotalPaise - advancePaise;
-    const advanceAmount = advancePaise / 100;
-    const dueAmount = duePaise / 100;
+    // Authoritative whole-rupee calculation: 30% advance, 70% due
+    const advanceAmount = Math.max(0, Math.round(grandTotal * 0.30));
+    const dueAmount = grandTotal - advanceAmount;
+    const advancePaise = advanceAmount * 100;
 
-    // 6. Generate IDs and soft lock
+    if (advanceAmount <= 0 || advancePaise < 100) {
+      return json({ error: "Booking advance amount must be at least ₹1. Please select a valid package or service." }, 400);
+    }
+
+    // 6. Generate IDs and 15-minute soft lock
     const bookingId = `bkg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const ticketId = `RL-${Math.floor(10000 + Math.random() * 90000)}`;
     const softLockExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
     const primaryTitle = snapshotItems.map((p) => p.title).join(" + ") || "Wedding Service";
 
-    // 7. Insert pending_payment booking with 15-minute soft lock
+    // Insert pending_payment booking with 15-minute soft lock
     const { data: newBooking, error: insertErr } = await admin
       .from("vendor_bookings")
       .insert({
@@ -195,6 +276,12 @@ Deno.serve(async (request) => {
         soft_lock_expires_at: softLockExpiresAt,
         referral_code: referralCode,
         source: "online",
+        event_start_at: eventStartAt,
+        cancellation_cutoff_at: cancellationCutoffAt,
+        customer_contact_number: customerContactNumber,
+        customer_whatsapp_number: customerWhatsappNumber,
+        service_map_url: serviceMapUrl,
+        booking_description: bookingDescription,
       })
       .select("id")
       .single();
@@ -203,12 +290,9 @@ Deno.serve(async (request) => {
       throw insertErr;
     }
 
-    // 8. Create Razorpay Order
-    let razorpayOrderId = `order_${bookingId}`;
-    let isSimulator = false;
-
+    // 8. Create Genuine Razorpay Test Order
+    let razorpayOrderId = "";
     try {
-      const razorpay = razorpayAuthorization();
       const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
         method: "POST",
         headers: {
@@ -219,7 +303,11 @@ Deno.serve(async (request) => {
           amount: advancePaise,
           currency: "INR",
           receipt: newBooking.id,
+          payment_capture: 1,
           notes: {
+            booking_record_id: newBooking.id,
+            booking_id: bookingId,
+            ticket_id: ticketId,
             vendor_id: vendorId,
             customer_name: customerName,
             customer_phone: customerPhone,
@@ -228,17 +316,23 @@ Deno.serve(async (request) => {
         }),
       });
 
-      if (rzpRes.ok) {
-        const orderData = await rzpRes.json();
-        razorpayOrderId = orderData.id;
-      } else {
+      if (!rzpRes.ok) {
         const errBody = await rzpRes.text();
-        console.warn("Razorpay API returned error, activating test simulator order:", errBody);
-        isSimulator = true;
+        console.error("Razorpay order creation failed:", errBody);
+        // Release soft lock row so availability is not locked by failed orders
+        await admin.from("vendor_bookings").delete().eq("id", newBooking.id);
+        return json({ error: `Razorpay order creation failed (${rzpRes.status}): ${errBody}` }, 400);
       }
+
+      const orderData = await rzpRes.json();
+      if (!orderData?.id) {
+        await admin.from("vendor_bookings").delete().eq("id", newBooking.id);
+        return json({ error: "Razorpay order creation returned an invalid order ID" }, 400);
+      }
+      razorpayOrderId = orderData.id;
     } catch (rzpErr) {
-      console.warn("Razorpay call failed, fallback to test simulator order:", rzpErr);
-      isSimulator = true;
+      await admin.from("vendor_bookings").delete().eq("id", newBooking.id);
+      throw rzpErr;
     }
 
     // Update razorpay_order_id on booking
@@ -247,14 +341,14 @@ Deno.serve(async (request) => {
       .update({ razorpay_order_id: razorpayOrderId })
       .eq("id", newBooking.id);
 
-    // Return safe checkout payload
+    // Return safe checkout payload to client
     return json({
       success: true,
       bookingRecordId: newBooking.id,
       bookingId,
       ticketId,
       orderId: razorpayOrderId,
-      keyId: Deno.env.get("RAZORPAY_TEST_KEY_ID") || "rzp_test_1DP5mmOlF5G5ag",
+      keyId: razorpay.keyId,
       currency: "INR",
       amountMinor: advancePaise,
       advanceAmount,
@@ -262,7 +356,6 @@ Deno.serve(async (request) => {
       grandTotal,
       totalDays,
       softLockExpiresAt,
-      isSimulator,
     });
   } catch (err) {
     console.error("Error creating booking order:", err);

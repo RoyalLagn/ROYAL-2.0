@@ -59,6 +59,40 @@ export async function requireOwnedVendor(client: SupabaseClient) {
   return { user, vendor };
 }
 
+export async function resolveCallerUser(request: Request): Promise<{ user: any | null; isServiceRole: boolean }> {
+  const authHeader = request.headers.get("authorization") || request.headers.get("Authorization") || "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+
+  if (!token) {
+    return { user: null, isServiceRole: false };
+  }
+
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  if (serviceRoleKey && token === serviceRoleKey) {
+    return { user: null, isServiceRole: true };
+  }
+
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+  if (anonKey && token === anonKey) {
+    return { user: null, isServiceRole: false };
+  }
+
+  const client = userClient(authHeader);
+  const { data: { user }, error } = await client.auth.getUser();
+  if (error || !user) {
+    const errText = error?.message || "";
+    // If the token is an anon key or lacks a user sub claim, treat caller as unauthenticated
+    if (/missing sub claim|invalid claim/i.test(errText)) {
+      return { user: null, isServiceRole: false };
+    }
+    if (/expired/i.test(errText)) {
+      throw new Error("Your session has expired. Please sign in again.");
+    }
+    throw new Error("Invalid authentication session token. Please sign in again.");
+  }
+  return { user, isServiceRole: false };
+}
+
 export function razorpayAuthorization() {
   const keyId = requireEnv("RAZORPAY_TEST_KEY_ID");
   const keySecret = requireEnv("RAZORPAY_TEST_KEY_SECRET");

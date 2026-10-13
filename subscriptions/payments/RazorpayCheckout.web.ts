@@ -48,6 +48,7 @@ export async function openRazorpayCheckout(options: RazorpayCheckoutOptions): Pr
   }
   await loadCheckout();
   return await new Promise<RazorpayCheckoutResult>((resolve, reject) => {
+    let isResolved = false;
     const checkout = new window.Razorpay!({
       key: options.keyId,
       order_id: options.orderId,
@@ -57,10 +58,23 @@ export async function openRazorpayCheckout(options: RazorpayCheckoutOptions): Pr
       description: options.planName,
       prefill: { name: options.vendorName, email: options.email, contact: options.phone },
       theme: { color: "#E91E63" },
-      modal: { ondismiss: () => reject(new Error("Payment cancelled")) },
-      handler: (response: RazorpayCheckoutResult) => resolve(response),
+      modal: {
+        ondismiss: () => {
+          if (!isResolved) {
+            reject(new Error("Payment cancelled"));
+          }
+        },
+      },
+      handler: (response: RazorpayCheckoutResult) => {
+        isResolved = true;
+        resolve(response);
+      },
     });
-    checkout.on("payment.failed", (response) => reject(new Error(response?.error?.description ?? "Payment failed")));
+    checkout.on("payment.failed", (response) => {
+      if (!isResolved) {
+        reject(new Error(response?.error?.description ?? "Payment failed"));
+      }
+    });
     checkout.open();
   });
 }
