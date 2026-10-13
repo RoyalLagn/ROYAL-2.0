@@ -16,6 +16,7 @@ node_modules/
 .env.*
 !.env.example
 credentials.json
+.agents/memory/vendor-test-credentials.md
 
 # Signing credentials
 *.jks
