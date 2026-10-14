@@ -29,6 +29,7 @@ import {
   XCircle,
 } from "lucide-react-native";
 import Pressable from "@/components/InteropSafePressable";
+import { useMobileTabBarHeight } from "@/components/MobileTabBar";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { usePublicAuth } from "@/context/PublicAuthContext";
 import { brandPalette } from "@/constants/brandPalette";
@@ -70,6 +71,7 @@ export default function CustomerBookingsScreen() {
   const dark = colorScheme === "dark";
   const { width } = useWindowDimensions();
   const desktop = width >= 768;
+  const tabBarHeight = useMobileTabBarHeight();
   const { session, profile, isPublicAuthenticated, loading: authLoading } = usePublicAuth();
   const user = session?.user;
 
@@ -187,7 +189,7 @@ export default function CustomerBookingsScreen() {
     <SafeAreaView style={[styles.page, { backgroundColor: palette.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, desktop && styles.desktopContent]}
+        contentContainerStyle={[styles.content, desktop && styles.desktopContent, { paddingBottom: tabBarHeight + 28 }]}
         stickyHeaderIndices={[1]}
       >
         {/* Child 0: Page Header & Quick Metrics */}
@@ -218,22 +220,22 @@ export default function CustomerBookingsScreen() {
           <View style={[styles.statsRibbon, { backgroundColor: palette.surfaceSoft, borderColor: palette.border }]}>
             <View style={styles.statCell}>
               <Text style={[styles.statNum, { color: palette.text }]}>{bookings.length}</Text>
-              <Text style={[styles.statLabel, { color: palette.muted }]}>Total Bookings</Text>
+              <Text numberOfLines={2} style={[styles.statLabel, { color: palette.muted }]}>Total Bookings</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: palette.border }]} />
             <View style={styles.statCell}>
               <Text style={[styles.statNum, { color: GREEN }]}>{confirmedCount}</Text>
-              <Text style={[styles.statLabel, { color: palette.muted }]}>Confirmed</Text>
+              <Text numberOfLines={2} style={[styles.statLabel, { color: palette.muted }]}>Confirmed</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: palette.border }]} />
             <View style={styles.statCell}>
               <Text style={[styles.statNum, { color: GOLD }]}>{pendingCount}</Text>
-              <Text style={[styles.statLabel, { color: palette.muted }]}>Pending</Text>
+              <Text numberOfLines={2} style={[styles.statLabel, { color: palette.muted }]}>Pending</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: palette.border }]} />
             <View style={styles.statCell}>
               <Text style={[styles.statNum, { color: RED }]}>{cancelledCount}</Text>
-              <Text style={[styles.statLabel, { color: palette.muted }]}>Cancelled</Text>
+              <Text numberOfLines={2} style={[styles.statLabel, { color: palette.muted }]}>Cancelled</Text>
             </View>
           </View>
 
@@ -708,7 +710,7 @@ export default function CustomerBookingsScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: { padding: 16, paddingBottom: 80, gap: 14 },
+  content: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 80, gap: 18 },
   desktopContent: { maxWidth: 840, alignSelf: "center", width: "100%" },
   flex: { flex: 1, minWidth: 0 },
 
@@ -716,13 +718,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: 12,
+    gap: 14,
   },
   eyebrowRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   eyebrowText: {
     fontSize: 11,
@@ -730,18 +732,19 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
+    lineHeight: 32,
     fontWeight: "800",
     letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 13,
-    marginTop: 4,
-    lineHeight: 18,
+    fontSize: 14,
+    marginTop: 8,
+    lineHeight: 21,
   },
   refreshBtn: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 12,
     borderWidth: 1,
     alignItems: "center",
@@ -752,43 +755,48 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderRadius: 16,
     borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    marginTop: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
+    marginTop: 4,
     alignItems: "center",
   },
   statCell: {
     flex: 1,
     alignItems: "center",
+    paddingHorizontal: 4,
   },
   statNum: {
-    fontSize: 18,
+    fontSize: 22,
+    lineHeight: 26,
     fontWeight: "800",
   },
   statLabel: {
     fontSize: 10,
+    lineHeight: 13,
     fontWeight: "600",
-    marginTop: 2,
+    marginTop: 6,
+    textAlign: "center",
     textTransform: "uppercase",
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   statDivider: {
     width: 1,
-    height: 24,
+    height: 36,
   },
 
   topSection: {
-    gap: 10,
+    gap: 14,
   },
   stickyTabsWrapper: {
-    paddingTop: 6,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 10,
     zIndex: 50,
   },
   tabsTrackContainer: {
     borderRadius: 18,
     borderWidth: 1.5,
-    padding: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
     shadowColor: "#E11D48",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
@@ -802,12 +810,13 @@ const styles = StyleSheet.create({
   },
   tabChip: {
     flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4.5,
-    paddingHorizontal: 4,
-    paddingVertical: 9,
+    gap: 4,
+    paddingHorizontal: 2,
+    paddingVertical: 11,
     borderRadius: 13,
     borderWidth: 1,
   },
@@ -846,7 +855,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   tabChipText: {
-    fontSize: 12,
+    flexShrink: 1,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: "700",
     letterSpacing: -0.2,
   },
@@ -855,46 +866,48 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   itemsContainer: {
-    gap: 14,
-    marginTop: 4,
+    gap: 16,
+    marginTop: 6,
   },
 
   guestNotice: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    padding: 16,
     borderRadius: 14,
     borderWidth: 1,
-    gap: 10,
-    marginTop: 6,
+    gap: 14,
+    marginTop: 2,
   },
   guestNoticeTitle: {
-    fontSize: 12,
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: "800",
   },
   guestNoticeDesc: {
-    fontSize: 11,
-    marginTop: 2,
-    lineHeight: 15,
+    fontSize: 13,
+    marginTop: 4,
+    lineHeight: 18,
   },
   loginMiniBtn: {
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 10,
   },
   loginMiniBtnText: {
     color: "#FFFFFF",
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "700",
   },
 
   bookingCard: {
-    padding: 14,
+    padding: 16,
     borderRadius: 18,
     borderWidth: 1.5,
-    gap: 8,
+    gap: 12,
     ...Platform.select({
       web: { boxShadow: "0 4px 14px rgba(0,0,0,0.04)" },
       default: { elevation: 2 },
@@ -908,13 +921,14 @@ const styles = StyleSheet.create({
   cardTopLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
     flex: 1,
     flexWrap: "wrap",
+    paddingRight: 8,
   },
   dropdownBtn: {
-    width: 28,
-    height: 28,
+    width: 34,
+    height: 34,
     borderRadius: 14,
     backgroundColor: "rgba(233, 30, 99, 0.08)",
     borderWidth: 1,
@@ -929,25 +943,27 @@ const styles = StyleSheet.create({
   },
   ticketPill: {
     backgroundColor: "#F3E8FF",
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 7,
   },
   ticketPillText: {
     color: "#7E22CE",
-    fontSize: 11.5,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: "800",
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   statusPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 7,
   },
   statusPillText: {
-    fontSize: 10.5,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: "800",
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
 
   vendorRow: {
@@ -961,55 +977,61 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   vendorName: {
-    fontSize: 16.5,
+    fontSize: 17,
+    lineHeight: 23,
     fontWeight: "800",
   },
   packageName: {
-    fontSize: 13,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 2,
     fontWeight: "600",
   },
   compactPriceBadge: {
     alignItems: "flex-end",
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
   },
   compactPriceLabel: {
-    fontSize: 8.5,
+    fontSize: 10,
+    lineHeight: 12,
     fontWeight: "700",
     letterSpacing: 0.4,
   },
   compactPriceValue: {
-    fontSize: 13.5,
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: "800",
-    marginTop: 1,
+    marginTop: 2,
   },
   compactBottomRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
-    marginTop: 6,
-    paddingTop: 4,
+    gap: 10,
+    marginTop: 4,
+    paddingTop: 12,
     flexWrap: "wrap",
   },
   compactMetaLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4.5,
+    gap: 6,
     flexShrink: 1,
     flexWrap: "wrap",
   },
   compactMetaText: {
-    fontSize: 11.5,
+    fontSize: 13,
+    lineHeight: 18,
   },
   minimizedTicketBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4.5,
+    gap: 6,
     backgroundColor: PINK,
-    paddingHorizontal: 9.5,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 9,
     marginLeft: "auto",
     ...Platform.select({
@@ -1029,7 +1051,8 @@ const styles = StyleSheet.create({
   },
   minimizedTicketBtnText: {
     color: "#FFFFFF",
-    fontSize: 11,
+    fontSize: 13,
+    lineHeight: 16,
     fontWeight: "800",
     letterSpacing: 0.2,
   },
@@ -1079,14 +1102,15 @@ const styles = StyleSheet.create({
   minimizedDetailsBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
   },
   minimizedDetailsBtnText: {
-    fontSize: 11,
+    fontSize: 13,
+    lineHeight: 16,
     fontWeight: "700",
   },
 
