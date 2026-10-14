@@ -83,8 +83,8 @@ function VendorHeroCarousel({
     indexRef.current = index;
     const currentUri = remoteUri(sources[index]);
     const nextUri = remoteUri(sources[(index + 1) % sources.length]);
-    if (currentUri) Image.prefetch(currentUri).catch(() => undefined);
-    if (nextUri) Image.prefetch(nextUri).catch(() => undefined);
+    if (typeof currentUri === "string" && currentUri) Image.prefetch(currentUri).catch(() => undefined);
+    if (typeof nextUri === "string" && nextUri) Image.prefetch(nextUri).catch(() => undefined);
   }, [index, sources]);
 
   const showIndex = useCallback((nextIndex: number) => {

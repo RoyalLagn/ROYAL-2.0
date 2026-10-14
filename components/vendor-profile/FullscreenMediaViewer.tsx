@@ -68,7 +68,8 @@ export default function FullscreenMediaViewer({
     [index - 1, index + 1].forEach((nearby) => {
       const item = media[nearby];
       if (item?.resource_type === "image") {
-        Image.prefetch(portfolioMediaUrl(item, "fullscreen")).catch(() => undefined);
+        const uri = portfolioMediaUrl(item, "fullscreen");
+        if (typeof uri === "string" && uri) Image.prefetch(uri).catch(() => undefined);
       }
     });
   }, [index, media, visible]);
