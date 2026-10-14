@@ -20,25 +20,35 @@ Deno.serve(async (request) => {
 
   try {
     const admin = serviceClient();
-    const body = await request.json();
-
-    const bookingId = String(body.bookingId ?? body.bookingRecordId ?? "").trim();
+    const bookingRecordId = String(body.bookingRecordId ?? "").trim();
+    const bookingId = String(body.bookingId ?? "").trim();
     const razorpayOrderId = String(body.razorpayOrderId ?? body.razorpay_order_id ?? "").trim();
     const razorpayPaymentId = String(body.razorpayPaymentId ?? body.razorpay_payment_id ?? "").trim();
     const razorpaySignature = String(body.razorpaySignature ?? body.razorpay_signature ?? "").trim();
 
-    if (!bookingId || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
-      return json({ error: "Booking ID, Order ID, Payment ID, and Cryptographic Signature are required." }, 400);
+    if ((!bookingRecordId && !bookingId) || !razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      return json({ error: "Booking reference, Order ID, Payment ID, and Cryptographic Signature are required." }, 400);
     }
 
-    // 1. Fetch booking record
-    const { data: booking, error: fetchErr } = await admin
-      .from("vendor_bookings")
-      .select("*")
-      .or(`id.eq.${bookingId},booking_id.eq.${bookingId}`)
-      .maybeSingle();
+    // 1. Fetch booking record safely (preventing Postgres UUID syntax errors)
+    let query = admin.from("vendor_bookings").select("*");
+    const isRecordUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookingRecordId);
+    const isBookingIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookingId);
+
+    if (isRecordUuid) {
+      query = query.eq("id", bookingRecordId);
+    } else if (bookingId && !isBookingIdUuid) {
+      query = query.eq("booking_id", bookingId);
+    } else if (isBookingIdUuid) {
+      query = query.or(`id.eq.${bookingId},booking_id.eq.${bookingId}`);
+    } else if (bookingRecordId) {
+      query = query.or(`booking_id.eq.${bookingRecordId},ticket_id.eq.${bookingRecordId}`);
+    }
+
+    const { data: booking, error: fetchErr } = await query.maybeSingle();
 
     if (fetchErr || !booking) {
+      console.error("Booking lookup failed:", fetchErr, "params:", { bookingRecordId, bookingId });
       return json({ error: "Booking record not found" }, 404);
     }
 
@@ -64,13 +74,14 @@ Deno.serve(async (request) => {
     }
 
     // 3. Idempotency: if already verified or confirmed, return safe success immediately
-    if (["pending_vendor_confirmation", "confirmed"].includes(booking.booking_status) && booking.payment_status === "paid_advance") {
+    if (["ADMIN_PENDING", "VENDOR_PENDING", "ACCEPTED", "pending_vendor_confirmation", "confirmed"].includes(booking.booking_status) && ["paid_advance", "paid_booking_fee", "paid"].includes(booking.payment_status)) {
       return json({
         success: true,
         alreadyProcessed: true,
         bookingId: booking.booking_id,
         ticketId: booking.ticket_id,
         bookingStatus: booking.booking_status,
+        bookingFeeAmount: booking.booking_fee_amount || booking.advance_amount,
       });
     }
 
@@ -112,20 +123,21 @@ Deno.serve(async (request) => {
       return json({ error: `Unsupported payment currency: ${paymentEntity.currency}` }, 400);
     }
 
-    // Verify Payment Amount matches server-calculated 30% advance in paise
-    const expectedPaise = Math.round(Number(booking.advance_amount) * 100);
+    // Verify Payment Amount matches server-calculated booking fee in paise
+    const expectedFee = Number(booking.booking_fee_amount || booking.advance_amount || 0);
+    const expectedPaise = Math.round(expectedFee * 100);
     if (expectedPaise <= 0) {
-      return json({ error: "Invalid booking advance amount in database record." }, 400);
+      return json({ error: "Invalid booking fee amount in database record." }, 400);
     }
 
     if (Number(paymentEntity.amount) !== expectedPaise) {
       return json({
-        error: `Security violation: Gateway payment amount (${paymentEntity.amount} paise) does not match expected booking advance (${expectedPaise} paise).`,
+        error: `Security violation: Gateway payment amount (${paymentEntity.amount} paise) does not match expected booking fee (${expectedPaise} paise).`,
       }, 400);
     }
 
     // 5. Verify Payment Status & Reconcile Capture:
-    // Only 'captured' payments can be treated as successfully paid advances.
+    // Only 'captured' payments can be treated as successfully paid fees.
     // If the payment is only 'authorized', attempt to reconcile capture with Razorpay.
     if (paymentEntity.status === "authorized") {
       try {
@@ -157,16 +169,15 @@ Deno.serve(async (request) => {
 
     if (paymentEntity.status !== "captured") {
       return json({
-        error: `Payment cannot be finalized. Gateway payment status is '${paymentEntity.status}'. Payment must be captured by Razorpay before advance is confirmed.`,
+        error: `Payment cannot be finalized. Gateway payment status is '${paymentEntity.status}'. Payment must be captured by Razorpay before fee is confirmed.`,
         gatewayStatus: paymentEntity.status,
       }, 400);
     }
 
     // 5. Authoritative Atomic Database Payment Finalization
-    // finalize_verified_booking_payment is the single authoritative database path.
-    // It enforces row-locking, ownership, status, idempotency, notifications, and referral commission.
-    // No direct service-role update fallback is permitted.
-    const { data: finalizeData, error: finalizeError } = await admin.rpc("finalize_verified_booking_payment", {
+    // finalize_connection_booking_fee is the authoritative database path.
+    // It enforces row-locking, ownership, status transition to ADMIN_PENDING, notifications, and referral commission.
+    const { data: finalizeData, error: finalizeError } = await admin.rpc("finalize_connection_booking_fee", {
       p_booking_id: booking.id,
       p_payment_id: razorpayPaymentId,
       p_order_id: razorpayOrderId,
@@ -186,8 +197,9 @@ Deno.serve(async (request) => {
       success: true,
       bookingId: finalizeData.booking_id || booking.booking_id,
       ticketId: finalizeData.ticket_id || booking.ticket_id,
-      bookingStatus: finalizeData.booking_status || "pending_vendor_confirmation",
-      advanceAmount: booking.advance_amount,
+      bookingStatus: finalizeData.booking_status || "ADMIN_PENDING",
+      bookingFeeAmount: finalizeData.booking_fee_amount || expectedFee,
+      advanceAmount: finalizeData.booking_fee_amount || expectedFee,
       dueAmount: booking.due_amount,
     });
   } catch (err) {

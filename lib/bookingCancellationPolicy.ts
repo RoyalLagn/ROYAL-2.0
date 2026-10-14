@@ -44,13 +44,21 @@ export function calculateCancellationCutoff(eventStartAtIso: string): string {
 }
 
 /**
- * Determines whether normal cancellation is locked (<= 120 hours before event).
+ * Under the new model, cancellation is prohibited once the booking is ACCEPTED.
+ * Pre-acceptance (ADMIN_PENDING, VENDOR_PENDING) allows 100% refundable cancellation.
  */
 export function isCancellationLocked(
   cancellationCutoffAt?: string | null,
   eventStartAt?: string | null,
-  eventDate?: string | null
+  eventDate?: string | null,
+  bookingStatus?: string | null
 ): boolean {
+  if (bookingStatus) {
+    const norm = bookingStatus.toUpperCase();
+    if (norm === "ACCEPTED" || norm === "CONFIRMED") return true;
+    if (norm === "ADMIN_PENDING" || norm === "VENDOR_PENDING" || norm === "PENDING" || norm === "PENDING_VENDOR_CONFIRMATION") return false;
+  }
+
   let cutoffMs: number | null = null;
 
   if (cancellationCutoffAt) {
@@ -68,9 +76,8 @@ export function isCancellationLocked(
 
 /**
  * Determines whether direct contact details must unlock.
- * MANDATORY RULE: Only genuinely CONFIRMED bookings unlock contacts when cutoff has passed.
- * Pending vendor acceptance, failed payments, rejected requests, and cancelled bookings
- * must NEVER expose contact information.
+ * MANDATORY RULE: Unlocks immediately upon formal vendor acceptance (ACCEPTED / confirmed).
+ * Before vendor acceptance (ADMIN_PENDING, VENDOR_PENDING), contacts strictly remain locked.
  */
 export function isContactUnlocked(
   bookingStatus: string,
@@ -78,10 +85,8 @@ export function isContactUnlocked(
   eventStartAt?: string | null,
   eventDate?: string | null
 ): boolean {
-  if (bookingStatus !== "confirmed") {
-    return false;
-  }
-  return isCancellationLocked(cancellationCutoffAt, eventStartAt, eventDate);
+  const norm = (bookingStatus || "").toUpperCase();
+  return norm === "ACCEPTED" || norm === "CONFIRMED";
 }
 
 /**

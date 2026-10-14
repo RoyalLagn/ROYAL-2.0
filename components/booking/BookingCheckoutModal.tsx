@@ -290,7 +290,7 @@ export default function BookingCheckoutModal({
     if (!user) {
       Alert.alert(
         "Sign In Required",
-        "Please sign in to your RoyalLagn account to book this vendor and secure your date with a 30% advance payment.",
+        "Please sign in to your RoyalLagn account to book this vendor and secure your date.",
         [
           { text: "Cancel", style: "cancel" },
           {
@@ -319,7 +319,7 @@ export default function BookingCheckoutModal({
       const cleanWa = waRes.cleaned;
       const eventStartAt = buildEventStartTimestamp(startDate, eventStartTime);
 
-      // 1. Create booking order and obtain Razorpay Order ID from server
+      // 1. Create booking order and obtain Razorpay Order ID from server (or zero fee direct booking)
       const orderRes = await VendorBookingService.createBookingOrder({
         vendorId,
         startDate,
@@ -340,20 +340,43 @@ export default function BookingCheckoutModal({
         bookingDescription: bookingDescription.trim(),
       });
 
-      // 2. Open Real Razorpay Test Checkout Gateway
+      // 2. If Zero-Fee (total under 2,999), bypass Razorpay entirely!
+      if (orderRes.isZeroFee || (orderRes.bookingFeeAmount ?? orderRes.advanceAmount ?? 0) === 0) {
+        onClose();
+        if (Platform.OS === "web") {
+          window.alert(
+            `Booking Request Submitted!\n\nYour zero-fee booking request (Ticket #${orderRes.ticketId}) has been submitted for Admin Verification before being forwarded to the vendor.`
+          );
+          try {
+            router.replace("/(tabs)/bookings");
+          } catch {
+            window.location.href = "/bookings";
+          }
+        } else {
+          Alert.alert(
+            "Booking Request Submitted",
+            `Your zero-fee booking request (Ticket #${orderRes.ticketId}) has been submitted for admin verification and vendor confirmation.`,
+            [{ text: "View Bookings", onPress: () => router.replace("/(tabs)/bookings") }]
+          );
+          router.replace("/(tabs)/bookings");
+        }
+        return;
+      }
+
+      // 3. Open Real Razorpay Test Checkout Gateway for the Booking Fee
       const checkoutResult = await openRazorpayCheckout({
         paymentRecordId: orderRes.bookingRecordId,
-        orderId: orderRes.orderId,
-        amount: orderRes.amountMinor,
+        orderId: orderRes.orderId!,
+        amount: orderRes.amountMinor!,
         currency: orderRes.currency || "INR",
-        keyId: orderRes.keyId,
-        planName: `30% Advance - ${vendorName}`,
+        keyId: orderRes.keyId!,
+        planName: `Booking Fee - ${vendorName}`,
         vendorName: customerName.trim(),
         email: customerEmail.trim() || undefined,
         phone: cleanPhone,
       });
 
-      // 3. Cryptographically verify payment on server & transition to pending_vendor_confirmation
+      // 4. Cryptographically verify payment on server & transition to ADMIN_PENDING
       const verifyRes = await VendorBookingService.verifyBookingPayment({
         bookingRecordId: orderRes.bookingRecordId,
         bookingId: orderRes.bookingId,
@@ -362,23 +385,31 @@ export default function BookingCheckoutModal({
         razorpaySignature: checkoutResult.razorpay_signature,
       });
 
-      // 4. Close modal and immediately navigate to My Bookings tab
+      const finalTicket = verifyRes.ticketId || orderRes.ticketId;
+
+      // 5. Close modal, show payment successful message, and navigate to My Bookings tab
       onClose();
-      try {
-        router.replace("/(tabs)/bookings");
-      } catch {
-        router.push("/(tabs)/bookings");
-      }
-      if (Platform.OS !== "web") {
-        Alert.alert(
-          "Booking Confirmed & Sent to Vendor",
-          `Your 30% advance of ₹${financials.advanceAmount.toLocaleString("en-IN")} has been received. Your booking request (Ticket #${verifyRes.ticketId || orderRes.ticketId}) is now awaiting vendor confirmation.`
+      if (Platform.OS === "web") {
+        window.alert(
+          `Payment Successful!\n\nYour booking fee has been received successfully. Your request (Ticket #${finalTicket}) is now under Admin Verification before being sent to the vendor.`
         );
+        try {
+          router.replace("/(tabs)/bookings");
+        } catch {
+          window.location.href = "/bookings";
+        }
+      } else {
+        Alert.alert(
+          "Payment Successful",
+          `Your booking fee has been received. Your booking request (Ticket #${finalTicket}) is now under admin verification before being forwarded to the vendor.`,
+          [{ text: "View Bookings", onPress: () => router.replace("/(tabs)/bookings") }]
+        );
+        router.replace("/(tabs)/bookings");
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unable to complete booking payment. Please try again.";
       if (/cancel|dismiss|closed/i.test(msg)) {
-        setErrorMessage("Payment was cancelled. You can complete your 30% advance when ready.");
+        setErrorMessage("Payment was cancelled. You can complete your booking fee when ready.");
       } else {
         setErrorMessage(msg);
         Alert.alert("Payment Failed", msg);
@@ -405,7 +436,7 @@ export default function BookingCheckoutModal({
             <PackageCheck size={22} color={PINK} strokeWidth={2.2} />
           </View>
           <View style={styles.flex}>
-            <Text style={[styles.headerTitle, { color: palette.text }]}>Complete Booking (30% Adv)</Text>
+            <Text style={[styles.headerTitle, { color: palette.text }]}>Book Vendor & Connect</Text>
             <Text numberOfLines={1} style={[styles.headerSubtitle, { color: palette.muted }]}>
               {vendorName} · {totalDays} {totalDays === 1 ? "Day" : "Days Duration"}
             </Text>
@@ -435,7 +466,7 @@ export default function BookingCheckoutModal({
               <View style={{ flex: 1, marginRight: 10 }}>
                 <Text style={[styles.authNoticeTitle, { color: palette.text }]}>Sign In Required</Text>
                 <Text style={[styles.authNoticeSubtitle, { color: palette.muted }]}>
-                  Please sign in to your RoyalLagn account to reserve your date and pay the 30% advance.
+                  Please sign in to your RoyalLagn account to reserve your date and complete booking connection.
                 </Text>
               </View>
               <Pressable
@@ -460,7 +491,7 @@ export default function BookingCheckoutModal({
                 <Text style={[styles.cardTitle, { color: palette.text }]}>Selected Packages</Text>
               </View>
               <View style={styles.pillGreen}>
-                <Text style={styles.pillGreenText}>30% ADVANCE</Text>
+                <Text style={styles.pillGreenText}>PLATFORM CONNECTION</Text>
               </View>
             </View>
 
@@ -737,17 +768,15 @@ export default function BookingCheckoutModal({
               ) : null}
             </View>
 
-            {/* 5-Day Lock Notice Box */}
+            {/* Contact Unlock Policy Box */}
             <View style={[styles.privacyBox, { backgroundColor: dark ? "#1E293B" : "#F8FAFC", borderColor: dark ? "#334155" : "#E2E8F0" }]}>
               <ShieldCheck size={18} color={PINK} style={{ marginTop: 2 }} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.privacyTitle, { color: palette.text }]}>
-                  🔒 Contact Protection & 5-Day Policy
+                  🔒 Contact Details Held & Unlocked Upon Acceptance
                 </Text>
                 <Text style={[styles.privacyDesc, { color: palette.muted }]}>
-                  Direct phone numbers and Google Maps location remain confidential to protect both parties and will automatically unlock on{" "}
-                  <Text style={{ fontWeight: "700", color: PINK }}>{estimatedCutoff}</Text> (120 hours before event start).
-                  Free cancellation is permitted anytime until this cutoff.
+                  Direct phone numbers, WhatsApp, and Google Maps venue details are safely held and will unlock immediately once the vendor formally accepts your booking request. 100% booking fee refund is guaranteed if cancelled or rejected prior to vendor acceptance.
                 </Text>
               </View>
             </View>
@@ -757,12 +786,12 @@ export default function BookingCheckoutModal({
           <View style={[styles.financialCard, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <View style={styles.cardHeaderLeft}>
               <ReceiptText size={16} color={PINK} />
-              <Text style={[styles.cardTitle, { color: palette.text }]}>Payment & Financial Breakdown</Text>
+              <Text style={[styles.cardTitle, { color: palette.text }]}>Payment & Fee Breakdown</Text>
             </View>
 
             <View style={styles.priceLine}>
               <Text style={[styles.priceLineLabel, { color: palette.muted }]}>
-                Total Package Value ({totalDays} {totalDays === 1 ? "day" : "days"})
+                Vendor Service Value ({totalDays} {totalDays === 1 ? "day" : "days"})
               </Text>
               <Text style={[styles.priceLineVal, { color: palette.text }]}>{money(financials.packagesTotal)}</Text>
             </View>
@@ -777,29 +806,44 @@ export default function BookingCheckoutModal({
             <View style={[styles.divider, { backgroundColor: palette.border }]} />
 
             <View style={styles.priceLine}>
-              <Text style={[styles.totalLabel, { color: palette.text }]}>Total Booking Value (100%)</Text>
+              <Text style={[styles.totalLabel, { color: palette.text }]}>Total Service Amount</Text>
               <Text style={[styles.totalVal, { color: palette.text }]}>{money(financials.totalAmount)}</Text>
             </View>
 
             <View style={styles.highlightSplitRow}>
-              {/* Advance 30% */}
+              {/* Payable Now (Booking Fee) */}
               <View style={[styles.splitBoxAdvance, { backgroundColor: dark ? "#064E3B" : "#ECFDF5", borderColor: "#10B981" }]}>
-                <Text style={[styles.splitBoxHeading, { color: "#059669" }]}>PAYABLE NOW (30% ADVANCE)</Text>
-                <Text style={[styles.splitBoxPrice, { color: "#059669" }]}>{money(financials.advanceAmount)}</Text>
-                <Text style={[styles.splitBoxSub, { color: "#047857" }]}>Secures date & booking</Text>
+                <Text style={[styles.splitBoxHeading, { color: "#059669" }]}>PAYABLE NOW (BOOKING FEE)</Text>
+                <Text style={[styles.splitBoxPrice, { color: "#059669" }]}>
+                  {financials.bookingFee === 0 ? "₹0 (Free)" : money(financials.bookingFee)}
+                </Text>
+                <Text style={[styles.splitBoxSub, { color: "#047857" }]}>Platform connection & verification</Text>
               </View>
 
-              {/* Due 70% */}
+              {/* Direct to Vendor */}
               <View style={[styles.splitBoxDue, { backgroundColor: palette.surfaceSoft, borderColor: palette.border }]}>
-                <Text style={[styles.splitBoxHeading, { color: palette.muted }]}>REMAINING DUE (70%)</Text>
-                <Text style={[styles.splitBoxPrice, { color: palette.text }]}>{money(financials.dueAmount)}</Text>
-                <Text style={[styles.splitBoxSub, { color: palette.muted }]}>Direct to vendor on event day</Text>
+                <Text style={[styles.splitBoxHeading, { color: palette.muted }]}>DIRECT TO VENDOR</Text>
+                <Text style={[styles.splitBoxPrice, { color: palette.text }]}>
+                  {money(financials.vendorPayableDirect ?? financials.dueAmount)}
+                </Text>
+                <Text style={[styles.splitBoxSub, { color: palette.muted }]}>Pay directly to vendor upon service</Text>
+              </View>
+            </View>
+
+            {/* Platform Disclaimer */}
+            <View style={[styles.disclaimerBox, { backgroundColor: dark ? "#1E293B" : "#FFF7ED", borderColor: dark ? "#7C2D12" : "#FFEDD5" }]}>
+              <Info size={16} color="#D97706" style={{ marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.disclaimerTitle, { color: dark ? "#FDE68A" : "#92400E" }]}>Platform Disclaimer</Text>
+                <Text style={[styles.disclaimerText, { color: dark ? "#CBD5E1" : "#78350F" }]}>
+                  The booking fee paid here is for RoyalLagn platform connection and verification services only. The full service amount is payable directly to the vendor according to your mutual agreement. RoyalLagn is not responsible for vendor service delivery or direct payments made to the vendor.
+                </Text>
               </View>
             </View>
           </View>
         </ScrollView>
 
-        {/* Footer with Pay 30% CTA */}
+        {/* Footer with Pay CTA */}
         <View
           style={[
             styles.footer,
@@ -816,7 +860,7 @@ export default function BookingCheckoutModal({
               ]}
               numberOfLines={1}
             >
-              {!desktop ? "30% Advance" : "30% Advance Due Now"}
+              {financials.bookingFee === 0 ? "Zero Fee" : (!desktop ? "Booking Fee" : "Booking Fee Due Now")}
             </Text>
             <Text
               style={[
@@ -826,13 +870,13 @@ export default function BookingCheckoutModal({
               ]}
               numberOfLines={1}
             >
-              {money(financials.advanceAmount)}
+              {financials.bookingFee === 0 ? "₹0" : money(financials.bookingFee)}
             </Text>
           </View>
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Pay 30% advance"
+            accessibilityLabel={financials.bookingFee === 0 ? "Confirm booking free" : "Pay booking fee"}
             onPress={() => void handlePayAdvance()}
             disabled={submitting}
             style={[
@@ -854,8 +898,10 @@ export default function BookingCheckoutModal({
                   numberOfLines={1}
                 >
                   {!user
-                    ? (!desktop ? "Sign In & Pay" : "Sign In & Pay 30% Advance")
-                    : (!desktop ? "Pay 30% Advance" : "Pay 30% Advance (Razorpay)")}
+                    ? "Sign In to Book"
+                    : financials.bookingFee === 0
+                    ? "Confirm Booking (Free)"
+                    : (!desktop ? `Pay Fee (${money(financials.bookingFee)})` : `Pay Booking Fee (${money(financials.bookingFee)})`)}
                 </Text>
               </>
             )}
@@ -1191,6 +1237,23 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   privacyDesc: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  disclaimerBox: {
+    flexDirection: "row",
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 14,
+    borderWidth: 1,
+  },
+  disclaimerTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  disclaimerText: {
     fontSize: 11,
     lineHeight: 16,
   },

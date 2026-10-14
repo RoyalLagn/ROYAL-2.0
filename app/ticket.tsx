@@ -177,11 +177,14 @@ function ConfirmedRoyalTicket({
   desktop: boolean;
   dark: boolean;
 }) {
-  const isConfirmed = booking.booking_status === "confirmed";
+  const isConfirmed = booking.booking_status === "ACCEPTED" || booking.booking_status === "confirmed";
   const isCancelled =
     booking.booking_status === "cancelled" ||
     booking.booking_status === "cancelled_by_vendor" ||
-    booking.booking_status === "cancelled_by_customer";
+    booking.booking_status === "cancelled_by_customer" ||
+    booking.booking_status === "CUSTOMER_CANCELLED" ||
+    booking.booking_status === "ADMIN_CANCELLED" ||
+    booking.booking_status === "VENDOR_REJECTED";
 
   const ticketCardRef = useRef<View>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -311,7 +314,7 @@ function ConfirmedRoyalTicket({
                   ? "LUXURY E-TICKET CONFIRMED"
                   : isCancelled
                   ? "BOOKING CANCELLED"
-                  : "PENDING VENDOR CONFIRMATION"}
+                  : "PENDING ACCEPTANCE"}
               </Text>
             </View>
           </View>
@@ -402,15 +405,15 @@ function ConfirmedRoyalTicket({
                 </Text>
                 <Text style={[s.alertBody, { color: dark ? "#D1D5DB" : "#4B5563" }]}>
                   {isConfirmed
-                    ? `Your booking with ${booking.vendor_name || "the vendor"} is confirmed. Your 30% advance deposit of ${money(booking.advance_amount)} has been received and verified.`
+                    ? `Your booking with ${booking.vendor_name || "the vendor"} is confirmed. Your booking fee of ${money(booking.booking_fee_amount ?? booking.advance_amount)} has been received and verified.`
                     : isCancelled
                     ? `Reason: ${booking.rejection_reason || "Declined by vendor"}\n${
                         booking.refund_status === "refunded"
-                          ? `30% Advance (${money(booking.advance_amount)}) has been refunded.`
-                          : `Refund of ${money(booking.advance_amount)} is in progress.`
+                          ? `Booking fee (${money(booking.refund_amount ?? booking.booking_fee_amount ?? booking.advance_amount)}) has been refunded.`
+                          : `Refund of ${money(booking.refund_amount ?? booking.booking_fee_amount ?? booking.advance_amount)} is in progress.`
                       }`
-                    : `Your 30% advance deposit of ${money(
-                        booking.advance_amount
+                    : `Your booking fee of ${money(
+                        booking.booking_fee_amount ?? booking.advance_amount
                       )} is safely secured. This E-Ticket will be confirmed once vendor accepts.`}
                 </Text>
               </View>
@@ -575,11 +578,11 @@ function ConfirmedRoyalTicket({
                   <Check size={8} color="#FFFFFF" strokeWidth={3} />
                 </View>
                 <Text style={[s.metricLabel, { color: "#059669" }]}>
-                  PAID (30% ADVANCE)
+                  BOOKING FEE
                 </Text>
               </View>
               <Text style={[s.metricValue, { color: "#059669" }]}>
-                {money(booking.advance_amount)}
+                {(booking.booking_fee_amount ?? booking.advance_amount ?? 0) === 0 ? "₹0 (Free)" : money(booking.booking_fee_amount ?? booking.advance_amount)}
               </Text>
             </View>
 
@@ -598,7 +601,7 @@ function ConfirmedRoyalTicket({
                   <Clock3 size={8} color="#FFFFFF" strokeWidth={2.6} />
                 </View>
                 <Text style={[s.metricLabel, { color: "#B45309" }]}>
-                  DUE AT EVENT (70%)
+                  DIRECT TO VENDOR
                 </Text>
               </View>
               <Text style={[s.metricValue, { color: "#B45309" }]}>
@@ -612,7 +615,7 @@ function ConfirmedRoyalTicket({
             <View style={s.trustHeaderRow}>
               <ShieldCheck size={13} color="#059669" strokeWidth={2.4} />
               <Text style={[s.trustTitle, { color: dark ? "#F3F4F6" : "#1F2937" }]}>
-                Verified RoyalLagn Booking · 30% Advance Secured
+                Verified RoyalLagn Booking · Contact Details Protected
               </Text>
             </View>
             <Text style={[s.trustMuted, { color: dark ? "#6B7280" : "#9CA3AF" }]}>

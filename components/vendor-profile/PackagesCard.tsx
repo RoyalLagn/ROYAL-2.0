@@ -24,7 +24,7 @@ function PackagesCard({
   onPress,
   dark = false,
   eyebrow = "Packages Start From",
-  subtitle = "Instant In-App Booking · 30% Advance",
+  subtitle = "Instant In-App Booking",
   buttonLabel = "View & Book",
   accessibilityLabel = "View and book vendor packages",
 }: PackagesCardProps) {

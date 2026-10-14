@@ -353,7 +353,7 @@ export default function VendorDirectBookingSection({
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={[styles.sectionTitle, { color: palette.text }]}>Select Service Packages</Text>
           <Text style={[styles.sectionSubtitle, { color: palette.muted }]} numberOfLines={1}>
-            Choose one or more packages (30% advance payable)
+            Choose one or more packages
           </Text>
         </View>
         {selectedPackageIds.length > 0 ? (
@@ -441,7 +441,7 @@ export default function VendorDirectBookingSection({
                       ) : null}
                       <View style={[styles.advancePill, { backgroundColor: palette.emeraldBg }]}>
                         <Text style={[styles.advancePillText, { color: palette.emeraldText }]}>
-                          30% ADV
+                          INSTANT BOOK
                         </Text>
                       </View>
                     </View>
@@ -600,7 +600,7 @@ export default function VendorDirectBookingSection({
                   onPress={() => togglePackageSelection(item.id)}
                   style={styles.compactCardMainPressable}
                 >
-                  {/* Top Row: Custom Check Indicator + Package Title + Category + 30% Pill */}
+                  {/* Top Row: Custom Check Indicator + Package Title + Category + Badge */}
                   <View style={styles.compactCardTopRow}>
                     <View style={styles.compactCardTitleGroup}>
                       <View
@@ -629,7 +629,7 @@ export default function VendorDirectBookingSection({
                       ) : null}
                       <View style={[styles.compactAdvancePill, { backgroundColor: palette.emeraldBg }]}>
                         <Text style={[styles.compactAdvancePillText, { color: palette.emeraldText }]}>
-                          30% ADV
+                          INSTANT BOOK
                         </Text>
                       </View>
                     </View>
@@ -780,8 +780,10 @@ export default function VendorDirectBookingSection({
           <View style={styles.mobilePrimaryAdvanceBadge}>
             <Text style={styles.mobilePrimaryAdvanceBadgeText}>
               {selectedPackagesList.length > 0
-                ? `Pay 30% Adv: ${money(financials.advanceAmount)}`
-                : "30% Advance"}
+                ? financials.advanceAmount === 0
+                  ? "Zero Fee"
+                  : `Pay: ${money(financials.advanceAmount)}`
+                : "Booking Fee"}
             </Text>
           </View>
         </Pressable>
@@ -856,20 +858,20 @@ export default function VendorDirectBookingSection({
             </View>
 
             <View style={styles.splitBox}>
-              {/* Advance 30% */}
+              {/* Booking Fee */}
               <View style={[styles.splitItem, { backgroundColor: palette.emeraldBg }]}>
                 <Text style={[styles.splitLabel, { color: palette.emeraldText }]}>
-                  30% ADVANCE PAYABLE
+                  BOOKING FEE
                 </Text>
                 <Text style={[styles.splitValue, { color: palette.emeraldText }]}>
-                  {money(financials.advanceAmount)}
+                  {financials.advanceAmount === 0 ? "₹0 (Free)" : money(financials.advanceAmount)}
                 </Text>
               </View>
 
-              {/* Due 70% */}
+              {/* Due at event */}
               <View style={[styles.splitItem, { backgroundColor: palette.surfaceHighlight }]}>
                 <Text style={[styles.splitLabel, { color: palette.muted }]}>
-                  70% DUE AT EVENT
+                  DUE AT EVENT
                 </Text>
                 <Text style={[styles.splitValue, { color: palette.text }]}>
                   {money(financials.dueAmount)}
@@ -887,7 +889,9 @@ export default function VendorDirectBookingSection({
           >
             <PackageCheck size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
             <Text style={styles.proceedBtnText}>
-              Proceed to Book (Pay 30% Adv: {money(financials.advanceAmount)})
+              {financials.advanceAmount === 0
+                ? "Proceed to Book (Zero Fee)"
+                : `Proceed to Book (Pay: ${money(financials.advanceAmount)})`}
             </Text>
           </Pressable>
         </View>

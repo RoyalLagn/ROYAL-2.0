@@ -125,59 +125,60 @@ export default function CustomerBookingsScreen() {
     await loadBookings();
   };
 
+  const isPendingStatus = (status?: string | null) => {
+    const s = (status || "").toLowerCase();
+    return (
+      s === "admin_pending" ||
+      s === "vendor_pending" ||
+      s === "pending" ||
+      s === "pending_vendor_confirmation" ||
+      s === "pending_payment"
+    );
+  };
+
+  const isConfirmedStatus = (status?: string | null) => {
+    const s = (status || "").toLowerCase();
+    return s === "accepted" || s === "confirmed" || s === "completed";
+  };
+
+  const isCancelledStatus = (status?: string | null) => {
+    const s = (status || "").toLowerCase();
+    return (
+      s === "customer_cancelled" ||
+      s === "admin_cancelled" ||
+      s === "vendor_rejected" ||
+      s === "cancelled" ||
+      s === "cancelled_by_vendor" ||
+      s === "cancelled_by_customer"
+    );
+  };
+
   // Status counts for history badges
   const pendingCount = useMemo(
-    () =>
-      bookings.filter(
-        (b) =>
-          b.booking_status === "pending" ||
-          b.booking_status === "pending_vendor_confirmation" ||
-          b.booking_status === "pending_payment"
-      ).length,
+    () => bookings.filter((b) => isPendingStatus(b.booking_status)).length,
     [bookings]
   );
 
   const confirmedCount = useMemo(
-    () =>
-      bookings.filter(
-        (b) => b.booking_status === "confirmed" || b.booking_status === "completed"
-      ).length,
+    () => bookings.filter((b) => isConfirmedStatus(b.booking_status)).length,
     [bookings]
   );
 
   const cancelledCount = useMemo(
-    () =>
-      bookings.filter(
-        (b) =>
-          b.booking_status === "cancelled" ||
-          b.booking_status === "cancelled_by_vendor" ||
-          b.booking_status === "cancelled_by_customer"
-      ).length,
+    () => bookings.filter((b) => isCancelledStatus(b.booking_status)).length,
     [bookings]
   );
 
   // Filtered booking records according to active tab
   const filteredBookings = useMemo(() => {
     if (activeTab === "pending") {
-      return bookings.filter(
-        (b) =>
-          b.booking_status === "pending" ||
-          b.booking_status === "pending_vendor_confirmation" ||
-          b.booking_status === "pending_payment"
-      );
+      return bookings.filter((b) => isPendingStatus(b.booking_status));
     }
     if (activeTab === "confirmed") {
-      return bookings.filter(
-        (b) => b.booking_status === "confirmed" || b.booking_status === "completed"
-      );
+      return bookings.filter((b) => isConfirmedStatus(b.booking_status));
     }
     if (activeTab === "cancelled") {
-      return bookings.filter(
-        (b) =>
-          b.booking_status === "cancelled" ||
-          b.booking_status === "cancelled_by_vendor" ||
-          b.booking_status === "cancelled_by_customer"
-      );
+      return bookings.filter((b) => isCancelledStatus(b.booking_status));
     }
     return [];
   }, [bookings, activeTab]);
@@ -200,7 +201,7 @@ export default function CustomerBookingsScreen() {
               </View>
               <Text style={[styles.title, { color: palette.text }]}>My Bookings & History</Text>
               <Text style={[styles.subtitle, { color: palette.muted }]}>
-                Track your wedding bookings, 30% advance status, and access official luxury E-Tickets.
+                Track your wedding bookings, verification status, and access official luxury E-Tickets.
               </Text>
             </View>
             <Pressable
@@ -401,15 +402,18 @@ export default function CustomerBookingsScreen() {
             </View>
           ) : (
             filteredBookings.map((booking) => {
-              const isConfirmed = booking.booking_status === "confirmed" || booking.booking_status === "completed";
-              const isPending =
-                booking.booking_status === "pending" ||
-                booking.booking_status === "pending_vendor_confirmation" ||
-                booking.booking_status === "pending_payment";
-              const isCancelled =
-                booking.booking_status === "cancelled" ||
-                booking.booking_status === "cancelled_by_vendor" ||
-                booking.booking_status === "cancelled_by_customer";
+              const statusLower = (booking.booking_status || "").toLowerCase();
+              const isConfirmed = statusLower === "accepted" || statusLower === "confirmed" || statusLower === "completed";
+              const isAdminPending = statusLower === "admin_pending";
+              const isVendorPending = statusLower === "vendor_pending" || statusLower === "pending_vendor_confirmation" || statusLower === "pending";
+              const isPendingPayment = statusLower === "pending_payment";
+              const isPending = isAdminPending || isVendorPending || isPendingPayment;
+              const isCustomerCancelled = statusLower === "customer_cancelled";
+              const isAdminCancelled = statusLower === "admin_cancelled";
+              const isVendorRejected = statusLower === "vendor_rejected";
+              const isCancelled = isCustomerCancelled || isAdminCancelled || isVendorRejected || statusLower.startsWith("cancel");
+
+              const feePaid = booking.booking_fee_amount ?? booking.advance_amount ?? 0;
 
               const eventDateDisplay =
                 booking.total_days && booking.total_days > 1
@@ -458,11 +462,19 @@ export default function CustomerBookingsScreen() {
                           ]}
                         >
                           {isConfirmed
-                            ? "CONFIRMED"
-                            : booking.booking_status === "pending_payment"
+                            ? "CONFIRMED & UNLOCKED"
+                            : isAdminPending
+                            ? "VERIFYING BY ADMIN"
+                            : isVendorPending
+                            ? "PENDING VENDOR ACCEPTANCE"
+                            : isPendingPayment
                             ? "PAYMENT PENDING"
-                            : isPending
-                            ? "WAITING FOR CONFIRMATION"
+                            : isCustomerCancelled
+                            ? "CANCELLED BY YOU"
+                            : isAdminCancelled
+                            ? "CANCELLED BY ADMIN"
+                            : isVendorRejected
+                            ? "DECLINED BY VENDOR"
                             : "CANCELLED"}
                         </Text>
                       </View>
@@ -517,8 +529,8 @@ export default function CustomerBookingsScreen() {
                           <Text style={[styles.compactMetaText, { color: palette.muted }]}>{eventDateDisplay}</Text>
                         </View>
                         <Text style={[styles.dot, { color: palette.muted }]}>•</Text>
-                        <Text style={[styles.compactMetaText, { color: booking.payment_status === "paid_advance" ? GREEN : GOLD, fontWeight: "700" }]}>
-                          {booking.payment_status === "paid_advance" ? `Paid: ${money(booking.advance_amount)}` : `Adv Due: ${money(booking.advance_amount)}`}
+                        <Text style={[styles.compactMetaText, { color: feePaid === 0 ? GREEN : (booking.payment_status === "paid_booking_fee" || booking.payment_status === "paid_advance" || booking.payment_status === "paid" || booking.payment_status === "free_zero_fee" ? GREEN : GOLD), fontWeight: "700" }]}>
+                          {feePaid === 0 ? "Fee: ₹0 (Free)" : `Fee: ${money(feePaid)}`}
                         </Text>
                       </Pressable>
 
@@ -573,18 +585,18 @@ export default function CustomerBookingsScreen() {
                         ) : null}
                       </View>
 
-                      {/* Financial Breakdown (100% Total, 30% Advance Paid, 70% Balance Due) */}
+                      {/* Financial Breakdown (Total, Booking Fee, Direct Vendor Due) */}
                       <View style={[styles.financeStrip, { backgroundColor: palette.surfaceSoft }]}>
                         <View style={styles.financeCell}>
                           <Text style={[styles.finLabel, { color: palette.muted }]}>TOTAL VALUE</Text>
                           <Text style={[styles.finVal, { color: palette.text }]}>{money(booking.total_amount)}</Text>
                         </View>
                         <View style={styles.financeCell}>
-                          <Text style={[styles.finLabel, { color: GREEN }]}>30% ADVANCE PAID</Text>
-                          <Text style={[styles.finVal, { color: GREEN }]}>{money(booking.advance_amount)}</Text>
+                          <Text style={[styles.finLabel, { color: GREEN }]}>BOOKING FEE</Text>
+                          <Text style={[styles.finVal, { color: GREEN }]}>{feePaid === 0 ? "₹0 (Free)" : money(feePaid)}</Text>
                         </View>
                         <View style={styles.financeCell}>
-                          <Text style={[styles.finLabel, { color: GOLD }]}>70% DUE AT EVENT</Text>
+                          <Text style={[styles.finLabel, { color: GOLD }]}>DIRECT TO VENDOR</Text>
                           <Text style={[styles.finVal, { color: GOLD }]}>{money(booking.due_amount)}</Text>
                         </View>
                       </View>
@@ -592,25 +604,37 @@ export default function CustomerBookingsScreen() {
                       {/* Status Explanation Banners */}
                       {isCancelled ? (
                         <View style={styles.cancelledBanner}>
-                          <Text style={styles.cancelledBannerTitle}>🔴 Cancelled by Vendor — 72h Refund Initiated</Text>
+                          <Text style={styles.cancelledBannerTitle}>
+                            🔴 {isVendorRejected ? "Declined by Vendor" : isAdminCancelled ? "Cancelled by Admin" : isCustomerCancelled ? "Cancelled by You" : "Cancelled"} — 100% Refund
+                          </Text>
                           <Text style={styles.cancelledBannerText}>
                             {booking.refund_status === "refunded"
-                              ? `✓ Refund of ${money(booking.advance_amount)} has been credited back to your account.`
-                              : `Your paid advance of ${money(booking.advance_amount)} will be credited back to your payment method within 72 hours.`}
+                              ? `✓ Full 100% refund of ${money(feePaid)} has been completed.`
+                              : feePaid > 0
+                              ? `Your 100% booking fee of ${money(feePaid)} is queued in Admin Refunds for a full gateway refund.`
+                              : "Your zero-fee booking was cancelled."}
                           </Text>
                         </View>
-                      ) : isPending ? (
+                      ) : isAdminPending ? (
                         <View style={styles.pendingBanner}>
-                          <Text style={styles.pendingBannerTitle}>⏳ Waiting for Vendor Acceptance</Text>
+                          <Text style={styles.pendingBannerTitle}>⏳ Verification in Progress</Text>
                           <Text style={styles.pendingBannerText}>
-                            Your 30% advance of {money(booking.advance_amount)} is safely held. Your official luxury E-Ticket will activate as soon as the vendor confirms!
+                            {feePaid > 0 ? `Your booking fee of ${money(feePaid)} has been received. ` : ""}
+                            RoyalLagn is currently verifying vendor availability before forwarding. 100% refund guaranteed if cancelled prior to vendor acceptance.
+                          </Text>
+                        </View>
+                      ) : isVendorPending ? (
+                        <View style={styles.pendingBanner}>
+                          <Text style={styles.pendingBannerTitle}>⏳ Forwarded to Vendor — Pending Acceptance</Text>
+                          <Text style={styles.pendingBannerText}>
+                            Admin has verified this request. As soon as the vendor formally accepts, contacts and direct details will unlock immediately!
                           </Text>
                         </View>
                       ) : (
                         <View style={styles.confirmedBanner}>
-                          <Text style={styles.confirmedBannerTitle}>✓ Luxury E-Ticket Active & Verified</Text>
+                          <Text style={styles.confirmedBannerTitle}>✓ Booking Confirmed & Contacts Unlocked</Text>
                           <Text style={styles.confirmedBannerText}>
-                            Present your digital E-Ticket or reference #{booking.ticket_id} to the vendor on your event date.
+                            Vendor has accepted your booking! Direct phone, WhatsApp, and Google Maps venue details are active. Present ticket #{booking.ticket_id} on event day.
                           </Text>
                         </View>
                       )}

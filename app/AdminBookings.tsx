@@ -59,7 +59,7 @@ import {
 } from "@/services/vendorBookings";
 import { getCommissionForBookingAmount } from "@/services/referralCommission";
 
-type TabKey = "pending" | "confirmed" | "cancelled";
+type TabKey = "admin_pending" | "vendor_pending" | "confirmed" | "cancelled" | "refunds";
 
 const money = (val?: number | null) => `₹${Number(val || 0).toLocaleString("en-IN")}`;
 
@@ -85,15 +85,29 @@ export default function AdminBookings() {
   const desktop = width >= 960;
 
   const initialTab: TabKey =
-    params.tab === "confirmed" || params.tab === "cancelled" || params.tab === "pending"
-      ? (params.tab as TabKey)
-      : "pending";
+    params.tab === "admin_pending"
+      ? "admin_pending"
+      : params.tab === "vendor_pending"
+      ? "vendor_pending"
+      : params.tab === "confirmed"
+      ? "confirmed"
+      : params.tab === "cancelled"
+      ? "cancelled"
+      : params.tab === "refunds"
+      ? "refunds"
+      : "admin_pending";
 
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [bookings, setBookings] = useState<VendorBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Forwarding & Admin Cancel state
+  const [adminForwardingId, setAdminForwardingId] = useState<string | null>(null);
+  const [adminCancelBooking, setAdminCancelBooking] = useState<VendorBooking | null>(null);
+  const [adminCancelReason, setAdminCancelReason] = useState("");
+  const [adminCancelling, setAdminCancelling] = useState(false);
 
   // Refund modal state
   const [refundBooking, setRefundBooking] = useState<VendorBooking | null>(null);
@@ -128,24 +142,41 @@ export default function AdminBookings() {
   }, [loadData]);
 
   // Tab categorization
-  const isPending = (b: VendorBooking) =>
-    b.booking_status === "pending_vendor_confirmation" ||
-    b.booking_status === "pending" ||
-    b.booking_status === "pending_payment";
+  const isAdminPending = (b: VendorBooking) =>
+    b.booking_status === "ADMIN_PENDING" ||
+    b.booking_status === "admin_pending" ||
+    b.booking_status === "pending_payment" ||
+    b.booking_status === "pending";
+
+  const isVendorPending = (b: VendorBooking) =>
+    (b.booking_status === "VENDOR_PENDING" ||
+     b.booking_status === "vendor_pending" ||
+     b.booking_status === "pending_vendor_confirmation") &&
+    !isAdminPending(b);
 
   const isConfirmed = (b: VendorBooking) =>
-    b.booking_status === "confirmed" || b.booking_status === "completed";
+    b.booking_status === "ACCEPTED" ||
+    b.booking_status === "confirmed" ||
+    b.booking_status === "completed";
 
   const isCancelled = (b: VendorBooking) =>
+    b.booking_status === "CUSTOMER_CANCELLED" ||
+    b.booking_status === "ADMIN_CANCELLED" ||
+    b.booking_status === "VENDOR_REJECTED" ||
     b.booking_status === "cancelled_by_vendor" ||
     b.booking_status === "cancelled_by_customer" ||
     b.booking_status === "cancelled";
 
+  const isRefundQueue = (b: VendorBooking) =>
+    isCancelled(b) && (b.refund_status !== "refunded" || (b.booking_fee_amount || b.advance_amount || 0) > 0);
+
   const counts = useMemo(
     () => ({
-      pending: bookings.filter(isPending).length,
+      admin_pending: bookings.filter(isAdminPending).length,
+      vendor_pending: bookings.filter(isVendorPending).length,
       confirmed: bookings.filter(isConfirmed).length,
       cancelled: bookings.filter(isCancelled).length,
+      refunds: bookings.filter(isRefundQueue).length,
       total: bookings.length,
     }),
     [bookings]
@@ -153,23 +184,36 @@ export default function AdminBookings() {
 
   const financials = useMemo(() => {
     let totalGross = 0;
-    let advanceCollected = 0;
-    let balanceDue = 0;
+    let totalFeesCollected = 0;
+    let totalReferral = 0;
+    let totalRoyallagn = 0;
+
     for (const b of bookings) {
-      if (b.booking_status !== "cancelled" && b.booking_status !== "cancelled_by_vendor") {
-        totalGross += b.total_amount || 0;
-        advanceCollected += b.advance_amount || 0;
-        balanceDue += b.due_amount || 0;
+      if (!isCancelled(b)) {
+        totalGross += Number(b.total_amount || 0);
+        const fee = Number(b.booking_fee_amount ?? b.advance_amount ?? 0);
+        totalFeesCollected += fee;
+
+        if (b.referral_commission_amount != null) {
+          totalReferral += Number(b.referral_commission_amount);
+        }
+        if (b.royallagn_commission_amount != null) {
+          totalRoyallagn += Number(b.royallagn_commission_amount);
+        } else {
+          totalRoyallagn += fee - (Number(b.referral_commission_amount || 0));
+        }
       }
     }
-    return { totalGross, advanceCollected, balanceDue };
+    return { totalGross, totalFeesCollected, totalReferral, totalRoyallagn };
   }, [bookings]);
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((item) => {
-      if (activeTab === "pending" && !isPending(item)) return false;
+      if (activeTab === "admin_pending" && !isAdminPending(item)) return false;
+      if (activeTab === "vendor_pending" && !isVendorPending(item)) return false;
       if (activeTab === "confirmed" && !isConfirmed(item)) return false;
       if (activeTab === "cancelled" && !isCancelled(item)) return false;
+      if (activeTab === "refunds" && !isRefundQueue(item)) return false;
 
       const q = searchQuery.trim().toLowerCase();
       if (!q) return true;
@@ -185,6 +229,45 @@ export default function AdminBookings() {
       );
     });
   }, [activeTab, bookings, searchQuery]);
+
+  const handleAdminForward = async (item: VendorBooking) => {
+    setAdminForwardingId(item.id);
+    try {
+      await VendorBookingService.adminForwardToVendor(item.id);
+      Alert.alert(
+        "Forwarded to Vendor",
+        `Booking #${item.ticket_id} has been verified and forwarded to ${item.vendor_name || "the vendor"}. The vendor has been notified to accept.`
+      );
+      await loadData(true);
+    } catch (err) {
+      Alert.alert("Action Failed", err instanceof Error ? err.message : "Unable to forward to vendor.");
+    } finally {
+      setAdminForwardingId(null);
+    }
+  };
+
+  const handleAdminCancel = async () => {
+    if (!adminCancelBooking) return;
+    setAdminCancelling(true);
+    try {
+      await VendorBookingService.adminCancelBooking(
+        adminCancelBooking.id,
+        adminCancelReason.trim() || "Service cancelled by Admin"
+      );
+      const feeAmt = money(adminCancelBooking.booking_fee_amount ?? adminCancelBooking.advance_amount);
+      Alert.alert(
+        "Booking Cancelled",
+        `Booking #${adminCancelBooking.ticket_id} has been cancelled. 100% refund of ${feeAmt} has been queued for the customer.`
+      );
+      setAdminCancelBooking(null);
+      setAdminCancelReason("");
+      await loadData(true);
+    } catch (err) {
+      Alert.alert("Action Failed", err instanceof Error ? err.message : "Unable to cancel booking.");
+    } finally {
+      setAdminCancelling(false);
+    }
+  };
 
   const handleProcessRefund = async () => {
     if (!refundBooking) return;
@@ -212,28 +295,39 @@ export default function AdminBookings() {
   };
 
   const renderBookingCard = ({ item }: { item: VendorBooking }) => {
-    const pending = isPending(item);
+    const adminPending = isAdminPending(item);
+    const vendorPending = isVendorPending(item);
     const confirmed = isConfirmed(item);
     const cancelled = isCancelled(item);
 
-    const statusBadgeText = pending
+    const statusBadgeText = adminPending
+      ? "Admin Verification Pending"
+      : vendorPending
       ? item.booking_status === "pending_payment"
         ? "Payment Incomplete"
         : "Awaiting Vendor Acceptance"
       : confirmed
-      ? "Confirmed · E-Ticket Active"
-      : item.booking_status === "cancelled_by_vendor"
-      ? "Cancelled by Vendor"
+      ? "Confirmed · Connection Active"
+      : item.booking_status === "CUSTOMER_CANCELLED"
+      ? "Cancelled by Customer"
+      : item.booking_status === "ADMIN_CANCELLED"
+      ? "Cancelled by Admin"
+      : item.booking_status === "VENDOR_REJECTED"
+      ? "Declined by Vendor"
       : "Cancelled";
 
-    const statusBg = pending
+    const statusBg = adminPending
       ? royalAdmin.amberSoft
+      : vendorPending
+      ? royalAdmin.blueSoft
       : confirmed
       ? royalAdmin.greenSoft
       : royalAdmin.roseSoft;
 
-    const statusColor = pending
+    const statusColor = adminPending
       ? royalAdmin.amber
+      : vendorPending
+      ? royalAdmin.blue
       : confirmed
       ? royalAdmin.green
       : royalAdmin.rose;
@@ -247,7 +341,7 @@ export default function AdminBookings() {
             <Text style={styles.ticketIdText}>Ticket #{item.ticket_id}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
-            {pending ? (
+            {adminPending || vendorPending ? (
               <Clock size={12} color={statusColor} />
             ) : confirmed ? (
               <CheckCircle2 size={12} color={statusColor} />
@@ -358,7 +452,7 @@ export default function AdminBookings() {
           </View>
         </View>
 
-        {/* FINANCIAL SUMMARY (ESCROW 30% / 70%) */}
+        {/* FINANCIAL SUMMARY */}
         <View style={styles.financialsBox}>
           <View style={styles.financialCol}>
             <Text style={styles.finLabel}>Total Booking</Text>
@@ -367,10 +461,14 @@ export default function AdminBookings() {
           <View style={styles.finDivider} />
           <View style={styles.financialCol}>
             <View style={styles.advanceLabelRow}>
-              <Text style={styles.finLabel}>30% Advance</Text>
-              {item.payment_status === "paid_advance" ? (
+              <Text style={styles.finLabel}>
+                {item.booking_fee_amount != null ? "Booking Fee" : "Advance Paid"}
+              </Text>
+              {(item.booking_fee_amount != null || item.payment_status === "paid_advance" || item.payment_status === "paid_booking_fee" || item.payment_status === "free_zero_fee") ? (
                 <View style={styles.paidBadge}>
-                  <Text style={styles.paidBadgeText}>PAID</Text>
+                  <Text style={styles.paidBadgeText}>
+                    {item.booking_fee_amount === 0 ? "FREE" : "PAID"}
+                  </Text>
                 </View>
               ) : (
                 <View style={styles.pendingBadge}>
@@ -378,22 +476,30 @@ export default function AdminBookings() {
                 </View>
               )}
             </View>
-            <Text style={styles.finAdvance}>{money(item.advance_amount)}</Text>
+            <Text style={styles.finAdvance}>
+              {money(item.booking_fee_amount ?? item.advance_amount)}
+            </Text>
           </View>
           <View style={styles.finDivider} />
           <View style={styles.financialCol}>
-            <Text style={styles.finLabel}>70% Due at Event</Text>
-            <Text style={styles.finDue}>{money(item.due_amount)}</Text>
+            <Text style={styles.finLabel}>Direct to Vendor</Text>
+            <Text style={styles.finDue}>
+              {money(item.booking_fee_amount != null ? (item.total_amount - (item.booking_fee_amount || 0)) : item.due_amount)}
+            </Text>
           </View>
         </View>
 
-        {/* REFERRAL & COMMISSION BANNER */}
-        {item.referral_code ? (() => {
-          const comm = getCommissionForBookingAmount(item.total_amount);
-          const commStatus = isConfirmed(item)
+        {/* PLATFORM & REFERRAL COMMISSION BREAKDOWN */}
+        {((item.booking_fee_amount != null && item.booking_fee_amount > 0) || item.referral_code) ? (() => {
+          const fee = item.booking_fee_amount ?? item.advance_amount ?? 0;
+          const refCut = item.referral_commission_amount ?? (item.referral_code ? Math.round(fee * 0.4) : 0);
+          const royalCut = item.royallagn_commission_amount ?? (fee - refCut);
+          const isConf = isConfirmed(item);
+          const isCanc = isCancelled(item);
+          const commStatus = isConf
             ? { label: "Commission Earned", color: royalAdmin.green, bg: royalAdmin.greenSoft }
-            : isCancelled(item)
-            ? { label: "Commission Cancelled", color: royalAdmin.rose, bg: royalAdmin.roseSoft }
+            : isCanc
+            ? { label: "Commission Voided (Refund 100%)", color: royalAdmin.rose, bg: royalAdmin.roseSoft }
             : { label: "Pending Confirmation", color: royalAdmin.amber, bg: royalAdmin.amberSoft };
 
           return (
@@ -401,10 +507,9 @@ export default function AdminBookings() {
               <View style={styles.referralHeader}>
                 <View style={styles.referralCodeWrap}>
                   <Gift size={15} color="#B45309" />
-                  <Text style={styles.referralCodeLabel}>Referred Booking:</Text>
-                  <View style={styles.referralCodePill}>
-                    <Text style={styles.referralCodeText}>{item.referral_code}</Text>
-                  </View>
+                  <Text style={styles.referralCodeLabel}>
+                    {item.referral_code ? `Referral Code: ${item.referral_code}` : "Direct Platform Connection"}
+                  </Text>
                 </View>
                 <View style={[styles.referralStatusBadge, { backgroundColor: commStatus.bg }]}>
                   <Text style={[styles.referralStatusText, { color: commStatus.color }]}>
@@ -415,28 +520,23 @@ export default function AdminBookings() {
 
               <View style={styles.referralDetailsRow}>
                 <View style={styles.referralMetric}>
-                  <Text style={styles.referralMetricLabel}>Slab Tier</Text>
-                  <Text style={styles.referralMetricValue}>₹{comm.slab.label}</Text>
+                  <Text style={styles.referralMetricLabel}>Booking Fee</Text>
+                  <Text style={[styles.referralMetricValue, { color: royalAdmin.navyDeep }]}>
+                    {money(fee)}
+                  </Text>
                 </View>
                 <View style={styles.referralMetricDivider} />
                 <View style={styles.referralMetric}>
-                  <Text style={styles.referralMetricLabel}>Referrer Reward</Text>
+                  <Text style={styles.referralMetricLabel}>Referral Reward</Text>
                   <Text style={[styles.referralMetricValue, { color: "#15803D" }]}>
-                    {money(comm.referrerReward)}
+                    {money(refCut)}
                   </Text>
                 </View>
                 <View style={styles.referralMetricDivider} />
                 <View style={styles.referralMetric}>
                   <Text style={styles.referralMetricLabel}>RoyalLagn Cut</Text>
                   <Text style={[styles.referralMetricValue, { color: "#B45309" }]}>
-                    {money(comm.royallagnCommission)}
-                  </Text>
-                </View>
-                <View style={styles.referralMetricDivider} />
-                <View style={styles.referralMetric}>
-                  <Text style={styles.referralMetricLabel}>Total Commission</Text>
-                  <Text style={[styles.referralMetricValue, { color: royalAdmin.navyDeep }]}>
-                    {money(comm.totalCommission)}
+                    {money(royalCut)}
                   </Text>
                 </View>
               </View>
@@ -450,12 +550,16 @@ export default function AdminBookings() {
             <View style={styles.cancellationHeader}>
               <ShieldAlert size={16} color={royalAdmin.rose} />
               <Text style={styles.cancellationTitle}>
-                Vendor Declined · 72-Hour Refund SLA
+                {item.booking_status === "CUSTOMER_CANCELLED"
+                  ? "Customer Cancelled · 100% Refund SLA (72h)"
+                  : item.booking_status === "ADMIN_CANCELLED"
+                  ? "Admin Cancelled · 100% Refund SLA (72h)"
+                  : "Vendor Declined · 100% Refund SLA (72h)"}
               </Text>
             </View>
-            {item.rejection_reason ? (
+            {(item.rejection_reason || item.admin_cancellation_reason || item.cancellation_reason) ? (
               <Text style={styles.rejectionReasonText}>
-                Reason: &quot;{item.rejection_reason}&quot;
+                Reason: &quot;{item.rejection_reason || item.admin_cancellation_reason || item.cancellation_reason}&quot;
               </Text>
             ) : null}
 
@@ -465,21 +569,21 @@ export default function AdminBookings() {
                 <Text style={{ fontWeight: "700", color: item.refund_status === "refunded" ? royalAdmin.green : royalAdmin.amber }}>
                   {item.refund_status?.toUpperCase() || "PENDING"}
                 </Text>{" "}
-                ({money(item.advance_amount)})
+                (100% Fee: {money(item.booking_fee_amount ?? item.advance_amount)})
               </Text>
 
               {item.refund_status !== "refunded" ? (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Process refund"
+                  accessibilityLabel="Process 100% refund"
                   onPress={() => {
                     setRefundBooking(item);
-                    setRefundNotes(`Refund for Ticket #${item.ticket_id} (${item.customer_name})`);
+                    setRefundNotes(`100% refund for Ticket #${item.ticket_id} (${item.customer_name})`);
                   }}
                   style={styles.processRefundBtn}
                 >
                   <Receipt size={13} color="#FFFFFF" />
-                  <Text style={styles.processRefundBtnText}>Process Refund</Text>
+                  <Text style={styles.processRefundBtnText}>Process 100% Refund</Text>
                 </Pressable>
               ) : (
                 <View style={styles.refundCompletedBadge}>
@@ -506,7 +610,7 @@ export default function AdminBookings() {
           </View>
         ) : null}
 
-        {/* Action Row: View Booking & Contact Details */}
+        {/* Action Row */}
         <View style={styles.cardActionsRow}>
           <Pressable
             accessibilityRole="button"
@@ -515,8 +619,88 @@ export default function AdminBookings() {
             style={styles.viewDetailsBtn}
           >
             <FileText size={14} color="#FFFFFF" />
-            <Text style={styles.viewDetailsBtnText}>Booking & Contact Details</Text>
+            <Text style={styles.viewDetailsBtnText}>Details & Contacts</Text>
           </Pressable>
+
+          {/* ADMIN_PENDING Actions */}
+          {adminPending && (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Send to Vendor"
+                disabled={adminForwardingId === item.id}
+                onPress={() => void handleAdminForward(item)}
+                style={styles.forwardToVendorBtn}
+              >
+                {adminForwardingId === item.id ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <ArrowUpRight size={14} color="#FFFFFF" />
+                    <Text style={styles.forwardToVendorBtnText}>Send to Vendor</Text>
+                  </>
+                )}
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Cancel & 100% Refund"
+                onPress={() => {
+                  setAdminCancelBooking(item);
+                  setAdminCancelReason("Service could not be verified by Admin");
+                }}
+                style={styles.adminCancelBtn}
+              >
+                <XCircle size={14} color="#DC2626" />
+                <Text style={styles.adminCancelBtnText}>Cancel & Refund</Text>
+              </Pressable>
+            </>
+          )}
+
+          {/* VENDOR_PENDING Actions */}
+          {vendorPending && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Admin Cancel & Refund"
+              onPress={() => {
+                setAdminCancelBooking(item);
+                setAdminCancelReason("Vendor unresponsive / Admin cancellation requested");
+              }}
+              style={styles.adminCancelBtn}
+            >
+              <XCircle size={14} color="#DC2626" />
+              <Text style={styles.adminCancelBtnText}>Cancel & Refund</Text>
+            </Pressable>
+          )}
+
+          {/* CONFIRMED Actions */}
+          {confirmed && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="View E-Ticket"
+              onPress={() => router.push({ pathname: "/ticket", params: { booking_id: item.booking_id, ticket_id: item.ticket_id } })}
+              style={styles.adminTicketBtn}
+            >
+              <Ticket size={14} color={royalAdmin.navyDeep} />
+              <Text style={styles.adminTicketBtnText}>E-Ticket</Text>
+            </Pressable>
+          )}
+
+          {/* CANCELLED Actions: Process Refund button if not refunded */}
+          {cancelled && item.refund_status !== "refunded" && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Process 100% Refund"
+              onPress={() => {
+                setRefundBooking(item);
+                setRefundNotes(`100% refund for Ticket #${item.ticket_id} (${item.customer_name})`);
+              }}
+              style={styles.processRefundDirectBtn}
+            >
+              <Receipt size={14} color="#FFFFFF" />
+              <Text style={styles.processRefundDirectBtnText}>Process 100% Refund</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Footer Meta */}
@@ -537,7 +721,7 @@ export default function AdminBookings() {
       <ResponsiveContainer style={styles.container}>
         <AdminPageHeader
           title="Bookings"
-          subtitle="Real-time monitoring of customer-to-vendor bookings, contact unlock & cancellation cutoff, and escrow advances"
+          subtitle="Real-time monitoring of customer-to-vendor booking connection requests, admin verification, and platform commissions"
           action={
             <Pressable
               accessibilityLabel="Refresh bookings"
@@ -554,15 +738,15 @@ export default function AdminBookings() {
           }
         />
 
-        {/* FINANCIAL KPI OVERVIEW */}
+        {/* FINANCIAL KPI OVERVIEW (PLATFORM COMMISSION SUMMARY) */}
         <View style={[styles.kpiRow, desktop && styles.kpiRowDesktop]}>
           <View style={[styles.kpiCard, { backgroundColor: royalAdmin.blueSoft }]}>
             <View style={styles.kpiIconWrap}>
               <Ticket size={18} color={royalAdmin.blue} />
             </View>
             <View>
-              <Text style={styles.kpiLabel}>Total Bookings</Text>
-              <Text style={styles.kpiValue}>{counts.total}</Text>
+              <Text style={styles.kpiLabel}>Gross Booking Volume</Text>
+              <Text style={styles.kpiValue}>{money(financials.totalGross)}</Text>
             </View>
           </View>
 
@@ -571,38 +755,66 @@ export default function AdminBookings() {
               <Wallet size={18} color={royalAdmin.amber} />
             </View>
             <View>
-              <Text style={styles.kpiLabel}>30% Advance Escrow</Text>
-              <Text style={styles.kpiValue}>{money(financials.advanceCollected)}</Text>
+              <Text style={styles.kpiLabel}>Booking Fees Collected</Text>
+              <Text style={styles.kpiValue}>{money(financials.totalFeesCollected)}</Text>
             </View>
           </View>
 
           <View style={[styles.kpiCard, { backgroundColor: royalAdmin.greenSoft }]}>
             <View style={styles.kpiIconWrap}>
-              <IndianRupee size={18} color={royalAdmin.green} />
+              <Gift size={18} color={royalAdmin.green} />
             </View>
             <View>
-              <Text style={styles.kpiLabel}>Gross Booking Volume</Text>
-              <Text style={styles.kpiValue}>{money(financials.totalGross)}</Text>
+              <Text style={styles.kpiLabel}>Referral Rewards</Text>
+              <Text style={styles.kpiValue}>{money(financials.totalReferral)}</Text>
+            </View>
+          </View>
+
+          <View style={[styles.kpiCard, { backgroundColor: "#FDF2F8" }]}>
+            <View style={styles.kpiIconWrap}>
+              <IndianRupee size={18} color="#BE185D" />
+            </View>
+            <View>
+              <Text style={styles.kpiLabel}>RoyalLagn Cut</Text>
+              <Text style={[styles.kpiValue, { color: "#BE185D" }]}>{money(financials.totalRoyallagn)}</Text>
             </View>
           </View>
         </View>
 
-        {/* THREE PRIMARY TABS */}
+        {/* 5 PRIMARY WORKFLOW TABS */}
         <View style={styles.tabsContainer}>
           <Pressable
             accessibilityRole="tab"
-            accessibilityLabel="Pending bookings tab"
-            accessibilityState={{ selected: activeTab === "pending" }}
-            onPress={() => setActiveTab("pending")}
-            style={[styles.tabButton, activeTab === "pending" && styles.tabButtonActive]}
+            accessibilityLabel="Admin Verification tab"
+            accessibilityState={{ selected: activeTab === "admin_pending" }}
+            onPress={() => setActiveTab("admin_pending")}
+            style={[styles.tabButton, activeTab === "admin_pending" && styles.tabButtonActive]}
           >
-            <Clock size={16} color={activeTab === "pending" ? royalAdmin.navyDeep : royalAdmin.navyMuted} />
-            <Text style={[styles.tabText, activeTab === "pending" && styles.tabTextActive]}>
-              Pending Bookings
+            <Clock size={16} color={activeTab === "admin_pending" ? royalAdmin.navyDeep : royalAdmin.navyMuted} />
+            <Text style={[styles.tabText, activeTab === "admin_pending" && styles.tabTextActive]}>
+              Admin Verification
             </Text>
-            <View style={[styles.tabBadge, activeTab === "pending" ? styles.tabBadgeActiveAmber : styles.tabBadgeInactive]}>
-              <Text style={[styles.tabBadgeText, activeTab === "pending" && styles.tabBadgeTextActiveAmber]}>
-                {counts.pending}
+            <View style={[styles.tabBadge, activeTab === "admin_pending" ? styles.tabBadgeActiveAmber : styles.tabBadgeInactive]}>
+              <Text style={[styles.tabBadgeText, activeTab === "admin_pending" && styles.tabBadgeTextActiveAmber]}>
+                {counts.admin_pending}
+              </Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityLabel="Vendor Pending tab"
+            accessibilityState={{ selected: activeTab === "vendor_pending" }}
+            onPress={() => setActiveTab("vendor_pending")}
+            style={[styles.tabButton, activeTab === "vendor_pending" && styles.tabButtonActive]}
+          >
+            <Building2 size={16} color={activeTab === "vendor_pending" ? royalAdmin.navyDeep : royalAdmin.navyMuted} />
+            <Text style={[styles.tabText, activeTab === "vendor_pending" && styles.tabTextActive]}>
+              Vendor Pending
+            </Text>
+            <View style={[styles.tabBadge, activeTab === "vendor_pending" ? styles.tabBadgeActiveAmber : styles.tabBadgeInactive]}>
+              <Text style={[styles.tabBadgeText, activeTab === "vendor_pending" && styles.tabBadgeTextActiveAmber]}>
+                {counts.vendor_pending}
               </Text>
             </View>
           </Pressable>
@@ -616,7 +828,7 @@ export default function AdminBookings() {
           >
             <CheckCircle2 size={16} color={activeTab === "confirmed" ? royalAdmin.navyDeep : royalAdmin.navyMuted} />
             <Text style={[styles.tabText, activeTab === "confirmed" && styles.tabTextActive]}>
-              Confirmed Bookings
+              Confirmed
             </Text>
             <View style={[styles.tabBadge, activeTab === "confirmed" ? styles.tabBadgeActiveGreen : styles.tabBadgeInactive]}>
               <Text style={[styles.tabBadgeText, activeTab === "confirmed" && styles.tabBadgeTextActiveGreen]}>
@@ -634,11 +846,29 @@ export default function AdminBookings() {
           >
             <XCircle size={16} color={activeTab === "cancelled" ? royalAdmin.navyDeep : royalAdmin.navyMuted} />
             <Text style={[styles.tabText, activeTab === "cancelled" && styles.tabTextActive]}>
-              Cancelled Bookings
+              Cancelled & Rejected
             </Text>
             <View style={[styles.tabBadge, activeTab === "cancelled" ? styles.tabBadgeActiveRed : styles.tabBadgeInactive]}>
               <Text style={[styles.tabBadgeText, activeTab === "cancelled" && styles.tabBadgeTextActiveRed]}>
                 {counts.cancelled}
+              </Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="tab"
+            accessibilityLabel="Refunds Queue tab"
+            accessibilityState={{ selected: activeTab === "refunds" }}
+            onPress={() => setActiveTab("refunds")}
+            style={[styles.tabButton, activeTab === "refunds" && styles.tabButtonActive]}
+          >
+            <Receipt size={16} color={activeTab === "refunds" ? royalAdmin.navyDeep : royalAdmin.navyMuted} />
+            <Text style={[styles.tabText, activeTab === "refunds" && styles.tabTextActive]}>
+              Refunds Queue
+            </Text>
+            <View style={[styles.tabBadge, activeTab === "refunds" ? styles.tabBadgeActiveRed : styles.tabBadgeInactive]}>
+              <Text style={[styles.tabBadgeText, activeTab === "refunds" && styles.tabBadgeTextActiveRed]}>
+                {counts.refunds}
               </Text>
             </View>
           </Pressable>
@@ -771,6 +1001,79 @@ export default function AdminBookings() {
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
                     <Text style={styles.modalConfirmText}>Confirm Refund Paid</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ADMIN CANCEL & REFUND MODAL */}
+      <Modal
+        visible={!!adminCancelBooking}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAdminCancelBooking(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Cancel Booking & Refund</Text>
+                <Text style={styles.modalSubtitle}>
+                  Ticket #{adminCancelBooking?.ticket_id} · 100% Refund ({money(adminCancelBooking?.booking_fee_amount ?? adminCancelBooking?.advance_amount)})
+                </Text>
+              </View>
+              <Pressable
+                accessibilityLabel="Close cancel modal"
+                onPress={() => setAdminCancelBooking(null)}
+                style={styles.modalCloseBtn}
+              >
+                <X size={20} color={royalAdmin.navyDeep} />
+              </Pressable>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalNotice}>
+                Customer: <Text style={{ fontWeight: "700" }}>{adminCancelBooking?.customer_name}</Text>
+                {"\n"}Phone: {adminCancelBooking?.customer_phone}
+                {"\n"}Vendor: {adminCancelBooking?.vendor_name}
+                {"\n\n"}Cancelling this booking queues a 100% refund of the booking fee and notifies both parties.
+              </Text>
+
+              <Text style={styles.inputLabel}>Admin Cancellation Reason</Text>
+              <TextInput
+                placeholder="Reason for admin cancellation..."
+                placeholderTextColor={royalAdmin.navyMuted}
+                value={adminCancelReason}
+                onChangeText={setAdminCancelReason}
+                multiline
+                numberOfLines={3}
+                style={[styles.modalInput, { height: 70, textAlignVertical: "top" }]}
+              />
+
+              <View style={styles.modalActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Dismiss"
+                  onPress={() => setAdminCancelBooking(null)}
+                  style={styles.modalCancelBtn}
+                >
+                  <Text style={styles.modalCancelText}>Dismiss</Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Confirm Cancellation"
+                  disabled={adminCancelling}
+                  onPress={() => void handleAdminCancel()}
+                  style={[styles.modalConfirmBtn, { backgroundColor: royalAdmin.rose }]}
+                >
+                  {adminCancelling ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.modalConfirmText}>Cancel & Queue 100% Refund</Text>
                   )}
                 </Pressable>
               </View>
@@ -1479,6 +1782,68 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   viewDetailsBtnText: {
+    color: "#FFFFFF",
+    fontFamily: fonts.sans.bold,
+    fontSize: 12,
+  },
+  forwardToVendorBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#15803D",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  forwardToVendorBtnText: {
+    color: "#FFFFFF",
+    fontFamily: fonts.sans.bold,
+    fontSize: 12,
+  },
+  adminCancelBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  adminCancelBtnText: {
+    color: "#DC2626",
+    fontFamily: fonts.sans.bold,
+    fontSize: 12,
+  },
+  adminTicketBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(0, 32, 91, 0.08)",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  adminTicketBtnText: {
+    color: royalAdmin.navyDeep,
+    fontFamily: fonts.sans.bold,
+    fontSize: 12,
+  },
+  processRefundDirectBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: royalAdmin.rose,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  processRefundDirectBtnText: {
     color: "#FFFFFF",
     fontFamily: fonts.sans.bold,
     fontSize: 12,

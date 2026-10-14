@@ -111,19 +111,26 @@ export default function VendorDashboard() {
     () =>
       vendorBookings.filter(
         (b) =>
-          b.booking_status === "pending_vendor_confirmation" ||
-          b.booking_status === "pending"
+          b.booking_status === "VENDOR_PENDING" ||
+          b.booking_status === "vendor_pending" ||
+          b.booking_status === "pending_vendor_confirmation"
       ).length,
     [vendorBookings]
   );
   const confirmedBookingsCount = useMemo(
-    () => vendorBookings.filter((b) => b.booking_status === "confirmed").length,
+    () =>
+      vendorBookings.filter(
+        (b) => b.booking_status === "ACCEPTED" || b.booking_status === "confirmed"
+      ).length,
     [vendorBookings]
   );
   const cancelledBookingsCount = useMemo(
     () =>
       vendorBookings.filter(
         (b) =>
+          b.booking_status === "VENDOR_REJECTED" ||
+          b.booking_status === "CUSTOMER_CANCELLED" ||
+          b.booking_status === "ADMIN_CANCELLED" ||
           b.booking_status === "cancelled_by_vendor" ||
           b.booking_status === "cancelled" ||
           b.booking_status === "cancelled_by_customer"
@@ -142,8 +149,11 @@ export default function VendorDashboard() {
 
   const calculatedEarnings = useMemo(() => {
     return vendorBookings
-      .filter((b) => b.booking_status === "confirmed" || b.payment_status === "paid_advance")
-      .reduce((sum, b) => sum + (Number(b.advance_amount) || Number(b.total_amount) || 0), 0);
+      .filter((b) => b.booking_status === "ACCEPTED" || b.booking_status === "confirmed" || b.payment_status === "paid_advance")
+      .reduce((sum, b) => {
+        const directVendorAmt = Number(b.total_amount || 0) - Number(b.booking_fee_amount || 0);
+        return sum + (b.booking_fee_amount != null ? directVendorAmt : (Number(b.advance_amount) || Number(b.total_amount) || 0));
+      }, 0);
   }, [vendorBookings]);
 
   // Real-time booking & financial metrics directly from live Supabase data

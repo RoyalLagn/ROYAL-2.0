@@ -26,6 +26,19 @@ function calculateEventDays(startDateStr: string, endDateStr: string): number {
   return Math.max(1, diffDays + 1);
 }
 
+function calculateCommissionSlab(totalAmount: number) {
+  const rounded = Math.round(Number(totalAmount || 0));
+  if (rounded < 2999) return { refReward: 0, rlComm: 0, fee: 0, slab: "0 – 2,998" };
+  if (rounded < 10000) return { refReward: 250, rlComm: 250, fee: 500, slab: "2,999 – 9,999" };
+  if (rounded < 30000) return { refReward: 500, rlComm: 500, fee: 1000, slab: "10,000 – 29,999" };
+  if (rounded < 50000) return { refReward: 1000, rlComm: 1000, fee: 2000, slab: "30,000 – 49,999" };
+  if (rounded < 70000) return { refReward: 2000, rlComm: 2000, fee: 4000, slab: "50,000 – 69,999" };
+  if (rounded < 100000) return { refReward: 3000, rlComm: 3000, fee: 6000, slab: "70,000 – 99,999" };
+  if (rounded < 130000) return { refReward: 4000, rlComm: 4000, fee: 8000, slab: "1,00,000 – 1,29,999" };
+  if (rounded < 150000) return { refReward: 5000, rlComm: 5000, fee: 10000, slab: "1,30,000 – 1,49,999" };
+  return { refReward: 6000, rlComm: 6000, fee: 12000, slab: "1,50,000 and above" };
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -120,7 +133,7 @@ Deno.serve(async (request) => {
 
     const { data: existingActive } = await admin
       .from("vendor_bookings")
-      .select("id, booking_id, ticket_id, razorpay_order_id, advance_amount, due_amount, total_amount, total_days, soft_lock_expires_at")
+      .select("id, booking_id, ticket_id, razorpay_order_id, booking_fee_amount, advance_amount, due_amount, total_amount, total_days, soft_lock_expires_at")
       .eq("vendor_id", vendorId)
       .eq("customer_phone", customerPhone)
       .eq("start_date", startDate)
@@ -133,6 +146,7 @@ Deno.serve(async (request) => {
       .maybeSingle();
 
     if (existingActive && existingActive.razorpay_order_id && !existingActive.razorpay_order_id.startsWith("order_bkg_")) {
+      const activeFee = Number(existingActive.booking_fee_amount ?? existingActive.advance_amount ?? 0);
       return json({
         success: true,
         bookingRecordId: existingActive.id,
@@ -141,8 +155,9 @@ Deno.serve(async (request) => {
         orderId: existingActive.razorpay_order_id,
         keyId: razorpay.keyId,
         currency: "INR",
-        amountMinor: Math.round(Number(existingActive.advance_amount) * 100),
-        advanceAmount: Number(existingActive.advance_amount),
+        amountMinor: Math.round(activeFee * 100),
+        bookingFeeAmount: activeFee,
+        advanceAmount: activeFee,
         dueAmount: Number(existingActive.due_amount),
         grandTotal: Number(existingActive.total_amount),
         totalDays: existingActive.total_days,
@@ -231,20 +246,94 @@ Deno.serve(async (request) => {
     const addOnsTotal = addOns.reduce((sum: number, item: any) => sum + (Number(item.price) || 0), 0);
     const grandTotal = Math.max(0, Math.round(packagesTotal + addOnsTotal));
 
-    // Authoritative whole-rupee calculation: 30% advance, 70% due
-    const advanceAmount = Math.max(0, Math.round(grandTotal * 0.30));
-    const dueAmount = grandTotal - advanceAmount;
-    const advancePaise = advanceAmount * 100;
+    // 5b. Authoritative Commission Slab Calculation
+    const slab = calculateCommissionSlab(grandTotal);
 
-    if (advanceAmount <= 0 || advancePaise < 100) {
-      return json({ error: "Booking advance amount must be at least ₹1. Please select a valid package or service." }, 400);
+    // Verify referral attribution if code provided
+    let referralAllocation = 0;
+    let royallagnAllocation = slab.fee;
+    let hasValidReferral = false;
+
+    if (referralCode) {
+      const cleanRef = referralCode.toUpperCase();
+      const { data: refCheck } = await admin
+        .from("referral_profiles")
+        .select("customer_id")
+        .eq("referral_code", cleanRef)
+        .maybeSingle();
+
+      if (refCheck && refCheck.customer_id !== customerId) {
+        hasValidReferral = true;
+      } else {
+        const { data: profCheck } = await admin
+          .from("profiles")
+          .select("id")
+          .eq("referral_code", cleanRef)
+          .maybeSingle();
+        if (profCheck && profCheck.id !== customerId) {
+          hasValidReferral = true;
+        }
+      }
     }
 
-    // 6. Generate IDs and 15-minute soft lock
+    if (hasValidReferral) {
+      referralAllocation = slab.refReward;
+      royallagnAllocation = slab.rlComm;
+    }
+
+    const bookingFee = slab.fee;
+    const vendorDue = Math.max(0, grandTotal - bookingFee);
+    const bookingFeePaise = bookingFee * 100;
+    const primaryTitle = snapshotItems.map((p) => p.title).join(" + ") || "Wedding Service";
+
+    // 6. Zero-Fee Checkout Path (₹0 - ₹2,998)
+    if (bookingFee === 0) {
+      const { data: zeroRes, error: zeroErr } = await admin.rpc("create_zero_fee_booking", {
+        p_vendor_id: vendorId,
+        p_customer_name: customerName,
+        p_customer_phone: customerPhone,
+        p_customer_email: customerEmail,
+        p_event_date: startDate,
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_total_days: totalDays,
+        p_event_type: eventType,
+        p_package_id: snapshotItems[0]?.id || null,
+        p_package_title: primaryTitle,
+        p_total_amount: grandTotal,
+        p_selected_packages: snapshotItems,
+        p_add_ons: addOns,
+        p_special_notes: specialNotes,
+        p_referral_code: referralCode,
+        p_customer_contact_number: customerContactNumber,
+        p_customer_whatsapp_number: customerWhatsappNumber,
+        p_service_map_url: serviceMapUrl,
+        p_booking_description: bookingDescription,
+      });
+
+      if (zeroErr) {
+        throw zeroErr;
+      }
+
+      return json({
+        success: true,
+        isZeroFee: true,
+        bookingRecordId: zeroRes.booking_record_id,
+        bookingId: zeroRes.booking_id,
+        ticketId: zeroRes.ticket_id,
+        bookingStatus: "ADMIN_PENDING",
+        bookingFeeAmount: 0,
+        advanceAmount: 0,
+        dueAmount: grandTotal,
+        grandTotal,
+        totalDays,
+      });
+    }
+
+    // 7. Generate IDs and 15-minute soft lock for Paid Booking Fee
     const bookingId = `bkg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const ticketId = `RL-${Math.floor(10000 + Math.random() * 90000)}`;
     const softLockExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-    const primaryTitle = snapshotItems.map((p) => p.title).join(" + ") || "Wedding Service";
 
     // Insert pending_payment booking with 15-minute soft lock
     const { data: newBooking, error: insertErr } = await admin
@@ -269,8 +358,11 @@ Deno.serve(async (request) => {
         add_ons: addOns,
         special_notes: specialNotes,
         total_amount: grandTotal,
-        advance_amount: advanceAmount,
-        due_amount: dueAmount,
+        booking_fee_amount: bookingFee,
+        referral_commission_amount: referralAllocation,
+        royallagn_commission_amount: royallagnAllocation,
+        advance_amount: bookingFee,
+        due_amount: vendorDue,
         booking_status: "pending_payment",
         payment_status: "pending",
         soft_lock_expires_at: softLockExpiresAt,
@@ -290,7 +382,7 @@ Deno.serve(async (request) => {
       throw insertErr;
     }
 
-    // 8. Create Genuine Razorpay Test Order
+    // 8. Create Genuine Razorpay Test Order for Booking Fee
     let razorpayOrderId = "";
     try {
       const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
@@ -300,7 +392,7 @@ Deno.serve(async (request) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          amount: advancePaise,
+          amount: bookingFeePaise,
           currency: "INR",
           receipt: newBooking.id,
           payment_capture: 1,
@@ -312,6 +404,8 @@ Deno.serve(async (request) => {
             customer_name: customerName,
             customer_phone: customerPhone,
             event_date: startDate,
+            booking_fee: bookingFee,
+            grand_total: grandTotal,
           },
         }),
       });
@@ -319,7 +413,6 @@ Deno.serve(async (request) => {
       if (!rzpRes.ok) {
         const errBody = await rzpRes.text();
         console.error("Razorpay order creation failed:", errBody);
-        // Release soft lock row so availability is not locked by failed orders
         await admin.from("vendor_bookings").delete().eq("id", newBooking.id);
         return json({ error: `Razorpay order creation failed (${rzpRes.status}): ${errBody}` }, 400);
       }
@@ -350,9 +443,10 @@ Deno.serve(async (request) => {
       orderId: razorpayOrderId,
       keyId: razorpay.keyId,
       currency: "INR",
-      amountMinor: advancePaise,
-      advanceAmount,
-      dueAmount,
+      amountMinor: bookingFeePaise,
+      bookingFeeAmount: bookingFee,
+      advanceAmount: bookingFee,
+      dueAmount: vendorDue,
       grandTotal,
       totalDays,
       softLockExpiresAt,

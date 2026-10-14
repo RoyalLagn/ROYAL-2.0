@@ -3,6 +3,7 @@ import { supabase } from "@/services/supabase";
 import {
   calculateBookingFinancials as calcFinancials,
   calculateEventDays,
+  getBookingFeeForAmount,
   type BookingAddOn,
   type SelectedPackageSummary,
   type BookingFinancials,
@@ -15,10 +16,22 @@ import {
   isContactUnlocked,
 } from "@/lib/bookingCancellationPolicy";
 
-export { calculateEventDays };
+export { calculateEventDays, getBookingFeeForAmount };
 export type { BookingAddOn, SelectedPackageSummary, BookingFinancials };
 
 export type BookingStatus =
+  | "ADMIN_PENDING"
+  | "VENDOR_PENDING"
+  | "ACCEPTED"
+  | "CUSTOMER_CANCELLED"
+  | "ADMIN_CANCELLED"
+  | "VENDOR_REJECTED"
+  | "admin_pending"
+  | "vendor_pending"
+  | "accepted"
+  | "customer_cancelled"
+  | "admin_cancelled"
+  | "vendor_rejected"
   | "pending_payment"
   | "pending_vendor_confirmation"
   | "pending"
@@ -29,8 +42,8 @@ export type BookingStatus =
   | "completed";
 
 export type BookingSource = "online" | "offline";
-export type PaymentStatus = "pending" | "paid_advance" | "failed" | "refunded";
-export type RefundStatus = "pending" | "processing" | "refunded" | "failed" | "rejected";
+export type PaymentStatus = "pending" | "paid_advance" | "paid_booking_fee" | "free_zero_fee" | "paid" | "failed" | "refunded";
+export type RefundStatus = "pending" | "processing" | "refunded" | "failed" | "rejected" | "REFUND_PENDING" | "REFUND_PROCESSING" | "REFUND_SUCCESSFUL" | "REFUND_FAILED";
 
 export type VendorBooking = {
   id: string;
@@ -59,8 +72,11 @@ export type VendorBooking = {
   add_ons: BookingAddOn[];
   special_notes?: string | null;
   total_amount: number;
-  advance_amount: number; // 30% strictly
-  due_amount: number;     // 70% remaining
+  booking_fee_amount?: number;
+  referral_commission_amount?: number;
+  royallagn_commission_amount?: number;
+  advance_amount: number; // mapped to booking_fee_amount
+  due_amount: number;     // remaining vendor service amount
   booking_status: BookingStatus;
   payment_status: PaymentStatus;
   soft_lock_expires_at?: string | null;
@@ -73,7 +89,13 @@ export type VendorBooking = {
   refunded_at?: string | null;
   refund_notes?: string | null;
   referral_code?: string | null;
-  // 5-Day Cancellation Lock & Contact Unlock Fields
+  admin_verified_at?: string | null;
+  forwarded_to_vendor_at?: string | null;
+  vendor_accepted_at?: string | null;
+  vendor_rejected_at?: string | null;
+  admin_cancelled_at?: string | null;
+  admin_cancellation_reason?: string | null;
+  // Contact Unlock & Cancellation Fields
   event_start_at?: string | null;
   cancellation_cutoff_at?: string | null;
   customer_contact_number?: string | null;
@@ -108,6 +130,9 @@ export type SecureBookingDetails = {
   contacts_unlocked: boolean;
   can_cancel: boolean;
   total_amount: number;
+  booking_fee_amount?: number;
+  referral_commission_amount?: number;
+  royallagn_commission_amount?: number;
   advance_amount: number;
   due_amount: number;
   package_title: string;
@@ -180,15 +205,17 @@ export type CreateBookingInput = {
 
 export type CreateBookingOrderResponse = {
   success: boolean;
+  isZeroFee?: boolean;
   bookingRecordId: string;
   bookingId: string;
   ticketId: string;
-  orderId: string;
-  keyId: string;
-  currency: string;
-  amountMinor: number;
-  advanceAmount: number;
-  dueAmount: number;
+  orderId?: string;
+  keyId?: string;
+  currency?: string;
+  amountMinor?: number;
+  bookingFeeAmount?: number;
+  advanceAmount: number; // backward compatibility for booking fee
+  dueAmount: number;     // remaining vendor service amount
   grandTotal: number;
   totalDays: number;
   softLockExpiresAt?: string;
@@ -199,6 +226,20 @@ const STORAGE_KEY_BOOKINGS = "royallagn.bookings.v1";
 
 const isUuid = (val?: string | null): boolean =>
   typeof val === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+
+async function resolveBookingUuid(ref: string): Promise<string> {
+  if (isUuid(ref)) return ref;
+  try {
+    const { data } = await supabase
+      .from("vendor_bookings")
+      .select("id")
+      .or(`booking_id.eq.${ref},ticket_id.eq.${ref}`)
+      .limit(1)
+      .maybeSingle();
+    if (data?.id) return data.id;
+  } catch {}
+  return ref;
+}
 
 export function generateTicketId(seed?: string): string {
   if (seed) {
@@ -223,17 +264,19 @@ export function calculateBookingFinancials(
     const packagesTotal = packagesOrPrice * days;
     const addOnsTotal = (addOns || []).reduce((sum, item) => sum + (Number(item.price) || 0), 0);
     const totalAmount = Math.max(0, Math.round(packagesTotal + addOnsTotal));
-    const advanceAmount = Math.round(totalAmount * 0.30);
-    const dueAmount = totalAmount - advanceAmount;
+    const feeInfo = getBookingFeeForAmount(totalAmount);
+    const bookingFee = feeInfo.fee;
+    const dueAmount = Math.max(0, totalAmount - bookingFee);
     return {
       packagesBaseTotal: packagesOrPrice,
       packagesTotal,
       days,
       addOnsTotal,
       totalAmount,
-      advanceAmount,
+      bookingFee,
+      advanceAmount: bookingFee,
       dueAmount,
-      advancePercentage: 30,
+      advancePercentage: totalAmount > 0 ? Math.round((bookingFee / totalAmount) * 100) : 0,
     };
   }
 
@@ -245,13 +288,13 @@ export function calculateBookingFinancials(
     price_type: p.price_type || null,
   }));
 
-  const res = calcFinancials(pkgs, "2026-01-01", "2026-01-01", addOns);
   const days = Math.max(1, Number(daysCount) || 1);
   const packagesTotal = pkgs.reduce((sum, p) => sum + p.price * (p.duration_label?.toLowerCase().includes("day") ? days : 1), 0);
   const addOnsTotal = (addOns || []).reduce((sum, item) => sum + (Number(item.price) || 0), 0);
   const totalAmount = packagesTotal + addOnsTotal;
-  const advanceAmount = Math.round(totalAmount * 0.30);
-  const dueAmount = totalAmount - advanceAmount;
+  const feeInfo = getBookingFeeForAmount(totalAmount);
+  const bookingFee = feeInfo.fee;
+  const dueAmount = Math.max(0, totalAmount - bookingFee);
 
   return {
     packagesBaseTotal: pkgs.reduce((sum, p) => sum + p.price, 0),
@@ -259,9 +302,11 @@ export function calculateBookingFinancials(
     days,
     addOnsTotal,
     totalAmount,
-    advanceAmount,
+    bookingFee,
+    vendorPayableDirect: dueAmount,
+    advanceAmount: bookingFee,
     dueAmount,
-    advancePercentage: 30,
+    advancePercentage: totalAmount > 0 ? Math.round((bookingFee / totalAmount) * 100) : 0,
   };
 }
 
@@ -580,42 +625,94 @@ export const VendorBookingService = {
   },
 
   /**
-   * Vendor confirms booking: executes atomic confirm_vendor_booking RPC.
-   * Generates ticket, creates customer notification, DOES NOT write manual blocked row.
+   * Admin forwards booking to vendor: ADMIN_PENDING -> VENDOR_PENDING.
+   * Atomically notifies vendor and customer.
    */
-  async confirmBooking(bookingId: string): Promise<any> {
-    const { data, error } = await supabase.rpc("confirm_vendor_booking", {
-      target_booking_id: bookingId,
+  async adminForwardToVendor(bookingId: string): Promise<any> {
+    const uuid = await resolveBookingUuid(bookingId);
+    const { data, error } = await supabase.rpc("admin_forward_booking_to_vendor", {
+      p_booking_id: uuid,
     });
     if (error) throw error;
     return data;
   },
 
   /**
-   * Vendor cancels booking: executes atomic cancel_vendor_booking RPC.
-   * Cancels booking, creates Admin refund queue entry, notifies customer (72h SLA),
-   * and releases availability immediately.
+   * Admin cancels booking before acceptance: ADMIN_PENDING / VENDOR_PENDING -> ADMIN_CANCELLED.
+   * Enqueues 100% refund, voids pending referral commission, and notifies customer.
    */
-  async cancelBooking(bookingId: string, reason: string): Promise<any> {
-    const { data, error } = await supabase.rpc("cancel_vendor_booking", {
-      target_booking_id: bookingId,
-      cancel_reason: reason,
+  async adminCancelBooking(bookingId: string, reason: string): Promise<any> {
+    const uuid = await resolveBookingUuid(bookingId);
+    const { data, error } = await supabase.rpc("admin_cancel_booking", {
+      p_booking_id: uuid,
+      p_reason: reason,
     });
     if (error) throw error;
     return data;
   },
 
   /**
-   * Customer cancels booking before the 120-hour cutoff: executes cancel_customer_booking RPC.
-   * Cancels booking, queues refund in booking_refund_requests, and notifies vendor & admin.
+   * Vendor formally accepts booking: VENDOR_PENDING -> ACCEPTED.
+   * Unlocks contact details immediately, transitions referral commission to earned,
+   * issues confirmed luxury ticket, and disables platform cancellation.
+   */
+  async vendorAcceptBooking(bookingId: string): Promise<any> {
+    const uuid = await resolveBookingUuid(bookingId);
+    const { data, error } = await supabase.rpc("vendor_accept_booking", {
+      p_booking_id: uuid,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Vendor declines/rejects booking: VENDOR_PENDING -> VENDOR_REJECTED.
+   * Enqueues 100% refund in Admin Refunds queue, voids pending referral commission.
+   */
+  async vendorRejectBooking(bookingId: string, reason: string): Promise<any> {
+    const uuid = await resolveBookingUuid(bookingId);
+    const { data, error } = await supabase.rpc("vendor_reject_booking", {
+      p_booking_id: uuid,
+      p_reason: reason,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Customer cancels booking before vendor acceptance: ADMIN_PENDING / VENDOR_PENDING -> CUSTOMER_CANCELLED.
+   * Enqueues 100% refund in Admin Refunds queue, voids pending referral commission.
+   * Strictly prohibited after vendor acceptance.
+   */
+  async customerCancelBooking(bookingId: string, reason: string): Promise<any> {
+    const uuid = await resolveBookingUuid(bookingId);
+    const { data, error } = await supabase.rpc("customer_cancel_booking", {
+      p_booking_id: uuid,
+      p_reason: reason,
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Alias for customerCancelBooking
    */
   async cancelCustomerBooking(bookingId: string, reason: string): Promise<any> {
-    const { data, error } = await supabase.rpc("cancel_customer_booking", {
-      target_booking_id: bookingId,
-      cancel_reason: reason,
-    });
-    if (error) throw error;
-    return data;
+    return this.customerCancelBooking(bookingId, reason);
+  },
+
+  /**
+   * Vendor confirms booking (backward-compatible alias for vendorAcceptBooking).
+   */
+  async confirmBooking(bookingId: string): Promise<any> {
+    return this.vendorAcceptBooking(bookingId);
+  },
+
+  /**
+   * Vendor cancels/declines booking (backward-compatible alias for vendorRejectBooking).
+   */
+  async cancelBooking(bookingId: string, reason: string): Promise<any> {
+    return this.vendorRejectBooking(bookingId, reason);
   },
 
   /**
@@ -737,14 +834,65 @@ export const VendorBookingService = {
   },
 
   /**
-   * Admin processes refund: executes atomic process_admin_refund RPC.
+   * Admin processes refund: executes atomic process_booking_refund RPC.
    */
   async processAdminRefund(bookingId: string, notes?: string, txnRef?: string): Promise<any> {
+    const uuid = await resolveBookingUuid(bookingId);
+    try {
+      const { data, error } = await supabase.rpc("process_booking_refund", {
+        p_booking_id: uuid,
+        p_refund_status: "refunded",
+        p_txn_ref: txnRef || null,
+        p_notes: notes || "Processed manually by admin",
+      });
+      if (!error) return data;
+      console.warn("process_booking_refund error, falling back to process_admin_refund:", error.message);
+    } catch {}
+
     const { data, error } = await supabase.rpc("process_admin_refund", {
-      target_booking_id: bookingId,
+      target_booking_id: uuid,
       ref_notes: notes || "Processed manually by admin",
       txn_ref: txnRef || null,
     });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Creates a zero-fee direct booking (for totals < 2,999) via atomic RPC create_zero_fee_booking
+   */
+  async createZeroFeeBooking(input: CreateBookingInput): Promise<any> {
+    const days = input.totalDays || calculateEventDays(input.startDate || input.eventDate, input.endDate || input.eventDate);
+    const total = typeof input.totalAmount === "number" ? input.totalAmount : (input.packagePrice || 0);
+
+    let safePackageId: string | null = null;
+    if (isUuid(input.packageId)) {
+      safePackageId = input.packageId!;
+    }
+
+    const { data, error } = await supabase.rpc("create_zero_fee_booking", {
+      p_vendor_id: input.vendorId,
+      p_customer_name: input.customerName.trim(),
+      p_customer_phone: input.customerPhone.trim(),
+      p_customer_email: input.customerEmail?.trim() || null,
+      p_event_date: input.startDate || input.eventDate,
+      p_start_date: input.startDate || input.eventDate,
+      p_end_date: input.endDate || input.eventDate,
+      p_total_days: days,
+      p_event_type: input.eventType || "Wedding",
+      p_package_id: safePackageId,
+      p_package_title: input.packageTitle || "Wedding Package",
+      p_total_amount: total,
+      p_selected_packages: input.selectedPackages || [],
+      p_add_ons: input.addOns || [],
+      p_special_notes: input.specialNotes?.trim() || null,
+      p_referral_code: input.referralCode?.trim() || null,
+      p_customer_contact_number: input.customerContactNumber?.trim() || input.customerPhone.trim(),
+      p_customer_whatsapp_number: input.customerWhatsappNumber?.trim() || input.customerPhone.trim(),
+      p_service_map_url: input.serviceMapUrl?.trim() || null,
+      p_booking_description: input.bookingDescription?.trim() || null,
+    });
+
     if (error) throw error;
     return data;
   },
@@ -760,7 +908,7 @@ export const VendorBookingService = {
         .from("vendor_bookings")
         .select("*, vendors(id, business_name, contact_phone, logo_url, city, slug)")
         .eq("vendor_id", vendorId)
-        .neq("booking_status", "pending_payment") // Never show incomplete checkouts to vendor
+        .not("booking_status", "in", '("pending_payment","ADMIN_PENDING","admin_pending","pending")')
         .order("created_at", { ascending: false });
 
       if (!error && Array.isArray(data)) {
@@ -771,7 +919,12 @@ export const VendorBookingService = {
     }
 
     const local = (await getLocalBookings()).filter(
-      (b) => b.vendor_id === vendorId && b.booking_status !== "pending_payment"
+      (b) =>
+        b.vendor_id === vendorId &&
+        b.booking_status !== "pending_payment" &&
+        b.booking_status !== "ADMIN_PENDING" &&
+        b.booking_status !== "admin_pending" &&
+        b.booking_status !== "pending"
     );
     const map = new Map<string, VendorBooking>();
     for (const item of [...local, ...remote]) {
@@ -996,6 +1149,15 @@ function mapDbBooking(row: any): VendorBooking {
     add_ons: Array.isArray(row.add_ons) ? row.add_ons : [],
     special_notes: row.special_notes || null,
     total_amount: total,
+    booking_fee_amount: row.booking_fee_amount != null ? Number(row.booking_fee_amount) : (typeof row.advance_amount === "number" ? Number(row.advance_amount) : undefined),
+    referral_commission_amount: row.referral_commission_amount != null ? Number(row.referral_commission_amount) : undefined,
+    royallagn_commission_amount: row.royallagn_commission_amount != null ? Number(row.royallagn_commission_amount) : undefined,
+    admin_verified_at: row.admin_verified_at || null,
+    forwarded_to_vendor_at: row.forwarded_to_vendor_at || null,
+    vendor_accepted_at: row.vendor_accepted_at || null,
+    vendor_rejected_at: row.vendor_rejected_at || null,
+    admin_cancelled_at: row.admin_cancelled_at || null,
+    admin_cancellation_reason: row.admin_cancellation_reason || null,
     advance_amount: advance,
     due_amount: due,
     booking_status: (row.booking_status || "pending") as BookingStatus,

@@ -53,7 +53,7 @@ export default function PackageDisplayCard({ item, dark = false, preview, onCall
         {item.discounted_price != null && item.price != null ? <Text style={[styles.oldPrice, { color: palette.muted }]}>{money(item.price)}</Text> : null}
         {item.price_type !== "contact" && (item.price != null || item.discounted_price != null) ? (
           <View style={styles.advanceBadge}>
-            <Text style={styles.advanceBadgeText}>30% ADVANCE</Text>
+            <Text style={styles.advanceBadgeText}>BOOKING FEE</Text>
           </View>
         ) : null}
       </View>
@@ -74,7 +74,7 @@ export default function PackageDisplayCard({ item, dark = false, preview, onCall
     {onCall || onWhatsApp || onEnquire || onBook ? <View style={[styles.actions, { borderTopColor: palette.border }]}>
       {onCall ? <Action label="Call" onPress={onCall} secondary dark={dark} /> : null}
       {onWhatsApp ? <Action label="WhatsApp" onPress={onWhatsApp} secondary dark={dark} /> : null}
-      {onBook ? <Action label="Book Now (30% Adv)" onPress={onBook} dark={dark} /> : onEnquire ? <Action label="Send enquiry" onPress={onEnquire} dark={dark} /> : null}
+      {onBook ? <Action label="Book Now" onPress={onBook} dark={dark} /> : onEnquire ? <Action label="Send enquiry" onPress={onEnquire} dark={dark} /> : null}
     </View> : null}
   </View>;
 }

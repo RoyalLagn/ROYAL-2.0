@@ -155,19 +155,44 @@ export default function VendorBookings() {
   }, [loadData, workspaceData.vendor?.id]);
 
   const counts = useMemo(() => ({
-    pending: bookings.filter((b) => b.booking_status === "pending_vendor_confirmation" || b.booking_status === "pending").length,
-    confirmed: bookings.filter((b) => b.booking_status === "confirmed").length,
-    cancelled: bookings.filter((b) => b.booking_status === "cancelled_by_vendor" || b.booking_status === "cancelled" || b.booking_status === "cancelled_by_customer").length,
+    pending: bookings.filter((b) =>
+      b.booking_status === "VENDOR_PENDING" ||
+      b.booking_status === "vendor_pending" ||
+      b.booking_status === "pending_vendor_confirmation"
+    ).length,
+    confirmed: bookings.filter((b) =>
+      b.booking_status === "ACCEPTED" ||
+      b.booking_status === "confirmed"
+    ).length,
+    cancelled: bookings.filter((b) =>
+      b.booking_status === "VENDOR_REJECTED" ||
+      b.booking_status === "CUSTOMER_CANCELLED" ||
+      b.booking_status === "ADMIN_CANCELLED" ||
+      b.booking_status === "cancelled_by_vendor" ||
+      b.booking_status === "cancelled" ||
+      b.booking_status === "cancelled_by_customer"
+    ).length,
   }), [bookings]);
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((item) => {
       if (activeTab === "pending") {
-        if (item.booking_status !== "pending_vendor_confirmation" && item.booking_status !== "pending") return false;
+        const isVendorPending =
+          item.booking_status === "VENDOR_PENDING" ||
+          item.booking_status === "vendor_pending" ||
+          item.booking_status === "pending_vendor_confirmation";
+        if (!isVendorPending) return false;
       } else if (activeTab === "confirmed") {
-        if (item.booking_status !== "confirmed") return false;
+        if (item.booking_status !== "ACCEPTED" && item.booking_status !== "confirmed") return false;
       } else if (activeTab === "cancelled") {
-        if (item.booking_status !== "cancelled_by_vendor" && item.booking_status !== "cancelled" && item.booking_status !== "cancelled_by_customer") return false;
+        const isCancelledStatus =
+          item.booking_status === "VENDOR_REJECTED" ||
+          item.booking_status === "CUSTOMER_CANCELLED" ||
+          item.booking_status === "ADMIN_CANCELLED" ||
+          item.booking_status === "cancelled_by_vendor" ||
+          item.booking_status === "cancelled" ||
+          item.booking_status === "cancelled_by_customer";
+        if (!isCancelledStatus) return false;
       }
       const q = searchQuery.trim().toLowerCase();
       if (!q) return true;
@@ -184,18 +209,14 @@ export default function VendorBookings() {
     if (!workspaceData.vendor?.id) return;
     setBusyActionId(item.id);
     try {
-      // 1. Atomically confirm booking via RPC (issues ticket, notifies customer, reserves date in ledger)
-      // CORRECTION 1: DO NOT write manual blocked row into vendor_availability
-      await VendorBookingService.confirmBooking(item.id);
-
-      // 2. Process referral commission on Total Booking Value
-      await ReferralCommissionService.processBookingConfirmation(item);
+      // 1. Atomically accept booking via RPC (unlocks contacts, transitions referral commission, notifies customer)
+      await VendorBookingService.vendorAcceptBooking(item.id);
 
       await loadData();
       void refreshWorkspace();
       Alert.alert(
-        "Booking Confirmed!",
-        `Confirmed for ${item.customer_name}. Official E-Ticket #${item.ticket_id} has been issued and date ${formatDate(item.event_date)} is reserved on your calendar.`
+        "Booking Accepted!",
+        `Accepted for ${item.customer_name}. Client contacts have been unlocked, Official E-Ticket #${item.ticket_id} is active, and date ${formatDate(item.event_date)} is confirmed.`
       );
     } catch (err) {
       Alert.alert("Action failed", err instanceof Error ? err.message : "Unable to accept booking.");
@@ -207,43 +228,33 @@ export default function VendorBookings() {
   const submitRejection = async () => {
     if (!rejectingBooking) return;
 
-    if (rejectingBooking.booking_status === "confirmed") {
-      const isLocked = isCancellationLocked(
-        rejectingBooking.cancellation_cutoff_at,
-        rejectingBooking.event_start_at,
-        rejectingBooking.event_date
+    if (rejectingBooking.booking_status === "ACCEPTED" || rejectingBooking.booking_status === "confirmed") {
+      Alert.alert(
+        "Action Unavailable",
+        "This booking has already been accepted. Platform cancellation is disabled. Please contact RoyalLagn Admin or coordinate directly with the customer."
       );
-      if (isLocked) {
-        Alert.alert(
-          "Cancellation Window Closed",
-          "Cancellation is strictly unavailable within 5 days (120 hours) of the event start time. Please open Booking Details to report an emergency if needed."
-        );
-        setRejectingBooking(null);
-        return;
-      }
+      setRejectingBooking(null);
+      return;
     }
 
     setRejectSubmitting(true);
     try {
-      // Atomically cancel booking via RPC: sets cancelled_by_vendor, creates booking_refund_requests row,
-      // sets refund_status = 'pending', dispatches 72h refund SLA notification, and releases availability.
-      // CORRECTION 1 & 3: DO NOT touch vendor_availability manually
-      await VendorBookingService.cancelBooking(
+      // Atomically decline booking via RPC: sets VENDOR_REJECTED, enqueues 100% refund, voids pending referral commission
+      await VendorBookingService.vendorRejectBooking(
         rejectingBooking.id,
         rejectReason.trim() || "Declined by vendor"
       );
 
       const clientName = rejectingBooking.customer_name;
-      const advAmt = money(rejectingBooking.advance_amount);
-      const customerRefundNotice = "Your booking has been canceled by the vendor. Sorry for the inconvenience, your paid amount will be credited back to your payment method in next 72 hours.";
+      const feeAmt = money(rejectingBooking.booking_fee_amount ?? rejectingBooking.advance_amount);
 
       setRejectingBooking(null);
       setRejectReason("");
       await loadData();
       void refreshWorkspace();
       Alert.alert(
-        "Booking Cancelled",
-        `Booking for ${clientName} has been cancelled. The customer has been notified: "${customerRefundNotice}"\n\nRefund of ${advAmt} queued for Admin processing.`
+        "Booking Declined",
+        `Booking for ${clientName} has been declined. The customer has been notified and a 100% refund of ${feeAmt} has been queued for Admin processing.`
       );
     } catch (err) {
       Alert.alert("Action failed", err instanceof Error ? err.message : "Unable to decline booking.");
@@ -268,7 +279,7 @@ export default function VendorBookings() {
                 <Text style={[styles.eyebrow, { color: colors.pink }]}>DIRECT BOOKING PLATFORM</Text>
                 <Text style={[styles.title, { color: colors.text }]}>Booking Confirmations</Text>
                 <Text style={[styles.subtitle, { color: colors.muted }]}>
-                  Review pending 30% advance bookings and manage confirmed client tickets.
+                  Review pending booking connection requests and manage confirmed client tickets.
                 </Text>
               </View>
               <View style={styles.headerRightActions}>
@@ -547,12 +558,20 @@ export default function VendorBookings() {
                   <Text style={[styles.finAmount, { color: colors.text }]}>{money(item.total_amount)}</Text>
                 </View>
                 <View style={[styles.finTile, styles.finTileAdvance]}>
-                  <Text style={styles.finLabelAdv}>30% ADVANCE</Text>
-                  <Text style={styles.finAmountAdv}>{money(item.advance_amount)}</Text>
+                  <Text style={styles.finLabelAdv}>
+                    {item.booking_fee_amount != null ? "BOOKING FEE" : "30% ADVANCE"}
+                  </Text>
+                  <Text style={styles.finAmountAdv}>
+                    {money(item.booking_fee_amount ?? item.advance_amount)}
+                  </Text>
                 </View>
                 <View style={[styles.finTile, styles.finTileDue]}>
-                  <Text style={styles.finLabelDue}>70% DUE AT SITE</Text>
-                  <Text style={styles.finAmountDue}>{money(item.due_amount)}</Text>
+                  <Text style={styles.finLabelDue}>
+                    {item.booking_fee_amount != null ? "DIRECT TO VENDOR" : "70% DUE AT SITE"}
+                  </Text>
+                  <Text style={styles.finAmountDue}>
+                    {money(item.booking_fee_amount != null ? (item.total_amount - (item.booking_fee_amount || 0)) : item.due_amount)}
+                  </Text>
                 </View>
               </View>
 
@@ -605,36 +624,27 @@ export default function VendorBookings() {
                     <ReceiptText size={15} color="#FFF" />
                     <Text style={styles.viewTicketBtnText}>E-Ticket</Text>
                   </Pressable>
-                  {!isCancellationLocked(item.cancellation_cutoff_at, item.event_start_at, item.event_date) ? (
-                    <Pressable
-                      onPress={() => setRejectingBooking(item)}
-                      style={styles.cancelConfirmedBtn}
-                    >
-                      <Text style={styles.cancelConfirmedText}>Cancel</Text>
-                    </Pressable>
-                  ) : (
-                    <View style={[styles.lockedNoticePill, { backgroundColor: colors.surfaceSoft }]}>
-                      <Lock size={12} color={colors.muted} />
-                      <Text style={[styles.lockedNoticePillText, { color: colors.muted }]}>Locked (≤5d)</Text>
-                    </View>
-                  )}
+                  <View style={[styles.lockedNoticePill, { backgroundColor: isDark ? "#064E3B" : "#DCFCE7" }]}>
+                    <ShieldCheck size={12} color={GREEN} />
+                    <Text style={[styles.lockedNoticePillText, { color: GREEN }]}>Confirmed · Active</Text>
+                  </View>
                 </View>
               ) : (
                 <View style={styles.cancelledContainer}>
                   <View style={styles.cancelledStrip}>
                     <AlertCircle size={14} color={RED} />
                     <Text style={styles.cancelledReasonText}>
-                      Reason: {item.rejection_reason || "Declined by vendor"}
+                      Reason: {item.rejection_reason || item.admin_cancellation_reason || (item.booking_status === "CUSTOMER_CANCELLED" ? "Cancelled by customer" : item.booking_status === "ADMIN_CANCELLED" ? "Cancelled by admin" : "Declined by vendor")}
                     </Text>
                   </View>
                   <View style={styles.refundInfoRow}>
                     <View style={[styles.refundBadge, { backgroundColor: item.refund_status === "refunded" ? "#DCFCE7" : "#FEF3C7" }]}>
                       <Text style={[styles.refundBadgeText, { color: item.refund_status === "refunded" ? "#166534" : "#92400E" }]}>
-                        {item.refund_status === "refunded" ? "● Refund Completed" : "● Refund Pending (Credited within 72 hrs)"}
+                        {item.refund_status === "refunded" ? "● Refund Completed" : "● 100% Refund Queued (Credited within 72 hrs)"}
                       </Text>
                     </View>
                     <Text style={[styles.refundAmountText, { color: colors.text }]}>
-                      Advance Refundable: {money(item.advance_amount)}
+                      Fee Refundable: {money(item.booking_fee_amount ?? item.advance_amount)}
                     </Text>
                   </View>
                   <Pressable

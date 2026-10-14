@@ -118,8 +118,8 @@ function VendorQuickActions({
       />
       {onBook ? (
         <ActionItem
-          label="Book (30%)"
-          accessibilityLabel="Book vendor package with 30 percent advance"
+          label="Book Now"
+          accessibilityLabel="Book vendor package"
           backgroundColor={dark ? "#3A1A28" : "#FFF0F5"}
           activeBackgroundColor={dark ? "#5C1E39" : "#FCE7EE"}
           borderColor={dark ? "#E91E63" : "#F49DBF"}

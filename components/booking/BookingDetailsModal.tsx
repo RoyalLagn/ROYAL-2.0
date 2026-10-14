@@ -181,7 +181,7 @@ export default function BookingDetailsModal({
 
     try {
       if (role === "customer") {
-        await VendorBookingService.cancelCustomerBooking(booking.id, reasonText);
+        await VendorBookingService.customerCancelBooking(booking.id, reasonText);
       } else {
         await VendorBookingService.cancelBooking(booking.id, reasonText);
       }
@@ -190,7 +190,7 @@ export default function BookingDetailsModal({
       Alert.alert(
         "Booking Cancelled",
         booking.advance_amount > 0
-          ? `Your cancellation has been processed. Your paid advance of ₹${booking.advance_amount.toLocaleString("en-IN")} has been queued for full refund (72-hour SLA).`
+          ? `Your cancellation has been processed. Your paid booking fee of ₹${booking.advance_amount.toLocaleString("en-IN")} has been queued for a 100% full refund in Admin Refunds.`
           : "Your booking has been cancelled successfully."
       );
       void loadDetails();
@@ -309,24 +309,20 @@ export default function BookingDetailsModal({
           </View>
         ) : (
           <>
-            {/* 1. 5-Day Cancellation & Unlock Policy Banner */}
+            {/* 1. Contact Unlock Policy Banner */}
             <View
               style={[
                 styles.policyBanner,
-                booking.is_cutoff_passed
-                  ? { backgroundColor: booking.booking_status === "confirmed" ? "#ECFDF5" : "#FEF3C7", borderColor: booking.booking_status === "confirmed" ? "#10B981" : "#F59E0B" }
+                booking.contacts_unlocked
+                  ? { backgroundColor: "#ECFDF5", borderColor: "#10B981" }
                   : { backgroundColor: "#EFF6FF", borderColor: "#3B82F6" },
               ]}
             >
               <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-                {booking.is_cutoff_passed ? (
-                  booking.booking_status === "confirmed" ? (
-                    <Unlock size={20} color="#059669" />
-                  ) : (
-                    <Lock size={20} color="#D97706" />
-                  )
+                {booking.contacts_unlocked ? (
+                  <Unlock size={20} color="#059669" />
                 ) : (
-                  <Clock size={20} color="#2563EB" />
+                  <Lock size={20} color="#2563EB" />
                 )}
 
                 <View style={{ flex: 1 }}>
@@ -334,43 +330,26 @@ export default function BookingDetailsModal({
                     style={[
                       styles.policyBannerTitle,
                       {
-                        color: booking.is_cutoff_passed
-                          ? booking.booking_status === "confirmed" ? "#047857" : "#B45309"
-                          : "#1D4ED8",
+                        color: booking.contacts_unlocked ? "#047857" : "#1D4ED8",
                       },
                     ]}
                   >
-                    {booking.is_cutoff_passed
-                      ? booking.booking_status === "confirmed"
-                        ? "Event Inside 5 Days · Contact Details Unlocked"
-                        : "Event Inside 5 Days · Cancellation Window Closed"
-                      : "5-Day Cancellation Window Active"}
+                    {booking.contacts_unlocked
+                      ? "Booking Confirmed · Contact Details Unlocked"
+                      : "Verification & Acceptance In Progress"}
                   </Text>
 
                   <Text
                     style={[
                       styles.policyBannerDesc,
                       {
-                        color: booking.is_cutoff_passed
-                          ? booking.booking_status === "confirmed" ? "#065F46" : "#92400E"
-                          : "#1E40AF",
+                        color: booking.contacts_unlocked ? "#065F46" : "#1E40AF",
                       },
                     ]}
                   >
-                    {booking.is_cutoff_passed ? (
-                      booking.booking_status === "confirmed"
-                        ? "Standard cancellation is closed. Full vendor & customer direct contact details are now unlocked for coordination."
-                        : "Cancellation is locked within 120 hours of the event. Unconfirmed bookings remain confidential."
-                    ) : (
-                      countdown?.label ? (
-                        <>
-                          <Text style={{ fontWeight: "700" }}>{countdown.label}. </Text>
-                          Cutoff deadline: {formatCutoffDisplayIST(booking.cancellation_cutoff_at)}. Direct contacts unlock at cutoff.
-                        </>
-                      ) : (
-                        `Cutoff: ${formatCutoffDisplayIST(booking.cancellation_cutoff_at)}`
-                      )
-                    )}
+                    {booking.contacts_unlocked
+                      ? "The vendor has formally accepted your booking! Direct phone, WhatsApp, and Google Maps venue details are active for direct coordination. Cancellation is now closed."
+                      : "Direct contact details remain confidential and will unlock immediately upon vendor acceptance. 100% booking fee refund is guaranteed if cancelled prior to vendor acceptance."}
                   </Text>
                 </View>
               </View>
@@ -575,11 +554,11 @@ export default function BookingDetailsModal({
             {/* 4. Financial Summary */}
             <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
               <Text style={[styles.cardTitle, { color: palette.text, marginBottom: 12 }]}>
-                Financial Escrow Breakdown
+                Financial & Fee Breakdown
               </Text>
 
               <View style={styles.priceRow}>
-                <Text style={[styles.priceLabel, { color: palette.muted }]}>Total Booking Value</Text>
+                <Text style={[styles.priceLabel, { color: palette.muted }]}>Total Service Value</Text>
                 <Text style={[styles.priceVal, { color: palette.text }]}>
                   ₹{booking.total_amount.toLocaleString("en-IN")}
                 </Text>
@@ -587,15 +566,15 @@ export default function BookingDetailsModal({
 
               <View style={styles.priceRow}>
                 <Text style={[styles.priceLabel, { color: "#059669", fontWeight: "700" }]}>
-                  Paid in Escrow (30% Advance)
+                  Platform Booking Fee
                 </Text>
                 <Text style={[styles.priceVal, { color: "#059669", fontWeight: "800" }]}>
-                  ₹{booking.advance_amount.toLocaleString("en-IN")}
+                  {booking.advance_amount === 0 ? "₹0 (Free)" : `₹${booking.advance_amount.toLocaleString("en-IN")}`}
                 </Text>
               </View>
 
               <View style={styles.priceRow}>
-                <Text style={[styles.priceLabel, { color: palette.muted }]}>Due on Event Day (70%)</Text>
+                <Text style={[styles.priceLabel, { color: palette.muted }]}>Direct to Vendor Upon Service</Text>
                 <Text style={[styles.priceVal, { color: palette.text }]}>
                   ₹{booking.due_amount.toLocaleString("en-IN")}
                 </Text>
@@ -608,7 +587,7 @@ export default function BookingDetailsModal({
                   </Text>
                   {booking.refund_amount ? (
                     <Text style={{ fontSize: 11, color: "#991B1B", marginTop: 2 }}>
-                      Refund Amount: ₹{booking.refund_amount.toLocaleString("en-IN")} (72-Hour Bank Settlement)
+                      Refund Amount: ₹{booking.refund_amount.toLocaleString("en-IN")} (100% Refund)
                     </Text>
                   ) : null}
                 </View>
@@ -654,13 +633,13 @@ export default function BookingDetailsModal({
                   onPress={() => setShowCancelModal(true)}
                   style={styles.cancelActionBtn}
                 >
-                  <Text style={styles.cancelActionBtnText}>Cancel Booking</Text>
+                  <Text style={styles.cancelActionBtnText}>Cancel Booking (100% Refund)</Text>
                 </Pressable>
-              ) : booking.booking_status === "confirmed" ? (
+              ) : (booking.booking_status === "ACCEPTED" || booking.booking_status === "confirmed") ? (
                 <View style={styles.lockedActionsRow}>
                   <View style={styles.lockedNoticeBtn}>
                     <Lock size={14} color="#6B7280" />
-                    <Text style={styles.lockedNoticeBtnText}>Cancellation Locked (≤ 5 Days)</Text>
+                    <Text style={styles.lockedNoticeBtnText}>Booking Formally Accepted (Cancellation Closed)</Text>
                   </View>
 
                   <Pressable
@@ -688,8 +667,8 @@ export default function BookingDetailsModal({
 
             <Text style={[styles.dialogDesc, { color: palette.muted }]}>
               {booking.advance_amount > 0
-                ? `You are within the free cancellation window (more than 120 hours before event). Your 30% advance of ₹${booking.advance_amount.toLocaleString("en-IN")} will be automatically queued for a 72-hour refund to your original payment method.`
-                : "Cancellation is permitted before the 5-day cutoff."}
+                ? `You are cancelling before vendor acceptance. Your 100% booking fee of ₹${booking.advance_amount.toLocaleString("en-IN")} will be queued for a full gateway refund in the Admin Refunds queue.`
+                : "You are cancelling a zero-fee booking before vendor acceptance."}
             </Text>
 
             <Text style={[styles.inputLabel, { color: palette.muted, marginTop: 12 }]}>Reason for Cancellation *</Text>
