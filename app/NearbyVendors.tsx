@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useColorScheme } from "nativewind";
 import { type Href, useRouter } from "expo-router";
 import { buildVendorListingPath } from "@/services/publicSeoRoutes";
+import { vendorProfileHref } from "@/services/contactActions";
 import { Check, ChevronDown, LocateFixed, MapPin, RefreshCw, Search, SearchX, ShieldAlert, SlidersHorizontal, X } from "lucide-react-native";
 import HomeReveal from "@/components/home/HomeReveal";
 import { StandaloneMobileTabBar } from "@/components/MobileTabBar";
@@ -238,7 +239,7 @@ export default function NearbyVendorsScreen() {
         compact={compact}
         favorite={isFavorite(item.vendor.id)}
         fallbackImage={fallbackImage}
-        onOpen={() => router.push({ pathname: "/vendor/[slug]", params: { slug: item.vendor.slug, src: "nearby" } })}
+        onOpen={() => router.push(vendorProfileHref(item.vendor.slug, "nearby") as Href)}
         onToggleFavorite={(source) => toggleVendorFavorite(item.vendor, source)}
       />
     </HomeReveal>

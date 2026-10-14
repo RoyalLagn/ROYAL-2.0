@@ -23,6 +23,7 @@ import HomeCategoryCard from "@/components/home/HomeCategoryCard";
 import HomeVendorCard from "@/components/home/HomeVendorCard";
 import HomeSectionReveal from "@/components/home/HomeSectionReveal";
 import { shareRoyalLagnApp } from "@/services/AppShareService";
+import { vendorProfileHref } from "@/services/contactActions";
 import { useCategories } from "@/context/CategoryContext";
 import { VendorCardSkeletonRow } from "@/components/loading/Skeleton";
 import PageLoader from "@/components/loading/PageLoader";
@@ -563,7 +564,7 @@ export default function HomeScreen() {
                     accessibilityLabel={`Open ${vendor.name}`}
                     style={[s.searchSuggestionRow, { borderBottomColor: border }]}
                     activeOpacity={0.72}
-                    onPress={() => router.push({ pathname: "/vendor/[slug]", params: { slug: vendor.slug, src: "search" } })}
+                    onPress={() => router.push(vendorProfileHref(vendor.slug, "search") as Href)}
                   >
                     <View style={[s.searchSuggestionIcon, { backgroundColor: isDark ? "#33222B" : "#FFF0F5" }]}>
                       <Search size={17} color={PINK} />
@@ -707,7 +708,7 @@ export default function HomeScreen() {
               onActionPress={() => router.push({ pathname: "/Search", params: { featured: "true", pincode: customerPincode ?? undefined } })}
             />
             <ScrollView horizontal nestedScrollEnabled directionalLockEnabled showsHorizontalScrollIndicator={false} decelerationRate={Platform.OS === "android" ? "normal" : "fast"} snapToAlignment={Platform.OS === "android" ? undefined : "start"} snapToInterval={Platform.OS === "android" ? undefined : vendorCardWidth + vendorCardGap} contentContainerStyle={[s.vendorScroll, { gap: vendorCardGap }]}>
-              {featuredVendors.map((vendor) => <HomeVendorCard key={vendor.id} vendor={vendor} width={vendorCardWidth} imageHeight={vendorImageHeight} dark={isDark} favorite={isFavorite(vendor.id)} fallbackSource={VENDOR_CARD_PLACEHOLDER} onOpen={() => router.push({ pathname: "/vendor/[slug]", params: { slug: vendor.slug, src: "featured" } })} onToggleFavorite={(source) => toggleFavorite(vendor, source)} />)}
+              {featuredVendors.map((vendor) => <HomeVendorCard key={vendor.id} vendor={vendor} width={vendorCardWidth} imageHeight={vendorImageHeight} dark={isDark} favorite={isFavorite(vendor.id)} fallbackSource={VENDOR_CARD_PLACEHOLDER} onOpen={() => router.push(vendorProfileHref(vendor.slug, "featured") as Href)} onToggleFavorite={(source) => toggleFavorite(vendor, source)} />)}
             </ScrollView>
           </HomeSectionReveal>
         ) : null}
@@ -763,7 +764,7 @@ export default function HomeScreen() {
                   favorite={isFav}
                   fallbackSource={VENDOR_CARD_PLACEHOLDER}
                   onOpen={() =>
-                      router.push({ pathname: "/vendor/[slug]", params: { slug: v.slug, src: "listing" } })
+                      router.push(vendorProfileHref(v.slug, "listing") as Href)
                   }
                   onToggleFavorite={(source) => toggleFavorite(v, source)}
                 />
@@ -823,7 +824,7 @@ export default function HomeScreen() {
                   favorite={isFav}
                   fallbackSource={VENDOR_CARD_PLACEHOLDER}
                   onOpen={() =>
-                      router.push({ pathname: "/vendor/[slug]", params: { slug: v.slug, src: "nearby" } })
+                      router.push(vendorProfileHref(v.slug, "nearby") as Href)
                   }
                   onToggleFavorite={(source) => toggleFavorite(v, source)}
                 />

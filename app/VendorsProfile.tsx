@@ -6,6 +6,7 @@ import { useColorScheme } from "nativewind";
 import PageLoader from "@/components/loading/PageLoader";
 import { brandColors } from "@/constants/brandPalette";
 import { getApprovedPublicVendorById } from "@/services/publicVendorListings";
+import { vendorProfileHref } from "@/services/contactActions";
 
 /** Backward-compatible redirect for old ID-based vendor profile links. */
 export default function LegacyVendorProfileRedirect() {
@@ -31,10 +32,7 @@ export default function LegacyVendorProfileRedirect() {
           setError("This vendor profile is no longer available.");
           return;
         }
-        router.replace({
-          pathname: "/vendor/[slug]",
-          params: { slug: vendor.slug, ...(source ? { src: source } : {}) },
-        });
+        router.replace(vendorProfileHref(vendor.slug, source) as never);
       })
       .catch(() => {
         if (active) setError("Unable to open this vendor profile. Please try again.");

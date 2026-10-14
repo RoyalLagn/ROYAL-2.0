@@ -29,3 +29,13 @@ export function buildVendorProfilePath(vendorId: string, category?: string | nul
 export function buildVendorProfilePathBySlug(slug: string) {
   return `/vendor/${encodeURIComponent(slug.trim())}`;
 }
+
+/**
+ * Public profile href. The slug belongs only in the path. Passing it again as
+ * a query param makes Expo Router warn and show the yellow debugger banner.
+ */
+export function vendorProfileHref(slug: string, src?: string | null) {
+  const path = buildVendorProfilePathBySlug(slug);
+  const source = src?.trim();
+  return source ? `${path}?src=${encodeURIComponent(source)}` : path;
+}

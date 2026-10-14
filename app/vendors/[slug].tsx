@@ -53,7 +53,7 @@ import {
 import { resolveTrafficSource } from "@/services/trafficSource";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { brandPalette } from "@/constants/brandPalette";
-import { buildVendorProfilePathBySlug, vendorWebBase } from "@/services/contactActions";
+import { buildVendorProfilePathBySlug, vendorProfileHref, vendorWebBase } from "@/services/contactActions";
 import { isNativeTabletDevice, isNativeTabletWindow, isPublicWideLayout } from "@/utils/responsiveLayout";
 
 const PINK = brandPalette.light.primary;
@@ -134,7 +134,7 @@ export default function VendorPublicProfileScreen() {
           setVendor(result.vendor);
           setState("found");
         } else if (result.kind === "redirect") {
-          router.replace({ pathname: "/vendor/[slug]", params: { slug: result.slug, src: explicitSource } });
+          router.replace(vendorProfileHref(result.slug, explicitSource) as never);
         } else {
           setState("not_found");
         }

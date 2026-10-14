@@ -27,6 +27,7 @@ import { typeScale, typeLeading } from "@/constants/typography";
 import PageLoader from "@/components/loading/PageLoader";
 import { MotionDistance, MotionStagger, MotionTiming } from "@/utils/motion";
 import { brandPalette } from "@/constants/brandPalette";
+import { vendorProfileHref } from "@/services/contactActions";
 import Pressable from "@/components/InteropSafePressable";
 
 const PINK = brandPalette.light.primary;
@@ -151,7 +152,7 @@ export default function FavoritesScreen() {
                   border={border}
                   cardWidth={CARD_W}
                   onPress={() => vendor.slug
-                    ? router.push({ pathname: "/vendor/[slug]", params: { slug: vendor.slug, src: "favorites" } })
+                    ? router.push(vendorProfileHref(vendor.slug, "favorites") as never)
                     : router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, src: "favorites" } })}
                   onRemove={() => setConfirmId(vendor.id)}
                 />
@@ -176,7 +177,7 @@ export default function FavoritesScreen() {
                 isDark={isDark}
                 width={contentWidth}
                 onPress={() => vendor.slug
-                  ? router.push({ pathname: "/vendor/[slug]", params: { slug: vendor.slug, src: "favorites" } })
+                  ? router.push(vendorProfileHref(vendor.slug, "favorites") as never)
                   : router.push({ pathname: "/VendorsProfile", params: { vendorId: vendor.id, src: "favorites" } })}
                 onRemove={() => setConfirmId(vendor.id)}
               />

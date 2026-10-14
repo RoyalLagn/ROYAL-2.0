@@ -25,7 +25,8 @@ import { useCategories } from "@/context/CategoryContext";
 import { resolveMarketplaceCategoryImage } from "@/data/marketplaceCategories";
 import PageLoader from "@/components/loading/PageLoader";
 import { useCustomerLocation } from "@/context/LocationContext";
-import { buildVendorListingPath, buildVendorProfilePathBySlug } from "@/services/publicSeoRoutes";
+import { buildVendorListingPath } from "@/services/publicSeoRoutes";
+import { vendorProfileHref } from "@/services/contactActions";
 import {
   rankTopRatedVendorsByLocation,
   rankVendorsByLocationAndMembership,
@@ -543,7 +544,7 @@ export default function SearchScreen() {
                 cardWidth={listingLayout === "grid" ? gridCardWidth : undefined}
                 favorite={isFavorite(vendor.id)}
                 fallbackImage={resolveMarketplaceCategoryImage(vendor.category).fallbackSource}
-                onOpen={() => router.push({ pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]", params: { slug: vendor.slug, src: "search" } })}
+                onOpen={() => router.push(vendorProfileHref(vendor.slug, "search") as Href)}
                 onToggleFavorite={(source) => toggleFavorite(vendor, source)}
               />
             </View>

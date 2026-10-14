@@ -38,8 +38,8 @@ import {
 import type { GeoSelection, GeoState } from "@/locations/types";
 import { getCurrentDeviceLocation, getDevicePermissionStatus, getLastDetectedCoordinates, getLastDetectedLocationLabel, requestDeviceLocationPermission, requestDeviceLocationServices, reverseGeocodeLabel, saveLocationDisplayLabel, type DeviceCoordinates } from "@/services/deviceLocation";
 import { fetchLocationRankedVendors } from "@/services/vendorDiscovery";
-import { buildVendorListingPath, buildVendorProfilePathBySlug, displayLocationFromSlug } from "@/services/publicSeoRoutes";
-import { vendorWebBase } from "@/services/contactActions";
+import { buildVendorListingPath, displayLocationFromSlug } from "@/services/publicSeoRoutes";
+import { vendorProfileHref, vendorWebBase } from "@/services/contactActions";
 import { discoveryLayout } from "@/constants/discoveryLayout";
 import { isPublicWideLayout } from "@/utils/responsiveLayout";
 
@@ -674,7 +674,7 @@ export default function VendorsListingScreen() {
         cardWidth={grid ? gridCardWidth : undefined}
         favorite={isFavorite(vendor.id)}
         fallbackImage={fallbackImage}
-        onOpen={() => router.push({ pathname: buildVendorProfilePathBySlug(vendor.slug) as "/vendor/[slug]", params: { slug: vendor.slug, src: "listing" } })}
+        onOpen={() => router.push(vendorProfileHref(vendor.slug, "listing") as never)}
         onToggleFavorite={(source) => toggleVendorFavorite(vendor, source)}
       />
     );
