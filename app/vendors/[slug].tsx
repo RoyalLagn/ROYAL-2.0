@@ -757,8 +757,8 @@ export default function VendorPublicProfileScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   centered: { alignItems: "center", justifyContent: "center", padding: 24, gap: 12 },
-  content: { width: "100%", maxWidth: 960, alignSelf: "center", paddingHorizontal: 20, paddingTop: 16 },
-  contentCompact: { paddingHorizontal: 14, paddingTop: 14 },
+  content: { width: "100%", maxWidth: 960, alignSelf: "center", paddingHorizontal: 20, paddingTop: 18 },
+  contentCompact: { paddingHorizontal: 16, paddingTop: 16 },
   desktopSplit: { flex: 1, width: "100%", flexDirection: "row", overflow: "hidden" },
   desktopPane: { flex: 1 },
   desktopMediaPane: { flexBasis: "40%" },

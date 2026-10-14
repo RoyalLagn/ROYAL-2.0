@@ -252,7 +252,7 @@ export default function VendorDirectBookingSection({
             <CalendarDays size={18} color={PINK} />
           </View>
           <View style={styles.dateTextGroup}>
-            <Text style={[styles.dateEyebrow, { color: palette.muted }]}>EVENT DATE & DURATION (TAP TO OPEN CALENDAR)</Text>
+            <Text numberOfLines={2} style={[styles.dateEyebrow, { color: palette.muted }]}>EVENT DATE & DURATION (TAP TO OPEN CALENDAR)</Text>
             <Text style={[styles.dateTitle, { color: palette.text }]}>
               {formatDate(startDate)}
               {totalDays > 1 ? ` – ${formatDate(endDate)}` : ""}
@@ -774,7 +774,7 @@ export default function VendorDirectBookingSection({
           style={[styles.mobilePrimaryBtn, { backgroundColor: PINK, marginTop: 14 }]}
         >
           <PackageCheck size={16} color="#FFFFFF" style={styles.mobileBtnIcon} />
-          <Text style={styles.mobilePrimaryBtnText}>
+          <Text numberOfLines={1} style={styles.mobilePrimaryBtnText}>
             {selectedPackagesList.length > 0 ? "Book Selected Package" : "Book Now"}
           </Text>
           <View style={styles.mobilePrimaryAdvanceBadge}>
@@ -993,6 +993,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   changeDateBtn: {
+    flexShrink: 0,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 10,
@@ -1051,6 +1052,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   mobileSecondaryBtnText: {
+    flexShrink: 1,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -1070,6 +1072,7 @@ const styles = StyleSheet.create({
     }),
   },
   mobilePrimaryBtnText: {
+    flexShrink: 1,
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "800",
@@ -1333,6 +1336,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   compactCategoryBadge: {
+    flexShrink: 1,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 5,

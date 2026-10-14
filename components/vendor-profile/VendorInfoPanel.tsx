@@ -67,7 +67,7 @@ export default function VendorInfoPanel({
     <View style={[styles.panel, !overlap && styles.panelEmbedded, { backgroundColor: colors.surface, borderColor: dark ? "#303846" : "rgba(190, 123, 103, 0.16)" }]}>
       <View style={styles.headingRow}>
         <View style={styles.nameLine}>
-          <Text style={[styles.name, compact && styles.nameCompact, { color: colors.text }]}>{name}</Text>
+          <Text numberOfLines={2} style={[styles.name, compact && styles.nameCompact, { color: colors.text }]}>{name}</Text>
           {verified ? (
             <View accessibilityLabel="Verified vendor" style={[styles.verifiedBadge, { backgroundColor: dark ? "#39242D" : "#FFF0F6" }]}>
               <BadgeCheck size={14} color={dark ? "#FF8AB2" : PINK} strokeWidth={2.2} />
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 28,
     paddingTop: 20,
     paddingHorizontal: 18,
-    paddingBottom: 0,
+    paddingBottom: 18,
     position: "relative",
     zIndex: 2,
     borderWidth: 1,
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
   metaText: { fontFamily: fonts.sans.regular, fontSize: typeScale.bodyCompact },
   separator: { fontSize: typeScale.body, paddingHorizontal: 1 },
   location: { minWidth: 0, flexShrink: 1, fontFamily: fonts.sans.regular, fontSize: typeScale.bodyCompact, lineHeight: typeLeading.bodyCompact },
-  specialties: { marginTop: 9, flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  specialtyChip: { maxWidth: "48%", minHeight: 25, borderRadius: 12, borderWidth: 0, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" },
+  specialties: { width: "100%", marginTop: 14, flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  specialtyChip: { maxWidth: "100%", flexShrink: 1, minHeight: 28, borderRadius: 12, borderWidth: 0, paddingHorizontal: 12, paddingVertical: 4, alignItems: "center", justifyContent: "center" },
   specialtyText: { maxWidth: "100%", fontFamily: fonts.sans.semibold, fontSize: typeScale.caption, lineHeight: typeLeading.caption },
 });
