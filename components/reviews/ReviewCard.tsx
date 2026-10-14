@@ -14,7 +14,7 @@ export default function ReviewCard({ review, dark = false, onHelpful, onEdit, on
   const initial = review.customerName.trim().charAt(0).toUpperCase() || "?";
   return <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border, shadowColor: c.shadow }]}>
     <View style={styles.authorRow}>
-      {review.customerAvatar && !avatarFailed ? <Image source={reviewImageSource(review.customerAvatar)} onError={() => setAvatarFailed(true)} style={styles.avatar} /> : <View style={[styles.fallback, { backgroundColor: c.soft }]}><Text style={[styles.initial, { color: c.pink }]}>{initial}</Text></View>}
+      {review.customerAvatar && !avatarFailed ? <View style={styles.avatar}><Image source={reviewImageSource(review.customerAvatar)} onError={() => setAvatarFailed(true)} style={styles.avatarImage} /></View> : <View style={[styles.fallback, { backgroundColor: c.soft }]}><Text style={[styles.initial, { color: c.pink }]}>{initial}</Text></View>}
       <View style={styles.authorCopy}><Text numberOfLines={1} style={[styles.name, { color: c.text }]}>{review.customerName}</Text>
         {review.verifiedCustomer ? <View style={styles.verified}><CheckCircle2 size={12} color={c.pink} /><Text style={[styles.verifiedText, { color: c.pink }]}>Verified Customer</Text></View> : null}
       </View>
@@ -22,7 +22,7 @@ export default function ReviewCard({ review, dark = false, onHelpful, onEdit, on
     </View>
     <Text accessibilityLabel={`${review.rating} out of 5 stars`} style={[styles.stars, { color: c.gold }]}>{"★".repeat(review.rating)}<Text style={{ color: c.inactiveStar }}>{"★".repeat(5 - review.rating)}</Text></Text>
     <Text style={[styles.body, { color: c.muted }]}>{review.text}</Text>
-    {review.photos?.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>{review.photos.map((photo, i) => <Image key={i} source={reviewImageSource(photo)} style={[styles.photo, { backgroundColor: c.soft }]} />)}</ScrollView> : null}
+    {review.photos?.length ? <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>{review.photos.map((photo, i) => <View key={i} style={[styles.photo, { backgroundColor: c.soft }]}><Image source={reviewImageSource(photo)} style={styles.photoImage} /></View>)}</ScrollView> : null}
     <View style={[styles.actions, { borderTopColor: c.border }]}>
       <Pressable accessibilityRole="button" accessibilityLabel={`Mark ${review.customerName}'s review as helpful`} accessibilityState={{ disabled: !onHelpful || helpfulBusy, busy: helpfulBusy, selected: review.isHelpful }} disabled={!onHelpful || helpfulBusy} onPress={() => onHelpful?.(review)} style={styles.action}><ThumbsUp size={16} color={review.isHelpful ? c.pink : c.muted} fill={review.isHelpful ? c.pink : "transparent"} /><Text style={[styles.actionText, { color: review.isHelpful ? c.pink : c.muted }]}>Helpful ({review.helpfulCount})</Text></Pressable>
       {review.isOwner ? <View style={styles.ownerActions}>
@@ -34,10 +34,10 @@ export default function ReviewCard({ review, dark = false, onHelpful, onEdit, on
 }
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 18, padding: 16, gap: 8, shadowOpacity: .045, shadowRadius: 9, shadowOffset: { width: 0, height: 3 }, elevation: 1 },
-  authorRow: { flexDirection: "row", alignItems: "center", gap: 10 }, avatar: { width: 42, height: 42, borderRadius: 21 }, fallback: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" }, initial: { fontFamily: fonts.serif.bold, fontSize: typeScale.editorialCardTitle },
-  authorCopy: { flex: 1, minWidth: 0 }, name: { fontSize: typeScale.body, fontWeight: "700" }, verified: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }, verifiedText: { fontSize: typeScale.caption, fontWeight: "600" }, date: { fontSize: typeScale.caption },
+  authorRow: { flexDirection: "row", alignItems: "center", gap: 10 }, avatar: { width: 42, height: 42, borderRadius: 21, overflow: "hidden" }, avatarImage: { width: "100%", height: "100%" }, fallback: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center" }, initial: { fontFamily: fonts.serif.bold, fontSize: typeScale.editorialCardTitle },
+  authorCopy: { flex: 1, minWidth: 0 }, name: { fontSize: typeScale.body, fontWeight: "700" }, verified: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }, verifiedText: { fontSize: typeScale.caption, fontWeight: "600" }, date: { flexShrink: 0, fontSize: typeScale.caption },
   stars: { fontSize: typeScale.body, letterSpacing: 1 }, body: { fontSize: typeScale.body, lineHeight: typeLeading.cardTitle },
-  photos: { gap: 8, paddingTop: 3 }, photo: { width: 108, height: 90, borderRadius: 12 },
+  photos: { gap: 8, paddingTop: 3 }, photo: { width: 108, height: 90, borderRadius: 12, overflow: "hidden" }, photoImage: { width: "100%", height: "100%" },
   actions: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 11, marginTop: 5, flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   action: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 6 }, actionText: { fontSize: typeScale.metadata, fontWeight: "600" }, ownerActions: { flexDirection: "row", gap: 14 },
 });
