@@ -187,7 +187,7 @@ export default function VendorAlbum() {
           width: pageWidth,
           alignSelf: "center",
           paddingHorizontal: gutter,
-          paddingBottom: 98 + insets.bottom,
+          paddingBottom: 32,
           gap,
         }}
         initialNumToRender={8}
@@ -196,7 +196,7 @@ export default function VendorAlbum() {
         removeClippedSubviews={Platform.OS !== "web"}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+          <View style={[styles.header, { paddingTop: 16 }]}>
             <LinearGradient
               colors={["#FFF9FB", "#FFF0F5", "#FFF8F2"]}
               start={{ x: 0, y: 0 }}

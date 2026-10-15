@@ -48,7 +48,7 @@ export default function VendorPortfolio() {
         contentContainerStyle={{
           width: Math.min(width, 1080),
           alignSelf: "center",
-          paddingTop: Math.max(insets.top, 12) + 8,
+          paddingTop: 16,
           paddingBottom: 40 + insets.bottom,
         }}
       >
