@@ -202,13 +202,12 @@ function MetricCard({
             </Text>
 
             {/* Metric Label */}
-            <Text numberOfLines={1} style={[styles.label, isDark && styles.textDark]}>
+            <Text style={[styles.label, isDark && styles.textDark]}>
               {item.label}
             </Text>
 
             {/* Growth / Subtitle Indicator */}
             <Text
-              numberOfLines={1}
               style={[
                 styles.growth,
                 item.growthColor ? { color: item.growthColor } : null,
