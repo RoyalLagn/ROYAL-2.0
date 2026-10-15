@@ -1,5 +1,6 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import Pressable from "@/components/InteropSafePressable";
 import { CircleHelp, Mail, MessageCircle, Phone } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -31,7 +32,7 @@ export default function VendorHelp() {
 }
 
 function ContactDetail({ icon: Icon, label, value, colors }: { icon: typeof Mail; label: string; value: string; colors: typeof vendorTheme.light }) {
-  return <View style={styles.contactDetail}><Icon size={17} color={colors.pink} /><View style={styles.flex}><Text style={[styles.contactLabel, { color: colors.muted }]}>{label}</Text><Text selectable style={[styles.contactValue, { color: colors.text }]}>{value}</Text></View></View>;
+  return <Pressable accessibilityRole="link" accessibilityLabel={`${label} ${value}`} onPress={() => void Linking.openURL(label === "Email" ? `mailto:${value.trim()}` : `tel:${value.replace(/[^+\d]/g, "")}`).catch(() => Alert.alert("Unable to open", "Please use the contact details shown here."))} style={({ pressed }) => [styles.contactDetail, { minHeight: 48, opacity: pressed ? 0.7 : 1 }]}><Icon size={17} color={colors.pink} /><View style={styles.flex}><Text style={[styles.contactLabel, { color: colors.muted }]}>{label}</Text><Text style={[styles.contactValue, { color: colors.text }]}>{value}</Text></View></Pressable>;
 }
 
 const styles = StyleSheet.create({
