@@ -10,7 +10,6 @@ import {
 import Pressable from "@/components/InteropSafePressable";
 import { Check, X } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
-import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import { useCategories } from "@/context/CategoryContext";
@@ -117,7 +116,7 @@ export default function VendorEditBusinessInfo() {
         contentContainerStyle={[
           styles.page,
           roomy && styles.pageRoomy,
-          showBottomNav && { paddingBottom: 28 + VENDOR_TAB_BASE_HEIGHT + 20 },
+          showBottomNav && { paddingBottom: 32 },
         ]}
       >
         <VendorSectionHeading
@@ -236,7 +235,7 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   identity: {
-    gap: 0,
+    gap: 12,
   },
   identityPair: {
     flexDirection: "row",
@@ -252,10 +251,10 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.985 }],
   },
   categorySheet: { width: "100%", maxWidth: 560, maxHeight: "78%", alignSelf: "center", borderWidth: 1, borderRadius: 27, padding: 18, paddingBottom: 28 },
-  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 },
+  sheetHeader: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 },
   sheetTitle: { fontSize: typeScale.cardTitle, fontWeight: "700" },
   sheetSubtitle: { fontSize: typeScale.caption, marginTop: 3 },
-  close: { width: 37, height: 37, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  close: { width: 48, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   categoryList: { maxHeight: 430 },
   categoryOption: { minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   categoryName: { fontSize: typeScale.bodyCompact, fontWeight: "700" },

@@ -21,7 +21,6 @@ import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
-import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import VendorCrmReviewsSection from "@/components/vendor/crm/VendorCrmReviewsSection";
 import PageLoader from "@/components/loading/PageLoader";
@@ -73,7 +72,7 @@ export default function VendorReviews() {
         contentContainerStyle={[
           styles.content,
           isDesktop && styles.contentDesktop,
-          !isDesktop && { paddingBottom: 28 + VENDOR_TAB_BASE_HEIGHT },
+          !isDesktop && { paddingBottom: 32 },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={

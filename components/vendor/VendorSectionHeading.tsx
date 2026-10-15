@@ -5,8 +5,6 @@ import { ChevronLeft } from "lucide-react-native";
 import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
-import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
-import VendorProfileSectionTabs from "@/components/vendor/VendorProfileSectionTabs";
 import { typeScale } from "@/constants/typography";
 
 type Props = {
@@ -25,7 +23,7 @@ export function useVendorSectionPageStyle() {
   return [
     styles.page,
     roomy && styles.pageRoomy,
-    showBottomNav && { paddingBottom: 28 + VENDOR_TAB_BASE_HEIGHT + 20 },
+    showBottomNav && { paddingBottom: 32 },
   ];
 }
 
@@ -56,7 +54,6 @@ export default function VendorSectionHeading({
         {badge}
       </View>
       {subtitle ? <Text style={[styles.subtitle, { color: colors.muted }]}>{subtitle}</Text> : null}
-      <VendorProfileSectionTabs />
       {trailing ? <View style={styles.actionRow}>{trailing}</View> : null}
     </View>
   );
@@ -78,13 +75,13 @@ const styles = StyleSheet.create({
     gap: 22,
   },
   intro: {
-    gap: 8,
+    gap: 12,
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 4,
+    gap: 8,
   },
   back: {
     width: 44,
@@ -98,6 +95,8 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }],
   },
   title: {
+    flexShrink: 1,
+    minWidth: 0,
     fontSize: typeScale.pageTitle,
     lineHeight: 30,
     fontWeight: "800",
