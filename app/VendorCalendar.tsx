@@ -354,7 +354,7 @@ export default function VendorCalendar() {
           })}
         </View>
         <View style={styles.legend}>
-          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: statusColors.available.background }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Available</Text></View>
+          <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: colors.surfaceSoft, borderColor: colors.border, borderWidth: StyleSheet.hairlineWidth }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Available</Text></View>
           <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: statusColors.blocked.background }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Booked</Text></View>
           <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1 }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Pending</Text></View>
           <View style={styles.legendItem}><View style={[styles.legendSwatch, { backgroundColor: colorScheme === "dark" ? "#292C33" : "#E8E8EC" }]} /><Text style={[styles.legendText, { color: colors.muted }]}>Past · locked</Text></View>
