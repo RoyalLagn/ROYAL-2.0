@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
 import { useRouter } from "expo-router";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Clock3, Mail, RotateCcw, ShieldCheck, XCircle } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
@@ -11,6 +12,7 @@ import { getVendorDeletionStatus, sendVendorDeletionOtp, submitVerifiedVendorDel
 import { supabase } from "@/services/supabase";
 
 type Step = "details" | "otp" | "verified" | "submitted";
+const ScrollView = (props: React.ComponentProps<typeof KeyboardAwareScrollView>) => <KeyboardAwareScrollView {...props} avoidKeyboardOnAndroid />;
 
 export default function VendorAccountDeletion() {
   const router = useRouter();
