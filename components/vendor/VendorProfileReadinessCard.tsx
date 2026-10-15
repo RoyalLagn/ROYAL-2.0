@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Platform,
   StyleSheet,
   Text,
   View,
@@ -238,7 +237,7 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: 24,
     borderWidth: 1,
-    padding: 22,
+    padding: 16,
     marginBottom: 24,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
@@ -259,7 +258,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 14,
     flex: 1,
-    minWidth: 240,
+    minWidth: 0,
+    flexBasis: "100%",
   },
   iconBadge: {
     width: 44,
@@ -278,8 +278,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   mainSubtitle: {
-    fontSize: typeScale.caption,
-    lineHeight: typeLeading.caption,
+    fontSize: typeScale.bodyCompact,
+    lineHeight: typeLeading.bodyCompact,
     marginTop: 4,
   },
   percentPill: {
@@ -310,6 +310,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
+    flexWrap: "wrap",
     marginBottom: 12,
   },
   strengthTitle: {
@@ -359,6 +360,7 @@ const styles = StyleSheet.create({
   },
   checklistSectionSubtitle: {
     fontSize: typeScale.caption,
+    lineHeight: typeLeading.caption,
     marginTop: 4,
   },
   editorPop: {
