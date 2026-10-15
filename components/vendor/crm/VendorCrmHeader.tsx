@@ -1,13 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Image,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Bell,
   ChevronDown,
@@ -40,6 +40,7 @@ export default function VendorCrmHeader({
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
   const { unreadCount } = useVendorNotifications();
+  const insets = useSafeAreaInsets();
 
   if (isDesktop) {
     return (
@@ -114,7 +115,18 @@ export default function VendorCrmHeader({
 
   // Mobile Header
   return (
-    <View style={[styles.mobileHeader, isDark && styles.headerDark]}>
+    <View
+      style={[
+        styles.mobileHeader,
+        isDark && styles.headerDark,
+        {
+          // Android's edge-to-edge mode places the app beneath the status bar.
+          // Keep the whole vendor header below the camera cutout on every device.
+          height: styles.mobileHeader.height + insets.top,
+          paddingTop: insets.top,
+        },
+      ]}
+    >
       {/* Hamburger Menu Toggle Button */}
       <Pressable
         accessibilityRole="button"
@@ -136,7 +148,7 @@ export default function VendorCrmHeader({
         onPress={() => router.push("/vendor-dashboard")}
         style={styles.mobileLogoWrap}
       >
-        <RoyalLagnLogo width={160} height={42} scale={1.8} />
+        <RoyalLagnLogo width={136} height={42} scale={1.8} />
       </Pressable>
 
       {/* Right Notifications & Avatar */}
@@ -200,11 +212,11 @@ const styles = StyleSheet.create({
     boxSizing: "border-box" as any,
   },
   mobileHeader: {
-    height: 56,
+    height: 64,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 14,
+    paddingHorizontal: 8,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
@@ -330,8 +342,8 @@ const styles = StyleSheet.create({
   },
   // Mobile elements
   mobileMenuBtn: {
-    width: 38,
-    height: 38,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     backgroundColor: "#F9FAFB",
     borderWidth: 1,
@@ -346,6 +358,8 @@ const styles = StyleSheet.create({
     borderColor: "#374151",
   },
   mobileLogoWrap: {
+    flex: 1,
+    minWidth: 0,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -353,12 +367,12 @@ const styles = StyleSheet.create({
   mobileRightActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     flexShrink: 0,
   },
   mobileIconBtn: {
-    width: 36,
-    height: 36,
+    width: 48,
+    height: 48,
     borderRadius: 18,
     backgroundColor: "#F9FAFB",
     borderWidth: 1,
@@ -390,8 +404,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   mobileAvatarWrap: {
-    width: 34,
-    height: 34,
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 17,
     overflow: "hidden",
   },

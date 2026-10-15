@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import {
   Modal,
-  Platform,
   StyleSheet,
   useWindowDimensions,
   View,
 } from "react-native";
 import { usePathname } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import VendorCrmSidebar from "@/components/vendor/crm/VendorCrmSidebar";
@@ -66,6 +66,7 @@ export function VendorWorkspaceShell({ children }: React.PropsWithChildren) {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const isDark = colorScheme === "dark";
   const { data } = useVendorWorkspace();
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
@@ -125,7 +126,13 @@ export function VendorWorkspaceShell({ children }: React.PropsWithChildren) {
             style={styles.drawerBackdropClick}
             onPress={() => setIsMobileDrawerOpen(false)}
           />
-          <View style={[styles.drawerSheet, isDark && styles.drawerSheetDark]}>
+          <View
+            style={[
+              styles.drawerSheet,
+              isDark && styles.drawerSheetDark,
+              { paddingTop: insets.top, paddingBottom: insets.bottom },
+            ]}
+          >
             <VendorCrmSidebar
               isMobileDrawer={true}
               onCloseMobileDrawer={() => setIsMobileDrawerOpen(false)}

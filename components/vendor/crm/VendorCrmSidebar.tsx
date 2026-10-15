@@ -311,8 +311,8 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F3F4F6",
   },
   closeBtn: {
-    width: 34,
-    height: 34,
+    width: 48,
+    height: 48,
     borderRadius: 17,
     backgroundColor: "#F3F4F6",
     alignItems: "center",
