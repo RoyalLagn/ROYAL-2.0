@@ -5,7 +5,6 @@ import {
   FlatList,
   Linking,
   Modal,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -15,25 +14,17 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   AlertCircle,
-  Calendar,
-  CalendarDays,
   CheckCircle2,
   Clock,
-  Coins,
   FileText,
-  Filter,
   Lock,
   MessageCircle,
-  Package,
   Phone,
   Plus,
   ReceiptText,
   RefreshCw,
   Search,
-  ShieldAlert,
   ShieldCheck,
-  User,
-  Users,
   X,
   XCircle,
 } from "lucide-react-native";
@@ -47,17 +38,10 @@ import { brandPalette } from "@/constants/brandPalette";
 import { typeScale, typeLeading } from "@/constants/typography";
 import {
   VendorBookingService,
-  type BookingStatus,
   type VendorBooking,
 } from "@/services/vendorBookings";
-import { setVendorAvailabilityException } from "@/services/vendorAvailability";
-import { ReferralCommissionService } from "@/services/referralCommission";
-import { CustomerInboxService } from "@/services/inboxNotifications";
-import {
-  isCancellationLocked,
-  isContactUnlocked,
-} from "@/lib/bookingCancellationPolicy";
-import BookingDetailsModal from "@/components/booking/BookingDetailsModal";
+import { isContactUnlocked } from "@/lib/bookingCancellationPolicy";
+import { BookingDetailsModal } from "@/components/booking/BookingDetailsModal";
 
 const PINK = brandPalette.light.primary;
 const GREEN = "#16A34A";
@@ -124,6 +108,7 @@ export default function VendorBookings() {
   const [bookings, setBookings] = useState<VendorBooking[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [busyActionId, setBusyActionId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Reject modal state
   const [rejectingBooking, setRejectingBooking] = useState<VendorBooking | null>(null);
@@ -135,10 +120,12 @@ export default function VendorBookings() {
   const loadData = useCallback(async () => {
     if (!workspaceData.vendor?.id) return;
     setLoading(true);
+    setLoadError(null);
     try {
       const list = await VendorBookingService.getVendorBookings(workspaceData.vendor.id);
       setBookings(list);
     } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Unable to load bookings. Please try again.");
       console.warn("Could not load vendor bookings", err);
     } finally {
       setLoading(false);
@@ -273,22 +260,31 @@ export default function VendorBookings() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, desktop && styles.desktopContent]}
         ListHeaderComponent={
-          <>
-            <View style={styles.topRow}>
-              <View style={styles.flex}>
+          <View style={styles.listHeader}>
+            {loadError ? (
+              <View accessibilityRole="alert" style={[styles.packageDetailsStrip, { backgroundColor: colors.surfaceSoft, gap: 12 }]}>
+                <Text style={{ color: colors.text, lineHeight: 20 }}>{loadError}</Text>
+                <Pressable accessibilityRole="button" onPress={() => void loadData()} style={[styles.detailsBtn, { borderColor: colors.border, alignSelf: "flex-start" }]}>
+                  <RefreshCw size={16} color={colors.pink} /><Text style={{ color: colors.pink }}>Retry bookings</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            <View style={[styles.topRow, !desktop && styles.mobileTopRow]}>
+              <View style={[styles.flex, !desktop && styles.mobileHeading]}>
                 <Text style={[styles.eyebrow, { color: colors.pink }]}>DIRECT BOOKING PLATFORM</Text>
                 <Text style={[styles.title, { color: colors.text }]}>Booking Confirmations</Text>
                 <Text style={[styles.subtitle, { color: colors.muted }]}>
                   Review pending booking connection requests and manage confirmed client tickets.
                 </Text>
               </View>
-              <View style={styles.headerRightActions}>
+              <View style={[styles.headerRightActions, !desktop && styles.mobileHeaderRightActions]}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Record Offline Booking"
                   onPress={() => setShowAddOfflineModal(true)}
                   style={({ pressed }) => [
                     styles.addOfflineBtn,
+                    !desktop && styles.mobileAddOfflineBtn,
                     { backgroundColor: colors.pink },
                     pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
                   ]}
@@ -300,7 +296,7 @@ export default function VendorBookings() {
                 <Pressable
                   accessibilityLabel="Refresh bookings"
                   onPress={() => void loadData()}
-                  style={[styles.refreshIconBtn, { backgroundColor: colors.surfaceSoft }]}
+                  style={[styles.refreshIconBtn, !desktop && styles.mobileRefreshIconBtn, { backgroundColor: colors.surfaceSoft }]}
                 >
                   <RefreshCw size={17} color={colors.pink} />
                 </Pressable>
@@ -455,7 +451,7 @@ export default function VendorBookings() {
                 </Text>
               </View>
             </View>
-          </>
+          </View>
         }
         renderItem={({ item }) => {
           const isBusy = busyActionId === item.id;
@@ -665,7 +661,7 @@ export default function VendorBookings() {
               <ActivityIndicator color={PINK} size="large" />
               <Text style={[styles.emptyText, { color: colors.muted }]}>Loading booking requests…</Text>
             </View>
-          ) : (
+          ) : loadError ? null : (
             <View
               style={[
                 styles.emptyBox,
@@ -737,7 +733,7 @@ export default function VendorBookings() {
               </Pressable>
             </View>
             <Text style={[styles.modalCopy, { color: colors.muted }]}>
-              Please enter the reason for cancelling {rejectingBooking?.customer_name}'s booking.
+              Please enter the reason for cancelling {rejectingBooking?.customer_name}{"'s"} booking.
             </Text>
             <View style={{ backgroundColor: "#FEF3C7", padding: 10, borderRadius: 10, borderLeftWidth: 3, borderLeftColor: "#D97706" }}>
               <Text style={{ fontSize: 12, color: "#92400E", fontWeight: "600", lineHeight: 16 }}>
@@ -812,7 +808,9 @@ export default function VendorBookings() {
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  content: { padding: 16, paddingBottom: 110, gap: 14 },
+  content: { padding: 18, paddingBottom: 32, gap: 20 },
+  listHeader: { gap: 20, width: "100%" },
+  mobileHeading: { flex: 0, width: "100%" },
   desktopContent: { maxWidth: 840, alignSelf: "center", width: "100%", paddingHorizontal: 24 },
   flex: { flex: 1, minWidth: 0 },
 
@@ -833,7 +831,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 9,
+    minHeight: 48,
+    paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
   },
@@ -846,7 +845,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     paddingHorizontal: 10,
-    paddingVertical: 9,
+    minHeight: 48,
+    paddingVertical: 10,
     borderRadius: 10,
   },
   lockedNoticePillText: {
@@ -854,14 +854,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" },
-  headerRightActions: { flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" },
+  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" },
+  mobileTopRow: { flexDirection: "column", alignItems: "stretch", gap: 16 },
+  headerRightActions: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" },
+  mobileHeaderRightActions: { width: "100%", flexWrap: "nowrap", justifyContent: "flex-start" },
   addOfflineBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     paddingHorizontal: 15,
-    paddingVertical: 9,
+    minHeight: 48,
+    paddingVertical: 11,
     borderRadius: 12,
     shadowColor: PINK,
     shadowOffset: { width: 0, height: 4 },
@@ -869,36 +872,39 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  mobileAddOfflineBtn: { flex: 1, justifyContent: "center" },
   addOfflineBtnText: {
     color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "700",
   },
   eyebrow: { fontSize: 11, fontWeight: "800", letterSpacing: 0.8 },
-  title: { fontSize: typeScale.sectionTitle, fontWeight: "800", marginTop: 2, letterSpacing: -0.3 },
-  subtitle: { fontSize: typeScale.caption, marginTop: 4, lineHeight: typeLeading.caption },
-  refreshIconBtn: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  title: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "800", marginTop: 4, letterSpacing: -0.3 },
+  subtitle: { fontSize: typeScale.bodyCompact, marginTop: 7, lineHeight: typeLeading.bodyCompact },
+  refreshIconBtn: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  mobileRefreshIconBtn: { width: 48, height: 48 },
 
-  searchRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, minHeight: 46 },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 14, paddingHorizontal: 15, minHeight: 52 },
   searchInput: { flex: 1, fontSize: typeScale.metadata, fontWeight: "600" },
 
   tabsWrap: {
     flexDirection: "row",
     borderRadius: 14,
     borderWidth: 1,
-    padding: 4,
-    gap: 4,
+    padding: 5,
+    gap: 5,
     alignItems: "center",
   },
   tabItem: {
     flex: 1,
     minWidth: 0,
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
+    gap: 6,
+    minHeight: 52,
     paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
     borderRadius: 10,
   },
   tabItemActive: {
@@ -910,6 +916,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabLabel: {
+    lineHeight: 18,
+    textAlign: "center",
     fontSize: 12,
     fontWeight: "700",
     color: "#64748B",
@@ -920,7 +928,8 @@ const styles = StyleSheet.create({
   },
   countBadge: {
     minWidth: 20,
-    height: 20,
+    minHeight: 22,
+    flexShrink: 0,
     paddingHorizontal: 5,
     borderRadius: 10,
     alignItems: "center",
@@ -976,18 +985,23 @@ const styles = StyleSheet.create({
   tabHeadingRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 6,
+    alignItems: "flex-start",
+    gap: 12,
+    marginTop: 10,
     paddingHorizontal: 2,
   },
   tabSectionTitle: {
+    flex: 1,
+    minWidth: 0,
+    lineHeight: 21,
     fontSize: 14,
     fontWeight: "800",
     letterSpacing: -0.2,
   },
   tabSectionCountBadge: {
+    flexShrink: 0,
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 5,
     borderRadius: 999,
   },
   tabSectionCount: {
@@ -996,37 +1010,37 @@ const styles = StyleSheet.create({
   },
 
   bookingCard: {
-    padding: 16,
+    padding: 18,
     borderRadius: 18,
     borderWidth: 1.5,
-    gap: 12,
+    gap: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 1,
   },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
-  tagRow: { flexDirection: "row", gap: 6, flexWrap: "wrap", marginBottom: 4 },
+  cardHeader: { flexDirection: "column", alignItems: "stretch", gap: 12 },
+  tagRow: { flexDirection: "row", gap: 7, flexWrap: "wrap", marginBottom: 6 },
   ticketPill: { backgroundColor: "#F3E8FF", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   ticketPillText: { color: "#7E22CE", fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
   offlinePill: { backgroundColor: "#FEF3C7", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   offlinePillText: { color: "#B45309", fontSize: 9, fontWeight: "800" },
   countdownPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   countdownText: { fontSize: 10, fontWeight: "700" },
-  clientName: { fontSize: typeScale.sectionTitle, fontWeight: "700" },
-  eventOccasion: { fontSize: 12, marginTop: 2 },
+  clientName: { fontSize: typeScale.sectionTitle, lineHeight: typeLeading.sectionTitle, fontWeight: "700" },
+  eventOccasion: { fontSize: 12, lineHeight: 18, marginTop: 4 },
 
   clientContactButtons: { flexDirection: "row", gap: 6 },
-  contactCircle: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  contactCircle: { width: 48, height: 48, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 
-  packageDetailsStrip: { padding: 10, borderRadius: 12 },
-  pkgTitle: { fontSize: 13, fontWeight: "700" },
-  addonsText: { fontSize: 11, marginTop: 2 },
-  notesText: { fontSize: 11, fontStyle: "italic", marginTop: 2 },
+  packageDetailsStrip: { padding: 14, borderRadius: 12 },
+  pkgTitle: { fontSize: typeScale.body, lineHeight: typeLeading.body, fontWeight: "700" },
+  addonsText: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, marginTop: 4 },
+  notesText: { fontSize: typeScale.metadata, lineHeight: typeLeading.metadata, fontStyle: "italic", marginTop: 4 },
 
-  financeGrid: { flexDirection: "row", gap: 8 },
-  finTile: { flex: 1, padding: 10, borderRadius: 12, backgroundColor: "#F8FAFC", alignItems: "center" },
+  financeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  finTile: { flexGrow: 1, flexBasis: 120, minWidth: 0, minHeight: 76, padding: 12, borderRadius: 12, backgroundColor: "#F8FAFC", alignItems: "center", justifyContent: "center" },
   finLabel: { fontSize: 9, fontWeight: "700" },
   finAmount: { fontSize: 13, fontWeight: "800", marginTop: 2 },
   finTileAdvance: { backgroundColor: "#DCFCE7" },
@@ -1036,18 +1050,18 @@ const styles = StyleSheet.create({
   finLabelDue: { color: "#9A3412", fontSize: 9, fontWeight: "800" },
   finAmountDue: { color: "#C2410C", fontSize: 14, fontWeight: "900", marginTop: 2 },
 
-  cardActionsRow: { flexDirection: "row", gap: 10, marginTop: 4 },
-  declineBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: "#FCA5A5" },
+  cardActionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 6 },
+  declineBtn: { flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: "#FCA5A5" },
   declineBtnText: { color: RED, fontSize: typeScale.caption, fontWeight: "700" },
-  acceptBtn: { flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12, backgroundColor: PINK },
+  acceptBtn: { flex: 2, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, borderRadius: 12, backgroundColor: PINK },
   acceptBtnText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "800" },
   btnDisabled: { opacity: 0.6 },
 
-  viewTicketBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderRadius: 12, backgroundColor: PINK },
+  viewTicketBtn: { flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 12, borderRadius: 12, backgroundColor: PINK },
   viewTicketBtnText: { color: "#FFF", fontSize: typeScale.caption, fontWeight: "800" },
 
   cancelledStrip: { flexDirection: "row", alignItems: "center", gap: 6, padding: 8, borderRadius: 10, backgroundColor: "#FEE2E2" },
-  cancelledReasonText: { color: RED, fontSize: 11, fontWeight: "600" },
+  cancelledReasonText: { flex: 1, minWidth: 0, color: RED, fontSize: 12, lineHeight: 18, fontWeight: "600" },
 
   emptyBox: {
     paddingVertical: 36,
