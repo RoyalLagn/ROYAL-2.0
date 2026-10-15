@@ -528,7 +528,7 @@ const styles = StyleSheet.create({
   smallActionText: { ...typeStyles.button },
   orderGroup: { minHeight: 44, borderWidth: 1, borderRadius: 13, paddingLeft: 11, paddingRight: 3, flexDirection: "row", alignItems: "center", alignSelf: "flex-end" },
   orderLabel: { ...typeStyles.caption, marginRight: 3 },
-  orderButton: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  orderButton: { width: 48, height: 48, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   disabled: { opacity: 0.42 },
   pressed: { opacity: 0.86, transform: [{ scale: 0.97 }] },
   empty: { borderWidth: 1, borderRadius: 20, padding: 32, alignItems: "center" },
@@ -544,5 +544,5 @@ const styles = StyleSheet.create({
   previewHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 13 },
   previewTitle: { fontSize: typeScale.editorialCardTitle, fontWeight: "700" },
   previewHint: { ...typeStyles.caption, marginTop: 2 },
-  closeButton: { width: 42, height: 42, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  closeButton: { width: 48, height: 48, borderRadius: 13, alignItems: "center", justifyContent: "center" },
 });
