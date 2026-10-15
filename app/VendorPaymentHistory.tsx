@@ -1059,6 +1059,8 @@ const styles = StyleSheet.create({
   },
   topNavRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
     alignItems: "center",
     justifyContent: "space-between",
     minHeight: 44,
@@ -1077,10 +1079,13 @@ const styles = StyleSheet.create({
   },
   topRightActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    maxWidth: "100%",
     alignItems: "center",
     gap: 10,
   },
   calendarLinkBtn: {
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -1094,6 +1099,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   primaryActionBtn: {
+    minHeight: 48,
+    maxWidth: "100%",
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
