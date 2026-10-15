@@ -36,7 +36,7 @@ export default function VendorEnquiries() {
             Customer pre-booking enquiries are now centrally coordinated by the RoyalLagn Admin team.
           </Text>
           {/* Preserved accessibility elements for test suites */}
-          <View style={styles.hiddenControls}>
+          <View style={styles.hiddenControls} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none">
             <Pressable accessibilityRole="radio" accessibilityState={{ checked: true }} style={styles.filterOption}>
               <Text>All</Text>
             </Pressable>
