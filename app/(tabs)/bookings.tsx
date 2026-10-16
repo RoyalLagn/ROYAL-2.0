@@ -385,7 +385,7 @@ export default function CustomerBookingsScreen() {
 
           {/* Guest reminder if not logged in */}
           {!isPublicAuthenticated && !authLoading && bookings.length > 0 ? (
-            <View style={[styles.guestNotice, { backgroundColor: palette.surfaceHighlight, borderColor: PINK }]}>
+            <View style={[styles.guestNotice, { backgroundColor: palette.surfaceHighlight, borderColor: palette.cardBorder }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.guestNoticeTitle, { color: PINK }]}>Viewing Local Guest Bookings</Text>
                 <Text style={[styles.guestNoticeDesc, { color: palette.muted }]}>
@@ -603,13 +603,7 @@ export default function CustomerBookingsScreen() {
                     styles.bookingCard,
                     {
                       backgroundColor: palette.surface,
-                      borderColor: isConfirmed
-                        ? GREEN
-                        : isCancelled
-                        ? RED
-                        : highlightedCardId === cardKey
-                        ? PINK
-                        : palette.cardBorder,
+                      borderColor: highlightedCardId === cardKey ? PINK : palette.cardBorder,
                       borderWidth: highlightedCardId === cardKey ? 2 : 1,
                     },
                     highlightedCardId === cardKey && styles.highlightedCardGlow,
@@ -987,7 +981,7 @@ const styles = StyleSheet.create({
 
   statsRibbon: {
     flexDirection: "row",
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     paddingVertical: 16,
     paddingHorizontal: 10,
@@ -1022,20 +1016,20 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   stickyTabsWrapper: {
-    paddingTop: 8,
-    paddingBottom: 10,
+    paddingTop: 4,
+    paddingBottom: 8,
     zIndex: 50,
   },
   tabsTrackContainer: {
-    borderRadius: 18,
-    borderWidth: 1.5,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    shadowColor: "#E11D48",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 4,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingVertical: 5,
+    paddingHorizontal: 5,
+    shadowColor: "#171118",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 7,
+    elevation: 2,
   },
   tabsRowContent: {
     flexDirection: "row",
@@ -1048,11 +1042,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    gap: 5,
     paddingHorizontal: 2,
-    paddingVertical: 11,
-    borderRadius: 13,
-    borderWidth: 1,
+    paddingVertical: 12,
+    borderRadius: 11,
+    borderWidth: 0,
   },
   tabChipInactive: {
     backgroundColor: "transparent",
@@ -1062,31 +1056,13 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(233, 30, 99, 0.08)",
   },
   tabChipActivePending: {
-    backgroundColor: "#D97706",
-    borderColor: "#D97706",
-    shadowColor: "#D97706",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.45,
-    shadowRadius: 6,
-    elevation: 5,
+    backgroundColor: PINK,
   },
   tabChipActiveConfirmed: {
-    backgroundColor: "#059669",
-    borderColor: "#059669",
-    shadowColor: "#059669",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.45,
-    shadowRadius: 6,
-    elevation: 5,
+    backgroundColor: PINK,
   },
   tabChipActiveCancelled: {
-    backgroundColor: "#DC2626",
-    borderColor: "#DC2626",
-    shadowColor: "#DC2626",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.45,
-    shadowRadius: 6,
-    elevation: 5,
+    backgroundColor: PINK,
   },
   tabChipText: {
     flexShrink: 1,
@@ -1139,12 +1115,12 @@ const styles = StyleSheet.create({
 
   bookingCard: {
     padding: 16,
-    borderRadius: 18,
-    borderWidth: 1.5,
+    borderRadius: 20,
+    borderWidth: 1,
     gap: 12,
     ...Platform.select({
       web: { boxShadow: "0 4px 14px rgba(0,0,0,0.04)" },
-      default: { elevation: 2 },
+      default: { elevation: 1 },
     }),
   },
   cardTop: {
@@ -1161,12 +1137,12 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   dropdownBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: "rgba(233, 30, 99, 0.08)",
     borderWidth: 1,
-    borderColor: "rgba(233, 30, 99, 0.2)",
+    borderColor: "rgba(233, 30, 99, 0.16)",
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 8,
@@ -1176,10 +1152,10 @@ const styles = StyleSheet.create({
     borderColor: PINK,
   },
   ticketPill: {
-    backgroundColor: "#F3E8FF",
+    backgroundColor: "#F6F0FF",
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 7,
+    borderRadius: 8,
   },
   ticketPillText: {
     color: "#7E22CE",
@@ -1191,7 +1167,7 @@ const styles = StyleSheet.create({
   statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 7,
+    borderRadius: 8,
   },
   statusPillText: {
     fontSize: 11,
@@ -1225,7 +1201,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   compactPriceLabel: {
     fontSize: 10,
@@ -1264,18 +1240,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     backgroundColor: PINK,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 9,
+    minHeight: 40,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
     marginLeft: "auto",
     ...Platform.select({
-      web: { boxShadow: "0 2px 8px rgba(225, 29, 72, 0.28)" },
+      web: { boxShadow: "0 2px 6px rgba(225, 29, 72, 0.2)" },
       default: {
         elevation: 2,
         shadowColor: PINK,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
+        shadowOpacity: 0.18,
+        shadowRadius: 3,
       },
     }),
   },
@@ -1337,9 +1314,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    minHeight: 40,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
   },
   minimizedDetailsBtnText: {
@@ -1359,10 +1337,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    minHeight: 42,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 10,
-    borderWidth: 1.5,
+    borderWidth: 1,
   },
   detailsCtaBtnText: {
     fontSize: 12,
@@ -1372,8 +1351,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    minHeight: 42,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 10,
   },
   ticketCtaBtnText: {
