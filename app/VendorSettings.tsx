@@ -4,12 +4,14 @@ import { Trash2 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
+import { useAppTheme } from "@/components/ThemeProvider";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 
 export default function VendorSettings() {
   const router = useRouter();
-  const colors = vendorTheme.light;
+  const { colorScheme } = useAppTheme();
+  const colors = vendorTheme[colorScheme];
   const { data } = useVendorWorkspace();
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />

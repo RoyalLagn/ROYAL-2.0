@@ -30,8 +30,23 @@ const lightVendorColors: VendorThemeColors = {
   shadow: "#7D3D58",
 };
 
+const darkVendorColors: VendorThemeColors = {
+  background: brandPalette.dark.background,
+  surface: brandPalette.dark.card,
+  surfaceSoft: brandPalette.dark.actionTint,
+  text: brandPalette.dark.foreground,
+  muted: brandPalette.dark.mutedForeground,
+  border: brandPalette.dark.border,
+  pink: brandPalette.dark.primary,
+  success: brandPalette.dark.success,
+  warning: brandPalette.dark.warning,
+  destructive: brandPalette.dark.destructive,
+  onPrimary: brandPalette.dark.primaryForeground,
+  shadow: "#000000",
+};
+
 export const vendorTheme: Record<"light" | "dark", VendorThemeColors> = {
   light: lightVendorColors,
-  dark: lightVendorColors,
+  dark: darkVendorColors,
 };
 
