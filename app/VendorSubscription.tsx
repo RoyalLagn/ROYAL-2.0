@@ -217,8 +217,13 @@ export default function VendorSubscription() {
   };
 
   const activePlan = plans.find((plan) => plan.id === access?.plan_id);
-  const activeMembershipBadge = membershipBadgeFor(access?.plan_name);
-  const premiumCurrent = Boolean(access?.has_access && activeMembershipBadge);
+  // The resolved access source is the authoritative membership state. A stale
+  // previous plan id/name can remain attached to a Free fallback response, so
+  // never present paid-plan branding in that case.
+  const isFreeFallback = access?.access_source === "free_fallback";
+  const displayedMembershipName = isFreeFallback ? "Free" : access?.plan_name;
+  const activeMembershipBadge = membershipBadgeFor(displayedMembershipName);
+  const premiumCurrent = Boolean(access?.has_access && !isFreeFallback && activeMembershipBadge);
   const currentText = premiumCurrent ? "#FFF9FC" : colors.text;
   const currentMuted = premiumCurrent ? "#D8C9D0" : colors.muted;
   const currentGold = colorScheme === "dark" ? "#F0C66B" : "#F2CC78";
@@ -245,11 +250,11 @@ export default function VendorSubscription() {
         <LinearGradient colors={premiumCurrent ? ["#171018", "#321321", "#4A172B"] : colorScheme === "dark" ? ["#2B2226", "#211D20"] : ["#FFFFFF", "#FFF9FB"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.current, { borderColor: premiumCurrent ? "#B98A3D" : colors.border, shadowColor: premiumCurrent ? "#5C1831" : colors.shadow }]}>
           {premiumCurrent ? <View pointerEvents="none" style={styles.currentGlow} /> : null}
           <View style={styles.currentSummary}>
-            <View style={[styles.currentIcon, premiumCurrent && styles.currentIconPremium, { backgroundColor: activeMembershipBadge ? "transparent" : access?.has_access ? colors.pink : colors.surfaceSoft }]}>{activeMembershipBadge ? <MembershipBadge planName={access?.plan_name} size={74} /> : <Crown size={23} color={access?.has_access ? "#FFF" : colors.pink} />}</View>
+            <View style={[styles.currentIcon, premiumCurrent && styles.currentIconPremium, { backgroundColor: activeMembershipBadge ? "transparent" : access?.has_access ? colors.pink : colors.surfaceSoft }]}>{activeMembershipBadge ? <MembershipBadge planName={displayedMembershipName} size={74} /> : <Crown size={23} color={access?.has_access ? "#FFF" : colors.pink} />}</View>
             <View style={styles.flex}>
-              <Text style={[styles.currentLabel, { color: premiumCurrent ? currentGold : colors.muted }]}>YOUR MEMBERSHIP · {subscriptionAccessSourceLabel(access?.access_source).toUpperCase()}</Text>
-              <Text style={[styles.currentTitle, premiumCurrent && styles.currentTitlePremium, { color: currentText }]}>{access?.plan_name || "No active plan"}</Text>
-              <Text style={[styles.currentStatus, { color: access?.has_access ? premiumCurrent ? currentGold : colors.success : colors.warning }]}>{subscriptionStatusLabel(access?.status)}{access?.billing_interval ? ` · ${access.billing_interval === "year" ? "Yearly" : "Monthly"}` : ""}</Text>
+              <Text style={[styles.currentLabel, { color: premiumCurrent ? currentGold : colors.muted }]}>YOUR MEMBERSHIP{isFreeFallback ? "" : ` · ${subscriptionAccessSourceLabel(access?.access_source).toUpperCase()}`}</Text>
+              <Text style={[styles.currentTitle, premiumCurrent && styles.currentTitlePremium, { color: currentText }]}>{displayedMembershipName || "No active plan"}</Text>
+              <Text style={[styles.currentStatus, { color: access?.has_access ? premiumCurrent ? currentGold : colors.success : colors.warning }]}>{subscriptionStatusLabel(access?.status)}{!isFreeFallback && access?.billing_interval ? ` · ${access.billing_interval === "year" ? "Yearly" : "Monthly"}` : ""}</Text>
             </View>
             {access?.days_remaining != null ? <View style={[styles.daysBadge, { backgroundColor: premiumCurrent ? "rgba(242,204,120,0.12)" : colors.surfaceSoft, borderColor: premiumCurrent ? "rgba(242,204,120,0.32)" : "transparent" }]}><Text style={[styles.daysNumber, { color: premiumCurrent ? currentGold : colors.pink }]}>{access.days_remaining}</Text><Text style={[styles.daysLabel, { color: currentMuted }]}>DAYS LEFT</Text></View> : null}
           </View>
