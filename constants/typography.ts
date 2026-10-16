@@ -97,6 +97,7 @@ export const typeStyles = {
     fontFamily: fonts.sans.bold,
     fontSize: typeScale.cardTitle,
     lineHeight: typeLeading.cardTitle,
+    letterSpacing: -0.24,
   },
   editorialCardTitle: {
     fontFamily: fonts.serif.bold,
@@ -123,6 +124,7 @@ export const typeStyles = {
     fontFamily: fonts.sans.semibold,
     fontSize: typeScale.label,
     lineHeight: typeLeading.label,
+    letterSpacing: 0.12,
   },
   button: {
     fontFamily: fonts.sans.bold,
@@ -138,6 +140,7 @@ export const typeStyles = {
     fontFamily: fonts.sans.medium,
     fontSize: typeScale.caption,
     lineHeight: typeLeading.caption,
+    letterSpacing: 0.1,
   },
   metric: {
     fontFamily: fonts.sans.bold,

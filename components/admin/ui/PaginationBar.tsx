@@ -27,7 +27,7 @@ export function PaginationBar({ page, pages, onPage, total, pageSize }: Paginati
         <PageButton label="Previous page" disabled={page <= 1} onPress={() => onPage(page - 1)}><ChevronLeft size={18} className="text-foreground" /></PageButton>
         {showNumbers ? pageNumbers.map((number) => (
           <PageButton key={number} label={`Page ${number}`} selected={number === page} onPress={() => onPage(number)}>
-            <Text className={number === page ? "text-white text-sm font-bold" : "text-foreground text-sm font-semibold"}>{number}</Text>
+            <Text className={number === page ? "text-white text-button font-inter-semibold" : "text-foreground text-button font-inter-semibold"} style={{ letterSpacing: -0.08 }}>{number}</Text>
           </PageButton>
         )) : <Text className="text-foreground text-sm px-2">Page {page} of {pages}</Text>}
         <PageButton label="Next page" disabled={page >= pages} onPress={() => onPage(page + 1)}><ChevronRight size={18} className="text-foreground" /></PageButton>
