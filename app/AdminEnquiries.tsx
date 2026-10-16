@@ -47,6 +47,7 @@ import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminEmptyState, AdminErrorState, AdminTableSkeleton } from "@/components/admin/ui/AdminState";
 import { PaginationBar } from "@/components/admin/ui/PaginationBar";
 import { HierarchySelect } from "@/components/admin/locations/HierarchySelect";
+import { adminContentWidth } from "@/utils/responsiveLayout";
 import { DateField } from "@/components/admin/crm/ui/DateField";
 import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
 import { AdminOperationsService, type AdminEnquiry, type AdminEnquiryStatus } from "@/services/adminOperations";
@@ -91,7 +92,7 @@ const STATUS_FILTERS = [
 
 export default function AdminEnquiries() {
   const { width } = useWindowDimensions();
-  const desktop = width >= 900;
+  const desktop = adminContentWidth(width) >= 980;
   const [items, setItems] = useState<AdminEnquiry[]>([]);
   const [total, setTotal] = useState(0);
   const [calls, setCalls] = useState(0);
@@ -179,7 +180,7 @@ export default function AdminEnquiries() {
         contentContainerStyle={{ paddingBottom: 72 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#0878E8" />}
       >
-        <ResponsiveContainer style={{ maxWidth: 1180, alignSelf: "center" }}>
+        <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
           <AdminPageHeader
             title="Enquiry Hub"
             subtitle="Centralised Admin-Managed enquiry coordinator for customers & vendors"
@@ -475,7 +476,7 @@ function EnquiryTicketModal({
   }, [enquiry]);
 
   if (!enquiry) return null;
-  const desktop = width >= 900;
+  const desktop = adminContentWidth(width) >= 980;
 
   const occurredAt = new Date(enquiry.created_at);
   const ticketDate = occurredAt.toLocaleDateString("en-IN", { timeZone: ENQUIRY_TIMEZONE, day: "2-digit", month: "short", year: "numeric" });

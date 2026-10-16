@@ -9,6 +9,7 @@ import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer
 import { LegalDocumentRenderer } from "@/components/legal/LegalDocumentRenderer";
 import { DEFAULT_PRIVACY_CONTENT, DEFAULT_TERMS_CONTENT, LegalDocumentsService } from "@/services/legalDocuments";
 import { KeyboardAwareScrollView } from "@/components/keyboard/KeyboardAwareScrollView";
+import { adminContentWidth } from "@/utils/responsiveLayout";
 
 type AdminLegalDocumentProps = { documentType?: "terms" | "privacy" };
 
@@ -17,7 +18,7 @@ export default function AdminTerms({ documentType = "terms" }: AdminLegalDocumen
   const title = privacy ? "Privacy Policy" : "Terms & Conditions";
   const defaultContent = privacy ? DEFAULT_PRIVACY_CONTENT : DEFAULT_TERMS_CONTENT;
   const { width } = useWindowDimensions();
-  const desktop = width >= 900;
+  const desktop = adminContentWidth(width) >= 980;
   const [content, setContent] = useState(defaultContent);
   const [savedContent, setSavedContent] = useState(defaultContent);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -102,7 +103,7 @@ export default function AdminTerms({ documentType = "terms" }: AdminLegalDocumen
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]}>
       <KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 72 }}>
-        <ResponsiveContainer style={{ maxWidth: 1180, alignSelf: "center" }}>
+        <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center" }}>
           <AdminPageHeader
             title={title}
             subtitle={`Edit the ${title.toLowerCase()} shown to customers and vendors`}

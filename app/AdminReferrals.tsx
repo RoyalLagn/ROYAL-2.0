@@ -48,6 +48,7 @@ import {
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
+import { adminContentWidth } from "@/utils/responsiveLayout";
 import { adminPalette } from "@/theme";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { useAdminAuth } from "@/context/AdminAuthContext";
@@ -64,7 +65,8 @@ const money = (val?: number | null) => `₹${Number(val || 0).toLocaleString("en
 type MainTab = "verifications" | "withdrawals" | "ledger";
 
 export default function AdminReferrals() {
-  const { isPhone, isTablet } = useResponsiveLayout();
+  const { isPhone, isTablet, contentPadding, width } = useResponsiveLayout();
+  const compactTabs = adminContentWidth(width) - contentPadding * 2 < 980;
   const { colorScheme } = useAppTheme();
   const dark = colorScheme === "dark";
   const { identity } = useAdminAuth();
@@ -534,7 +536,7 @@ export default function AdminReferrals() {
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: contentPadding }]}
       >
         {/* Header */}
         <AdminPageHeader
@@ -582,9 +584,15 @@ export default function AdminReferrals() {
 
         {/* Top Segmented Tab Switcher */}
         <View style={styles.tabBar}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            scrollEnabled={compactTabs}
+            contentContainerStyle={compactTabs ? styles.tabBarScroll : styles.tabBarScrollFill}
+          >
           <Pressable
             onPress={() => setActiveTab("verifications")}
-            style={[styles.tabButton, activeTab === "verifications" && styles.tabButtonActive]}
+            style={[styles.tabButton, !compactTabs && styles.tabButtonFill, activeTab === "verifications" && styles.tabButtonActive]}
           >
             <ShieldCheck
               size={18}
@@ -604,7 +612,7 @@ export default function AdminReferrals() {
 
           <Pressable
             onPress={() => setActiveTab("withdrawals")}
-            style={[styles.tabButton, activeTab === "withdrawals" && styles.tabButtonActive]}
+            style={[styles.tabButton, !compactTabs && styles.tabButtonFill, activeTab === "withdrawals" && styles.tabButtonActive]}
           >
             <Wallet
               size={18}
@@ -624,7 +632,7 @@ export default function AdminReferrals() {
 
           <Pressable
             onPress={() => setActiveTab("ledger")}
-            style={[styles.tabButton, activeTab === "ledger" && styles.tabButtonActive]}
+            style={[styles.tabButton, !compactTabs && styles.tabButtonFill, activeTab === "ledger" && styles.tabButtonActive]}
           >
             <ReceiptText
               size={18}
@@ -636,6 +644,7 @@ export default function AdminReferrals() {
               Platform Ledger
             </Text>
           </Pressable>
+          </ScrollView>
         </View>
 
         {loading ? (
@@ -2103,16 +2112,15 @@ const styles = StyleSheet.create({
     backgroundColor: adminPalette.canvas,
   },
   scrollContent: {
-    paddingHorizontal: 20,
     paddingBottom: 40,
-    maxWidth: 1400,
+    maxWidth: 1600,
     width: "100%",
     alignSelf: "center",
   },
   refreshBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: `${pink}15`,
     alignItems: "center",
     justifyContent: "center",
@@ -2148,8 +2156,6 @@ const styles = StyleSheet.create({
 
   // Tab switcher
   tabBar: {
-    flexDirection: "row",
-    gap: 8,
     marginBottom: 20,
     backgroundColor: adminPalette.surfaceSubtle,
     padding: 6,
@@ -2157,15 +2163,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: adminPalette.border,
   },
+  tabBarScroll: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  tabBarScrollFill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexGrow: 1,
+    width: "100%",
+  },
   tabButton: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
+    minHeight: 44,
     gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
     borderRadius: 10,
+  },
+  tabButtonFill: {
+    flex: 1,
   },
   tabButtonActive: {
     backgroundColor: pink,

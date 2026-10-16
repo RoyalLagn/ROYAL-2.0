@@ -65,6 +65,9 @@ import {
   XCircle,
 } from "lucide-react-native";
 import { adminPalette } from "@/theme";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { ResponsiveContainer } from "@/components/responsive/ResponsiveContainer";
+import { royalAdmin, royalAdminThemeVars } from "@/components/admin/dashboard/adminDashboardTheme";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { TeamAuthProvider, useTeamAuth } from "@/context/TeamAuthContext";
 import {
@@ -769,9 +772,9 @@ function TeamPortalInner() {
 
   if (authLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-background items-center justify-center p-6">
-        <View className="w-14 h-14 rounded-2xl bg-primary/10 items-center justify-center mb-4">
-          <ActivityIndicator size="large" color={pink} />
+      <SafeAreaView className="flex-1 items-center justify-center p-6" style={{ backgroundColor: royalAdmin.canvas }}>
+        <View className="w-14 h-14 rounded-2xl items-center justify-center mb-4" style={{ backgroundColor: royalAdmin.blueSoft }}>
+          <ActivityIndicator size="large" color={royalAdmin.navy} />
         </View>
         <Text className="text-foreground text-base font-bold">RoyalLagn Team Portal</Text>
         <Text className="text-muted-foreground mt-1 text-sm font-medium">Verifying team credentials…</Text>
@@ -822,7 +825,7 @@ function TeamPortalInner() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   placeholder="name@royallagn.com"
-                  placeholderTextColor="#8A8589"
+                  placeholderTextColor="#647B98"
                   className="w-full h-12 px-4 rounded-xl border border-border bg-background text-foreground text-sm font-medium"
                 />
               </View>
@@ -838,7 +841,7 @@ function TeamPortalInner() {
                     }}
                     secureTextEntry={!showPassword}
                     placeholder="••••••••"
-                    placeholderTextColor="#8A8589"
+                    placeholderTextColor="#647B98"
                     onSubmitEditing={() => void handleSignInSubmit()}
                     className="w-full h-12 pl-4 pr-11 rounded-xl border border-border bg-background text-foreground text-sm font-medium"
                   />
@@ -1088,7 +1091,7 @@ function TeamPortalInner() {
             value={destSearch}
             onChangeText={setDestSearch}
             placeholder="Search by customer name, mobile, UPI ID..."
-            placeholderTextColor="#8A8589"
+            placeholderTextColor="#647B98"
             className="flex-1 ml-2 text-foreground text-xs"
           />
         </View>
@@ -1170,7 +1173,7 @@ function TeamPortalInner() {
                 <Pressable
                   key={s.value}
                   onPress={() => setDestStatusFilter(s.value)}
-                  className={`px-2.5 py-1 rounded-lg border ${
+                  className={`min-h-8 px-2.5 rounded-lg border items-center justify-center ${
                     destStatusFilter === s.value ? "bg-primary border-primary" : "bg-card border-border hover:bg-muted"
                   }`}
                 >
@@ -1188,7 +1191,7 @@ function TeamPortalInner() {
                 <Pressable
                   key={f}
                   onPress={() => setDestAssignmentFilter(f)}
-                  className={`px-2.5 py-1 rounded-lg border ${
+                  className={`min-h-8 px-2.5 rounded-lg border items-center justify-center ${
                     destAssignmentFilter === f ? "bg-primary border-primary" : "bg-card border-border hover:bg-muted"
                   }`}
                 >
@@ -1206,7 +1209,7 @@ function TeamPortalInner() {
       {loading ? (
         <ActivityIndicator size="small" color={pink} className="py-8" />
       ) : destinations.length === 0 ? (
-        <View className="bg-card border border-border p-8 rounded-2xl items-center">
+        <View className="bg-card border border-border py-6 px-5 rounded-2xl items-center">
           <QrCode size={36} className="text-muted-foreground opacity-40 mb-2" />
           <Text className="text-foreground font-semibold text-sm">No payment destinations found</Text>
           <Text className="text-muted-foreground text-xs mt-1 text-center">
@@ -1408,7 +1411,7 @@ function TeamPortalInner() {
             value={withSearch}
             onChangeText={setWithSearch}
             placeholder="Search by beneficiary, amount, UTR..."
-            placeholderTextColor="#8A8589"
+            placeholderTextColor="#647B98"
             className="flex-1 ml-2 text-foreground text-xs"
           />
         </View>
@@ -1488,7 +1491,7 @@ function TeamPortalInner() {
                 <Pressable
                   key={f}
                   onPress={() => setWithAssignmentFilter(f)}
-                  className={`px-2.5 py-1 rounded-lg border ${
+                  className={`min-h-8 px-2.5 rounded-lg border items-center justify-center ${
                     withAssignmentFilter === f ? "bg-primary border-primary" : "bg-card border-border hover:bg-muted"
                   }`}
                 >
@@ -1513,7 +1516,7 @@ function TeamPortalInner() {
                 <Pressable
                   key={st.id}
                   onPress={() => setWithStatusFilter(st.id)}
-                  className={`px-2.5 py-1 rounded-lg border ${
+                  className={`min-h-8 px-2.5 rounded-lg border items-center justify-center ${
                     withStatusFilter === st.id ? "bg-primary border-primary" : "bg-card border-border hover:bg-muted"
                   }`}
                 >
@@ -1531,7 +1534,7 @@ function TeamPortalInner() {
       {loading ? (
         <ActivityIndicator size="small" color={pink} className="py-8" />
       ) : withdrawals.length === 0 ? (
-        <View className="bg-card border border-border p-8 rounded-2xl items-center">
+        <View className="bg-card border border-border py-6 px-5 rounded-2xl items-center">
           <CircleDollarSign size={36} className="text-muted-foreground opacity-40 mb-2" />
           <Text className="text-foreground font-semibold text-sm">No withdrawal requests found</Text>
           <Text className="text-muted-foreground text-xs mt-1 text-center">No records matching the selected queue/status filters.</Text>
@@ -1724,7 +1727,7 @@ function TeamPortalInner() {
             value={vendorSearch}
             onChangeText={setVendorSearch}
             placeholder="Search business name, owner, city..."
-            placeholderTextColor="#8A8589"
+            placeholderTextColor="#647B98"
             className="flex-1 ml-2 text-foreground text-xs"
           />
         </View>
@@ -1799,7 +1802,7 @@ function TeamPortalInner() {
                 <Pressable
                   key={f}
                   onPress={() => setVendorAssignmentFilter(f)}
-                  className={`px-2.5 py-1 rounded-lg border ${
+                  className={`min-h-8 px-2.5 rounded-lg border items-center justify-center ${
                     vendorAssignmentFilter === f ? "bg-primary border-primary" : "bg-card border-border hover:bg-muted"
                   }`}
                 >
@@ -1822,7 +1825,7 @@ function TeamPortalInner() {
                 <Pressable
                   key={st.id}
                   onPress={() => setVendorStatusFilter(st.id)}
-                  className={`px-2.5 py-1 rounded-lg border ${
+                  className={`min-h-8 px-2.5 rounded-lg border items-center justify-center ${
                     vendorStatusFilter === st.id ? "bg-primary border-primary" : "bg-card border-border hover:bg-muted"
                   }`}
                 >
@@ -1839,7 +1842,7 @@ function TeamPortalInner() {
       {loading ? (
         <ActivityIndicator size="small" color={pink} className="py-8" />
       ) : vendorApps.length === 0 ? (
-        <View className="bg-card border border-border p-8 rounded-2xl items-center">
+        <View className="bg-card border border-border py-6 px-5 rounded-2xl items-center">
           <Building2 size={36} className="text-muted-foreground opacity-40 mb-2" />
           <Text className="text-foreground font-semibold text-sm">No vendor applications found</Text>
           <Text className="text-muted-foreground text-xs mt-1 text-center">No records matching the selected queue/status filters.</Text>
@@ -1943,89 +1946,60 @@ function TeamPortalInner() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top", "left", "right"]} style={{ width: "100%", maxWidth: "100%" }}>
-      {/* Top Header */}
-      <View className="px-3 sm:px-5 py-2.5 sm:py-3 border-b border-border bg-card/60">
-        <View className="flex-row items-center justify-between gap-2">
-          {/* Top-Left: Sidebar Button + Logo + Active Tab Indicator */}
-          <View className="flex-row items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
-            {/* Sidebar Toggle Button at Top-Left Corner */}
-            <Pressable
-              onPress={() => setSidebarOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel="Open Navigation Sidebar"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-card border border-border items-center justify-center hover:bg-muted active:opacity-80 shrink-0 relative"
-            >
-              <Menu size={18} className="text-foreground" />
-              {totalPendingBadges > 0 && (
-                <View className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary border-2 border-card" />
-              )}
-            </Pressable>
-
-            <View className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-xl bg-primary/10 items-center justify-center shrink-0">
-              <ShieldCheck size={18} color={pink} />
-            </View>
-
-            <View className="flex-1 min-w-0">
-              <Text className="text-foreground text-sm sm:text-base font-bold" numberOfLines={1}>
-                RoyalLagn Team
-              </Text>
-              {/* Active Tab Indicator */}
-              <View className="flex-row items-center gap-1.5 mt-0.5">
-                <View className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                <Text className="text-primary text-[11px] sm:text-xs font-semibold" numberOfLines={1}>
-                  {currentTabConfig?.label || "Overview"}
-                </Text>
-                {!isMobile && membership?.fullName && (
-                  <>
-                    <Text className="text-muted-foreground text-xs">·</Text>
-                    <Text className="text-muted-foreground text-xs" numberOfLines={1}>{membership.fullName}</Text>
-                  </>
-                )}
-              </View>
-            </View>
-          </View>
-
-          {/* Top-Right: Actions */}
-          <View className="flex-row items-center gap-1.5 sm:gap-2 shrink-0">
-            {isAdmin && (
-              <Pressable
-                onPress={() => router.push("/admin-dashboard")}
-                className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-card border border-border hover:bg-muted active:opacity-80 flex-row items-center gap-1.5"
-              >
-                <Building2 size={13} color={pink} />
-                <Text className="text-foreground text-xs font-semibold">{isSmall ? "Admin" : "Admin Console"}</Text>
-              </Pressable>
-            )}
-            <Pressable
-              onPress={() => void loadTabContent()}
-              accessibilityLabel="Refresh queue"
-              className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-xl bg-card border border-border items-center justify-center hover:bg-muted active:opacity-80"
-            >
-              <RefreshCw size={14} className="text-muted-foreground" />
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                Alert.alert("Sign Out", "Are you sure you want to sign out of the Team Portal?", [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Sign Out", style: "destructive", onPress: () => void signOut() },
-                ]);
-              }}
-              accessibilityLabel="Sign out"
-              className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-xl bg-card border border-border items-center justify-center hover:bg-muted active:opacity-80"
-            >
-              <LogOut size={14} color="#DC2626" />
-            </Pressable>
-          </View>
-        </View>
-      </View>
-
-      {/* Main Tab Content */}
+    <SafeAreaView edges={["top", "left", "right"]} style={[{ flex: 1, width: "100%", backgroundColor: royalAdmin.canvas }, royalAdminThemeVars]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: isMobile ? 12 : 16, paddingBottom: 64 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadTabContent(); }} />}
+        contentContainerStyle={{ paddingBottom: 64 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadTabContent(); }} tintColor={royalAdmin.navy} />}
       >
+        <ResponsiveContainer style={{ maxWidth: 1600, alignSelf: "center", width: "100%" }}>
+          <AdminPageHeader
+            title="Team Portal"
+            subtitle={membership?.fullName ? `${currentTabConfig?.label || "Overview"} · ${membership.fullName}` : (currentTabConfig?.label || "Shared operational queues")}
+            action={
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Pressable
+                  onPress={() => setSidebarOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open team sections"
+                  style={styles.headerButton}
+                >
+                  <Menu size={18} color={royalAdmin.navy} />
+                  {totalPendingBadges > 0 ? <View style={styles.headerDot} /> : null}
+                </Pressable>
+                {isAdmin ? (
+                  <Pressable
+                    onPress={() => router.push("/admin-dashboard")}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open admin console"
+                    style={styles.headerButtonWide}
+                  >
+                    <Building2 size={16} color={royalAdmin.navy} />
+                    {isSmall ? null : <Text style={styles.headerButtonText}>Admin</Text>}
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  onPress={() => void loadTabContent()}
+                  accessibilityLabel="Refresh queue"
+                  style={styles.headerButton}
+                >
+                  <RefreshCw size={18} color={royalAdmin.navy} />
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    Alert.alert("Sign Out", "Are you sure you want to sign out of the Team Portal?", [
+                      { text: "Cancel", style: "cancel" },
+                      { text: "Sign Out", style: "destructive", onPress: () => void signOut() },
+                    ]);
+                  }}
+                  accessibilityLabel="Sign out"
+                  style={styles.headerButton}
+                >
+                  <LogOut size={18} color={royalAdmin.rose} />
+                </Pressable>
+              </View>
+            }
+          />
         {/* ========================================================================= */}
         {/* TAB 1: OVERVIEW                                                           */}
         {/* ========================================================================= */}
@@ -2036,8 +2010,8 @@ function TeamPortalInner() {
               {(canVerifyPayments || isAdmin) && (
                 <Pressable
                   onPress={() => setOverviewPopup("verifications")}
-                  style={isMobile ? { width: mobileKpiCardWidth } : undefined}
-                  className={`${isMobile ? "" : "flex-1 min-w-[260px]"} bg-card border border-border p-3 sm:p-4 rounded-2xl shadow-sm hover:border-primary/40 active:opacity-80`}
+                  style={isMobile ? { width: mobileKpiCardWidth } : { flexGrow: 1, flexBasis: 240, minWidth: 220, maxWidth: 320 }}
+                  className="bg-card border border-border p-3 sm:p-4 rounded-2xl shadow-sm hover:border-primary/40 active:opacity-80"
                 >
                   <View className="flex-row items-center justify-between">
                     <Text className="text-muted-foreground text-[10px] sm:text-xs font-semibold uppercase tracking-wider flex-1 min-w-0 pr-1" numberOfLines={1}>
@@ -2059,8 +2033,8 @@ function TeamPortalInner() {
               {(canHandleFinance || isAdmin) && (
                 <Pressable
                   onPress={() => setOverviewPopup("withdrawals")}
-                  style={isMobile ? { width: mobileKpiCardWidth } : undefined}
-                  className={`${isMobile ? "" : "flex-1 min-w-[260px]"} bg-card border border-border p-3 sm:p-4 rounded-2xl shadow-sm hover:border-primary/40 active:opacity-80`}
+                  style={isMobile ? { width: mobileKpiCardWidth } : { flexGrow: 1, flexBasis: 240, minWidth: 220, maxWidth: 320 }}
+                  className="bg-card border border-border p-3 sm:p-4 rounded-2xl shadow-sm hover:border-primary/40 active:opacity-80"
                 >
                   <View className="flex-row items-center justify-between">
                     <Text className="text-muted-foreground text-[10px] sm:text-xs font-semibold uppercase tracking-wider flex-1 min-w-0 pr-1" numberOfLines={1}>
@@ -2084,8 +2058,8 @@ function TeamPortalInner() {
               {(canVerifyVendors || isAdmin) && (
                 <Pressable
                   onPress={() => setOverviewPopup("vendors")}
-                  style={isMobile ? { width: mobileKpiCardWidth } : undefined}
-                  className={`${isMobile ? "" : "flex-1 min-w-[260px]"} bg-card border border-border p-3 sm:p-4 rounded-2xl shadow-sm hover:border-primary/40 active:opacity-80`}
+                  style={isMobile ? { width: mobileKpiCardWidth } : { flexGrow: 1, flexBasis: 240, minWidth: 220, maxWidth: 320 }}
+                  className="bg-card border border-border p-3 sm:p-4 rounded-2xl shadow-sm hover:border-primary/40 active:opacity-80"
                 >
                   <View className="flex-row items-center justify-between">
                     <Text className="text-muted-foreground text-[10px] sm:text-xs font-semibold uppercase tracking-wider flex-1 min-w-0 pr-1" numberOfLines={1}>
@@ -2106,8 +2080,8 @@ function TeamPortalInner() {
 
               <Pressable
                 onPress={() => setOverviewPopup("sla")}
-                style={isMobile ? { width: mobileKpiCardWidth } : undefined}
-                className={`${isMobile ? "" : "flex-1 min-w-[260px]"} bg-card border border-border p-3 sm:p-4 rounded-2xl shadow-sm hover:border-primary/40 active:opacity-80`}
+                style={isMobile ? { width: mobileKpiCardWidth } : { flexGrow: 1, flexBasis: 240, minWidth: 220, maxWidth: 320 }}
+                className="bg-card border border-border p-3 sm:p-4 rounded-2xl shadow-sm hover:border-primary/40 active:opacity-80"
               >
                 <View className="flex-row items-center justify-between">
                   <Text className="text-muted-foreground text-[10px] sm:text-xs font-semibold uppercase tracking-wider flex-1 min-w-0 pr-1" numberOfLines={1}>
@@ -2210,7 +2184,7 @@ function TeamPortalInner() {
             </View>
 
             {workspaces.length === 0 ? (
-              <View className="bg-card border border-border p-8 rounded-2xl items-center">
+              <View className="bg-card border border-border py-6 px-5 rounded-2xl items-center">
                 <Tag size={36} className="text-muted-foreground opacity-40 mb-2" />
                 <Text className="text-foreground font-semibold text-sm">No active marketing workspaces</Text>
                 <Text className="text-muted-foreground text-xs mt-1 text-center">Admin creates workspaces from the CRM module.</Text>
@@ -2339,6 +2313,7 @@ function TeamPortalInner() {
             </View>
           </View>
         )}
+        </ResponsiveContainer>
       </ScrollView>
 
       {/* ========================================================================= */}
@@ -2618,7 +2593,7 @@ function TeamPortalInner() {
             }}
           >
             {/* Modal Sticky Header */}
-            <View className="p-4 sm:p-5 pb-3 border-b border-border flex-row items-center justify-between shrink-0 bg-card rounded-t-3xl">
+            <View className="px-4 py-3 border-b border-border flex-row items-center justify-between shrink-0 bg-card rounded-t-3xl">
               <View className="flex-row items-center gap-2.5 flex-1 min-w-0 pr-2">
                 {overviewPopup === "verifications" && (
                   <>
@@ -2677,9 +2652,9 @@ function TeamPortalInner() {
                       setOverviewPopup(null);
                       if (target) setActiveTab(target as PortalTab);
                     }}
-                    className="px-2.5 py-1.5 rounded-xl bg-primary/10 active:opacity-80"
+                    className="min-h-8 px-3 rounded-xl bg-primary/10 items-center justify-center active:opacity-80"
                   >
-                    <Text className="text-primary text-[11px] font-bold">Open Full Tab →</Text>
+                    <Text className="text-primary text-button font-semibold">Open Full Tab →</Text>
                   </Pressable>
                 )}
                 <Pressable
@@ -2791,7 +2766,7 @@ function TeamPortalInner() {
                 value={observedNameInput}
                 onChangeText={setObservedNameInput}
                 placeholder="Exact name shown in PhonePe / GPay / Paytm"
-                placeholderTextColor="#8A8589"
+                placeholderTextColor="#647B98"
                 className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground text-xs mb-3"
               />
 
@@ -2801,7 +2776,7 @@ function TeamPortalInner() {
                 value={verifyNotesInput}
                 onChangeText={setVerifyNotesInput}
                 placeholder="Optional notes for audit log"
-                placeholderTextColor="#8A8589"
+                placeholderTextColor="#647B98"
                 className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground text-xs mb-3"
               />
 
@@ -2813,7 +2788,7 @@ function TeamPortalInner() {
                 value={rejectionReasonInput}
                 onChangeText={setRejectionReasonInput}
                 placeholder="Explain mismatch so customer can correct (e.g. name does not match)"
-                placeholderTextColor="#8A8589"
+                placeholderTextColor="#647B98"
                 className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground text-xs"
               />
             </ScrollView>
@@ -2897,7 +2872,7 @@ function TeamPortalInner() {
                 value={secondApproveNotes}
                 onChangeText={setSecondApproveNotes}
                 placeholder="e.g. Verified customer transaction history"
-                placeholderTextColor="#8A8589"
+                placeholderTextColor="#647B98"
                 className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground text-xs"
               />
             </ScrollView>
@@ -3001,7 +2976,7 @@ function TeamPortalInner() {
                       onPress={() => handleCopyText(payoutExecItem?.destinationSnapshot?.upi_id || payoutExecItem?.mobile || "", "UPI ID")}
                       className="px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 flex-row items-center gap-1 active:opacity-70"
                     >
-                      <Copy size={12} color="#E91E63" />
+                      <Copy size={12} color={royalAdmin.navy} />
                       <Text className="text-primary text-[11px] font-bold">Copy</Text>
                     </Pressable>
                   </View>
@@ -3019,7 +2994,7 @@ function TeamPortalInner() {
                         onPress={() => handleCopyText(payoutExecItem?.destinationSnapshot?.mobile || payoutExecItem?.mobile || payoutExecItem?.customerProfile?.phone || "", "Phone Number")}
                         className="px-2.5 py-1.5 rounded-lg bg-primary/10 border border-primary/20 flex-row items-center gap-1 active:opacity-70"
                       >
-                        <Copy size={12} color="#E91E63" />
+                        <Copy size={12} color={royalAdmin.navy} />
                         <Text className="text-primary text-[11px] font-bold">Copy</Text>
                       </Pressable>
                     ) : null}
@@ -3030,7 +3005,7 @@ function TeamPortalInner() {
                     <View className="bg-card border border-border p-3 rounded-xl items-center">
                       <View className="flex-row items-center justify-between w-full mb-2">
                         <View className="flex-row items-center gap-1.5">
-                          <QrCode size={14} color="#E91E63" />
+                          <QrCode size={14} color={royalAdmin.navy} />
                           <Text className="text-foreground text-xs font-bold">Personal Receiving QR Code</Text>
                         </View>
                         <Pressable
@@ -3161,7 +3136,7 @@ function TeamPortalInner() {
                     value={utrInput}
                     onChangeText={setUtrInput}
                     placeholder="e.g. 423589102451 / IMPS / UPI Ref ID"
-                    placeholderTextColor="#8A8589"
+                    placeholderTextColor="#647B98"
                     className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground font-mono text-xs mb-3"
                   />
                 </>
@@ -3174,7 +3149,7 @@ function TeamPortalInner() {
                     value={utrInput}
                     onChangeText={setUtrInput}
                     placeholder="Optional bank ref or internal tracking ID"
-                    placeholderTextColor="#8A8589"
+                    placeholderTextColor="#647B98"
                     className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground font-mono text-xs mb-3"
                   />
                 </>
@@ -3185,7 +3160,7 @@ function TeamPortalInner() {
                 value={sourceAccountInput}
                 onChangeText={setSourceAccountInput}
                 placeholder="e.g. RoyalLagn Business Current A/C"
-                placeholderTextColor="#8A8589"
+                placeholderTextColor="#647B98"
                 className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground text-xs mb-3"
               />
 
@@ -3194,7 +3169,7 @@ function TeamPortalInner() {
                 value={payoutNotesInput}
                 onChangeText={setPayoutNotesInput}
                 placeholder="Optional reconciliation notes"
-                placeholderTextColor="#8A8589"
+                placeholderTextColor="#647B98"
                 className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground text-xs"
               />
             </ScrollView>
@@ -3325,7 +3300,7 @@ function TeamPortalInner() {
                 value={vendorNotes}
                 onChangeText={setVendorNotes}
                 placeholder="Notes for approving manager"
-                placeholderTextColor="#8A8589"
+                placeholderTextColor="#647B98"
                 className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground text-xs"
               />
             </ScrollView>
@@ -3405,7 +3380,7 @@ function TeamPortalInner() {
               value={escalationReason}
               onChangeText={setEscalationReason}
               placeholder="e.g. Account name discrepancy exceeds tolerance, high amount"
-              placeholderTextColor="#8A8589"
+              placeholderTextColor="#647B98"
               className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground text-xs mb-4 min-h-[80px]"
               multiline
             />
@@ -3449,7 +3424,7 @@ function TeamPortalInner() {
                 onChangeText={setMemberEmail}
                 editable={!memberModalItem}
                 placeholder="teammate@royallagn.com"
-                placeholderTextColor="#8A8589"
+                placeholderTextColor="#647B98"
                 className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground text-xs mb-3"
               />
 
@@ -3458,7 +3433,7 @@ function TeamPortalInner() {
                 value={memberFullName}
                 onChangeText={setMemberFullName}
                 placeholder="Full Name"
-                placeholderTextColor="#8A8589"
+                placeholderTextColor="#647B98"
                 className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground text-xs mb-3"
               />
 
@@ -3467,7 +3442,7 @@ function TeamPortalInner() {
                 value={memberPhone}
                 onChangeText={setMemberPhone}
                 placeholder="Phone number"
-                placeholderTextColor="#8A8589"
+                placeholderTextColor="#647B98"
                 className="bg-background border border-border rounded-xl px-3 py-2.5 text-foreground text-xs mb-4"
               />
 
@@ -3531,6 +3506,44 @@ function TeamPortalInner() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: royalAdmin.border,
+    backgroundColor: royalAdmin.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerButtonWide: {
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: royalAdmin.border,
+    backgroundColor: royalAdmin.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  headerButtonText: {
+    color: royalAdmin.navyDeep,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  headerDot: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: royalAdmin.gold,
+  },
+});
 
 export default function TeamPortalScreen() {
   return (

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, View } from "react-native";
+import { Animated, useWindowDimensions, View } from "react-native";
+import { adminContentWidth } from "@/utils/responsiveLayout";
 
 function ShimmerBlock({ className }: { className: string }) {
   const opacity = useRef(new Animated.Value(0.4)).current;
@@ -27,10 +28,12 @@ export function CrmCardSkeleton() {
 }
 
 export function CrmSkeletonGrid({ count = 4 }: { count?: number }) {
+  const { width } = useWindowDimensions();
+  const basis = adminContentWidth(width) >= 1100 ? "31.5%" : "48%";
   return (
     <View className="flex-row flex-wrap gap-3">
       {Array.from({ length: count }).map((_, index) => (
-        <View key={index} className="flex-1 min-w-[150px]">
+        <View key={index} style={{ flexGrow: 0, flexBasis: basis, width: basis, maxWidth: basis, minWidth: 160 }}>
           <CrmCardSkeleton />
         </View>
       ))}

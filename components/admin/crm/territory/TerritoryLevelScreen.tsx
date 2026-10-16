@@ -11,6 +11,7 @@ import { CrmSearchBar } from "@/components/admin/crm/ui/SearchBar";
 import { CrmSkeletonGrid } from "@/components/admin/crm/ui/SkeletonLoader";
 import { TerritoryCard } from "@/components/admin/crm/territory/TerritoryCard";
 import { useCrmTerritory } from "@/hooks/crm/useCrmTerritory";
+import { adminContentWidth } from "@/utils/responsiveLayout";
 import type { CrmTerritoryNode, TerritoryLevel } from "@/types/crm/territory";
 
 type TerritoryLevelScreenProps = {
@@ -32,7 +33,8 @@ export function TerritoryLevelScreen({
 }: TerritoryLevelScreenProps) {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const columns = width >= 1024 ? 3 : width >= 680 ? 2 : 1;
+  const contentWidth = adminContentWidth(width);
+  const columns = contentWidth >= 1280 ? 3 : contentWidth >= 720 ? 2 : 1;
   const cardWidth = `${(100 / columns).toFixed(4)}%` as `${number}%`;
   const {
     rows, totalCount, query, setQuery, loading, refreshing, saving, error, setError,
@@ -86,8 +88,8 @@ export function TerritoryLevelScreen({
           <ArrowLeft size={21} className="text-foreground" />
         </Pressable>
         <View className="flex-1 px-2 min-w-0">
-          <Text className="text-foreground text-xl font-bold" numberOfLines={1}>{title}</Text>
-          <Text className="text-muted-foreground text-xs" numberOfLines={1}>{subtitle}</Text>
+          <Text className="text-foreground font-inter-bold text-page-title" numberOfLines={2}>{title}</Text>
+          <Text className="text-muted-foreground font-body text-body-compact mt-1" numberOfLines={2}>{subtitle}</Text>
         </View>
         <Pressable
           accessibilityLabel={`Add ${itemLabel}`}

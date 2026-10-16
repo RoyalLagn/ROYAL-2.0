@@ -6,6 +6,7 @@ import {
   Modal,
   Platform,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -740,7 +741,7 @@ export default function AdminBookings() {
 
         {/* FINANCIAL KPI OVERVIEW (PLATFORM COMMISSION SUMMARY) */}
         <View style={[styles.kpiRow, desktop && styles.kpiRowDesktop]}>
-          <View style={[styles.kpiCard, { backgroundColor: royalAdmin.blueSoft }]}>
+          <View style={[styles.kpiCard, desktop && styles.kpiCardDesktop, { backgroundColor: royalAdmin.blueSoft }]}>
             <View style={styles.kpiIconWrap}>
               <Ticket size={18} color={royalAdmin.blue} />
             </View>
@@ -750,7 +751,7 @@ export default function AdminBookings() {
             </View>
           </View>
 
-          <View style={[styles.kpiCard, { backgroundColor: royalAdmin.amberSoft }]}>
+          <View style={[styles.kpiCard, desktop && styles.kpiCardDesktop, { backgroundColor: royalAdmin.amberSoft }]}>
             <View style={styles.kpiIconWrap}>
               <Wallet size={18} color={royalAdmin.amber} />
             </View>
@@ -760,7 +761,7 @@ export default function AdminBookings() {
             </View>
           </View>
 
-          <View style={[styles.kpiCard, { backgroundColor: royalAdmin.greenSoft }]}>
+          <View style={[styles.kpiCard, desktop && styles.kpiCardDesktop, { backgroundColor: royalAdmin.greenSoft }]}>
             <View style={styles.kpiIconWrap}>
               <Gift size={18} color={royalAdmin.green} />
             </View>
@@ -770,7 +771,7 @@ export default function AdminBookings() {
             </View>
           </View>
 
-          <View style={[styles.kpiCard, { backgroundColor: "#FDF2F8" }]}>
+          <View style={[styles.kpiCard, desktop && styles.kpiCardDesktop, { backgroundColor: "#FDF2F8" }]}>
             <View style={styles.kpiIconWrap}>
               <IndianRupee size={18} color="#BE185D" />
             </View>
@@ -782,7 +783,12 @@ export default function AdminBookings() {
         </View>
 
         {/* 5 PRIMARY WORKFLOW TABS */}
-        <View style={styles.tabsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabsScroller}
+          contentContainerStyle={styles.tabsContainer}
+        >
           <Pressable
             accessibilityRole="tab"
             accessibilityLabel="Admin Verification tab"
@@ -872,7 +878,7 @@ export default function AdminBookings() {
               </Text>
             </View>
           </Pressable>
-        </View>
+        </ScrollView>
 
         {/* SEARCH BAR */}
         <View style={styles.searchBar}>
@@ -903,7 +909,8 @@ export default function AdminBookings() {
             keyExtractor={(item) => item.id}
             renderItem={renderBookingCard}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
+            style={styles.list}
+            contentContainerStyle={[styles.listContent, { paddingBottom: width >= 768 ? 28 : 100 }]}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -1102,10 +1109,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    maxWidth: 1400,
+    maxWidth: 1600,
     alignSelf: "center",
     width: "100%",
-    paddingHorizontal: 16,
   },
   refreshBtn: {
     width: 44,
@@ -1124,9 +1130,9 @@ const styles = StyleSheet.create({
   },
   kpiRowDesktop: {
     flexDirection: "row",
+    flexWrap: "wrap",
   },
   kpiCard: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
@@ -1134,6 +1140,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: royalAdmin.border,
+  },
+  kpiCardDesktop: {
+    flexGrow: 1,
+    flexBasis: 220,
+    minWidth: 200,
   },
   kpiIconWrap: {
     width: 42,
@@ -1154,19 +1165,25 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginTop: 2,
   },
-  tabsContainer: {
-    flexDirection: "row",
-    gap: 10,
+  tabsScroller: {
     marginTop: 18,
     borderBottomWidth: 1,
     borderBottomColor: royalAdmin.border,
+    flexGrow: 0,
+  },
+  tabsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     paddingBottom: 10,
   },
   tabButton: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 0,
+    minHeight: 44,
     gap: 8,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 12,
     backgroundColor: "transparent",
@@ -1224,13 +1241,13 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
+    minHeight: 48,
     gap: 10,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: royalAdmin.border,
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 10,
     marginTop: 14,
   },
   searchInput: {
@@ -1240,9 +1257,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     padding: 0,
   },
+  list: { flex: 1, minHeight: 0 },
   listContent: {
     paddingTop: 14,
-    paddingBottom: 100,
     gap: 14,
   },
   card: {

@@ -1,6 +1,7 @@
 import React from "react";
-import { Text, View } from "react-native";
+import { Text, useWindowDimensions, View } from "react-native";
 import { CRMCard } from "@/components/admin/crm/ui/CRMCard";
+import { adminContentWidth } from "@/utils/responsiveLayout";
 
 type AnalyticsCardProps = {
   label: string;
@@ -18,9 +19,11 @@ const toneStyles: Record<NonNullable<AnalyticsCardProps["tone"]>, string> = {
 };
 
 export function AnalyticsCard({ label, value, icon: Icon, tone = "primary", onPress }: AnalyticsCardProps) {
+  const { width } = useWindowDimensions();
+  const basis = adminContentWidth(width) >= 1100 ? "31.5%" : "48%";
   const [background, foreground] = toneStyles[tone].split(" ");
   return (
-    <View className="flex-1 min-w-[150px]">
+    <View style={{ flexGrow: 0, flexBasis: basis, width: basis, maxWidth: basis, minWidth: 160 }}>
       <CRMCard onPress={onPress} className="p-4">
         <View className={`w-9 h-9 rounded-xl items-center justify-center ${background}`}>
           <Icon size={18} className={foreground} />

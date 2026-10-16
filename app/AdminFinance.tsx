@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDime
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AdminFooter from "@/components/AdminFooter";
+import { adminContentWidth } from "@/utils/responsiveLayout";
 
 const INK = "#151521", MUTED = "#696A75", LINE = "rgba(113,91,180,.16)", RED = "#E82936";
 const PLANS = [
@@ -14,7 +15,7 @@ const n = (value: string) => value.trim() === "" ? 0 : Math.max(0, Number(value)
 
 export default function AdminFinance() {
   const { width } = useWindowDimensions();
-  const desktop = width >= 900;
+  const desktop = adminContentWidth(width) >= 900;
   const scroll = useRef<ScrollView>(null);
   const positions = useRef<Record<string, number>>({});
   const [vendors, setVendors] = useState("100");

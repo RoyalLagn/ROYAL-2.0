@@ -54,7 +54,7 @@ export function TerritoryCard({
         </View>
       </Pressable>
 
-      <View className="flex-row items-center justify-end gap-1 mt-3 pt-3 border-t border-border">
+      <View className="flex-row flex-wrap items-center justify-end gap-1 mt-3 pt-3 border-t border-border">
         <Pressable accessibilityLabel="Move up" disabled={!canMoveUp} onPress={onMoveUp} className="w-11 h-11 rounded-xl items-center justify-center" style={{ opacity: canMoveUp ? 1 : 0.3 }}>
           <ChevronUp size={16} className="text-muted-foreground" />
         </Pressable>

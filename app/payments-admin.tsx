@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
+import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import {
   AlertCircle,
   ArrowDownUp,
@@ -41,7 +42,6 @@ import { SubscriptionAdminService } from "@/subscriptions/services/SubscriptionA
 import { formatSubscriptionPrice, subscriptionStatusLabel } from "@/subscriptions/utils";
 import { typeScale } from "@/constants/typography";
 import { adminPalette } from "@/theme";
-import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import {
   VendorBookingService,
   type VendorBooking,
@@ -53,7 +53,7 @@ const PAYMENTS_PER_PAGE = 30;
 const money = (val?: number | null) => `₹${Number(val || 0).toLocaleString("en-IN")}`;
 
 export default function PaymentsAdmin() {
-  const { isPhone, isTablet } = useResponsiveLayout();
+  const { isPhone, isTablet, contentPadding } = useResponsiveLayout();
 
   // Top Section Switcher: "subscriptions" vs "booking_refunds"
   const [mainTab, setMainTab] = useState<"subscriptions" | "booking_refunds">("subscriptions");
@@ -221,7 +221,7 @@ export default function PaymentsAdmin() {
 
   return (
     <SafeAreaView style={styles.page} edges={["top", "left", "right"]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 72 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingHorizontal: contentPadding, paddingBottom: isPhone ? 110 : 32 }]} showsVerticalScrollIndicator={false}>
         <AdminPageHeader
           title="Payments & Refunds"
           subtitle="Manage vendor subscriptions and customer booking advances & 72h refunds"
@@ -813,8 +813,8 @@ export default function PaymentsAdmin() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: adminPalette.canvas },
-  headerButton: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  content: { width: "100%", maxWidth: 1100, alignSelf: "center", padding: 18, paddingBottom: 110 },
+  headerButton: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  content: { width: "100%", maxWidth: 1600, alignSelf: "center" },
   flex: { flex: 1, minWidth: 0 },
 
   masterSwitcherWrap: {
@@ -861,7 +861,7 @@ const styles = StyleSheet.create({
   },
 
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 18 },
-  stat: { flex: 1, minWidth: 170, backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 15 },
+  stat: { flexGrow: 1, flexBasis: 180, minWidth: 170, maxWidth: 280, backgroundColor: adminPalette.surface, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 16, padding: 15 },
   statIcon: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   statValue: { color: adminPalette.text, fontSize: typeScale.sectionTitle, fontWeight: "700", marginTop: 10 },
   statLabel: { color: adminPalette.textSecondary, fontSize: typeScale.caption, marginTop: 2 },
@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
   filterHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   filterHeadingTitle: { flexDirection: "row", alignItems: "center", gap: 8 },
   filterTitle: { color: adminPalette.text, fontSize: typeScale.bodyCompact, fontWeight: "700" },
-  clearButton: { minHeight: 36, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 4, justifyContent: "center" },
+  clearButton: { minHeight: 44, paddingHorizontal: 8, flexDirection: "row", alignItems: "center", gap: 4, justifyContent: "center" },
   clearText: { color: pink, fontSize: typeScale.caption, fontWeight: "700" },
   searchBox: { minHeight: 48, borderRadius: 12, backgroundColor: adminPalette.surfaceSubtle, borderWidth: 1, borderColor: adminPalette.border, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", gap: 8, marginTop: 13 },
   input: { flex: 1, color: adminPalette.text, fontSize: typeScale.metadata, outlineStyle: "none" } as any,
@@ -879,14 +879,14 @@ const styles = StyleSheet.create({
   dateInput: { flex: 1, minWidth: 0, color: adminPalette.text, fontSize: typeScale.caption, outlineStyle: "none" } as any,
   filterLabel: { color: adminPalette.textMuted, fontSize: typeScale.caption, fontWeight: "700" },
   filterStrip: { gap: 7, paddingTop: 7, paddingBottom: 3 },
-  filter: { minHeight: 36, paddingHorizontal: 12, justifyContent: "center", borderRadius: 999, backgroundColor: adminPalette.surfaceSubtle },
+  filter: { minHeight: 44, paddingHorizontal: 12, justifyContent: "center", borderRadius: 999, backgroundColor: adminPalette.surfaceSubtle },
   filterActive: { backgroundColor: pink },
   filterText: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "700" },
   filterTextActive: { color: "#FFF" },
   sortLine: { flexDirection: "row", alignItems: "center", gap: 9, marginTop: 11 },
   sortLabel: { flexDirection: "row", alignItems: "center", gap: 5 },
   sortStrip: { gap: 7, flexGrow: 0 },
-  sortOption: { minHeight: 34, paddingHorizontal: 10, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 999, justifyContent: "center" },
+  sortOption: { minHeight: 44, paddingHorizontal: 12, borderWidth: 1, borderColor: adminPalette.border, borderRadius: 999, justifyContent: "center" },
   sortOptionActive: { borderColor: `${pink}55`, backgroundColor: `${pink}10` },
   sortText: { color: adminPalette.textSecondary, fontSize: typeScale.caption, fontWeight: "700" },
   sortTextActive: { color: pink },
