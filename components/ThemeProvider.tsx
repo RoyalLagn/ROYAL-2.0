@@ -2,8 +2,10 @@
 import { useColorScheme } from 'nativewind';
 import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import { Platform, View } from 'react-native';
+import { usePathname } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { lightTheme } from '../theme';
+import { adminLightTheme, lightTheme } from '../theme';
+import { isAdminWorkspaceRoute } from '@/admin/navigationRoutes';
 import { brandPalette } from '@/constants/brandPalette';
 
 interface ThemeProviderProps {
@@ -32,7 +34,9 @@ export function useAppTheme() {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const { setColorScheme: setNativeWindColorScheme } = useColorScheme();
+  const pathname = usePathname();
   const colorScheme: AppColorScheme = 'light';
+  const adminSurface = isAdminWorkspaceRoute(pathname) || pathname === '/team' || pathname.startsWith('/team/');
 
   useEffect(() => {
     // Purge obsolete theme preference if present to prevent any stale dark mode state
@@ -63,7 +67,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     [colorScheme, toggleColorScheme]
   );
 
-  const themeVars = lightTheme;
+  const themeVars = adminSurface ? adminLightTheme : lightTheme;
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;

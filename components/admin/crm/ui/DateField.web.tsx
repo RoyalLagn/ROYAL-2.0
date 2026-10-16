@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Calendar, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react-native";
 import type { DateFieldProps } from "./DateField";
+import { adminLightTheme } from "@/theme";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
@@ -118,8 +119,8 @@ export function DateField({ label, value, onChange, placeholder = "Select a date
       {open ? createPortal(
         <View
           accessibilityLabel={`${label} calendar`}
-          className="fixed w-[304px] rounded-2xl bg-card p-3"
-          style={{ left: position.left, top: position.top, zIndex: 2147483647, boxShadow: "0 14px 36px rgba(31, 25, 28, 0.22)" }}
+          className="fixed w-[304px] rounded-2xl border border-border bg-card p-3"
+          style={[adminLightTheme, { left: position.left, top: position.top, zIndex: 2147483647, boxShadow: "0 16px 40px rgba(2, 29, 70, 0.16)" }]}
         >
           <View className="h-10 flex-row items-center justify-between mb-2">
             <Pressable accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => moveMonth(-1)} className="w-10 h-10 rounded-xl items-center justify-center bg-background">
@@ -153,7 +154,7 @@ export function DateField({ label, value, onChange, placeholder = "Select a date
           </View>
 
           {headerPicker === "month" ? (
-            <View className="absolute left-3 right-3 top-[62px] z-10 rounded-xl bg-card p-2 flex-row flex-wrap" style={{ boxShadow: "0 10px 28px rgba(31, 25, 28, 0.16)" }}>
+            <View className="absolute left-3 right-3 top-[62px] z-10 rounded-xl bg-card p-2 flex-row flex-wrap" style={{ boxShadow: "0 10px 28px rgba(2, 29, 70, 0.14)" }}>
               {MONTHS.map((month, index) => (
                 <View key={month} className="w-1/3 p-1">
                   <Pressable
@@ -173,7 +174,7 @@ export function DateField({ label, value, onChange, placeholder = "Select a date
           {headerPicker === "year" ? (
             <ScrollView
               className="absolute right-11 top-[62px] z-10 w-24 h-52 rounded-xl bg-card p-1"
-              style={{ boxShadow: "0 10px 28px rgba(31, 25, 28, 0.16)" }}
+              style={{ boxShadow: "0 10px 28px rgba(2, 29, 70, 0.14)" }}
               showsVerticalScrollIndicator={false}
             >
               {YEARS.map((year) => (
@@ -194,7 +195,7 @@ export function DateField({ label, value, onChange, placeholder = "Select a date
           <View className="flex-row mb-1">
             {WEEKDAYS.map((weekday) => (
               <View key={weekday} className="w-10 h-7 items-center justify-center">
-                <Text className="text-muted-foreground text-caption font-bold">{weekday}</Text>
+                <Text className="text-muted-foreground text-caption font-semibold" style={{ letterSpacing: 0.4 }}>{weekday}</Text>
               </View>
             ))}
           </View>
@@ -224,8 +225,8 @@ export function DateField({ label, value, onChange, placeholder = "Select a date
           </View>
 
           <View className="mt-2 pt-2 border-t border-border flex-row justify-end">
-            <Pressable accessibilityRole="button" accessibilityLabel="Select today" onPress={chooseToday} className="h-10 px-3 rounded-xl bg-primary/10 items-center justify-center">
-              <Text className="text-primary text-xs font-bold">Today</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Select today" onPress={chooseToday} className="h-9 px-3 rounded-xl bg-primary/10 items-center justify-center">
+              <Text className="text-primary text-button font-semibold">Today</Text>
             </Pressable>
           </View>
         </View>,

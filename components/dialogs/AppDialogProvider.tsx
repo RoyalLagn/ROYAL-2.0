@@ -10,7 +10,10 @@ import {
 } from "react-native";
 import { CheckCircle2, Info, TriangleAlert, X } from "lucide-react-native";
 import { useColorScheme } from "nativewind";
+import { usePathname } from "expo-router";
 import { brandColors } from "@/constants/brandPalette";
+import { isAdminWorkspaceRoute } from "@/admin/navigationRoutes";
+import { royalAdmin } from "@/components/admin/dashboard/adminDashboardTheme";
 import { fonts, typeLeading, typeScale } from "@/constants/typography";
 import Animated, {
   useAnimatedStyle,
@@ -63,8 +66,24 @@ function dialogTone(request: AppAlertRequest) {
 
 export default function AppDialogProvider({ children }: React.PropsWithChildren) {
   const { colorScheme } = useColorScheme();
+  const pathname = usePathname();
   const dark = colorScheme === "dark";
-  const colors = brandColors(dark);
+  const adminSurface = isAdminWorkspaceRoute(pathname) || pathname === "/team" || pathname.startsWith("/team/");
+  const colors = adminSurface
+    ? {
+        ...brandColors(dark),
+        background: royalAdmin.canvas,
+        foreground: royalAdmin.navyDeep,
+        card: royalAdmin.surface,
+        cardForeground: royalAdmin.navyDeep,
+        primary: royalAdmin.navy,
+        primaryStrong: royalAdmin.navy,
+        primaryForeground: "#FFFFFF",
+        mutedForeground: royalAdmin.navyMuted,
+        border: royalAdmin.border,
+        input: royalAdmin.border,
+      }
+    : brandColors(dark);
   const [queue, setQueue] = useState<QueuedAlert[]>([]);
   const active = queue[0] ?? null;
 
@@ -101,8 +120,8 @@ export default function AppDialogProvider({ children }: React.PropsWithChildren)
   const cardStyle = useMemo(() => ({
     backgroundColor: colors.card,
     borderColor: colors.border,
-    shadowColor: dark ? "#000000" : "#4A2635",
-  }), [colors.border, colors.card, dark]);
+    shadowColor: dark ? "#000000" : adminSurface ? royalAdmin.navyDeep : "#4A2635",
+  }), [adminSurface, colors.border, colors.card, dark]);
 
   return (
     <>
