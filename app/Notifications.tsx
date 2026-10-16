@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   action: {
-    minHeight: 36,
+    minHeight: 48,
     paddingHorizontal: 10,
     alignItems: "center",
     justifyContent: "center",
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   },
   notificationMain: {
     width: "100%",
-    paddingRight: 42,
+    paddingRight: 52,
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 12,
@@ -444,10 +444,10 @@ const styles = StyleSheet.create({
   },
   deleteSlot: {
     position: "absolute",
-    top: 14,
-    right: 7,
-    width: 32,
-    height: 32,
+    top: 8,
+    right: 4,
+    width: 48,
+    height: 48,
     zIndex: 1,
   },
   deleteButton: {

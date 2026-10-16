@@ -62,7 +62,7 @@ function VendorListingCard({
       style={[
         styles.card,
         grid ? styles.cardGrid : compact ? styles.cardCompact : styles.cardWide,
-        mobileGrid ? { height: gridImageHeight + 160 } : null,
+        mobileGrid ? { height: gridImageHeight + 178 } : null,
         grid && cardWidth ? { width: cardWidth } : null,
         {
           backgroundColor: surface,
@@ -112,7 +112,7 @@ function VendorListingCard({
           <View style={[styles.identityRow, compact && styles.identityRowCompact]}>
             <View style={styles.identityText}>
               <View style={[styles.nameRow, mobileGrid && styles.nameRowMobileGrid]}>
-                <Text numberOfLines={grid || compact ? 1 : 2} style={[styles.name, (compact || grid) && styles.nameCompact, mobileGrid && styles.nameMobileGrid, { color: text }]}>
+                <Text numberOfLines={2} style={[styles.name, (compact || grid) && styles.nameCompact, mobileGrid && styles.nameMobileGrid, { color: text }]}>
                   {vendor.name}
                 </Text>
                 <View
@@ -154,7 +154,7 @@ function VendorListingCard({
           ) : null}
           <View style={[styles.bottomRow, compact && styles.bottomRowCompact]}>
             <View style={[styles.price, compact && styles.priceCompact, grid && styles.priceGrid, { backgroundColor: grid ? "transparent" : dark ? "#38242D" : "#FFF0F6" }]}>
-              <Text numberOfLines={1} style={styles.priceText}>Starts from {vendor.startingPrice}</Text>
+              <Text numberOfLines={compact ? 2 : 1} style={styles.priceText}>Starts from {vendor.startingPrice}</Text>
             </View>
           </View>
         </View>
@@ -187,13 +187,13 @@ export default React.memo(VendorListingCard);
 
 const styles = StyleSheet.create({
   card: { width: "100%", borderWidth: 1, overflow: "hidden", position: "relative", shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  cardCompact: { height: 164, borderRadius: 16 },
+  cardCompact: { height: 188, borderRadius: 16 },
   cardWide: { height: 200, borderRadius: 16 },
   cardGrid: { height: 316, borderRadius: 16 },
   main: { flex: 1, flexDirection: "row", padding: 8, gap: 14 },
   mainGrid: { flexDirection: "column", padding: 0, gap: 0 },
   imageWrap: { position: "relative", flexShrink: 0, borderRadius: 13, overflow: "hidden", backgroundColor: "#F8E9EE" },
-  imageCompact: { width: 138, height: 146 },
+  imageCompact: { width: 138, height: 170 },
   imageWide: { width: 184, height: 184 },
   imageGrid: { width: "100%", height: 156, borderRadius: 0 },
   // react-native-web falls back to a local image asset's own intrinsic
@@ -205,8 +205,8 @@ const styles = StyleSheet.create({
   topRated: { position: "absolute", top: 10, left: 0, minHeight: 29, borderTopRightRadius: 999, borderBottomRightRadius: 999, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: PINK },
   topRatedText: { color: "#FFFFFF", fontSize: typeScale.caption, fontWeight: "700" },
   body: { flex: 1, minWidth: 0, paddingVertical: 8, paddingRight: 64, justifyContent: "center" },
-  bodyCompact: { paddingVertical: 4, paddingRight: 48 },
-  bodyGrid: { paddingHorizontal: 11, paddingTop: 8, paddingBottom: 11 },
+  bodyCompact: { paddingVertical: 7, paddingRight: 48 },
+  bodyGrid: { paddingHorizontal: 11, paddingTop: 8, paddingBottom: 13 },
   identityRow: { minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 5 },
   identityRowCompact: { gap: 6, marginBottom: 2 },
   identityText: { flex: 1, minWidth: 0, justifyContent: "center" },
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   bottomRow: { marginTop: 7, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   bottomRowCompact: { marginTop: 4 },
   price: { maxWidth: "62%", alignSelf: "flex-start", minHeight: 31, borderRadius: 999, paddingHorizontal: 11, alignItems: "center", justifyContent: "center" },
-  priceCompact: { maxWidth: "100%", paddingHorizontal: 9 },
+  priceCompact: { maxWidth: "100%", minHeight: 42, paddingHorizontal: 9 },
   priceGrid: { maxWidth: "100%", minHeight: 25, paddingHorizontal: 0, alignItems: "flex-start" },
   priceText: { maxWidth: "100%", color: PINK, fontFamily: fonts.sans.bold, fontSize: typeScale.metadata },
   cardMembershipBadge: { position: "absolute", zIndex: 2, right: 8, bottom: 8 },
