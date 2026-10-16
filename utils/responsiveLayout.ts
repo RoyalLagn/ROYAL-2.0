@@ -31,6 +31,17 @@ export function isPublicWideLayout(width: number, height: number) {
     : isNativeTabletWindow(width, height);
 }
 
+/** Workspace sidebar width at tablet and up. Phone keeps the existing full-width layout. */
+export function adminSidebarWidth(windowWidth: number) {
+  if (windowWidth < BREAKPOINTS.smallTablet) return 0;
+  if (windowWidth < 1040) return 76;
+  return 286;
+}
+
+export function adminContentWidth(windowWidth: number) {
+  return Math.max(0, windowWidth - adminSidebarWidth(windowWidth));
+}
+
 export function breakpointFor(width: number): Breakpoint {
   if (width < BREAKPOINTS.smallPhone) return "xs";
   if (width < BREAKPOINTS.normalPhone) return "sm";
