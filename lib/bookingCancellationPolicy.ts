@@ -76,17 +76,42 @@ export function isCancellationLocked(
 
 /**
  * Determines whether direct contact details must unlock.
- * MANDATORY RULE: Unlocks immediately upon formal vendor acceptance (ACCEPTED / confirmed).
+ * MANDATORY RULE (TWO CONDITIONS):
+ * 1. Customer's RoyalLagn booking fee payment is successfully verified.
+ * 2. Vendor has ACCEPTED the booking (ACCEPTED / CONFIRMED).
+ * Payment success alone MUST NOT unlock contacts.
  * Before vendor acceptance (ADMIN_PENDING, VENDOR_PENDING), contacts strictly remain locked.
  */
 export function isContactUnlocked(
   bookingStatus: string,
   cancellationCutoffAt?: string | null,
   eventStartAt?: string | null,
-  eventDate?: string | null
+  eventDate?: string | null,
+  paymentStatus?: string | null
 ): boolean {
-  const norm = (bookingStatus || "").toUpperCase();
-  return norm === "ACCEPTED" || norm === "CONFIRMED";
+  const normStatus = (bookingStatus || "").toUpperCase();
+  const isAccepted = normStatus === "ACCEPTED" || normStatus === "CONFIRMED";
+  const isCancelledOrRejected = [
+    "CUSTOMER_CANCELLED",
+    "ADMIN_CANCELLED",
+    "VENDOR_REJECTED",
+    "CANCELLED",
+    "CANCELLED_BY_VENDOR",
+    "CANCELLED_BY_CUSTOMER",
+    "REJECTED",
+  ].includes(normStatus);
+
+  if (!isAccepted || isCancelledOrRejected) {
+    return false;
+  }
+
+  if (paymentStatus) {
+    const normPay = (paymentStatus || "").toLowerCase();
+    const isPaid = ["paid_advance", "paid_booking_fee", "free_zero_fee", "paid"].includes(normPay);
+    if (!isPaid) return false;
+  }
+
+  return true;
 }
 
 /**

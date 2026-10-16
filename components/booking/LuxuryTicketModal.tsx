@@ -34,7 +34,10 @@ import {
 } from "lucide-react-native";
 import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
-import type { VendorBooking } from "@/services/vendorBookings";
+import {
+  type VendorBooking,
+  getRefundStatusInfo,
+} from "@/services/vendorBookings";
 import { exportAndShareTicketPdf } from "@/services/ticketPdfExport";
 import TicketPdfFallbackModal from "@/components/booking/TicketPdfFallbackModal";
 
@@ -125,6 +128,8 @@ export default function LuxuryTicketModal({
     booking.booking_status === "CUSTOMER_CANCELLED" ||
     booking.booking_status === "ADMIN_CANCELLED" ||
     booking.booking_status === "VENDOR_REJECTED";
+
+  const refundInfo = getRefundStatusInfo(booking?.refund_status);
 
   const heroImage = booking.vendor_image
     ? { uri: booking.vendor_image }
@@ -370,9 +375,13 @@ export default function LuxuryTicketModal({
                           ? `Your booking with ${booking.vendor_name || "the vendor"} is confirmed. Your booking fee of ${money(booking.booking_fee_amount ?? booking.advance_amount)} has been received and verified.`
                           : isCancelled
                           ? `Reason: ${booking.rejection_reason || "Declined by vendor"}\n${
-                              booking.refund_status === "refunded"
-                                ? `Booking fee (${money(booking.refund_amount ?? booking.booking_fee_amount ?? booking.advance_amount)}) has been refunded.`
-                                : `Refund of ${money(booking.refund_amount ?? booking.booking_fee_amount ?? booking.advance_amount)} is in progress.`
+                              refundInfo.status === "completed"
+                                ? `Status: ${refundInfo.label} · Full 100% refund of ${money(booking.refund_amount ?? booking.booking_fee_amount ?? booking.advance_amount)} has been completed.`
+                                : refundInfo.status === "processing"
+                                ? `Status: ${refundInfo.label} · Our team is processing your booking fee refund.`
+                                : refundInfo.status === "failed"
+                                ? `Status: ${refundInfo.label} · Please contact RoyalLagn support for ticket #${booking.ticket_id}.`
+                                : `Status: ${refundInfo.label} · If the vendor rejects your booking, you are eligible for a full refund of your RoyalLagn booking fee. Our team will process your refund, and you can track its status in My Bookings.`
                             }`
                           : `Your booking fee of ${money(
                               booking.booking_fee_amount ?? booking.advance_amount

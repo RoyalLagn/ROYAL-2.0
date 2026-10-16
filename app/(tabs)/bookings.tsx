@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,8 +10,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
+  AlertCircle,
   CalendarDays,
   CheckCircle2,
   ChevronDown,
@@ -19,6 +20,7 @@ import {
   ChevronUp,
   Clock,
   FileText,
+  Lock,
   LogIn,
   Package,
   ReceiptText,
@@ -36,6 +38,7 @@ import { brandPalette } from "@/constants/brandPalette";
 import { typeScale, typeLeading } from "@/constants/typography";
 import {
   VendorBookingService,
+  getRefundStatusInfo,
   type VendorBooking,
 } from "@/services/vendorBookings";
 import LuxuryTicketModal from "@/components/booking/LuxuryTicketModal";
@@ -67,6 +70,14 @@ type HistoryTab = "pending" | "confirmed" | "cancelled";
 
 export default function CustomerBookingsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    bookingRecordId?: string;
+    bookingId?: string;
+    ticketId?: string;
+    highlight?: string;
+    tab?: HistoryTab;
+  }>();
+
   const { colorScheme } = useAppTheme();
   const dark = colorScheme === "dark";
   const { width } = useWindowDimensions();
@@ -75,12 +86,47 @@ export default function CustomerBookingsScreen() {
   const { session, profile, isPublicAuthenticated, loading: authLoading } = usePublicAuth();
   const user = session?.user;
 
-  const [activeTab, setActiveTab] = useState<HistoryTab>("pending");
+  // Canonical and fallback search identifiers
+  const targetRecordId = useMemo(() => {
+    if (params.bookingRecordId) return String(params.bookingRecordId).trim();
+    if (params.highlight && /^[0-9a-f-]{36}$/i.test(params.highlight)) return String(params.highlight).trim();
+    return undefined;
+  }, [params.bookingRecordId, params.highlight]);
+
+  const targetBookingId = useMemo(() => {
+    if (params.bookingId) return String(params.bookingId).trim();
+    if (params.highlight && !/^[0-9a-f-]{36}$/i.test(params.highlight) && !params.highlight.startsWith("RL-")) {
+      return String(params.highlight).trim();
+    }
+    return undefined;
+  }, [params.bookingId, params.highlight]);
+
+  const targetTicketId = useMemo(() => {
+    if (params.ticketId) return String(params.ticketId).trim();
+    if (params.highlight && params.highlight.startsWith("RL-")) return String(params.highlight).trim();
+    return undefined;
+  }, [params.ticketId, params.highlight]);
+
+  const hasTarget = Boolean(targetRecordId || targetBookingId || targetTicketId);
+
+  const [activeTab, setActiveTab] = useState<HistoryTab>(() => {
+    if (params.tab === "confirmed" || params.tab === "cancelled") return params.tab;
+    return "pending";
+  });
   const [bookings, setBookings] = useState<VendorBooking[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [expandedCardIds, setExpandedCardIds] = useState<Record<string, boolean>>({});
   const [selectedTicketBooking, setSelectedTicketBooking] = useState<VendorBooking | null>(null);
   const [selectedDetailsBookingRef, setSelectedDetailsBookingRef] = useState<string | null>(null);
+
+  // Auto-targeting & highlight state
+  const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+  const [isLocatingTarget, setIsLocatingTarget] = useState(hasTarget);
+  const [locatingFailed, setLocatingFailed] = useState(false);
+  const retryCountRef = useRef(0);
+  const cardYCoords = useRef<Record<string, number>>({});
+  const scrollViewRef = useRef<ScrollView>(null);
+  const hasHandledTarget = useRef(false);
 
   const toggleCardExpand = (cardKey: string) => {
     setExpandedCardIds((prev) => ({
@@ -122,6 +168,67 @@ export default function CustomerBookingsScreen() {
     }, customerId ? { customerId } : undefined);
     return unsubscribe;
   }, [user, profile]);
+
+  useEffect(() => {
+    if (!hasTarget) return;
+
+    // Match target booking in existing bookings array
+    const matched = bookings.find((b) => {
+      if (targetRecordId && b.id === targetRecordId) return true;
+      if (targetBookingId && b.booking_id === targetBookingId) return true;
+      if (targetTicketId && b.ticket_id === targetTicketId) return true;
+      return false;
+    });
+
+    if (matched) {
+      setIsLocatingTarget(false);
+      setLocatingFailed(false);
+
+      if (!hasHandledTarget.current) {
+        hasHandledTarget.current = true;
+
+        // Auto-select the correct tab
+        if (isPendingStatus(matched.booking_status)) {
+          setActiveTab("pending");
+        } else if (isConfirmedStatus(matched.booking_status)) {
+          setActiveTab("confirmed");
+        } else if (isCancelledStatus(matched.booking_status)) {
+          setActiveTab("cancelled");
+        }
+
+        const cardKey = String(matched.id || matched.booking_id || matched.ticket_id);
+        setExpandedCardIds((prev) => ({ ...prev, [cardKey]: true }));
+        setHighlightedCardId(cardKey);
+
+        // Smooth scroll to card
+        setTimeout(() => {
+          const targetY = cardYCoords.current[cardKey];
+          if (typeof targetY === "number" && scrollViewRef.current) {
+            scrollViewRef.current.scrollTo({ y: Math.max(0, targetY - 20), animated: true });
+          }
+        }, 350);
+
+        // Fade highlight after 4 seconds
+        setTimeout(() => {
+          setHighlightedCardId((current) => (current === cardKey ? null : current));
+        }, 4000);
+      }
+    } else {
+      // Not found yet. If retries < 3, schedule background refresh
+      if (retryCountRef.current < 3) {
+        setIsLocatingTarget(true);
+        const timer = setTimeout(() => {
+          retryCountRef.current += 1;
+          void loadBookings();
+        }, 900);
+        return () => clearTimeout(timer);
+      } else {
+        // Retries exhausted: show informative recovery option
+        setIsLocatingTarget(false);
+        setLocatingFailed(true);
+      }
+    }
+  }, [bookings, targetRecordId, targetBookingId, targetTicketId, hasTarget]);
 
   const refreshAll = async () => {
     await loadBookings();
@@ -188,6 +295,7 @@ export default function CustomerBookingsScreen() {
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: palette.background }]}>
       <ScrollView
+        ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, desktop && styles.desktopContent, { paddingBottom: tabBarHeight + 28 }]}
         stickyHeaderIndices={[1]}
@@ -238,6 +346,42 @@ export default function CustomerBookingsScreen() {
               <Text numberOfLines={2} style={[styles.statLabel, { color: palette.muted }]}>Cancelled</Text>
             </View>
           </View>
+
+          {/* Locating & Recovery Banners */}
+          {isLocatingTarget ? (
+            <View style={[styles.locatingBanner, { backgroundColor: palette.surfaceSoft, borderColor: PINK }]}>
+              <ActivityIndicator size="small" color={PINK} style={{ marginRight: 10 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.locatingTitle, { color: palette.text }]}>Locating Your New Booking</Text>
+                <Text style={[styles.locatingSubtitle, { color: palette.muted }]}>
+                  Synchronizing ticket #{targetTicketId || targetBookingId || "..."} with your dashboard…
+                </Text>
+              </View>
+            </View>
+          ) : locatingFailed ? (
+            <View style={[styles.locatingFailedBanner, { backgroundColor: dark ? "#2B1A24" : "#FEF2F2", borderColor: RED }]}>
+              <AlertCircle size={18} color={RED} style={{ marginRight: 10, marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.locatingFailedTitle, { color: RED }]}>Booking Confirmation Received</Text>
+                <Text style={[styles.locatingFailedSubtitle, { color: palette.muted }]}>
+                  Your booking #{targetTicketId || targetBookingId || ""} was confirmed. If it is not visible below yet, tap Refresh to reload.
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Refresh bookings"
+                onPress={() => {
+                  retryCountRef.current = 0;
+                  setLocatingFailed(false);
+                  setIsLocatingTarget(true);
+                  void loadBookings();
+                }}
+                style={[styles.retryRefreshBtn, { backgroundColor: PINK }]}
+              >
+                <Text style={styles.retryRefreshBtnText}>Refresh</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           {/* Guest reminder if not logged in */}
           {!isPublicAuthenticated && !authLoading && bookings.length > 0 ? (
@@ -416,6 +560,30 @@ export default function CustomerBookingsScreen() {
               const isCancelled = isCustomerCancelled || isAdminCancelled || isVendorRejected || statusLower.startsWith("cancel");
 
               const feePaid = booking.booking_fee_amount ?? booking.advance_amount ?? 0;
+              const refundInfo = getRefundStatusInfo(booking.refund_status);
+
+              const isPlatformPaymentPaid =
+                booking.payment_status === "paid_booking_fee" ||
+                booking.payment_status === "paid_advance" ||
+                booking.payment_status === "paid" ||
+                booking.payment_status === "free_zero_fee" ||
+                feePaid === 0;
+
+              // Awaiting Vendor Acceptance:
+              // Booking is pending, AND payment is verified (or zero fee), OR admin/vendor pending
+              const isAwaitingVendorAcceptance =
+                !isConfirmed &&
+                !isCancelled &&
+                (isPlatformPaymentPaid || isAdminPending || isVendorPending) &&
+                statusLower !== "pending_payment";
+
+              // Truly Payment Pending:
+              // Only when platform payment has NOT been verified
+              const isTrulyPaymentPending =
+                !isPlatformPaymentPaid &&
+                !isConfirmed &&
+                !isCancelled &&
+                statusLower === "pending_payment";
 
               const eventDateDisplay =
                 booking.total_days && booking.total_days > 1
@@ -428,12 +596,23 @@ export default function CustomerBookingsScreen() {
               return (
                 <View
                   key={cardKey}
+                  onLayout={(e) => {
+                    cardYCoords.current[cardKey] = e.nativeEvent.layout.y;
+                  }}
                   style={[
                     styles.bookingCard,
                     {
                       backgroundColor: palette.surface,
-                      borderColor: isConfirmed ? GREEN : isCancelled ? RED : palette.cardBorder,
+                      borderColor: isConfirmed
+                        ? GREEN
+                        : isCancelled
+                        ? RED
+                        : highlightedCardId === cardKey
+                        ? PINK
+                        : palette.cardBorder,
+                      borderWidth: highlightedCardId === cardKey ? 2 : 1,
                     },
+                    highlightedCardId === cardKey && styles.highlightedCardGlow,
                   ]}
                 >
                   {/* Card Header: Ticket Pill & Status Badge + Dropdown Button */}
@@ -452,7 +631,9 @@ export default function CustomerBookingsScreen() {
                           styles.statusPill,
                           isConfirmed
                             ? { backgroundColor: "#DCFCE7" }
-                            : isPending
+                            : isAwaitingVendorAcceptance
+                            ? { backgroundColor: "#FEF3C7" }
+                            : isTrulyPaymentPending
                             ? { backgroundColor: "#FEF3C7" }
                             : { backgroundColor: "#FEE2E2" },
                         ]}
@@ -460,16 +641,20 @@ export default function CustomerBookingsScreen() {
                         <Text
                           style={[
                             styles.statusPillText,
-                            isConfirmed ? { color: "#15803D" } : isPending ? { color: "#B45309" } : { color: "#B91C1C" },
+                            isConfirmed
+                              ? { color: "#15803D" }
+                              : isAwaitingVendorAcceptance
+                              ? { color: "#B45309" }
+                              : isTrulyPaymentPending
+                              ? { color: "#B45309" }
+                              : { color: "#B91C1C" },
                           ]}
                         >
                           {isConfirmed
                             ? "CONFIRMED & UNLOCKED"
-                            : isAdminPending
-                            ? "VERIFYING BY ADMIN"
-                            : isVendorPending
-                            ? "PENDING VENDOR ACCEPTANCE"
-                            : isPendingPayment
+                            : isAwaitingVendorAcceptance
+                            ? "AWAITING VENDOR ACCEPTANCE"
+                            : isTrulyPaymentPending
                             ? "PAYMENT PENDING"
                             : isCustomerCancelled
                             ? "CANCELLED BY YOU"
@@ -531,8 +716,8 @@ export default function CustomerBookingsScreen() {
                           <Text style={[styles.compactMetaText, { color: palette.muted }]}>{eventDateDisplay}</Text>
                         </View>
                         <Text style={[styles.dot, { color: palette.muted }]}>•</Text>
-                        <Text style={[styles.compactMetaText, { color: feePaid === 0 ? GREEN : (booking.payment_status === "paid_booking_fee" || booking.payment_status === "paid_advance" || booking.payment_status === "paid" || booking.payment_status === "free_zero_fee" ? GREEN : GOLD), fontWeight: "700" }]}>
-                          {feePaid === 0 ? "Fee: ₹0 (Free)" : `Fee: ${money(feePaid)}`}
+                        <Text style={[styles.compactMetaText, { color: isPlatformPaymentPaid ? GREEN : GOLD, fontWeight: "700" }]}>
+                          {feePaid === 0 ? "Fee: ₹0 (Free)" : `Fee: ${money(feePaid)} • ${isPlatformPaymentPaid ? "Paid" : "Pending"}`}
                         </Text>
                       </Pressable>
 
@@ -595,7 +780,9 @@ export default function CustomerBookingsScreen() {
                         </View>
                         <View style={styles.financeCell}>
                           <Text style={[styles.finLabel, { color: GREEN }]}>BOOKING FEE</Text>
-                          <Text style={[styles.finVal, { color: GREEN }]}>{feePaid === 0 ? "₹0 (Free)" : money(feePaid)}</Text>
+                          <Text style={[styles.finVal, { color: GREEN }]}>
+                            {feePaid === 0 ? "₹0 (Free)" : `${money(feePaid)} ${isPlatformPaymentPaid ? "• Paid" : ""}`}
+                          </Text>
                         </View>
                         <View style={styles.financeCell}>
                           <Text style={[styles.finLabel, { color: GOLD }]}>DIRECT TO VENDOR</Text>
@@ -606,30 +793,77 @@ export default function CustomerBookingsScreen() {
                       {/* Status Explanation Banners */}
                       {isCancelled ? (
                         <View style={styles.cancelledBanner}>
-                          <Text style={styles.cancelledBannerTitle}>
-                            🔴 {isVendorRejected ? "Declined by Vendor" : isAdminCancelled ? "Cancelled by Admin" : isCustomerCancelled ? "Cancelled by You" : "Cancelled"} — 100% Refund
-                          </Text>
+                          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
+                            <Text style={styles.cancelledBannerTitle}>
+                              🔴 {isVendorRejected ? "Declined by Vendor" : isAdminCancelled ? "Cancelled by Admin" : isCustomerCancelled ? "Cancelled by You" : "Cancelled"}
+                            </Text>
+                            {feePaid > 0 ? (
+                              <View style={[styles.refundBadgePill, { backgroundColor: refundInfo.bgColor, borderColor: refundInfo.borderColor }]}>
+                                <Text style={[styles.refundBadgePillText, { color: refundInfo.textColor }]}>
+                                  ● {refundInfo.label}
+                                </Text>
+                              </View>
+                            ) : null}
+                          </View>
                           <Text style={styles.cancelledBannerText}>
-                            {booking.refund_status === "refunded"
-                              ? `✓ Full 100% refund of ${money(feePaid)} has been completed.`
-                              : feePaid > 0
-                              ? `Your 100% booking fee of ${money(feePaid)} is queued in Admin Refunds for a full gateway refund.`
+                            {feePaid > 0
+                              ? refundInfo.status === "completed"
+                                ? `Full 100% refund of ${money(feePaid)} has been completed.`
+                                : refundInfo.status === "processing"
+                                ? `Our team is processing your ${money(feePaid)} booking fee refund.`
+                                : refundInfo.status === "failed"
+                                ? `Refund processing encountered an issue. Please contact RoyalLagn support for ticket #${booking.ticket_id}.`
+                                : `If the vendor rejects your booking, you are eligible for a full refund of your RoyalLagn booking fee. Our team will process your refund, and you can track its status in My Bookings.`
                               : "Your zero-fee booking was cancelled."}
                           </Text>
                         </View>
-                      ) : isAdminPending ? (
-                        <View style={styles.pendingBanner}>
-                          <Text style={styles.pendingBannerTitle}>⏳ Verification in Progress</Text>
-                          <Text style={styles.pendingBannerText}>
-                            {feePaid > 0 ? `Your booking fee of ${money(feePaid)} has been received. ` : ""}
-                            RoyalLagn is currently verifying vendor availability before forwarding. 100% refund guaranteed if cancelled prior to vendor acceptance.
-                          </Text>
+                      ) : isAwaitingVendorAcceptance ? (
+                        <View
+                          style={[
+                            styles.pendingInfoContainer,
+                            {
+                              backgroundColor: dark ? "#1C141D" : "#FFF7FA",
+                              borderColor: dark ? "#382330" : "#FBCFE8",
+                            },
+                          ]}
+                        >
+                          {/* 1. Vendor Contact Locked */}
+                          <View style={styles.pendingInfoRow}>
+                            <View style={[styles.pendingInfoIconCircle, { backgroundColor: dark ? "#311826" : "#FCE7F3" }]}>
+                              <Lock size={13} color={PINK} strokeWidth={2.4} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.pendingInfoTitle, { color: palette.text }]}>
+                                Vendor Contact — Locked
+                              </Text>
+                              <Text style={[styles.pendingInfoDesc, { color: palette.muted }]}>
+                                Once the vendor accepts your booking, their phone number and WhatsApp details will be available on your booking ticket.
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View style={[styles.pendingInfoDivider, { backgroundColor: dark ? "#2E1C27" : "#F9D5E5" }]} />
+
+                          {/* 2. Full Refund Protection */}
+                          <View style={styles.pendingInfoRow}>
+                            <View style={[styles.pendingInfoIconCircle, { backgroundColor: dark ? "#064E3B25" : "#DCFCE7" }]}>
+                              <ShieldCheck size={14} color={GREEN} strokeWidth={2.4} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.pendingInfoTitle, { color: GREEN }]}>
+                                Full Refund Protection
+                              </Text>
+                              <Text style={[styles.pendingInfoDesc, { color: palette.muted }]}>
+                                If the vendor rejects your booking, you are eligible for a full refund of your RoyalLagn booking fee. Our team will process your refund, and you can track its status in My Bookings.
+                              </Text>
+                            </View>
+                          </View>
                         </View>
-                      ) : isVendorPending ? (
+                      ) : isTrulyPaymentPending ? (
                         <View style={styles.pendingBanner}>
-                          <Text style={styles.pendingBannerTitle}>⏳ Forwarded to Vendor — Pending Acceptance</Text>
+                          <Text style={styles.pendingBannerTitle}>⏳ Payment Unverified</Text>
                           <Text style={styles.pendingBannerText}>
-                            Admin has verified this request. As soon as the vendor formally accepts, contacts and direct details will unlock immediately!
+                            Your booking reservation fee is pending payment verification. Please complete payment to forward this booking to the vendor.
                           </Text>
                         </View>
                       ) : (
@@ -1264,5 +1498,98 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "700",
+  },
+  locatingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 12,
+  },
+  locatingTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  locatingSubtitle: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  locatingFailedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 12,
+  },
+  locatingFailedTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  locatingFailedSubtitle: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  retryRefreshBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  retryRefreshBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  highlightedCardGlow: {
+    shadowColor: PINK,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  pendingInfoContainer: {
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    marginVertical: 12,
+    gap: 10,
+  },
+  pendingInfoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  pendingInfoIconCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+  },
+  pendingInfoTitle: {
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
+  pendingInfoDesc: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  pendingInfoDivider: {
+    height: 1,
+    width: "100%",
+  },
+  refundBadgePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  refundBadgePillText: {
+    fontSize: 10,
+    fontWeight: "800",
   },
 });

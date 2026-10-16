@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,9 +25,14 @@ import {
   Crown,
   FileDown,
   Hash,
+  Lock,
+  MapPin,
   MessageCircle,
+  MessageSquare,
   PackageCheck,
+  Phone,
   ReceiptText,
+  RefreshCw,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -38,6 +44,7 @@ import { brandPalette } from "@/constants/brandPalette";
 import { typeScale } from "@/constants/typography";
 import {
   VendorBookingService,
+  getRefundStatusInfo,
   type VendorBooking,
 } from "@/services/vendorBookings";
 import { exportAndShareTicketPdf } from "@/services/ticketPdfExport";
@@ -83,15 +90,20 @@ export default function RoyalLagnTicketScreen() {
 
   const [booking, setBooking] = useState<VendorBooking | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  const loadTicket = useCallback(async () => {
+  const loadTicket = useCallback(async (isPull = false) => {
     if (!ticketRef && !bookingRef) {
       setError("Booking or Ticket reference is missing.");
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (isPull) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     setError("");
     try {
       const data = await VendorBookingService.getBookingByIdOrTicket(ticketRef, bookingRef);
@@ -104,11 +116,16 @@ export default function RoyalLagnTicketScreen() {
       setError(err instanceof Error ? err.message : "Unable to retrieve ticket.");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [ticketRef, bookingRef]);
 
   useEffect(() => {
-    void loadTicket();
+    void loadTicket(false);
+  }, [loadTicket]);
+
+  const handleRefresh = useCallback(() => {
+    void loadTicket(true);
   }, [loadTicket]);
 
   return (
@@ -139,8 +156,16 @@ export default function RoyalLagnTicketScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scrollContent, desktop && s.scrollContentDesktop]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[PINK]}
+            tintColor={PINK}
+          />
+        }
       >
-        {loading ? (
+        {loading && !refreshing ? (
           <View style={s.stateBox}>
             <ActivityIndicator color={PINK} size="large" />
             <Text style={[s.stateText, { color: dark ? "#AAA" : "#666" }]}>
@@ -161,6 +186,8 @@ export default function RoyalLagnTicketScreen() {
             booking={booking}
             desktop={desktop}
             dark={dark}
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
           />
         )}
       </ScrollView>
@@ -172,19 +199,38 @@ function ConfirmedRoyalTicket({
   booking,
   desktop,
   dark,
+  onRefresh,
+  refreshing,
 }: {
   booking: VendorBooking;
   desktop: boolean;
   dark: boolean;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }) {
-  const isConfirmed = booking.booking_status === "ACCEPTED" || booking.booking_status === "confirmed";
-  const isCancelled =
+  const isAccepted =
+    booking.booking_status === "ACCEPTED" ||
+    booking.booking_status === "confirmed" ||
+    booking.booking_status === "accepted";
+
+  const isPaymentVerified = [
+    "paid_advance",
+    "paid_booking_fee",
+    "free_zero_fee",
+    "paid",
+  ].includes(booking.payment_status);
+
+  const isCancelledOrRejected =
     booking.booking_status === "cancelled" ||
     booking.booking_status === "cancelled_by_vendor" ||
     booking.booking_status === "cancelled_by_customer" ||
     booking.booking_status === "CUSTOMER_CANCELLED" ||
     booking.booking_status === "ADMIN_CANCELLED" ||
-    booking.booking_status === "VENDOR_REJECTED";
+    booking.booking_status === "VENDOR_REJECTED" ||
+    booking.booking_status === "vendor_rejected";
+
+  const contactsUnlocked = isAccepted && isPaymentVerified && !isCancelledOrRejected;
+  const refundInfo = getRefundStatusInfo(booking.refund_status);
 
   const ticketCardRef = useRef<View>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -265,17 +311,30 @@ function ConfirmedRoyalTicket({
           {/* Hero Top Bar */}
           <View style={s.heroTopBar}>
             {!isExportingPdf ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Back to bookings"
-                onPress={() => {
-                  if (router.canGoBack()) router.back();
-                  else router.replace("/(tabs)/bookings");
-                }}
-                style={s.heroBack}
-              >
-                <ArrowLeft size={16} color="#FFFFFF" strokeWidth={2.5} />
-              </Pressable>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Back to bookings"
+                  onPress={() => {
+                    if (router.canGoBack()) router.back();
+                    else router.replace("/(tabs)/bookings");
+                  }}
+                  style={s.heroBack}
+                >
+                  <ArrowLeft size={16} color="#FFFFFF" strokeWidth={2.5} />
+                </Pressable>
+                {onRefresh ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Refresh ticket status"
+                    onPress={onRefresh}
+                    disabled={refreshing}
+                    style={s.heroBack}
+                  >
+                    <RefreshCw size={13} color="#FFFFFF" strokeWidth={2.4} />
+                  </Pressable>
+                ) : null}
+              </View>
             ) : (
               <View style={{ width: 28 }} />
             )}
@@ -284,37 +343,37 @@ function ConfirmedRoyalTicket({
             <View
               style={[
                 s.statusBadge,
-                isConfirmed
+                contactsUnlocked
                   ? s.statusConfirmed
-                  : isCancelled
+                  : isCancelledOrRejected
                   ? s.statusCancelled
                   : s.statusPending,
               ]}
             >
-              {isCancelled ? (
+              {isCancelledOrRejected ? (
                 <ShieldAlert size={11} color="#B91C1C" strokeWidth={2.4} />
               ) : (
                 <ShieldCheck
                   size={11}
-                  color={isConfirmed ? "#15803D" : "#B45309"}
+                  color={contactsUnlocked ? "#15803D" : "#B45309"}
                   strokeWidth={2.4}
                 />
               )}
               <Text
                 style={[
                   s.statusText,
-                  isConfirmed
+                  contactsUnlocked
                     ? s.statusTextConfirmed
-                    : isCancelled
+                    : isCancelledOrRejected
                     ? s.statusTextCancelled
                     : s.statusTextPending,
                 ]}
               >
-                {isConfirmed
+                {contactsUnlocked
                   ? "LUXURY E-TICKET CONFIRMED"
-                  : isCancelled
-                  ? "BOOKING CANCELLED"
-                  : "PENDING ACCEPTANCE"}
+                  : isCancelledOrRejected
+                  ? "BOOKING DECLINED"
+                  : "PENDING VENDOR CONFIRMATION"}
               </Text>
             </View>
           </View>
@@ -358,9 +417,9 @@ function ConfirmedRoyalTicket({
           <View
             style={[
               s.alertBanner,
-              isConfirmed
+              contactsUnlocked
                 ? s.alertBannerConfirmed
-                : isCancelled
+                : isCancelledOrRejected
                 ? s.alertBannerCancelled
                 : s.alertBannerPending,
             ]}
@@ -369,19 +428,19 @@ function ConfirmedRoyalTicket({
               <View
                 style={[
                   s.alertIconCircle,
-                  isConfirmed
+                  contactsUnlocked
                     ? s.alertIconCircleConfirmed
-                    : isCancelled
+                    : isCancelledOrRejected
                     ? s.alertIconCircleCancelled
                     : s.alertIconCirclePending,
                 ]}
               >
-                {isCancelled ? (
+                {isCancelledOrRejected ? (
                   <ShieldAlert size={13} color="#B91C1C" strokeWidth={2.4} />
                 ) : (
                   <ShieldCheck
                     size={13}
-                    color={isConfirmed ? "#15803D" : "#B45309"}
+                    color={contactsUnlocked ? "#15803D" : "#B45309"}
                     strokeWidth={2.4}
                   />
                 )}
@@ -390,31 +449,33 @@ function ConfirmedRoyalTicket({
                 <Text
                   style={[
                     s.alertTitle,
-                    isConfirmed
+                    contactsUnlocked
                       ? s.alertTitleConfirmed
-                      : isCancelled
+                      : isCancelledOrRejected
                       ? s.alertTitleCancelled
                       : s.alertTitlePending,
                   ]}
                 >
-                  {isConfirmed
+                  {contactsUnlocked
                     ? "Booking Confirmed by Vendor"
-                    : isCancelled
-                    ? "Booking Cancelled by Vendor"
-                    : "Booking Request Pending Confirmation"}
+                    : isCancelledOrRejected
+                    ? "Booking Declined by Vendor"
+                    : "Pending Vendor Confirmation"}
                 </Text>
                 <Text style={[s.alertBody, { color: dark ? "#D1D5DB" : "#4B5563" }]}>
-                  {isConfirmed
-                    ? `Your booking with ${booking.vendor_name || "the vendor"} is confirmed. Your booking fee of ${money(booking.booking_fee_amount ?? booking.advance_amount)} has been received and verified.`
-                    : isCancelled
+                  {contactsUnlocked
+                    ? "Your booking has been confirmed. Contact your vendor directly to coordinate service details and the remaining payment."
+                    : isCancelledOrRejected
                     ? `Reason: ${booking.rejection_reason || "Declined by vendor"}\n${
-                        booking.refund_status === "refunded"
-                          ? `Booking fee (${money(booking.refund_amount ?? booking.booking_fee_amount ?? booking.advance_amount)}) has been refunded.`
-                          : `Refund of ${money(booking.refund_amount ?? booking.booking_fee_amount ?? booking.advance_amount)} is in progress.`
+                        refundInfo.status === "completed"
+                          ? `Status: ${refundInfo.label} · Full 100% refund of ${money(booking.refund_amount ?? booking.booking_fee_amount ?? booking.advance_amount)} has been completed.`
+                          : refundInfo.status === "processing"
+                          ? `Status: ${refundInfo.label} · Our team is processing your booking fee refund.`
+                          : refundInfo.status === "failed"
+                          ? `Status: ${refundInfo.label} · Please contact RoyalLagn support for ticket #${booking.ticket_id}.`
+                          : `Status: ${refundInfo.label} · If the vendor rejects your booking, you are eligible for a full refund of your RoyalLagn booking fee. Our team will process your refund, and you can track its status in My Bookings.`
                       }`
-                    : `Your booking fee of ${money(
-                        booking.booking_fee_amount ?? booking.advance_amount
-                      )} is safely secured. This E-Ticket will be confirmed once vendor accepts.`}
+                    : "Your booking fee payment was successful. Your booking is awaiting vendor confirmation. Vendor contact details will be available here once the vendor accepts your booking."}
                 </Text>
               </View>
             </View>
@@ -527,6 +588,107 @@ function ConfirmedRoyalTicket({
                 </View>
               ))}
             </View>
+          </View>
+
+          {/* Vendor Contact Details Section */}
+          <View style={[s.detailsCard, { backgroundColor: dark ? "#192234" : "#FFF7FA", borderColor: dark ? "#2B3B54" : "#FCE2EC", marginTop: 12 }]}>
+            <View style={s.sectionHeader}>
+              {contactsUnlocked ? (
+                <Phone size={12} color="#E11D48" strokeWidth={2.4} />
+              ) : (
+                <Lock size={12} color="#D97706" strokeWidth={2.4} />
+              )}
+              <Text style={s.sectionHeaderText}>VENDOR CONTACT DETAILS</Text>
+            </View>
+
+            {contactsUnlocked ? (
+              <View style={s.unlockedContactWrap}>
+                <View style={s.contactInfoRow}>
+                  <Text style={[s.contactVendorName, { color: dark ? "#F9FAFB" : "#111827" }]}>
+                    {booking.vendor_name || "Wedding Vendor"}
+                  </Text>
+                  {booking.vendor_phone ? (
+                    <Text style={[s.contactVendorPhone, { color: dark ? "#E5E7EB" : "#374151" }]}>
+                      {booking.vendor_phone}
+                    </Text>
+                  ) : null}
+                  {booking.vendor_city ? (
+                    <View style={s.contactCityRow}>
+                      <MapPin size={11} color={dark ? "#9CA3AF" : "#6B7280"} />
+                      <Text style={[s.contactCityText, { color: dark ? "#9CA3AF" : "#6B7280" }]}>
+                        {booking.vendor_city}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {/* Direct Action Buttons: Call & WhatsApp */}
+                <View style={s.contactBtnRow}>
+                  {booking.vendor_phone ? (
+                    <>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Call ${booking.vendor_name || "Vendor"}`}
+                        onPress={() => void Linking.openURL(`tel:${booking.vendor_phone}`)}
+                        style={[s.contactActionBtn, s.contactCallBtn]}
+                      >
+                        <Phone size={13} color="#FFFFFF" strokeWidth={2.5} />
+                        <Text style={s.contactCallBtnText}>Call Vendor</Text>
+                      </Pressable>
+
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`WhatsApp ${booking.vendor_name || "Vendor"}`}
+                        onPress={() => {
+                          const clean = (booking.vendor_phone || "").replace(/\D/g, "");
+                          const phone = clean.startsWith("91") ? clean : `91${clean}`;
+                          void Linking.openURL(
+                            `https://api.whatsapp.com/send?phone=${phone}&text=Hi%20${encodeURIComponent(booking.vendor_name || "")},%20regarding%20my%20confirmed%20RoyalLagn%20booking%20#${booking.ticket_id}`
+                          );
+                        }}
+                        style={[s.contactActionBtn, s.contactWhatsAppBtn]}
+                      >
+                        <MessageSquare size={13} color="#FFFFFF" strokeWidth={2.5} />
+                        <Text style={s.contactWhatsAppBtnText}>WhatsApp Vendor</Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <Text style={[s.lockedContactDesc, { color: dark ? "#9CA3AF" : "#6B7280" }]}>
+                      Contact information is unlocked for this confirmed booking.
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ) : isCancelledOrRejected ? (
+              <View style={[s.lockedContactBox, { backgroundColor: dark ? "#2E1A1A" : "#FEF2F2", borderColor: dark ? "#5C2626" : "#FECACA" }]}>
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 6, marginBottom: 4 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <ShieldAlert size={14} color="#B91C1C" />
+                    <Text style={[s.lockedContactTitle, { color: "#B91C1C" }]}>Booking Cancelled / Declined</Text>
+                  </View>
+                  <View style={{ backgroundColor: refundInfo.bgColor, borderColor: refundInfo.borderColor, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: refundInfo.textColor }}>● {refundInfo.label}</Text>
+                  </View>
+                </View>
+                <Text style={[s.lockedContactDesc, { color: dark ? "#D1D5DB" : "#6B7280" }]}>
+                  Vendor contact details are inaccessible for declined bookings. {
+                    refundInfo.status === "completed"
+                      ? "Your platform booking fee refund has been completed."
+                      : "If the vendor rejects your booking, you are eligible for a full refund of your RoyalLagn booking fee. Our team will process your refund, and you can track its status in My Bookings."
+                  }
+                </Text>
+              </View>
+            ) : (
+              <View style={[s.lockedContactBox, { backgroundColor: dark ? "#2E220C" : "#FFFBEB", borderColor: dark ? "#634915" : "#FDE68A" }]}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <Lock size={13} color="#B45309" strokeWidth={2.5} />
+                  <Text style={[s.lockedContactTitle, { color: "#B45309" }]}>Locked — Awaiting Vendor Acceptance</Text>
+                </View>
+                <Text style={[s.lockedContactDesc, { color: dark ? "#D1D5DB" : "#78350F" }]}>
+                  Vendor phone number, WhatsApp, and location will unlock here immediately once the vendor confirms your booking.
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -1213,5 +1375,78 @@ const s = StyleSheet.create({
   trustMuted: {
     fontSize: 8.5,
     textAlign: "center",
+  },
+
+  /* Unlocked & Locked Contact Section */
+  unlockedContactWrap: {
+    paddingVertical: 2,
+  },
+  contactInfoRow: {
+    marginBottom: 8,
+  },
+  contactVendorName: {
+    fontSize: 13.5,
+    fontWeight: "800",
+  },
+  contactVendorPhone: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  contactCityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 3,
+  },
+  contactCityText: {
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  contactBtnRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 6,
+  },
+  contactActionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  contactCallBtn: {
+    backgroundColor: "#10B981",
+  },
+  contactCallBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  contactWhatsAppBtn: {
+    backgroundColor: "#25D366",
+  },
+  contactWhatsAppBtnText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  lockedContactBox: {
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  lockedContactTitle: {
+    fontSize: 11.5,
+    fontWeight: "800",
+  },
+  lockedContactDesc: {
+    fontSize: 10.5,
+    lineHeight: 15,
+    marginTop: 2,
   },
 });

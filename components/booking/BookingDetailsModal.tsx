@@ -37,6 +37,7 @@ import {
 } from "@/lib/bookingCancellationPolicy";
 import {
   VendorBookingService,
+  getRefundStatusInfo,
   type SecureBookingDetails,
 } from "@/services/vendorBookings";
 
@@ -190,7 +191,7 @@ export default function BookingDetailsModal({
       Alert.alert(
         "Booking Cancelled",
         booking.advance_amount > 0
-          ? `Your cancellation has been processed. Your paid booking fee of ₹${booking.advance_amount.toLocaleString("en-IN")} has been queued for a 100% full refund in Admin Refunds.`
+          ? `Your cancellation has been processed. You are eligible for a full refund of your RoyalLagn booking fee of ₹${booking.advance_amount.toLocaleString("en-IN")}. Our team will process your refund, and you can track its status in My Bookings.`
           : "Your booking has been cancelled successfully."
       );
       void loadDetails();
@@ -349,7 +350,7 @@ export default function BookingDetailsModal({
                   >
                     {booking.contacts_unlocked
                       ? "The vendor has formally accepted your booking! Direct phone, WhatsApp, and Google Maps venue details are active for direct coordination. Cancellation is now closed."
-                      : "Direct contact details remain confidential and will unlock immediately upon vendor acceptance. 100% booking fee refund is guaranteed if cancelled prior to vendor acceptance."}
+                      : "Direct contact details remain confidential and will unlock immediately upon vendor acceptance. If the vendor rejects your booking, you are eligible for a full refund of your RoyalLagn booking fee. Our team will process your refund, and you can track its status in My Bookings."}
                   </Text>
                 </View>
               </View>
@@ -580,18 +581,24 @@ export default function BookingDetailsModal({
                 </Text>
               </View>
 
-              {booking.refund_status && (
-                <View style={[styles.refundBadgeBox, { backgroundColor: "#FEF2F2", borderColor: "#FCA5A5" }]}>
-                  <Text style={{ fontSize: 12, fontWeight: "700", color: "#B91C1C" }}>
-                    Refund Status: {booking.refund_status.toUpperCase()}
-                  </Text>
-                  {booking.refund_amount ? (
-                    <Text style={{ fontSize: 11, color: "#991B1B", marginTop: 2 }}>
-                      Refund Amount: ₹{booking.refund_amount.toLocaleString("en-IN")} (100% Refund)
+              {booking.refund_status && (() => {
+                const refundInfo = getRefundStatusInfo(booking.refund_status);
+                return (
+                  <View style={[styles.refundBadgeBox, { backgroundColor: refundInfo.bgColor, borderColor: refundInfo.borderColor }]}>
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: refundInfo.textColor }}>
+                      Refund Status: {refundInfo.label}
                     </Text>
-                  ) : null}
-                </View>
-              )}
+                    <Text style={{ fontSize: 11, color: palette.muted, marginTop: 2 }}>
+                      {refundInfo.description}
+                    </Text>
+                    {booking.refund_amount ? (
+                      <Text style={{ fontSize: 11, color: refundInfo.textColor, marginTop: 2, fontWeight: "600" }}>
+                        Refund Amount: ₹{booking.refund_amount.toLocaleString("en-IN")} (100% Refund)
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })()}
             </View>
 
             {/* 5. Cancellation Audit (if cancelled) */}
@@ -667,7 +674,7 @@ export default function BookingDetailsModal({
 
             <Text style={[styles.dialogDesc, { color: palette.muted }]}>
               {booking.advance_amount > 0
-                ? `You are cancelling before vendor acceptance. Your 100% booking fee of ₹${booking.advance_amount.toLocaleString("en-IN")} will be queued for a full gateway refund in the Admin Refunds queue.`
+                ? `You are cancelling before vendor acceptance. If you cancel, you are eligible for a full refund of your RoyalLagn booking fee of ₹${booking.advance_amount.toLocaleString("en-IN")}. Our team will process your refund, and you can track its status in My Bookings.`
                 : "You are cancelling a zero-fee booking before vendor acceptance."}
             </Text>
 

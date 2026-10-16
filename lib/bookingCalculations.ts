@@ -1,6 +1,8 @@
 // lib/bookingCalculations.ts
 // Authoritative shared calculation logic for RoyalLagn Direct Bookings
 
+import { getCommissionForBookingAmount } from "@/services/referralCommission";
+
 export interface SelectedPackageSummary {
   id: string;
   title: string;
@@ -82,16 +84,13 @@ export function getBookingFeeForAmount(totalAmount: number): {
   royallagnCommission: number;
   slabLabel: string;
 } {
-  const rounded = Math.round(Number(totalAmount || 0));
-  if (rounded < 2999) return { fee: 0, referrerReward: 0, royallagnCommission: 0, slabLabel: "0 – 2,998" };
-  if (rounded < 10000) return { fee: 500, referrerReward: 250, royallagnCommission: 250, slabLabel: "2,999 – 9,999" };
-  if (rounded < 30000) return { fee: 1000, referrerReward: 500, royallagnCommission: 500, slabLabel: "10,000 – 29,999" };
-  if (rounded < 50000) return { fee: 2000, referrerReward: 1000, royallagnCommission: 1000, slabLabel: "30,000 – 49,999" };
-  if (rounded < 70000) return { fee: 4000, referrerReward: 2000, royallagnCommission: 2000, slabLabel: "50,000 – 69,999" };
-  if (rounded < 100000) return { fee: 6000, referrerReward: 3000, royallagnCommission: 3000, slabLabel: "70,000 – 99,999" };
-  if (rounded < 130000) return { fee: 8000, referrerReward: 4000, royallagnCommission: 4000, slabLabel: "1,00,000 – 1,29,999" };
-  if (rounded < 150000) return { fee: 10000, referrerReward: 5000, royallagnCommission: 5000, slabLabel: "1,30,000 – 1,49,999" };
-  return { fee: 12000, referrerReward: 6000, royallagnCommission: 6000, slabLabel: "1,50,000 and above" };
+  const comm = getCommissionForBookingAmount(totalAmount);
+  return {
+    fee: comm.totalCommission,
+    referrerReward: comm.referrerReward,
+    royallagnCommission: comm.royallagnCommission,
+    slabLabel: comm.slab.label,
+  };
 }
 
 export interface BookingFinancials {
@@ -174,3 +173,65 @@ export function calculateBookingFinancials(
     grandTotalPaise,
   };
 }
+
+export type CanonicalRefundStatus =
+  | "Refund Pending"
+  | "Refund Processing"
+  | "Refund Completed"
+  | "Refund Failed";
+
+export interface RefundStatusInfo {
+  label: CanonicalRefundStatus;
+  status: "pending" | "processing" | "completed" | "failed";
+  description: string;
+  textColor: string;
+  bgColor: string;
+  borderColor: string;
+}
+
+/**
+ * Authoritative customer-facing refund status mapping for RoyalLagn.
+ * Manual team refund review and processing SLA.
+ */
+export function getRefundStatusInfo(status?: string | null): RefundStatusInfo {
+  const norm = (status || "").toLowerCase().trim();
+  if (norm === "refunded" || norm === "completed" || norm === "refund_successful") {
+    return {
+      label: "Refund Completed",
+      status: "completed",
+      description: "Full refund of your RoyalLagn booking fee has been completed.",
+      textColor: "#166534",
+      bgColor: "#DCFCE7",
+      borderColor: "#86EFAC",
+    };
+  }
+  if (norm === "processing" || norm === "refund_processing") {
+    return {
+      label: "Refund Processing",
+      status: "processing",
+      description: "Our team is currently processing your booking fee refund.",
+      textColor: "#1E40AF",
+      bgColor: "#DBEAFE",
+      borderColor: "#93C5FD",
+    };
+  }
+  if (norm === "failed" || norm === "refund_failed") {
+    return {
+      label: "Refund Failed",
+      status: "failed",
+      description: "Refund processing encountered an issue. Please contact RoyalLagn support.",
+      textColor: "#991B1B",
+      bgColor: "#FEE2E2",
+      borderColor: "#FCA5A5",
+    };
+  }
+  return {
+    label: "Refund Pending",
+    status: "pending",
+    description: "Our team will process your refund, and you can track its status in My Bookings.",
+    textColor: "#92400E",
+    bgColor: "#FEF3C7",
+    borderColor: "#FDE68A",
+  };
+}
+

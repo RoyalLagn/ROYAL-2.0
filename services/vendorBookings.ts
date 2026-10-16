@@ -4,9 +4,12 @@ import {
   calculateBookingFinancials as calcFinancials,
   calculateEventDays,
   getBookingFeeForAmount,
+  getRefundStatusInfo,
   type BookingAddOn,
   type SelectedPackageSummary,
   type BookingFinancials,
+  type CanonicalRefundStatus,
+  type RefundStatusInfo,
 } from "@/lib/bookingCalculations";
 import { ReferralCommissionService } from "@/services/referralCommission";
 import {
@@ -16,8 +19,14 @@ import {
   isContactUnlocked,
 } from "@/lib/bookingCancellationPolicy";
 
-export { calculateEventDays, getBookingFeeForAmount };
-export type { BookingAddOn, SelectedPackageSummary, BookingFinancials };
+export { calculateEventDays, getBookingFeeForAmount, getRefundStatusInfo };
+export type {
+  BookingAddOn,
+  SelectedPackageSummary,
+  BookingFinancials,
+  CanonicalRefundStatus,
+  RefundStatusInfo,
+};
 
 export type BookingStatus =
   | "ADMIN_PENDING"
@@ -760,9 +769,11 @@ export const VendorBookingService = {
     const eventStartAt = fallbackBooking.event_start_at || buildEventStartTimestamp(fallbackBooking.event_date, "10:00");
     const cutoffAt = fallbackBooking.cancellation_cutoff_at || calculateCancellationCutoff(eventStartAt);
     const isCutoffPassed = isCancellationLocked(cutoffAt, eventStartAt, fallbackBooking.event_date);
-    const isConfirmed = fallbackBooking.booking_status === "confirmed";
-    const contactsUnlocked = (isConfirmed && isCutoffPassed) || roleHint === "admin";
-    const canCancel = (isConfirmed && !isCutoffPassed) || roleHint === "admin";
+    const isAccepted = fallbackBooking.booking_status === "confirmed" || fallbackBooking.booking_status === "ACCEPTED" || fallbackBooking.booking_status === "accepted";
+    const isPaid = ["paid_advance", "paid_booking_fee", "free_zero_fee", "paid"].includes(fallbackBooking.payment_status);
+    const isNotCancelled = !["cancelled", "cancelled_by_vendor", "cancelled_by_customer", "CUSTOMER_CANCELLED", "ADMIN_CANCELLED", "VENDOR_REJECTED", "rejected"].includes(fallbackBooking.booking_status);
+    const contactsUnlocked = (isAccepted && isPaid && isNotCancelled) || roleHint === "admin";
+    const canCancel = (!isAccepted && isNotCancelled) || roleHint === "admin";
 
     const customerContacts = {
       name: fallbackBooking.customer_name,
