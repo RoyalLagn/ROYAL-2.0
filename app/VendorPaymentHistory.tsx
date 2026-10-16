@@ -64,6 +64,7 @@ export default function VendorPaymentHistory() {
   const { width } = useWindowDimensions();
   const desktop = width >= 900;
   const tablet = width >= 640;
+  const compact = width < 480;
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
   const isDark = colorScheme === "dark";
@@ -248,7 +249,7 @@ export default function VendorPaymentHistory() {
         }
       >
         {/* Top Breadcrumb & Executive Navigation Bar */}
-        <View style={styles.topNavRow}>
+        <View style={[styles.topNavRow, compact && styles.topNavRowCompact]}>
           <Pressable
             accessibilityRole="button"
             onPress={() => router.push("/vendor-dashboard")}
@@ -258,7 +259,7 @@ export default function VendorPaymentHistory() {
             <Text style={[styles.backText, { color: uiTheme.textPrimary }]}>Dashboard</Text>
           </Pressable>
 
-          <View style={styles.topRightActions}>
+          <View style={[styles.topRightActions, compact && styles.topRightActionsCompact]}>
             <Pressable
               accessibilityRole="button"
               onPress={() => router.push("/VendorCalendar")}
@@ -1059,9 +1060,15 @@ const styles = StyleSheet.create({
   },
   topNavRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
     alignItems: "center",
     justifyContent: "space-between",
     minHeight: 44,
+  },
+  topNavRowCompact: {
+    flexDirection: "column",
+    alignItems: "flex-start",
   },
   backBtn: {
     flexDirection: "row",
@@ -1077,10 +1084,16 @@ const styles = StyleSheet.create({
   },
   topRightActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    maxWidth: "100%",
     alignItems: "center",
     gap: 10,
   },
+  topRightActionsCompact: {
+    width: "100%",
+  },
   calendarLinkBtn: {
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -1094,6 +1107,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   primaryActionBtn: {
+    minHeight: 48,
+    maxWidth: "100%",
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
