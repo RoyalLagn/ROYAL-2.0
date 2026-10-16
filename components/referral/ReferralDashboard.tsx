@@ -217,8 +217,8 @@ export default function ReferralDashboard() {
           setIsEditingDestination(true);
         }
       }
-    } catch (err) {
-      console.warn("Failed to load referral dashboard:", err);
+    } catch {
+      // Keep the current screen stable when the dashboard is temporarily unavailable.
     } finally {
       setLoading(false);
     }
@@ -557,7 +557,7 @@ export default function ReferralDashboard() {
               <View style={styles.secMetricItem}>
                 <View style={styles.secMetricHeader}>
                   <Clock size={11} color="#D97706" strokeWidth={2.2} />
-                  <Text numberOfLines={1} style={styles.secMetricLabel}>Pending Confirm</Text>
+                  <Text style={styles.secMetricLabel}>Pending Confirm</Text>
                 </View>
                 <Text style={[styles.secMetricVal, { color: "#D97706" }]}>
                   ₹ {Number(dashboardData?.profile.pendingEarnings || 0).toLocaleString("en-IN")}
@@ -587,42 +587,41 @@ export default function ReferralDashboard() {
     return (
       <View style={styles.tabsTrackContainer}>
         <View style={[styles.tabsBar, isSmall && styles.tabsBarSmall]}>
-          {TABS.map(({ id, label, Icon }, index) => {
+          {TABS.map(({ id, label }) => {
             const active = tab === id;
-            const prevActive = index > 0 && TABS[index - 1].id === tab;
-            const showDivider = index > 0 && !active && !prevActive;
 
             return (
-              <React.Fragment key={id}>
-                {showDivider ? <View style={styles.tabDivider} /> : null}
+              <View key={id} style={styles.tabSlot}>
                 <Pressable
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                  onPress={() => setTab(id)}
-                  style={({ pressed }) => [
-                    styles.tabButton,
-                    isSmall && styles.tabButtonSmall,
-                    active ? styles.tabButtonActive : styles.tabButtonInactive,
-                    pressed && !active && styles.tabButtonPressed,
-                  ]}
+                accessibilityRole="button"
+                accessibilityLabel={`${label}${active ? ", selected" : ""}`}
+                onPress={() => setTab(id)}
+                style={({ pressed }) => [
+                  styles.tabButton,
+                  isSmall && styles.tabButtonSmall,
+                  pressed && styles.tabButtonPressed,
+                ]}
                 >
-                  <Icon
-                    size={isSmall ? 12 : 13}
-                    color={active ? "#FFFFFF" : "#4B5563"}
-                    strokeWidth={active ? 2.5 : 2.0}
-                  />
-                  <Text
-                    numberOfLines={1}
+                  <View
                     style={[
-                      styles.tabText,
-                      isSmall && styles.tabTextSmall,
-                      active ? styles.tabTextActive : styles.tabTextInactive,
+                      styles.tabButtonSurface,
+                      isSmall && styles.tabButtonSurfaceSmall,
+                      active && styles.tabButtonSurfaceActive,
                     ]}
                   >
-                    {label}
-                  </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.tabText,
+                        isSmall && styles.tabTextSmall,
+                        active ? styles.tabTextActive : styles.tabTextInactive,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </View>
                 </Pressable>
-              </React.Fragment>
+              </View>
             );
           })}
         </View>
@@ -1918,7 +1917,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 20,
     gap: 12,
   },
   topBarSmall: {
@@ -1926,8 +1925,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   backButton: {
-    width: 38,
-    height: 38,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
@@ -1936,8 +1935,8 @@ const styles = StyleSheet.create({
     borderColor: "#FCE7F3",
   },
   backButtonSmall: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
   },
   backButtonDark: {
     backgroundColor: "#1F2937",
@@ -1947,7 +1946,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 21,
     fontWeight: "800",
     color: "#111827",
   },
@@ -1958,16 +1957,17 @@ const styles = StyleSheet.create({
     color: "#E91E63",
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: "#6B7280",
-    marginTop: 2,
+    marginTop: 3,
+    lineHeight: 18,
   },
   headerSubtitleSmall: {
     fontSize: 11,
   },
   headerGiftBadge: {
-    width: 38,
-    height: 38,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     backgroundColor: "#FDF2F8",
     alignItems: "center",
@@ -2112,7 +2112,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginTop: 8,
+    marginTop: 10,
     flexWrap: "wrap",
   },
   ownerBadge: {
@@ -2137,12 +2137,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   commissionText: {
+    flexShrink: 1,
     fontSize: 11.5,
     color: "#059669",
     fontWeight: "700",
   },
   earningsBlock: {
-    marginTop: 10,
+    marginTop: 14,
   },
   earningsLabel: {
     fontSize: 12,
@@ -2166,13 +2167,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.85)",
-    borderRadius: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 9,
-    marginTop: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.94)",
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 10,
+    marginTop: 16,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.95)",
+    borderColor: "#F3E8EE",
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -2186,16 +2187,19 @@ const styles = StyleSheet.create({
   secMetricItem: {
     flex: 1,
     alignItems: "center",
-    paddingHorizontal: 2,
+    minWidth: 0,
+    paddingHorizontal: 4,
   },
   secMetricHeader: {
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
-    gap: 3.5,
-    marginBottom: 2,
+    gap: 2,
+    marginBottom: 4,
   },
   secMetricLabel: {
+    flexShrink: 1,
     fontSize: 10,
+    lineHeight: 12,
     color: "#4B5563",
     fontWeight: "600",
     textAlign: "center",
@@ -2206,14 +2210,14 @@ const styles = StyleSheet.create({
   },
   secMetricDivider: {
     width: 1,
-    height: 24,
+    height: 32,
     backgroundColor: "#E5E7EB",
   },
   // Sticky Tabs Bar & Highlighted Segmented Toggle Bar
   stickyTabsWrapper: {
     backgroundColor: "#FFF5F8",
-    paddingTop: 4,
-    paddingBottom: 6,
+    paddingTop: 8,
+    paddingBottom: 10,
     zIndex: 50,
   },
   stickyTabsWrapperDark: {},
@@ -2223,67 +2227,69 @@ const styles = StyleSheet.create({
   tabsBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 3,
-    borderWidth: 1.5,
-    borderColor: "#FCE7F3",
-    shadowColor: "#E11D48",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: "#F2F2F7",
+    borderRadius: 14,
+    padding: 4,
+    borderWidth: 0,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   tabsBarSmall: {
     padding: 2,
     borderRadius: 14,
   },
   tabButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 9,
-    paddingHorizontal: 2,
-    borderRadius: 12,
-    gap: 4,
+    width: "100%",
+    minWidth: 0,
+    borderRadius: 10,
+    overflow: "hidden",
   },
   tabButtonSmall: {
-    paddingVertical: 7,
-    paddingHorizontal: 1,
-    gap: 2.5,
+    borderRadius: 9,
+  },
+  tabSlot: {
+    flex: 1,
+    minWidth: 0,
+  },
+  tabButtonSurface: {
+    minHeight: 44,
+    width: "100%",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     borderRadius: 10,
   },
-  tabButtonActive: {
-    backgroundColor: "#E91E63",
-    shadowColor: "#E91E63",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+  tabButtonSurfaceSmall: {
+    minHeight: 42,
+    paddingVertical: 7,
+    paddingHorizontal: 2,
+    borderRadius: 9,
   },
-  tabButtonInactive: {
-    backgroundColor: "transparent",
+  tabButtonSurfaceActive: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#1C1C1E",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   tabButtonPressed: {
     backgroundColor: "#FDF2F8",
   },
-  tabDivider: {
-    width: 1,
-    height: 16,
-    backgroundColor: "#F3E8EC",
-  },
   tabText: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: -0.2,
+    maxWidth: "100%",
+    fontSize: 11.5,
+    fontWeight: "600",
+    letterSpacing: -0.1,
   },
   tabTextSmall: {
-    fontSize: 9.5,
-    letterSpacing: -0.3,
+    fontSize: 10.5,
+    letterSpacing: -0.1,
   },
   tabTextActive: {
-    color: "#FFFFFF",
+    color: "#C2185B",
     fontWeight: "800",
   },
   tabTextInactive: {
@@ -2293,7 +2299,7 @@ const styles = StyleSheet.create({
   // Section Cards
   sectionCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#FCE7F3",
     padding: 16,
@@ -2309,7 +2315,7 @@ const styles = StyleSheet.create({
   // Request Withdrawal Card with Royal Pink Thin Border
   requestWithdrawalCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1.5,
     borderColor: "#F472B6", // Royal Pink thin border
     padding: 16,
