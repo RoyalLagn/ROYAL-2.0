@@ -10,6 +10,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "build:web": "node scripts/build-web.mjs",
     "export:web": "expo export --platform web --output-dir dist-web",
     "serve:web": "npx --yes serve -l 5055 dist-web",
     "prebuild:android": "expo prebuild --platform android --clean",

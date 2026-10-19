@@ -1,7 +1,7 @@
 {
   "framework": null,
   "installCommand": "npm install --legacy-peer-deps",
-  "buildCommand": "npm run sitemap:generate && npx expo export -p web",
+  "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
   "redirects": [
     {
