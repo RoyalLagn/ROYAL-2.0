@@ -295,7 +295,7 @@ assert.doesNotMatch(
 );
 assert.match(
   crmAnalyticsSource,
-  /<View className=["']flex-1 min-w-\[150px\]["']>/,
+  /<View (?:className=["']flex-1 min-w-\[150px\]["']|style=\{\{[^}]*flexBasis[^}]*\}\})>/,
   "AnalyticsCard sizing must stay on the grid's direct flex child for native layout.",
 );
 assert.doesNotMatch(

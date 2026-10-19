@@ -1,4 +1,6 @@
 {
+  "framework": null,
+  "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "npm run sitemap:generate && npx expo export -p web",
   "outputDirectory": "dist",
   "redirects": [
@@ -6,6 +8,26 @@
       "source": "/vendors/:slug",
       "destination": "/vendor/:slug",
       "permanent": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/_expo/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/(service-worker\\.js|admin-service-worker\\.js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -22,7 +44,7 @@
       "destination": "/api/legacy-listing"
     },
     {
-      "source": "/((?!_expo/|assets/|favicon.ico).*)",
+      "source": "/((?!api/|_expo/|assets/|favicon\\.ico|robots\\.txt|sitemap\\.xml|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]
