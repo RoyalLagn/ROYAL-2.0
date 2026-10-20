@@ -76,6 +76,17 @@ def localReleaseSigningProperties = [
     'ROYALLAGN_UPLOAD_KEY_PASSWORD',
 ]
 def hasLocalReleaseSigning = localReleaseSigningProperties.every { project.hasProperty(it) }
+def isReleaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.toLowerCase().contains('release')
+}
+
+if (isReleaseTaskRequested && !hasLocalReleaseSigning) {
+    throw new GradleException(
+        'Release signing is not configured. Define ROYALLAGN_UPLOAD_STORE_FILE, ' +
+        'ROYALLAGN_UPLOAD_STORE_PASSWORD, ROYALLAGN_UPLOAD_KEY_ALIAS, and ' +
+        'ROYALLAGN_UPLOAD_KEY_PASSWORD in ~/.gradle/gradle.properties.'
+    )
+}
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -101,7 +112,7 @@ android {
         applicationId 'com.royallagn.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 12
+        versionCode 14
         versionName "1.0.5"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
@@ -127,9 +138,11 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig hasLocalReleaseSigning ? signingConfigs.release : signingConfigs.debug
+            // Never produce a Play Store artifact with the debug identity.
+            // The guard above fails release tasks when upload credentials are absent.
+            if (hasLocalReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds

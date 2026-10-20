@@ -14,7 +14,7 @@
       "buildNumber": "1"
     },
     "android": {
-      "versionCode": 12,
+      "versionCode": 14,
       "googleServicesFile": "./android/app/google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
