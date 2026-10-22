@@ -7,6 +7,14 @@ export type CloudinaryUploadOptions = {
   publicId?: string;
   resourceType?: CloudinaryResourceType;
   uploadPreset?: string;
+  /** Values issued by an authenticated Supabase Edge Function for a signed upload. */
+  cloudName?: string;
+  apiKey?: string;
+  signature?: string;
+  timestamp?: number;
+  eager?: string;
+  overwrite?: boolean;
+  uniqueFilename?: boolean;
   tags?: string[];
   context?: Record<string, string>;
   onProgress?: (progress: number) => void;
@@ -358,18 +366,25 @@ export async function uploadImageToCloudinary(
   options: CloudinaryUploadOptions = {}
 ): Promise<CloudinaryUploadResult> {
   const preset = options.uploadPreset || UPLOAD_PRESET;
-  if (!preset) {
+  const signed = Boolean(options.apiKey && options.signature && options.timestamp);
+  if (!preset && !signed) {
     throw new CloudinaryError(
       "Cloudinary upload preset is missing. Please check EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET.",
       "CONFIGURATION_ERROR"
     );
   }
 
-  const endpoint = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+  const endpoint = `https://api.cloudinary.com/v1_1/${options.cloudName || CLOUD_NAME}/image/upload`;
   const formData = new FormData();
 
   await appendFileToFormData(formData, file.uri, file.name, file.mimeType || "image/jpeg");
-  formData.append("upload_preset", preset);
+  if (signed) {
+    formData.append("api_key", options.apiKey!);
+    formData.append("timestamp", String(options.timestamp));
+    formData.append("signature", options.signature!);
+  } else {
+    formData.append("upload_preset", preset);
+  }
 
   if (options.folder) {
     formData.append("folder", options.folder);
@@ -386,6 +401,9 @@ export async function uploadImageToCloudinary(
       .join("|");
     formData.append("context", ctxString);
   }
+  if (options.eager) formData.append("eager", options.eager);
+  if (options.overwrite !== undefined) formData.append("overwrite", String(options.overwrite));
+  if (options.uniqueFilename !== undefined) formData.append("unique_filename", String(options.uniqueFilename));
 
   const result = await uploadViaXHR(endpoint, formData, options.onProgress);
 
@@ -428,18 +446,25 @@ export async function uploadVideoToCloudinary(
   options: CloudinaryUploadOptions = {}
 ): Promise<CloudinaryUploadResult> {
   const preset = options.uploadPreset || UPLOAD_PRESET;
-  if (!preset) {
+  const signed = Boolean(options.apiKey && options.signature && options.timestamp);
+  if (!preset && !signed) {
     throw new CloudinaryError(
       "Cloudinary upload preset is missing. Please check EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET.",
       "CONFIGURATION_ERROR"
     );
   }
 
-  const endpoint = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`;
+  const endpoint = `https://api.cloudinary.com/v1_1/${options.cloudName || CLOUD_NAME}/video/upload`;
   const formData = new FormData();
 
   await appendFileToFormData(formData, file.uri, file.name, file.mimeType || "video/mp4");
-  formData.append("upload_preset", preset);
+  if (signed) {
+    formData.append("api_key", options.apiKey!);
+    formData.append("timestamp", String(options.timestamp));
+    formData.append("signature", options.signature!);
+  } else {
+    formData.append("upload_preset", preset);
+  }
 
   if (options.folder) {
     formData.append("folder", options.folder);
@@ -450,6 +475,9 @@ export async function uploadVideoToCloudinary(
   if (options.tags && options.tags.length) {
     formData.append("tags", options.tags.join(","));
   }
+  if (options.eager) formData.append("eager", options.eager);
+  if (options.overwrite !== undefined) formData.append("overwrite", String(options.overwrite));
+  if (options.uniqueFilename !== undefined) formData.append("unique_filename", String(options.uniqueFilename));
 
   const result = await uploadViaXHR(endpoint, formData, options.onProgress);
 

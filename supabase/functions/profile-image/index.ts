@@ -1,5 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { bunnyStorageConfig, presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -93,17 +92,6 @@ Deno.serve(async (request) => {
           }
           return Response.json({ ok: true, managed: true, provider: "cloudinary" }, { headers: cors });
         }
-      }
-
-      // 2. Legacy Bunny Asset Destruction
-      const bunny = bunnyStorageConfig();
-      if (currentUrl.hostname === bunny.cdnHostname) {
-        const objectKey = decodeURIComponent(currentUrl.pathname.replace(/^\//, ""));
-        if (!objectKey.startsWith(prefix) || objectKey.includes("..")) throw new Error("Profile image not found");
-        const signedDelete = await presignBunnyObject("DELETE", objectKey, 60);
-        const deletion = await fetch(signedDelete.uploadUrl, { method: "DELETE" });
-        if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny profile image deletion failed");
-        return Response.json({ ok: true, managed: true, provider: "bunny" }, { headers: cors });
       }
 
       return Response.json({ ok: true, managed: false }, { headers: cors });

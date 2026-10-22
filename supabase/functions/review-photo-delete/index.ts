@@ -1,5 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -46,19 +45,7 @@ Deno.serve(async (request) => {
       if (!belongsToReview) throw new Error("Review photo not found");
     }
 
-    // 1. Legacy Bunny Asset Handling
-    if (publicId.includes(".")) {
-      try {
-        const signedDelete = await presignBunnyObject("DELETE", publicId, 60);
-        const deletion = await fetch(signedDelete.uploadUrl, { method: "DELETE" });
-        if (!deletion.ok && deletion.status !== 404) console.warn("Bunny review photo deletion status:", deletion.status);
-      } catch (e) {
-        console.warn("Bunny review photo deletion error:", e);
-      }
-      return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
-    }
-
-    // 2. Cloudinary Asset Destruction
+    // Cloudinary asset destruction
     const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "hp6vu8o9";
     const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
     const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");

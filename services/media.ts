@@ -69,8 +69,8 @@ export type MediaUpload = {
 };
 
 type SignedUploadResponse = {
-  provider?: "cloudinary" | "bunny";
-  uploadMode?: "signed" | "unsigned" | "tus";
+  provider?: "cloudinary";
+  uploadMode?: "signed" | "unsigned";
   uploadPreset?: string;
   cloudName?: string;
   signature?: string;
@@ -81,15 +81,27 @@ type SignedUploadResponse = {
   resourceType: "image" | "video";
   remainingCapacity?: number;
   reservationId?: string | null;
-  // Legacy Bunny fields for backward compatibility
-  uploadUrl?: string;
-  publicUrl?: string;
-  objectKey?: string;
-  videoId?: string;
-  libraryId?: string;
-  videoUrl?: string;
   thumbnailUrl?: string;
+  eager?: string;
+  overwrite?: string | boolean;
+  unique_filename?: string | boolean;
 };
+
+function cloudinarySignedOptions(sign: SignedUploadResponse) {
+  const signed = sign.uploadMode === "signed";
+  return {
+    folder: sign.folder,
+    publicId: sign.public_id,
+    uploadPreset: signed ? undefined : sign.uploadPreset,
+    cloudName: sign.cloudName,
+    apiKey: signed ? sign.apiKey : undefined,
+    signature: signed ? sign.signature : undefined,
+    timestamp: signed ? sign.timestamp : undefined,
+    eager: signed ? sign.eager : undefined,
+    overwrite: signed && sign.overwrite !== undefined ? String(sign.overwrite) === "true" : undefined,
+    uniqueFilename: signed && sign.unique_filename !== undefined ? String(sign.unique_filename) === "true" : undefined,
+  };
+}
 
 export type ProfileImageTarget =
   | { kind: "customer" }
@@ -313,11 +325,14 @@ export async function uploadProfileImage(
   const prepared = await prepareImageForUpload(asset, "profile");
   await validateProfileImage(prepared);
 
-  const folder = target.kind === "vendor"
-    ? `royallagn/vendors/${target.vendorId}/profile`
-    : `royallagn/profiles`;
-
   try {
+    const { data: signData, error: signError } = await supabase.functions.invoke<SignedUploadResponse>(
+      "profile-image",
+      { body: { ...target, action: "sign", mimeType: prepared.mimeType, fileSize: prepared.fileSize } },
+    );
+    if (signError || !signData) {
+      throw new MediaError(await edgeFunctionErrorMessage(signError, "Unable to authorize profile image upload."), "UPLOAD_ERROR");
+    }
     const uploadResult = await uploadImageToCloudinary(
       {
         uri: prepared.uri,
@@ -327,10 +342,7 @@ export async function uploadProfileImage(
         height: prepared.height,
         fileSize: prepared.fileSize,
       },
-      {
-        folder,
-        onProgress,
-      }
+      { ...cloudinarySignedOptions(signData), onProgress }
     );
     return uploadResult.secureUrl;
   } catch (error) {
@@ -508,9 +520,10 @@ export async function uploadPortfolioAsset(
     );
   }
 
-  const reservationId = signData?.reservationId ?? null;
-  const folder = signData?.folder || `royallagn/vendors/${vendorId}/albums/${albumId}`;
-  const publicId = signData?.public_id;
+  if (!signData) throw new MediaError("Upload authorization was empty.", "UPLOAD_ERROR");
+  const reservationId = signData.reservationId ?? null;
+  const publicId = signData.public_id;
+  const signedOptions = cloudinarySignedOptions(signData);
 
   try {
     if (resourceType === "video") {
@@ -524,11 +537,7 @@ export async function uploadPortfolioAsset(
           height: prepared.height,
           fileSize: resolvedFileSize,
         },
-        {
-          folder,
-          publicId,
-          onProgress,
-        }
+        { ...signedOptions, onProgress }
       );
 
       return {
@@ -561,11 +570,7 @@ export async function uploadPortfolioAsset(
         height: prepared.height,
         fileSize: resolvedFileSize,
       },
-      {
-        folder,
-        publicId,
-        onProgress,
-      }
+      { ...signedOptions, onProgress }
     );
 
     return {
@@ -648,9 +653,14 @@ export async function uploadReviewPhoto(
   onProgress?: (value: number) => void
 ): Promise<MediaUpload> {
   const prepared = await prepareImageForUpload(asset, "review");
-  const folder = userId ? `royallagn/reviews/${userId}` : "royallagn/reviews";
-
   try {
+    const { data: signData, error: signError } = await supabase.functions.invoke<SignedUploadResponse>(
+      "review-photo-sign",
+      { body: { mimeType: prepared.mimeType, fileSize: prepared.fileSize } },
+    );
+    if (signError || !signData) {
+      throw new MediaError(await edgeFunctionErrorMessage(signError, "Unable to authorize review photo upload."), "UPLOAD_ERROR");
+    }
     const result = await uploadImageToCloudinary(
       {
         uri: prepared.uri,
@@ -660,10 +670,7 @@ export async function uploadReviewPhoto(
         height: prepared.height,
         fileSize: prepared.fileSize,
       },
-      {
-        folder,
-        onProgress,
-      }
+      { ...cloudinarySignedOptions(signData), onProgress }
     );
 
     return {
@@ -699,26 +706,10 @@ export async function deleteReviewPhoto(
 
 export async function deleteAdminManagedImage(url: string): Promise<void> {
   if (!url) return;
-  // If it's a Cloudinary URL, destroy via Cloudinary publicId
+  // Cloudinary deletion requires an authenticated, ownership-scoped Edge Function.
   const publicId = extractCloudinaryPublicId(url);
   if (publicId) {
-    // Invoke deletion via admin function or portfolio-media-delete
     return;
-  }
-  // Legacy Bunny URL fallback
-  if (/\.b-cdn\.net\//i.test(url)) {
-    const { error } = await supabase.functions.invoke("admin-bunny-media-delete", { body: { url } });
-    if (error) {
-      throw new MediaError(await edgeFunctionErrorMessage(error, "Unable to delete managed image."), "UPLOAD_ERROR");
-    }
-  }
-}
-
-export async function deleteOwnedBunnyUpload(url: string): Promise<void> {
-  if (!url || !/\.b-cdn\.net\//i.test(url)) return;
-  const { error } = await supabase.functions.invoke("bunny-user-media-delete", { body: { url } });
-  if (error) {
-    throw new MediaError(await edgeFunctionErrorMessage(error, "Unable to delete uploaded media."), "UPLOAD_ERROR");
   }
 }
 

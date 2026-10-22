@@ -1,5 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { presignBunnyObject } from "../_shared/bunnyS3.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -55,7 +54,7 @@ Deno.serve(async (request) => {
       const { data: vendor } = await admin.from("vendors")
         .select("id").eq("id", vendorId).eq("profile_id", user.id).maybeSingle();
       const expectedPrefix = `royallagn/vendors/${vendorId}/`;
-      if (vendor && (String(publicId).startsWith(expectedPrefix) || /^bunny-stream:[0-9a-f-]+$/i.test(String(publicId)))) {
+      if (vendor && String(publicId).startsWith(expectedPrefix)) {
         media = {
           vendor_id: vendorId,
           public_id: publicId,
@@ -70,57 +69,7 @@ Deno.serve(async (request) => {
     });
     if (accessError) throw accessError;
 
-    const mediaUrl = media.secure_url ? new URL(media.secure_url) : null;
-    const isBunnyUrl = mediaUrl?.hostname.endsWith(".b-cdn.net") === true;
-    const isBunnyStream = /^bunny-stream:/i.test(media.public_id);
-
-    // 1. Legacy Bunny Stream asset handling
-    if (isBunnyStream) {
-      const streamVideoId = media.public_id.match(/^bunny-stream:([0-9a-f-]+)$/i)?.[1];
-      if (streamVideoId) {
-        const libraryId = Deno.env.get("BUNNY_STREAM_LIBRARY_ID")?.trim();
-        const apiKey = Deno.env.get("BUNNY_STREAM_API_KEY")?.trim();
-        if (libraryId && apiKey) {
-          const deletion = await fetch(
-            `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${encodeURIComponent(streamVideoId)}`,
-            { method: "DELETE", headers: { AccessKey: apiKey } },
-          );
-          if (!deletion.ok && deletion.status !== 404) {
-            console.warn(`Bunny Stream deletion warning (${deletion.status})`);
-          }
-        }
-      }
-      if (media.id) {
-        const { error: deleteError } = await admin.from("vendor_portfolio_media").delete().eq("id", media.id);
-        if (deleteError) throw deleteError;
-      }
-      return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
-    }
-
-    // 2. Legacy Bunny Storage asset handling
-    if (isBunnyUrl) {
-      const bunnyObjectKey = media.public_id.includes(".")
-        ? media.public_id
-        : decodeURIComponent(mediaUrl!.pathname.replace(/^\//, ""));
-      if (bunnyObjectKey && !bunnyObjectKey.includes("..")) {
-        try {
-          const signedDelete = await presignBunnyObject("DELETE", bunnyObjectKey, 60);
-          const deletion = await fetch(signedDelete.uploadUrl, { method: "DELETE" });
-          if (!deletion.ok && deletion.status !== 404) {
-            console.warn(`Bunny portfolio deletion warning (${deletion.status})`);
-          }
-        } catch (e) {
-          console.warn("Bunny S3 delete error:", e);
-        }
-      }
-      if (media.id) {
-        const { error: deleteError } = await admin.from("vendor_portfolio_media").delete().eq("id", media.id);
-        if (deleteError) throw deleteError;
-      }
-      return Response.json({ ok: true, provider: "bunny" }, { headers: cors });
-    }
-
-    // 3. Cloudinary Asset Destruction
+    // Cloudinary asset destruction
     const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "hp6vu8o9";
     const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
     const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
