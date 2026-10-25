@@ -32,7 +32,7 @@ export type HeroSlideInput = {
 
 export type HeroSlideUpdate = Partial<HeroSlideInput>;
 
-export const HERO_SLIDES_MAX = 8;
+export const HERO_SLIDES_MAX = 12;
 
 /** Desktop/web hero banner aspect (width:height ≈ 16:6). */
 export const HERO_DESKTOP_ASPECT = 16 / 6;
