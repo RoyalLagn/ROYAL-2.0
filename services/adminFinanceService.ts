@@ -4,7 +4,6 @@ import type {
   FinanceBudget,
   FinanceBudgetItem,
   FinanceCategory,
-  FinanceBunnyUsage,
   FinanceDirection,
   FinanceClosure,
   FinanceMonthData,
@@ -321,16 +320,15 @@ export function revenueBySource(data: Pick<FinanceMonthData, "transactions" | "c
 export const AdminFinanceService = {
   async loadMonth(monthStart: string): Promise<FinanceMonthData> {
     const bounds = monthBounds(monthStart);
-    const [categoriesResult, transactions, budgetResult, taxesResult, usageResult, scenariosResult, closureResult] = await Promise.all([
+    const [categoriesResult, transactions, budgetResult, taxesResult, scenariosResult, closureResult] = await Promise.all([
       supabase.from("finance_categories").select("id,name,group_name,direction,is_system,is_active").eq("is_active", true).order("direction").order("group_name").order("name"),
       allRows<Record<string, unknown>>((from, to) => supabase.from("finance_transactions").select("id,occurred_on,direction,category_id,amount,tax_amount,gateway_fee,gateway_fee_captured,source,source_payment_id,payment_method,counterparty,reference_number,is_recurring,status,notes,created_at,finance_categories(name,group_name)").gte("occurred_on", bounds.start).lt("occurred_on", bounds.end).order("occurred_on", { ascending: false }).order("created_at", { ascending: false }).range(from, to)),
       supabase.from("finance_budgets").select("id,month_start,name,revenue_target,status,notes").eq("month_start", bounds.start).maybeSingle(),
       supabase.from("finance_tax_records").select("id,period_start,period_end,tax_type,amount,is_estimate,notes").lt("period_start", bounds.end).gte("period_end", bounds.start).order("tax_type"),
-      supabase.from("finance_bunny_usage").select("id,month_start,storage_percent,bandwidth_percent,transformations_percent,estimated_cost,actual_cost,notes").eq("month_start", bounds.start).maybeSingle(),
       supabase.from("finance_scenarios").select("id,name,total_vendors,free_percent,premium_percent,elite_percent,premium_price,elite_price,monthly_fixed_expenses").order("updated_at", { ascending: false }),
       supabase.from("finance_monthly_closures").select("id,month_start,status,checklist,snapshot,closed_at,correction_reason").eq("month_start", bounds.start).maybeSingle(),
     ]);
-    for (const result of [categoriesResult, budgetResult, taxesResult, usageResult, scenariosResult, closureResult]) {
+    for (const result of [categoriesResult, budgetResult, taxesResult, scenariosResult, closureResult]) {
       if (result.error) throw result.error;
     }
     const budget = budgetResult.data ? numeric(budgetResult.data, ["revenue_target"]) as FinanceBudget : null;
@@ -347,7 +345,6 @@ export const AdminFinanceService = {
       budget,
       budgetItems,
       taxes: (taxesResult.data ?? []).map((row) => numeric(row, ["amount"]) as FinanceTaxRecord),
-      bunnyUsage: usageResult.data ? numeric(usageResult.data, ["storage_percent", "bandwidth_percent", "transformations_percent", "estimated_cost", "actual_cost"]) as FinanceBunnyUsage : null,
       scenarios: (scenariosResult.data ?? []).map((row) => numeric(row, ["total_vendors", "free_percent", "premium_percent", "elite_percent", "premium_price", "elite_price", "monthly_fixed_expenses"]) as FinanceScenario),
       closure: closureResult.data as FinanceClosure | null,
     };
@@ -523,16 +520,6 @@ export const AdminFinanceService = {
     if (error) throw error;
   },
 
-  async saveBunnyUsage(input: Omit<FinanceBunnyUsage, "id"> & { id?: string }) {
-    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
-    const payload = { month_start: input.month_start, storage_percent: input.storage_percent, bandwidth_percent: input.bandwidth_percent, transformations_percent: input.transformations_percent, estimated_cost: input.estimated_cost, actual_cost: input.actual_cost, notes: input.notes?.trim() || null, updated_by: userId };
-    const request = input.id
-      ? supabase.from("finance_bunny_usage").update(payload).eq("id", input.id)
-      : supabase.from("finance_bunny_usage").insert({ ...payload, created_by: userId });
-    const { error } = await request;
-    if (error) throw error;
-  },
-
   async saveScenario(input: FinanceScenarioInput) {
     const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
     const payload = { name: input.name.trim(), total_vendors: input.total_vendors, free_percent: input.free_percent, premium_percent: input.premium_percent, elite_percent: input.elite_percent, premium_price: input.premium_price, elite_price: input.elite_price, monthly_fixed_expenses: input.monthly_fixed_expenses, updated_by: userId };
@@ -564,7 +551,7 @@ export const AdminFinanceService = {
       if (refreshTimer) clearTimeout(refreshTimer);
       refreshTimer = setTimeout(onChange, 100);
     };
-    ["finance_transactions", "finance_budgets", "finance_budget_items", "finance_tax_records", "finance_bunny_usage", "finance_scenarios", "finance_monthly_closures", "finance_annual_tax_adjustments"].forEach((table) => {
+    ["finance_transactions", "finance_budgets", "finance_budget_items", "finance_tax_records", "finance_scenarios", "finance_monthly_closures", "finance_annual_tax_adjustments"].forEach((table) => {
       channel.on("postgres_changes", { event: "*", schema: "public", table }, scheduleRefresh);
     });
     channel.subscribe();

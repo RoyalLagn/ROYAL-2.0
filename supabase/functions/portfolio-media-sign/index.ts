@@ -115,18 +115,7 @@ Deno.serve(async (request) => {
       }, { headers: cors });
     }
 
-    // Unsigned preset mode
-    return Response.json({
-      provider: "cloudinary",
-      uploadMode: "unsigned",
-      uploadPreset,
-      cloudName,
-      folder,
-      public_id: assetId,
-      resourceType: kind,
-      remainingCapacity: 15 - currentCount,
-      reservationId,
-    }, { headers: cors });
+    throw new Error("Cloudinary signed uploads are not configured");
 
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Unable to sign upload" },

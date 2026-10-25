@@ -9,7 +9,7 @@ import {
   ArrowLeft, Check, ChevronDown, CircleAlert, FileText, ImagePlus, Trash2, X,
 } from "lucide-react-native";
 import {
-  MediaError, deleteOwnedBunnyUpload, pickAndUploadBusinessDocument, pickAndUploadImage,
+  MediaError, deleteOwnedMediaUpload, pickAndUploadBusinessDocument, pickImage,
   pickProfileImage, uploadImage as uploadManagedImage, type ProfileImageAsset,
   type UploadedBusinessDocument,
 } from "@/services/media";
@@ -293,6 +293,11 @@ export default function BecomeVendor() {
     return null;
   }, [form, locationValid, termsAccepted, uploading]);
 
+  const applicationFolder = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.user?.id ? `royallagn/applications/${session.user.id}` : "royallagn/general";
+  };
+
   const uploadImage = async (kind: "logo" | "cover") => {
     if (uploading) return;
     setUploading(kind);
@@ -301,12 +306,12 @@ export default function BecomeVendor() {
         const asset = await pickProfileImage();
         if (asset) setLogoEditorAsset(asset);
       } else {
-        const url = await pickAndUploadImage({ allowsEditing: true, aspect: [16, 9] });
-        if (url) {
-          const previousUrl = form.coverImageUrl;
-          update("coverImageUrl", url);
-          if (previousUrl && previousUrl !== url) await deleteOwnedBunnyUpload(previousUrl);
-        }
+        const image = await pickImage({ allowsEditing: true, aspect: [16, 9] });
+        if (!image) return;
+        const url = await uploadManagedImage(image, { folder: await applicationFolder() });
+        const previousUrl = form.coverImageUrl;
+        update("coverImageUrl", url);
+        if (previousUrl && previousUrl !== url) await deleteOwnedMediaUpload(previousUrl).catch(() => undefined);
       }
     } catch (error) {
       Alert.alert("Upload failed", error instanceof MediaError ? error.message : "Unable to upload image.");
@@ -318,10 +323,10 @@ export default function BecomeVendor() {
   const saveEditedLogo = async (asset: ProfileImageAsset) => {
     setUploading("logo");
     try {
-      const url = await uploadManagedImage(asset);
+      const url = await uploadManagedImage(asset, { folder: await applicationFolder() });
       const previousUrl = form.logoUrl;
       update("logoUrl", url);
-      if (previousUrl && previousUrl !== url) await deleteOwnedBunnyUpload(previousUrl);
+      if (previousUrl && previousUrl !== url) await deleteOwnedMediaUpload(previousUrl).catch(() => undefined);
       setLogoEditorAsset(null);
     } catch (error) {
       Alert.alert("Upload failed", error instanceof MediaError ? error.message : "Unable to upload the edited logo.");
@@ -334,7 +339,8 @@ export default function BecomeVendor() {
     if (uploading || documents.length >= 5) return;
     setUploading("document");
     try {
-      const document = await pickAndUploadBusinessDocument();
+      const { data: { session } } = await supabase.auth.getSession();
+      const document = await pickAndUploadBusinessDocument(session?.user?.id);
       if (document) setDocuments((current) => [...current, document]);
     } catch (error) {
       Alert.alert("Upload failed", error instanceof MediaError ? error.message : "Unable to upload document.");
@@ -531,9 +537,9 @@ export default function BecomeVendor() {
                 accessibilityRole="button"
                 accessibilityLabel={`Remove document ${document.name}`}
                 hitSlop={12}
-                onPress={() => void deleteOwnedBunnyUpload(document.url)
-                  .then(() => setDocuments((current) => current.filter((_, i) => i !== index)))
-                  .catch((error) => Alert.alert("Document not removed", error instanceof Error ? error.message : "Please try again."))}
+                onPress={() => void deleteOwnedMediaUpload(document.url)
+                  .catch(() => undefined)
+                  .then(() => setDocuments((current) => current.filter((_, i) => i !== index)))}
               ><Trash2 size={18} className="text-destructive" /></TouchableOpacity>
             </View>
           ))}

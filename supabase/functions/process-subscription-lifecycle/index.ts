@@ -1,5 +1,5 @@
 import { corsHeaders, json, requireEnv, serviceClient } from "../_shared/subscriptions.ts";
-import { deleteClipBunnyAssets } from "../_shared/bunnyClipMedia.ts";
+import { deleteClipMediaAssets } from "../_shared/clipMedia.ts";
 
 type PushJob = { notification_id: string; title: string; body: string; target_path: string; tokens: string[] };
 type DeleteJob = { clip_id: string; vendor_id: string; bunny_asset_id: string };
@@ -48,7 +48,7 @@ Deno.serve(async (request) => {
   for (const job of (deleteJobs ?? []) as DeleteJob[]) {
     let deletionError: string | null = null;
     try {
-      await deleteClipBunnyAssets(job.bunny_asset_id, {
+      await deleteClipMediaAssets(job.bunny_asset_id, {
         requestId: crypto.randomUUID(), clipId: job.clip_id, vendorId: job.vendor_id,
       });
     } catch (caught) {

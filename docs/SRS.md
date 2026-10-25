@@ -38,7 +38,7 @@ The supported clients are modern web browsers, Android, and iOS. The interface a
 | Vendor user | Authenticated user linked to a vendor workspace | Business-scoped |
 | Admin | Verified RoyalLagn operator | Privileged |
 | Field/marketing user | Admin-authorized CRM workspace participant | Privileged and workspace-scoped |
-| External provider | Supabase, Bunny.net, Razorpay, Expo notification service | Contracted system boundary |
+| External provider | Supabase, Cloudinary, Razorpay, Expo notification service | Contracted system boundary |
 
 ## 4. Functional requirements
 
@@ -141,7 +141,7 @@ The supported clients are modern web browsers, Android, and iOS. The interface a
 | CLIP-001 | Required | Public users MUST be able to browse the supported Clip feed and open vendor context from a Clip. |
 | CLIP-002 | Required | Vendors MUST be able to select, validate, upload, edit, list, and delete Clips within authorized limits. |
 | CLIP-003 | Required | Clip upload MUST use atomic reservation/commit behavior where provided so retries do not create duplicate quota use or orphaned records. |
-| CLIP-004 | Required | Video and thumbnail operations MUST use Bunny Stream/Storage through signed Edge Functions. |
+| CLIP-004 | Required | Video and thumbnail operations MUST use Cloudinary through signed Edge Functions. |
 | CLIP-005 | Required | Upload queues and drafts MUST expose recoverable state across ordinary navigation or retry scenarios supported by the platform. |
 | CLIP-006 | Required | Public engagement, saved state, analytics, and watch history MUST use the dedicated Clips domain services. |
 | CLIP-007 | Recommended | Feed retrieval SHOULD remain cursor-based or otherwise bounded as content volume grows. |
@@ -208,7 +208,7 @@ The supported clients are modern web browsers, Android, and iOS. The interface a
 | Supabase Postgres | System of record; access controlled through RLS, grants, RPCs, and append-only migrations. |
 | Supabase Realtime | Subscriptions update selected profiles, listings, enquiries, notifications, and domain state; clients remove channels on cleanup. |
 | Supabase Edge Functions | Privileged media, payment, application, lookup, lifecycle, and notification operations execute server-side. |
-| Bunny.net | Stores and delivers supported images/videos; credentials and destructive operations are never exposed as public client configuration. |
+| Cloudinary | Stores and delivers supported images/videos; credentials and destructive operations are never exposed as public client configuration. |
 | Razorpay | Native/client checkout is paired with server-created orders, signature verification, and webhook processing. |
 | Expo Notifications | Registers supported devices and delivers admin-created messages; inbox persistence remains the durable app representation where implemented. |
 | Vercel | Hosts the exported web SPA with route rewriting to the application entry point. |
@@ -240,7 +240,7 @@ All database changes MUST be added as new timestamped files in `supabase/migrati
 
 | ID | Requirement |
 |---|---|
-| NFR-SEC-001 | Client configuration MAY contain the Supabase URL and anonymous key, but MUST NOT contain service-role, Bunny secret, Razorpay secret, or other privileged credentials. |
+| NFR-SEC-001 | Client configuration MAY contain the Supabase URL and anonymous key, but MUST NOT contain service-role, Cloudinary secret, Razorpay secret, or other privileged credentials. |
 | NFR-SEC-002 | RLS and server authorization MUST remain the final access boundary even when the client hides or guards a route. |
 | NFR-SEC-003 | Inputs crossing a trust boundary MUST be validated server-side. |
 | NFR-SEC-004 | Logs and user-visible errors MUST NOT disclose credentials, access tokens, or unnecessary private contact data. |

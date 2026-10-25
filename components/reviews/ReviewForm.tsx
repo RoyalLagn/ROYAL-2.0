@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, TextInput, View } from "react-native";
 import type { ReviewDraft } from "./types";
 import { reviewPalette } from "./types";
 import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
@@ -7,8 +7,8 @@ import { typeStyles, typeScale, typeLeading } from "@/constants/typography";
 // [...]}` props on Android; InteropSafePressable resolves it first.
 import Pressable from "@/components/InteropSafePressable";
 
-export type ReviewFormProps = { initialValue?: Partial<ReviewDraft>; dark?: boolean; submitting?: boolean; error?: string | null; onSubmit: (draft: ReviewDraft) => void | Promise<void>; onCancel?: () => void; photos: string[]; submitLabel?: string };
-export default function ReviewForm({ initialValue, dark = false, submitting = false, error, onSubmit, onCancel, photos, submitLabel }: ReviewFormProps) {
+export type ReviewFormProps = { initialValue?: Partial<ReviewDraft>; dark?: boolean; submitting?: boolean; error?: string | null; onSubmit: (draft: ReviewDraft) => void | Promise<void>; onCancel?: () => void; photos: string[]; submitLabel?: string; onAddPhotos?: () => void; onRemovePhoto?: (url: string) => void; uploadingPhotos?: boolean };
+export default function ReviewForm({ initialValue, dark = false, submitting = false, error, onSubmit, onCancel, photos, submitLabel, onAddPhotos, onRemovePhoto, uploadingPhotos }: ReviewFormProps) {
   const c = reviewPalette(dark);
   const [rating, setRating] = useState(initialValue?.rating ?? 0);
   const [text, setText] = useState(initialValue?.text ?? "");
@@ -23,9 +23,16 @@ export default function ReviewForm({ initialValue, dark = false, submitting = fa
     <Text style={[styles.label, { color: c.text }]}>Your rating</Text>
     <View accessibilityRole="radiogroup" accessibilityLabel="Review rating" style={styles.stars}>{([1,2,3,4,5] as const).map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ checked: rating === value, disabled: submitting }} accessibilityLabel={`${value} stars`} disabled={submitting} onPress={() => setRating(value)} hitSlop={7}><Text style={[styles.star, { color: value <= rating ? c.gold : c.inactiveStar }]}>★</Text></Pressable>)}</View>
     <TextInput accessibilityLabel="Review comment" accessibilityHint="Describe your experience with this vendor" accessibilityState={{ disabled: submitting }} value={text} onChangeText={setText} editable={!submitting} maxLength={2000} multiline placeholder="Write a comment…" placeholderTextColor={c.muted} style={[input, styles.textarea]} />
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+      {photos.map((url, index) => <View key={url}>
+        <Image source={{ uri: url }} style={{ width: 72, height: 72, borderRadius: 10 }} />
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove review photo ${index + 1}`} disabled={submitting || uploadingPhotos} onPress={() => onRemovePhoto?.(url)}><Text style={{ color: c.destructive }}>Remove</Text></Pressable>
+      </View>)}
+    </View>
+    {onAddPhotos && photos.length < 6 ? <Pressable accessibilityRole="button" accessibilityLabel="Add review photos" disabled={submitting || uploadingPhotos} onPress={onAddPhotos} style={[styles.cancel, { borderColor: c.border }]}>{uploadingPhotos ? <ActivityIndicator color={c.pink} /> : <Text style={{ color: c.pink }}>Add photos ({photos.length}/6)</Text>}</Pressable> : null}
     {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.error, { color: c.destructive }]}>{error}</Text> : null}
     <View style={styles.buttons}>{onCancel ? <Pressable accessibilityRole="button" accessibilityState={{ disabled: submitting }} disabled={submitting} onPress={onCancel} style={[styles.cancel, { borderColor: c.border }]}><Text style={[styles.cancelText, { color: c.muted }]}>Cancel</Text></Pressable> : null}
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: !valid || submitting, busy: submitting }} accessibilityLabel={submitLabel ?? (initialValue ? "Update review" : "Submit review")} disabled={!valid || submitting} onPress={() => {
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: !valid || submitting || uploadingPhotos, busy: submitting }} accessibilityLabel={submitLabel ?? (initialValue ? "Update review" : "Submit review")} disabled={!valid || submitting || uploadingPhotos} onPress={() => {
         const comment = text.trim();
         onSubmit({ rating, title: initialValue?.title?.trim() || comment.slice(0, 100), text: comment, photos });
       }} style={({ pressed }) => [styles.submit, { backgroundColor: c.pink, opacity: valid && !submitting ? 1 : .45 }, pressed && styles.pressed]}>{submitting ? <ActivityIndicator color={c.onPink} /> : <Text style={[styles.submitText, { color: c.onPink }]}>{submitLabel ?? (initialValue ? "Update Review" : "Submit Review")}</Text>}</Pressable>

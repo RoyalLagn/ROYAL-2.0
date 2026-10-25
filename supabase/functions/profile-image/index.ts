@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { destroyCloudinaryAsset } from "../_shared/cloudinaryAdmin.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -85,10 +86,9 @@ Deno.serve(async (request) => {
               api_key: apiKey,
               signature,
             });
-            await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, {
-              method: "POST",
-              body: deleteBody,
-            });
+            await destroyCloudinaryAsset(publicId, "image");
+          } else {
+            throw new Error("Cloudinary deletion is not configured");
           }
           return Response.json({ ok: true, managed: true, provider: "cloudinary" }, { headers: cors });
         }
@@ -135,14 +135,7 @@ Deno.serve(async (request) => {
       }, { headers: cors });
     }
 
-    return Response.json({
-      provider: "cloudinary",
-      uploadMode: "unsigned",
-      uploadPreset: uploadPreset || "royallagn_portfolio",
-      cloudName,
-      folder,
-      public_id: assetId,
-    }, { headers: cors });
+    throw new Error("Cloudinary signed uploads are not configured");
 
   } catch (error) {
     return Response.json(

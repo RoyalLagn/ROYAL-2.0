@@ -137,7 +137,7 @@ Supabase Postgres is the system of record. Categories, supported locations, vend
 
 ### 8.3 Media
 
-Bunny.net Storage/CDN stores images and documents, while Bunny Stream stores and adaptively delivers video. Sensitive signing and deletion operations execute through Supabase Edge Functions. Upload UI must preserve aspect ratio, reject unsupported data, and recover cleanly from network or processing failure.
+Cloudinary stores and delivers images, documents, and video. Sensitive signing and deletion operations execute through Supabase Edge Functions. Upload UI must preserve aspect ratio, reject unsupported data, and recover cleanly from network or processing failure.
 
 ### 8.4 Payments
 

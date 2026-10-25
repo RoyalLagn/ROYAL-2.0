@@ -19,6 +19,8 @@ import {
 import {
   deleteReviewPhoto,
   reviewPhotoPublicId,
+  pickReviewPhotos,
+  uploadReviewPhoto,
 } from "@/services/media";
 import { useReviewRatings } from "@/context/ReviewRatingsContext";
 import VendorReviewsSection from "./VendorReviewsSection";
@@ -96,6 +98,7 @@ export default function ConnectedVendorReviews({
   const [editingReview, setEditingReview] = useState<Review | null>(null);
   const [reviewPhotos, setReviewPhotos] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [authenticated, setAuthenticated] = useState(false);
   const originalPhotos = useRef<string[]>([]);
@@ -186,11 +189,40 @@ export default function ConnectedVendorReviews({
   }, [router, vendorKey, vendorSlug]);
 
   const closeForm = useCallback(() => {
+    if (uploadingPhotos || submitting) return;
+    for (const url of reviewPhotos.filter(url => !originalPhotos.current.includes(url))) {
+      const id = reviewPhotoPublicId(url);
+      if (id) void deleteReviewPhoto(id).catch(() => setFormError("Unable to remove an unsaved photo. Try again."));
+    }
     setShowForm(false);
     setEditingReview(null);
     setReviewPhotos([]);
     setFormError(null);
-  }, []);
+  }, [reviewPhotos, submitting, uploadingPhotos]);
+
+  const addPhotos = async () => {
+    setUploadingPhotos(true);
+    setFormError(null);
+    try {
+      const assets = await pickReviewPhotos(6 - reviewPhotos.length);
+      for (const asset of assets.slice(0, 6 - reviewPhotos.length)) {
+        const uploaded = await uploadReviewPhoto(asset);
+        setReviewPhotos(current => [...current, uploaded.secureUrl]);
+      }
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Unable to upload review photos.");
+    } finally { setUploadingPhotos(false); }
+  };
+
+  const removePhoto = async (url: string) => {
+    try {
+      if (!originalPhotos.current.includes(url)) {
+        const id = reviewPhotoPublicId(url);
+        if (id) await deleteReviewPhoto(id);
+      }
+      setReviewPhotos(current => current.filter(item => item !== url));
+    } catch (error) { setFormError(error instanceof Error ? error.message : "Unable to remove photo."); }
+  };
 
   const submitReview = useCallback(async (draft: ReviewDraft) => {
     setSubmitting(true);
@@ -207,7 +239,7 @@ export default function ConnectedVendorReviews({
         removed.map((url) => {
           const publicId = reviewPhotoPublicId(url);
           // The saved review no longer references removed photos. Ownership is
-          // still enforced by the user's Bunny folder prefix server-side.
+          // still enforced by the user's Cloudinary folder prefix server-side.
           return publicId ? deleteReviewPhoto(publicId) : Promise.resolve();
         })
       );
@@ -293,6 +325,9 @@ export default function ConnectedVendorReviews({
       submitting={submitting}
       formError={formError}
       reviewPhotos={reviewPhotos}
+      onAddPhotos={() => void addPhotos()}
+      onRemovePhoto={url => void removePhoto(url)}
+      uploadingPhotos={uploadingPhotos}
       canWriteReview
       onWriteReview={beginReview}
       onCloseForm={closeForm}

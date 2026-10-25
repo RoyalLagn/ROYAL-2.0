@@ -24,10 +24,10 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
 // Logo and brand: the vendor's logo image, the only brand-media field on
 // the vendor record itself (portfolio photos/videos and Clips each have
-// their own dedicated management screens). Uploads are staged to
-// Bunny immediately, but the vendor row is only updated -- and the
-// previous image only cleaned up -- once "Save" succeeds, so a cancelled
-// edit never leaves a half-applied change.
+// their own dedicated management screens). Uploads go to Cloudinary
+// immediately, but the vendor row is only updated -- and the previous
+// image only cleaned up -- once "Save" succeeds, so a cancelled edit
+// never leaves a half-applied change.
 export default function VendorEditBrand() {
   const { colorScheme } = useAppTheme();
   const colors = vendorTheme[colorScheme];
@@ -41,8 +41,9 @@ export default function VendorEditBrand() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const mounted = useRef(true);
+  const pendingLogos = useRef(new Map<string, string>());
 
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; for (const [url, vendorId] of pendingLogos.current) void deleteManagedProfileImage({ kind: "vendor", vendorId }, url).catch(() => undefined); }; }, []);
 
   useEffect(() => {
     if (!data.vendor) return;
@@ -72,7 +73,12 @@ export default function VendorEditBrand() {
     setUploadingLogo(true);
     try {
       const url = await uploadProfileImage({ kind: "vendor", vendorId: data.vendor.id }, asset);
-      if (!mounted.current) return;
+      if (!mounted.current) { await deleteManagedProfileImage({ kind: "vendor", vendorId: data.vendor.id }, url); return; }
+      for (const [previous, vendorId] of pendingLogos.current) {
+        await deleteManagedProfileImage({ kind: "vendor", vendorId }, previous);
+        pendingLogos.current.delete(previous);
+      }
+      pendingLogos.current.set(url, data.vendor.id);
       setSaved(false);
       setSaveError("");
       setLogoUrl(url);
@@ -91,6 +97,7 @@ export default function VendorEditBrand() {
     const nextLogoUrl = logoUrl.trim() || null;
     try {
       await updateVendorPublicProfile({ logo_url: nextLogoUrl });
+      if (nextLogoUrl) pendingLogos.current.delete(nextLogoUrl);
       if (!mounted.current) return;
       invalidatePublicVendorCache();
       await refresh();
@@ -107,7 +114,7 @@ export default function VendorEditBrand() {
       if (!mounted.current) return;
       // A staged-but-unsaved upload is dropped from the vendor record on
       // failure so the form reflects only what is actually persisted; the
-      // orphaned Bunny asset is cleaned up rather than left dangling.
+      // orphaned Cloudinary asset is cleaned up rather than left dangling.
       if (nextLogoUrl && nextLogoUrl !== persistedLogoUrl) {
         await deleteManagedProfileImage({ kind: "vendor", vendorId: data.vendor.id }, nextLogoUrl).catch(() => undefined);
         setLogoUrl(persistedLogoUrl);

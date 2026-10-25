@@ -14,7 +14,7 @@ import {
   User,
   UtensilsCrossed,
 } from "lucide-react-native";
-import categoryImageUrls from "@/data/categoryImages.bunny.json";
+import categoryImageUrls from "@/data/categoryImages.cloudinary.json";
 
 export type MarketplaceCategory = {
   slug: string;

@@ -40,6 +40,8 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
 
   const loadPublicProfile = useCallback(async (nextSession: Session | null) => {
     const requestSequence = ++profileRequestSequence.current;
+    setLoading(true);
+    try {
     if (nextSession && isRecoverySessionActive()) {
       sessionRef.current = null;
       profileRef.current = null;
@@ -101,6 +103,9 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
     const nextProfile = data as PublicProfile;
     profileRef.current = nextProfile;
     setProfile(nextProfile);
+    } finally {
+      if (requestSequence === profileRequestSequence.current) setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -118,10 +123,8 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
         if (!sessionRef.current) {
           setSession(null);
           setProfile(null);
+          setLoading(false);
         }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
       });
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
@@ -140,9 +143,7 @@ export function PublicAuthProvider({ children }: { children: React.ReactNode }) 
       // race when a browser tab or native app returns to the foreground.
       setTimeout(() => {
         if (!active) return;
-        void loadPublicProfile(nextSession).finally(() => {
-          if (active) setLoading(false);
-        });
+        void loadPublicProfile(nextSession);
       }, 0);
     });
 

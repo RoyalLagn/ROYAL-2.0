@@ -9,7 +9,7 @@
 - The existing `subscriptions` table is a legacy table with a plan name, four statuses, and date-only periods. It remains in place for backward compatibility.
 - `VendorSubscription.tsx`, `subscriptions-admin.tsx`, and `payments-admin.tsx` currently contain hardcoded or placeholder subscription UI and are the intended replacement points.
 - Vendor notifications already persist in `vendor_notifications` and are displayed by `VendorNotifications.tsx`.
-- Clip and Bunny authorization use Supabase Edge Functions. These functions are the server-side enforcement points for paid upload features.
+- Clip and Cloudinary authorization use Supabase Edge Functions. These functions are the server-side enforcement points for paid upload features.
 - Portfolio, clip, vendor-profile, and service writes also use Supabase RLS and can be protected centrally at the database layer.
 
 ## Subscription architecture
@@ -31,7 +31,7 @@ The implementation adds a parallel, normalized subscription domain without delet
 
 - Public users remain free and are never evaluated by subscription guards.
 - Public vendor profiles, existing published portfolios, and public clips remain visible after vendor expiry.
-- Existing authentication, approval, vendor workspace, Bunny assets, and navigation routes are preserved.
+- Existing authentication, approval, vendor workspace, Cloudinary assets, and navigation routes are preserved.
 - Legacy `subscriptions` rows are imported once as historical/admin-granted access when the new schema is deployed.
 - Razorpay secrets and the Supabase service-role key exist only in Edge Function secrets.
 - Razorpay credentials select the provider environment; the client receives only the public checkout key returned by the order function.
@@ -40,7 +40,7 @@ The implementation adds a parallel, normalized subscription domain without delet
 
 - Clip insert/update and clip upload signing: `upload_clips`.
 - Vendor profile and service writes: `edit_vendor_profile`.
-- Portfolio media writes and Bunny signing: `upload_gallery`.
+- Portfolio media writes and Cloudinary signing: `upload_gallery`.
 - Album writes and hero-gallery changes: `manage_albums`.
 - Analytics reads: `view_analytics`.
 - Dashboard premium actions and future paid routes: `vendor_dashboard_actions`.

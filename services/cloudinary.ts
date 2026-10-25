@@ -76,7 +76,10 @@ export function getCloudinaryUploadPreset(): string {
  */
 export function isCloudinaryUrl(url: string | null | undefined): boolean {
   if (!url || typeof url !== "string") return false;
-  return /res\.cloudinary\.com/i.test(url);
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === "res.cloudinary.com";
+  } catch { return false; }
 }
 
 /**
@@ -88,7 +91,7 @@ export function extractCloudinaryPublicId(url: string | null | undefined): strin
   if (!url || typeof url !== "string") return null;
   try {
     const parsed = new URL(url);
-    if (!/res\.cloudinary\.com/i.test(parsed.hostname)) return null;
+    if (!isCloudinaryUrl(url)) return null;
 
     const pathname = parsed.pathname;
     const uploadIndex = pathname.indexOf("/upload/");
@@ -114,7 +117,7 @@ export function extractCloudinaryPublicId(url: string | null | undefined): strin
 
     const fullAssetPath = decodeURIComponent(assetSegments.join("/"));
     // Strip file extension
-    return fullAssetPath.replace(/\.[^/.]+$/, "");
+    return pathname.includes("/raw/upload/") ? fullAssetPath : fullAssetPath.replace(/\.[^/.]+$/, "");
   } catch {
     return null;
   }
@@ -281,6 +284,7 @@ function uploadViaXHR(
     const xhr = new XMLHttpRequest();
 
     xhr.open("POST", url);
+    xhr.timeout = 180_000;
 
     if (onProgress && xhr.upload) {
       xhr.upload.onprogress = (event) => {
@@ -374,7 +378,8 @@ export async function uploadImageToCloudinary(
     );
   }
 
-  const endpoint = `https://api.cloudinary.com/v1_1/${options.cloudName || CLOUD_NAME}/image/upload`;
+  const resourceType = options.resourceType || "image";
+  const endpoint = `https://api.cloudinary.com/v1_1/${options.cloudName || CLOUD_NAME}/${resourceType}/upload`;
   const formData = new FormData();
 
   await appendFileToFormData(formData, file.uri, file.name, file.mimeType || "image/jpeg");
@@ -422,11 +427,11 @@ export async function uploadImageToCloudinary(
     height,
     format,
     bytes,
-    resourceType: "image",
-    thumbnailUrl: getCloudinaryThumbnail(secureUrl, 400, 300),
-    optimizedUrl: getCloudinaryOptimized(secureUrl, 1200),
-    heroUrl: getCloudinaryHero(secureUrl, 1600),
-    fullscreenUrl: getCloudinaryFullscreen(secureUrl, 2200),
+    resourceType,
+    thumbnailUrl: resourceType === "image" ? getCloudinaryThumbnail(secureUrl, 400, 300) : undefined,
+    optimizedUrl: resourceType === "image" ? getCloudinaryOptimized(secureUrl, 1200) : secureUrl,
+    heroUrl: resourceType === "image" ? getCloudinaryHero(secureUrl, 1600) : secureUrl,
+    fullscreenUrl: resourceType === "image" ? getCloudinaryFullscreen(secureUrl, 2200) : secureUrl,
   };
 }
 

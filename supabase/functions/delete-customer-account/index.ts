@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
-import { bunnyStorageConfig, presignBunnyObject } from "../_shared/bunnyS3.ts";
+import { destroyCloudinaryAsset, extractCloudinaryPublicId } from "../_shared/cloudinaryAdmin.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -29,97 +29,34 @@ function hasRecentEmailOtp(token: string) {
   });
 }
 
-async function sha1(value: string) {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-1", bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function extractCloudinaryPublicId(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    if (!/res\.cloudinary\.com/i.test(parsed.hostname)) return null;
-    const pathname = parsed.pathname;
-    const uploadIndex = pathname.indexOf("/upload/");
-    if (uploadIndex === -1) return null;
-    const pathAfterUpload = pathname.slice(uploadIndex + "/upload/".length);
-    const segments = pathAfterUpload.split("/");
-    const versionIndex = segments.findIndex((seg) => /^v\d+$/.test(seg));
-    const assetSegments = versionIndex !== -1 ? segments.slice(versionIndex + 1) : segments.filter((s) => !s.includes(",") && !/^[cwghqfevdprst]_/.test(s));
-    if (!assetSegments.length) return null;
-    return decodeURIComponent(assetSegments.join("/")).replace(/\.[^/.]+$/, "");
-  } catch {
-    return null;
-  }
-}
-
-async function destroyCloudinaryAsset(publicId: string) {
-  const cloudName = Deno.env.get("CLOUDINARY_CLOUD_NAME") || "hp6vu8o9";
-  const apiKey = Deno.env.get("CLOUDINARY_API_KEY");
-  const apiSecret = Deno.env.get("CLOUDINARY_API_SECRET");
-  if (!apiSecret || !apiKey || !cloudName) return;
-  const timestamp = Math.floor(Date.now() / 1000);
-  const signature = await sha1(`invalidate=true&public_id=${publicId}&timestamp=${timestamp}${apiSecret}`);
-  const body = new URLSearchParams({
-    public_id: publicId,
-    timestamp: String(timestamp),
-    invalidate: "true",
-    api_key: apiKey,
-    signature,
-  });
-  await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, {
-    method: "POST",
-    body,
-  }).catch(() => undefined);
-}
-
 async function deleteProfileImage(profileImage: string | null, userId: string) {
   if (!profileImage) return;
   try {
-    const parsed = new URL(profileImage);
-    if (/res\.cloudinary\.com/i.test(parsed.hostname)) {
-      const publicId = extractCloudinaryPublicId(profileImage);
-      if (publicId && publicId.startsWith(`royallagn/profiles/${userId}/`)) {
-        await destroyCloudinaryAsset(publicId);
-      }
-      return;
-    }
-    const bunny = bunnyStorageConfig();
-    if (parsed.hostname === bunny.cdnHostname) {
-      const objectKey = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
-      if (!objectKey.startsWith(`royallagn/profiles/${userId}/`) || objectKey.includes("..")) return;
-      const signed = await presignBunnyObject("DELETE", objectKey, 60);
-      const deletion = await fetch(signed.uploadUrl, { method: "DELETE" });
-      if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny profile image deletion failed");
-      return;
+    const publicId = extractCloudinaryPublicId(profileImage);
+    if (publicId && publicId.startsWith(`royallagn/profiles/${userId}/`)) {
+      await destroyCloudinaryAsset(publicId);
     }
   } catch (error) {
-    if (error instanceof Error && error.message.includes("Bunny profile")) throw error;
+    console.error("[delete-customer-account] media cleanup skipped", {
+      kind: "profile",
+      message: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
 async function deleteReviewImages(urls: string[], userId: string) {
   if (urls.length === 0) return;
-  const bunny = bunnyStorageConfig();
   for (const value of urls) {
-    let parsed: URL;
-    try { parsed = new URL(value); } catch { continue; }
-    if (/res\.cloudinary\.com/i.test(parsed.hostname)) {
+    try {
       const publicId = extractCloudinaryPublicId(value);
       if (publicId && publicId.startsWith(`royallagn/reviews/${userId}/`)) {
         await destroyCloudinaryAsset(publicId);
       }
-      continue;
-    }
-    if (parsed.hostname !== bunny.cdnHostname) continue;
-    const objectKey = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
-    if (!objectKey.startsWith(`royallagn/reviews/${userId}/`) || objectKey.includes("..")) continue;
-    try {
-      const signed = await presignBunnyObject("DELETE", objectKey, 60);
-      const deletion = await fetch(signed.uploadUrl, { method: "DELETE" });
-      if (!deletion.ok && deletion.status !== 404) throw new Error("Bunny review image deletion failed");
-    } catch {
-      // Best-effort cleanup
+    } catch (error) {
+      console.error("[delete-customer-account] media cleanup skipped", {
+        kind: "review",
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 }
@@ -182,23 +119,11 @@ Deno.serve(async (request) => {
       .from("reviews")
       .select("image_urls")
       .eq("profile_id", user.id);
-    if (reviewsError) {
-      console.error("[delete-customer-account] review media lookup skipped", {
-        requestId,
-        message: reviewsError.message,
-      });
-    }
+    if (reviewsError) throw reviewsError;
 
     stage = "delete_media";
-    try {
-      await deleteProfileImage(profile.profile_image, user.id);
-      await deleteReviewImages((reviews ?? []).flatMap((row) => row.image_urls ?? []), user.id);
-    } catch (mediaError) {
-      console.error("[delete-customer-account] media cleanup skipped", {
-        requestId,
-        message: mediaError instanceof Error ? mediaError.message : String(mediaError),
-      });
-    }
+    await deleteProfileImage(profile.profile_image, user.id);
+    await deleteReviewImages((reviews ?? []).flatMap((row) => row.image_urls ?? []), user.id);
 
     stage = "list_supabase_storage";
     const { data: ownedStorageObjects, error: ownedStorageError } = await userClient

@@ -28,13 +28,13 @@ flowchart LR
     Admin[Admin or field user] --> Client
     Client --> Supabase[Supabase Auth, Postgres, Realtime and Edge Functions]
     Client --> ExpoPush[Expo notification service]
-    Supabase --> Bunny[Bunny Storage, CDN and Stream]
+    Supabase --> Cloudinary[Cloudinary media storage and delivery]
     Supabase --> Razorpay[Razorpay payments]
     Supabase --> ExpoPush
     Client --> Vercel[Vercel-hosted web export]
 ```
 
-The Expo application is an untrusted client. Supabase Auth establishes identity; Postgres RLS, grants, RPCs, and Edge Functions enforce authorization. Bunny and Razorpay secrets exist only in server-side environments.
+The Expo application is an untrusted client. Supabase Auth establishes identity; Postgres RLS, grants, RPCs, and Edge Functions enforce authorization. Cloudinary and Razorpay secrets exist only in server-side environments.
 
 ## 3. Technology baseline
 
@@ -45,7 +45,7 @@ The Expo application is an untrusted client. Supabase Auth establishes identity;
 | Styling | NativeWind 4, Tailwind 3, shared design tokens/components |
 | Client state | React Context and domain hooks |
 | Backend | Supabase Auth, Postgres, Realtime, Edge Functions |
-| Media | Expo Image Picker/Manipulator, Bunny Storage/CDN/Stream, native view capture, web canvas |
+| Media | Expo Image Picker/Manipulator, Cloudinary, native view capture, web canvas |
 | Video | Expo Video plus the self-contained `clips/` domain |
 | Payments | Razorpay client SDK with server-created and verified transactions |
 | Notifications | Expo Notifications plus Supabase inbox/delivery records |
@@ -69,7 +69,7 @@ flowchart TB
     Client --> DB[Postgres with RLS and RPCs]
     Client --> Realtime[Realtime channels]
     Client --> Functions[Edge Functions]
-    Functions --> Bunny[Bunny Storage and Stream]
+    Functions --> Cloudinary[Cloudinary]
     Functions --> Razorpay[Razorpay]
     Functions --> Push[Expo push]
 ```
@@ -116,7 +116,7 @@ Hooks compose services for screens and components. A new global state library mu
 
 Three larger domains are deliberately self-contained:
 
-- `clips/`: feed, upload queue, compression, Bunny Stream, moderation, engagement, watch history, and types;
+- `clips/`: feed, upload queue, compression, Cloudinary media, moderation, engagement, watch history, and types;
 - `subscriptions/`: plans, entitlements, lifecycle, payment integration, caches, validation, and types;
 - `locations/`: managed geography, selectors, validation, caching, and types.
 
@@ -211,16 +211,16 @@ flowchart LR
     Transform --> Preview[Exact square preview]
     Preview --> Render[1024 x 1024 PNG render]
     Render --> Function[profile-image Edge Function]
-    Function --> Bunny[Bunny asset]
+    Function --> Cloudinary[Cloudinary asset]
     Function --> DB[Persisted profile reference]
     DB --> Cards[Vendor and public cards]
 ```
 
-`components/vendor/SquareImageEditor.tsx` uses contain-first geometry so the full logo/image is initially visible. Web renders asynchronously to a canvas; native captures the rendered square. Both paths preserve proportions and intentional whitespace. Rotation uses Expo Image Manipulator. Upload and profile persistence use Bunny-backed media/profile services.
+`components/vendor/SquareImageEditor.tsx` uses contain-first geometry so the full logo/image is initially visible. Web renders asynchronously to a canvas; native captures the rendered square. Both paths preserve proportions and intentional whitespace. Rotation uses Expo Image Manipulator. Upload and profile persistence use Cloudinary-backed media/profile services.
 
 ### 7.4 Portfolio and gallery
 
-Vendor portfolio services coordinate albums, assets, public visibility, and Bunny paths. Remote deletion uses privileged signing/deletion functions. Database records must not point permanently to successfully deleted remote assets, and failed remote deletion must produce a recoverable state.
+Vendor portfolio services coordinate albums, assets, public visibility, and Cloudinary paths. Remote deletion uses privileged signing/deletion functions. Database records must not point permanently to successfully deleted remote assets, and failed remote deletion must produce a recoverable state.
 
 ### 7.5 Clips
 
@@ -279,7 +279,7 @@ The client may receive `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON
 
 ### 8.2 Server-only configuration
 
-Bunny API secrets, Razorpay secrets, Supabase service-role keys, push-provider credentials, and optional `DATA_GOV_IN_API_KEY`/`DATA_GOV_IN_PINCODE_RESOURCE_ID` values belong in Edge Function/project secrets. They must never use an `EXPO_PUBLIC_` prefix or be committed.
+Cloudinary API secrets, Razorpay secrets, Supabase service-role keys, push-provider credentials, and optional `DATA_GOV_IN_API_KEY`/`DATA_GOV_IN_PINCODE_RESOURCE_ID` values belong in Edge Function/project secrets. They must never use an `EXPO_PUBLIC_` prefix or be committed.
 
 ### 8.3 Edge Functions
 

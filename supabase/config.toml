@@ -273,7 +273,7 @@ verify_jwt = true
 # Keep platform JWT verification on; the function also re-validates the user
 # access token, requires profiles.role in (admin, super_admin) plus aal2,
 # resolves the clip's owning vendor server-side (never trusted from the
-# client), notifies that vendor, deletes the Bunny video/thumbnail, then
+# client), notifies that vendor, deletes Cloudinary clip media, then
 # permanently deletes the clip row via admin_hard_delete_clip().
 [functions.admin-delete-clip]
 verify_jwt = true
@@ -435,9 +435,6 @@ verify_jwt = true
 [functions.admin-process-vendor-deletion]
 verify_jwt = true
 
-[functions.bunny-media-sign]
-verify_jwt = true
-
 [functions.clip-upload-sign]
 verify_jwt = true
 
@@ -450,10 +447,22 @@ verify_jwt = true
 [functions.portfolio-media-delete]
 verify_jwt = true
 
-[functions.bunny-stream-upload]
+[functions.admin-media-delete]
 verify_jwt = true
 
-[functions.bunny-stream-status]
+[functions.user-media-delete]
+verify_jwt = true
+
+[functions.media-upload-sign]
+verify_jwt = true
+
+[functions.profile-image]
+verify_jwt = true
+
+[functions.review-photo-sign]
+verify_jwt = true
+
+[functions.review-photo-delete]
 verify_jwt = true
 
 # [edge_runtime.secrets]

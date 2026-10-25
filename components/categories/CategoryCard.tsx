@@ -76,6 +76,9 @@ function CategoryCard({ category, dark, compact, onPress }: CategoryCardProps) {
           fallbackSource={category.fallbackImage}
           debugLabel={`${category.name} category`}
           resizeMode="cover"
+          deliveryWidth={imageWidth}
+          deliveryHeight={cardHeight}
+          deliveryCrop="fill"
           style={{ width: imageWidth, height: cardHeight }}
         />
       </View>

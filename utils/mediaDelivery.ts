@@ -63,7 +63,6 @@ const PRESET_CONFIGS: Record<MediaDeliveryPreset, CloudinaryTransformOptions> = 
  * Transforms an image URL for optimal delivery.
  * Supports:
  * - Cloudinary URLs (injects dynamic transformation parameters)
- * - Legacy Bunny URLs (returns intact during migration)
  * - Local / data / blob / other URLs (passes through safely)
  */
 export function mediaDeliveryUrl(
@@ -122,7 +121,6 @@ export function mediaDeliveryUrl(
     return buildCloudinaryImageUrl(trimmed, transformOptions);
   }
 
-  // Legacy Bunny or external third-party URL
   return trimmed;
 }
 

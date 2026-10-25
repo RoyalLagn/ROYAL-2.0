@@ -56,7 +56,7 @@ export type DashboardHealth = {
   database: HealthState;
   authentication: HealthState;
   realtime: HealthState;
-  bunnyMedia: HealthState;
+  mediaStorage: HealthState;
   smtp: HealthState;
   lastCheckedAt: string;
 };

@@ -43,6 +43,7 @@ dist-web/
 /blob-report/
 /playwright/.cache/
 /.playwright-mcp/
+/.playwright-cli/
 /*-production.png
 /*-desktop.png
 /*-mobile.png

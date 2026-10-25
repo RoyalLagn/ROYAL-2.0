@@ -8,7 +8,7 @@ export function PriorityAlerts({ statistics, health }: { statistics: DashboardSt
       ? ["Warning", `${statistics.pendingApplications} vendor approval${statistics.pendingApplications === 1 ? "" : "s"} waiting.`]
       : null,
     health.smtp === "unavailable" ? ["Warning", "SMTP health endpoint is unavailable."] : null,
-    health.bunnyMedia === "unavailable" ? ["Warning", "Bunny media configuration is missing."] : null,
+    health.mediaStorage === "unavailable" ? ["Warning", "Cloudinary media configuration is missing."] : null,
     health.realtime === "unavailable" ? ["Critical", "Realtime is disconnected."] : null,
     health.database === "unavailable" ? ["Critical", "Database health check failed."] : null,
   ].filter(Boolean) as ["Critical" | "Warning", string][];

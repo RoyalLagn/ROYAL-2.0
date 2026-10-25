@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { deleteClipBunnyAssets, fetchWithTimeout } from "../_shared/bunnyClipMedia.ts";
+import { deleteClipMediaAssets, fetchWithTimeout } from "../_shared/clipMedia.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -41,7 +41,7 @@ Deno.serve(async (request) => {
       publicId, publicIdExists: true,
     });
 
-    await deleteClipBunnyAssets(publicId, { requestId, clipId: clipId ?? null, vendorId: ownedVendorId ?? null });
+    await deleteClipMediaAssets(publicId, { requestId, clipId: clipId ?? null, vendorId: ownedVendorId ?? null });
 
     if (deleteClipRecord) {
       const { error: deleteError } = await supabase.rpc("vendor_soft_delete_clip", { target_clip_id: clipId });

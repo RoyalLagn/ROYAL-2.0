@@ -74,14 +74,7 @@ Deno.serve(async (request) => {
       }, { headers: cors });
     }
 
-    return Response.json({
-      provider: "cloudinary",
-      uploadMode: "unsigned",
-      uploadPreset: uploadPreset || "royallagn_portfolio",
-      cloudName,
-      folder,
-      public_id: assetId,
-    }, { headers: cors });
+    throw new Error("Cloudinary signed uploads are not configured");
 
   } catch (error) {
     return Response.json(

@@ -94,7 +94,7 @@ Deno.serve(async (request) => {
         throw new Error(result?.error?.message || "Cloudinary deletion failed");
       }
     } else {
-      console.warn("Cloudinary API credentials missing in Edge Functions; proceeding with database deletion.");
+      throw new Error("Cloudinary deletion is not configured; media record preserved.");
     }
 
     if (media.id) {

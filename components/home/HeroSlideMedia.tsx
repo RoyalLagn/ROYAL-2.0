@@ -29,7 +29,8 @@ export function heroDeliveryUrl(url: string, displayWidth = 750): string {
     width: cssWidth,
     crop: "limit",
     dpr: 2,
-    quality: "auto",
+    quality: "auto:good",
+    format: "auto",
   });
 }
 

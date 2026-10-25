@@ -62,7 +62,8 @@ function SafeImage({
       height: deliveryHeight,
       crop: deliveryCrop,
       dpr: 2,
-      quality: "auto",
+      quality: "auto:good",
+      format: "auto",
     });
   }, [deliveryCrop, deliveryHeight, deliveryWidth, rawRemoteUri]);
 

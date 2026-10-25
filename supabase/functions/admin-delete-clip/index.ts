@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { deleteClipBunnyAssets } from "../_shared/bunnyClipMedia.ts";
+import { deleteClipMediaAssets } from "../_shared/clipMedia.ts";
 import { checkRateLimit } from "../_shared/rateLimit.ts";
 
 // Mirrors the auth-validation pattern already used by send-admin-push and
@@ -199,11 +199,11 @@ Deno.serve(async (request) => {
 
     // Step 2 — delete the real media. If this fails, the clip row is left
     // fully intact (the vendor has been notified but nothing was actually
-    // removed yet) — Bunny deletion is idempotent, so retrying the whole
+    // removed yet) — Cloudinary deletion is idempotent, so retrying the whole
     // action is safe.
     if (clip.bunny_asset_id) {
       try {
-        await deleteClipBunnyAssets(clip.bunny_asset_id as string, { requestId, clipId, vendorId });
+        await deleteClipMediaAssets(clip.bunny_asset_id as string, { requestId, clipId, vendorId });
       } catch (mediaError) {
         const message = mediaError instanceof Error ? mediaError.message : "Unable to delete the clip's media.";
         console.error("[admin-delete-clip] media deletion failed", { requestId, clipId, vendorId, error: message });

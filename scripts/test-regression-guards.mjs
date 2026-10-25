@@ -97,8 +97,8 @@ const vendorGalleryStylesSource = await read("components/vendor/gallery/vendorGa
 const reviewFormSource = await read("components/reviews/ReviewForm.tsx");
 const connectedVendorReviewsSource = await read("components/reviews/ConnectedVendorReviews.tsx");
 const vendorReviewsSectionSource = await read("components/reviews/VendorReviewsSection.tsx");
-assert.doesNotMatch(reviewFormSource, /ReviewPhotoUploader|Add photo|Photos \(optional\)/, "The public Vendor Profile review form must not offer photo uploads.");
-assert.doesNotMatch(connectedVendorReviewsSource, /pickReviewPhotos|uploadReviewPhoto|onAddPhotos|onRemovePhoto/, "The connected review form must not retain unreachable photo-upload actions.");
+assert.match(reviewFormSource, /Add review photos/, "Review photo uploads must have an accessible picker action.");
+assert.match(connectedVendorReviewsSource, /pickReviewPhotos[\s\S]*uploadReviewPhoto/, "Review photos must use the managed Cloudinary upload flow.");
 assert.match(connectedVendorReviewsSource, /imageUrls: reviewPhotos/, "Editing an existing review must preserve its previously saved photos.");
 assert.match(vendorReviewsSectionSource, /<Modal[\s\S]{0,300}visible=\{Boolean\(props\.showForm && props\.onSubmitReview\)\}/, "Writing or editing a review must open in a focused modal.");
 assert.match(vendorReviewsSectionSource, /KeyboardAvoidingView[\s\S]{0,500}keyboardShouldPersistTaps="handled"/, "The review modal must remain usable while the keyboard is open.");
@@ -117,9 +117,9 @@ assert.match(vendorGallerySource, /uploadsCompleted[\s\S]{0,500}finishUpload[\s\
 const portfolioDeleteFunctionSource = await read("supabase/functions/portfolio-media-delete/index.ts");
 const portfolioDeleteGrantSource = await read("supabase/migrations/20260905123000_grant_service_role_portfolio_delete.sql");
 assert.match(portfolioDeleteFunctionSource, /SUPABASE_SERVICE_ROLE_KEY/, "Portfolio deletion must use the trusted server client after user ownership is verified.");
-assert.match(vendorGallerySource, /deletePortfolioMedia\(item\.id, \{[\s\S]{0,180}vendorId: data\.vendor\.id,[\s\S]{0,180}publicId: item\.public_id/, "Portfolio deletion must provide the owned Bunny identity when a media ID is stale.");
+assert.match(vendorGallerySource, /deletePortfolioMedia\(item\.id, \{[\s\S]{0,180}vendorId: data\.vendor\.id,[\s\S]{0,180}publicId: item\.public_id/, "Portfolio deletion must provide the owned Cloudinary identity when a media ID is stale.");
 assert.match(portfolioDeleteFunctionSource, /if \(!media && vendorId && publicId\)[\s\S]{0,350}\.eq\("vendor_id", vendorId\)\.eq\("public_id", publicId\)/, "Portfolio deletion must safely resolve stale media IDs by vendor and public ID.");
-assert.match(portfolioDeleteFunctionSource, /admin\.from\("vendor_portfolio_media"\)\.delete\(\)/, "Portfolio deletion must remove the database record after Bunny cleanup succeeds.");
+assert.match(portfolioDeleteFunctionSource, /admin\.from\("vendor_portfolio_media"\)\.delete\(\)/, "Portfolio deletion must remove the database record after Cloudinary cleanup succeeds.");
 assert.match(portfolioDeleteGrantSource, /grant select, delete on public\.vendor_portfolio_media to service_role/, "The portfolio delete service role must be able to resolve and remove the owned media row.");
 
 // --- Native auth screens must remain usable above the Android keyboard ---

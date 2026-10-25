@@ -174,7 +174,7 @@ export async function prepareImageForUpload<T extends ImageLikeAsset>(
   const attempts = preservePng
     ? [1, 0.82, 0.68, 0.54, 0.42, 0.32]
     : [1, 0.9, 0.8, 0.7, 0.6, 0.48, 0.36];
-  const qualities = [0.88, 0.84, 0.78, 0.7, 0.62, 0.54, 0.46];
+    const qualities = [0.92, 0.88, 0.82, 0.74, 0.66, 0.58, 0.5];
   let lastError: unknown;
 
   for (let index = 0; index < attempts.length; index += 1) {
@@ -267,6 +267,10 @@ export async function uploadImage(
 ): Promise<string> {
   const prepared = await prepareImageForUpload(image, "general");
   try {
+    const { data: signData, error: signError } = await supabase.functions.invoke<SignedUploadResponse>("media-upload-sign", {
+      body: { folder: options.folder || "royallagn/general", mimeType: prepared.mimeType, fileSize: prepared.fileSize },
+    });
+    if (signError || !signData) throw new MediaError(await edgeFunctionErrorMessage(signError, "Unable to authorize image upload."), "UPLOAD_ERROR");
     const result = await uploadImageToCloudinary(
       {
         uri: prepared.uri,
@@ -277,7 +281,7 @@ export async function uploadImage(
         fileSize: prepared.fileSize,
       },
       {
-        folder: options.folder || "royallagn/general",
+        ...cloudinarySignedOptions(signData),
         onProgress: options.onProgress,
       }
     );
@@ -292,10 +296,10 @@ export async function uploadImage(
 }
 
 export async function pickAndUploadImage(
-  options?: PickImageOptions
+  options?: PickImageOptions & { folder?: string }
 ): Promise<string | null> {
   const image = await pickImage(options);
-  return image ? uploadImage(image) : null;
+  return image ? uploadImage(image, { folder: options?.folder }) : null;
 }
 
 export async function validateProfileImage(asset: ProfileImageAsset) {
@@ -415,6 +419,10 @@ export async function pickAndUploadBusinessDocument(
   const folder = userId ? `royallagn/documents/${userId}` : "royallagn/documents";
 
   try {
+    const { data: signData, error: signError } = await supabase.functions.invoke<SignedUploadResponse>("media-upload-sign", {
+      body: { folder, mimeType: finalMime, fileSize: finalSize },
+    });
+    if (signError || !signData) throw new MediaError(await edgeFunctionErrorMessage(signError, "Unable to authorize document upload."), "UPLOAD_ERROR");
     const uploadResult = await uploadImageToCloudinary(
       {
         uri: uploadUri,
@@ -423,10 +431,17 @@ export async function pickAndUploadBusinessDocument(
         fileSize: finalSize,
       },
       {
-        folder,
+        ...cloudinarySignedOptions(signData),
         resourceType: isImage ? "image" : "raw",
       }
     );
+    if (!isImage) {
+      const delivery = await fetch(uploadResult.secureUrl, { method: "HEAD" });
+      if (!delivery.ok) {
+        await deleteOwnedMediaUpload(uploadResult.secureUrl);
+        throw new MediaError("Cloudinary cannot deliver this document yet. Enable PDF delivery in the Cloudinary Security settings before uploading business documents.", "CONFIGURATION_ERROR");
+      }
+    }
     return {
       name: asset.name,
       url: uploadResult.secureUrl,
@@ -449,7 +464,7 @@ export async function pickPortfolioMedia(selectionLimit = 12): Promise<Portfolio
     mediaTypes: ["images", "videos"],
     allowsMultipleSelection: true,
     selectionLimit: Math.max(1, Math.min(selectionLimit, 15)),
-    quality: 0.82,
+    quality: 0.92,
     videoMaxDuration: 240,
   });
   if (result.canceled) return [];
@@ -590,8 +605,11 @@ export async function uploadPortfolioAsset(
       reservationId,
     };
   } catch (caught) {
+    if (reservationId) {
+      await supabase.rpc("cancel_photo_upload_reservation", { target_reservation_id: reservationId });
+    }
     if (publicId) {
-      deleteUnstoredPortfolioAsset(vendorId, publicId, resourceType).catch(() => undefined);
+      await deleteUnstoredPortfolioAsset(vendorId, `${signData.folder}/${publicId}`, resourceType).catch(() => undefined);
     }
     throw new MediaError(
       caught instanceof Error ? caught.message : "Cloudinary upload failed.",
@@ -641,7 +659,7 @@ export async function pickReviewPhotos(selectionLimit = 4): Promise<ReviewPhotoA
     mediaTypes: ["images"],
     allowsMultipleSelection: true,
     selectionLimit: Math.max(1, Math.min(selectionLimit, 6)),
-    quality: 0.82,
+    quality: 0.92,
   });
   if (result.canceled) return [];
   return result.assets;
@@ -704,12 +722,28 @@ export async function deleteReviewPhoto(
   }
 }
 
+export async function deleteOwnedMediaUpload(url: string | null | undefined): Promise<void> {
+  if (!url || !isCloudinaryUrl(url)) return;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return;
+  const { error } = await supabase.functions.invoke("user-media-delete", { body: { url } });
+  if (error) {
+    throw new MediaError(
+      await edgeFunctionErrorMessage(error, "Unable to delete previous upload."),
+      "UPLOAD_ERROR"
+    );
+  }
+}
+
 export async function deleteAdminManagedImage(url: string): Promise<void> {
   if (!url) return;
-  // Cloudinary deletion requires an authenticated, ownership-scoped Edge Function.
-  const publicId = extractCloudinaryPublicId(url);
-  if (publicId) {
-    return;
+  if (!isCloudinaryUrl(url)) return;
+  const { error } = await supabase.functions.invoke("admin-media-delete", { body: { url } });
+  if (error) {
+    throw new MediaError(
+      await edgeFunctionErrorMessage(error, "Unable to delete managed image."),
+      "UPLOAD_ERROR"
+    );
   }
 }
 

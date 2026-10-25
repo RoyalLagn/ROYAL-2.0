@@ -168,10 +168,10 @@ export const AdminOperationsService = {
 
   /**
    * Permanently deletes a clip: notifies the owning vendor with the given
-   * reason, deletes its Bunny video/thumbnail, then hard-deletes the
+   * reason, deletes its Cloudinary video/thumbnail, then hard-deletes the
    * clip row (engagement/analytics rows cascade automatically). All of this
    * happens server-side in the admin-delete-clip Edge Function — the client
-   * never determines the vendor or touches Bunny/the database directly.
+   * never determines the vendor or touches Cloudinary/the database directly.
    * Throws with a `.stage` on the error ("notification" | "media" |
    * "database" | ...) so the UI can show the precise, accurate failure.
    */

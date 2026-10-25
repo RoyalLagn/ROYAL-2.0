@@ -342,7 +342,14 @@ export async function saveReview(
   const title = cleanRequired(input.title, "Review title", 120);
   const review = cleanRequired(input.text, "Review", 5000);
   const imageUrls = (input.imageUrls ?? []).slice(0, 6);
-  if (imageUrls.some((url) => !/^https:\/\/royallagnmedia\.b-cdn\.net\//i.test(url))) {
+  const cloudName = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  if (imageUrls.some((url) => {
+    try {
+      const parsed = new URL(url);
+      return parsed.protocol !== "https:" || parsed.hostname !== "res.cloudinary.com"
+        || !parsed.pathname.startsWith(`/${cloudName}/image/upload/`);
+    } catch { return true; }
+  })) {
     throw new Error("Review photos must be secure managed-media URLs.");
   }
   const { data, error } = await supabase.rpc("upsert_vendor_review", {

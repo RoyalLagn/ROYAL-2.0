@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FolderTree, ImagePlus, Plus, RefreshCw, Search, Store, Trash2, X } from "lucide-react-native";
@@ -48,12 +48,16 @@ export default function AdminCategories() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [gridWidth, setGridWidth] = useState(0);
+  const draftUploads = useRef(new Set<string>());
+  useEffect(() => () => {
+    for (const url of draftUploads.current) void deleteAdminManagedImage(url).catch(() => undefined);
+  }, []);
 
   const filtered = useMemo(() => { const needle = query.trim().toLowerCase(); return categories.filter((category) => !needle || [category.name, category.slug, category.description].some((value) => value.toLowerCase().includes(needle))).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)); }, [categories, query]);
   const reload = async () => { setRefreshing(true); await refresh(); setRefreshing(false); };
 
   const openAdd = () => { setDraft(emptyDraft); setFormError(null); setShowAdd(true); };
-  const closeAdd = () => { if (saving) return; setShowAdd(false); setDraft(emptyDraft); setFormError(null); };
+  const closeAdd = () => { if (saving || uploadingIcon || uploadingImage) return; for (const url of draftUploads.current) void deleteAdminManagedImage(url).catch(() => undefined); draftUploads.current.clear(); setShowAdd(false); setDraft(emptyDraft); setFormError(null); };
 
   const setName = (name: string) => setDraft((current) => ({ ...current, name, slug: current.slugTouched ? current.slug : slugify(name) }));
   const setSlug = (slug: string) => setDraft((current) => ({ ...current, slug, slugTouched: true }));
@@ -61,8 +65,8 @@ export default function AdminCategories() {
   const chooseIcon = async () => {
     setUploadingIcon(true); setFormError(null);
     try {
-      const url = await pickAndUploadImage({ quality: 0.85 });
-      if (url) setDraft((current) => ({ ...current, iconUrl: url }));
+      const url = await pickAndUploadImage({ quality: 0.92, folder: "royallagn/categories" });
+      if (url) { draftUploads.current.add(url); if (draft.iconUrl) { await deleteAdminManagedImage(draft.iconUrl); draftUploads.current.delete(draft.iconUrl); } setDraft((current) => ({ ...current, iconUrl: url })); }
     } catch (caught) {
       setFormError(caught instanceof MediaError ? caught.message : "Unable to upload the icon image.");
     } finally {
@@ -72,8 +76,8 @@ export default function AdminCategories() {
   const chooseImage = async () => {
     setUploadingImage(true); setFormError(null);
     try {
-      const url = await pickAndUploadImage({ quality: 0.85 });
-      if (url) setDraft((current) => ({ ...current, fallbackImageUrl: url }));
+      const url = await pickAndUploadImage({ quality: 0.92, folder: "royallagn/categories" });
+      if (url) { draftUploads.current.add(url); if (draft.fallbackImageUrl) { await deleteAdminManagedImage(draft.fallbackImageUrl); draftUploads.current.delete(draft.fallbackImageUrl); } setDraft((current) => ({ ...current, fallbackImageUrl: url })); }
     } catch (caught) {
       setFormError(caught instanceof MediaError ? caught.message : "Unable to upload the category image.");
     } finally {
@@ -82,6 +86,7 @@ export default function AdminCategories() {
   };
 
   const save = async () => {
+    if (saving || uploadingIcon || uploadingImage) return;
     const name = draft.name.trim();
     const slug = slugify(draft.slug || draft.name);
     if (!name) return setFormError("Enter a category name.");
@@ -93,6 +98,7 @@ export default function AdminCategories() {
     setSaving(true); setFormError(null);
     try {
       await CategoryService.create({ name, slug, description: draft.description.trim(), iconUrl: draft.iconUrl, fallbackImageUrl: draft.fallbackImageUrl });
+      draftUploads.current.clear();
       setShowAdd(false);
       setDraft(emptyDraft);
       await refresh();
@@ -226,7 +232,7 @@ export default function AdminCategories() {
             <Pressable accessibilityRole="button" disabled={saving} onPress={closeAdd} className="flex-1 h-12 rounded-xl border border-border items-center justify-center hover:bg-muted active:opacity-75 transition-colors duration-200">
               <Text className="text-foreground text-sm font-bold">Cancel</Text>
             </Pressable>
-            <Pressable accessibilityRole="button" disabled={saving} onPress={() => void save()} className="flex-1 h-12 rounded-xl bg-primary items-center justify-center hover:bg-[#D81B60] active:opacity-85 transition-colors duration-200">
+            <Pressable accessibilityRole="button" disabled={saving || uploadingIcon || uploadingImage} onPress={() => void save()} className="flex-1 h-12 rounded-xl bg-primary items-center justify-center hover:bg-[#D81B60] active:opacity-85 transition-colors duration-200">
               {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text className="text-white text-sm font-bold">Add Category</Text>}
             </Pressable>
           </View>

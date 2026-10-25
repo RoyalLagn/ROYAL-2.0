@@ -152,6 +152,9 @@ function HomeCategoryCard({
                 fallbackSource={image}
                 debugLabel={`${name} compact category`}
                 resizeMode="cover"
+                deliveryWidth={Math.round(cardWidth)}
+                deliveryHeight={cardHeight}
+                deliveryCrop="fill"
                 style={styles.image}
               />
             ) : null}

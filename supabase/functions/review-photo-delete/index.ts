@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { destroyCloudinaryAsset } from "../_shared/cloudinaryAdmin.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -59,10 +60,9 @@ Deno.serve(async (request) => {
         api_key: apiKey,
         signature,
       });
-      await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, {
-        method: "POST",
-        body,
-      });
+      await destroyCloudinaryAsset(publicId, "image");
+    } else {
+      throw new Error("Cloudinary deletion is not configured");
     }
 
     return Response.json({ ok: true, provider: "cloudinary" }, { headers: cors });

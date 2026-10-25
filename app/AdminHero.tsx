@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -174,6 +174,14 @@ export default function AdminHero() {
   const [preview, setPreview] = useState<HeroSlide | Draft | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<HeroSlide | null>(null);
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
+  const draftUploads = useRef(new Set<string>());
+  const cleanDraftUploads = useCallback(() => {
+    for (const url of draftUploads.current) {
+      void deleteAdminManagedImage(url).then(() => draftUploads.current.delete(url)).catch(() => undefined);
+    }
+  }, []);
+  useEffect(() => () => cleanDraftUploads(), [cleanDraftUploads]);
+  useEffect(() => { if (editing === null) cleanDraftUploads(); }, [editing, cleanDraftUploads]);
 
   const loadCategories = useCallback(async (force = false) => {
     setCategoriesLoading(true);
@@ -259,7 +267,7 @@ export default function AdminHero() {
       }
 
       setCategoryImageSavingId(category.id);
-      const url = await uploadToMedia(asset);
+      const url = await uploadToMedia(asset, { folder: "royallagn/categories" });
       await CategoryService.updateHomeImage(category.id, url);
       if (category.homeImageUrl && category.homeImageUrl !== url) await deleteAdminManagedImage(category.homeImageUrl);
       await loadCategories(true);
@@ -331,7 +339,12 @@ export default function AdminHero() {
       if (!asset) return;
 
       setUploading(true);
-      const url = await uploadToMedia(asset);
+      const url = await uploadToMedia(asset, { folder: "royallagn/hero" });
+      draftUploads.current.add(url);
+      if (draft.imageUrl && draftUploads.current.has(draft.imageUrl)) {
+        await deleteAdminManagedImage(draft.imageUrl);
+        draftUploads.current.delete(draft.imageUrl);
+      }
       if (url) setDraft((current) => ({ ...current, imageUrl: url }));
     } catch (reason) {
       setError(errorMessage(reason));
@@ -369,8 +382,10 @@ export default function AdminHero() {
       };
       if (editing === "new") {
         await HeroSlideService.create(payload);
+        draftUploads.current.delete(payload.imageUrl);
       } else if (editing) {
         await HeroSlideService.update(editing.id, payload);
+        draftUploads.current.delete(payload.imageUrl);
         if (editing.image_url !== payload.imageUrl) await deleteAdminManagedImage(editing.image_url);
         if (editing.desktop_image_url) await deleteAdminManagedImage(editing.desktop_image_url);
       }

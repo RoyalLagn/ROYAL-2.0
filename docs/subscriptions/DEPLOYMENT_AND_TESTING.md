@@ -6,7 +6,7 @@
 2. Configure Edge Function secrets with `supabase secrets set`:
    `RAZORPAY_TEST_KEY_ID`, `RAZORPAY_TEST_KEY_SECRET`,
    `SUBSCRIPTION_CRON_SECRET`, plus the existing
-   Supabase and Bunny server secrets.
+   Supabase and Cloudinary server secrets.
 3. Deploy `create-razorpay-order`, `verify-razorpay-payment`,
    `record-razorpay-checkout-outcome`, and
    `process-subscription-lifecycle`.

@@ -87,14 +87,15 @@ function presentation(row: CategoryRow, vendorCount: number): CategoryRecord {
     iconColor: local?.iconColor ?? "#E91E63",
     iconBg: local?.iconBg ?? "#FFF0F6",
     iconUrl,
-    imageUrl: local?.cardImage ?? fallbackImageUrl ?? "",
+    imageUrl: fallbackImageUrl ?? local?.cardImage ?? "",
     fallbackImageUrl,
     homeImageUrl,
     homeImage: (homeImageUrl ? { uri: homeImageUrl } : undefined)
+      ?? (fallbackImageUrl ? { uri: fallbackImageUrl } : undefined)
       ?? (local?.homeImage as number | ImageURISource | undefined)
       ?? (iconUrl ? { uri: iconUrl } : defaultLocal.homeImage as number),
-    fallbackImage: local?.fallbackImage
-      ?? (fallbackImageUrl ? { uri: fallbackImageUrl } : defaultLocal.fallbackImage),
+    fallbackImage: (fallbackImageUrl ? { uri: fallbackImageUrl } : undefined)
+      ?? local?.fallbackImage ?? defaultLocal.fallbackImage,
     isActive: row.is_active ?? true,
     isFeatured: row.is_featured ?? false,
     showOnHome: row.show_on_home ?? true,

@@ -67,34 +67,6 @@ export function FinanceRevenueDashboard({ data, allMonths, lastSyncedAt, syncing
 }
 
 
-// Moved here from the removed Overview tab -- this stayed the only place in
-// the UI that shows Clips media infrastructure cost, so it comes along
-// rather than disappearing when Overview did.
-export function BunnyCostControl({ usage }: { usage: FinanceMonthData["bunnyUsage"] }) {
-  return <FinanceSection title="Bunny cost control" description="Manually recorded Bunny Storage, CDN, and Stream invoice totals.">
-    {!usage ? <FinanceEmpty title="No Bunny usage recorded" message="Add this month’s usage and actual cost from the Bunny dashboard or invoice." /> : <>
-      <View style={styles.usageGrid}>
-        <BunnyUsageBar label="Storage" value={usage.storage_percent} />
-        <BunnyUsageBar label="Bandwidth" value={usage.bandwidth_percent} />
-        <BunnyUsageBar label="Encoding" value={usage.transformations_percent} />
-      </View>
-      <View style={styles.costRow}>
-        <View><Text style={styles.costLabel}>Estimated cost</Text><Text style={styles.costValue}>{formatMoney(usage.estimated_cost)}</Text></View>
-        <View style={styles.costRight}><Text style={styles.costLabel}>Actual cost</Text><Text style={styles.costValue}>{formatMoney(usage.actual_cost)}</Text></View>
-      </View>
-    </>}
-  </FinanceSection>;
-}
-
-function BunnyUsageBar({ label, value }: { label: string; value: number | null }) {
-  const safe = Math.min(100, Math.max(0, value ?? 0));
-  const tone = safe >= 80 ? adminPalette.warning : adminPalette.brand;
-  return <View style={styles.usageItem}>
-    <View style={styles.usageTop}><Text style={styles.sourceTitle}>{label}</Text><Text style={[styles.usageValue, { color: tone }]}>{value == null ? "—" : `${safe.toFixed(0)}%`}</Text></View>
-    <View style={styles.usageTrack}><View style={[styles.usageFill, { width: `${safe}%`, backgroundColor: tone }]} /></View>
-  </View>;
-}
-
 function RevenueTrend({ monthStart }: { monthStart: string }) {
   const [range, setRange] = useState<TrendRangeKey>("thisMonth");
   const [customStart, setCustomStart] = useState(monthStart);

@@ -18,6 +18,7 @@ export type VendorReviewsSectionProps = {
   loading?: boolean; loadingMore?: boolean; hasMore?: boolean; error?: string | null;
   showForm?: boolean; editingReview?: Review | null; submitting?: boolean; formError?: string | null; reviewPhotos?: string[];
   canWriteReview?: boolean;
+  onAddPhotos?: () => void; onRemovePhoto?: (url: string) => void; uploadingPhotos?: boolean;
   onWriteReview?: () => void; onCloseForm?: () => void; onSubmitReview?: (draft: ReviewDraft) => void | Promise<void>;
   onSortChange: (sort: ReviewSort) => void; onStarFilterChange: (star: StarFilter) => void;
   onHelpful?: (review: Review) => void; onEdit?: (review: Review) => void; onDelete?: (review: Review) => void;
@@ -70,6 +71,7 @@ export default function VendorReviewsSection(props: VendorReviewsSectionProps) {
                 initialValue={props.editingReview ? { rating: props.editingReview.rating, title: props.editingReview.title, text: props.editingReview.text, photos: props.reviewPhotos ?? [] } : undefined}
                 photos={props.reviewPhotos ?? []} dark={dark} submitting={props.submitting} error={props.formError}
                 onSubmit={props.onSubmitReview} onCancel={props.onCloseForm}
+                onAddPhotos={props.onAddPhotos} onRemovePhoto={props.onRemovePhoto} uploadingPhotos={props.uploadingPhotos}
               /> : null}
             </View>
           </ScrollView>
