@@ -233,12 +233,19 @@ export default function HeroCarousel({ width, desktop, radius: radiusOverride }:
             key={index === slides.length - 1 ? `${slide.id}-loop` : slide.id}
             style={[styles.slide, { width }]}
           >
-            <HeroSlideMedia
-              uri={slide.imageUri}
-              accessibilityLabel={`${slide.categoryName} hero slide`}
-              displayWidth={width}
-              priority={index === 0}
-            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Browse ${slide.categoryName}`}
+              onPress={() => openSlide(slide)}
+              style={styles.heroMediaPressable}
+            >
+              <HeroSlideMedia
+                uri={slide.imageUri}
+                accessibilityLabel={`${slide.categoryName} hero slide`}
+                displayWidth={width}
+                priority={index === 0}
+              />
+            </Pressable>
             <View style={[styles.ctaWrap, narrow && styles.ctaWrapNarrow, desktop && styles.ctaWrapDesktop]}>
               <Pressable
                 accessibilityRole="button"
@@ -362,6 +369,10 @@ const styles = StyleSheet.create({
     margin: 0,
     padding: 0,
     borderWidth: 0,
+  },
+  heroMediaPressable: {
+    width: "100%",
+    height: "100%",
   },
   ctaWrap: {
     position: "absolute",
