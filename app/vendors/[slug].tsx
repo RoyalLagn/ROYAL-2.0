@@ -53,7 +53,9 @@ import {
 import { resolveTrafficSource } from "@/services/trafficSource";
 import type { PublicVendorListing } from "@/services/publicVendorListings";
 import { brandPalette } from "@/constants/brandPalette";
-import { buildVendorProfilePathBySlug, vendorProfileHref, vendorWebBase } from "@/services/contactActions";
+import { vendorProfileHref } from "@/services/contactActions";
+import { applyWebDocumentMeta } from "@/lib/seo/documentMeta";
+import { INDEXABLE_ROBOTS, canonicalUrl } from "@/lib/seo/publicSeo";
 import { isNativeTabletDevice, isNativeTabletWindow, isPublicWideLayout } from "@/utils/responsiveLayout";
 
 const PINK = brandPalette.light.primary;
@@ -164,67 +166,39 @@ export default function VendorPublicProfileScreen() {
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined" || !vendor) return;
-    const url = slug ? `${vendorWebBase()}${buildVendorProfilePathBySlug(slug)}` : "";
+    const path = slug ? `/vendor/${encodeURIComponent(slug)}` : "/";
+    const url = canonicalUrl(path);
     const description = vendor.description?.trim()
       || `${vendor.name} on RoyalLagn — ${vendor.category} in ${vendor.location}.`;
     const image = vendor.heroMedia.length ? portfolioMediaUrl(vendor.heroMedia[0], "hero") : vendor.image;
-
-    document.title = `${vendor.name}${vendor.location ? ` · ${vendor.location}` : ""} | RoyalLagn`;
-
-    const setMeta = (attr: "name" | "property", key: string, content: string) => {
-      let tag = document.querySelector(`meta[${attr}="${key}"]`);
-      if (!tag) {
-        tag = document.createElement("meta");
-        tag.setAttribute(attr, key);
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute("content", content);
-    };
-    setMeta("name", "description", description);
-    setMeta("property", "og:title", vendor.name);
-    setMeta("property", "og:description", description);
-    if (image) setMeta("property", "og:image", image);
-    if (url) setMeta("property", "og:url", url);
-    setMeta("property", "og:type", "business.business");
-    setMeta("name", "twitter:card", "summary_large_image");
-    setMeta("name", "twitter:title", vendor.name);
-    setMeta("name", "twitter:description", description);
-
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement("link");
-      canonical.setAttribute("rel", "canonical");
-      document.head.appendChild(canonical);
-    }
-    if (url) canonical.setAttribute("href", url);
-
-    let jsonLd = document.getElementById("vendor-jsonld");
-    if (!jsonLd) {
-      jsonLd = document.createElement("script");
-      jsonLd.id = "vendor-jsonld";
-      jsonLd.setAttribute("type", "application/ld+json");
-      document.head.appendChild(jsonLd);
-    }
-    jsonLd.textContent = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "LocalBusiness",
-      "@id": `${url}#business`,
-      name: vendor.name,
-      image: image ? [image] : undefined,
+    applyWebDocumentMeta({
+      path,
       description,
-      url: url || undefined,
-      address: vendor.location || vendor.address ? {
-        "@type": "PostalAddress",
-        streetAddress: vendor.address || undefined,
-        addressLocality: vendor.location?.split(",")[0]?.trim() || undefined,
-        addressCountry: "IN",
-      } : undefined,
-      areaServed: vendor.location || undefined,
-      priceRange: vendor.startingPrice || undefined,
-      telephone: vendor.contactPhone || undefined,
-      ...(vendor.reviews
-        ? { aggregateRating: { "@type": "AggregateRating", ratingValue: vendor.rating, reviewCount: vendor.reviews } }
-        : {}),
+      ogTitle: vendor.name,
+      robots: INDEXABLE_ROBOTS,
+      ogType: "business.business",
+      ogImage: image || undefined,
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "@id": `${url}#business`,
+        name: vendor.name,
+        image: image ? [image] : undefined,
+        description,
+        url,
+        address: vendor.location || vendor.address ? {
+          "@type": "PostalAddress",
+          streetAddress: vendor.address || undefined,
+          addressLocality: vendor.location?.split(",")[0]?.trim() || undefined,
+          addressCountry: "IN",
+        } : undefined,
+        areaServed: vendor.location || undefined,
+        priceRange: vendor.startingPrice || undefined,
+        telephone: vendor.contactPhone || undefined,
+        ...(vendor.reviews
+          ? { aggregateRating: { "@type": "AggregateRating", ratingValue: vendor.rating, reviewCount: vendor.reviews } }
+          : {}),
+      },
     });
   }, [slug, vendor]);
 

@@ -39,7 +39,9 @@ import type { GeoSelection, GeoState } from "@/locations/types";
 import { getCurrentDeviceLocation, getDevicePermissionStatus, getLastDetectedCoordinates, getLastDetectedLocationLabel, requestDeviceLocationPermission, requestDeviceLocationServices, reverseGeocodeLabel, saveLocationDisplayLabel, type DeviceCoordinates } from "@/services/deviceLocation";
 import { fetchLocationRankedVendors } from "@/services/vendorDiscovery";
 import { buildVendorListingPath, displayLocationFromSlug } from "@/services/publicSeoRoutes";
-import { vendorProfileHref, vendorWebBase } from "@/services/contactActions";
+import { vendorProfileHref } from "@/services/contactActions";
+import { applyWebDocumentMeta } from "@/lib/seo/documentMeta";
+import { INDEXABLE_ROBOTS, canonicalUrl } from "@/lib/seo/publicSeo";
 import { discoveryLayout } from "@/constants/discoveryLayout";
 import { isPublicWideLayout } from "@/utils/responsiveLayout";
 
@@ -132,28 +134,28 @@ export default function VendorsListingScreen() {
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
-    const canonicalUrl = `${vendorWebBase()}${buildVendorListingPath(displayCategory, requestedLocation)}`;
-    const pageTitle = requestedLocation
-      ? `Wedding ${displayCategory} in ${requestedLocation} | RoyalLagn`
-      : `Wedding ${displayCategory} | RoyalLagn`;
+    const path = buildVendorListingPath(displayCategory, requestedLocation);
+    const heading = requestedLocation
+      ? `Wedding ${displayCategory} in ${requestedLocation}`
+      : `Wedding ${displayCategory}`;
     const description = requestedLocation
       ? `Discover verified wedding ${displayCategory.toLowerCase()} in ${requestedLocation} on RoyalLagn.`
       : `Discover verified wedding ${displayCategory.toLowerCase()} on RoyalLagn.`;
-    document.title = pageTitle;
-    let meta = document.querySelector('meta[name="description"]');
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.setAttribute("name", "description");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", description);
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement("link");
-      canonical.setAttribute("rel", "canonical");
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute("href", canonicalUrl);
+    applyWebDocumentMeta({
+      path,
+      description,
+      ogTitle: heading,
+      robots: INDEXABLE_ROBOTS,
+      ogType: "website",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: heading,
+        description,
+        url: canonicalUrl(path),
+        isPartOf: { "@type": "WebSite", name: "RoyalLagn", url: "https://royallagn.com/" },
+      },
+    });
   }, [displayCategory, requestedLocation]);
 
   // District/Taluka is the canonical marketplace discovery path. GPS remains

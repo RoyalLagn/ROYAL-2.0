@@ -24,13 +24,22 @@ export default function Root({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <meta charSet="utf-8" />
+        <title>RoyalLagn</title>
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
         />
-        <meta name="description" content="Discover trusted wedding vendors, venues, photographers and more with RoyalLagn." />
+        <meta name="description" content="Discover trusted wedding photographers, venues, decorators, makeup artists and more with RoyalLagn. Explore verified wedding vendors and send enquiries directly." />
         <meta name="robots" content="index, follow, max-image-preview:large" />
+        <link rel="canonical" href="https://royallagn.com/" />
         <meta property="og:site_name" content="RoyalLagn" />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="RoyalLagn | Discover Trusted Wedding Vendors" />
+        <meta property="og:description" content="Discover trusted wedding photographers, venues, decorators, makeup artists and more with RoyalLagn. Explore verified wedding vendors and send enquiries directly." />
+        <meta property="og:url" content="https://royallagn.com/" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="RoyalLagn | Discover Trusted Wedding Vendors" />
+        <meta name="twitter:description" content="Discover trusted wedding photographers, venues, decorators, makeup artists and more with RoyalLagn. Explore verified wedding vendors and send enquiries directly." />
         <script dangerouslySetInnerHTML={{ __html: LOCAL_SERVICE_WORKER_CLEANUP }} />
         <ScrollViewStyleReset />
       </head>

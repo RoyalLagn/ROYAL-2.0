@@ -6,6 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <title>%WEB_TITLE%</title>
     <meta name="robots" content="index, follow, max-image-preview:large" />
+    <script>
+      (() => {
+        const path = (location.pathname.replace(/\/+$/, "") || "/");
+        const vendorProfile = /^\/vendor\/[^/]+$/.test(path);
+        const prefixes = ["/Admin", "/admin-", "/Crm", "/DashboardCenter", "/Vendor", "/vendor-", "/vendors", "/payments-admin", "/subscriptions-admin", "/Login", "/ForgotPassword", "/CreatePassword", "/OtpVerification", "/PasswordUpdated", "/Settings", "/EditProfile", "/Notifications", "/account-deletion", "/ticket", "/bookings", "/favorites", "/profile", "/referral", "/enquiry", "/team", "/TeamPortal"];
+        const searchQuery = new URLSearchParams(location.search).get("query");
+        const isPrivate = !vendorProfile && prefixes.some((prefix) => path === prefix || path.startsWith(prefix));
+        if (!isPrivate && !(path === "/Search" && searchQuery && searchQuery.trim())) return;
+        let robots = document.querySelector('meta[name="robots"]');
+        if (!robots) {
+          robots = document.createElement("meta");
+          robots.setAttribute("name", "robots");
+          document.head.appendChild(robots);
+        }
+        robots.setAttribute("content", "noindex, nofollow");
+        document.title = "RoyalLagn";
+      })();
+    </script>
     <link rel="canonical" href="https://royallagn.com/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="RoyalLagn" />

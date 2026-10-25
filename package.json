@@ -39,7 +39,8 @@
     "test:referral-e2e": "node scripts/test-referral-system-e2e.mjs",
     "test:referral-withdrawals": "node scripts/test-referral-withdrawals-phase1.mjs",
     "test:team-portal": "node scripts/test-team-portal-phase2.mjs",
-    "sitemap:generate": "node scripts/generate-sitemap.mjs"
+    "sitemap:generate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/generate-sitemap.mjs",
+    "test:seo": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/test-seo-public.mjs"
   },
   "engines": {
     "node": ">=22.6.0"

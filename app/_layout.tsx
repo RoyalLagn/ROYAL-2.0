@@ -49,6 +49,7 @@ import AppDialogProvider from '@/components/dialogs/AppDialogProvider';
 import PageLoader, { PageLoaderProvider } from '@/components/loading/PageLoader';
 import { StartupSplash } from '@/components/loading/StartupSplash';
 import { AppFeedbackProvider } from '@/context/AppFeedbackContext';
+import PublicDocumentMeta from '@/components/seo/PublicDocumentMeta';
 
 // Web gets the RoyalLagn dialog; native platforms retain their system alert.
 installAppAlert();
@@ -213,6 +214,7 @@ export default function RootLayout() {
     <PageLoaderProvider suppressed={startupSplashVisible}>
       <ErrorBoundary>
           <WebNavigationFocusSafety />
+          <PublicDocumentMeta />
           <PublicAuthProvider>
           <CategoryProvider>
             <AdminAuthProvider>

@@ -10,7 +10,7 @@ console.log(`[build-web] Building RoyalLagn Expo Web SPA from root: ${rootDir}`)
 
 // 1. Generate SEO sitemap
 console.log("[build-web] Generating sitemap...");
-execSync("node scripts/generate-sitemap.mjs", {
+execSync("node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/generate-sitemap.mjs", {
   cwd: rootDir,
   stdio: "inherit",
   env: process.env,
@@ -19,6 +19,13 @@ execSync("node scripts/generate-sitemap.mjs", {
 // 2. Export Expo React Native Web application
 console.log("[build-web] Running Expo web export...");
 execSync(`npx expo export "${rootDir}" -p web`, {
+  cwd: rootDir,
+  stdio: "inherit",
+  env: process.env,
+});
+
+console.log("[build-web] Prerendering public HTML...");
+execSync("node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/prerender-public-html.mjs", {
   cwd: rootDir,
   stdio: "inherit",
   env: process.env,

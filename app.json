@@ -31,7 +31,7 @@
     },
     "web": {
       "favicon": "./assets/logos/appicon.png",
-      "name": "RoyalLagn | Discover Trusted Wedding Vendors",
+      "name": "RoyalLagn",
       "description": "Discover trusted wedding photographers, venues, decorators, makeup artists and more with RoyalLagn. Explore verified wedding vendors and send enquiries directly.",
       "lang": "en-IN",
       "themeColor": "#E91E63"
