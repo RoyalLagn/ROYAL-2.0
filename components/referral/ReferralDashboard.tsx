@@ -160,7 +160,10 @@ export default function ReferralDashboard() {
   const { profile } = usePublicAuth();
   const { colorScheme } = useAppTheme();
   const isDark = colorScheme === "dark";
-  const isDesktop = width >= 768;
+  // Keep the operational two-column workspace for genuinely wide windows.
+  // Tablets retain the focused, single-column flow instead of compressing forms
+  // and payment guidance into narrow side-by-side panels.
+  const isDesktop = width >= 1080;
   const isSmall = width < 375;
   const isCompact = width < 360;
 
@@ -1763,12 +1766,12 @@ export default function ReferralDashboard() {
                 ) : tab === "share" ? (
                   renderShareCard()
                 ) : null}
+                {renderPromoCard()}
               </View>
 
               {/* Right Column (Desktop Only) */}
               <View style={styles.rightColumnDesktop}>
                 {renderVerifiedDestinationCard()}
-                {renderPromoCard()}
                 {renderHowWithdrawalsWorkCard()}
               </View>
             </View>
@@ -1864,32 +1867,32 @@ export default function ReferralDashboard() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#FFF5F8",
+    backgroundColor: "#FFF8FA",
   },
   rootDark: {
     backgroundColor: "#111827",
   },
   scrollContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   contentWrapper: {
     width: "100%",
-    maxWidth: 720,
+    maxWidth: 760,
     alignSelf: "center",
   },
   contentWrapperSmall: {
     paddingHorizontal: 0,
   },
   contentWrapperDesktop: {
-    maxWidth: 1200,
-    paddingHorizontal: 12,
+    maxWidth: 1264,
+    paddingHorizontal: 16,
   },
   // Desktop Header
   desktopHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 28,
   },
   desktopHeaderLeft: {
     flexDirection: "row",
@@ -1897,12 +1900,12 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   headerIconBadge: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: 14,
     backgroundColor: "#FDF2F8",
     borderWidth: 1,
-    borderColor: "#FCE7F3",
+    borderColor: "#F9D7E7",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1917,7 +1920,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 24,
     gap: 12,
   },
   topBarSmall: {
@@ -1932,7 +1935,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#FCE7F3",
+    borderColor: "#F6D8E5",
   },
   backButtonSmall: {
     width: 44,
@@ -1946,9 +1949,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 21,
+    fontSize: 22,
     fontWeight: "800",
     color: "#111827",
+    letterSpacing: -0.45,
   },
   headerTitleSmall: {
     fontSize: 18,
@@ -1958,7 +1962,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: "#6B7280",
+    color: "#667085",
     marginTop: 3,
     lineHeight: 18,
   },
@@ -1973,7 +1977,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#FCE7F3",
+    borderColor: "#F9D7E7",
   },
   subtitleDark: {
     color: "#9CA3AF",
@@ -1999,54 +2003,54 @@ const styles = StyleSheet.create({
   // Main Layout Grid
   mainLayout: {
     flexDirection: "column",
-    gap: 16,
+    gap: 20,
   },
   mainLayoutDesktop: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 24,
+    gap: 28,
   },
   leftColumn: {
     flex: 1,
-    gap: 16,
+    gap: 20,
   },
   leftColumnDesktop: {
-    flex: 1.35,
+    flex: 1.45,
     minWidth: 0,
-    gap: 16,
+    gap: 20,
   },
   rightColumnDesktop: {
-    width: 400,
-    gap: 16,
+    width: 380,
+    gap: 20,
   },
   // Hero Card with ImageBackground & Frosted Glass Panel
   heroCardShadowWrap: {
     borderRadius: 24,
-    shadowColor: "#E91E63",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
-    elevation: 4,
+    shadowColor: "#9D174D",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.11,
+    shadowRadius: 22,
+    elevation: 5,
     backgroundColor: "#FFFFFF",
-    marginBottom: 12,
+    marginBottom: 4,
   },
   heroCard: {
     borderRadius: 24,
     overflow: "hidden",
-    borderWidth: 1.5,
-    borderColor: "#FCE7F3",
+    borderWidth: 1,
+    borderColor: "#F7D4E3",
   },
   heroBgImage: {
     borderRadius: 24,
     opacity: 0.95,
   },
   heroCardOverlay: {
-    backgroundColor: "rgba(255, 255, 255, 0.42)",
-    padding: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.56)",
+    padding: 20,
     borderRadius: 24,
   },
   heroCardOverlaySmall: {
-    padding: 12,
+    padding: 14,
   },
   heroTopContent: {
     flexDirection: "row",
@@ -2143,7 +2147,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   earningsBlock: {
-    marginTop: 14,
+    marginTop: 18,
   },
   earningsLabel: {
     fontSize: 12,
@@ -2154,11 +2158,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   earningsAmount: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "900",
     color: "#111827",
     marginTop: 2,
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
   },
   earningsAmountSmall: {
     fontSize: 24,
@@ -2168,12 +2172,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "rgba(255, 255, 255, 0.94)",
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 10,
-    marginTop: 16,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+    marginTop: 20,
     borderWidth: 1,
-    borderColor: "#F3E8EE",
+    borderColor: "#F2DDE7",
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -2215,9 +2219,9 @@ const styles = StyleSheet.create({
   },
   // Sticky Tabs Bar & Highlighted Segmented Toggle Bar
   stickyTabsWrapper: {
-    backgroundColor: "#FFF5F8",
-    paddingTop: 8,
-    paddingBottom: 10,
+    backgroundColor: "#FFF8FA",
+    paddingTop: 12,
+    paddingBottom: 14,
     zIndex: 50,
   },
   stickyTabsWrapperDark: {},
@@ -2228,8 +2232,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#F2F2F7",
-    borderRadius: 14,
-    padding: 4,
+    borderRadius: 16,
+    padding: 5,
     borderWidth: 0,
     shadowOpacity: 0,
     elevation: 0,
@@ -2252,14 +2256,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   tabButtonSurface: {
-    minHeight: 44,
+    minHeight: 46,
     width: "100%",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 8,
     paddingHorizontal: 4,
-    borderRadius: 10,
+    borderRadius: 12,
   },
   tabButtonSurfaceSmall: {
     minHeight: 42,
@@ -2270,9 +2274,9 @@ const styles = StyleSheet.create({
   tabButtonSurfaceActive: {
     backgroundColor: "#FFFFFF",
     shadowColor: "#1C1C1E",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 5,
     elevation: 2,
   },
   tabButtonPressed: {
@@ -2299,11 +2303,11 @@ const styles = StyleSheet.create({
   // Section Cards
   sectionCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#FCE7F3",
-    padding: 16,
-    gap: 14,
+    borderColor: "#F3DFE8",
+    padding: 20,
+    gap: 16,
   },
   sectionCardSmall: {
     padding: 13,
@@ -2315,15 +2319,15 @@ const styles = StyleSheet.create({
   // Request Withdrawal Card with Royal Pink Thin Border
   requestWithdrawalCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: "#F472B6", // Royal Pink thin border
-    padding: 16,
-    gap: 14,
-    shadowColor: "#E91E63",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#F2D5E3",
+    padding: 20,
+    gap: 16,
+    shadowColor: "#881337",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
     elevation: 2,
   },
   requestWithdrawalCardDark: {
@@ -2333,7 +2337,7 @@ const styles = StyleSheet.create({
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
   iconCircle: {
     width: 34,
@@ -2350,17 +2354,18 @@ const styles = StyleSheet.create({
     height: 30,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "800",
     color: "#111827",
+    letterSpacing: -0.2,
   },
   sectionTitleSmall: {
     fontSize: 14,
   },
   sectionSub: {
-    fontSize: 11.5,
-    color: "#6B7280",
-    marginTop: 2,
+    fontSize: 12,
+    color: "#667085",
+    marginTop: 3,
   },
   sectionSubSmall: {
     fontSize: 11,
@@ -2368,10 +2373,10 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 4,
     borderRadius: 12,
-    gap: 4,
+    gap: 3,
     borderWidth: 1,
   },
   statusBadgeApproved: {
@@ -2391,9 +2396,9 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
   },
   statusBadgeText: {
-    fontSize: 10.5,
+    fontSize: 9,
     fontWeight: "800",
-    letterSpacing: 0.4,
+    letterSpacing: 0.15,
   },
   rejectedBanner: {
     flexDirection: "row",
@@ -2835,10 +2840,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#FCE7F3",
-    backgroundColor: "#FAFAFA",
+    borderColor: "#E9D9E1",
+    backgroundColor: "#FFFDFE",
     borderRadius: 14,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
   },
   payoutInputWrapDark: {
     backgroundColor: "#111827",
@@ -2852,7 +2857,7 @@ const styles = StyleSheet.create({
   },
   payoutInputField: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     fontSize: 14,
     color: "#111827",
   },
@@ -2861,7 +2866,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#E91E63",
     borderRadius: 14,
-    paddingHorizontal: 18,
+    minHeight: 48,
+    paddingHorizontal: 20,
     paddingVertical: 13,
     gap: 6,
     shadowColor: "#E91E63",
@@ -2876,6 +2882,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#E91E63",
     borderRadius: 14,
+    minHeight: 48,
     paddingVertical: 13,
     gap: 8,
     marginTop: 4,
@@ -2943,8 +2950,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#FCE7F3",
-    padding: 16,
+    borderColor: "#F3DFE8",
+    padding: 20,
     overflow: "hidden",
   },
   promoCardDark: {
@@ -2959,7 +2966,7 @@ const styles = StyleSheet.create({
   slabDivider: {
     height: 1,
     backgroundColor: "#FCE7F3",
-    marginVertical: 14,
+    marginVertical: 18,
   },
   slabDividerDark: {
     backgroundColor: "#374151",
@@ -3444,7 +3451,7 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 12,
   },
   statsGridSmall: {
     gap: 8,
@@ -3453,11 +3460,11 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: "45%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "#FCE7F3",
-    gap: 4,
+    borderColor: "#F3DFE8",
+    gap: 6,
   },
   statCardSmall: {
     padding: 10,
@@ -3489,12 +3496,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "#FCE7F3",
-    gap: 10,
-    marginTop: 6,
+    borderColor: "#F3DFE8",
+    gap: 12,
+    marginTop: 8,
   },
   incentiveBannerSmall: {
     padding: 10,
@@ -3533,11 +3540,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#FDF2F8",
-    borderWidth: 1.5,
-    borderColor: "#FCE7F3",
+    borderWidth: 1,
+    borderColor: "#F4D9E6",
     borderRadius: 14,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   copyBoxSmall: {
     paddingHorizontal: 10,
@@ -3589,6 +3596,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#25D366",
+    minHeight: 48,
     paddingVertical: 12,
     borderRadius: 14,
     gap: 8,
@@ -3600,8 +3608,8 @@ const styles = StyleSheet.create({
   },
   qrCardContainer: {
     alignItems: "center",
-    paddingVertical: 12,
-    gap: 8,
+    paddingVertical: 16,
+    gap: 10,
   },
   qrImage: {
     width: 180,
@@ -3624,7 +3632,8 @@ const styles = StyleSheet.create({
     color: "#4B5563",
   },
   btnPressed: {
-    opacity: 0.8,
+    opacity: 0.92,
+    transform: [{ scale: 0.98 }],
   },
   // Wallet 3D Art
   walletArt: {
