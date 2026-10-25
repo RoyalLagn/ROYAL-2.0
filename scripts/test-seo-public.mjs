@@ -36,7 +36,7 @@ assert.equal(canonicalUrl("/vendor/tejas-photography-pune"), "https://royallagn.
 assert.equal(canonicalUrl("/"), "https://royallagn.com/");
 
 const robots = readFileSync(new URL("../public/robots.txt", import.meta.url), "utf8");
-assert.equal(robots, robotsTxt());
+assert.equal(robots.replace(/\r\n/g, "\n"), robotsTxt().replace(/\r\n/g, "\n"));
 const shellTemplate = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 for (const prefix of PRIVATE_PREFIXES) {
   assert.match(shellTemplate, new RegExp(prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -86,5 +86,5 @@ assert.doesNotMatch(xml, /AdminLogin|vendor-dashboard|\/bookings/);
 const vercel = readFileSync(new URL("../vercel.json", import.meta.url), "utf8");
 assert.doesNotMatch(vercel, /www\.royallagn\.com/, "Do not add a www redirect while Vercel already redirects the apex domain to www.");
 
-assert.equal(root.endsWith("/"), true);
+assert.match(root, /[\\/]$/);
 console.log("SEO public checks passed.");
