@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo } from "react";
 import {
-  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -19,7 +18,6 @@ import {
 } from "lucide-react-native";
 import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
-import { vendorTheme } from "@/components/vendor/VendorTheme";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
 import { useVendorWorkspace } from "@/hooks/useVendorWorkspace";
 import VendorCrmReviewsSection from "@/components/vendor/crm/VendorCrmReviewsSection";
@@ -30,10 +28,8 @@ export default function VendorReviews() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { colorScheme } = useAppTheme();
-  const colors = vendorTheme[colorScheme];
   const isDark = colorScheme === "dark";
   const isDesktop = width >= 900;
-  const isSmall = width < 500;
 
   const { data, loading, refresh } = useVendorWorkspace();
 

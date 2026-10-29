@@ -1,12 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Platform, StyleSheet, Switch, Text, useWindowDimensions, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronLeft, ChevronRight, Plus, Save } from "lucide-react-native";
 import VendorHeader from "@/components/vendor/VendorHeader";
 import AddOfflineBookingModal from "@/components/vendor/AddOfflineBookingModal";
 import VendorSectionHeading, { useVendorSectionPageStyle } from "@/components/vendor/VendorSectionHeading";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
-import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
 import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { vendorTheme } from "@/components/vendor/VendorTheme";
@@ -72,7 +70,6 @@ export default function VendorCalendar() {
   const colors = vendorTheme[colorScheme];
   const { showSuccess } = useAppFeedback();
   const { data, refresh } = useVendorWorkspace();
-  const insets = useSafeAreaInsets();
   // Grid/button sizes are derived from each row's own measured `onLayout`
   // width rather than `useWindowDimensions()`. Two independent Android
   // layout bugs live here: (1) Yoga can mis-resolve `aspectRatio` combined
@@ -251,10 +248,6 @@ export default function VendorCalendar() {
           : `${date} is available by default.`
         : `${date} is now booked.`,
     );
-  };
-  const toggleBookedDate = (date: string) => {
-    if (bookingBlockedDates.has(date)) return;
-    void update(dateStatus(date) === "blocked" ? "available" : "blocked", date);
   };
   return <View style={[styles.page, { backgroundColor: colors.background }]}>
     <VendorHeader unread={data.notifications.filter((item) => !item.is_read).length} />

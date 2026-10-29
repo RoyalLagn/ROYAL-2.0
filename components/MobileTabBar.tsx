@@ -27,7 +27,6 @@ import { useAppTheme } from "@/components/ThemeProvider";
 import FavoriteNotificationDot from "@/components/favorites/FavoriteNotificationDot";
 import { useFavorites } from "@/context/FavoritesContext";
 import { useAuthenticationGateway } from "@/hooks/useAuthenticationGateway";
-import { brandPalette } from "@/constants/brandPalette";
 import { floatingNavigationColors, floatingNavigationTokens } from "@/constants/navigationTokens";
 
 const CENTER_ROUTE = "referral";

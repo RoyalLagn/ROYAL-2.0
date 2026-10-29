@@ -1550,12 +1550,12 @@ export default function AdminReferrals() {
             </View>
 
             <Text style={styles.modalHelpText}>
-              Verify that the customer's claimed beneficiary name matches the name registered in the
+              Verify that the customer&apos;s claimed beneficiary name matches the name registered in the
               banking / UPI network before approving.
             </Text>
 
             <View style={styles.modalFieldWrap}>
-              <Text style={styles.modalFieldLabel}>Customer's Beneficiary Name</Text>
+              <Text style={styles.modalFieldLabel}>Customer&apos;s Beneficiary Name</Text>
               <Text style={styles.readOnlyText}>{approveModalItem?.beneficiaryName}</Text>
             </View>
 
@@ -1968,7 +1968,7 @@ export default function AdminReferrals() {
               <AlertCircle size={16} color="#B91C1C" />
               <Text style={styles.warningNoticeText}>
                 Rejecting this request will immediately release the reserved balance of{" "}
-                {money(rejectWithdrawalModalReq?.amount)} back to the customer's available referral wallet.
+                {money(rejectWithdrawalModalReq?.amount)} back to the customer&apos;s available referral wallet.
               </Text>
             </View>
 
@@ -2019,7 +2019,7 @@ export default function AdminReferrals() {
             </View>
 
             <Text style={styles.modalHelpText}>
-              Use this if an initiated bank transfer bounced, failed at NPCI, or reversed. The customer's
+              Use this if an initiated bank transfer bounced, failed at NPCI, or reversed. The customer&apos;s
               reserved balance will be restored safely.
             </Text>
 

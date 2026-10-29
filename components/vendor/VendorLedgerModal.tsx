@@ -368,7 +368,6 @@ export default function VendorLedgerModal({
             {entries.map((entry) => {
               const isPending = entry.booking_status === "pending";
               const isConfirmed = entry.booking_status === "confirmed";
-              const isCancelled = entry.booking_status === "cancelled";
               const isBusy = busyActionId === entry.id;
 
               return (

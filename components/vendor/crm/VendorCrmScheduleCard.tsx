@@ -57,7 +57,7 @@ export default function VendorCrmScheduleCard() {
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={[styles.title, isDark && styles.textDark]}>
-          Today's Schedule
+          Today&apos;s Schedule
         </Text>
         <Pressable
           accessibilityRole="button"

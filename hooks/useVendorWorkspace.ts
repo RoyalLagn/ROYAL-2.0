@@ -199,6 +199,20 @@ export function useVendorWorkspace() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
+  // The workspace shell stays mounted around login and logout routes. Without
+  // listening for auth changes it can retain the previous account's empty
+  // workspace (and render the fallback business name) after a user switches
+  // from a customer session to a vendor session in the same browser tab.
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      // Supabase advises deferring client calls out of this callback so token
+      // persistence completes before refresh reads the active user.
+      setTimeout(() => { void refresh(); }, 0);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [refresh]);
+
   useEffect(() => {
     const vendorId = data.vendor?.id;
     const profileId = data.vendor?.profile_id;

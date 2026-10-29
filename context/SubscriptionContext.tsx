@@ -3,6 +3,7 @@ import { restoreSupabaseSession, supabase } from "@/services/supabase";
 import { SubscriptionAccessService } from "@/subscriptions/services/SubscriptionAccessService";
 import type { SubscriptionAccess, SubscriptionFeatureKey, SubscriptionOffer, SubscriptionPlan } from "@/subscriptions/types";
 import { subscriptionErrorMessage } from "@/subscriptions/error";
+import { useVendorAuth } from "@/context/VendorAuthContext";
 
 type SubscriptionContextValue = {
   access: SubscriptionAccess | null;
@@ -19,6 +20,7 @@ type SubscriptionContextValue = {
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
 
 export function SubscriptionProvider({ children }: React.PropsWithChildren) {
+  const { isVendorAuthenticated } = useVendorAuth();
   const [access, setAccess] = useState<SubscriptionAccess | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [offers, setOffers] = useState<SubscriptionOffer[]>([]);
@@ -48,7 +50,10 @@ export function SubscriptionProvider({ children }: React.PropsWithChildren) {
         return;
       }
       const [nextAccess, nextOffers, nextSettings] = await Promise.all([
-        hasSession.current ? SubscriptionAccessService.getCurrentAccess() : Promise.resolve(null),
+        // Subscription access is scoped to a vendor workspace. Customer and
+        // admin sessions can read the public plan catalogue, but invoking
+        // this vendor RPC for them produces a 403 on every app boot.
+        hasSession.current && isVendorAuthenticated ? SubscriptionAccessService.getCurrentAccess() : Promise.resolve(null),
         SubscriptionAccessService.listOffers(),
         SubscriptionAccessService.listPublicSettings(),
       ]);
@@ -68,7 +73,7 @@ export function SubscriptionProvider({ children }: React.PropsWithChildren) {
     } finally {
       if (mounted.current && request === refreshRequest.current) setLoading(false);
     }
-  }, []);
+  }, [isVendorAuthenticated]);
 
   useEffect(() => {
     mounted.current = true;

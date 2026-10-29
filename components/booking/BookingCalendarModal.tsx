@@ -16,7 +16,6 @@ import {
   ChevronRight,
   CircleAlert,
   CircleCheck,
-  Clock,
   Sparkles,
   X,
 } from "lucide-react-native";
@@ -26,7 +25,6 @@ import { brandPalette } from "@/constants/brandPalette";
 import { calculateEventDays } from "@/lib/bookingCalculations";
 import {
   listEffectiveVendorAvailability,
-  type AvailabilityStatus,
   type EffectiveAvailabilityDay,
 } from "@/services/vendorAvailability";
 
@@ -93,8 +91,7 @@ export default function BookingCalendarModal({
   onConfirmDates,
 }: BookingCalendarModalProps) {
   const insets = useSafeAreaInsets();
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const desktop = windowWidth >= 768;
+  const { width: windowWidth } = useWindowDimensions();
 
   const todayIso = useMemo(() => toIsoString(new Date()), []);
 

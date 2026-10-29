@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,13 +14,11 @@ import { useRouter } from "expo-router";
 import {
   CalendarDays,
   Clock3,
-  Gift,
   Lock,
   PackageCheck,
   ReceiptText,
   ShieldCheck,
   Sparkles,
-  User,
   X,
   MapPin,
   Phone,
@@ -46,13 +43,10 @@ import {
   calculateBookingFinancials,
   VendorBookingService,
   type BookingAddOn,
-  type SelectedPackageSummary,
 } from "@/services/vendorBookings";
 import {
   STANDARD_TIME_SLOTS,
   buildEventStartTimestamp,
-  calculateCancellationCutoff,
-  formatCutoffDisplayIST,
   validateIndianPhone,
   validateGoogleMapsUrl,
   validateBookingDescription,
@@ -216,16 +210,6 @@ export default function BookingCheckoutModal({
     d.setDate(d.getDate() + Math.max(0, totalDays - 1));
     return d.toISOString().slice(0, 10);
   }, [startDate, totalDays, initialEndDate]);
-
-  const estimatedCutoff = useMemo(() => {
-    try {
-      const startIso = buildEventStartTimestamp(startDate, eventStartTime);
-      const cutoffIso = calculateCancellationCutoff(startIso);
-      return formatCutoffDisplayIST(cutoffIso);
-    } catch {
-      return "—";
-    }
-  }, [startDate, eventStartTime]);
 
   const palette = useMemo(() => ({
     background: dark ? "#0F1623" : "#FFFFFF",
@@ -948,7 +932,7 @@ export default function BookingCheckoutModal({
               <View style={[styles.includedFeeBanner, { backgroundColor: dark ? "#064E3B15" : "#F0FDF4", borderColor: dark ? "#065F46" : "#BBF7D0" }]}>
                 <CheckCircle2 size={16} color="#059669" style={{ marginTop: 2, flexShrink: 0 }} />
                 <Text style={[styles.includedFeeText, { color: dark ? "#A7F3D0" : "#065F46" }]}>
-                  RoyalLagn's booking fee is included in your total package price. No additional platform fee.
+                  RoyalLagn&apos;s booking fee is included in your total package price. No additional platform fee.
                 </Text>
               </View>
 

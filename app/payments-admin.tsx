@@ -14,13 +14,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 import {
-  AlertCircle,
   ArrowDownUp,
   CalendarDays,
   CheckCircle2,
   CircleCheck,
   CircleX,
-  Clock,
   CreditCard,
   FileCheck,
   ReceiptText,
@@ -29,11 +27,8 @@ import {
   Search,
   SlidersHorizontal,
   Ticket,
-  User,
-  Users,
   Wallet,
   X,
-  XCircle,
 } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";

@@ -12,9 +12,7 @@ import {
 } from "react-native";
 import {
   AlertTriangle,
-  Calendar,
   CheckCircle,
-  Clock,
   ExternalLink,
   FileText,
   Lock,
@@ -22,7 +20,6 @@ import {
   MessageSquare,
   Phone,
   ShieldAlert,
-  ShieldCheck,
   Ticket,
   Unlock,
   User,
@@ -33,7 +30,6 @@ import Pressable from "@/components/InteropSafePressable";
 import { brandPalette } from "@/constants/brandPalette";
 import {
   formatCutoffDisplayIST,
-  getTimeRemainingToCutoff,
 } from "@/lib/bookingCancellationPolicy";
 import {
   VendorBookingService,
@@ -139,16 +135,6 @@ export default function BookingDetailsModal({
       setShowEmergencyModal(false);
     }
   }, [visible, bookingRef, loadDetails]);
-
-  // Cutoff & status calculations
-  const countdown = useMemo(() => {
-    if (!booking) return null;
-    return getTimeRemainingToCutoff(
-      booking.cancellation_cutoff_at,
-      booking.event_start_at,
-      booking.event_date
-    );
-  }, [booking]);
 
   const handleCall = (phone?: string | null) => {
     if (!phone) return;

@@ -6,17 +6,12 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
-  Gift,
-  Minus,
   PackageCheck,
-  Plus,
   Send,
   Sparkles,
-  Tag,
 } from "lucide-react-native";
 import {
   Alert,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -25,7 +20,7 @@ import {
   View,
 } from "react-native";
 import Pressable from "@/components/InteropSafePressable";
-import type { VendorPackage, VendorPackageItem } from "@/services/vendorPackages";
+import type { VendorPackage } from "@/services/vendorPackages";
 import { calculateBookingFinancials, type BookingAddOn } from "@/services/vendorBookings";
 import { brandPalette } from "@/constants/brandPalette";
 import BookingCalendarModal from "@/components/booking/BookingCalendarModal";

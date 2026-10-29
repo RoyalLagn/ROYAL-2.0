@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Platform,
   Pressable,
   StyleSheet,
   useWindowDimensions,
@@ -29,7 +28,6 @@ import {
   UserRound,
 } from "lucide-react-native";
 import { useAppTheme } from "@/components/ThemeProvider";
-import { typeScale, typeLeading } from "@/constants/typography";
 import { floatingNavigationColors, floatingNavigationTokens } from "@/constants/navigationTokens";
 
 const TAB_COUNT = 5;

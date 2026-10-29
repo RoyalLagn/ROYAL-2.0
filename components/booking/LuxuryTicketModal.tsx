@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
   Image,
-  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -21,7 +20,6 @@ import {
   Clock3,
   CreditCard,
   Crown,
-  FileDown,
   Hash,
   MessageCircle,
   PackageCheck,

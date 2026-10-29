@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,14 +10,11 @@ import {
   View,
 } from "react-native";
 import {
-  Banknote,
   Calendar,
   CheckCircle2,
-  CreditCard,
   IndianRupee,
   Package,
   Phone,
-  Plus,
   Receipt,
   User,
   X,
@@ -27,7 +23,7 @@ import AnimatedBottomSheet from "@/components/animated/AnimatedBottomSheet";
 import Pressable from "@/components/InteropSafePressable";
 import { useAppTheme } from "@/components/ThemeProvider";
 import { brandPalette } from "@/constants/brandPalette";
-import { typeScale, typeLeading, fonts } from "@/constants/typography";
+import { typeScale, fonts } from "@/constants/typography";
 import { VendorTransactionsService } from "@/services/vendorTransactions";
 import { useAppFeedback } from "@/context/AppFeedbackContext";
 
@@ -46,7 +42,7 @@ const EVENT_TYPES = [
   "Other Event",
 ];
 
-const PAYMENT_METHODS: Array<"Cash" | "UPI" | "Bank Transfer" | "Card" | "Cheque"> = [
+const PAYMENT_METHODS: ("Cash" | "UPI" | "Bank Transfer" | "Card" | "Cheque")[] = [
   "Cash",
   "UPI",
   "Bank Transfer",
