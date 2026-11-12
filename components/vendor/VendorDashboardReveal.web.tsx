@@ -14,6 +14,17 @@ export default function VendorDashboardReveal({ children, delay = 0, style }: Pr
   useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined" || !root.current) return;
     const element = root.current as unknown as HTMLElement;
+    // Dashboard content scrolls inside a React Native ScrollView, not the
+    // browser window. Watching the window leaves lower sections at opacity 0.
+    let ancestor = element.parentElement;
+    let scroller: HTMLElement | undefined;
+    while (ancestor && ancestor !== document.body) {
+      if (/^(auto|scroll|overlay)$/.test(window.getComputedStyle(ancestor).overflowY)) {
+        scroller = ancestor;
+        break;
+      }
+      ancestor = ancestor.parentElement;
+    }
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let cancelled = false;
     let animation: any = null;
@@ -44,6 +55,7 @@ export default function VendorDashboardReveal({ children, delay = 0, style }: Pr
             ease: "power2.out",
             scrollTrigger: {
               trigger: element,
+              scroller,
               start: "top 96%",
               once: true,
               invalidateOnRefresh: true,

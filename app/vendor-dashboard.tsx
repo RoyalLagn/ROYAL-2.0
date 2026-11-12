@@ -18,7 +18,6 @@ import { useVendorNotifications } from "@/context/VendorNotificationContext";
 import PageLoader from "@/components/loading/PageLoader";
 import AnimatedPressable from "@/components/animated/AnimatedPressable";
 import VendorDashboardReveal from "@/components/vendor/VendorDashboardReveal";
-import { VENDOR_TAB_BASE_HEIGHT } from "@/components/vendor/VendorBottomNav";
 import { MotionStagger } from "@/utils/motion";
 
 // CRM Components
@@ -281,7 +280,9 @@ export default function VendorDashboard() {
             {
               padding: pagePad,
               gap: pageGap,
-              paddingBottom: isDesktop ? 32 : 28 + VENDOR_TAB_BASE_HEIGHT,
+              // The workspace shell lays out the bottom navigation below this
+              // scroll area, so its height must not be reserved a second time.
+              paddingBottom: isDesktop ? 24 : 16,
             },
             isDesktop && styles.scrollContentDesktop,
           ]}
