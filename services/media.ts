@@ -145,6 +145,7 @@ export async function prepareImageForUpload<T extends ImageLikeAsset>(
   asset: T,
   purpose: ImageUploadPurpose = "general",
   onStage?: (stage: ImagePreparationStage) => void,
+  maxBytes = FINAL_IMAGE_MAX_BYTES,
 ): Promise<T> {
   const mimeType = (asset.mimeType || "image/jpeg").toLowerCase();
   if (!PROFILE_IMAGE_TYPES.has(mimeType)) {
@@ -163,7 +164,7 @@ export async function prepareImageForUpload<T extends ImageLikeAsset>(
 
   const maxLongEdge = IMAGE_LONG_EDGE[purpose];
   const sourceLongEdge = Math.max(asset.width || 0, asset.height || 0);
-  if (sourceBytes <= FINAL_IMAGE_MAX_BYTES && (!sourceLongEdge || sourceLongEdge <= maxLongEdge)) {
+  if (sourceBytes <= maxBytes && (!sourceLongEdge || sourceLongEdge <= maxLongEdge)) {
     onStage?.("uploading");
     return { ...asset, fileSize: sourceBytes };
   }
@@ -188,7 +189,7 @@ export async function prepareImageForUpload<T extends ImageLikeAsset>(
         format,
       });
       const bytes = await imageAssetBytes({ uri: result.uri });
-      if (bytes <= FINAL_IMAGE_MAX_BYTES) {
+      if (bytes <= maxBytes) {
         onStage?.("uploading");
         const extension = preservePng ? "png" : "jpg";
         return {
@@ -499,9 +500,19 @@ export async function uploadPortfolioAsset(
   onStage?: (stage: ImagePreparationStage) => void,
 ): Promise<MediaUpload> {
   const resourceType: "image" | "video" = asset.type === "video" ? "video" : "image";
-  const prepared = resourceType === "image"
-    ? await prepareImageForUpload(asset, "portfolio", onStage)
-    : asset;
+  if (resourceType !== "image") throw new MediaError("Portfolio video uploads are disabled.", "UPLOAD_ERROR");
+  const { data: policyRows, error: policyError } = await supabase.rpc("get_my_subscription_media_policy", {
+    target_vendor_id: vendorId,
+  });
+  if (policyError) throw new MediaError(policyError.message, "UPLOAD_ERROR", policyError);
+  const policy = Array.isArray(policyRows) ? policyRows[0] : policyRows;
+  const imageMaxMb = Number(policy?.max_image_upload_mb);
+  if (!Number.isFinite(imageMaxMb) || imageMaxMb <= 0) throw new MediaError("An active subscription plan is required.", "UPLOAD_ERROR");
+  const originalFileSize = await imageAssetBytes(asset);
+  if (originalFileSize > imageMaxMb * 1024 * 1024) {
+    throw new MediaError(`Your plan allows image uploads up to ${imageMaxMb} MB.`, "UPLOAD_ERROR");
+  }
+  const prepared = await prepareImageForUpload(asset, "portfolio", onStage, imageMaxMb * 1024 * 1024);
 
   let resolvedFileSize = prepared.fileSize;
   if (!resolvedFileSize) {
@@ -520,9 +531,9 @@ export async function uploadPortfolioAsset(
         vendorId,
         albumId,
         resourceType,
-        mimeType: prepared.mimeType || (resourceType === "video" ? "video/mp4" : "image/jpeg"),
+        mimeType: prepared.mimeType || "image/jpeg",
         fileSize: resolvedFileSize,
-        originalFileSize: asset.fileSize ?? resolvedFileSize,
+        originalFileSize,
         batchSize: 1,
       },
     }
@@ -541,40 +552,6 @@ export async function uploadPortfolioAsset(
   const signedOptions = cloudinarySignedOptions(signData);
 
   try {
-    if (resourceType === "video") {
-      const uploadResult = await uploadVideoToCloudinary(
-        {
-          uri: prepared.uri,
-          name: prepared.fileName || `portfolio-${Date.now()}.mp4`,
-          mimeType: prepared.mimeType || "video/mp4",
-          duration: asset.duration ?? undefined,
-          width: prepared.width,
-          height: prepared.height,
-          fileSize: resolvedFileSize,
-        },
-        { ...signedOptions, onProgress }
-      );
-
-      return {
-        secureUrl: uploadResult.secureUrl,
-        optimizedUrl: uploadResult.secureUrl,
-        heroUrl: uploadResult.secureUrl,
-        fullscreenUrl: uploadResult.secureUrl,
-        publicId: uploadResult.publicId,
-        resourceType: "video",
-        format: uploadResult.format || "mp4",
-        width: uploadResult.width,
-        height: uploadResult.height,
-        duration: uploadResult.duration,
-        bytes: uploadResult.bytes || resolvedFileSize,
-        originalBytes: asset.fileSize ?? resolvedFileSize,
-        optimizedBytes: uploadResult.bytes || resolvedFileSize,
-        thumbnailUrl: uploadResult.thumbnailUrl,
-        videoPosterUrl: uploadResult.thumbnailUrl,
-        reservationId,
-      };
-    }
-
     // Image upload
     const uploadResult = await uploadImageToCloudinary(
       {
@@ -600,7 +577,7 @@ export async function uploadPortfolioAsset(
       width: uploadResult.width,
       height: uploadResult.height,
       bytes: uploadResult.bytes || resolvedFileSize,
-      originalBytes: asset.fileSize ?? resolvedFileSize,
+      originalBytes: originalFileSize,
       optimizedBytes: uploadResult.bytes || resolvedFileSize,
       reservationId,
     };

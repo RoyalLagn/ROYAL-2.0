@@ -35,8 +35,8 @@ function mapPlan(row: any): SubscriptionPlan {
     discounted_price: row.discounted_price == null ? null : Number(row.discounted_price),
     status: row.status ?? (row.is_active ? "active" : "hidden"),
     is_permanent: Boolean(row.is_permanent),
-    max_image_upload_mb: Number(row.max_image_upload_mb ?? 8),
-    stored_image_target_mb: Number(row.stored_image_target_mb ?? 4),
+    max_image_upload_mb: Number(row.max_image_upload_mb ?? 3),
+    stored_image_target_mb: Number(row.stored_image_target_mb ?? 3),
     features: (row.subscription_plan_features ?? []).map((entry: any): SubscriptionPlanFeature => ({
       feature_key: entry.subscription_feature_definitions.feature_key,
       name: entry.subscription_feature_definitions.name,

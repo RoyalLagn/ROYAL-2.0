@@ -7,8 +7,8 @@ import { adminContentWidth } from "@/utils/responsiveLayout";
 
 const INK = "#151521", MUTED = "#696A75", LINE = "rgba(113,91,180,.16)", RED = "#E82936";
 const PLANS = [
-  { key: "free", name: "Free", price: 0, images: 15, albums: 3, perAlbum: 5, upload: "< 8 MB", stored: "≤ 4 MB" },
-  { key: "premium", name: "Premium", price: 499, images: 50, albums: 5, perAlbum: 10, upload: "< 12 MB", stored: "≤ 6 MB" },
+  { key: "free", name: "Free", price: 0, images: 15, albums: 3, perAlbum: 5, upload: "≤ 3 MB", stored: "≤ 3 MB" },
+  { key: "premium", name: "Premium", price: 299, images: 50, albums: 5, perAlbum: 10, upload: "≤ 5 MB", stored: "≤ 5 MB" },
 ] as const;
 const money = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 const n = (value: string) => value.trim() === "" ? 0 : Math.max(0, Number(value) || 0);
@@ -31,8 +31,8 @@ export default function AdminFinance() {
     const total = n(vendors);
     const free = Math.round(total * n(freePct) / 100);
     const premium = Math.round(total * n(premiumPct) / 100);
-    const revenue = premium * 499;
-    const storageGB = (free * 15 * 4 + premium * 50 * 6) / 1024;
+    const revenue = premium * 299;
+    const storageGB = (free * 15 * 3 + premium * 50 * 5) / 1024;
     const storageInr = storageGB * 0.01 * 88;
     const directCost = storageInr;
     const gross = revenue - directCost;
@@ -103,11 +103,11 @@ export default function AdminFinance() {
           <Glass soft style={s.pill}><Text style={s.eyebrow}>RoyalLagn Vendors · Subscription & Media Economics</Text></Glass>
           <Text style={[s.heroTitle,!desktop&&s.heroTitleMobile]}>Predictable revenue, <Text style={s.purple}>controlled costs.</Text></Text>
           <Text style={[s.heroCopy,!desktop&&s.heroCopyMobile]}>
-            Redesigned 2-tier subscription architecture: Free (15 photos) and Premium (50 photos at ₹499/mo). Clean storage economics with high margins.
+            Redesigned 2-tier subscription architecture: Free (15 photos) and Premium (50 photos at ₹299/mo). Clean storage economics with high margins.
           </Text>
           <View style={s.three}>
             {[
-              ["₹499 / mo","Premium Tier Subscription"],
+              ["₹299 / mo","Premium Tier Subscription"],
               ["15 / 50 Photos","Strict per-album quotas (3 & 5 albums)"],
               ["High Margins","Minimal Cloud Storage Overhead"],
             ].map(([a,b]) => (
@@ -134,11 +134,12 @@ export default function AdminFinance() {
             <Table
               header="Specification"
               rows={[
-                ["Price / month","₹0","₹499"],
+                ["Price / month","₹0","₹299"],
+                ["Price / year","₹0","₹3,588"],
                 ["Total Images","15","50"],
                 ["Supported Albums","3 albums (5 img/album)","5 albums (10 img/album)"],
-                ["Image upload limit","< 8 MB / image","< 12 MB / image"],
-                ["Stored image target","≤ 4 MB / image","≤ 6 MB / image"],
+                ["Image upload limit","≤ 3 MB / image","≤ 5 MB / image"],
+                ["Stored image target","≤ 3 MB / image","≤ 5 MB / image"],
               ]}
             />
           </Glass>
@@ -151,7 +152,7 @@ export default function AdminFinance() {
               <View style={s.fields}>
                 <Field label="TOTAL ACTIVE VENDORS" value={vendors} set={setVendors}/>
                 <Field label="FREE VENDORS" value={freePct} set={setFreePct} suffix="%"/>
-                <Field label="PREMIUM VENDORS (₹499/mo)" value={premiumPct} set={setPremiumPct} suffix="%"/>
+                <Field label="PREMIUM VENDORS (₹299/mo)" value={premiumPct} set={setPremiumPct} suffix="%"/>
                 <Field label="MONTHLY OPERATING EXPENSES" value={expenses} set={setExpenses} suffix="₹/mo" hint="Salaries, marketing, rent, gateway fees"/>
                 <Field label="INCOME TAX RATE" value={taxPct} set={setTaxPct} suffix="%"/>
               </View>
@@ -161,7 +162,7 @@ export default function AdminFinance() {
                 </View>
               ) : null}
               <View style={s.counts}>
-                {[["Free (₹0)",r.free],["Premium (₹499)",r.premium]].map(([l,v]) => (
+                {[["Free (₹0)",r.free],["Premium (₹299)",r.premium]].map(([l,v]) => (
                   <Glass soft key={String(l)} style={s.count}>
                     <Text style={s.countValue}>{v}</Text>
                     <Text style={s.copy}>{l}</Text>
@@ -174,18 +175,18 @@ export default function AdminFinance() {
               <Text style={s.panelTitle}>Fixed Parameters</Text>
               <Text style={s.copy}>Media quota & cloud infrastructure rates.</Text>
               <Table compact rows={[
-                ["Price","₹0","₹499"],
+                ["Price","₹0","₹299"],
                 ["Images","15","50"],
                 ["Albums","3 (5/album)","5 (10/album)"],
-                ["Upload Target","< 8 MB","< 12 MB"],
-                ["Stored Target","≤ 4 MB","≤ 6 MB"],
+                ["Upload Target","≤ 3 MB","≤ 5 MB"],
+                ["Stored Target","≤ 3 MB","≤ 5 MB"],
               ]} />
               <View style={s.fixed}>
                 {[
                   ["Storage rate","$0.01 / GB / mo"],
                   ["USD → INR","₹88 / $"],
-                  ["Average Free Storage","~60 MB / vendor"],
-                  ["Average Premium Storage","~300 MB / vendor"],
+                  ["Average Free Storage","~45 MB / vendor"],
+                  ["Average Premium Storage","~250 MB / vendor"],
                 ].map(([a,b]) => (
                   <Glass soft key={a} style={s.fixedItem}>
                     <Text style={s.copy}>{a}</Text>
@@ -276,7 +277,7 @@ function Glass({children,style,soft}:{children:React.ReactNode;style?:any;soft?:
 function Section({eyebrow,title,sub,children,marker}:{eyebrow:string;title:string;sub:string;children:React.ReactNode;marker:any}) { return <View {...marker} style={s.section}><Text style={s.sectionEyebrow}>{eyebrow}</Text><Text style={s.sectionTitle}>{title}</Text><Text style={s.sectionSub}>{sub}</Text>{children}</View>; }
 function Field({label,value,set,suffix,hint,editable=true}:{label:string;value:string;set:(v:string)=>void;suffix?:string;hint?:string;editable?:boolean}) { return <View style={s.field}><Text style={s.label}>{label}</Text><Glass soft style={s.inputWrap}><TextInput editable={editable} value={value} onChangeText={set} keyboardType="decimal-pad" style={s.input}/>{suffix?<Text style={s.suffix}>{suffix}</Text>:null}</Glass>{hint?<Text style={s.hint}>{hint}</Text>:null}</View>; }
 function Result({label,value,strong,negative,total}:{label:string;value:string;strong?:boolean;negative?:boolean;total?:boolean}) { return <View style={[s.result,total&&s.resultTotal]}><Text style={[s.resultLabel,strong&&s.bold]}>{label}</Text><Text style={[s.resultValue,strong&&s.resultStrong,negative&&s.red]}>{negative?"− ":""}{value}</Text></View>; }
-function Table({rows,compact,header="Item"}:{rows:string[][];compact?:boolean;header?:string}) { return <ScrollView horizontal showsHorizontalScrollIndicator={false}><View style={[s.tableInner,compact&&s.tableCompact]}><View style={s.tableRow}><Text style={s.tableLabel}>{header}</Text><Text style={s.tableCell}>Free</Text><Text style={s.tableCell}>Premium (₹499)</Text></View>{rows.map(row=><View key={row[0]} style={s.tableRow}><Text style={[s.tableLabel,s.tableMuted]}>{row[0]}</Text>{row.slice(1).map((v,i)=><Text key={`${row[0]}-${i}`} style={s.tableCell}>{v}</Text>)}</View>)}</View></ScrollView>; }
+function Table({rows,compact,header="Item"}:{rows:string[][];compact?:boolean;header?:string}) { return <ScrollView horizontal showsHorizontalScrollIndicator={false}><View style={[s.tableInner,compact&&s.tableCompact]}><View style={s.tableRow}><Text style={s.tableLabel}>{header}</Text><Text style={s.tableCell}>Free</Text><Text style={s.tableCell}>Premium (₹299)</Text></View>{rows.map(row=><View key={row[0]} style={s.tableRow}><Text style={[s.tableLabel,s.tableMuted]}>{row[0]}</Text>{row.slice(1).map((v,i)=><Text key={`${row[0]}-${i}`} style={s.tableCell}>{v}</Text>)}</View>)}</View></ScrollView>; }
 
 const s=StyleSheet.create({
   page:{flex:1,overflow:"hidden",backgroundColor:"#FAFAFD"},scroll:{paddingBottom:60},blueGlow:{position:"absolute",width:700,height:700,borderRadius:350,backgroundColor:"#DCEBFF",top:-250,left:-260,opacity:.85},pinkGlow:{position:"absolute",width:650,height:650,borderRadius:325,backgroundColor:"#FFE0F1",top:-180,right:-260,opacity:.8},orangeGlow:{position:"absolute",width:600,height:600,borderRadius:300,backgroundColor:"#FFF0DE",bottom:-300,left:"30%",opacity:.65},navWrap:{paddingHorizontal:12,paddingTop:10,backgroundColor:"transparent"},nav:{width:"100%",maxWidth:1160,alignSelf:"center",minHeight:62,borderRadius:20,paddingHorizontal:18,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},brand:{flexDirection:"row",alignItems:"center",gap:9},logo:{width:34,height:34,borderRadius:12,alignItems:"center",justifyContent:"center"},logoText:{color:"white",fontWeight:"800"},brandText:{fontSize:15,fontWeight:"800",color:INK},purple:{color:"#8B4BEF"},navLinks:{flexDirection:"row",alignItems:"center",gap:3},navButton:{paddingHorizontal:15,paddingVertical:11},navText:{fontSize:14,fontWeight:"700",color:"#52525C"},run:{borderRadius:22,paddingHorizontal:21,paddingVertical:12},runText:{color:"white",fontWeight:"800"},menuButton:{width:46,height:42,borderRadius:12,alignItems:"center",justifyContent:"center"},menuText:{fontSize:17,fontWeight:"800",color:INK},mobileMenu:{width:"100%",maxWidth:1160,alignSelf:"center",borderRadius:20,padding:8,marginTop:8},mobileLink:{paddingHorizontal:14,paddingVertical:12,borderRadius:12},glass:{backgroundColor:"rgba(255,255,255,.82)",borderWidth:1,borderColor:"rgba(190,168,239,.28)",boxShadow:"0 20px 55px rgba(119,75,180,.12)" as any},glassSoft:{backgroundColor:"rgba(255,255,255,.68)",borderWidth:1,borderColor:"rgba(160,196,239,.32)",boxShadow:"0 10px 28px rgba(55,125,210,.09)" as any},hero:{width:"100%",maxWidth:1160,alignSelf:"center",paddingHorizontal:16,paddingTop:58,paddingBottom:34,alignItems:"center"},pill:{borderRadius:22,paddingHorizontal:16,paddingVertical:8},eyebrow:{fontSize:12,fontWeight:"800",letterSpacing:1,color:"#4F505A"},heroTitle:{fontSize:56,lineHeight:62,fontWeight:"900",letterSpacing:-2,color:INK,textAlign:"center",maxWidth:800,marginTop:22},heroTitleMobile:{fontSize:38,lineHeight:42,letterSpacing:-1.3},heroCopy:{fontSize:18,lineHeight:28,color:MUTED,textAlign:"center",maxWidth:720,marginTop:16},heroCopyMobile:{fontSize:16,lineHeight:24},three:{flexDirection:"row",flexWrap:"wrap",gap:13,width:"100%",marginTop:28},stat:{flex:1,minWidth:230,borderRadius:26,padding:22},statValue:{fontSize:21,fontWeight:"900",color:INK,marginBottom:5},copy:{fontSize:14,lineHeight:21,color:MUTED},section:{width:"100%",maxWidth:1160,alignSelf:"center",paddingHorizontal:16,paddingVertical:62},sectionEyebrow:{fontSize:12,fontWeight:"800",letterSpacing:2.2,color:"#777985"},sectionTitle:{fontSize:38,lineHeight:45,fontWeight:"900",letterSpacing:-1.2,color:INK,marginTop:9},sectionSub:{fontSize:16,lineHeight:25,color:MUTED,maxWidth:700,marginTop:11,marginBottom:30},plan:{flex:1,minWidth:250,borderRadius:27,padding:24},planHead:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:8},planName:{fontSize:21,fontWeight:"900",color:INK},badge:{borderRadius:18,paddingHorizontal:12,paddingVertical:6},badgeText:{fontSize:11,fontWeight:"800",color:"white"},price:{fontSize:38,fontWeight:"900",letterSpacing:-1,color:INK,marginVertical:12},per:{fontSize:15,fontWeight:"700",color:"#7A7B85"},planLine:{fontSize:14,fontWeight:"700",color:INK,marginTop:7},table:{borderRadius:27,padding:10,marginTop:18},tableInner:{minWidth:620,paddingHorizontal:8},tableCompact:{minWidth:500,marginTop:20},tableRow:{minHeight:48,flexDirection:"row",alignItems:"center",borderTopWidth:1,borderTopColor:LINE},tableLabel:{width:230,fontSize:13,fontWeight:"800",color:INK,paddingHorizontal:10},tableMuted:{color:MUTED},tableCell:{width:165,fontSize:13,fontWeight:"800",color:INK,paddingHorizontal:10},calcGrid:{gap:16},calcGridDesktop:{flexDirection:"row"},calc:{flex:1,borderRadius:28,padding:24,minWidth:0},panelTitle:{fontSize:21,fontWeight:"900",color:INK,marginBottom:8},fields:{flexDirection:"row",flexWrap:"wrap",gap:16,marginTop:18},field:{flexGrow:1,flexBasis:250,minWidth:220},label:{fontSize:12,fontWeight:"800",color:"#696A73",marginBottom:7},inputWrap:{height:56,borderRadius:22,paddingHorizontal:16,flexDirection:"row",alignItems:"center"},input:{flex:1,fontSize:18,fontWeight:"800",color:INK,padding:0},suffix:{fontSize:16,fontWeight:"700",color:"#767780"},hint:{fontSize:11,color:"#858691",marginTop:7},warning:{backgroundColor:"#FFE8EA",borderRadius:15,padding:12,marginTop:16},warningText:{fontSize:12,fontWeight:"800",color:RED},counts:{flexDirection:"row",gap:11,marginTop:20},count:{flex:1,borderRadius:20,padding:16,alignItems:"center"},countValue:{fontSize:24,fontWeight:"900",color:INK},fixed:{flexDirection:"row",flexWrap:"wrap",gap:10,marginTop:18},fixedItem:{flexGrow:1,flexBasis:230,minHeight:48,borderRadius:20,paddingHorizontal:14,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:10},fixedValue:{fontSize:13,fontWeight:"800",color:INK},usage:{flex:1,minWidth:230,borderRadius:26,padding:21},usageValue:{fontSize:24,fontWeight:"900",color:INK,marginTop:5},results:{borderRadius:28,padding:24,marginTop:18},resultsHeading:{minHeight:48,flexDirection:"row",alignItems:"flex-start",justifyContent:"space-between",gap:16},result:{minHeight:57,borderTopWidth:1,borderTopColor:LINE,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:16},resultTotal:{borderTopWidth:2},resultLabel:{flex:1,fontSize:14,fontWeight:"700",color:MUTED},resultValue:{fontSize:16,fontWeight:"800",color:INK,fontVariant:["tabular-nums"]},resultStrong:{fontSize:19,fontWeight:"900"},bold:{fontWeight:"900",color:INK},red:{color:RED},net:{borderRadius:22,paddingHorizontal:20,paddingVertical:18,marginTop:16,flexDirection:"row",flexWrap:"wrap",alignItems:"center",justifyContent:"space-between",gap:10},netLabel:{fontSize:13,fontWeight:"900",color:"white"},netValue:{fontSize:31,fontWeight:"900",color:"white"},annualFields:{flexDirection:"row",flexWrap:"wrap",gap:16,marginTop:24},yearlyResults:{marginTop:30},annualStat:{flex:1,minWidth:220,borderRadius:24,padding:20,alignItems:"center"},annualValue:{fontSize:22,fontWeight:"900",color:INK,marginTop:6},taxBar:{borderRadius:22,backgroundColor:"#FFE7E9",paddingHorizontal:20,paddingVertical:17,marginTop:18,flexDirection:"row",justifyContent:"space-between"},taxText:{fontSize:14,fontWeight:"900",color:RED},taxValue:{fontSize:22,fontWeight:"900",color:RED},footerText:{fontSize:11,color:MUTED,textAlign:"center",paddingHorizontal:16,paddingVertical:28}

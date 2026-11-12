@@ -18,7 +18,7 @@ import { useResponsiveLayout } from "@/context/ResponsiveLayoutContext";
 
 type Tab = "plans" | "vendors" | "offers";
 const pink = adminPalette.brand;
-const emptyPlan: AdminPlanInput = { name: "", slug: "", description: "", price: 0, discounted_price: null, billing_interval: "custom", billing_interval_count: 1, duration_days: null, trial_enabled: false, trial_days: 0, grace_period_days: 0, is_active: true, is_featured: false, status: "active", is_permanent: false, max_image_upload_mb: 8, stored_image_target_mb: 4, max_clip_upload_mb: null, stored_clip_target_mb: null, clip_delivery_target_mb: null };
+const emptyPlan: AdminPlanInput = { name: "", slug: "", description: "", price: 0, discounted_price: null, billing_interval: "custom", billing_interval_count: 1, duration_days: null, trial_enabled: false, trial_days: 0, grace_period_days: 0, is_active: true, is_featured: false, status: "active", is_permanent: false, max_image_upload_mb: 3, stored_image_target_mb: 3, max_clip_upload_mb: null, stored_clip_target_mb: null, clip_delivery_target_mb: null };
 
 // Clip and album allowances live on subscription_plan_features
 // (feature_key = 'upload_clips' | 'upload_gallery', column limit_value).
@@ -91,8 +91,8 @@ function planExtrasFrom(plan: any): PlanEditorExtras {
     yearlyDiscountPercent: Number(yearlyOption?.discount_percentage ?? 0),
     maxImages: String(imagesFeature?.limit_value ?? DEFAULT_MEDIA_LIMIT),
     maxImagesEnabled: imagesFeature ? Boolean(imagesFeature.is_enabled) : true,
-    imageUploadMb: String(plan.max_image_upload_mb ?? 8),
-    imageStoredMb: String(plan.stored_image_target_mb ?? 4),
+    imageUploadMb: String(plan.max_image_upload_mb ?? 3),
+    imageStoredMb: String(plan.stored_image_target_mb ?? 3),
   };
 }
 const emptyOffer = { name: "", code: "", description: "", discount_type: "percentage", discount_value: 0, start_date: "", end_date: "", is_global: true, is_active: true, applicable_plan_ids: [], applicable_vendor_ids: [], applicable_billing_intervals: [], uses_per_vendor: 1 };
@@ -181,8 +181,8 @@ export default function SubscriptionsAdmin() {
     if (!Number.isInteger(interval) || interval < 1) return Alert.alert("Check duration", "Billing interval count must be a positive whole number.");
     if (planEditor.billing_interval === "custom" && (!Number.isInteger(duration) || duration < 1)) return Alert.alert("Check duration", "Custom plans require a positive duration in days.");
     if ((planEditor.trial_enabled && (!Number.isInteger(trial) || trial < 1)) || !Number.isInteger(grace) || grace < 0) return Alert.alert("Check access days", "Trial and grace days must be valid whole numbers.");
-    if (!Number.isInteger(maxImages) || maxImages < 0) return Alert.alert("Check album change count", "Album change count must be a whole number of zero or more.");
-    if (![imageUploadMb, imageStoredMb].every((value) => Number.isFinite(value) && value > 0)) return Alert.alert("Check image limits", "Image upload and stored targets must be greater than zero.");
+    if (!Number.isInteger(maxImages) || maxImages < 0) return Alert.alert("Check image count", "Image count must be a whole number of zero or more.");
+    if (![imageUploadMb, imageStoredMb].every((value) => Number.isFinite(value) && value > 0) || imageStoredMb > imageUploadMb) return Alert.alert("Check image limits", "Image limits must be greater than zero, and the stored target cannot exceed the upload limit.");
     setSaving(true);
     try {
       const savedPlan = await SubscriptionAdminService.savePlan({
@@ -419,7 +419,7 @@ export default function SubscriptionsAdmin() {
   </ScrollView></View></View> : null}</Modal>
 
   <Modal visible={Boolean(billingEditor)} transparent animationType="slide" onRequestClose={() => setBillingEditor(null)}>{billingEditor ? <View style={styles.modalBackdrop}><View style={styles.modal}><ModalHeader title={billingEditor.billing_interval === "year" ? "Yearly pricing" : "Monthly pricing"} close={() => setBillingEditor(null)} /><ScrollView>
-    {billingEditor.billing_interval === "month" ? <Field label="Monthly price (₹)" numeric placeholder="e.g. 499" value={billingEditor.price || ""} onChangeText={(price: string) => setBillingEditor({ ...billingEditor, price: price as any })} /> : <><Field label="Yearly discount (%)" numeric placeholder="e.g. 20" value={billingEditor.discount_percentage || ""} onChangeText={(discount_percentage: string) => setBillingEditor({ ...billingEditor, discount_percentage: discount_percentage as any })} /><Text style={styles.modalHint}>The server recalculates Yearly as Monthly × 12, then applies this discount. Vendors and Razorpay receive the same validated amount.</Text></>}
+    {billingEditor.billing_interval === "month" ? <Field label="Monthly price (₹)" numeric placeholder="e.g. 299" value={billingEditor.price || ""} onChangeText={(price: string) => setBillingEditor({ ...billingEditor, price: price as any })} /> : <><Field label="Yearly discount (%)" numeric placeholder="e.g. 20" value={billingEditor.discount_percentage || ""} onChangeText={(discount_percentage: string) => setBillingEditor({ ...billingEditor, discount_percentage: discount_percentage as any })} /><Text style={styles.modalHint}>The server recalculates Yearly as Monthly × 12, then applies this discount. Vendors and Razorpay receive the same validated amount.</Text></>}
     <Field label="Grace days" numeric placeholder="e.g. 3" value={billingEditor.grace_period_days || ""} onChangeText={(grace_period_days: string) => setBillingEditor({ ...billingEditor, grace_period_days: grace_period_days as any })} />
     <Toggle label="Free trial" value={Boolean(billingEditor.trial_enabled)} onValueChange={(trial_enabled: boolean) => setBillingEditor({ ...billingEditor, trial_enabled })} />
     {billingEditor.trial_enabled ? <Field label="Trial days" numeric placeholder="e.g. 7" value={billingEditor.trial_days || ""} onChangeText={(trial_days: string) => setBillingEditor({ ...billingEditor, trial_days: trial_days as any })} /> : null}

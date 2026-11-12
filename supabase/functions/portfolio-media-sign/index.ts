@@ -32,10 +32,10 @@ Deno.serve(async (request) => {
       originalFileSize = fileSize,
       batchSize = 1,
     } = await request.json();
-    const kind = resourceType === "video" ? "video" : "image";
+    if (resourceType !== "image") throw new Error("Portfolio video uploads are disabled");
+    const kind = "image";
     const allowedImages = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
-    const allowedVideos = new Set(["video/mp4", "video/quicktime", "video/webm"]);
-    const allowedTypes = kind === "video" ? allowedVideos : allowedImages;
+    const allowedTypes = allowedImages;
     const { data: policyRows, error: policyError } = await supabase.rpc("get_my_subscription_media_policy", {
       target_vendor_id: vendorId,
     });
@@ -43,13 +43,18 @@ Deno.serve(async (request) => {
     const policy = Array.isArray(policyRows) ? policyRows[0] : policyRows;
     if (!policy) throw new Error("An active subscription plan is required");
     const sourceImageMaxBytes = Number(policy.max_image_upload_mb) * 1024 * 1024;
-    const maxBytes = kind === "video" ? 150 * 1024 * 1024 : 5 * 1024 * 1024;
+    const maxBytes = sourceImageMaxBytes;
     if (!allowedTypes.has(String(mimeType).toLowerCase())) throw new Error("Unsupported portfolio file type");
     if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > maxBytes) throw new Error("Portfolio file size is not allowed");
     if (kind === "image" && (!Number.isFinite(originalFileSize) || originalFileSize <= 0 || originalFileSize > sourceImageMaxBytes)) {
       throw new Error(`Your plan allows image uploads up to ${policy.max_image_upload_mb} MB.`);
     }
     if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 15) throw new Error("Invalid upload batch");
+
+    const { data: accessRows, error: accessErrorSnapshot } = await supabase.rpc("get_my_subscription_access");
+    if (accessErrorSnapshot) throw accessErrorSnapshot;
+    const access = Array.isArray(accessRows) ? accessRows[0] : accessRows;
+    const albumLimit = access?.has_access && /premium/i.test(access.plan_name ?? "") ? 10 : 5;
 
     const { data: vendor } = await supabase
       .from("vendors").select("id").eq("id", vendorId).eq("profile_id", user.id).maybeSingle();
@@ -65,7 +70,7 @@ Deno.serve(async (request) => {
       .from("vendor_portfolio_media").select("id", { count: "exact", head: true }).eq("album_id", albumId);
     if (countError) throw countError;
     const currentCount = Math.max(album.media_count ?? 0, count ?? 0);
-    if (currentCount + batchSize > 15) throw new Error("Album media limit reached");
+    if (currentCount + batchSize > albumLimit) throw new Error("Album media limit reached");
 
     const idempotencyKey = `${albumId}:${crypto.randomUUID()}`;
     const { data: reservation, error: reservationError } = await supabase.rpc("reserve_photo_upload_slot", {
@@ -87,9 +92,7 @@ Deno.serve(async (request) => {
     const uploadPreset = Deno.env.get("CLOUDINARY_UPLOAD_PRESET") || Deno.env.get("EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET");
 
     if (apiSecret && apiKey) {
-      const eager = kind === "video"
-        ? "c_limit,w_1280,h_720,q_auto:good,vc_h264,ac_aac,f_mp4|so_0,c_fit,w_960,h_720,q_auto,f_jpg"
-        : "c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile|c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile|c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile|c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile";
+      const eager = "c_limit,w_480,h_480,q_auto:eco,f_auto,fl_strip_profile|c_limit,w_1200,h_1200,q_auto:good,f_auto,fl_strip_profile|c_limit,w_1600,h_1600,q_auto:good,f_auto,fl_strip_profile|c_limit,w_2200,h_2200,q_auto:good,f_auto,fl_strip_profile";
       const params = {
         eager,
         folder,
@@ -110,7 +113,7 @@ Deno.serve(async (request) => {
         apiKey,
         cloudName,
         resourceType: kind,
-        remainingCapacity: 15 - currentCount,
+        remainingCapacity: albumLimit - currentCount,
         reservationId,
       }, { headers: cors });
     }

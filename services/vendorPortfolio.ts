@@ -5,7 +5,7 @@ export const PORTFOLIO_LIMITS = {
   mediaPerAlbum: 10,
   heroMin: 5,
   heroMax: 8,
-  imageBytes: 15 * 1024 * 1024,
+  imageBytes: 5 * 1024 * 1024,
   videoBytes: 25 * 1024 * 1024,
   videoWarningSeconds: 3 * 60,
   videoMaxSeconds: 4 * 60,

@@ -16,7 +16,7 @@ const fieldPlaceholders: Record<keyof Omit<FinanceScenarioInput, "id" | "name">,
   free_percent: "e.g. 50",
   premium_percent: "e.g. 30",
   elite_percent: "e.g. 20",
-  premium_price: "e.g. 499",
+  premium_price: "e.g. 299",
   elite_price: "e.g. 999",
   monthly_fixed_expenses: "e.g. 15000",
 };
