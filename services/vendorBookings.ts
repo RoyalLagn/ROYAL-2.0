@@ -962,34 +962,29 @@ export const VendorBookingService = {
   /**
    * Lists customer's bookings from database
    */
-  async getCustomerBookings(customerId?: string | null, phone?: string | null): Promise<VendorBooking[]> {
+  async getCustomerBookings(customerId?: string | null): Promise<VendorBooking[]> {
+    // Never query or expose the shared local cache without a verified owner.
+    if (!customerId) return [];
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || authData.user?.id !== customerId) return [];
+
     let remote: VendorBooking[] = [];
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from("vendor_bookings")
         .select("*, vendors(id, business_name, contact_phone, logo_url, city, slug)")
+        .eq("customer_id", customerId)
         .order("created_at", { ascending: false });
-      if (customerId && phone) {
-        query = query.or(`customer_id.eq.${customerId},customer_phone.eq.${phone}`);
-      } else if (customerId) {
-        query = query.eq("customer_id", customerId);
-      } else if (phone) {
-        query = query.eq("customer_phone", phone);
-      }
-      const { data, error } = await query;
       if (!error && Array.isArray(data)) {
         remote = data.map(mapDbBooking);
       }
     } catch {
-      // use local
+      // Only this authenticated customer's cached records may be used offline.
     }
 
-    const local = (await getLocalBookings()).filter((b) => {
-      if (!customerId && !phone) return true;
-      if (customerId && b.customer_id === customerId) return true;
-      if (phone && b.customer_phone === phone) return true;
-      return false;
-    });
+    const local = (await getLocalBookings()).filter(
+      (booking) => booking.customer_id === customerId,
+    );
 
     const map = new Map<string, VendorBooking>();
     for (const item of [...local, ...remote]) {

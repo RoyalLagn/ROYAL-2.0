@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -83,7 +83,7 @@ export default function CustomerBookingsScreen() {
   const { width } = useWindowDimensions();
   const desktop = width >= 768;
   const tabBarHeight = useMobileTabBarHeight();
-  const { session, profile, isPublicAuthenticated, loading: authLoading } = usePublicAuth();
+  const { session, isPublicAuthenticated, loading: authLoading } = usePublicAuth();
   const user = session?.user;
 
   // Canonical and fallback search identifiers
@@ -113,7 +113,16 @@ export default function CustomerBookingsScreen() {
     if (params.tab === "confirmed" || params.tab === "cancelled") return params.tab;
     return "pending";
   });
-  const [bookings, setBookings] = useState<VendorBooking[]>([]);
+  const customerId = !authLoading && isPublicAuthenticated ? user?.id ?? null : null;
+  const activeCustomerRef = useRef(customerId);
+  activeCustomerRef.current = customerId;
+  const bookingRequestRef = useRef(0);
+  const [bookingRecords, setBookingRecords] = useState<VendorBooking[]>([]);
+  const [bookingsOwner, setBookingsOwner] = useState<string | null>(null);
+  const bookings = useMemo(
+    () => customerId && bookingsOwner === customerId ? bookingRecords : [],
+    [customerId, bookingsOwner, bookingRecords],
+  );
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [expandedCardIds, setExpandedCardIds] = useState<Record<string, boolean>>({});
   const [selectedTicketBooking, setSelectedTicketBooking] = useState<VendorBooking | null>(null);
@@ -146,31 +155,52 @@ export default function CustomerBookingsScreen() {
     cardBorder: dark ? "#3A2230" : "#F5D0DD",
   }), [dark]);
 
-  const loadBookings = async () => {
+  const loadBookings = useCallback(async () => {
+    const requestId = ++bookingRequestRef.current;
+    if (!customerId) {
+      setBookingRecords([]);
+      setBookingsOwner(null);
+      setLoadingBookings(false);
+      return;
+    }
     setLoadingBookings(true);
     try {
-      const customerId = user?.id || profile?.id || null;
-      const phone = profile?.phone || user?.phone || null;
-      const list = await VendorBookingService.getCustomerBookings(customerId, phone);
-      setBookings(list);
+      const list = await VendorBookingService.getCustomerBookings(customerId);
+      if (requestId !== bookingRequestRef.current || activeCustomerRef.current !== customerId) return;
+      setBookingRecords(list);
+      setBookingsOwner(customerId);
     } catch (err) {
+      if (requestId === bookingRequestRef.current && activeCustomerRef.current === customerId) {
+        setBookingRecords([]);
+        setBookingsOwner(null);
+      }
       console.warn("Could not load customer bookings", err);
     } finally {
-      setLoadingBookings(false);
+      if (requestId === bookingRequestRef.current && activeCustomerRef.current === customerId) {
+        setLoadingBookings(false);
+      }
     }
-  };
+  }, [customerId]);
 
   useEffect(() => {
+    setSelectedTicketBooking(null);
+    setSelectedDetailsBookingRef(null);
+    setExpandedCardIds({});
+    setHighlightedCardId(null);
+    hasHandledTarget.current = false;
     void loadBookings();
-    const customerId = user?.id || profile?.id || undefined;
+    if (!customerId) return;
     const unsubscribe = VendorBookingService.subscribeToBookings(() => {
       void loadBookings();
-    }, customerId ? { customerId } : undefined);
-    return unsubscribe;
-  }, [user, profile]);
+    }, { customerId });
+    return () => {
+      bookingRequestRef.current += 1;
+      unsubscribe();
+    };
+  }, [customerId, loadBookings]);
 
   useEffect(() => {
-    if (!hasTarget) return;
+    if (!hasTarget || !customerId) return;
 
     // Match target booking in existing bookings array
     const matched = bookings.find((b) => {
@@ -228,7 +258,7 @@ export default function CustomerBookingsScreen() {
         setLocatingFailed(true);
       }
     }
-  }, [bookings, targetRecordId, targetBookingId, targetTicketId, hasTarget]);
+  }, [bookings, customerId, targetRecordId, targetBookingId, targetTicketId, hasTarget, loadBookings]);
 
   const refreshAll = async () => {
     await loadBookings();
@@ -384,12 +414,12 @@ export default function CustomerBookingsScreen() {
           ) : null}
 
           {/* Guest reminder if not logged in */}
-          {!isPublicAuthenticated && !authLoading && bookings.length > 0 ? (
+          {!isPublicAuthenticated && !authLoading ? (
             <View style={[styles.guestNotice, { backgroundColor: palette.surfaceHighlight, borderColor: palette.cardBorder }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.guestNoticeTitle, { color: PINK }]}>Viewing Local Guest Bookings</Text>
+                <Text style={[styles.guestNoticeTitle, { color: PINK }]}>Sign in to view your bookings</Text>
                 <Text style={[styles.guestNoticeDesc, { color: palette.muted }]}>
-                  Log in with your mobile number to permanently sync bookings across your devices.
+                  Log in to securely view your booking history and tickets.
                 </Text>
               </View>
               <Pressable
@@ -909,16 +939,16 @@ export default function CustomerBookingsScreen() {
 
       {/* 3D Popped-Up Luxury Ticket Modal */}
       <LuxuryTicketModal
-        visible={Boolean(selectedTicketBooking)}
-        booking={selectedTicketBooking}
+        visible={Boolean(customerId && bookingsOwner === customerId && selectedTicketBooking)}
+        booking={customerId && bookingsOwner === customerId ? selectedTicketBooking : null}
         onClose={() => setSelectedTicketBooking(null)}
         dark={dark}
       />
 
       {/* Booking Details Modal with 5-Day Cancellation Lock & Contact Details */}
       <BookingDetailsModal
-        visible={Boolean(selectedDetailsBookingRef)}
-        bookingRef={selectedDetailsBookingRef || ""}
+        visible={Boolean(customerId && bookingsOwner === customerId && selectedDetailsBookingRef)}
+        bookingRef={customerId && bookingsOwner === customerId ? selectedDetailsBookingRef || "" : ""}
         role="customer"
         dark={dark}
         onClose={() => setSelectedDetailsBookingRef(null)}
