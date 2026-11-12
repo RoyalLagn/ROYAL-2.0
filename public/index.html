@@ -34,6 +34,8 @@
     <meta name="twitter:title" content="RoyalLagn | Discover Trusted Wedding Vendors" />
     <meta name="twitter:description" content="Discover trusted wedding photographers, venues, decorators, makeup artists and more with RoyalLagn. Explore verified wedding vendors and send enquiries directly." />
     <meta name="theme-color" content="#E91E63" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="RoyalLagn" />
     <link id="royallagn-pwa-manifest" rel="manifest" href="/manifest.webmanifest" />
     <link id="royallagn-apple-touch-icon" rel="apple-touch-icon" href="/icon-180.png" />
     <script>
@@ -43,22 +45,27 @@
         const themeColor = document.querySelector('meta[name="theme-color"]');
         const isAdminRoute = () =>
           /admin/i.test(window.location.pathname) ||
-          window.location.pathname === "/VendorApplications";
+          ["/VendorApplications", "/VendorApplicationDetails", "/team"].includes(window.location.pathname.replace(/\/+$/, ""));
 
         const syncPwaMetadata = () => {
           const admin = isAdminRoute();
           manifest.href = admin ? "/admin-manifest.webmanifest" : "/manifest.webmanifest";
           appleTouchIcon.href = admin ? "/admin-icon-192.png" : "/icon-180.png";
           themeColor.content = admin ? "#06234D" : "#E91E63";
+          document.querySelector('meta[name="apple-mobile-web-app-title"]').content = admin ? "RL Admin" : "RoyalLagn";
+          const canonical = document.querySelector('link[rel="canonical"]');
+          if (admin) canonical.href = location.origin + "/AdminLogin";
+          else if (canonical.href === location.origin + "/AdminLogin") canonical.href = location.origin + location.pathname;
         };
 
+        window.__royalLagnSyncPwaMetadata = syncPwaMetadata;
         syncPwaMetadata();
 
         for (const method of ["pushState", "replaceState"]) {
           const original = history[method];
           history[method] = function (...args) {
             const result = original.apply(this, args);
-            queueMicrotask(syncPwaMetadata);
+            syncPwaMetadata();
             return result;
           };
         }

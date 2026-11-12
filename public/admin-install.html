@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#06234D" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RL Admin" />
+  <title>Install RoyalLagn Admin Portal</title>
+  <link rel="manifest" href="/admin-manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/admin-icon-192.png" />
+  <link rel="canonical" href="https://royallagn.com/admin-install.html" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); background: #f8f9fb; color: #181b23; font: 16px/1.6 system-ui, sans-serif; }
+    main { max-width: 460px; margin: 8vh auto; padding: 24px; border: 1px solid #e2e5ea; border-radius: 16px; background: #fff; }
+    img { border-radius: 16px; }
+    h1 { font-size: 24px; line-height: 1.25; margin: 20px 0 12px; }
+    p { color: #535b69; }
+    ol { padding-left: 22px; }
+    li { margin: 12px 0; }
+    a { display: inline-flex; align-items: center; min-height: 48px; padding: 10px 16px; border-radius: 10px; background: #06234d; color: #fff; text-decoration: none; }
+    a:focus-visible { outline: 3px solid #e91e63; outline-offset: 4px; }
+  </style>
+  <script>
+    // Older Home Screen bookmarks may launch this document instead of the
+    // manifest start_url. Always send that installed launch to the secure entry.
+    if (navigator.standalone || matchMedia('(display-mode: standalone)').matches) {
+      location.replace('/AdminLogin?source=pwa');
+    }
+  </script>
+</head>
+<body>
+  <main>
+    <img src="/admin-icon-192.png" alt="RoyalLagn Admin Portal" width="72" height="72" />
+    <h1>Install Admin Portal</h1>
+    <p>Add the Admin Portal to your Home Screen using the icon shown above.</p>
+    <ol>
+      <li>In Safari, tap <strong>Share</strong>.</li>
+      <li>Choose <strong>Add to Home Screen</strong>. Keep <strong>Open as Web App</strong> enabled if shown.</li>
+      <li>Check the Admin icon and name, then tap <strong>Add</strong>.</li>
+    </ol>
+    <p>If you previously installed an icon that opens the public website, remove that Home Screen icon and add this one again.</p>
+    <p>In Chrome or Edge, use the browser menu to install this app.</p>
+    <a href="/AdminLogin">Open Admin Portal</a>
+  </main>
+</body>
+</html>

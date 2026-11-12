@@ -24,6 +24,10 @@ execSync(`npx expo export "${rootDir}" -p web`, {
   env: process.env,
 });
 
+// Keep Admin metadata in the initial response, before Safari discovers a
+// manifest or icon. Generate this from the raw shell before public SEO output.
+execSync("node scripts/build-admin-pwa-shell.mjs", { cwd: rootDir, stdio: "inherit", env: process.env });
+
 console.log("[build-web] Prerendering public HTML...");
 execSync("node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/prerender-public-html.mjs", {
   cwd: rootDir,

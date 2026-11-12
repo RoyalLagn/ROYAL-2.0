@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { CheckCircle2, Download } from "lucide-react-native";
 import { adminPalette } from "@/theme";
 import { useAppTheme } from "@/components/ThemeProvider";
@@ -14,6 +14,7 @@ type InstallPromptEvent = Event & {
 
 type AdminPwaWindow = Window & {
   __royalLagnAdminInstallPrompt?: InstallPromptEvent | null;
+  __royalLagnSyncPwaMetadata?: () => void;
 };
 
 function isStandalone() {
@@ -33,14 +34,9 @@ export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compa
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
 
-    let manifest = document.querySelector<HTMLLinkElement>('link[data-royallagn-admin-manifest="true"]');
-    if (!manifest) {
-      manifest = document.createElement("link");
-      manifest.rel = "manifest";
-      manifest.href = "/admin-manifest.webmanifest";
-      manifest.dataset.royallagnAdminManifest = "true";
-      document.head.appendChild(manifest);
-    }
+    // The HTML shell owns the single manifest and Apple icon. A second link
+    // can cause browsers to install the public app instead of the Admin app.
+    (window as AdminPwaWindow).__royalLagnSyncPwaMetadata?.();
 
     const browserWindow = window as AdminPwaWindow;
     if (browserWindow.__royalLagnAdminInstallPrompt) {
@@ -75,7 +71,7 @@ export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compa
         .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
         .catch(() => undefined);
     } else {
-      void navigator.serviceWorker?.register("/admin-service-worker.js", { scope: "/" }).catch(() => undefined);
+      void navigator.serviceWorker?.register("/service-worker.js", { scope: "/" }).catch(() => undefined);
     }
     const promptTimer = window.setTimeout(() => setPromptChecked(true), 2500);
 
@@ -84,17 +80,15 @@ export function AdminPwaInstallControl({ compact, variant = "sidebar" }: { compa
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("royallagn-admin-install-ready", onPromptReady);
       window.removeEventListener("appinstalled", onInstalled);
-      manifest?.remove();
     };
   }, []);
 
   const install = useCallback(async () => {
     if (installed) return;
     if (!installPrompt) {
-      Alert.alert(
-        "Install Admin Portal",
-        "In Chrome or Edge, open the browser menu and choose Install RoyalLagn Admin Portal. On Safari, choose Share, then Add to Home Screen.",
-      );
+      // Safari has no beforeinstallprompt API. Use a fresh document with
+      // static Admin metadata, rather than reusing a public SPA document.
+      window.location.assign("/admin-install.html");
       return;
     }
     setInstalling(true);

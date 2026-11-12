@@ -28,9 +28,22 @@
           "value": "no-cache, no-store, must-revalidate"
         }
       ]
+    },
+    {
+      "source": "/(admin-manifest\\.webmanifest|manifest\\.webmanifest|admin-install\\.html|admin\\.html)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     }
   ],
   "rewrites": [
+    {
+      "source": "/((?:Admin[^/.]*|admin-[^/.]*|VendorApplications|VendorApplicationDetails|vendors-admin-listing|subscriptions-admin|payments-admin|team)/?)",
+      "destination": "/admin.html"
+    },
     {
       "source": "/vendors",
       "destination": "/api/legacy-vendor"

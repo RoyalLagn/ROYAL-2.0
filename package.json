@@ -26,6 +26,7 @@
     "test:locations": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-location-domain.mjs",
     "test:location-discovery": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/test-location-discovery-domain.mjs",
     "locations:import-india-post": "node --env-file=.env scripts/import-india-post-pincodes.mjs",
+    "test:admin-pwa": "node scripts/test-admin-pwa.mjs",
     "test:regression-guards": "node scripts/test-regression-guards.mjs",
     "test:cloudinary-media": "node scripts/test-cloudinary-media-guards.mjs",
     "test:portfolio-upload-limits": "node scripts/test-portfolio-upload-limits.mjs",
