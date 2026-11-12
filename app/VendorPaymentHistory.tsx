@@ -576,13 +576,14 @@ export default function VendorPaymentHistory() {
         <View style={styles.toggleBarSection}>
           <View style={styles.toggleBarRow}>
             {/* The 2 Toggle Tabs */}
-            <View style={[styles.toggleContainer, { backgroundColor: uiTheme.cardBg, borderColor: uiTheme.cardBorder }]}>
+            <View style={[styles.toggleContainer, !tablet && styles.toggleContainerMobile, { backgroundColor: uiTheme.cardBg, borderColor: uiTheme.cardBorder }]}>
               {/* Tab 1: Advanced 30% */}
               <Pressable
                 accessibilityRole="button"
                 onPress={() => setPortionFilter("advance_30")}
                 style={[
                   styles.toggleTab,
+                  !tablet && styles.toggleTabMobile,
                   portionFilter === "advance_30" && [
                     styles.toggleTabActive,
                     {
@@ -636,6 +637,7 @@ export default function VendorPaymentHistory() {
                 onPress={() => setPortionFilter("booking_70")}
                 style={[
                   styles.toggleTab,
+                  !tablet && styles.toggleTabMobile,
                   portionFilter === "booking_70" && [
                     styles.toggleTabActive,
                     {
@@ -689,6 +691,7 @@ export default function VendorPaymentHistory() {
                 onPress={() => setPortionFilter("all")}
                 style={[
                   styles.toggleTab,
+                  !tablet && styles.toggleTabMobile,
                   portionFilter === "all" && [
                     styles.toggleTabActive,
                     {
@@ -717,7 +720,7 @@ export default function VendorPaymentHistory() {
             </View>
 
             {/* Compact Search Box */}
-            <View style={[styles.compactSearchBox, { backgroundColor: uiTheme.cardBg, borderColor: uiTheme.cardBorder }]}>
+            <View style={[styles.compactSearchBox, !tablet && styles.compactSearchBoxMobile, { backgroundColor: uiTheme.cardBg, borderColor: uiTheme.cardBorder }]}>
               <Search size={15} color={uiTheme.textSecondary} />
               <TextInput
                 value={searchQuery}
@@ -844,11 +847,12 @@ export default function VendorPaymentHistory() {
                     pressed && { opacity: 0.95 },
                   ]}
                 >
-                  <View style={styles.txnMainRow}>
+                  <View style={[styles.txnMainRow, !tablet && styles.txnMainRowMobile]}>
                     {/* Left Icon Badge Pod */}
                     <View
                       style={[
                         styles.txnIconWrap,
+                        !tablet && styles.txnIconWrapMobile,
                         {
                           backgroundColor: isBooking70
                             ? (isDark ? "#451A03" : "#FEF3C7")
@@ -912,7 +916,7 @@ export default function VendorPaymentHistory() {
                     </View>
 
                     {/* Right Amount Column */}
-                    <View style={styles.txnAmountWrap}>
+                    <View style={[styles.txnAmountWrap, !tablet && styles.txnAmountWrapMobile]}>
                       <Text
                         style={[
                           styles.txnAmount,
@@ -1238,6 +1242,39 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
   },
+  toggleContainerMobile: {
+    width: "100%",
+    minWidth: 0,
+  },
+  toggleTabMobile: {
+    width: "100%",
+    minHeight: 44,
+    flexWrap: "wrap",
+  },
+  compactSearchBoxMobile: {
+    width: "100%",
+    minWidth: 0,
+    maxWidth: "100%",
+    flexBasis: "100%",
+  },
+  txnMainRowMobile: {
+    flexWrap: "wrap",
+    padding: 14,
+    gap: 10,
+  },
+  txnIconWrapMobile: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+  },
+  txnAmountWrapMobile: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   toggleBarSection: {
     gap: 10,
   },
@@ -1300,6 +1337,7 @@ const styles = StyleSheet.create({
   },
   compactSearchInput: {
     flex: 1,
+    minWidth: 0,
     fontSize: 13,
     paddingVertical: 0,
   },
@@ -1401,14 +1439,18 @@ const styles = StyleSheet.create({
   },
   txnInfo: {
     flex: 1,
+    minWidth: 0,
     gap: 4,
   },
   badgeRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: 8,
   },
   typeBadge: {
+    maxWidth: "100%",
+    flexShrink: 1,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -1420,6 +1462,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   dateText: {
+    flexShrink: 0,
     fontSize: 12,
   },
   txnTitle: {
@@ -1434,11 +1477,14 @@ const styles = StyleSheet.create({
   },
   tagsRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     gap: 8,
     marginTop: 4,
   },
   methodTag: {
+    maxWidth: "100%",
+    flexShrink: 1,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -1449,6 +1495,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   statusTag: {
+    maxWidth: "100%",
+    flexShrink: 1,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -1459,6 +1507,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   txnAmountWrap: {
+    minWidth: 0,
+    maxWidth: "100%",
     alignItems: "flex-end",
     gap: 4,
   },
@@ -1468,6 +1518,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   dueWrap: {
+    maxWidth: "100%",
     alignItems: "flex-end",
     gap: 3,
   },
@@ -1475,6 +1526,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   dueBadge: {
+    maxWidth: "100%",
+    flexShrink: 1,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
@@ -1497,7 +1550,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   expandItem: {
-    minWidth: 200,
+    width: "100%",
+    minWidth: 0,
     gap: 3,
   },
   expandLabel: {
