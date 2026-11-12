@@ -1,5 +1,5 @@
--- Migration: 20261016180000_strict_contact_unlock_enforcement.sql
--- Description: Strictly enforces two conditions for contact unlocking:
+-- Migration: 20261112162851_strict_contact_unlock_enforcement.sql
+-- Description: Strictly enforces three conditions for contact unlocking:
 --   1. Booking fee payment is verified (paid_advance, paid_booking_fee, free_zero_fee, paid)
 --   2. Booking is formally accepted by the vendor (ACCEPTED, accepted, confirmed)
 --   3. Booking is not cancelled or rejected.
@@ -45,13 +45,13 @@ begin
 
   v_caller_is_admin := private.is_admin_or_service();
   v_caller_is_vendor := private.owns_vendor(v_booking.vendor_id);
-  v_caller_is_customer := (v_booking.customer_id is not null and auth.uid() = v_booking.customer_id);
+  v_caller_is_customer := coalesce(auth.uid() = v_booking.customer_id, false);
 
   if not (v_caller_is_admin or v_caller_is_vendor or v_caller_is_customer) then
     raise exception 'Unauthorized to access this booking' using errcode = '42501';
   end if;
 
-  -- Strict two-condition rule: payment verified AND vendor accepted AND not cancelled/rejected
+  -- Strict contact-unlock rule: payment verified AND vendor accepted AND not cancelled/rejected
   v_is_paid := (v_booking.payment_status in ('paid_advance', 'paid_booking_fee', 'free_zero_fee', 'paid'));
   v_is_accepted := (v_booking.booking_status in ('ACCEPTED', 'accepted', 'confirmed'));
   v_is_not_cancelled := (v_booking.booking_status not in ('CUSTOMER_CANCELLED', 'ADMIN_CANCELLED', 'VENDOR_REJECTED', 'cancelled', 'cancelled_by_vendor', 'cancelled_by_customer', 'rejected'));
@@ -146,4 +146,5 @@ begin
 end;
 $$;
 
+revoke all on function public.get_secure_booking_details(text) from public, anon;
 grant execute on function public.get_secure_booking_details(text) to authenticated, service_role;
