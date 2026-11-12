@@ -67,4 +67,8 @@ dist-web/
 # Local production database safety snapshots
 /.local-backups/
 /data/backups/
-/scripts/backups/
+/scripts/backups/
+
+# macOS metadata and local iOS release archives
+.DS_Store
+/artifacts/ios/
