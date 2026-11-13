@@ -24,6 +24,10 @@ execSync(`npx expo export "${rootDir}" -p web`, {
   env: process.env,
 });
 
+// Give every production JS graph its own cache namespace before generating
+// the Admin shell and public pages from the exported HTML.
+execSync("node scripts/version-web-bundles.mjs", { cwd: rootDir, stdio: "inherit", env: process.env });
+
 // Keep Admin metadata in the initial response, before Safari discovers a
 // manifest or icon. Generate this from the raw shell before public SEO output.
 execSync("node scripts/build-admin-pwa-shell.mjs", { cwd: rootDir, stdio: "inherit", env: process.env });
