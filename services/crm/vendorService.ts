@@ -158,6 +158,13 @@ export const CrmVendorService = {
     if (error) throw crmError(error);
   },
 
+  async remove(id: string) {
+    if (!id?.trim()) throw new Error("A CRM vendor ID is required.");
+    const { data, error } = await supabase.from("crm_vendors").delete().eq("id", id).select("id").single();
+    if (error) throw crmError(error);
+    if (!data) throw new Error("The CRM vendor was not deleted. Refresh and try again.");
+  },
+
   async bulkDelete(ids: string[]) {
     const { error } = await supabase.from("crm_vendors").delete().in("id", ids);
     if (error) throw crmError(error);

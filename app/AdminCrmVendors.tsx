@@ -1,6 +1,7 @@
+import { DeleteCrmVendorButton } from "@/components/admin/crm/vendor/DeleteCrmVendorButton";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Linking, Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, View, useWindowDimensions } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, CheckSquare, ChevronDown, Download, Edit3, Phone, Plus, RefreshCcw, Square, Trash2, UserCog, X } from "lucide-react-native";
 import AdminFooter from "@/components/AdminFooter";
@@ -23,7 +24,9 @@ import type { CrmVendorInput, CrmVendorListItem, CrmVendorStatus } from "@/types
 
 export default function AdminCrmVendors() {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const desktopMenu = width >= 680;
   const columns = width >= 1080 ? 3 : width >= 680 ? 2 : 1;
   const cardWidth = `${(100 / columns).toFixed(4)}%` as `${number}%`;
   const { clusterId, clusterName, categoryId, categoryName, status: statusParam } = useLocalSearchParams<{
@@ -33,6 +36,7 @@ export default function AdminCrmVendors() {
   const { filters, updateFilters, rows, total, loading, refreshing, error, setError, changeStatus, refresh } =
     useCrmVendors(clusterId ?? null, categoryId ?? null);
 
+  const [deleteVendor, setDeleteVendor] = useState<CrmVendorListItem | null>(null);
   const [menuVendor, setMenuVendor] = useState<CrmVendorListItem | null>(null);
   const [statusVendor, setStatusVendor] = useState<CrmVendorListItem | null>(null);
   const [statusSaving, setStatusSaving] = useState(false);
@@ -258,6 +262,7 @@ export default function AdminCrmVendors() {
                       onPress={() => router.push({ pathname: "/AdminCrmVendorProfile", params: { vendorId: vendor.id } })}
                       onLongPress={() => openEditor(vendor)}
                       onMenu={() => setMenuVendor(vendor)}
+
                     />
                   </View>
                 ))}
@@ -303,39 +308,42 @@ export default function AdminCrmVendors() {
         </View>
       ) : null}
 
-      <Modal visible={menuVendor !== null} transparent animationType="slide" onRequestClose={() => setMenuVendor(null)}>
-        <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setMenuVendor(null)}>
-          <Pressable className="bg-card rounded-t-3xl p-5" onPress={(event) => event.stopPropagation()}>
-            <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-foreground text-lg font-bold" numberOfLines={1}>{menuVendor?.business_name}</Text>
-              <Pressable accessibilityLabel="Close" onPress={() => setMenuVendor(null)}><X size={20} className="text-foreground" /></Pressable>
+      <Modal visible={menuVendor !== null} transparent animationType="fade" onRequestClose={() => setMenuVendor(null)}>
+        <View className="flex-1 bg-black/40" style={{ justifyContent: desktopMenu ? "center" : "flex-end", alignItems: "center", paddingHorizontal: 16, paddingTop: Math.max(insets.top, 16), paddingBottom: Math.max(insets.bottom, 16) }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Dismiss vendor actions" onPress={() => setMenuVendor(null)} style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 }} />
+          <View accessibilityViewIsModal className="bg-card border border-border rounded-2xl w-full" style={{ maxWidth: 440, maxHeight: Math.min(height * 0.85, 480), overflow: "hidden" }}>
+            <View className="flex-row items-center border-b border-border px-4 py-3">
+              <View className="flex-1 min-w-0 pr-3">
+                <Text accessibilityRole="header" className="text-foreground text-base font-bold">Vendor actions</Text>
+                <Text className="text-muted-foreground text-sm mt-1" numberOfLines={2}>{menuVendor?.business_name}</Text>
+              </View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close vendor actions" onPress={() => setMenuVendor(null)} className="items-center justify-center rounded-xl" style={{ width: 48, height: 48 }}><X size={20} className="text-muted-foreground" /></Pressable>
             </View>
-            <Pressable
-              disabled={!menuVendor?.phone}
-              onPress={() => { if (menuVendor) callVendor(menuVendor); setMenuVendor(null); }}
-              className="flex-row items-center min-h-14 px-2"
-              style={{ opacity: menuVendor?.phone ? 1 : 0.4 }}
-            >
-              <Phone size={18} className="text-primary" />
-              <Text className="text-foreground text-sm font-semibold ml-3">Call vendor</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => { setStatusVendor(menuVendor); setMenuVendor(null); }}
-              className="flex-row items-center min-h-14 px-2 border-t border-border"
-            >
-              <RefreshCcw size={18} className="text-primary" />
-              <Text className="text-foreground text-sm font-semibold ml-3">Change status</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => { openEditor(menuVendor); setMenuVendor(null); }}
-              className="flex-row items-center min-h-14 px-2 border-t border-border"
-            >
-              <Edit3 size={18} className="text-primary" />
-              <Text className="text-foreground text-sm font-semibold ml-3">Edit vendor</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
+            <ScrollView contentContainerStyle={{ padding: 8 }}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Call vendor" disabled={!menuVendor?.phone} onPress={() => { if (menuVendor) callVendor(menuVendor); setMenuVendor(null); }} className="flex-row items-center rounded-xl px-3" style={{ minHeight: 52, opacity: menuVendor?.phone ? 1 : 0.4 }}>
+                <Phone size={18} className="text-primary" /><Text className="text-foreground text-sm font-semibold ml-3">Call vendor</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Change vendor status" onPress={() => { setStatusVendor(menuVendor); setMenuVendor(null); }} className="flex-row items-center rounded-xl px-3" style={{ minHeight: 52 }}>
+                <RefreshCcw size={18} className="text-primary" /><Text className="text-foreground text-sm font-semibold ml-3">Change status</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="Edit vendor" onPress={() => { openEditor(menuVendor); setMenuVendor(null); }} className="flex-row items-center rounded-xl px-3" style={{ minHeight: 52 }}>
+                <Edit3 size={18} className="text-primary" /><Text className="text-foreground text-sm font-semibold ml-3">Edit vendor</Text>
+              </Pressable>
+              <View className="border-t border-border mt-2 pt-2">
+                <Pressable accessibilityRole="button" accessibilityLabel="Delete vendor" onPress={() => { setDeleteVendor(menuVendor); setMenuVendor(null); }} className="flex-row items-center rounded-xl px-3" style={{ minHeight: 56, backgroundColor: "#FEF3F2" }}>
+                  <Trash2 size={18} color="#B42318" /><Text style={{ color: "#B42318", fontSize: 14, fontWeight: "600", marginLeft: 12 }}>Delete vendor</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
+
+      {deleteVendor ? <DeleteCrmVendorButton vendor={deleteVendor} confirmOnly onClose={() => setDeleteVendor(null)} onDeleted={async () => {
+        setSelected(current => { const next = new Set(current); next.delete(deleteVendor.id); return next; });
+        if (rows.length === 1 && filters.page > 1) updateFilters({ page: filters.page - 1 });
+        else await refresh();
+      }} /> : null}
 
       <StatusBottomSheet
         visible={statusVendor !== null}

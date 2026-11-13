@@ -44,7 +44,7 @@ function dummySession() {
 
 export async function installMockAppUser(
   page: Page,
-  role: "customer" | "vendor",
+  role: "customer" | "vendor" | "admin",
 ) {
   const occupied = 0;
   const hasActivePlacement = false;
@@ -171,7 +171,7 @@ export async function installMockAppUser(
       return json(route, {
         id: DUMMY_USER_ID,
         email: vendor.contact_email,
-        role: role === "customer" ? "public_user" : "vendor",
+        role: role === "customer" ? "public_user" : role === "admin" ? "admin" : "vendor",
         is_active: true,
         full_name: "Test Customer",
       });
@@ -191,7 +191,7 @@ export async function installMockAppUser(
       ]);
     if (url.pathname.endsWith("/rest/v1/subscription_plans"))
       return json(route, [elitePlan]);
-    if (url.pathname.endsWith("/rest/v1/vendors") && role === "customer")
+    if (url.pathname.endsWith("/rest/v1/vendors") && role !== "vendor")
       return json(route, null);
     if (url.pathname.endsWith("/rest/v1/vendors")) {
       const select = url.searchParams.get("select") ?? "";

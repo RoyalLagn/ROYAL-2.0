@@ -1,3 +1,4 @@
+import { DeleteCrmVendorButton } from "@/components/admin/crm/vendor/DeleteCrmVendorButton";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -114,6 +115,9 @@ export default function AdminCrmVendorProfile() {
         </Pressable>
       </ResponsiveContainer>
 
+      <ResponsiveContainer className="pb-3">
+        <DeleteCrmVendorButton vendor={vendor} onDeleted={() => router.replace("/AdminCrmVendors")} />
+      </ResponsiveContainer>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
         <ResponsiveContainer>
           <ResponsiveSection>
