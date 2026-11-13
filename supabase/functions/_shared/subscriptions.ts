@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveRazorpayCredentials } from "./razorpayCredentials.ts";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -94,11 +95,7 @@ export async function resolveCallerUser(request: Request): Promise<{ user: any |
 }
 
 export function razorpayAuthorization() {
-  const keyId = requireEnv("RAZORPAY_TEST_KEY_ID");
-  const keySecret = requireEnv("RAZORPAY_TEST_KEY_SECRET");
-  if (!/^rzp_test_[A-Za-z0-9]+$/.test(keyId)) {
-    throw new Error("RAZORPAY_TEST_KEY_ID is not a valid Razorpay test key ID");
-  }
+  const { keyId, keySecret } = resolveRazorpayCredentials((name) => Deno.env.get(name));
   return { keyId, keySecret, header: `Basic ${btoa(`${keyId}:${keySecret}`)}` };
 }
 

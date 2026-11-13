@@ -6,6 +6,8 @@ import { spawnSync } from "node:child_process";
 const CHECKS = [
   { name: "profile-smoke", script: "scripts/smoke-profile-propagation.mjs", strip: false },
   { name: "subscriptions", script: "scripts/test-subscription-domain.mjs", strip: true },
+  { name: "razorpay-credentials", script: "scripts/test-razorpay-credentials.mjs", strip: true },
+  { name: "booking-payment-handler", script: "scripts/test-booking-payment-handler.mjs", strip: false },
   { name: "packages", script: "scripts/test-package-domain.mjs", strip: true },
   { name: "contacts", script: "scripts/test-contact-actions.mjs", strip: true },
   { name: "external-links", script: "scripts/test-external-link-normalization.mjs", strip: true },

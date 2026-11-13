@@ -2,7 +2,6 @@ import {
   corsHeaders,
   errorMessage,
   json,
-  requireEnv,
   serviceClient,
   razorpayAuthorization,
   hmacHex,
@@ -19,7 +18,16 @@ Deno.serve(async (request) => {
   }
 
   try {
-    const admin = serviceClient();
+    let body: Record<string, unknown>;
+    try {
+      const parsed = await request.json();
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return json({ error: "A JSON object is required." }, 400);
+      }
+      body = parsed;
+    } catch {
+      return json({ error: "Invalid JSON request body." }, 400);
+    }
     const bookingRecordId = String(body.bookingRecordId ?? "").trim();
     const bookingId = String(body.bookingId ?? "").trim();
     const razorpayOrderId = String(body.razorpayOrderId ?? body.razorpay_order_id ?? "").trim();
@@ -31,6 +39,7 @@ Deno.serve(async (request) => {
     }
 
     // 1. Fetch booking record safely (preventing Postgres UUID syntax errors)
+    const admin = serviceClient();
     let query = admin.from("vendor_bookings").select("*");
     const isRecordUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookingRecordId);
     const isBookingIdUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookingId);
