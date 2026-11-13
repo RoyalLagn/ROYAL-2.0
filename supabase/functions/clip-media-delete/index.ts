@@ -22,16 +22,16 @@ Deno.serve(async (request) => {
     let ownedVendorId = vendorId as string | undefined;
     let deleteClipRecord = false;
     if (clipId) {
-      const { data: clip, error: clipError } = await supabase.from("clips").select("bunny_asset_id,vendor_id,vendors!inner(profile_id)")
+      const { data: clip, error: clipError } = await supabase.from("clips").select("cloudinary_public_id,vendor_id,vendors!inner(profile_id)")
         .eq("id", clipId).eq("vendors.profile_id", user.id).maybeSingle();
       if (clipError) throw clipError;
-      publicId = clip?.bunny_asset_id;
+      publicId = clip?.cloudinary_public_id;
       ownedVendorId = clip?.vendor_id;
       deleteClipRecord = true;
     } else {
       const { data: vendor } = await supabase.from("vendors").select("id")
         .eq("id", vendorId).eq("profile_id", user.id).maybeSingle();
-      if (!vendor || !(publicId?.startsWith(`royallagn/clips/${vendorId}/`) || publicId?.startsWith("bunny:"))) {
+      if (!vendor || !(publicId?.startsWith(`royallagn/clips/${vendorId}/`))) {
         throw new Error("Owned Clip asset not found");
       }
     }

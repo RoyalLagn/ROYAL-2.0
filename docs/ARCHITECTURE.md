@@ -222,6 +222,13 @@ flowchart LR
 
 Vendor portfolio services coordinate albums, assets, public visibility, and Cloudinary paths. Remote deletion uses privileged signing/deletion functions. Database records must not point permanently to successfully deleted remote assets, and failed remote deletion must produce a recoverable state.
 
+Cloudinary is the sole active media provider. Upload authorization, asset deletion,
+and recovery jobs use the server-side Cloudinary credentials. Clip records,
+deletion audit records, and the private deletion outbox identify assets with
+`cloudinary_public_id`; the corresponding RPCs return that same field. Historical
+migrations and recovery manifests remain an audit trail and are not runtime
+provider configuration.
+
 ### 7.5 Clips
 
 The Clips package separates public feed/engagement from vendor creation and administration. Upload orchestration coordinates selection, validation, compression, thumbnail generation, reservation, transfer, and commit. Atomic reservations protect quotas and retry behavior. Cache, draft, and queue services avoid placing this state in route components.

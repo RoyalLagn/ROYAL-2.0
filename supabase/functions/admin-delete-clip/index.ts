@@ -162,7 +162,7 @@ Deno.serve(async (request) => {
     // never accepted from the client.
     const { data: clip, error: clipError } = await userClient
       .from("clips")
-      .select("id,title,vendor_id,bunny_asset_id,vendors(business_name,profile_id),categories(name)")
+      .select("id,title,vendor_id,cloudinary_public_id,vendors(business_name,profile_id),categories(name)")
       .eq("id", clipId)
       .maybeSingle();
     if (clipError || !clip) {
@@ -201,9 +201,9 @@ Deno.serve(async (request) => {
     // fully intact (the vendor has been notified but nothing was actually
     // removed yet) — Cloudinary deletion is idempotent, so retrying the whole
     // action is safe.
-    if (clip.bunny_asset_id) {
+    if (clip.cloudinary_public_id) {
       try {
-        await deleteClipMediaAssets(clip.bunny_asset_id as string, { requestId, clipId, vendorId });
+        await deleteClipMediaAssets(clip.cloudinary_public_id as string, { requestId, clipId, vendorId });
       } catch (mediaError) {
         const message = mediaError instanceof Error ? mediaError.message : "Unable to delete the clip's media.";
         console.error("[admin-delete-clip] media deletion failed", { requestId, clipId, vendorId, error: message });

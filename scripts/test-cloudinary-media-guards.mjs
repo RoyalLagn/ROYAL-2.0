@@ -39,4 +39,21 @@ for (const key of ["EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME", "EXPO_PUBLIC_CLOUDINARY_
   assert.match(exampleEnv, new RegExp(`^${key}=`, "m"), `.env.example must document ${key}.`);
 }
 
+// Retired provider identities must not return through cleanup endpoints.
+for (const path of [
+  "supabase/functions/_shared/clipMedia.ts",
+  "supabase/functions/process-subscription-lifecycle/index.ts",
+  "supabase/functions/admin-delete-clip/index.ts",
+  "supabase/functions/clip-media-delete/index.ts",
+  "components/admin/finance/FinanceTransactions.tsx",
+]) {
+  const source = await read(path);
+  assert.doesNotMatch(source, /bunny|b-cdn\.net/i, `${path} must remain Cloudinary-only.`);
+}
+for (const path of [
+  "supabase/functions/process-subscription-lifecycle/index.ts",
+  "supabase/functions/admin-delete-clip/index.ts",
+  "supabase/functions/clip-media-delete/index.ts",
+]) assert.match(await read(path), /cloudinary_public_id/);
+
 console.log("Cloudinary media integration guards passed.");
