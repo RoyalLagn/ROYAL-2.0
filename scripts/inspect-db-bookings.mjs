@@ -27,12 +27,12 @@ console.log("Tejas Photography Vendor:", v);
 const { data: b } = await client.from("vendor_bookings").select("*").eq("ticket_id", "RL-56987").single();
 console.log("Full booking record for RL-56987:", JSON.stringify(b, null, 2));
 
-const expoKey = getEnv("EXPO_PUBLIC_RAZORPAY_KEY_ID");
-const testKey = getEnv("RAZORPAY_TEST_KEY_ID");
-const keySecret = getEnv("RAZORPAY_TEST_KEY_SECRET");
-console.log("EXPO_PUBLIC_RAZORPAY_KEY_ID:", expoKey);
-console.log("RAZORPAY_TEST_KEY_ID:", testKey);
-const keyId = testKey || expoKey;
+const keyId = getEnv("RAZORPAY_KEY_ID");
+const keySecret = getEnv("RAZORPAY_KEY_SECRET");
+if (keyId && !/^rzp_live_[A-Za-z0-9]+$/.test(keyId)) {
+  throw new Error("RAZORPAY_KEY_ID must be a live key");
+}
+console.log("Razorpay live credentials configured:", Boolean(keyId && keySecret));
 
 if (b?.razorpay_order_id && keyId && keySecret) {
   const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");

@@ -136,7 +136,7 @@ async function run() {
     assert.equal(res.status, 200, `create-booking-order failed: ${JSON.stringify(body)}`);
     assert.ok(body.success, "Response should have success: true");
     assert.ok(body.orderId.startsWith("order_"), `Order ID should start with order_, got: ${body.orderId}`);
-    assert.ok(body.keyId.startsWith("rzp_test_"), `Key ID should be Razorpay test key, got: ${body.keyId}`);
+    assert.ok(body.keyId.startsWith("rzp_live_"), `Key ID should be Razorpay live key, got: ${body.keyId}`);
     assert.ok(body.bookingRecordId, "Should return bookingRecordId");
     assert.ok(body.amountMinor > 0, "Should return non-zero amountMinor");
     assert.equal(body.currency, "INR", "Currency should be INR");

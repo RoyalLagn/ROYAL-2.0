@@ -37,13 +37,11 @@ portfolio, and Clip read policies are unchanged.
 - Daily lifecycle processing queues one reminder per type/date and transitions
   trial, launch, active and grace-period access exactly once.
 
-## Test activation
+## Live-only credentials
 
-Configure `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` as a matching pair.
-Use `rzp_test_...` for testing or `rzp_live_...` for real payments. The generic
-pair takes priority; an incomplete pair fails instead of falling back to test.
-Legacy `RAZORPAY_TEST_KEY_ID` / `RAZORPAY_TEST_KEY_SECRET` continue to work only
-when both generic variables are absent, and accept test keys only.
+Configure `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` as a matching live pair.
+Only `rzp_live_...` Key IDs are accepted. Test credentials and legacy secret
+names are not read. Missing or test credentials fail closed.
 No Key Secret is stored in the client bundle or database. The public checkout
 Key ID is returned by the server when creating an order.
 
@@ -70,5 +68,5 @@ Key ID is returned by the server when creating an order.
 
 Secrets updates take effect without a frontend rebuild. Existing test orders
 must be finished before switching API credentials: the live pair cannot verify
-an old test payment. Roll back by replacing both generic variables with the
-matching test pair, never by changing only one value.
+an old test payment. Only matching live credentials can be used; switching back to test mode requires
+an explicit code change and redeployment.
