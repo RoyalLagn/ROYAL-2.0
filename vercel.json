@@ -30,7 +30,7 @@
       ]
     },
     {
-      "source": "/(admin-manifest\\.webmanifest|manifest\\.webmanifest|admin-install\\.html|admin\\.html)",
+      "source": "/(admin-manifest\\.webmanifest|vendor-manifest\\.webmanifest|manifest\\.webmanifest|admin-install\\.html|vendor-install\\.html|install-app\\.html|app-install\\.js|admin\\.html)",
       "headers": [
         {
           "key": "Cache-Control",

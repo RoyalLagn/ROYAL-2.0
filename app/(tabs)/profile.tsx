@@ -1,3 +1,4 @@
+import WebAppInstallButton from "@/components/pwa/WebAppInstallButton";
 import React, { useEffect, useState } from "react";
 import PageLoader from "@/components/loading/PageLoader";
 import {
@@ -451,6 +452,7 @@ export default function ProfileScreen() {
                   <View style={styles.desktopSectionColumn}>
                     <SectionHeading eyebrow="Support" title="Help & information" />
                     <View style={styles.desktopTileStack}>
+                      <WebAppInstallButton role="customer" />
                       {supportOptions.map((item) => (
                         <AccountOption
                           key={item.title}
@@ -505,6 +507,7 @@ export default function ProfileScreen() {
                     ? surfaceShadow
                     : [styles.nativeSettingsGroup, isDark ? styles.nativeSurfaceDark : styles.nativeSurfaceLight]}
                 >
+                  <WebAppInstallButton role="customer" />
                   {supportOptions.map((item, index) => (
                     <AccountOption
                       key={item.title}

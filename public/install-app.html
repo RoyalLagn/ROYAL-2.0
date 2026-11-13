@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" data-app-role="customer" data-launch-url="/?source=pwa">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#E91E63" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RoyalLagn" />
+  <title>Install RoyalLagn</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icon-180.png" />
+  <link rel="canonical" href="https://royallagn.com/install-app.html" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom)); color: #191418; background: #fff8fb; font: 16px/1.6 system-ui, sans-serif; }
+    main { max-width: 460px; margin: 5vh auto; background: #fff; border: 1px solid #f3dce6; border-radius: 16px; padding: 24px; }
+    img { border-radius: 16px; }
+    h1 { font-size: 24px; line-height: 1.25; margin: 20px 0 12px; }
+    h2 { font-size: 16px; margin: 24px 0 8px; }
+    p { color: #655a61; }
+    ol { padding-left: 22px; }
+    li { margin: 8px 0; }
+    button, a { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 16px; border-radius: 10px; font: 600 14px/1.4 system-ui, sans-serif; cursor: pointer; }
+    button { background: #e91e63; color: #fff; border: 1px solid #e91e63; }
+    a { color: #b61550; border: 1px solid #f3dce6; text-decoration: none; }
+    [hidden] { display: none !important; }
+    button:focus-visible, a:focus-visible { outline: 3px solid #e91e63; outline-offset: 4px; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    #install-status { font-size: 14px; }
+  </style>
+  <script src="/app-install.js" defer></script>
+</head>
+<body>
+  <main>
+    <img src="/icon-192.png" alt="RoyalLagn" width="72" height="72" />
+    <h1>Install RoyalLagn</h1>
+    <p>Add RoyalLagn to your Home Screen and open it like an app. No app store needed.</p>
+    <div class="actions"><button id="install-button" hidden>Install App</button><a href="/?source=pwa">Open RoyalLagn</a></div>
+    <p id="install-status" role="status" aria-live="polite"></p>
+    <h2>Android or desktop</h2>
+    <p>Tap Install App when available. Otherwise, open Chrome or Edge’s menu and choose Install app or Add to Home screen.</p>
+    <h2>Safari</h2>
+    <ol><li>Tap Share.</li><li>Choose Add to Home Screen. Keep Open as Web App enabled if shown.</li><li>Tap Add.</li></ol>
+    <p>Find wedding vendors and manage your bookings after sign-in.</p>
+  </main>
+</body>
+</html>

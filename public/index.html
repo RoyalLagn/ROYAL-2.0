@@ -47,12 +47,27 @@
           /admin/i.test(window.location.pathname) ||
           ["/VendorApplications", "/VendorApplicationDetails", "/team"].includes(window.location.pathname.replace(/\/+$/, ""));
 
+        const isVendorRoute = () => {
+          const path = window.location.pathname.replace(/\/+$/, "");
+          return !isAdminRoute() && (/^\/vendor-/i.test(path) || /^\/Vendor[A-Z_]/.test(path) || path === "/Vendors_dash_profile");
+        };
+
+        let currentInstallRole;
         const syncPwaMetadata = () => {
           const admin = isAdminRoute();
-          manifest.href = admin ? "/admin-manifest.webmanifest" : "/manifest.webmanifest";
+          const vendor = isVendorRoute();
+          const role = admin ? "admin" : vendor ? "vendor" : "customer";
+          if (currentInstallRole && role !== currentInstallRole) {
+            window.__royalLagnAdminInstallPrompt = null;
+            window.__royalLagnAppInstallPrompt = null;
+            window.dispatchEvent(new Event("royallagn-app-install-ready"));
+            window.dispatchEvent(new Event("royallagn-admin-install-ready"));
+          }
+          currentInstallRole = role;
+          manifest.href = admin ? "/admin-manifest.webmanifest" : vendor ? "/vendor-manifest.webmanifest" : "/manifest.webmanifest";
           appleTouchIcon.href = admin ? "/admin-icon-192.png" : "/icon-180.png";
           themeColor.content = admin ? "#06234D" : "#E91E63";
-          document.querySelector('meta[name="apple-mobile-web-app-title"]').content = admin ? "RL Admin" : "RoyalLagn";
+          document.querySelector('meta[name="apple-mobile-web-app-title"]').content = admin ? "RL Admin" : vendor ? "RL Vendor" : "RoyalLagn";
           const canonical = document.querySelector('link[rel="canonical"]');
           if (admin) canonical.href = location.origin + "/AdminLogin";
           else if (canonical.href === location.origin + "/AdminLogin") canonical.href = location.origin + location.pathname;
@@ -72,13 +87,19 @@
         window.addEventListener("popstate", syncPwaMetadata);
 
         window.__royalLagnAdminInstallPrompt = null;
+        window.__royalLagnAppInstallPrompt = null;
         window.addEventListener("beforeinstallprompt", (event) => {
-          if (!isAdminRoute()) return;
           event.preventDefault();
-          window.__royalLagnAdminInstallPrompt = event;
-          window.dispatchEvent(new Event("royallagn-admin-install-ready"));
+          if (isAdminRoute()) {
+            window.__royalLagnAdminInstallPrompt = event;
+            window.dispatchEvent(new Event("royallagn-admin-install-ready"));
+          } else {
+            window.__royalLagnAppInstallPrompt = { role: isVendorRoute() ? "vendor" : "customer", event };
+            window.dispatchEvent(new Event("royallagn-app-install-ready"));
+          }
         });
         window.addEventListener("appinstalled", () => {
+          window.__royalLagnAppInstallPrompt = null;
           window.__royalLagnAdminInstallPrompt = null;
         });
 

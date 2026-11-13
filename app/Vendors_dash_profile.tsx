@@ -1,3 +1,4 @@
+import WebAppInstallButton from "@/components/pwa/WebAppInstallButton";
 import React, { useState } from "react";
 import { Alert, Image, Modal, Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -151,6 +152,7 @@ export default function VendorProfile() {
       </View>
       </VendorDashboardReveal>)}
       </View>
+      <WebAppInstallButton role="vendor" />
       <VendorDashboardReveal delay={MotionStagger.item * 3} style={blockStyle}>
       <View style={wideWebLayout && styles.utilityWide}>
       <LogoutRow colors={colors} wide={wideWebLayout} onPress={logout} />

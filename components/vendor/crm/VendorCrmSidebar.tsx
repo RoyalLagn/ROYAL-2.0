@@ -1,3 +1,4 @@
+import WebAppInstallButton from "@/components/pwa/WebAppInstallButton";
 import React from "react";
 import {
   Image,
@@ -225,6 +226,8 @@ export default function VendorCrmSidebar({
             );
           })}
         </View>
+
+        <WebAppInstallButton role="vendor" sidebar />
 
         {/* Desktop Help Card */}
         {!isMobileDrawer ? (
